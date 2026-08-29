@@ -1,4 +1,10 @@
 import { ACTIVITY_ROLES, resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
+import {
+  getStoredAssignmentQuestions,
+  getStoredAssignmentVariantMode,
+  getStoredSectionVariantMode,
+  getStoredSectionVariantModes,
+} from './platform/contract/storedAssignmentV5.js';
 
 export const CLASS_PERIODS = Array.from({ length: 8 }, (_, index) => `Period ${index + 1}`);
 
@@ -8,9 +14,7 @@ export const questionIsIncluded = (question) => question?.teacherExcluded !== tr
 export const getIncludedQuestionIndices = (assignmentOrQuestions) => {
   const questions = Array.isArray(assignmentOrQuestions)
     ? assignmentOrQuestions
-    : Array.isArray(assignmentOrQuestions?.questions)
-      ? assignmentOrQuestions.questions
-      : [];
+    : getStoredAssignmentQuestions(assignmentOrQuestions);
   return questions.reduce((indices, question, index) => {
     if (questionIsIncluded(question)) indices.push(index);
     return indices;
@@ -123,55 +127,35 @@ const normalizeClassContext = (value) => {
   return { classId: null, classPeriod: String(value || '').trim() || null };
 };
 
-// Modern assignments are addressed to real class entities. Period targeting is
-// retained only for assignments created before class IDs existed. Crucially, if
-// an assignment HAS class IDs, a matching period must never widen its audience:
-// two teachers can both have a "Period 3" and they are not the same class.
+// Assignment audience is class-ID only. Bell periods are schedule metadata,
+// not identities: two real classes may share the same period label.
 export const assignmentIsForStudent = (assignment, classContext) => {
-  const { classId, classPeriod } = normalizeClassContext(classContext);
+  const { classId } = normalizeClassContext(classContext);
   const assignedClassIds = Array.isArray(assignment?.assignedClassIds)
     ? assignment.assignedClassIds.map((value) => String(value || '').trim()).filter(Boolean)
     : [];
-  if (assignedClassIds.length > 0) return Boolean(classId && assignedClassIds.includes(classId));
-
-  const assignedPeriods = Array.isArray(assignment?.assignedClassPeriods)
-    ? assignment.assignedClassPeriods.filter(Boolean)
-    : [];
-  // Student audience is explicit: an empty list means Library / Not assigned.
-  // It must never behave as a wildcard, or Library items leak onto every student dashboard.
-  return assignedPeriods.length > 0 && Boolean(classPeriod && assignedPeriods.includes(classPeriod));
+  return assignedClassIds.length > 0 && Boolean(classId && assignedClassIds.includes(classId));
 };
 
-const scopedOverride = ({ byClassId, byClassPeriod, classId, classPeriod }) => {
-  const modern = byClassId && typeof byClassId === 'object' ? byClassId : {};
-  // Once a class-ID map exists, it is authoritative even when this particular
-  // class has no entry. Falling through to a same-named period here would make
-  // another class inherit the control.
-  if (Object.keys(modern).length > 0) return classId ? modern[classId] || null : null;
-  return classPeriod && byClassPeriod && typeof byClassPeriod === 'object'
-    ? byClassPeriod[classPeriod] || null
-    : null;
+const scopedOverride = ({ byClassId, classId }) => {
+  const overrides = byClassId && typeof byClassId === 'object' ? byClassId : {};
+  return classId ? overrides[classId] || null : null;
 };
 
-// Three modes now, not two. 'adaptive' was silently falling through this gate
-// to 'personalized', so an assignment authored as adaptive delivered a variant
-// and nobody was told. The canonical vocabulary and the legacy mapping live in
-// `platform/assignments/assignmentAdaptation.js`; this set only decides whether
-// a stored value is one the platform recognises at all.
+// Delivery modes are read only from Assignment V5 variantPolicy. Retired
+// top-level mirrors are intentionally ignored.
 const VERSION_MODES = new Set(['shared', 'personalized', 'variant', 'adaptive']);
 
-// Bundled assignments can mix delivery modes by activity section. The old
-// assignment-level variantMode remains the fallback so every assignment saved
-// before this feature behaves exactly as it did before.
 export const getSectionVariantMode = (assignment, activityRole) => {
-  const role = String(activityRole || '').trim().toLowerCase();
-  const sectionMode = assignment?.sectionVariantModes?.[role];
+  const sectionMode = getStoredSectionVariantMode(assignment, activityRole);
   if (VERSION_MODES.has(sectionMode)) return sectionMode;
-  return VERSION_MODES.has(assignment?.variantMode) ? assignment.variantMode : 'personalized';
+  const assignmentMode = getStoredAssignmentVariantMode(assignment);
+  return VERSION_MODES.has(assignmentMode) ? assignmentMode : 'personalized';
 };
 
 export const hasMixedSectionVariantModes = (assignment) => {
-  const modes = Object.values(assignment?.sectionVariantModes || {}).filter((mode) => VERSION_MODES.has(mode));
+  const modes = Object.values(getStoredSectionVariantModes(assignment))
+    .filter((mode) => VERSION_MODES.has(mode));
   return new Set(modes).size > 1;
 };
 
@@ -190,7 +174,7 @@ const SECTION_ACCESS_STATES = new Set(['open', 'closed']);
 // students may revisit everything, but none of it writes grades/evidence.
 export const getSectionAccessState = ({ assignment, activityRole, classId = null, classPeriod, nowValue = Date.now() }) => {
   const role = String(activityRole || '').trim().toLowerCase();
-  const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const questions = getStoredAssignmentQuestions(assignment);
   const exists = questions.some((question) => questionIsIncluded(question)
     && resolveQuestionActivityRole({ question, assignment }) === role);
   const lifecycle = getAssignmentLifecycle(assignment, nowValue);
@@ -211,7 +195,7 @@ export const getSectionAccessState = ({ assignment, activityRole, classId = null
   const config = assignment?.sectionAccess?.[role] || {};
   const configuredDefault = String(config.defaultState || assignment?.sectionAccessDefaults?.[role] || 'open').toLowerCase();
   const defaultState = SECTION_ACCESS_STATES.has(configuredDefault) ? configuredDefault : 'open';
-  const override = scopedOverride({ byClassId: config?.overridesByClassId, byClassPeriod: config?.overridesByClassPeriod, classId, classPeriod });
+  const override = scopedOverride({ byClassId: config?.overridesByClassId, classId });
   const overrideState = String(override?.state || '').toLowerCase();
   const status = SECTION_ACCESS_STATES.has(overrideState) ? overrideState : defaultState;
   return { role, enabled: true, status, isOpen: status === 'open', defaultState, override, lifecycle };
@@ -351,7 +335,7 @@ export const getPeriodWindow = (scheduleValue, classPeriod, nowValue = Date.now(
 };
 
 export const getWarmupState = ({ assignment, schedule, classId = null, classPeriod, nowValue = Date.now() }) => {
-  const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const questions = getStoredAssignmentQuestions(assignment);
   const includedQuestions = questions.filter(questionIsIncluded);
   const enabled = assignment?.warmup?.enabled ?? includedQuestions.some((question) => (
     resolveQuestionActivityRole({ question, assignment }) === ACTIVITY_ROLES.WARMUP
@@ -378,7 +362,7 @@ export const getWarmupState = ({ assignment, schedule, classId = null, classPeri
 
   const opensAt = new Date(window.start.getTime() - minutesBeforeStart * 60000);
   const endsAt = window.end;
-  const closedRecord = scopedOverride({ byClassId: assignment?.warmup?.closedByClassId, byClassPeriod: assignment?.warmup?.closedByClassPeriod, classId, classPeriod });
+  const closedRecord = scopedOverride({ byClassId: assignment?.warmup?.closedByClassId, classId });
   const closedAtValue = typeof closedRecord === 'object' ? closedRecord?.closedAt : closedRecord;
   const closedDateKey = typeof closedRecord === 'object' ? closedRecord?.dateKey : null;
   const closedAt = closedAtValue ? parseLocalDateTime(closedAtValue, false) : null;
@@ -408,7 +392,7 @@ export const getWarmupState = ({ assignment, schedule, classId = null, classPeri
 };
 
 export const resolveDOLQuestionIndices = (assignment) => {
-  const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const questions = getStoredAssignmentQuestions(assignment);
   const included = getIncludedQuestionIndices(questions);
   if (!included.length) return [];
 
@@ -431,21 +415,15 @@ export const resolveDOLQuestionIndices = (assignment) => {
 export const resolveDOLQuestionIndex = (assignment) => resolveDOLQuestionIndices(assignment)[0] ?? -1;
 
 export const getDOLState = ({ assignment, schedule, classId = null, classPeriod, nowValue = Date.now() }) => {
-  const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const questions = getStoredAssignmentQuestions(assignment);
   const includedQuestions = questions.filter(questionIsIncluded);
   const hasAuthoredDOL = includedQuestions.some((question) => (
     resolveQuestionActivityRole({ question, assignment }) === ACTIVITY_ROLES.DOL
   ));
-  const hasExplicitActivityRoles = includedQuestions.some((question) => (
-    typeof question?.activityRole === 'string' || typeof question?.role === 'string'
-  ));
   // `dol.enabled` is an explicit teacher/runtime setting. When it is absent,
-  // an authored DOL section is enough to enable the window. Only truly legacy
-  // practice assignments with no per-question roles retain the old implicit
-  // DOL behavior; a modern Practice section must not turn an arbitrary middle
-  // question into a DOL.
-  const legacyImplicitPracticeDOL = !hasExplicitActivityRoles && assignment?.assignmentType === 'practice';
-  const enabled = assignment?.dol?.enabled ?? (hasAuthoredDOL || legacyImplicitPracticeDOL);
+  // an authored V5 DOL section is enough to enable the window. Practice-only
+  // assignments never invent an implicit DOL from retired assignmentType state.
+  const enabled = assignment?.dol?.enabled ?? hasAuthoredDOL;
   const questionIndices = resolveDOLQuestionIndices(assignment);
   const questionIndex = questionIndices[0] ?? -1;
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
@@ -469,7 +447,7 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
 
   const durationMinutes = Math.max(1, Number(assignment?.dol?.minutesBeforeEnd || 10));
   const regularOpensAt = new Date(window.end.getTime() - durationMinutes * 60000);
-  const unlock = scopedOverride({ byClassId: assignment?.dol?.earlyUnlocksByClassId, byClassPeriod: assignment?.dol?.earlyUnlocks, classId, classPeriod });
+  const unlock = scopedOverride({ byClassId: assignment?.dol?.earlyUnlocksByClassId, classId });
   const unlockDateKey = typeof unlock === 'object' ? unlock?.dateKey : null;
   const unlockAtValue = typeof unlock === 'object' ? unlock?.unlockedAt : unlock;
   const unlockAtParsed = unlockAtValue ? parseLocalDateTime(unlockAtValue, false) : null;
@@ -555,7 +533,7 @@ export const recordAssignmentActivity = ({ activity, assignment, seconds = 0, no
 };
 
 export const evaluateClassworkCompletion = ({ assignment, assignmentTracker, activity }) => {
-  const questions = Array.isArray(assignment?.questions) ? assignment.questions : [];
+  const questions = getStoredAssignmentQuestions(assignment);
   const included = getIncludedQuestionIndices(questions);
   const classworkIndices = included.filter((index) => (
     resolveQuestionActivityRole({ question: questions[index], assignment }) === ACTIVITY_ROLES.CLASSWORK

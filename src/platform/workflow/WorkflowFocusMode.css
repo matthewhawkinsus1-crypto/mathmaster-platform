@@ -90,12 +90,72 @@
   color: #174ea6;
 }
 
+.workflow-focus__summary-link {
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workflow-focus__summary-link:hover:not(:disabled),
+.workflow-focus__summary-link:focus-visible {
+  border-color: #1a73e8;
+  background: #eef5ff;
+  outline: none;
+}
+
+.workflow-focus__summary-link:disabled {
+  cursor: default;
+}
+
 .workflow-focus__workspace {
   border: 1px solid #c9d7ea;
   border-radius: 14px;
   background: #fff;
   padding: 18px;
   box-shadow: 0 2px 8px rgba(31, 55, 90, .05);
+}
+
+
+.workflow-focus__workspace-body {
+  display: block;
+}
+
+.workflow-focus__workspace-body--with-graph {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, .9fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.workflow-focus__active-stage {
+  min-width: 0;
+}
+
+.workflow-focus__graph-reference {
+  min-width: 0;
+  position: sticky;
+  top: 12px;
+  border: 1px solid #c5d5ef;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 12px;
+}
+
+.workflow-focus__graph-reference-title {
+  color: #174ea6;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.workflow-focus__graph-reference p {
+  margin: 5px 0 0;
+  color: #5f6368;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workflow-focus__graph-reference .mathmaster-responsive-canvas {
+  max-height: 360px;
 }
 
 .workflow-focus__workspace-heading {
@@ -172,6 +232,19 @@
 }
 
 @media (max-width: 700px) {
+  .workflow-focus__workspace-body--with-graph {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-focus__graph-reference {
+    position: static;
+    order: -1;
+  }
+
+  .workflow-focus__graph-reference .mathmaster-responsive-canvas {
+    max-height: 300px;
+  }
+
   .workflow-focus__workspace {
     padding: 13px;
   }

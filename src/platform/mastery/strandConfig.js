@@ -58,7 +58,28 @@ const ALGEBRA_II_STRAND_LIST = Object.freeze(
     .filter((entry) => entry.codes.length),
 );
 
+const MIDDLE_SCHOOL_COLORS = Object.freeze(['#1a73e8', '#137333', '#b06000', '#a142f4', '#c5221f', '#0b8043', '#8430ce']);
+
+const buildMiddleSchoolStrands = (courseId) => {
+  const standards = getTexasStandardsForCourse(courseId).filter((standard) => standard.classification !== 'process');
+  const courseLabel = standards[0]?.course || courseId;
+  const sections = [...new Set(standards.map((standard) => Number(standard.strand)).filter(Number.isFinite))].sort((a, b) => a - b);
+  return Object.freeze(sections.map((section, index) => strand(
+    `${courseId}_strand_${section}`,
+    `${courseLabel} · TEKS ${String(courseId).replace('grade', '')}.${section}`,
+    MIDDLE_SCHOOL_COLORS[index % MIDDLE_SCHOOL_COLORS.length],
+    standards.filter((standard) => Number(standard.strand) === section).map((standard) => standard.code),
+  )).filter((entry) => entry.codes.length));
+};
+
+const GRADE_6_STRAND_LIST = buildMiddleSchoolStrands('grade6');
+const GRADE_7_STRAND_LIST = buildMiddleSchoolStrands('grade7');
+const GRADE_8_STRAND_LIST = buildMiddleSchoolStrands('grade8');
+
 const STRANDS_BY_COURSE = Object.freeze({
+  grade6: GRADE_6_STRAND_LIST,
+  grade7: GRADE_7_STRAND_LIST,
+  grade8: GRADE_8_STRAND_LIST,
   algebra1: ALGEBRA_I_STRAND_LIST,
   'algebra1-honors': ALGEBRA_I_STRAND_LIST,
   algebra2: ALGEBRA_II_STRAND_LIST,
@@ -86,9 +107,14 @@ export const getWheelTeksForCourse = (courseId = DEFAULT_MASTERY_COURSE_ID) => g
  * course — a launch link, a saved recommendation — still lands on the right
  * wheel.
  */
-export const courseIdForTeks = (teksCode) => (
-  /^A2\./i.test(toDisplayCode(teksCode)) ? 'algebra2' : 'algebra1'
-);
+export const courseIdForTeks = (teksCode) => {
+  const code = toDisplayCode(teksCode);
+  if (/^6\./i.test(code)) return 'grade6';
+  if (/^7\./i.test(code)) return 'grade7';
+  if (/^8\./i.test(code)) return 'grade8';
+  if (/^A2\./i.test(code)) return 'algebra2';
+  return 'algebra1';
+};
 
 export const getStrandForTEKS = (teksCode, courseId = null) => {
   const code = toDisplayCode(teksCode);
@@ -110,7 +136,7 @@ export const MASTERY_STATUS_COLORS = Object.freeze({
  */
 export const masteryCourseLabel = (courseId = DEFAULT_MASTERY_COURSE_ID) => {
   const standards = getTexasStandardsForCourse(courseId.replace(/-honors$/, ''));
-  return standards[0]?.course || (courseIdForTeks(courseId) === 'algebra2' ? 'Algebra II' : 'Algebra I');
+  return standards[0]?.course || String(courseId || DEFAULT_MASTERY_COURSE_ID).replace(/-honors$/, '');
 };
 
 // --- Compatibility ----------------------------------------------------------

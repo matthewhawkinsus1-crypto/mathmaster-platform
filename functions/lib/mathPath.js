@@ -164,17 +164,34 @@ function normalizeChoices(choices) {
 }
 
 function normalizeResponseFields(fields = []) {
-  return (Array.isArray(fields) ? fields : []).map((field, index) => ({
-    id: String(field?.id || `response-${index + 1}`),
-    label: String(field?.label || `Response ${index + 1}`),
-    inputProfile: field?.inputProfile || 'text',
-    unit: field?.unit || null,
-    // Short instruction rendered with the input ("Give your answer in interval
-    // notation"). Presentation only.
-    responseHint: field?.responseHint ? String(field.responseHint).slice(0, 160) : null,
-    placeholder: field?.placeholder ? String(field.placeholder).slice(0, 60) : null,
-    ...(Array.isArray(field?.choices) ? { choices: normalizeChoices(field.choices) } : {}),
-  }));
+  const safeSymbols = (value) => (Array.isArray(value) ? value : [])
+    .map((symbol) => String(symbol || '').trim())
+    .filter(Boolean)
+    .slice(0, 16);
+  return (Array.isArray(fields) ? fields : []).map((field, index) => {
+    const answerFormat = field?.answerFormat || field?.inputContract?.format || null;
+    const requiredSymbols = safeSymbols(field?.requiredSymbols || field?.inputContract?.requiredSymbols);
+    return {
+      id: String(field?.id || `response-${index + 1}`),
+      label: String(field?.label || `Response ${index + 1}`),
+      inputProfile: field?.inputProfile || 'text',
+      unit: field?.unit || null,
+      // Entry metadata is public presentation state, not grading state. Preserve
+      // it so the client can guarantee that the expected notation is typeable,
+      // while expected/accepted answers remain server-private.
+      answerFormat: answerFormat ? String(answerFormat).slice(0, 40) : null,
+      requiredSymbols,
+      inputContract: answerFormat || requiredSymbols.length ? {
+        format: answerFormat ? String(answerFormat).slice(0, 40) : null,
+        requiredSymbols,
+      } : null,
+      // Short instruction rendered with the input ("Give your answer in interval
+      // notation"). Presentation only.
+      responseHint: field?.responseHint ? String(field.responseHint).slice(0, 160) : null,
+      placeholder: field?.placeholder ? String(field.placeholder).slice(0, 60) : null,
+      ...(Array.isArray(field?.choices) ? { choices: normalizeChoices(field.choices) } : {}),
+    };
+  });
 }
 
 // Question material a student must SEE to answer: the table they are reading,
@@ -300,11 +317,24 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
         return {
           framework,
           domainId: String(question.assessmentContext.domainId || directAlignment?.domainId || ''),
+          subtest: question.assessmentContext.subtest ? String(question.assessmentContext.subtest) : null,
           examStyle: question.assessmentContext.examStyle === true,
         };
       })()
       : null,
     assessmentBridgeFramework: question.assessmentBridgeFramework ? String(question.assessmentBridgeFramework) : null,
+    assessmentItemFormat: question.assessmentItemFormat ? String(question.assessmentItemFormat) : null,
+    examCalculatorMode: question.examCalculatorMode ? String(question.examCalculatorMode) : null,
+    ccmrChallengeTier: Math.max(1, Math.min(3, Number(question.ccmrChallengeTier || 1) || 1)),
+    ccmrFamilyRole: question.ccmrFamilyRole ? String(question.ccmrFamilyRole) : null,
+    ccmrFidelity: question.ccmrFidelity && typeof question.ccmrFidelity === 'object' ? {
+      version: Number(question.ccmrFidelity.version) || 2,
+      variantKind: question.ccmrFidelity.variantKind ? String(question.ccmrFidelity.variantKind) : null,
+      responseMode: question.ccmrFidelity.responseMode ? String(question.ccmrFidelity.responseMode) : null,
+      officialReferenceIds: Array.isArray(question.ccmrFidelity.officialReferenceIds)
+        ? question.ccmrFidelity.officialReferenceIds.map(String).slice(0, 8)
+        : [],
+    } : null,
     prompt: String(question.prompt || ''),
     choices: normalizeChoices(question.choices),
     formulaLatex: question.formulaLatex ? String(question.formulaLatex) : null,

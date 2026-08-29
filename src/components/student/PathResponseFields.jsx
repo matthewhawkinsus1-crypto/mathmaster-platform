@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import MathText from '../common/MathText.jsx';
 import MathInput from '../../MathInput.jsx';
+import { normalizeInteractionInputProfile, toolProfileForInputProfile } from '../../platform/interaction/interactionContract.js';
 
 // The generic secure Path response.
 //
@@ -67,30 +68,7 @@ const HINT = {
   lineHeight: 1.5,
 };
 
-// Which MathInput keypad each answer profile gets, so the symbols on offer are
-// the ones the question actually needs.
-const TOOL_PROFILE = {
-  interval: 'interval',
-  inequality: 'inequality',
-  set: 'set',
-  equation: 'equation',
-  expression: 'expression',
-  orderedPair: 'expression',
-  number: 'expression',
-};
-
-const normalizeProfile = (profile) => {
-  const value = String(profile || 'text').trim();
-  if (['choice', 'multipleChoice', 'multiple-choice', 'select'].includes(value)) return 'choice';
-  if (['number', 'numeric', 'integer', 'decimal'].includes(value)) return 'number';
-  if (['expression', 'symbolic', 'math'].includes(value)) return 'expression';
-  if (['equation', 'formula'].includes(value)) return 'equation';
-  if (['interval', 'intervalNotation'].includes(value)) return 'interval';
-  if (['inequality'].includes(value)) return 'inequality';
-  if (['set', 'setNotation'].includes(value)) return 'set';
-  if (['orderedPair', 'ordered-pair', 'point'].includes(value)) return 'orderedPair';
-  return 'text';
-};
+const normalizeProfile = (profile) => normalizeInteractionInputProfile(profile) || 'text';
 
 const DEFAULT_HINT = {
   interval: 'Write your answer in interval notation, for example [-3, 5).',
@@ -165,7 +143,12 @@ function WordField({ field, value, onChange, onSubmit, disabled, autoFocus }) {
   const hint = field.responseHint || null;
 
   useEffect(() => {
-    if (autoFocus) inputRef.current?.focus();
+    if (!autoFocus || !inputRef.current) return;
+    try {
+      inputRef.current.focus({ preventScroll: true });
+    } catch {
+      inputRef.current.focus();
+    }
   }, [autoFocus]);
 
   return (
@@ -212,11 +195,10 @@ function WordField({ field, value, onChange, onSubmit, disabled, autoFocus }) {
  * editor and grades what comes back with the real server grader — the evidence
  * that the graders accept it, rather than the assumption.
  *
- * Enter does not submit here: in a math field Enter is a structural key, and
- * binding it to "check my answer" would end the question mid-expression. The
- * Check button is directly below and follows the student down the page.
+ * Enter checks here because this renderer has one unambiguous primary action.
+ * Multi-step algebra editors do not pass an onSubmit prop to MathInput.
  */
-function MathField({ field, profile, value, onChange, disabled, autoFocus }) {
+function MathField({ field, profile, value, onChange, onSubmit, disabled, autoFocus }) {
   const hint = field.responseHint || DEFAULT_HINT[profile] || null;
   return (
     <div>
@@ -226,10 +208,13 @@ function MathField({ field, profile, value, onChange, disabled, autoFocus }) {
       <MathInput
         value={value ?? ''}
         onChange={onChange}
-        toolProfile={TOOL_PROFILE[profile] || 'expression'}
+        toolProfile={toolProfileForInputProfile(profile)}
+        answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || (profile === 'orderedPair' ? 'orderedPair' : profile)}
+        requiredSymbols={field.requiredSymbols || field.inputContract?.requiredSymbols || []}
         placeholder={field.placeholder || ''}
         ariaLabel={field.label || 'Answer'}
         focusSignal={autoFocus ? 1 : 0}
+        onSubmit={disabled ? null : onSubmit}
         showToolsInitially
         maxWidth={640}
         inputStatus={disabled ? 'neutral' : 'neutral'}
@@ -292,6 +277,7 @@ export const PathResponseFields = ({
             profile={profile}
             value={values[field.id]}
             onChange={(next) => onChangeField(field.id, next)}
+            onSubmit={onSubmit}
             disabled={disabled}
             autoFocus={index === 0}
           />

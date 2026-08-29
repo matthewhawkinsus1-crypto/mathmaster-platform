@@ -5,17 +5,21 @@ const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore, FieldPath, FieldValue } = require("firebase-admin/firestore");
 const { getStorage } = require("firebase-admin/storage");
+const { setGlobalOptions } = require("firebase-functions/v2");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
 
 const classroomLib = require("./lib/classroom");
+const { runtimeQuestionCount } = require("./lib/assignmentRuntime");
 const driveResources = require("./lib/driveResources");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const {
   GOOGLE_API_SECRETS,
   GOOGLE_AND_LINK_SECRETS,
   LINK_ENCRYPTION_KEY,
+  ASSIGNMENT_AI_SECRETS,
+  readOpenAiApiKey,
   readPublicEnv,
   readGoogleClientId,
   readGoogleClientSecret,
@@ -43,6 +47,16 @@ const rigorPolicy = require("./lib/rigorPolicy");
 // engine in functions/shared/pathSessionRouting.mjs; this seam supplies the
 // server-side facts (mastery documents, coverage indexes) it reasons over.
 const pathRouting = require("./lib/pathRouting");
+const pathContentRelease = require("./lib/pathContentRelease");
+const assignmentAi = require("./lib/assignmentAi");
+const ccmrAssignmentBank = require("./lib/ccmrAssignmentBank");
+
+// HTTPS/callable transport must be reachable by the Firebase client SDK.
+// MathMaster authorization still happens INSIDE each callable through
+// requireStudent/requireTeacher/requireRootAdmin. Source-controlling this
+// prevents a redeploy from silently returning a Cloud Run service to
+// "Require authentication" before Firebase Auth can be inspected.
+setGlobalOptions({ invoker: "public" });
 
 initializeApp();
 
@@ -121,16 +135,13 @@ function safePdfFileName(value, fallback = "MathMaster_Student_Notes.pdf") {
 }
 
 const assignmentAudience = (assignment = {}) => ({
-  classIds: [...new Set((Array.isArray(assignment.assignedClassIds) ? assignment.assignedClassIds : []).map(String).map((value) => value.trim()).filter(Boolean))],
-  classPeriods: [...new Set((Array.isArray(assignment.assignedClassPeriods) ? assignment.assignedClassPeriods : []).map(String).map((value) => value.trim()).filter(Boolean))],
+  classIds: [...new Set((Array.isArray(assignment.assignedClassIds) ? assignment.assignedClassIds : [])
+    .map(String).map((value) => value.trim()).filter(Boolean))],
 });
 
-const studentMatchesAssignmentAudience = ({ assignment = {}, classId = null, classPeriod = null } = {}) => {
+const studentMatchesAssignmentAudience = ({ assignment = {}, classId = null } = {}) => {
   const audience = assignmentAudience(assignment);
-  // Modern assignments are class-ID authoritative. A matching period must not
-  // widen the audience when two real classes share the same schedule label.
-  if (audience.classIds.length) return Boolean(classId && audience.classIds.includes(String(classId)));
-  return Boolean(classPeriod && audience.classPeriods.includes(String(classPeriod)));
+  return Boolean(classId && audience.classIds.includes(String(classId)));
 };
 
 async function assertTeacherMayManageAssignment(request, assignmentSnap) {
@@ -143,7 +154,7 @@ async function assertTeacherMayManageAssignment(request, assignmentSnap) {
 
   const assignment = assignmentSnap.data() || {};
   const audience = assignmentAudience(assignment);
-  if (!audience.classIds.length && !audience.classPeriods.length) {
+  if (!audience.classIds.length) {
     throw new HttpsError(
       "failed-precondition",
       "Assign this lesson to a MathMaster class before publishing its Classroom resource package."
@@ -151,24 +162,10 @@ async function assertTeacherMayManageAssignment(request, assignmentSnap) {
   }
 
   const db = getFirestore();
-  if (audience.classIds.length) {
-    const snapshots = await Promise.all(audience.classIds.map((classId) => db.collection("classes").doc(classId).get()));
-    const ownsEveryClass = snapshots.every((snapshot) => snapshot.exists
-      && String(snapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === teacherEmail);
-    if (!ownsEveryClass) {
-      throw new HttpsError(
-        "permission-denied",
-        "Only the teacher of record for every assigned class may publish this lesson's generated resources."
-      );
-    }
-    return { teacherUid, teacherEmail };
-  }
-
-  // Legacy assignments predate class IDs. Their period audience is kept only
-  // as a compatibility path until the teacher edits/saves the assignment.
-  const classes = await db.collection("classes").where("teacherOfRecord", "==", teacherEmail).get();
-  const ownedPeriods = new Set(classes.docs.map((doc) => String(doc.data()?.period || "")).filter(Boolean));
-  if (!audience.classPeriods.every((period) => ownedPeriods.has(period))) {
+  const snapshots = await Promise.all(audience.classIds.map((classId) => db.collection("classes").doc(classId).get()));
+  const ownsEveryClass = snapshots.every((snapshot) => snapshot.exists
+    && String(snapshot.data()?.teacherOfRecord || "").trim().toLowerCase() === teacherEmail);
+  if (!ownsEveryClass) {
     throw new HttpsError(
       "permission-denied",
       "Only the teacher of record for every assigned class may publish this lesson's generated resources."
@@ -1411,18 +1408,126 @@ async function pathCoverage() {
 
 const COVERAGE_COLLECTION = "pathCoverage";
 
-const PATH_RUNTIME_RELEASE = "path-bank-2026-08-29-r10-asvab-rebuild";
+const PATH_RUNTIME_RELEASE = "path-bank-2026-08-29-r12-asvab-rebuild";
+const PATH_COURSE_IDS = Object.freeze(["grade6", "grade7", "grade8", "algebra1", "algebra2"]);
+const CONTENT_RELEASE_MANIFEST_COLLECTION = "pathContentReleases";
+const CONTENT_RELEASE_MANIFEST_DOC = "current";
+const COORDINATED_CCMR_RELEASE_SEED_FILES = Object.freeze([
+  "digitalSAT_pathQuestionBank_seed.json",
+  "act_pathQuestionBank_seed.json",
+  "tsia2_pathQuestionBank_seed.json",
+]);
+const COORDINATED_CCMR_RELEASE_FRAMEWORKS = Object.freeze(["act", "digitalSAT", "tsia2"]);
 
+async function loadAssessmentContentReleaseState(db, framework, records = []) {
+  const manifestSnapshot = await db.collection(CONTENT_RELEASE_MANIFEST_COLLECTION).doc(CONTENT_RELEASE_MANIFEST_DOC).get();
+  const manifest = manifestSnapshot.exists ? manifestSnapshot.data() : null;
+  return pathContentRelease.resolveAssessmentContentReleaseAuthority(records, framework, manifest);
+}
 
-/**
- * Which course's coverage index answers for a standard.
- *
- * The same rule the client's `courseIdForTeks` uses: an `A2.` code is Algebra
- * II, anything else is Algebra I. Prerequisites from earlier grades live in the
- * `offWheel` section of whichever course routed to them.
- */
+function pathQuestionMatchesSessionContentRelease(question, session = {}) {
+  const sessionFramework = String(session?.assessmentFramework || "").trim();
+  const sessionRelease = String(session?.assessmentContentRelease || "").trim();
+  const questionFramework = String(question?.assessmentContext?.framework || "").trim();
+  if (!sessionFramework || !sessionRelease || questionFramework !== sessionFramework) return true;
+  return String(question?.ccmrContentRelease || "").trim() === sessionRelease;
+}
+
+function assessmentReleaseUpdateError(framework) {
+  return new HttpsError(
+    "unavailable",
+    String(framework) + " practice is being updated. Reopen this practice after the release switch completes.",
+    { reason: pathContentRelease.RELEASE_UPDATE_REASON, assessmentFramework: framework },
+  );
+}
+
+let texasStandardsModule = null;
+async function texasStandardsRegistry() {
+  if (!texasStandardsModule) texasStandardsModule = await import("./shared/texasStandards.mjs");
+  return texasStandardsModule;
+}
+
+/** Which canonical course owns a Texas standard. */
 function coverageCourseIdFor(alignmentKey) {
-  return /^(texas:)?A2\./i.test(String(alignmentKey || "").trim()) ? "algebra2" : "algebra1";
+  const code = String(alignmentKey || "").trim().replace(/^texas:/i, "").toUpperCase();
+  if (/^6\./.test(code)) return "grade6";
+  if (/^7\./.test(code)) return "grade7";
+  if (/^8\./.test(code)) return "grade8";
+  if (/^A2\./.test(code)) return "algebra2";
+  return "algebra1";
+}
+
+function pathDiagnosticId(operation = "path") {
+  const safe = String(operation || "path").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase() || "path";
+  return `${safe}-${Date.now().toString(36)}-${crypto.randomBytes(4).toString("hex")}`;
+}
+
+function isHttpsCallableError(error) {
+  return error instanceof HttpsError || [
+    "cancelled", "unknown", "invalid-argument", "deadline-exceeded", "not-found",
+    "already-exists", "permission-denied", "resource-exhausted", "failed-precondition",
+    "aborted", "out-of-range", "unimplemented", "internal", "unavailable",
+    "data-loss", "unauthenticated",
+  ].includes(String(error?.code || "").replace(/^functions\//, ""));
+}
+
+async function withPathCallableDiagnostics(operation, handler) {
+  try {
+    return await handler();
+  } catch (error) {
+    if (isHttpsCallableError(error)) throw error;
+    const diagnosticId = pathDiagnosticId(operation);
+    logger.error("Unexpected My Math Path callable failure", {
+      operation, diagnosticId,
+      message: error?.message || String(error),
+      stack: error?.stack || null,
+    });
+    throw new HttpsError(
+      "internal",
+      "My Math Path could not complete this server operation.",
+      { reason: "path-runtime-internal", operation, diagnosticId },
+    );
+  }
+}
+
+async function safeBuildTemplateIssuePlan(question, { operation = "path-validation" } = {}) {
+  try {
+    return await mathPath.buildTemplateIssuePlan(question);
+  } catch (error) {
+    const diagnosticId = pathDiagnosticId(operation);
+    logger.error("Path-bank template validator threw instead of returning a plan", {
+      operation, diagnosticId,
+      questionId: question?.id || null,
+      familyId: question?.familyId || null,
+      questionType: question?.questionType || null,
+      pathToolId: question?.pathToolId || question?.toolId || question?.tool?.id || null,
+      message: error?.message || String(error),
+      stack: error?.stack || null,
+    });
+    return {
+      issuable: false,
+      reason: "validator_exception",
+      detail: error?.message || "The production issuer threw while validating this document.",
+      diagnosticId,
+      samples: 0,
+    };
+  }
+}
+
+function summarizePathRejections(entries = []) {
+  const group = (field, fallback = "unknown") => entries.reduce((acc, entry) => {
+    const key = String(entry?.[field] || fallback);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  return {
+    total: entries.length,
+    byReason: group("reason"),
+    byQuestionType: group("questionType"),
+    byTool: group("pathToolId", "field-graded / none"),
+    byCourse: group("courseId"),
+    byFramework: group("assessmentFramework", "course"),
+  };
 }
 
 let selectionModule = null;
@@ -1431,97 +1536,71 @@ async function pathSelection() {
   return selectionModule;
 }
 
-let promotionModule = null;
-async function pathPromotion() {
-  if (!promotionModule) promotionModule = await import("./shared/pathPromotion.mjs");
-  return promotionModule;
-}
-
 /**
  * Root-admin deployment diagnostic for My Math Path.
  *
- * The public Vercel client and Firebase Functions are deployed separately. A
- * stale client used to make a new backend (or vice versa) look like a content
- * problem. This callable gives Administration a safe handshake: release IDs,
- * counts, and coverage summaries only. It never returns question payloads or
- * answer keys.
+ * Firebase Hosting and Cloud Functions are one production release. This
+ * handshake reports the server release, secure-bank count, and canonical
+ * coverage documents only; no question or answer payload is returned.
  */
 exports.getPathRuntimeStatus = onCall(async (request) => {
   await requireRootAdmin(request);
   const db = getFirestore();
 
-  const [bankCountSnapshot, algebra1Coverage, algebra2Coverage] = await Promise.all([
+  const [bankCountSnapshot, ...coverageSnapshots] = await Promise.all([
     db.collection("pathQuestionBank").count().get(),
-    db.collection(COVERAGE_COLLECTION).doc("algebra1").get(),
-    db.collection(COVERAGE_COLLECTION).doc("algebra2").get(),
+    ...PATH_COURSE_IDS.map((courseId) => db.collection(COVERAGE_COLLECTION).doc(courseId).get()),
   ]);
 
   let starterAvailable = false;
   let starterCount = 0;
+  let starterError = null;
   try {
     const items = loadBuiltInStarterPathSeed();
     starterAvailable = items.length > 0;
     starterCount = items.length;
   } catch (error) {
+    starterError = error?.message || String(error);
     logger.error("Path runtime status could not read the built-in starter bank", error);
   }
 
-  const coverageSummary = (snapshot) => snapshot.exists ? (snapshot.data()?.summary || null) : null;
+  const coverage = {};
+  PATH_COURSE_IDS.forEach((courseId, index) => {
+    const snapshot = coverageSnapshots[index];
+    coverage[courseId] = snapshot.exists ? {
+      summary: snapshot.data()?.summary || null,
+      generatedAt: snapshot.data()?.generatedAt || null,
+      schemaVersion: snapshot.data()?.schemaVersion || null,
+    } : null;
+  });
+
   return {
     release: PATH_RUNTIME_RELEASE,
+    sourceOfTruth: "secure-path-bank + canonical-texas-standards + production-issuer",
+    teacherAssignmentsAffectCoverage: false,
     bankCount: bankCountSnapshot.data().count || 0,
     starterAvailable,
     starterCount,
-    coverage: {
-      algebra1: coverageSummary(algebra1Coverage),
-      algebra2: coverageSummary(algebra2Coverage),
-    },
+    starterError,
+    courseIds: PATH_COURSE_IDS,
+    coverage,
   };
 });
 
 /**
- * Promote an authored assignment question into the secure Path bank.
+ * Legacy compatibility endpoint.
  *
- * The two banks stay distinct on purpose. Writing an assignment does not make
- * its questions trusted mastery content; a person has to say so, and the server
- * has to agree. The question is read from the assignment SERVER-SIDE — the
- * caller nominates which one, and never supplies its contents — so a browser
- * cannot promote a question that was never authored, or edit one on the way in.
+ * Teacher assignments are no longer a Path coverage source. Keeping the
+ * endpoint as an explicit retirement message is safer than deleting it while
+ * an older browser may still have the action cached.
  */
 exports.promoteQuestionToPathBank = onCall(async (request) => {
   await requireTeacher(request);
-  const db = getFirestore();
-  const promotion = await pathPromotion();
-
-  const assignmentId = String(request.data?.assignmentId || "").trim();
-  const questionIndex = Number(request.data?.questionIndex);
-  if (!assignmentId || !Number.isInteger(questionIndex) || questionIndex < 0) {
-    throw new HttpsError("invalid-argument", "assignmentId and questionIndex are required.");
-  }
-
-  const assignmentSnapshot = await db.collection("assignments").doc(assignmentId).get();
-  if (!assignmentSnapshot.exists) throw new HttpsError("not-found", "That assignment no longer exists.");
-  const question = (assignmentSnapshot.data()?.questions || [])[questionIndex];
-  if (!question) throw new HttpsError("not-found", "That question is not in the assignment.");
-
-  const evaluation = promotion.evaluatePromotion(question, { schemaResult: request.data?.schemaResult || null });
-  if (!evaluation.canPromote) {
-    throw new HttpsError("failed-precondition", evaluation.blocking.map((entry) => entry.detail || entry.label).join(" "), {
-      reason: "promotion-blocked",
-      checks: evaluation.checks,
-    });
-  }
-
-  const record = promotion.buildPathBankRecord(question, {
-    promotedBy: callerEmail(request),
-    sourceAssignmentId: assignmentId,
-    sourceQuestionIndex: questionIndex,
-  });
-  const bankId = promotion.pathBankIdFor({ sourceAssignmentId: assignmentId, sourceQuestionIndex: questionIndex });
-  await db.collection("pathQuestionBank").doc(bankId).set(record, { merge: true });
-  await rebuildStoredPathCoverage(db);
-
-  return { bankId, standards: evaluation.standards, toolId: evaluation.toolId, checks: evaluation.checks };
+  throw new HttpsError(
+    "failed-precondition",
+    "Assignment-to-Path promotion has been retired. My Math Path coverage is built only from the secure Path bank and canonical standards. Use Administration → My Math Path content coverage to manage bank content.",
+    { reason: "assignment-path-promotion-retired" },
+  );
 });
 
 /**
@@ -1536,44 +1615,46 @@ async function processPathSeedImport({ db, actor, items, dryRun = false }) {
   const rejected = [];
   for (const item of items) {
     const id = String(item?.id || "").trim();
-    const describe = (reason) => ({
+    const standards = (Array.isArray(item?.alignmentKeys) ? item.alignmentKeys : [])
+      .map((key) => String(key).replace(/^texas:/i, "").toUpperCase());
+    const describe = (reason, plan = {}) => ({
       id: id || null,
       familyId: item?.familyId || null,
-      standards: (Array.isArray(item?.alignmentKeys) ? item.alignmentKeys : []).map((key) => String(key).replace(/^texas:/i, "").toUpperCase()),
-      reason,
+      standards,
+      courseId: item?.courseId || coverageCourseIdFor(standards[0] || ""),
+      assessmentFramework: item?.assessmentContext?.framework || item?.assessmentFramework || null,
+      questionType: item?.questionType || "response",
+      pathToolId: item?.pathToolId || item?.toolId || item?.tool?.id || null,
+      reason: reason || "not_issuable",
+      detail: plan?.detail || null,
+      diagnosticId: plan?.diagnosticId || null,
     });
     if (!id) { rejected.push(describe("missing_id")); continue; }
-    // The exact production check. A starter item that cannot be issued and
-    // graded by My Math Path never reaches Firestore and never counts toward
-    // coverage.
-    //
-    // A TEMPLATE IS CHECKED BY GENERATING FROM IT. `buildTemplateIssuePlan`
-    // draws sampled instances and runs each one through the same
-    // `buildIssuePlan` an authored item faces, because the thing that reaches a
-    // student is an instance and never the template. Inspecting the template
-    // would pass a document whose `expected` is still the literal text
-    // "{{b}}" — gradeable-looking, and wrong for every student who meets it.
-    // A record with no generator takes the ordinary path unchanged.
+    if (!standards.length) { rejected.push(describe("no_alignment_keys")); continue; }
+
+    // Validate the thing a student will actually receive. A bad template is a
+    // rejected document, not an exception that aborts diagnosis of the other
+    // 5,000 documents.
     // eslint-disable-next-line no-await-in-loop
-    const plan = await mathPath.buildTemplateIssuePlan(item);
-    if (!plan.issuable) { rejected.push(describe(plan.reason)); continue; }
-    if (!Array.isArray(item.alignmentKeys) || item.alignmentKeys.length === 0) {
-      rejected.push(describe("no_alignment_keys"));
-      continue;
-    }
+    const plan = await safeBuildTemplateIssuePlan(item, { operation: "seed-import-validation" });
+    if (!plan.issuable) { rejected.push(describe(plan.reason, plan)); continue; }
     accepted.push(firestoreSafePathRecord({ ...item, id, active: item.active !== false }));
   }
 
-  // ALL OR NOTHING. A partly imported starter bank can make the wheel tell
-  // different truths depending on which chunk happened to finish first.
+  const rejectionSummary = summarizePathRejections(rejected);
+
+  // ALL OR NOTHING. The validation pass returns every actionable rejection and
+  // writes nothing until the complete package is clean.
   if (rejected.length) {
     return {
       dryRun,
       imported: false,
+      phase: "validation",
       received: items.length,
       accepted: 0,
       wouldAccept: accepted.length,
       rejected,
+      rejectionSummary,
       standards: [],
     };
   }
@@ -1583,29 +1664,36 @@ async function processPathSeedImport({ db, actor, items, dryRun = false }) {
       const chunk = accepted.slice(index, index + 400);
       const batch = db.batch();
       chunk.forEach((record) => {
-        const { id, ...fields } = record;
-        batch.set(db.collection("pathQuestionBank").doc(id), {
+        const { id: recordId, ...fields } = record;
+        // The bank package is authoritative. `merge:true` used to leave fields
+        // from an older question shape behind when a question changed type, so
+        // a refresh could report success while Firestore still contained stale
+        // tool/grading metadata. Replace the document instead.
+        batch.set(db.collection("pathQuestionBank").doc(recordId), {
           ...fields,
           seededAt: FieldValue.serverTimestamp(),
           seededBy: actor.uid,
-        }, { merge: true });
+        });
       });
       // eslint-disable-next-line no-await-in-loop
       await batch.commit();
     }
     await writeAdminAudit(db, actor, "path_bank_seeded", "pathQuestionBank", {
       accepted: accepted.length,
-      rejected: rejected.length,
+      rejected: 0,
+      replacementWrites: true,
     });
   }
 
   return {
     dryRun,
     imported: !dryRun,
+    phase: dryRun ? "validation" : "write",
     received: items.length,
     accepted: accepted.length,
     wouldAccept: accepted.length,
     rejected,
+    rejectionSummary,
     standards: [...new Set(accepted.flatMap((record) => record.alignmentKeys.map((key) => String(key).replace(/^texas:/i, "").toUpperCase())))].sort(),
   };
 }
@@ -1625,6 +1713,22 @@ exports.seedPathQuestionBank = onCall(async (request) => {
   const items = Array.isArray(request.data?.items) ? request.data.items : [];
   if (!items.length) throw new HttpsError("invalid-argument", "Supply the seed items to import.");
   if (items.length > 600) throw new HttpsError("invalid-argument", "Import at most 600 items per call.");
+
+  // Dry-run stays available for package authoring, but released SAT/ACT/TSIA2
+  // content may only be written by the atomic coordinated refresh. Allowing a
+  // generic write here could change the bank without moving the release
+  // manifest and would make active sessions observe an impossible mixed state.
+  if (!dryRun) {
+    const attemptedProtectedFrameworks = [...new Set(items
+      .map((item) => String(item?.assessmentContext?.framework || "").trim())
+      .filter((framework) => COORDINATED_CCMR_RELEASE_FRAMEWORKS.includes(framework)))].sort();
+    if (attemptedProtectedFrameworks.length) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Release-managed assessment content (" + attemptedProtectedFrameworks.join(", ") + ") cannot be written by the generic Path seed importer. Use refreshReleasedCcmrPathBanks for the atomic SAT/ACT/TSIA2 release refresh.",
+      );
+    }
+  }
   return processPathSeedImport({ db, actor, items, dryRun });
 });
 
@@ -1663,6 +1767,18 @@ function loadBuiltInStarterPathSeed() {
   return builtInStarterPathSeedCache;
 }
 
+function loadCoordinatedCcmrReleaseSeed() {
+  const seedDirectory = path.join(__dirname, "seeds", "pathQuestionBank");
+  const items = COORDINATED_CCMR_RELEASE_SEED_FILES.flatMap((fileName) => {
+    const parsed = JSON.parse(fs.readFileSync(path.join(seedDirectory, fileName), "utf8"));
+    return Array.isArray(parsed) ? parsed : (parsed.documents || parsed.items || parsed.questions || []);
+  });
+  if (!items.length) throw new Error("The coordinated CCMR release package is empty.");
+  const ids = new Set(items.map((item) => String(item?.id || "").trim()));
+  if (ids.size !== items.length || ids.has("")) throw new Error("The coordinated CCMR release package contains missing or duplicate IDs.");
+  return items;
+}
+
 async function removeSupersededBuiltInPathSeedRecords(db, currentItems) {
   const currentIds = new Set(currentItems.map((item) => String(item?.id || "").trim()).filter(Boolean));
   const snapshot = await db.collection("pathQuestionBank").get();
@@ -1682,25 +1798,43 @@ async function removeSupersededBuiltInPathSeedRecords(db, currentItems) {
   return obsolete.length;
 }
 
+async function removeSupersededBuiltInAssessmentSeedRecords(db, currentItems, frameworks) {
+  const currentIds = new Set(currentItems.map((item) => String(item?.id || "").trim()).filter(Boolean));
+  const frameworkSet = new Set((Array.isArray(frameworks) ? frameworks : []).map(String));
+  const snapshot = await db.collection("pathQuestionBank").get();
+  const obsolete = snapshot.docs.filter((doc) => {
+    if (currentIds.has(doc.id)) return false;
+    const data = doc.data() || {};
+    const framework = String(data?.assessmentContext?.framework || "");
+    if (!frameworkSet.has(framework)) return false;
+    return data.builtInPathSeed === BUILT_IN_PATH_SEED_MARKER
+      || data?.seedMetadata?.source === LEGACY_BUILT_IN_PATH_SEED_SOURCE;
+  });
+
+  for (let index = 0; index < obsolete.length; index += 400) {
+    const batch = db.batch();
+    obsolete.slice(index, index + 400).forEach((doc) => batch.delete(doc.ref));
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+  return obsolete.length;
+}
+
 /**
  * Rebuild stored coverage from the actual secure bank.
  */
-async function rebuildStoredPathCoverage(db, {
-  courses = ["algebra1", "algebra2"],
-  wheelTeksByCourse = null,
-} = {}) {
-  const coverage = await pathCoverage();
-  const builtInItems = loadBuiltInStarterPathSeed();
-  const derivedWheel = { algebra1: new Set(), algebra2: new Set() };
+async function canonicalPathStandardsForCourse(courseId) {
+  const registry = await texasStandardsRegistry();
+  return registry.getTexasStandardsForCourse(courseId)
+    .filter((standard) => standard.classification !== "process")
+    .map((standard) => standard.code);
+}
 
-  builtInItems.filter((item) => pathQuestionMatchesFramework(item, null)).forEach((item) => {
-    const courseId = String(item?.courseId || "");
-    if (!derivedWheel[courseId]) return;
-    (Array.isArray(item?.alignmentKeys) ? item.alignmentKeys : []).forEach((key) => {
-      const code = String(key || "").replace(/^texas:/i, "").trim().toUpperCase();
-      if (code) derivedWheel[courseId].add(code);
-    });
-  });
+/** Rebuild stored coverage from the secure bank and the canonical Texas registry. */
+async function rebuildStoredPathCoverage(db, { courses = PATH_COURSE_IDS } = {}) {
+  const coverage = await pathCoverage();
+  const validCourses = [...new Set(courses.map(String))].filter((courseId) => PATH_COURSE_IDS.includes(courseId));
+  if (!validCourses.length) throw new HttpsError("invalid-argument", "Choose at least one supported Math Path course.");
 
   const snapshot = await db.collection("pathQuestionBank").get();
   const bankItems = snapshot.docs
@@ -1709,18 +1843,16 @@ async function rebuildStoredPathCoverage(db, {
   const plans = {};
   for (const item of bankItems) {
     // eslint-disable-next-line no-await-in-loop
-    plans[item.id] = await mathPath.buildTemplateIssuePlan(item);
+    plans[item.id] = await safeBuildTemplateIssuePlan(item, { operation: "coverage-rebuild" });
   }
 
   const indexes = {};
-  for (const courseId of courses) {
-    const supplied = Array.isArray(wheelTeksByCourse?.[courseId])
-      ? wheelTeksByCourse[courseId]
-      : [];
-    const wheelTeks = supplied.length ? supplied : [...(derivedWheel[courseId] || [])];
-    if (!wheelTeks.length) {
-      throw new HttpsError("failed-precondition", `No My Math Path standards are available for ${courseId}.`);
-    }
+  for (const courseId of validCourses) {
+    // THE COURSE MAP IS SERVER-AUTHORITATIVE. Teacher assignments and browser
+    // wheel configuration do not choose which standards count as coverage.
+    // eslint-disable-next-line no-await-in-loop
+    const wheelTeks = await canonicalPathStandardsForCourse(courseId);
+    if (!wheelTeks.length) throw new HttpsError("failed-precondition", `No canonical Texas standards are registered for ${courseId}.`);
     const index = coverage.buildCoverageIndex({
       courseId,
       wheelTeks,
@@ -1732,7 +1864,11 @@ async function rebuildStoredPathCoverage(db, {
     await db.collection(COVERAGE_COLLECTION).doc(courseId).set(index);
     indexes[courseId] = index;
   }
-  return { courses, indexes };
+  return {
+    courses: validCourses,
+    sourceOfTruth: "canonical-texas-standards + secure-path-bank + production-issuer",
+    indexes,
+  };
 }
 
 async function livePathSkillIsLaunchable(db, targetAlignmentKey) {
@@ -1746,7 +1882,7 @@ async function livePathSkillIsLaunchable(db, targetAlignmentKey) {
   const plans = {};
   for (const item of bankItems) {
     // eslint-disable-next-line no-await-in-loop
-    plans[item.id] = await mathPath.buildTemplateIssuePlan(item);
+    plans[item.id] = await safeBuildTemplateIssuePlan(item, { operation: "live-coverage-check" });
   }
   const index = coverage.buildCoverageIndex({
     courseId: coverageCourseIdFor(targetAlignmentKey),
@@ -1767,9 +1903,31 @@ async function livePathSkillIsLaunchable(db, targetAlignmentKey) {
  * the root-admin callable can ask the server to install it, and the client gets
  * counts/status back rather than the seed contents.
  */
-exports.initializeStarterPathQuestionBank = onCall(async (request) => {
+exports.initializeStarterPathQuestionBank = onCall({ timeoutSeconds: 540, memory: "1GiB" }, async (request) => {
   const actor = await requireRootAdmin(request);
   const db = getFirestore();
+
+  // This callable installs the complete built-in starter package, including
+  // legacy ASVAB content. It must never double as a live-bank refresh because
+  // SAT, ACT, and TSIA2 now have their own atomic release protocol. The only
+  // non-empty-bank exception is a retry of this exact initializer after a
+  // failed fresh installation left the release manifest intentionally held.
+  const manifestRef = db.collection(CONTENT_RELEASE_MANIFEST_COLLECTION).doc(CONTENT_RELEASE_MANIFEST_DOC);
+  const [existingBank, existingManifestSnapshot] = await Promise.all([
+    db.collection("pathQuestionBank").limit(1).get(),
+    manifestRef.get(),
+  ]);
+  const existingManifest = existingManifestSnapshot.exists ? existingManifestSnapshot.data() : {};
+  const retryingFailedStarterInitialization = !existingBank.empty
+    && existingManifest?.status === "updating"
+    && existingManifest?.updateOperation === "starter-initialization";
+  if (!existingBank.empty && !retryingFailedStarterInitialization) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Starter Path-bank initialization is fresh-install-only. Use the dedicated bank refresh controls on an existing installation.",
+    );
+  }
+
   let items;
   try {
     items = loadBuiltInStarterPathSeed();
@@ -1787,11 +1945,184 @@ exports.initializeStarterPathQuestionBank = onCall(async (request) => {
     builtInPathSeed: BUILT_IN_PATH_SEED_MARKER,
     builtInPathSeedRelease: PATH_RUNTIME_RELEASE,
   }));
+
+  // Validate the whole starter package before closing tracked assessment
+  // issuance. ASVAB intentionally remains outside this release manifest.
+  const validation = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: true });
+  if (validation.rejected?.length || validation.wouldAccept !== taggedItems.length) {
+    return { ...validation, phase: "validation" };
+  }
+  const discoveredReleases = pathContentRelease.collectAssessmentContentReleases(taggedItems);
+  const expectedFrameworks = [...COORDINATED_CCMR_RELEASE_FRAMEWORKS].sort();
+  const pendingReleases = Object.fromEntries(expectedFrameworks
+    .map((framework) => [framework, discoveredReleases[framework]])
+    .filter(([, release]) => Boolean(release)));
+  if (Object.keys(pendingReleases).length !== expectedFrameworks.length) {
+    throw new HttpsError(
+      "failed-precondition",
+      "The starter package must contain release metadata for ACT, Digital SAT, and TSIA2 before installation.",
+    );
+  }
+
+  const updatingManifest = pathContentRelease.beginAssessmentContentReleaseUpdate(
+    retryingFailedStarterInitialization ? existingManifest : {},
+    pendingReleases,
+    Date.now(),
+  );
+  await manifestRef.set({
+    ...updatingManifest,
+    updateOperation: "starter-initialization",
+    updatedBy: actor.uid,
+  });
+
+  // If any write or cleanup fails after this point, the manifest stays in
+  // updating state and this same callable may safely resume the failed starter
+  // installation. New SAT/ACT/TSIA2 issuance remains held in the meantime.
   const seed = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: false });
-  if (!seed.imported) return seed;
+  if (!seed.imported) {
+    throw new HttpsError("failed-precondition", "The starter Path bank failed its write-time validation; tracked assessment issuance remains held.");
+  }
   const removedSuperseded = await removeSupersededBuiltInPathSeedRecords(db, taggedItems);
   const coverage = await rebuildStoredPathCoverage(db);
-  return { ...seed, removedSuperseded, coverage };
+  const { retireStaleTsia2PathStateForRelease } = await import("./shared/pathBankRelease.mjs");
+  const tsia2PathBankRelease = await retireStaleTsia2PathStateForRelease(db);
+
+  const activeManifest = pathContentRelease.completeAssessmentContentReleaseUpdate(
+    updatingManifest,
+    pendingReleases,
+    Date.now(),
+  );
+  await manifestRef.set({
+    ...activeManifest,
+    updateOperation: "starter-initialization",
+    updatedBy: actor.uid,
+  });
+  return { ...seed, phase: "complete", removedSuperseded, coverage, tsia2PathBankRelease, assessmentContentReleases: pendingReleases };
+});
+
+/**
+ * Root-admin coordinated assessment-bank refresh.
+ *
+ * This deliberately loads only Digital SAT, ACT, and TSIA2. ASVAB remains on
+ * its existing release until it is separately authored and promoted. The
+ * manifest enters "updating" before the first Firestore bank mutation and is
+ * activated only after all writes and selective cleanup finish. A failure in
+ * between therefore leaves assessment issuance held rather than mixed.
+ */
+exports.refreshReleasedCcmrPathBanks = onCall({ timeoutSeconds: 540, memory: "1GiB" }, async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  let items;
+  try {
+    items = loadCoordinatedCcmrReleaseSeed();
+  } catch (error) {
+    logger.error("Could not load coordinated CCMR release package", error);
+    throw new HttpsError("failed-precondition", "The coordinated CCMR release package is unavailable in this deployment.");
+  }
+
+  const taggedItems = items.map((item) => ({
+    ...item,
+    builtInPathSeed: BUILT_IN_PATH_SEED_MARKER,
+    builtInPathSeedRelease: PATH_RUNTIME_RELEASE,
+  }));
+  const pendingReleases = pathContentRelease.collectAssessmentContentReleases(taggedItems);
+  const expectedFrameworks = [...COORDINATED_CCMR_RELEASE_FRAMEWORKS].sort();
+  const actualFrameworks = Object.keys(pendingReleases).sort();
+  if (JSON.stringify(actualFrameworks) !== JSON.stringify(expectedFrameworks)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "The coordinated CCMR package must contain exactly " + expectedFrameworks.join(", ") + "; found " + (actualFrameworks.join(", ") || "none") + ".",
+    );
+  }
+
+  // First pass is intentionally read-only. The manifest does not close student
+  // issuance unless all 1,000 assessment documents pass the production issuer.
+  const validation = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: true });
+  if (validation.rejected?.length || validation.wouldAccept !== taggedItems.length) {
+    return { ...validation, phase: "validation", pendingReleases };
+  }
+
+  const manifestRef = db.collection(CONTENT_RELEASE_MANIFEST_COLLECTION).doc(CONTENT_RELEASE_MANIFEST_DOC);
+  const manifestSnapshot = await manifestRef.get();
+  const currentManifest = manifestSnapshot.exists ? manifestSnapshot.data() : {};
+  const retryingCoordinatedRefresh = currentManifest?.status === "updating"
+    && currentManifest?.updateOperation === "coordinated-refresh";
+  if (currentManifest?.status === "updating" && !retryingCoordinatedRefresh) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Another assessment-bank update is already in progress. Finish or recover that operation before starting the coordinated CCMR refresh.",
+    );
+  }
+
+  const normalizeReleaseEntries = (value) => Object.entries(value || {})
+    .map(([framework, release]) => [String(framework).trim(), String(release || "").trim()])
+    .filter(([framework, release]) => framework && release)
+    .sort(([left], [right]) => left.localeCompare(right));
+  const samePendingRelease = JSON.stringify(normalizeReleaseEntries(currentManifest?.pendingReleases))
+    === JSON.stringify(normalizeReleaseEntries(pendingReleases));
+  if (retryingCoordinatedRefresh && !samePendingRelease) {
+    throw new HttpsError(
+      "failed-precondition",
+      "The held CCMR refresh targets a different pending content release. Redeploy the matching release package or recover the held update before retrying.",
+    );
+  }
+
+  const updatingManifest = pathContentRelease.beginAssessmentContentReleaseUpdate(
+    currentManifest,
+    pendingReleases,
+    Date.now(),
+  );
+  await manifestRef.set({
+    ...updatingManifest,
+    updateOperation: "coordinated-refresh",
+    updatedBy: actor.uid,
+  });
+
+  // A second validation inside processPathSeedImport protects the write itself.
+  // If anything fails from this point onward, the manifest intentionally stays
+  // in "updating" so no new assessment question is issued from a partial bank.
+  const seed = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: false });
+  if (!seed.imported) {
+    throw new HttpsError("failed-precondition", "The coordinated CCMR bank failed its write-time validation; assessment issuance remains held.");
+  }
+
+  const removedSuperseded = await removeSupersededBuiltInAssessmentSeedRecords(
+    db,
+    taggedItems,
+    expectedFrameworks,
+  );
+  const { retireStaleTsia2PathStateForRelease } = await import("./shared/pathBankRelease.mjs");
+  const tsia2PathBankRelease = await retireStaleTsia2PathStateForRelease(db);
+
+  const activatedReleases = {
+    ...(currentManifest?.activeReleases || {}),
+    ...pendingReleases,
+  };
+  const activeManifest = pathContentRelease.completeAssessmentContentReleaseUpdate(
+    updatingManifest,
+    activatedReleases,
+    Date.now(),
+  );
+  await manifestRef.set({
+    ...activeManifest,
+    updateOperation: "coordinated-refresh",
+    updatedBy: actor.uid,
+  });
+  await writeAdminAudit(db, actor, "ccmr_path_banks_refreshed", CONTENT_RELEASE_MANIFEST_COLLECTION, {
+    frameworks: expectedFrameworks,
+    releases: pendingReleases,
+    accepted: seed.accepted,
+    removedSuperseded,
+  });
+
+  return {
+    ...seed,
+    phase: "complete",
+    releases: pendingReleases,
+    manifestStatus: activeManifest.status,
+    removedSuperseded,
+    tsia2PathBankRelease,
+  };
 });
 
 /** Remove a promoted question from the Path bank without touching the assignment. */
@@ -1800,6 +2131,19 @@ exports.withdrawQuestionFromPathBank = onCall(async (request) => {
   const db = getFirestore();
   const bankId = String(request.data?.bankId || "").trim();
   if (!bankId) throw new HttpsError("invalid-argument", "bankId is required.");
+
+  const existingQuestion = await db.collection("pathQuestionBank").doc(bankId).get();
+  if (!existingQuestion.exists) {
+    throw new HttpsError("not-found", "The Path-bank question no longer exists.");
+  }
+  const framework = String(existingQuestion.data()?.assessmentContext?.framework || "").trim();
+  if (COORDINATED_CCMR_RELEASE_FRAMEWORKS.includes(framework)) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Released SAT, ACT, and TSIA2 questions cannot be withdrawn one at a time. Use refreshReleasedCcmrPathBanks so the complete audited release and manifest change together.",
+    );
+  }
+
   // Deactivated rather than deleted: an evidence event already recorded against
   // it should still be able to name the question a student answered.
   await db.collection("pathQuestionBank").doc(bankId).set({ active: false, withdrawnAt: Date.now() }, { merge: true });
@@ -1808,36 +2152,93 @@ exports.withdrawQuestionFromPathBank = onCall(async (request) => {
 });
 
 /**
- * Recompute the coverage index for one or more courses.
+ * Recompute the coverage index from the secure Path bank.
  *
- * Teacher-callable, because a teacher needs to know which standards their class
- * can actually practise. The write is server-side only.
- *
- * ISSUABILITY IS `buildIssuePlan` — the same function `issueNextQuestion` calls.
- * A question cannot count as coverage unless the server would really issue and
- * grade it, so this index and the runtime can never disagree about what exists.
- *
- * THE WHEEL LIST COMES FROM THE CALLER, and that is safe in the only direction
- * that matters. Deriving it server-side would mean importing the whole Texas
- * standards catalogue into the Functions bundle, which is not deployed with
- * `functions/`. Supplying it cannot make an uncovered skill launchable: a
- * standard absent from the index is not in `skills`, and `isSkillLaunchable`
- * fails closed on anything it does not find. A short or wrong list can only
- * make MORE skills unavailable, never fewer — it degrades the report, it cannot
- * open a dead end.
+ * This is a global administrative operation, not a teacher-assignment mapping.
+ * The server owns the course-standard list through the canonical Texas registry.
  */
-exports.rebuildPathCoverage = onCall(async (request) => {
-  await requireTeacher(request);
+exports.rebuildPathCoverage = onCall({ timeoutSeconds: 540, memory: "1GiB", invoker: "public" }, async (request) => {
+  await requireRootAdmin(request);
   const db = getFirestore();
   const requestedCourses = Array.isArray(request.data?.courses) ? request.data.courses : [];
-  const wheelByCourse = request.data?.wheelTeksByCourse && typeof request.data?.wheelTeksByCourse === "object"
-    ? request.data.wheelTeksByCourse
-    : {};
-  const courses = requestedCourses.length
-    ? requestedCourses
-    : (Object.keys(wheelByCourse).length ? Object.keys(wheelByCourse) : ["algebra1", "algebra2"]);
-  return rebuildStoredPathCoverage(db, { courses, wheelTeksByCourse: wheelByCourse });
+  const courses = requestedCourses.length ? requestedCourses : PATH_COURSE_IDS;
+  return rebuildStoredPathCoverage(db, { courses });
 });
+
+/**
+ * Root-admin targeted diagnostic for a standard that will not launch.
+ * Returns counts and validation reasons only — never prompts, expected answers,
+ * generator parameters, or private grading definitions.
+ */
+exports.diagnosePathSkill = onCall({ timeoutSeconds: 120, memory: "512MiB" }, async (request) => {
+  await requireRootAdmin(request);
+  const db = getFirestore();
+  const targetAlignmentKey = mathPath.canonicalAlignmentKey(request.data?.targetAlignmentKey);
+  if (!targetAlignmentKey) throw new HttpsError("invalid-argument", "targetAlignmentKey is required.");
+  const assessmentFramework = normalizePathAssessmentFramework(request.data?.assessmentFramework);
+  const courseId = coverageCourseIdFor(targetAlignmentKey);
+
+  const [snapshot, storedCoverage] = await Promise.all([
+    db.collection("pathQuestionBank").where("alignmentKeys", "array-contains", targetAlignmentKey).limit(200).get(),
+    db.collection(COVERAGE_COLLECTION).doc(courseId).get(),
+  ]);
+  const allRecords = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  const activeRecords = allRecords.filter((question) => question.active !== false);
+  const records = activeRecords.filter((question) => pathQuestionMatchesFramework(question, assessmentFramework));
+  const evaluations = [];
+  for (const question of records) {
+    // eslint-disable-next-line no-await-in-loop
+    const plan = await safeBuildTemplateIssuePlan(question, { operation: "skill-diagnostic" });
+    evaluations.push({ question, plan });
+  }
+
+  const rejected = evaluations.filter((entry) => !entry.plan?.issuable).map(({ question, plan }) => ({
+    id: question.id,
+    familyId: question.familyId || null,
+    questionType: question.questionType || "response",
+    pathToolId: question.pathToolId || question.toolId || question.tool?.id || null,
+    courseId: question.courseId || courseId,
+    assessmentFramework: question.assessmentContext?.framework || null,
+    reason: plan?.reason || "not_issuable",
+    detail: plan?.detail || null,
+    diagnosticId: plan?.diagnosticId || null,
+  }));
+  const issuableFamilies = new Set(evaluations
+    .filter((entry) => entry.plan?.issuable)
+    .map((entry) => String(entry.question?.familyId || entry.question?.id || ""))
+    .filter(Boolean));
+
+  const coverage = await pathCoverage();
+  const diagnosticIndex = coverage.buildCoverageIndex({
+    courseId,
+    wheelTeks: [coverage.coverageKey(targetAlignmentKey)],
+    bankItems: records,
+    plans: Object.fromEntries(evaluations.map((entry) => [entry.question.id, entry.plan])),
+    generatedAt: Date.now(),
+  });
+  const key = coverage.coverageKey(targetAlignmentKey);
+  const storedEntry = storedCoverage.exists
+    ? (storedCoverage.data()?.skills?.[key] || storedCoverage.data()?.offWheel?.[key] || null)
+    : null;
+
+  return {
+    targetAlignmentKey,
+    displayCode: mathPath.displayAlignmentKey(targetAlignmentKey),
+    courseId,
+    assessmentFramework,
+    totalBankMatches: allRecords.length,
+    activeMatches: activeRecords.length,
+    frameworkMatches: records.length,
+    issuableDocuments: evaluations.filter((entry) => entry.plan?.issuable).length,
+    issuableFamilies: issuableFamilies.size,
+    launchable: assessmentFramework ? issuableFamilies.size >= 5 : coverage.isSkillLaunchable(diagnosticIndex, targetAlignmentKey),
+    liveCoverage: diagnosticIndex.skills?.[key] || diagnosticIndex.offWheel?.[key] || null,
+    storedCoverage: storedEntry,
+    rejectionSummary: summarizePathRejections(rejected),
+    rejected: rejected.slice(0, 80),
+  };
+});
+
 /**
  * Root-admin action: give existing evidence, mastery and scratchpad records the
  * authorization context the scoped rules read.
@@ -2110,6 +2511,83 @@ async function recursiveDeleteQuery(db, query, deleted, label) {
   return snapshot.docs;
 }
 
+
+async function preproductionStudentAuthUsers(db) {
+  const teacherSnapshot = await db.collection(authLib.TEACHER_COLLECTION).get();
+  const protectedEmails = new Set([
+    authLib.ROOT_ADMIN_EMAIL,
+    ...authLib.bootstrapTeacherEmails(),
+    ...teacherSnapshot.docs.map((entry) => entry.id),
+  ].filter(Boolean).map((email) => String(email).trim().toLowerCase()));
+  const protectedUids = new Set(
+    teacherSnapshot.docs.map((entry) => entry.data()?.uid).filter(Boolean).map(String),
+  );
+
+  const students = [];
+  let pageToken;
+  do {
+    // eslint-disable-next-line no-await-in-loop
+    const page = await getAuth().listUsers(1000, pageToken);
+    for (const userRecord of page.users) {
+      const email = String(userRecord.email || "").trim().toLowerCase();
+      const uid = String(userRecord.uid || "");
+      const protectedTeacher = protectedUids.has(uid)
+        || (email && protectedEmails.has(email))
+        || (email && authLib.isRootAdminEmail(email));
+      if (protectedTeacher) continue;
+      const role = String(userRecord.customClaims?.role || "").trim().toLowerCase();
+      if (role === "student" || uid.startsWith("student:")) {
+        students.push({ uid, email: email || null });
+      }
+    }
+    pageToken = page.pageToken;
+  } while (pageToken);
+  return students;
+}
+
+async function preproductionResetControl(db) {
+  const snapshot = await db.doc(adminPolicy.PREPRODUCTION_CONTROL_DOCUMENT).get();
+  const data = snapshot.exists ? snapshot.data() || {} : {};
+  return {
+    locked: data.locked === true,
+    lockedAt: serializableDate(data.lockedAt),
+  };
+}
+
+async function preproductionResetPreview(db) {
+  const [gradesSnapshot, authStudents, ...collectionSnapshots] = await Promise.all([
+    db.collection("grades").get(),
+    preproductionStudentAuthUsers(db),
+    ...adminPolicy.PREPRODUCTION_RESET_COLLECTIONS.map((collectionName) => (
+      db.collection(collectionName).get()
+    )),
+  ]);
+  const collections = {};
+  adminPolicy.PREPRODUCTION_RESET_COLLECTIONS.forEach((collectionName, index) => {
+    collections[collectionName] = collectionSnapshots[index].size;
+  });
+  const control = await preproductionResetControl(db);
+  return {
+    studentRosterRecords: gradesSnapshot.docs.filter((entry) => entry.id !== "test_connection").length,
+    studentAuthUsers: authStudents.length,
+    assignments: collections.assignments || 0,
+    collections,
+    preservedCollections: [...adminPolicy.PREPRODUCTION_PRESERVED_COLLECTIONS],
+    resetLocked: control.locked,
+    resetLockedAt: control.lockedAt,
+    lockConfirmationRequired: adminPolicy.preproductionLockConfirmation(),
+  };
+}
+
+async function clearPreproductionCollection(db, collectionName, deleted) {
+  const ref = db.collection(collectionName);
+  const snapshot = await ref.get();
+  if (snapshot.empty) return 0;
+  await db.recursiveDelete(ref);
+  deleted[collectionName] = snapshot.size;
+  return snapshot.size;
+}
+
 /** Root-admin view of recent privileged account-management actions. */
 exports.listAdminAuditLog = onCall(async (request) => {
   await requireRootAdmin(request);
@@ -2132,6 +2610,138 @@ exports.listAdminAuditLog = onCall(async (request) => {
       };
     }),
   };
+});
+
+/**
+ * Root-admin-only pre-production reset.
+ *
+ * This deliberately preserves platform configuration and curriculum while
+ * removing every test learner, assignment, response/evidence/session, and
+ * assignment-publication record. Preview mode is read-only. The destructive
+ * mode requires an exact typed phrase even though only the root administrator
+ * can call it.
+ */
+exports.resetPreproductionTestData = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  const dryRun = request.data?.dryRun === true;
+
+  const preview = await preproductionResetPreview(db);
+  if (dryRun) {
+    return {
+      success: true,
+      dryRun: true,
+      confirmationRequired: adminPolicy.preproductionResetConfirmation(),
+      ...preview,
+    };
+  }
+
+  if (preview.resetLocked) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Pre-production reset has been permanently locked for live-student production use.",
+    );
+  }
+
+  if (!adminPolicy.isPreproductionResetConfirmed(request.data?.confirmation)) {
+    throw new HttpsError(
+      "failed-precondition",
+      `Pre-production reset requires the exact confirmation ${adminPolicy.preproductionResetConfirmation()}.`,
+    );
+  }
+
+  // Delete student Firebase Auth identities first. Teacher/root identities are
+  // protected independently by both UID and email.
+  const authStudents = await preproductionStudentAuthUsers(db);
+  let deletedAuthUsers = 0;
+  for (const account of authStudents) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await getAuth().revokeRefreshTokens(account.uid).catch(() => {});
+      // eslint-disable-next-line no-await-in-loop
+      await getAuth().deleteUser(account.uid);
+      deletedAuthUsers += 1;
+    } catch (error) {
+      if (error?.code !== "auth/user-not-found") throw error;
+    }
+  }
+
+  const deleted = {};
+
+  // grades is both the student roster and the parent of scratchpads/evidence.
+  // Preserve only the deliberate connection-test sentinel.
+  const gradesSnapshot = await db.collection("grades").get();
+  for (const gradeDoc of gradesSnapshot.docs) {
+    if (gradeDoc.id === "test_connection") continue;
+    // eslint-disable-next-line no-await-in-loop
+    await db.recursiveDelete(gradeDoc.ref);
+    deleted.gradesWithSubcollections = Number(deleted.gradesWithSubcollections || 0) + 1;
+  }
+
+  // Clear each whole runtime/test collection recursively so orphaned test
+  // documents are removed even when they no longer have a matching roster row.
+  for (const collectionName of adminPolicy.PREPRODUCTION_RESET_COLLECTIONS) {
+    // eslint-disable-next-line no-await-in-loop
+    await clearPreproductionCollection(db, collectionName, deleted);
+  }
+
+  // The audit survives intentionally. It contains aggregate counts only, never
+  // the deleted student IDs/emails.
+  await writeAdminAudit(db, actor, "preproduction_test_data_reset", "preproduction-test-data", {
+    deletedAuthUsers,
+    deletedRecords: deleted,
+    preservedCollections: [...adminPolicy.PREPRODUCTION_PRESERVED_COLLECTIONS],
+  });
+
+  return {
+    success: true,
+    dryRun: false,
+    deletedAuthUsers,
+    deletedRecords: deleted,
+    preservedCollections: [...adminPolicy.PREPRODUCTION_PRESERVED_COLLECTIONS],
+  };
+});
+
+/**
+ * One-way root-admin production lock for the bulk test reset.
+ *
+ * There is deliberately no unlock callable. Re-enabling the reset after this
+ * point requires an explicit backend change outside the application.
+ */
+exports.lockPreproductionResetForProduction = onCall(async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+
+  if (!adminPolicy.isPreproductionLockConfirmed(request.data?.confirmation)) {
+    throw new HttpsError(
+      "failed-precondition",
+      `Production lock requires the exact confirmation ${adminPolicy.preproductionLockConfirmation()}.`,
+    );
+  }
+
+  const ref = db.doc(adminPolicy.PREPRODUCTION_CONTROL_DOCUMENT);
+  const existing = await ref.get();
+  if (existing.data()?.locked === true) {
+    return {
+      success: true,
+      alreadyLocked: true,
+      locked: true,
+      lockedAt: serializableDate(existing.data()?.lockedAt),
+    };
+  }
+
+  await ref.set({
+    locked: true,
+    lockedAt: FieldValue.serverTimestamp(),
+    lockedByUid: actor.uid,
+    lockedByEmail: actor.email || null,
+  });
+
+  await writeAdminAudit(db, actor, "preproduction_reset_locked_for_production", "preproduction-test-data", {
+    irreversibleInApp: true,
+  });
+
+  return { success: true, alreadyLocked: false, locked: true };
 });
 
 /**
@@ -3208,7 +3818,7 @@ async function publishAssignmentBatch(request) {
   }
   const assignment = assignmentSnap.data();
   const audience = assignmentAudience(assignment);
-  if (!audience.classIds.length && !audience.classPeriods.length) {
+  if (!audience.classIds.length) {
     throw new HttpsError(
       "failed-precondition",
       "This MathMaster assignment is still in the library. Assign it to a class before publishing it to Google Classroom."
@@ -3249,10 +3859,7 @@ async function publishAssignmentBatch(request) {
       continue;
     }
     const mappedClassId = String(mapping.classId || "").trim();
-    const mappedPeriod = String(mapping.classPeriod || "").trim();
-    const mappingMatchesAudience = audience.classIds.length
-      ? Boolean(mappedClassId && audience.classIds.includes(mappedClassId))
-      : Boolean(mappedPeriod && audience.classPeriods.includes(mappedPeriod));
+    const mappingMatchesAudience = Boolean(mappedClassId && audience.classIds.includes(mappedClassId));
     if (!mappingMatchesAudience) {
       results.push({
         courseId,
@@ -3855,7 +4462,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
       const assignment = assignmentSnap.exists ? assignmentSnap.data() : {};
       if (assignmentFeedbackIsHeld(assignment)) continue;
       const questionCount = assignmentSnap.exists
-        ? (assignment.questions || []).length
+        ? runtimeQuestionCount(assignment)
         : 0;
       const assignmentTracker = afterByAssignment[assignmentId];
       if (!isAssignmentComplete(assignmentTracker, questionCount)) continue;
@@ -4085,7 +4692,7 @@ async function loadChallengeCandidates(db, { courseId, standardCode }) {
 
   const planned = await Promise.all(candidates.map(async (question) => ({
     question,
-    plan: await mathPath.buildTemplateIssuePlan(question),
+    plan: await safeBuildTemplateIssuePlan(question, { operation: "path-runtime-framework-check" }),
   })));
   return planned.filter((entry) => entry.plan.issuable);
 }
@@ -4645,6 +5252,148 @@ function pathQuestionMatchesFramework(question = {}, assessmentFramework = null)
   return authoredFramework === "course";
 }
 
+const CCMR_PROGRESS_SUBCOLLECTION = "ccmrProgress";
+
+function ccmrProgressRef(db, studentId, alignmentKey, framework) {
+  return db.collection("grades").doc(studentId).collection(CCMR_PROGRESS_SUBCOLLECTION)
+    .doc(mathPath.opaqueId("ccmr-progress", alignmentKey, framework));
+}
+
+function resolveServerCcmrChallengeTier(progress = {}) {
+  if (Number(progress.tier3SessionsPassed || 0) > 0) return 3;
+  if (Number(progress.tier2SessionsPassed || 0) > 0) return 3;
+  if (Number(progress.tier1SessionsPassed || 0) > 0) return 2;
+  const attempts = Number(progress.directItemsAttempted || 0);
+  const correct = Number(progress.directItemsCorrect || 0);
+  if (attempts >= 5 && attempts > 0 && correct / attempts >= 0.8) return 2;
+  return 1;
+}
+
+async function loadCcmrProgress(db, studentId, alignmentKey, framework) {
+  const ref = ccmrProgressRef(db, studentId, alignmentKey, framework);
+  const snapshot = await ref.get();
+  if (snapshot.exists) return snapshot.data() || {};
+
+  // CCMR Fidelity V2 shipped after students already had direct assessment
+  // evidence. Bootstrap the private progression record from immutable evidence
+  // so a student who already earned 5/5 SAT items does not get sent back to
+  // beginner SAT practice just because the new progress document is absent.
+  const evidenceSnapshot = await db.collection("grades").doc(studentId).collection("evidenceEvents")
+    .where("masteryEvidenceKeys", "array-contains", alignmentKey)
+    .limit(150)
+    .get();
+  let directItemsAttempted = 0;
+  let directItemsCorrect = 0;
+  const tierSessionsPassed = { 1: 0, 2: 0, 3: 0 };
+  const tierSessionsCompleted = { 1: 0, 2: 0, 3: 0 };
+  evidenceSnapshot.docs.forEach((doc) => {
+    const event = doc.data() || {};
+    if (event?.source?.kind !== "myMathPath") return;
+    if (normalizePathAssessmentFramework(event?.source?.assessmentFramework) !== framework) return;
+    if (event?.performance?.status && event.performance.status !== "finalized") return;
+    directItemsAttempted += 1;
+    if (event?.performance?.isCorrect === true || Number(event?.performance?.score || 0) >= 1) directItemsCorrect += 1;
+    const tier = Math.max(1, Math.min(3, Number(event?.source?.ccmrChallengeTier || event?.questionSnapshot?.ccmrChallengeTier || 1)));
+    if (event?.source?.ccmrSessionCompleted === true) tierSessionsCompleted[tier] += 1;
+    if (event?.source?.ccmrSessionPassed === true) tierSessionsPassed[tier] += 1;
+  });
+  const progress = {
+    schemaVersion: 2,
+    studentId,
+    alignmentKey,
+    framework,
+    directItemsAttempted,
+    directItemsCorrect,
+    tier1SessionsCompleted: tierSessionsCompleted[1],
+    tier1SessionsPassed: tierSessionsPassed[1],
+    tier2SessionsCompleted: tierSessionsCompleted[2],
+    tier2SessionsPassed: tierSessionsPassed[2],
+    tier3SessionsCompleted: tierSessionsCompleted[3],
+    tier3SessionsPassed: tierSessionsPassed[3],
+    bootstrappedFromEvidence: true,
+    updatedAt: Date.now(),
+  };
+  if (directItemsAttempted > 0) await ref.set(progress, { merge: true });
+  return progress;
+}
+
+function ccmrSessionPasses(summary = {}, requiredQuestions = 5) {
+  const total = Math.max(1, Number(summary.completedQuestions || requiredQuestions || 1));
+  const accuracy = Number(summary.correctQuestions || 0) / total;
+  const independentRate = Number(summary.independentSuccesses || 0) / total;
+  return accuracy >= 0.8 && independentRate >= 0.6;
+}
+
+// Course Path progress is separate from mastery.
+//
+// "I finished this Path" means a student completed a full server-owned practice
+// session. "Mastered" is a stronger evidence claim that also requires breadth,
+// independent success and DOK 3+ evidence. The UI needs BOTH facts or a student
+// can finish five questions and return to a card that looks untouched.
+//
+// This helper reads only session summaries/targets and never question payloads.
+const COURSE_PATH_MAX_LEVEL = 3;
+
+async function loadCoursePathPassProgress(db, studentId, { limit = 400 } = {}) {
+  const snapshot = await db.collection("pathSessions")
+    .where("studentId", "==", studentId)
+    .limit(Math.max(20, Math.min(800, Number(limit) || 400)))
+    .get();
+
+  const byTeksCode = {};
+  snapshot.docs.forEach((sessionDoc) => {
+    const session = sessionDoc.data() || {};
+    if (session.status !== "completed") return;
+    if (session.sessionKind === "retentionProbe") return;
+    if (session.assessmentFramework) return;
+
+    const alignmentKey = mathPath.canonicalAlignmentKey(session.target?.alignmentKey);
+    const code = mathPath.displayAlignmentKey(alignmentKey);
+    if (!alignmentKey || !code) return;
+
+    const current = byTeksCode[code] || {
+      teksCode: code,
+      passesCompleted: 0,
+      lastCompletedAt: 0,
+      lastSummary: null,
+      highestRecordedLevel: 0,
+    };
+    current.passesCompleted += 1;
+    const completedAt = Number(session.completedAt || session.updatedAt || 0);
+    if (completedAt >= Number(current.lastCompletedAt || 0)) {
+      current.lastCompletedAt = completedAt;
+      current.lastSummary = {
+        completedQuestions: Number(session.summary?.completedQuestions || 0),
+        correctQuestions: Number(session.summary?.correctQuestions || 0),
+        independentSuccesses: Number(session.summary?.independentSuccesses || 0),
+      };
+    }
+    current.highestRecordedLevel = Math.max(
+      Number(current.highestRecordedLevel || 0),
+      Number(session.coursePassLevel || 1),
+    );
+    byTeksCode[code] = current;
+  });
+
+  Object.values(byTeksCode).forEach((entry) => {
+    entry.nextLevel = Math.min(COURSE_PATH_MAX_LEVEL, Number(entry.passesCompleted || 0) + 1);
+    entry.advancedLoop = Number(entry.passesCompleted || 0) >= COURSE_PATH_MAX_LEVEL;
+  });
+
+  return {
+    byTeksCode,
+    skillsWithCompletedPasses: Object.keys(byTeksCode).length,
+    totalCompletedPasses: Object.values(byTeksCode).reduce((sum, entry) => sum + Number(entry.passesCompleted || 0), 0),
+  };
+}
+
+/** Student-safe completion/pass summary for the Path cards. */
+exports.getMyMathPathSkillProgress = onCall((request) => withPathCallableDiagnostics("getMyMathPathSkillProgress", async () => {
+  const { studentId } = requireStudent(request);
+  const db = getFirestore();
+  const progress = await loadCoursePathPassProgress(db, studentId);
+  return { success: true, ...progress };
+}));
 
 const WEEKLY_PATH_GOAL_SNAPSHOTS = "weeklyPathGoalSnapshots";
 
@@ -4850,12 +5599,12 @@ exports.getTeacherWeeklyPathCompletions = onCall(async (request) => {
 });
 
 /** Start or resume one server-owned learning-path session for a TEKS target. */
-exports.startMyMathPathSession = onCall(async (request) => {
+exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics("startMyMathPathSession", async () => {
   const { studentId } = requireStudent(request);
   let targetAlignmentKey = mathPath.canonicalAlignmentKey(request.data?.targetAlignmentKey);
   if (!targetAlignmentKey) throw new HttpsError("invalid-argument", "targetAlignmentKey is required.");
   const sessionKind = request.data?.sessionKind === "retentionProbe" ? "retentionProbe" : "practice";
-  const requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
+  let requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
   let assessmentFramework = normalizePathAssessmentFramework(request.data?.assessmentFramework);
   const db = getFirestore();
 
@@ -4869,6 +5618,15 @@ exports.startMyMathPathSession = onCall(async (request) => {
   const legacyCourse = legacyCourseSettings.data()?.profiles?.[studentData.classPeriod] || {};
   const courseId = studentClass?.course || legacyCourse.course || coverageCourseIdFor(targetAlignmentKey);
   const courseLevel = studentClass?.courseLevel || legacyCourse.courseLevel || "standard";
+  let ccmrChallengeTier = 1;
+  let ccmrProgress = null;
+  if (assessmentFramework) {
+    ccmrProgress = await loadCcmrProgress(db, studentId, targetAlignmentKey, assessmentFramework);
+    ccmrChallengeTier = resolveServerCcmrChallengeTier(ccmrProgress);
+    // Once direct practice has been demonstrated, a repeat visit becomes a
+    // short harder set instead of another five questions at the same level.
+    if (ccmrChallengeTier >= 2 && sessionKind !== "retentionProbe") requiredQuestions = 3;
+  }
 
   // Weekly launches are resolved against the frozen server commitment. The
   // browser may choose which assigned row the student clicks, but it cannot
@@ -4898,6 +5656,26 @@ exports.startMyMathPathSession = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "That launch does not match the assigned weekly assessment context.");
     }
     assessmentFramework = assignedFramework;
+  }
+
+  // A weekly slot can supply the assessment framework after the initial request
+  // was normalized, so resolve its progression after that authority check too.
+  if (assessmentFramework && !ccmrProgress) {
+    ccmrProgress = await loadCcmrProgress(db, studentId, targetAlignmentKey, assessmentFramework);
+    ccmrChallengeTier = resolveServerCcmrChallengeTier(ccmrProgress);
+    if (ccmrChallengeTier >= 2 && sessionKind !== "retentionProbe") requiredQuestions = 3;
+  }
+
+  // Ordinary course practice has visible passes too. Pass 1 is the foundation
+  // session; later passes deliberately ask the selector for more demanding
+  // work. This is NOT mastery — mastery remains evidence-driven.
+  let priorCoursePasses = 0;
+  let coursePassLevel = null;
+  if (!assessmentFramework && sessionKind !== "retentionProbe") {
+    const passProgress = await loadCoursePathPassProgress(db, studentId);
+    const targetCode = mathPath.displayAlignmentKey(targetAlignmentKey);
+    priorCoursePasses = Number(passProgress.byTeksCode?.[targetCode]?.passesCompleted || 0);
+    coursePassLevel = Math.min(COURSE_PATH_MAX_LEVEL, priorCoursePasses + 1);
   }
 
   // Refuse a standard the secure bank cannot issue a question for, and refuse
@@ -4931,6 +5709,13 @@ exports.startMyMathPathSession = onCall(async (request) => {
       }
     }
   }
+  let assessmentReleaseState = {
+    framework: assessmentFramework || null,
+    tracked: false,
+    release: null,
+    matchingFamilies: 0,
+  };
+
   // A CCMR launch is allowed to call itself SAT/ACT/TSIA2/ASVAB practice only
   // when that exact framework has a full secure session of directly-authored
   // exam-style families. The ordinary TEKS coverage index is intentionally not
@@ -4944,14 +5729,18 @@ exports.startMyMathPathSession = onCall(async (request) => {
       .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
       .filter((question) => question.active !== false)
       .filter((question) => pathQuestionMatchesFramework(question, assessmentFramework));
-    const frameworkPlans = await Promise.all(frameworkRecords.map(async (question) => ({
-      question, plan: await mathPath.buildTemplateIssuePlan(question),
+    assessmentReleaseState = await loadAssessmentContentReleaseState(db, assessmentFramework, frameworkRecords);
+    const activeFrameworkRecords = assessmentReleaseState.tracked
+      ? frameworkRecords.filter((question) => String(question?.ccmrContentRelease || "").trim() === String(assessmentReleaseState.release || "").trim())
+      : frameworkRecords;
+    const frameworkPlans = assessmentReleaseState.available === false ? [] : await Promise.all(activeFrameworkRecords.map(async (question) => ({
+      question, plan: await safeBuildTemplateIssuePlan(question, { operation: "path-runtime-framework-check" }),
     })));
     const issuableFamilies = new Set(frameworkPlans
       .filter((entry) => entry.plan?.issuable)
       .map((entry) => String(entry.question?.familyId || entry.question?.id || ""))
       .filter(Boolean));
-    if (issuableFamilies.size < 5) {
+    if (assessmentReleaseState.available !== false && issuableFamilies.size < 5) {
       throw new HttpsError(
         "failed-precondition",
         `${assessmentFramework} practice for ${mathPath.displayAlignmentKey(targetAlignmentKey)} is not published yet.`,
@@ -4965,6 +5754,7 @@ exports.startMyMathPathSession = onCall(async (request) => {
   const proposedSessionRef = db.collection("pathSessions").doc();
 
   const session = await db.runTransaction(async (transaction) => {
+    const now = Date.now();
     const lock = await transaction.get(lockRef);
     if (lock.exists && lock.data()?.sessionId) {
       const existingRef = db.collection("pathSessions").doc(lock.data().sessionId);
@@ -4976,11 +5766,23 @@ exports.startMyMathPathSession = onCall(async (request) => {
         if ((existing.data()?.assessmentFramework || null) !== assessmentFramework) {
           throw new HttpsError("failed-precondition", "Finish the active session before changing assessment format.");
         }
-        return existing.data();
+        const releaseAction = pathContentRelease.planSessionContentReleaseAction(existing.data(), assessmentReleaseState);
+        if (releaseAction.action === "continue" || releaseAction.action === "finish-open-question") return existing.data();
+        if (releaseAction.action === "hold-release-update") throw assessmentReleaseUpdateError(assessmentFramework);
+        if (releaseAction.action !== "supersede") {
+          throw new HttpsError("aborted", "The assessment content release changed while this session was being resumed.");
+        }
+        transaction.set(
+          existingRef,
+          pathContentRelease.supersedeSessionForContentRelease(existing.data(), assessmentReleaseState.release, now),
+        );
       }
     }
 
-    const now = Date.now();
+    if (assessmentReleaseState.tracked && assessmentReleaseState.available === false) {
+      throw assessmentReleaseUpdateError(assessmentFramework);
+    }
+
     const targetDisplay = mathPath.displayAlignmentKey(targetAlignmentKey);
     const next = {
       sessionId: proposedSessionRef.id,
@@ -4988,6 +5790,17 @@ exports.startMyMathPathSession = onCall(async (request) => {
       status: "active",
       sessionKind,
       assessmentFramework,
+      assessmentContentRelease: assessmentReleaseState.tracked ? assessmentReleaseState.release : null,
+      ccmrChallengeTier: assessmentFramework ? ccmrChallengeTier : null,
+      coursePassLevel: assessmentFramework || sessionKind === "retentionProbe" ? null : coursePassLevel,
+      priorCoursePasses: assessmentFramework || sessionKind === "retentionProbe" ? null : priorCoursePasses,
+      ccmrProgressAtStart: assessmentFramework ? {
+        directItemsAttempted: Number(ccmrProgress?.directItemsAttempted || 0),
+        directItemsCorrect: Number(ccmrProgress?.directItemsCorrect || 0),
+        tier1SessionsPassed: Number(ccmrProgress?.tier1SessionsPassed || 0),
+        tier2SessionsPassed: Number(ccmrProgress?.tier2SessionsPassed || 0),
+        tier3SessionsPassed: Number(ccmrProgress?.tier3SessionsPassed || 0),
+      } : null,
       courseId,
       courseLevel,
       classId: studentClass?.classId || null,
@@ -5028,10 +5841,10 @@ exports.startMyMathPathSession = onCall(async (request) => {
   });
 
   return { success: true, session: publicPathSession(session) };
-});
+}));
 
 /** Issue only a sanitized question payload. Expected answers remain server-side. */
-exports.issueNextQuestion = onCall(async (request) => {
+exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("issueNextQuestion", async () => {
   const { studentId } = requireStudent(request);
   const sessionId = String(request.data?.sessionId || "").trim();
   if (!sessionId) throw new HttpsError("invalid-argument", "sessionId is required.");
@@ -5043,6 +5856,79 @@ exports.issueNextQuestion = onCall(async (request) => {
   if (session.status !== "active") throw new HttpsError("failed-precondition", "This My Math Path session is already complete.");
   if (session.currentQuestion) {
     return { questionInstance: mathPath.buildSanitizedQuestion(session.currentQuestion, { questionInstanceId: session.currentQuestion.questionInstanceId, attemptsAllowed: session.currentQuestion.attemptsAllowed, attemptsUsed: session.currentQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(session.currentQuestion) }) };
+  }
+
+  if (session.assessmentFramework) {
+    // Release compatibility is resolved from the TARGET assessment families,
+    // not from a remediation excursion. A course bridge inside SAT/ACT/TSIA2
+    // must not make the session look untracked. Read a broad bounded slice so
+    // legacy and replacement families are both visible during a bank refresh.
+    const targetReleaseSnapshot = await db.collection("pathQuestionBank")
+      .where("alignmentKeys", "array-contains", session.target.alignmentKey)
+      .limit(200)
+      .get();
+    const targetFrameworkRecords = targetReleaseSnapshot.docs
+      .map((questionDoc) => ({ id: questionDoc.id, ...questionDoc.data() }))
+      .filter((question) => question.active !== false)
+      .filter((question) => pathQuestionMatchesFramework(question, session.assessmentFramework));
+    const issueReleaseState = await loadAssessmentContentReleaseState(db, session.assessmentFramework, targetFrameworkRecords);
+    const releaseAction = pathContentRelease.planSessionContentReleaseAction(session, issueReleaseState);
+    if (releaseAction.action === "hold-release-update") {
+      throw assessmentReleaseUpdateError(session.assessmentFramework);
+    }
+
+    if (releaseAction.action === "supersede") {
+      const rollover = await db.runTransaction(async (transaction) => {
+        const fresh = await transaction.get(sessionRef);
+        if (!fresh.exists || fresh.data()?.studentId !== studentId) {
+          throw new HttpsError("not-found", "That My Math Path session is not available.");
+        }
+        const freshData = fresh.data();
+        if (freshData.currentQuestion) {
+          return {
+            questionInstance: mathPath.buildSanitizedQuestion(freshData.currentQuestion, {
+              questionInstanceId: freshData.currentQuestion.questionInstanceId,
+              attemptsAllowed: freshData.currentQuestion.attemptsAllowed,
+              attemptsUsed: freshData.currentQuestion.attemptsUsed,
+              toolPayload: mathPath.storedToolPayload(freshData.currentQuestion),
+            }),
+          };
+        }
+
+        const rolloverPayload = {
+          reason: pathContentRelease.RELEASE_CHANGE_REASON,
+          assessmentFramework: session.assessmentFramework,
+          targetAlignmentKey: session.target.alignmentKey,
+          currentRelease: issueReleaseState.release,
+        };
+        if (freshData.status === "superseded" && freshData.supersededReason === pathContentRelease.RELEASE_CHANGE_REASON) {
+          return { rollover: rolloverPayload };
+        }
+        if (freshData.status !== "active") {
+          throw new HttpsError("failed-precondition", "This My Math Path session is already complete.");
+        }
+
+        const freshAction = pathContentRelease.planSessionContentReleaseAction(freshData, issueReleaseState);
+        if (freshAction.action !== "supersede") {
+          // The only supported race from a stale/no-question state is another
+          // issuer creating the current question (handled above) or another
+          // issuer superseding it (handled above). Refuse any unexpected state
+          // instead of issuing across releases.
+          throw new HttpsError(
+            "aborted",
+            "This assessment session changed while its content release was being checked. Start it again to continue.",
+            { reason: pathContentRelease.RELEASE_CHANGE_REASON },
+          );
+        }
+        const now = Date.now();
+        transaction.set(
+          sessionRef,
+          pathContentRelease.supersedeSessionForContentRelease(freshData, issueReleaseState.release, now),
+        );
+        return { rollover: rolloverPayload };
+      });
+      return rollover;
+    }
   }
 
   const targetDisplayCode = mathPath.displayAlignmentKey(session.target.alignmentKey);
@@ -5066,12 +5952,30 @@ exports.issueNextQuestion = onCall(async (request) => {
     .filter((question) => question.active !== false);
   const buildFrameworkPlans = async (framework) => Promise.all(bankRecords
     .filter((question) => pathQuestionMatchesFramework(question, framework))
-    .map(async (question) => ({ question, plan: await mathPath.buildTemplateIssuePlan(question) })));
+    .filter((question) => pathQuestionMatchesSessionContentRelease(question, session))
+    .map(async (question) => ({ question, plan: await safeBuildTemplateIssuePlan(question, { operation: "path-question-selection" }) })));
 
   let plans = await buildFrameworkPlans(session.assessmentFramework || null);
   let issuable = plans.filter((entry) => entry.plan.issuable);
   let candidates = issuable.map((entry) => entry.question);
   let usingCourseBridge = false;
+
+  // Fidelity V2 progression: the first assessment session uses direct/foundation
+  // families. A repeat after strong direct evidence uses authored challenge
+  // families and never silently cycles the same five introductory tasks.
+  if (session.assessmentFramework) {
+    const tier = Math.max(1, Math.min(3, Number(session.ccmrChallengeTier || 1)));
+    const foundation = candidates.filter((question) => Number(question.ccmrChallengeTier || 1) <= 1);
+    const challenge = candidates.filter((question) => Number(question.ccmrChallengeTier || 1) >= 2);
+    if (tier === 1 && foundation.length) candidates = foundation;
+    if (tier >= 2) {
+      if (challenge.length >= 2) candidates = challenge;
+      else {
+        const highFoundation = foundation.filter((question) => Number(question.difficultyBand || 3) >= 4);
+        candidates = [...challenge, ...highFoundation];
+      }
+    }
+  }
 
   // A CCMR session may route down to a mathematical prerequisite that the exam
   // itself does not test. Stranding the student there with "start again" is a
@@ -5137,12 +6041,27 @@ exports.issueNextQuestion = onCall(async (request) => {
   const masteryProfile = masterySnapshot.data()?.profiles?.[activeDisplayCode] || {};
   const adaptiveRigor = rigorPolicy.resolveAdaptiveRigor({ courseLevel, profile: masteryProfile });
   const onAssignedWeeklyTarget = Boolean(session.weeklySlotKey && activeDisplayCode === targetDisplayCode && !session.diagnosing);
-  const preferredDifficultyBand = onAssignedWeeklyTarget && Number.isFinite(Number(session.intendedDifficultyBand))
+  let preferredDifficultyBand = onAssignedWeeklyTarget && Number.isFinite(Number(session.intendedDifficultyBand))
     ? Number(session.intendedDifficultyBand)
     : adaptiveRigor.preferredDifficultyBand;
-  const preferredDok = onAssignedWeeklyTarget && Number.isFinite(Number(session.intendedDok))
+  let preferredDok = onAssignedWeeklyTarget && Number.isFinite(Number(session.intendedDok))
     ? Number(session.intendedDok)
     : adaptiveRigor.preferredDok;
+  if (session.assessmentFramework && Number(session.ccmrChallengeTier || 1) >= 2) {
+    preferredDifficultyBand = Number(session.ccmrChallengeTier) >= 3 ? 5 : Math.max(4, Number(preferredDifficultyBand || 3));
+    preferredDok = Number(session.ccmrChallengeTier) >= 3 ? Math.max(3, Number(preferredDok || 2)) : Math.max(2, Number(preferredDok || 2));
+  }
+  if (!session.assessmentFramework && session.sessionKind !== "retentionProbe") {
+    const coursePassLevel = Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1)));
+    if (coursePassLevel >= 2) {
+      preferredDifficultyBand = Math.max(4, Number(preferredDifficultyBand || 3));
+      preferredDok = Math.max(2, Number(preferredDok || 2));
+    }
+    if (coursePassLevel >= 3) {
+      preferredDifficultyBand = Math.max(5, Number(preferredDifficultyBand || 4));
+      preferredDok = Math.max(3, Number(preferredDok || 2));
+    }
+  }
   // Selection prefers an UNUSED family, widening to the closest adjacent band
   // before it repeats anything. Narrowing to the nearest band first and cycling
   // inside it — which is what this used to do — trapped a five-question session
@@ -5154,50 +6073,96 @@ exports.issueNextQuestion = onCall(async (request) => {
   // questions about one thing.
   const usedRepresentations = Array.isArray(session.usedRepresentations) ? session.usedRepresentations : [];
   const usedTaskTypes = Array.isArray(session.usedTaskTypes) ? session.usedTaskTypes : [];
-  const choice = selection.selectNextFamily(candidates, {
+  const selectionOptions = {
     preferredBand: preferredDifficultyBand,
     // Cognitive demand, decided server-side from the same evidence the band is.
-    // Selection ignored it entirely until now, so the DOK the platform reported
-    // was never the DOK it delivered.
     preferredDok,
     usage: familyUsage,
     usedRepresentations,
     usedTaskTypes,
-  });
-  const authored = choice.question;
+  };
+
+  // Do not let one bad generated draw/family strand the whole skill. The bank
+  // validator proves a TEMPLATE can issue, but a runtime draw or tool-support
+  // builder can still encounter an edge case. Try the ranked alternatives
+  // before showing the student an error.
+  let remainingCandidates = [...candidates];
+  let choice = null;
+  let authored = null;
+  let instantiated = null;
+  let issued = null;
+  let issuePlan = null;
+  let preparedApplicableSupports = null;
+  let preparedPrivateSupport = null;
+  const preparationFailures = [];
   const questionInstanceId = mathPath.runtimeId("qi");
 
-  // THE QUESTION THE STUDENT ACTUALLY GETS.
-  //
-  // A bank record may be a template — parameters plus the document that uses
-  // them — and this is where it becomes one concrete question. It happens on
-  // the server because the parameters that produced the answer must never
-  // reach the browser, and because a browser generating its own numbers while
-  // the server graded a stored key would mark every correct answer wrong.
-  //
-  // Deterministic in the session and the instance id, so the question survives
-  // a reload; the generated question is stored on the session either way, so
-  // the two agree by construction. A record with no generator passes through untouched.
-  const instantiated = await mathPath.instantiateQuestion(authored, `${sessionId}|${questionInstanceId}`);
-  if (!instantiated.question) {
-    logger.error("A Path template could not generate a question", {
-      sessionId, bankQuestionId: authored.id, reason: instantiated.reason,
-    });
-    throw new HttpsError("failed-precondition", `A question for ${activeDisplayCode} could not be prepared. Your teacher can see this in the Path audit.`, { reason: "generator-failed" });
-  }
-  const issued = instantiated.question;
+  while (remainingCandidates.length) {
+    const tentative = selection.selectNextFamily(remainingCandidates, selectionOptions);
+    if (!tentative?.question) break;
+    const tentativeQuestion = tentative.question;
 
-  // Re-planned from the INSTANCE, not the template: the grading definition is
-  // built from this question's own answer, and a template's answer is a
-  // placeholder. For a record with no generator these are the same object and
-  // the stored plan is reused.
-  const issuePlan = await mathPath.buildIssuePlan(issued);
-  if (!issuePlan?.issuable) {
-    logger.error("A generated Path question was not issuable", {
-      sessionId, bankQuestionId: authored.id, reason: issuePlan?.reason,
-    });
-    throw new HttpsError("failed-precondition", `A question for ${activeDisplayCode} could not be prepared. Your teacher can see this in the Path audit.`, { reason: "generated-not-issuable" });
+    try {
+      const draw = await mathPath.instantiateQuestion(tentativeQuestion, `${sessionId}|${questionInstanceId}|${tentativeQuestion.id}`);
+      if (!draw?.question) {
+        preparationFailures.push({ questionId: tentativeQuestion.id, reason: draw?.reason || "generator_failed" });
+        remainingCandidates = remainingCandidates.filter((candidate) => candidate.id !== tentativeQuestion.id);
+        continue;
+      }
+
+      const planned = await mathPath.buildIssuePlan(draw.question);
+      if (!planned?.issuable) {
+        preparationFailures.push({ questionId: tentativeQuestion.id, reason: planned?.reason || "generated_not_issuable" });
+        remainingCandidates = remainingCandidates.filter((candidate) => candidate.id !== tentativeQuestion.id);
+        continue;
+      }
+
+      const [applicableSupports, privateSupport] = await Promise.all([
+        mathPath.applicableSupportsFor(entitlements, draw.question, {}),
+        mathPath.buildPrivateSupport(draw.question),
+      ]);
+
+      choice = tentative;
+      authored = tentativeQuestion;
+      instantiated = draw;
+      issued = draw.question;
+      issuePlan = planned;
+      preparedApplicableSupports = applicableSupports;
+      preparedPrivateSupport = privateSupport;
+      break;
+    } catch (error) {
+      preparationFailures.push({
+        questionId: tentativeQuestion.id,
+        reason: "runtime_preparation_exception",
+        detail: error?.message || String(error),
+      });
+      logger.warn("Skipping Path family after runtime preparation failure", {
+        sessionId,
+        activeDisplayCode,
+        bankQuestionId: tentativeQuestion.id,
+        message: error?.message || String(error),
+      });
+      remainingCandidates = remainingCandidates.filter((candidate) => candidate.id !== tentativeQuestion.id);
+    }
   }
+
+  if (!choice || !authored || !instantiated?.question || !issuePlan?.issuable) {
+    logger.error("All Path candidates failed runtime preparation", {
+      sessionId,
+      activeDisplayCode,
+      targetDisplayCode,
+      failures: preparationFailures,
+    });
+    throw new HttpsError(
+      "failed-precondition",
+      `Published practice for ${activeDisplayCode} needs repair before another question can be prepared. Your completed work is safe; return to My Math Path and choose another open skill.`,
+      {
+        reason: "all-candidate-preparations-failed",
+        failedFamilies: preparationFailures.slice(0, 12).map((entry) => ({ questionId: entry.questionId, reason: entry.reason })),
+      },
+    );
+  }
+
   // A diagnostic is ONE question with ONE attempt: it is asked to find out
   // whether a prerequisite is the obstacle, and three tries at it would measure
   // persistence rather than answer the question.
@@ -5221,7 +6186,10 @@ exports.issueNextQuestion = onCall(async (request) => {
     generatorParameters: instantiated.parameters,
     skillCode: activeDisplayCode,
     pathRole,
+    coursePassLevel: session.assessmentFramework ? null : Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1))),
     assessmentBridgeFramework: usingCourseBridge ? session.assessmentFramework : null,
+    ccmrChallengeTier: session.assessmentFramework ? Math.max(1, Math.min(3, Number(session.ccmrChallengeTier || 1))) : null,
+    ccmrFamilyRole: authored.ccmrFamilyRole || (Number(authored.ccmrChallengeTier || 1) >= 2 ? "challenge" : "direct"),
     // Teacher/QA metadata. `buildSanitizedQuestion` does not copy these onto the
     // student payload; the Path Simulator reads them from the session document.
     selectionReason: choice.reason,
@@ -5230,7 +6198,7 @@ exports.issueNextQuestion = onCall(async (request) => {
     // not the same as applicable: a calculator accommodation does not apply to
     // an item whose assessed construct is the computation, and reduced choices
     // do not apply where there is nothing to reduce.
-    applicableSupports: await mathPath.applicableSupportsFor(entitlements, issued, {}),
+    applicableSupports: preparedApplicableSupports,
     authorizedSupports: entitlements.authorized,
     supportEntitlements: {
       extraAttempts: entitlements.extraAttempts,
@@ -5252,7 +6220,7 @@ exports.issueNextQuestion = onCall(async (request) => {
     // document, and are released one piece at a time by submitPathResponse.
     // Nothing in this bundle is ever part of the sanitized question, so a
     // student cannot read the review out of the payload before answering.
-    privateSupport: await mathPath.buildPrivateSupport(issued),
+    privateSupport: preparedPrivateSupport,
   };
 
   const issuedQuestion = await db.runTransaction(async (transaction) => {
@@ -5273,14 +6241,14 @@ exports.issueNextQuestion = onCall(async (request) => {
   });
 
   return { questionInstance: mathPath.buildSanitizedQuestion(issuedQuestion, { questionInstanceId: issuedQuestion.questionInstanceId, attemptsAllowed: issuedQuestion.attemptsAllowed, attemptsUsed: issuedQuestion.attemptsUsed, toolPayload: mathPath.storedToolPayload(issuedQuestion) }) };
-});
+}));
 
 /**
  * Grade a path response on the server and append immutable evidence in the same
  * transaction. submissionId is a real idempotency key, so a network retry can
  * safely repeat the request without creating a second attempt.
  */
-exports.submitPathResponse = onCall(async (request) => {
+exports.submitPathResponse = onCall((request) => withPathCallableDiagnostics("submitPathResponse", async () => {
   const { studentId } = requireStudent(request);
   const sessionId = String(request.data?.sessionId || "").trim();
   const questionInstanceId = String(request.data?.questionInstanceId || "").trim();
@@ -5314,17 +6282,15 @@ exports.submitPathResponse = onCall(async (request) => {
   // The mastery profile is what the student knew coming in; the coverage
   // indexes are what the bank can actually teach. Both are read-only inputs, so
   // reading them outside keeps the transaction short.
-  const [masterySnapshot, retentionSnapshotForRouting, algebra1Coverage, algebra2Coverage] = await Promise.all([
+  const [masterySnapshot, retentionSnapshotForRouting, ...coverageSnapshots] = await Promise.all([
     db.collection("studentMasteryProfiles").doc(studentId).get(),
     db.collection("studentRetentionSchedules").doc(studentId).get(),
-    db.collection(COVERAGE_COLLECTION).doc("algebra1").get(),
-    db.collection(COVERAGE_COLLECTION).doc("algebra2").get(),
+    ...PATH_COURSE_IDS.map((courseId) => db.collection(COVERAGE_COLLECTION).doc(courseId).get()),
   ]);
   const masteryProfiles = masterySnapshot.data()?.profiles || {};
-  const coverageIndexes = {
-    algebra1: algebra1Coverage.exists ? algebra1Coverage.data() : null,
-    algebra2: algebra2Coverage.exists ? algebra2Coverage.data() : null,
-  };
+  const coverageIndexes = Object.fromEntries(PATH_COURSE_IDS.map((courseId, index) => [
+    courseId, coverageSnapshots[index]?.exists ? coverageSnapshots[index].data() : null,
+  ]));
   const retentionSchedules = retentionSnapshotForRouting.data()?.schedules || {};
 
   const transactionResult = await db.runTransaction(async (transaction) => {
@@ -5542,6 +6508,8 @@ exports.submitPathResponse = onCall(async (request) => {
         questionType: currentQuestion.questionType,
         difficultyBand: currentQuestion.difficultyBand,
         dok: currentQuestion.dok,
+        ccmrChallengeTier: currentQuestion.ccmrChallengeTier || null,
+        ccmrFamilyRole: currentQuestion.ccmrFamilyRole || null,
       },
       // A retention probe is not ordinary practice, and recording it as such
       // made "has this stayed with you?" evidence indistinguishable from
@@ -5562,6 +6530,11 @@ exports.submitPathResponse = onCall(async (request) => {
           ? normalizePathAssessmentFramework(currentQuestion.assessmentContext.framework)
           : null,
         assessmentBridgeFramework: currentQuestion.assessmentBridgeFramework || null,
+        ccmrChallengeTier: currentQuestion.assessmentContext?.examStyle === true
+          ? Math.max(1, Math.min(3, Number(session.ccmrChallengeTier || currentQuestion.ccmrChallengeTier || 1)))
+          : null,
+        ccmrSessionCompleted: Boolean(currentQuestion.assessmentContext?.examStyle === true && nextStatus === "completed"),
+        ccmrSessionPassed: Boolean(currentQuestion.assessmentContext?.examStyle === true && nextStatus === "completed" && ccmrSessionPasses(nextSummary, session.requiredQuestions)),
       },
       performance: { score: gradingCore.score, isCorrect: gradingCore.isCorrect, attemptNumber, status: questionFinalized ? "finalized" : "attempted", isMathematicallyIndependent: independent },
       supportUsage: { ...supportUsage, isMathematicallyIndependent: independent },
@@ -5592,6 +6565,37 @@ exports.submitPathResponse = onCall(async (request) => {
       nextSession.retentionOutcome = passed ? "passed" : "failed";
     }
 
+    if (questionFinalized && currentQuestion.assessmentContext?.examStyle === true) {
+      const directFramework = normalizePathAssessmentFramework(currentQuestion.assessmentContext.framework);
+      if (directFramework) {
+        const tier = Math.max(1, Math.min(3, Number(session.ccmrChallengeTier || currentQuestion.ccmrChallengeTier || 1)));
+        const progressRef = ccmrProgressRef(db, studentId, mathPath.canonicalAlignmentKey(activeSkillCode), directFramework);
+        const progressUpdate = {
+          schemaVersion: 2,
+          studentId,
+          alignmentKey: mathPath.canonicalAlignmentKey(activeSkillCode),
+          teksCode: activeSkillCode,
+          framework: directFramework,
+          directItemsAttempted: FieldValue.increment(1),
+          directItemsCorrect: FieldValue.increment(gradingCore.isCorrect ? 1 : 0),
+          [`tier${tier}ItemsAttempted`]: FieldValue.increment(1),
+          [`tier${tier}ItemsCorrect`]: FieldValue.increment(gradingCore.isCorrect ? 1 : 0),
+          lastChallengeTierSeen: tier,
+          lastPracticedAt: now,
+          updatedAt: now,
+        };
+        if (nextStatus === "completed") {
+          progressUpdate[`tier${tier}SessionsCompleted`] = FieldValue.increment(1);
+          if (ccmrSessionPasses(nextSummary, session.requiredQuestions)) {
+            progressUpdate[`tier${tier}SessionsPassed`] = FieldValue.increment(1);
+            progressUpdate.lastPassedTier = tier;
+            progressUpdate.lastPassedAt = now;
+          }
+        }
+        transaction.set(progressRef, progressUpdate, { merge: true });
+      }
+    }
+
     transaction.set(evidenceRef, event);
     transaction.set(sessionRef, nextSession);
     if (nextStatus === "completed") {
@@ -5616,7 +6620,7 @@ exports.submitPathResponse = onCall(async (request) => {
   });
 
   return transactionResult.result;
-});
+}));
 
 // Phase 6A: DOK 3/4 modeling labs are graded from a teacher-authored private
 // definition. The browser submits only student telemetry; it never supplies the
@@ -6293,3 +7297,141 @@ exports.updateMyMathPathMasteryFromEvidence = onDocumentCreated(
     });
   },
 );
+
+
+// --- Integrated assignment authoring AI -------------------------------------
+//
+// The browser sends the SAME complete MathMaster authoring request that the
+// teacher can copy into an outside AI. The provider key never leaves Functions.
+// Output still goes through the browser's canonical Assignment V5 compiler and
+// Preflight before anything can be saved or published.
+const ASSIGNMENT_AI_USAGE_COLLECTION = "assignmentAiUsage";
+const ASSIGNMENT_AI_MIN_INTERVAL_MS = 12 * 1000;
+const ASSIGNMENT_AI_DAILY_LIMIT = 50;
+
+async function reserveAssignmentAiUsage(db, teacherUid) {
+  const ref = db.collection(ASSIGNMENT_AI_USAGE_COLLECTION).doc(String(teacherUid));
+  const now = Date.now();
+  const dayKey = new Date(now).toISOString().slice(0, 10);
+
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const data = snapshot.exists ? (snapshot.data() || {}) : {};
+    const previous = toDate(data.lastStartedAt)?.getTime() || 0;
+    if (previous && now - previous < ASSIGNMENT_AI_MIN_INTERVAL_MS) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "An assignment is already being built. Wait a few seconds before starting another one.",
+      );
+    }
+
+    const dayCount = data.dayKey === dayKey ? Math.max(0, Number(data.dayCount) || 0) : 0;
+    if (dayCount >= ASSIGNMENT_AI_DAILY_LIMIT) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "This teacher account reached MathMaster's daily AI assignment-build limit. Use the copy/paste AI workflow or try again tomorrow.",
+      );
+    }
+
+    transaction.set(ref, {
+      dayKey,
+      dayCount: dayCount + 1,
+      lastStartedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    return { dayKey, dayCount: dayCount + 1 };
+  });
+}
+
+function translateAssignmentAiError(error) {
+  if (error instanceof HttpsError) return error;
+  if (error instanceof assignmentAi.AssignmentAiError) {
+    return new HttpsError(
+      error.code || "internal",
+      error.message || "MathMaster could not build this assignment with AI.",
+      error.details || undefined,
+    );
+  }
+  logger.error("Integrated assignment AI failed", {
+    name: error?.name || null,
+    message: error?.message || String(error),
+  });
+  return new HttpsError(
+    "internal",
+    "MathMaster could not build this assignment with AI. Use the copy/paste AI workflow while the service is checked.",
+  );
+}
+
+exports.hydrateAssignmentCcmr = onCall({
+  timeoutSeconds: 60,
+  memory: "1GiB",
+}, async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const assignment = request.data?.assignment;
+  if (!assignment || typeof assignment !== "object" || Array.isArray(assignment)) {
+    throw new HttpsError("invalid-argument", "Provide one Assignment V5 object to prepare CCMR Practice.");
+  }
+  if (Number(assignment.schemaVersion) !== 5 || !Array.isArray(assignment.sections)) {
+    throw new HttpsError("failed-precondition", "CCMR bank hydration requires Assignment V5 sections.");
+  }
+
+  try {
+    const result = ccmrAssignmentBank.replaceDirectCcmrQuestionsWithAuditedBank(assignment, {
+      ensurePracticeTarget: request.data?.ensurePracticeTarget === true,
+    });
+    await getFirestore().collection("assignmentCcmrHydrationAudit").add({
+      teacherUid,
+      teacherEmail: callerEmail(request),
+      releaseTarget: result.audit?.releaseTarget || null,
+      replaced: Number(result.audit?.replaced || 0),
+      autoSourced: Number(result.audit?.autoSourced || 0),
+      targetCount: Number(result.audit?.targetCount || 0),
+      missCount: Array.isArray(result.audit?.misses) ? result.audit.misses.length : 0,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return result;
+  } catch (error) {
+    logger.error("Assignment CCMR bank hydration failed", {
+      teacherUid,
+      message: error?.message || String(error),
+    });
+    throw new HttpsError("internal", "MathMaster could not prepare audited CCMR Practice for this assignment.");
+  }
+});
+
+exports.authorAssignmentWithAI = onCall({
+  secrets: ASSIGNMENT_AI_SECRETS,
+  timeoutSeconds: 300,
+  memory: "1GiB",
+}, async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const prompt = String(request.data?.prompt || "").trim();
+  const requestedModel = String(readPublicEnv("OPENAI_ASSIGNMENT_MODEL", assignmentAi.DEFAULT_ASSIGNMENT_MODEL) || "").trim()
+    || assignmentAi.DEFAULT_ASSIGNMENT_MODEL;
+
+  try {
+    await reserveAssignmentAiUsage(getFirestore(), teacherUid);
+    const result = await assignmentAi.callOpenAiAssignmentAuthor({
+      apiKey: readOpenAiApiKey(),
+      prompt,
+      model: requestedModel,
+    });
+
+    await getFirestore().collection("assignmentAiAudit").add({
+      teacherUid,
+      teacherEmail: callerEmail(request),
+      provider: "openai",
+      model: result.model,
+      responseId: result.responseId,
+      usage: result.usage || null,
+      ccmrBank: result.ccmrBank || null,
+      promptCharacters: prompt.length,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    return result;
+  } catch (error) {
+    throw translateAssignmentAiError(error);
+  }
+});

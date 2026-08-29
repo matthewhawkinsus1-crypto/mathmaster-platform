@@ -1,3 +1,5 @@
+import { getStoredAssignmentTypeProjection } from '../contract/storedAssignmentV5.js';
+
 export const ACTIVITY_ROLES = Object.freeze({
   WARMUP: 'warmup',
   CLASSWORK: 'classwork',
@@ -123,9 +125,8 @@ export const resolveQuestionActivityRole = ({ question = {}, assignment = {}, is
   const explicit = question?.activityRole ?? question?.role;
   if (isActivityRole(explicit)) return normalizeActivityRole(explicit);
   if (isDOL || question?.isDOL === true) return ACTIVITY_ROLES.DOL;
-  if (isActivityRole(assignment?.activityRole)) return normalizeActivityRole(assignment.activityRole);
-  const assignmentType = String(assignment?.assignmentType || '').toLowerCase();
-  if (assignmentType === 'notesclasswork' || assignmentType === 'classwork') return ACTIVITY_ROLES.CLASSWORK;
+  const assignmentType = getStoredAssignmentTypeProjection(assignment);
+  if (assignmentType === 'notesClasswork') return ACTIVITY_ROLES.CLASSWORK;
   if (assignmentType === 'quiz') return ACTIVITY_ROLES.QUIZ;
   if (assignmentType === 'test') return ACTIVITY_ROLES.TEST;
   if (assignmentType === 'warmup') return ACTIVITY_ROLES.WARMUP;

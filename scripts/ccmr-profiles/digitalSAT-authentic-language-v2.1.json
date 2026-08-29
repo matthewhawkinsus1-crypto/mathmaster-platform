@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "digitalSAT",
+  "purpose": "Author original MathMaster generator families that train the mathematics and linguistic register students encounter on the current digital SAT without copying College Board items.",
+  "corpusTargets": {
+    "responseModes": {
+      "multipleChoiceApproximateShare": 0.75,
+      "studentProducedResponseApproximateShare": 0.25,
+      "rule": "Preserve the SAT ecology at corpus/session level. Do not force every TEKS mapping to contain both formats when the skill does not naturally support both."
+    },
+    "context": {
+      "approximateTestFormShare": 0.30,
+      "rule": "Use science, social-science, or real-world context only when the context is mathematically functional. Avoid decorating every item with a story."
+    },
+    "domains": [
+      "algebra",
+      "advancedMath",
+      "problemSolvingData",
+      "geometryTrigonometry"
+    ]
+  },
+  "globalLanguageRules": {
+    "do": [
+      "Use concise declarative setup followed by one precise mathematical question.",
+      "Use the vocabulary the construct requires: value, solution, equation, function, rate of change, y-intercept, equivalent, factor, percent, probability, sample, margin of error, radius, angle, volume, and other domain terms when mathematically appropriate.",
+      "State units next to quantities when units matter.",
+      "Let difficult items become difficult through mathematical structure, representation, inference, or multi-step dependence rather than through extra directions.",
+      "For student-produced response, ask for the mathematical result directly; the interface already communicates that the student must enter a response.",
+      "Build distractors from identifiable misconceptions or operation errors, not correctAnswer plus 1/2/3 unless those values genuinely model likely errors."
+    ],
+    "avoid": [
+      "Select the best Digital SAT answer.",
+      "Challenge:",
+      "A student selected ...",
+      "Recheck the mathematics ...",
+      "Show your work.",
+      "Explain your reasoning.",
+      "Use the workspace/tool.",
+      "SAT-style question",
+      "DOK or difficulty-band language",
+      "teacher-facing coaching inside the student prompt"
+    ],
+    "copyrightRule": "Model assessment conventions and tested constructs; do not reproduce or lightly paraphrase proprietary question text from official banks."
+  },
+  "domains": {
+    "algebra": {
+      "officialSkillFamilies": [
+        "linear equations in one variable",
+        "linear functions",
+        "linear equations in two variables",
+        "systems of two linear equations in two variables",
+        "linear inequalities in one or two variables"
+      ],
+      "register": [
+        "Short symbolic setup is normal; do not force a word problem.",
+        "When a function is given, ask for a value, feature, equivalent representation, or interpretation that belongs to the official linear-function skill family.",
+        "For contextual linear models, define variables and units naturally and ask what a coefficient, value, solution, or equation means in that context.",
+        "Use graph/table language only when the item actually supplies that representation."
+      ],
+      "authenticTaskPatterns": [
+        "equation or expression -> determine a solution/value",
+        "linear function -> determine or interpret slope/rate/intercept/output",
+        "two points/table/graph -> determine a linear relationship or feature",
+        "two linear relationships -> determine an intersection or parameter",
+        "linear inequality -> determine values or interpret the solution set"
+      ]
+    },
+    "advancedMath": {
+      "officialSkillFamilies": [
+        "equivalent expressions",
+        "nonlinear equations in one variable",
+        "systems of equations in two variables",
+        "nonlinear functions"
+      ],
+      "register": [
+        "Use precise structural language such as equivalent, factor, zero, solution, maximum, minimum, coefficient, constant, exponential, quadratic, rational, radical, or polynomial only when it is the tested idea.",
+        "Harder items should require recognition of structure, reverse reasoning, parameter relationships, or linking representations—not a meta instruction to verify work.",
+        "Keep single-answer response behavior even when the reasoning is cognitively complex."
+      ],
+      "authenticTaskPatterns": [
+        "expression -> identify an equivalent form that reveals a feature",
+        "nonlinear equation -> determine solution or parameter",
+        "nonlinear function -> determine or interpret a key feature",
+        "linear/nonlinear system -> determine an intersection or dependent quantity"
+      ]
+    },
+    "problemSolvingData": {
+      "officialSkillFamilies": [
+        "ratios, rates, proportional relationships, and units",
+        "percentages",
+        "one-variable data: distributions and measures of center and spread",
+        "two-variable data: models and scatterplots",
+        "probability and conditional probability",
+        "inference from sample statistics and margin of error",
+        "evaluating statistical claims: observational studies and experiments"
+      ],
+      "register": [
+        "Context is usually functional here. Name the population, sample, variable, unit, or study design when it matters.",
+        "Use statistically precise distinctions among sample and population, association and causation, random selection and random assignment, predicted and observed values, and center and spread.",
+        "Do not reduce data-analysis items to generic arithmetic wrapped in a story when the mapped skill calls for interpretation."
+      ],
+      "authenticTaskPatterns": [
+        "rate/unit conversion -> determine equivalent quantity",
+        "percentage relationship -> determine part/whole/change",
+        "data display/model -> determine or interpret a statistic/prediction",
+        "probability setting -> determine conditional or unconditional probability",
+        "sample/study -> determine supported inference or evaluate claim"
+      ]
+    },
+    "geometryTrigonometry": {
+      "officialSkillFamilies": [
+        "area and volume",
+        "lines, angles, and triangles",
+        "right triangles and trigonometry",
+        "circles"
+      ],
+      "register": [
+        "State geometric relationships and units precisely; include a figure/diagram only when the runtime can actually render it.",
+        "Use coordinate-plane language when coordinates are part of the task, and conventional geometry vocabulary when it is necessary to reason.",
+        "Contextual geometry should require modeling a real dimension, angle, area, or volume rather than merely attaching a noun to a formula exercise."
+      ],
+      "authenticTaskPatterns": [
+        "given dimensions/relationships -> determine length, area, or volume",
+        "angle/triangle relationships -> determine a missing measure",
+        "right triangle -> determine side/angle using similarity or trigonometry",
+        "circle equation/geometry -> determine radius, center, arc, angle, or related measure"
+      ]
+    }
+  },
+  "challengeRules": {
+    "minimum": "Three independently authored challenge families per mapped standard before V2.1 can publish.",
+    "mustDifferFromDirectSource": [
+      "generator parameterization or derived structure",
+      "mathematical dependency/solution path",
+      "distractor model for MCQ",
+      "task grammar when the mathematical construct permits it"
+    ],
+    "forbidden": [
+      "Clone a direct generator and only raise difficultyBand/DOK.",
+      "Create difficulty by prepending Challenge or a hypothetical wrong student/test taker.",
+      "Call an item DOK 3 solely because the prompt asks the student to verify or explain."
+    ]
+  },
+  "versioningRules": {
+    "familyVersion": "Increment any re-authored family version.",
+    "fidelityVersion": "Set ccmrFidelity.version to 2.1 only after authentic-language and underlying-task audits pass.",
+    "contentRelease": "Pin new sessions to the V2.1 content release. Preserve submitted evidence from older releases.",
+    "staleSessionPolicy": "Do not hot-swap a student's unanswered questions across content releases. Retire stale active CCMR practice sessions at the release boundary and start a new session at the student's preserved progression tier. Secure exam simulations stay pinned to their original release."
+  }
+}

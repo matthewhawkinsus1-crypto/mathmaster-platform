@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import 'mathlive';
+import { requiredAnswerToolForSymbol, resolveRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
+import { buildMobileMathTools } from './platform/interaction/mobileKeypadPolicy.js';
+import { scheduleHorizontalViewportStabilization } from './platform/mobile/mobileFocusViewport.js';
 
 const BASIC_KEYS = [
   { label: 'π', command: '\\pi', ariaLabel: 'Insert pi' },
@@ -35,6 +38,14 @@ const FUNCTION_KEYS = [
   { label: ')', command: ')', ariaLabel: 'Insert close parenthesis' },
   { label: 'f(x)', command: 'f(x)', ariaLabel: 'Insert f of x' },
   { label: 'g(x)', command: 'g(x)', ariaLabel: 'Insert g of x' },
+];
+
+const EQUATION_ENTRY_KEYS = [
+  { label: 'x', command: 'x', ariaLabel: 'Insert x' },
+  { label: 'y', command: 'y', ariaLabel: 'Insert y' },
+  { label: 'f(x)', command: 'f(x)', ariaLabel: 'Insert f of x' },
+  { label: 'f⁻¹(x)', command: 'f^{-1}(x)', ariaLabel: 'Insert inverse function f inverse of x' },
+  { label: '=', command: '=', ariaLabel: 'Insert equals sign' },
 ];
 
 
@@ -84,10 +95,14 @@ const SET_KEYS = [
 
 const INEQUALITY_KEYS = [
   { label: '<', command: '<', ariaLabel: 'Insert less than' },
-  { label: '≤', command: '\\le', ariaLabel: 'Insert less than or equal to' },
+  // Insert the complete Unicode relation character, not a bare LaTeX command
+  // prefix such as "\\le". If the next character is a variable (especially t),
+  // MathLive can otherwise serialize "\\le" + "t" as the command-like token
+  // "\\let". A keypad press must be an atomic mathematical symbol.
+  { label: '≤', command: '≤', ariaLabel: 'Insert less than or equal to' },
   { label: '>', command: '>', ariaLabel: 'Insert greater than' },
-  { label: '≥', command: '\\ge', ariaLabel: 'Insert greater than or equal to' },
-  { label: '≠', command: '\\ne', ariaLabel: 'Insert not equal to' },
+  { label: '≥', command: '≥', ariaLabel: 'Insert greater than or equal to' },
+  { label: '≠', command: '≠', ariaLabel: 'Insert not equal to' },
   { label: '−∞', command: '-\\infty', ariaLabel: 'Insert negative infinity' },
   { label: '∞', command: '\\infty', ariaLabel: 'Insert positive infinity' },
   { label: '∪', command: '\\cup', ariaLabel: 'Insert union' },
@@ -112,14 +127,21 @@ const EXIT_GROUP_KEY = {
 
 const withExit = (keys) => [...keys, EXIT_GROUP_KEY];
 
-const getToolKeys = (profile, { isMobile = false, contextSymbols = [] } = {}) => {
+const getToolKeys = (profile, { isMobile = false, contextSymbols = [], functionNotationKeys = [] } = {}) => {
+  const authoredFunctionKeys = (Array.isArray(functionNotationKeys) ? functionNotationKeys : [])
+    .filter((entry) => entry?.label && entry?.command)
+    .map((entry) => ({
+      label: String(entry.label),
+      command: String(entry.command),
+      ariaLabel: entry.ariaLabel || `Insert ${entry.label}`,
+    }));
   if (profile === 'interval') return withExit(INTERVAL_KEYS);
   if (profile === 'inequality') return withExit(INEQUALITY_KEYS);
   if (profile === 'set') return withExit([...SET_KEYS, ...INEQUALITY_KEYS, ...INTERVAL_KEYS.filter((item) => ['(', ')', '[', ']'].includes(item.label))]);
-  if (profile === 'function') return withExit([...FUNCTION_KEYS, ...BASIC_KEYS]);
+  if (profile === 'function') return withExit([...authoredFunctionKeys, ...FUNCTION_KEYS, ...BASIC_KEYS]);
   if (profile === 'algebra-operation') return withExit(isMobile ? algebraOperationKeysForContext(contextSymbols) : [...ALGEBRA_OPERATION_KEYS, ...BASIC_KEYS]);
   if (profile === 'basic+set') return withExit([...BASIC_KEYS, ...SET_KEYS, ...INEQUALITY_KEYS]);
-  if (profile === 'equation') return withExit([...BASIC_KEYS, { label: '=', command: '=', ariaLabel: 'Insert equals sign' }]);
+  if (profile === 'equation') return withExit([...EQUATION_ENTRY_KEYS, ...BASIC_KEYS]);
   if (profile === 'expression') return withExit(BASIC_KEYS);
   return withExit(BASIC_KEYS);
 };
@@ -139,21 +161,58 @@ export default function MathInput({
   compact = false,
   maxWidth = 540,
   contextSymbols = [],
+  functionNotationKeys = [],
+  answerFormat = '',
+  requiredSymbols = [],
   collapseSignal = 0,
+  onSubmit = null,
 }) {
   const mfRef = useRef(null);
   const onChangeRef = useRef(onChange);
   const [showTools, setShowTools] = useState(showToolsInitially);
   const [isMobile, setIsMobile] = useState(detectMobileInput);
+
+  const stabilizeMobileViewport = useCallback(() => {
+    const root = mfRef.current?.closest?.('.mathmaster-question-container')
+      || mfRef.current?.closest?.('.mathmaster-question-stage')
+      || null;
+    // Horizontal caret panning is not actually a "mobile-only" browser
+    // behavior. Touch Chromebooks and desktop Chrome can pan an overflow:auto
+    // question workspace to keep a MathLive caret visible too. The safe rule is
+    // platform-wide: math entry may move vertically, never the question's x
+    // position.
+    scheduleHorizontalViewportStabilization({ root });
+  }, []);
+  const requiredAnswerSymbols = useMemo(
+    () => resolveRequiredAnswerSymbols({ answerFormat, toolProfile, requiredSymbols }),
+    [answerFormat, toolProfile, requiredSymbols],
+  );
+  const requiredTools = useMemo(
+    () => requiredAnswerSymbols.map((symbol) => requiredAnswerToolForSymbol(symbol)).filter(Boolean),
+    [requiredAnswerSymbols],
+  );
+  const unservedRequiredSymbols = useMemo(
+    () => requiredAnswerSymbols.filter((symbol) => !requiredAnswerToolForSymbol(symbol)),
+    [requiredAnswerSymbols],
+  );
+  const shouldSuppressNativeKeyboard = isMobile && toolProfile !== 'function' && unservedRequiredSymbols.length === 0;
   const tools = useMemo(() => {
-    if (!isMobile) return getToolKeys(toolProfile, { contextSymbols });
-    const combined = [...MOBILE_ENTRY_KEYS, ...getToolKeys(toolProfile, { isMobile: true, contextSymbols })];
-    // Backspace is deliberately appended LAST on every mobile keypad. With the
-    // grid filling left-to-right, this pins the editing control to the bottom-
-    // right instead of letting contextual equation symbols push it into a
-    // different location from question to question.
-    return [...combined.filter((tool) => tool.action !== 'deleteBackward'), MOBILE_BACKSPACE_KEY];
-  }, [toolProfile, isMobile, contextSymbols]);
+    if (!isMobile) return getToolKeys(toolProfile, { contextSymbols, functionNotationKeys });
+
+    // Mobile equation pads are intentionally opinionated:
+    // - parentheses are ALWAYS directly reachable;
+    // - semantic duplicates such as the second '=' are removed;
+    // - nth root is omitted from the crowded generic equation pad unless the
+    //   question explicitly declares it as a required symbol;
+    // - Backspace stays fixed in the final grid position.
+    return buildMobileMathTools({
+      toolProfile,
+      entryKeys: MOBILE_ENTRY_KEYS,
+      profileKeys: getToolKeys(toolProfile, { isMobile: true, contextSymbols, functionNotationKeys }),
+      requiredTools,
+      backspaceKey: MOBILE_BACKSPACE_KEY,
+    });
+  }, [toolProfile, isMobile, contextSymbols, functionNotationKeys, requiredTools]);
 
   useEffect(() => {
     const update = () => setIsMobile(detectMobileInput());
@@ -179,7 +238,7 @@ export default function MathInput({
     // rules are different: students may legitimately need arbitrary names, so
     // keep the device keyboard there. Algebra operations now have an equation-
     // aware symbol strip, so they no longer need the full phone keyboard.
-    if (isMobile && toolProfile !== 'function') mathField.setAttribute('inputmode', 'none');
+    if (shouldSuppressNativeKeyboard) mathField.setAttribute('inputmode', 'none');
     else mathField.removeAttribute('inputmode');
     mathField.menuItems = [];
     mathField.smartFence = true;
@@ -187,7 +246,10 @@ export default function MathInput({
     mathField.placeholder = placeholder ? `\\text{${placeholder}}` : '';
     window.mathVirtualKeyboard?.hide?.();
 
-    const handleInput = () => onChangeRef.current(mathField.value);
+    const handleInput = () => {
+      onChangeRef.current(mathField.value);
+      stabilizeMobileViewport();
+    };
 
     // Climb out of every open fraction, power or root. Stops when the cursor
     // stops moving, which is how a top-level position announces itself.
@@ -200,6 +262,20 @@ export default function MathInput({
     };
 
     const preventUnusedModes = (event) => {
+      if (event.key === 'Enter' && onSubmit && !event.isComposing && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        onSubmit();
+        return;
+      }
+      if (event.key === ' ' || event.code === 'Space') {
+        event.preventDefault();
+        event.stopPropagation();
+        mathField.executeCommand?.('moveAfterParent');
+        onChangeRef.current(mathField.value);
+        stabilizeMobileViewport();
+        return;
+      }
       if (event.key === 'Escape') event.preventDefault();
       if (event.key === '\\') {
         event.preventDefault();
@@ -216,28 +292,34 @@ export default function MathInput({
       }
     };
     const preventContextMenu = (event) => event.preventDefault();
+    const handleFocus = () => stabilizeMobileViewport();
 
     mathField.addEventListener('input', handleInput);
+    mathField.addEventListener('focus', handleFocus);
     mathField.addEventListener('keydown', preventUnusedModes, { capture: true });
     mathField.addEventListener('contextmenu', preventContextMenu);
 
     return () => {
       mathField.removeEventListener('input', handleInput);
+      mathField.removeEventListener('focus', handleFocus);
       mathField.removeEventListener('keydown', preventUnusedModes, { capture: true });
       mathField.removeEventListener('contextmenu', preventContextMenu);
     };
-  }, [placeholder, isMobile, toolProfile]);
+  }, [placeholder, isMobile, toolProfile, onSubmit, shouldSuppressNativeKeyboard, stabilizeMobileViewport]);
 
   useEffect(() => {
-    if (mfRef.current && mfRef.current.value !== value) mfRef.current.value = value || '';
-  }, [value]);
+    if (mfRef.current && mfRef.current.value !== value) {
+      mfRef.current.value = value || '';
+      stabilizeMobileViewport();
+    }
+  }, [value, stabilizeMobileViewport]);
 
   // Some tools intentionally move the student's attention into a math field
   // immediately after they choose an action. A numeric signal avoids making
   // every MathInput autofocus on mount: only an explicit increment focuses it.
   useEffect(() => {
     if (!focusSignal || !mfRef.current) return undefined;
-    const frame = window.requestAnimationFrame(() => mfRef.current?.focus?.());
+    const frame = window.requestAnimationFrame(() => mfRef.current?.focus?.({ preventScroll: true }));
     return () => window.cancelAnimationFrame(frame);
   }, [focusSignal]);
 
@@ -249,10 +331,11 @@ export default function MathInput({
   const undo = useCallback(() => {
     const mathField = mfRef.current;
     if (!mathField) return;
-    mathField.focus();
+    mathField.focus({ preventScroll: true });
     mathField.executeCommand?.('undo');
     onChangeRef.current(mathField.value);
-  }, []);
+    stabilizeMobileViewport();
+  }, [stabilizeMobileViewport]);
 
   useEffect(() => {
     onUndoStateChange?.({
@@ -266,10 +349,11 @@ export default function MathInput({
   const insert = useCallback((command, action = null) => {
     const mathField = mfRef.current;
     if (!mathField) return;
-    mathField.focus();
+    mathField.focus({ preventScroll: true });
     if (action) {
       mathField.executeCommand?.(action);
       onChangeRef.current(mathField.value);
+      stabilizeMobileViewport();
       return;
     }
     mathField.insert(command, {
@@ -277,7 +361,8 @@ export default function MathInput({
       selectionMode: /#0|#\?/.test(command) ? 'placeholder' : 'after',
     });
     onChangeRef.current(mathField.value);
-  }, []);
+    stabilizeMobileViewport();
+  }, [stabilizeMobileViewport]);
 
   const borderColor = inputStatus === 'incorrect'
     ? '#d93025'
@@ -286,16 +371,33 @@ export default function MathInput({
       : '#1a73e8';
 
   return (
-    <div className="mathmaster-math-input" style={{ width: `min(100%, ${maxWidth}px)`, margin: '0 auto' }}>
+    <div
+      className="mathmaster-math-input"
+      style={{
+        width: `min(100%, ${maxWidth}px)`,
+        maxWidth: '100%',
+        minWidth: 0,
+        margin: '0 auto',
+        overflowX: 'hidden',
+        contain: 'inline-size',
+      }}
+    >
       <math-field
         ref={mfRef}
         aria-label={ariaLabel || placeholder || 'Math answer'}
         math-virtual-keyboard-policy="manual"
-        inputmode={isMobile && toolProfile !== 'function' ? 'none' : undefined}
-        onFocus={() => { if (isMobile) setShowTools(true); }}
+        inputmode={shouldSuppressNativeKeyboard ? 'none' : undefined}
+        onFocus={() => {
+          if (isMobile) {
+            setShowTools(true);
+            stabilizeMobileViewport();
+          }
+        }}
         style={{
           display: 'block',
           width: '100%',
+          maxWidth: '100%',
+          minWidth: 0,
           minHeight: compact ? '44px' : '54px',
           fontSize: compact ? '20px' : '24px',
           padding: compact ? '8px 10px' : '12px 14px',
@@ -306,6 +408,59 @@ export default function MathInput({
           boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)',
         }}
       />
+
+      {isMobile && requiredTools.length > 0 && (
+        <div
+          className="mathmaster-required-answer-keys"
+          aria-label="Keys needed for this answer"
+          style={{
+            display: 'grid',
+            width: '100%',
+            maxWidth: '100%',
+            minWidth: 0,
+            boxSizing: 'border-box',
+            gridTemplateColumns: `repeat(${Math.min(4, requiredTools.length)}, minmax(0, 1fr))`,
+            gap: '8px',
+            marginTop: '10px',
+            padding: '10px',
+            border: '2px solid #8ab4f8',
+            borderRadius: '10px',
+            background: '#eef4ff',
+          }}
+        >
+          <div style={{ gridColumn: '1 / -1', color: '#174ea6', fontSize: '12px', fontWeight: 900, textAlign: 'left' }}>Needed for this answer</div>
+          {requiredTools.map((tool) => (
+            <button
+              type="button"
+              key={`required-${tool.ariaLabel}`}
+              aria-label={tool.ariaLabel}
+              title={tool.ariaLabel}
+              onPointerDown={(event) => event.preventDefault()}
+              onClick={() => insert(tool.command, tool.action)}
+              style={{
+                minHeight: '48px',
+                minWidth: 0,
+                maxWidth: '100%',
+                border: '2px solid #8ab4f8',
+                borderRadius: '8px',
+                background: '#fff',
+                color: '#174ea6',
+                fontSize: '21px',
+                fontWeight: 900,
+                cursor: 'pointer',
+              }}
+            >
+              {tool.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isMobile && unservedRequiredSymbols.length > 0 && (
+        <div role="status" style={{ marginTop: '8px', padding: '8px 10px', borderRadius: '8px', background: '#fff4ce', color: '#7a4f00', fontSize: '12px', fontWeight: 700 }}>
+          Additional symbol needed: {unservedRequiredSymbols.join(', ')}. Your device keyboard remains available.
+        </div>
+      )}
 
       <button
         type="button"
@@ -331,7 +486,11 @@ export default function MathInput({
           aria-label="Math tools"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(54px, 1fr))',
+            width: '100%',
+            maxWidth: '100%',
+            minWidth: 0,
+            boxSizing: 'border-box',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(48px, 1fr))',
             gap: '8px',
             marginTop: '10px',
             padding: '10px',
@@ -351,6 +510,9 @@ export default function MathInput({
               className={tool.action === 'deleteBackward' ? 'mathmaster-fixed-backspace' : undefined}
               style={{
                 minHeight: '44px',
+                minWidth: 0,
+                maxWidth: '100%',
+                overflow: 'hidden',
                 border: '1px solid #b8c8df',
                 borderRadius: '7px',
                 background: '#fff',

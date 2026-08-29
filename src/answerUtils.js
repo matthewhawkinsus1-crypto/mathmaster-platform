@@ -6,6 +6,7 @@ import {
   sameFiniteSetNotation,
   sameValue,
 } from '../functions/shared/answerEquivalence.mjs';
+import { sameEquivalentExpression } from './equivalentExpression.js';
 
 export const normalizeMathAnswer = normalizeAnswer;
 export const parseNumericAnswer = asNumber;
@@ -17,6 +18,20 @@ export const compareMathAnswer = (studentAnswer, acceptedAnswer, tolerance = 1e-
 
 export const matchesAnyAnswer = (studentAnswer, acceptedAnswers = []) =>
   acceptedAnswers.some((acceptedAnswer) => compareMathAnswer(studentAnswer, acceptedAnswer));
+
+export const matchesFieldAnswer = (studentAnswer, field = {}) => {
+  const acceptedAnswers = Array.isArray(field?.acceptedAnswers) && field.acceptedAnswers.length
+    ? field.acceptedAnswers
+    : field?.answer !== undefined
+      ? [field.answer]
+      : [];
+
+  if (field?.gradingMode === 'equivalentExpression') {
+    return acceptedAnswers.some((acceptedAnswer) => sameEquivalentExpression(studentAnswer, acceptedAnswer));
+  }
+
+  return matchesAnyAnswer(studentAnswer, acceptedAnswers);
+};
 
 export const parseOrderedPair = (value) => {
   const normalized = normalizeMathAnswer(value)

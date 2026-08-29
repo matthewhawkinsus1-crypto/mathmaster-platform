@@ -2,6 +2,9 @@ import { useMemo, useState } from 'react';
 import QuestionStandardsEditor from './QuestionStandardsEditor';
 import { getQuestionMetadataSummary } from './questionMetadata.js';
 import { useToast } from './ui/Toast';
+import { buildQuestionRepairRequest, parseQuestionRepairResponse } from './platform/contract/questionRepairRequest.js';
+import { getStoredAssignmentQuestions, storedAssignmentToV5 } from './platform/contract/storedAssignmentV5.js';
+import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 
 const newQuestionId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -19,12 +22,13 @@ const promptSummary = (question) => String(
 ).replace(/\s+/g, ' ').trim();
 
 export default function AssignmentQuestionEditor({ assignment, hasStudentData, onSave, onClose }) {
-  const { confirm: confirmAction } = useToast();
+  const { confirm: confirmAction, toastSuccess } = useToast();
   const [title, setTitle] = useState(assignment.title || '');
-  const [questions, setQuestions] = useState(() => ensureQuestionIds(assignment.questions || []));
-  const [editingIndex, setEditingIndex] = useState(null);
+  const [questions, setQuestions] = useState(() => ensureQuestionIds(getStoredAssignmentQuestions(assignment)));
+  const [repairIndex, setRepairIndex] = useState(null);
   const [metadataEditingIndex, setMetadataEditingIndex] = useState(null);
-  const [questionJson, setQuestionJson] = useState('');
+  const [repairInstruction, setRepairInstruction] = useState('');
+  const [repairBusy, setRepairBusy] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const includedCount = useMemo(() => questions.filter((question) => question.teacherExcluded !== true).length, [questions]);
@@ -78,30 +82,74 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
     });
   };
 
-  const beginJsonEdit = (index) => {
+  const beginRepair = (index) => {
+    if (hasStudentData) {
+      setError('Student records already exist. Duplicate the assignment before rewriting question content so historical responses stay attached to the question students actually saw.');
+      return;
+    }
     setMetadataEditingIndex(null);
-    setEditingIndex(index);
-    setQuestionJson(JSON.stringify(questions[index], null, 2));
+    setRepairIndex(index);
+    setRepairInstruction('');
     setError('');
   };
 
-  const applyJsonEdit = () => {
+  const copyRepairRequest = async () => {
+    if (repairIndex == null) return;
     try {
-      const parsed = JSON.parse(questionJson);
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Question JSON must be one object.');
-      if (!parsed.type) throw new Error('The question is missing a type.');
-      const existing = questions[editingIndex];
-      const next = {
-        ...parsed,
-        questionId: existing.questionId || parsed.questionId || newQuestionId(),
-        teacherExcluded: existing.teacherExcluded === true || parsed.teacherExcluded === true,
+      const request = buildQuestionRepairRequest({
+        assignment,
+        question: questions[repairIndex],
+        instruction: repairInstruction,
+        questionNumber: repairIndex + 1,
+      });
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('This browser cannot copy the repair request automatically. Use a browser with clipboard permission or open MathMaster in the installed app.');
+      }
+      await navigator.clipboard.writeText(request);
+      toastSuccess?.(
+        'AI repair request copied',
+        'Paste it into ChatGPT, Claude, or Gemini. Copy the replacement question it returns, then come back and choose Paste AI Replacement.',
+      );
+    } catch (repairError) {
+      setError(repairError.message);
+    }
+  };
+
+  const pasteAiReplacement = async () => {
+    if (repairIndex == null) return;
+    setRepairBusy(true);
+    setError('');
+    try {
+      if (!navigator.clipboard?.readText) {
+        throw new Error('This browser cannot read the clipboard automatically. Allow clipboard access, then try again.');
+      }
+      const text = await navigator.clipboard.readText();
+      const replacement = parseQuestionRepairResponse(text);
+      const existing = questions[repairIndex];
+      const nextQuestion = {
+        ...replacement,
+        questionId: existing.questionId || replacement.questionId || newQuestionId(),
+        teacherExcluded: existing.teacherExcluded === true,
       };
-      setQuestions((current) => current.map((question, index) => index === editingIndex ? next : question));
-      setEditingIndex(null);
-      setQuestionJson('');
-      setError('');
-    } catch (jsonError) {
-      setError(jsonError.message);
+      const candidateQuestions = questions.map((question, index) => (
+        index === repairIndex ? nextQuestion : question
+      ));
+      const candidateV5 = storedAssignmentToV5(assignment, {
+        titleOverride: title.trim() || assignment.title,
+        questions: candidateQuestions,
+      });
+      const model = buildAssignmentV5PreflightModel(candidateV5);
+      if (!model.isValid) {
+        throw new Error(`MathMaster rejected the AI replacement:\n${model.errors.join('\n')}`);
+      }
+      setQuestions(candidateQuestions);
+      setRepairIndex(null);
+      setRepairInstruction('');
+      toastSuccess?.('Question replacement accepted', 'MathMaster checked the repaired question. Save Assignment Questions when you are ready.');
+    } catch (repairError) {
+      setError(repairError.message);
+    } finally {
+      setRepairBusy(false);
     }
   };
 
@@ -172,16 +220,45 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
                       <button type="button" onClick={() => moveQuestion(index, -1)} disabled={hasStudentData || index === 0} title={hasStudentData ? 'Reordering is disabled because student data exists.' : 'Move up'}>↑</button>
                       <button type="button" onClick={() => moveQuestion(index, 1)} disabled={hasStudentData || index === questions.length - 1} title={hasStudentData ? 'Reordering is disabled because student data exists.' : 'Move down'}>↓</button>
                       <button type="button" onClick={() => duplicateQuestion(index)}>Duplicate</button>
-                      <button type="button" onClick={() => beginJsonEdit(index)}>Edit JSON</button>
-                      <button type="button" onClick={() => { setEditingIndex(null); setMetadataEditingIndex(metadataEditingIndex === index ? null : index); setError(''); }} style={{ color: '#174ea6' }}>Standards & Difficulty</button>
+                      <button
+                        type="button"
+                        onClick={() => beginRepair(index)}
+                        disabled={hasStudentData}
+                        title={hasStudentData ? 'Duplicate the assignment before rewriting question content so existing student responses remain historically accurate.' : 'Describe the problem in plain English and use AI to return a checked replacement.'}
+                      >Repair / Rewrite with AI</button>
+                      <button type="button" onClick={() => { setRepairIndex(null); setMetadataEditingIndex(metadataEditingIndex === index ? null : index); setError(''); }} style={{ color: '#174ea6' }}>Standards & Difficulty</button>
                       <button type="button" onClick={() => toggleExcluded(index)} style={{ color: excluded ? '#137333' : '#8a5a00' }}>{excluded ? 'Include' : 'Exclude'}</button>
                       <button type="button" onClick={() => removeQuestion(index)} style={{ color: '#d93025' }}>{hasStudentData ? 'Throw Out Safely' : 'Remove'}</button>
                     </div>
                   </div>
-                  {editingIndex === index && (
+                  {repairIndex === index && (
                     <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #d9dfe7' }}>
-                      <textarea value={questionJson} onChange={(event) => setQuestionJson(event.target.value)} style={{ width: '100%', minHeight: '250px', padding: '12px', boxSizing: 'border-box', borderRadius: '8px', border: '1px solid #aeb8c6', fontFamily: 'monospace', fontSize: '13px' }} />
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '9px' }}><button type="button" onClick={applyJsonEdit} style={{ padding: '9px 13px', border: 0, borderRadius: '7px', background: '#188038', color: '#fff', fontWeight: 800 }}>Apply Question JSON</button><button type="button" onClick={() => { setEditingIndex(null); setError(''); }} style={{ padding: '9px 13px', border: '1px solid #cbd1da', borderRadius: '7px', background: '#fff', fontWeight: 800 }}>Cancel</button></div>
+                      <div style={{ padding: '12px 13px', borderRadius: '9px', background: '#f8fbff', border: '1px solid #c6d8f1' }}>
+                        <strong style={{ color: '#174ea6' }}>Repair or rewrite this question with AI</strong>
+                        <p style={{ margin: '6px 0 10px', color: '#5f6368', fontSize: '13px', lineHeight: 1.5 }}>
+                          Describe the issue in normal language. MathMaster copies the full question and repair rules for the AI, then checks the replacement before accepting it here.
+                        </p>
+                        <label style={{ display: 'block', fontWeight: 800, fontSize: '13px' }}>
+                          What should change?
+                          <textarea
+                            value={repairInstruction}
+                            onChange={(event) => setRepairInstruction(event.target.value)}
+                            placeholder="Example: This mathematically equivalent answer is being marked wrong. Keep the same TEKS and difficulty, but repair the grading so equivalent forms are accepted."
+                            style={{ display: 'block', width: '100%', minHeight: '105px', marginTop: 7, padding: 11, boxSizing: 'border-box', borderRadius: 8, border: '1px solid #aeb8c6', fontFamily: 'inherit', fontSize: 15, lineHeight: 1.45 }}
+                          />
+                        </label>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                          <button type="button" onClick={copyRepairRequest} disabled={repairBusy} style={{ padding: '9px 13px', border: 0, borderRadius: 7, background: '#1a73e8', color: '#fff', fontWeight: 800 }}>
+                            Copy AI Repair Request
+                          </button>
+                          <button type="button" onClick={pasteAiReplacement} disabled={repairBusy} style={{ padding: '9px 13px', border: 0, borderRadius: 7, background: '#188038', color: '#fff', fontWeight: 800 }}>
+                            {repairBusy ? 'Checking…' : 'Paste AI Replacement'}
+                          </button>
+                          <button type="button" onClick={() => { setRepairIndex(null); setRepairInstruction(''); setError(''); }} disabled={repairBusy} style={{ padding: '9px 13px', border: '1px solid #cbd1da', borderRadius: 7, background: '#fff', fontWeight: 800 }}>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
                   {metadataEditingIndex === index && (

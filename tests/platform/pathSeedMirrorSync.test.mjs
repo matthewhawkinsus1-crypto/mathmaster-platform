@@ -17,7 +17,7 @@ test('all deployable Path-bank files are byte-identical in both bundled location
   }
 });
 
-test('the synchronized active bank contains exactly 5,191 generator documents', async () => {
+test('the synchronized active bank contains exactly 7,606 generator documents', async () => {
   let total = 0;
   for (const name of names.filter((name) => name.endsWith('_pathQuestionBank_seed.json'))) {
     const parsed = JSON.parse(await readFile(resolve(primary, name), 'utf8'));
@@ -25,5 +25,5 @@ test('the synchronized active bank contains exactly 5,191 generator documents', 
     total += parsed.documents.length;
     for (const entry of parsed.documents) assert.ok(entry?.generator, `${name} contains a non-generator document`);
   }
-  assert.equal(total, 5191);
+  assert.equal(total, 7606);
 });

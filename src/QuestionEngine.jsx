@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import GraphLine from './GraphLine';
-import EquationGrader from './EquationGrader';
 import NumberLine from './NumberLine';
 import FractionGrader from './FractionGrader';
 import LiteralGrader from './LiteralGrader';
@@ -41,7 +40,6 @@ import { ToolRuntimeProvider } from './tools/shared/ToolRuntimeContext';
 import InteractiveModelingLabPlayer from './components/labs/InteractiveModelingLabPlayer.jsx';
 import { useToast } from './ui/Toast';
 import QuestionModuleBoundary from './QuestionModuleBoundary';
-import QuestionPrompt from './QuestionPrompt';
 import StandardBadge from './components/common/StandardBadge.jsx';
 import { questionAssessmentFramework } from './platform/student/questionAlignmentInfo.js';
 import { normalizeQuestionStandards } from './questionMetadata';
@@ -53,6 +51,7 @@ import {
   normalizeQuestionRecord,
 } from './attemptPolicy';
 import { stableStringify } from './utils/idUtils';
+import { ENTER_TO_CONTINUE_HINT, focusFirstAnswerControl, shouldAdvanceOnEnter, shouldSubmitAnswerOnEnter } from './platform/interaction/answerEntryUx.js';
 
 const EMPTY_ANSWER_STATE = {
   isComplete: false,
@@ -217,6 +216,7 @@ export default function QuestionEngine({
   const [scratchpadLoading, setScratchpadLoading] = useState(false);
   const previousSectionCompleteRef = useRef(Boolean(sectionComplete));
   const [sectionCompletionCelebrating, setSectionCompletionCelebrating] = useState(false);
+  const questionEngineRef = useRef(null);
 
   useEffect(() => {
     const wasComplete = previousSectionCompleteRef.current;
@@ -290,6 +290,38 @@ export default function QuestionEngine({
   const contextScaffoldEnabled = Boolean(processedQuestion?.context?.scenario && processedQuestion?.context?.scaffold?.enabled !== false);
   const contextScaffoldRequired = contextScaffoldEnabled && !contextScaffoldComplete && !locked;
   const terminalFeedbackHidden = !showOutcomeFeedback && (isCorrect || isExpired);
+
+  // Every ordinary assignment and canonical Path question passes through this
+  // runtime. Focus the first real answer control once the question is ready.
+  useEffect(() => {
+    if (locked || scaffoldRequired || contextScaffoldRequired) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      focusFirstAnswerControl(questionEngineRef.current);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [processedQuestion, record.variantIndex, locked, scaffoldRequired, contextScaffoldRequired]);
+
+  // Two-step keyboard flow: Enter submits a complete single-line answer; after
+  // the platform confirms it is correct, the NEXT Enter advances. Keeping the
+  // advance listener at window level makes the shortcut reliable even after the
+  // now-locked answer field loses focus. It never steals Enter from dialogs or
+  // multiline editing.
+  useEffect(() => {
+    const nextAction = sectionComplete && typeof onContinueSection === 'function'
+      ? onContinueSection
+      : (!sectionComplete && typeof onNextQuestion === 'function' ? onNextQuestion : null);
+    const canAdvance = Boolean(isCorrect && showOutcomeFeedback && nextAction && !scratchpadOpen && !unchangedConfirmOpen);
+    if (!canAdvance || typeof window === 'undefined') return undefined;
+    const handleAdvanceShortcut = (event) => {
+      if (!shouldAdvanceOnEnter({ event, canAdvance })) return;
+      event.preventDefault();
+      event.stopPropagation();
+      nextAction();
+    };
+    window.addEventListener('keydown', handleAdvanceShortcut, true);
+    return () => window.removeEventListener('keydown', handleAdvanceShortcut, true);
+  }, [isCorrect, showOutcomeFeedback, sectionComplete, onContinueSection, onNextQuestion, scratchpadOpen, unchangedConfirmOpen]);
+
   const calculatorPolicy = useMemo(() => resolveCalculatorPolicy({
     questionSpec: processedQuestion || {},
     activityPolicy: resolvedActivityPolicy,
@@ -547,6 +579,7 @@ export default function QuestionEngine({
           onProgressChange={setWorkflowGuidanceState}
           disabled={commonModuleProps.disabled}
           draftKey={draftKey}
+          showPrompt={false}
         />
       );
     }
@@ -592,7 +625,17 @@ export default function QuestionEngine({
           />
         );
       case 'algebra':
-        return <EquationGrader {...commonModuleProps} />;
+        // Retired legacy answer-box solver. Older stored test assignments may
+        // still carry the old type, so treat it as an alias for the balance
+        // workspace instead of reviving the obsolete EquationGrader UI.
+        return (
+          <StepByStepAlgebra
+            {...commonModuleProps}
+            questionRecord={record}
+            onStepGrade={(payload) => onStepGrade?.({ ...payload, supportUsage: attemptSupportUsage() })}
+            maximumAttempts={resolvedMaximumAttempts}
+          />
+        );
       case 'numberLine':
         return <NumberLine {...commonModuleProps} />;
       case 'fraction':
@@ -671,26 +714,19 @@ export default function QuestionEngine({
     ? 'Your response is recorded. Your teacher will release correctness feedback.'
     : 'Your response is recorded. Correctness feedback is held until the activity feedback window opens.';
 
+  const questionAlignmentPanel = showStandardBadge && questionStandardCode ? (
+    <StandardBadge
+      code={questionStandardCode}
+      framework={questionAssessment.framework}
+      domainId={questionAssessment.domainId}
+      examStyle={questionAssessment.examStyle}
+      assessmentSkillLabel={processedQuestion?.ccmrAuthenticLanguage?.officialSkillFamily || ''}
+      style={{ margin: '8px 0 0', maxWidth: '860px' }}
+    />
+  ) : null;
+
   const questionContextPanel = (
     <div className="mathmaster-question-context-panel">
-      <div className="mathmaster-desktop-question-anchor">
-        <QuestionPrompt variant="task">{processedQuestion?.prompt || 'Complete the math task.'}</QuestionPrompt>
-        {/* Which standard this is, and whether it counts toward a college,
-            career or military assessment. A CCMR-aligned question inside an
-            ordinary assignment used to look exactly like every other question,
-            so the work a student was already doing toward those tests was
-            invisible to them. QuestionEngine owns this in assignments; My Path
-            owns it in the session header so the student sees it only once. */}
-        {showStandardBadge && questionStandardCode && (
-          <StandardBadge
-            code={questionStandardCode}
-            framework={questionAssessment.framework}
-            domainId={questionAssessment.domainId}
-            examStyle={questionAssessment.examStyle}
-            style={{ margin: '0 auto 14px', maxWidth: '860px' }}
-          />
-        )}
-      </div>
       <ReferenceInfoCard referenceInfo={referenceInfo} />
       {!supportPresentation.declutter && (
         <div
@@ -765,11 +801,26 @@ export default function QuestionEngine({
 
   return (
     <div
+      ref={questionEngineRef}
       className={`mathmaster-question-engine mathmaster-question-engine-has-anchor ${supportPresentation.highContrast ? 'mathmaster-support-high-contrast' : ''} ${supportPresentation.largeText ? 'mathmaster-support-large-text' : ''}`}
-      style={{ position: 'relative', padding: '10px', textAlign: 'center', fontFamily: 'sans-serif', overflow: 'hidden' }}
+      onKeyDownCapture={(event) => {
+        // Enter activates the one primary Check/Submit action only after the
+        // response is complete. Incomplete multi-step tools and textareas retain
+        // their own Enter behavior. Capturing here also works for MathLive.
+        if (!shouldSubmitAnswerOnEnter({
+          event,
+          responseComplete: answerState.isComplete,
+          canSubmit: shouldShowSubmit && !submitDisabled,
+        })) return;
+        event.preventDefault();
+        event.stopPropagation();
+        handleSubmit();
+      }}
+      style={{ position: 'relative', padding: '10px', textAlign: 'center', fontFamily: 'sans-serif', overflow: 'visible' }}
     >
       <MobileViewportContainer
         promptText={processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.'}
+        taskMeta={questionAlignmentPanel}
         contextPanel={questionContextPanel}
         toolWorkspace={(
       <div className="mathmaster-question-tool-workspace" style={{ position: 'relative' }}>
@@ -886,10 +937,13 @@ export default function QuestionEngine({
             <small>You completed all {sectionQuestionCount || ''} {sectionLabel || 'section'} question{Number(sectionQuestionCount) === 1 ? '' : 's'}.</small>
           </div>
           {typeof onContinueSection === 'function' ? (
-            <button type="button" onClick={onContinueSection} className="mathmaster-section-completion-continue">
-              <span>Continue to {continueSectionLabel || 'next section'}</span>
-              <span aria-hidden="true">→</span>
-            </button>
+            <div>
+              <button type="button" onClick={onContinueSection} aria-keyshortcuts="Enter" className="mathmaster-section-completion-continue">
+                <span>Continue to {continueSectionLabel || 'next section'}</span>
+                <span aria-hidden="true">→</span>
+              </button>
+              <small style={{ display: 'block', marginTop: 6, color: '#5f6368', fontWeight: 750, textAlign: 'center' }}>{ENTER_TO_CONTINUE_HINT}</small>
+            </div>
           ) : (
             <div className="mathmaster-section-completion-done">All currently available sections are complete.</div>
           )}
@@ -901,6 +955,7 @@ export default function QuestionEngine({
           <button
             type="button"
             onClick={onNextQuestion}
+            aria-keyshortcuts="Enter"
             className="mathmaster-success-next-question"
             style={{
               width: '100%',
@@ -927,6 +982,7 @@ export default function QuestionEngine({
                   {nextQuestionSectionLabel ? `${nextQuestionSectionLabel} · ` : ''}{nextQuestionLabel}
                 </span>
               )}
+              <span style={{ display: 'block', marginTop: '5px', fontSize: '12px', fontWeight: 800, opacity: 0.9 }}>{ENTER_TO_CONTINUE_HINT}</span>
             </span>
             <span aria-hidden="true" style={{ width: '44px', height: '44px', flex: '0 0 44px', display: 'grid', placeItems: 'center', borderRadius: '999px', background: '#fff', color: '#174ea6', fontSize: '30px', lineHeight: 1, fontWeight: 950 }}>→</span>
           </button>

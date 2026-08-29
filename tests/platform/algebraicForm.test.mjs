@@ -54,12 +54,15 @@ test('a wrong number is still wrong', () => {
   assert.equal(sameValue('x=3', 'y=3'), false, 'the wrong variable');
 });
 
-test('form questions above degree one are left to the author', () => {
-  // These ARE the same polynomial, and accepting them would be declining to
-  // assess the thing being assessed. The degree limit is what prevents it.
-  assert.equal(sameValue('(x+2)(x+3)', 'x^2+5x+6'), false, 'expanding');
+test('polynomial form is preserved above degree one', () => {
+  // A different authored FORM is still rejected. The new expanded-polynomial
+  // comparator only removes machine-vs-human spelling differences inside the
+  // SAME expanded form.
+  assert.equal(sameValue('(x+2)(x+3)', 'x^2+5x+6'), false, 'factored vs expanded');
   assert.equal(sameValue('y=(x-3)^2+1', 'y=x^2-6x+10'), false, 'vertex vs standard form');
-  assert.equal(sameValue('y=x^2', 'y=x*x'), false, 'still refused: degree two');
+
+  // These are merely two spellings of the same already-expanded monomial.
+  assert.equal(sameValue('y=x^2', 'y=x*x'), true, 'same expanded quadratic term');
 });
 
 test('non-equations are not dragged into equation comparison', () => {
@@ -98,5 +101,5 @@ test('degree is measured across all the variables in a term', () => {
   assert.equal(polynomialDegree(parsePolynomial('3x+2')), 1);
   assert.equal(polynomialDegree(parsePolynomial('xy')), 2, 'a product of two variables');
   assert.equal(polynomialDegree(parsePolynomial('x^3')), 3);
-  assert.equal(sameValue('z=xy', 'z=yx'), false, 'refused: degree two');
+  assert.equal(sameValue('z=xy', 'z=yx'), true, 'same expanded degree-two monomial');
 });

@@ -2,6 +2,8 @@ import { QUESTION_TYPE_CATALOG, getTypeEntry } from './questionTypeCatalog.js';
 import { inequalityMatchesIntervals } from '../../tools/intervalNumberLine/intervalMath.js';
 import { readComposedQuestion, validateGrading, validateWorkflow } from '../workflow/questionWorkflow.js';
 import { auditStaticGraphViewport } from '../../graphSpecUtils.js';
+import { validateQuestionInteractionContracts } from '../interaction/interactionContract.js';
+import { validateQuestionGradingContracts } from '../grading/gradingContract.js';
 
 // Recognising a type name is not validation. `{ type: 'graphAnalysis', prompt:
 // 'A graph falls from left to right until x = 2' }` used to pass because
@@ -49,6 +51,16 @@ const composedHasStage = (composed, kinds = []) => Boolean(
   && composed.workflow.some((stage) => kinds.includes(stage.kind)),
 );
 
+const transformationsLabHasGraph = (question = {}) => {
+  if (String(question.toolId || question.type) !== 'transformationsLab') return false;
+  const mode = String(question.mode || 'match');
+  if (mode === 'plotTransform') return nonEmptyArray(question.sourcePoints);
+  if (['match', 'identify', 'pointMap', 'describe', 'anchor'].includes(mode)) {
+    return isObject(question.function) || isObject(question.target);
+  }
+  return false;
+};
+
 const VISUAL_PROMISES = [
   {
     id: 'graph',
@@ -57,6 +69,7 @@ const VISUAL_PROMISES = [
     satisfied: (question, composed) => isObject(question.graph) || isObject(question.visual)
       || has(get(question, 'functionSpec.type')) || nonEmptyArray(question.graphs)
       || nonEmptyArray(get(question, 'graph.functions'))
+      || transformationsLabHasGraph(question)
       || composedHasStage(composed, ['functionGraph', 'coordinatePlot']),
     remedy: 'Add a `graph` object or a `functionSpec` so the graph is actually drawn, or reword the prompt so it does not refer to one.',
   },
@@ -272,13 +285,28 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
 
   if (String(type) === 'multiAnswer' && Array.isArray(question.answerFields)) {
     question.answerFields.forEach((field, index) => {
-      if (!looksLikeFiniteCategoryField(field)) return;
-      warnings.push(
-        `${label} answerFields[${index}] ("${field.label || field.id || 'field'}") looks categorical but would use a free-response box. `
-        + 'Use `type: "choice"` with explicit `options` when there are a small number of valid categories, or `type: "text"` for intentional written language. This avoids math-keyboard entry for ordinary words.',
-      );
+      if (looksLikeFiniteCategoryField(field)) {
+        warnings.push(
+          `${label} answerFields[${index}] ("${field.label || field.id || 'field'}") looks categorical but would use a free-response box. `
+          + 'Use `type: "choice"` with explicit `options` when there are a small number of valid categories, or `type: "text"` for intentional written language. This avoids math-keyboard entry for ordinary words.',
+        );
+      }
+      if (field?.type === 'choice' && Array.isArray(field.options) && field.options.length === 2) {
+        warnings.push(
+          `${label} answerFields[${index}] ("${field.label || field.id || 'field'}") has only two answer choices. `
+          + 'Three-attempt assignments should not reduce to switch-after-one-miss guessing; author at least one additional meaningful distractor. MathMaster will strengthen and shuffle this field at runtime, but the source should be improved.',
+        );
+      }
     });
   }
+
+  const interactionAudit = validateQuestionInteractionContracts(question, { label });
+  errors.push(...interactionAudit.errors);
+  warnings.push(...interactionAudit.warnings);
+
+  const gradingAudit = validateQuestionGradingContracts(question, { label });
+  errors.push(...gradingAudit.errors);
+  warnings.push(...gradingAudit.warnings);
 
   // A composed question's workflow. An unknown stage kind would otherwise
   // render as nothing at all, and a stage reading from a later one would grade

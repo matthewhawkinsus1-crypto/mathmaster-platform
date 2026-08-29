@@ -5,13 +5,17 @@
 
 ## Status in one line
 
-**Complete.** All 146 ASVAB standards are rebuilt — 735 families across 147
-standard-subtest pairs — and the shipping bank has been swapped to them. Nothing
-has been deployed: refreshing the production bank is still a manual step for the
-operator. Read §6 before running it.
+**Complete, and merged with `main`.** All 146 ASVAB standards are rebuilt — 735
+families across 147 standard-subtest pairs — and the shipping bank has been
+swapped to them. `main` has been merged in, and the bank now ships as 735
+authored direct families plus the 438 challenge families that arrived on `main`
+while this rebuild was in progress: **1,173 documents**. Nothing has been
+deployed: refreshing the production bank is still a manual step for the
+operator. Read §6 before running it, and §11 before trusting the challenge tier.
 
 Sections 1 and 2 are the audit that led to the rebuild and are kept as the
-record of why the old bank was replaced rather than repaired.
+record of why the old bank was replaced rather than repaired. Section 11 is the
+merge, and it carries one finding the operator has to decide about.
 
 ---
 
@@ -378,3 +382,146 @@ The coverage manifest changed only in its `asvab` block and totals.
    copied, and none was consulted; authenticity here means the register, the
    structure and the distractor discipline, judged against the published
    description of the subtests.
+
+---
+
+## 11. The merge with `main`, and the challenge tier
+
+### What arrived on `main` while this rebuild was running
+
+`main` advanced 675 commits. One of them, `f5a429a` "Add CCMR Fidelity V2
+challenge progression", added a second tier to all four assessment banks. ASVAB
+went from 730 to 1,168 documents: the original 730 became `ccmrFamilyRole:
+'direct'` / `ccmrChallengeTier: 1`, and 438 new `challenge` families at tier 2
+were added on top.
+
+The runtime reads this. `functions/index.js` raises a student's
+`ccmrChallengeTier` after strong direct evidence, and once at tier ≥ 2 it filters
+candidates to challenge families, falling back to direct families at
+`difficultyBand >= 4` if there are fewer than two. **Every family in this rebuild
+is band 1–3**, so deleting the challenge tier outright would have left an ASVAB
+repeat session with an empty candidate pool. The challenge tier was therefore
+kept, not dropped.
+
+### How the merge was resolved
+
+Eight files conflicted. Nothing was resolved by picking a side blindly:
+
+| File | Resolution |
+| --- | --- |
+| `functions/index.js` | `main`'s version in full (it gained 1,379 lines of progression runtime); the release constant re-bumped. |
+| `src/platform/path/pathRelease.js` | Same release constant. |
+| `seed/…/asvab_…_seed.json` + mirror | Regenerated: 735 authored direct + 438 carried-through challenge. |
+| `seed/…/PATH_BANK_COVERAGE_MANIFEST.json` + mirror | Regenerated from the seed directory by `scripts/rebuild-path-manifest.mjs`. |
+| `tests/platform/pathBankSeed.test.mjs` | `main`'s direct/challenge structure, with the direct tier counted per subtest. |
+| `tests/platform/pathSeedMirrorSync.test.mjs` | Total moved 7,601 → 7,606 (the +5 ASVAB delta). |
+
+The release is now `path-bank-2026-08-29-r12-asvab-rebuild` in both places —
+above `main`'s `r11`, so a refresh still retires older sessions in order.
+
+`scripts/build-asvab-bank.mjs` now stamps the Fidelity V2 direct metadata
+(`ccmrChallengeTier`, `ccmrFamilyRole`, `ccmrFidelity`) onto every authored
+family and carries any existing challenge families through untouched, so
+rebuilding the authored bank no longer deletes the challenge tier.
+
+It deliberately does **not** hand the bank to `scripts/build-ccmr-fidelity-v2.mjs`,
+which is what stamped the same fields on `main`. That script also rewrites
+`prompt`, appending *"Work without a calculator and select the best answer."* to
+every ASVAB item. These families are register-controlled — Mathematics Knowledge
+is capped at 34 words and two sentences — so running it over them would push a
+large share of the bank past its own fidelity gate. The metadata written here is
+field-for-field identical; only the prompt rewrite is skipped.
+
+Two shared test files needed one ASVAB-specific branch each. ASVAB's two domains
+are two separate tests a recruit sits, not two reporting categories inside one
+test, so `A2.6L` — assessed in both — carries five direct families in each.
+Grouping by code alone counts ten and fails on correct content. Both tests now
+count the direct tier per subtest for ASVAB only and per code for every other
+framework; the challenge tier is still counted per code everywhere. No other
+framework's assertion changed.
+
+### `main` was already red before this merge
+
+Measured on a clean `origin/main` checkout, not inferred:
+
+```
+node --test "tests/platform/*.test.mjs"
+main:   2559 tests, 2463 pass, 96 fail
+merged: 2580 tests, 2484 pass, 96 fail
+```
+
+The failing-test *names* differ by exactly one entry, and that one is the mirror
+count test renamed from 7,601 to 7,606 — the same pre-existing failure under a
+new name. **This merge introduces no new failure and silences none.**
+
+The 96 pre-existing failures span ~44 files and are mostly unrelated to the Path
+bank (`studentDashboardModel` 11, `blueprintTextRepair` 9, `taskFidelity` 6,
+`instructionalScope` 6, `assignmentLibrary` 6, `gradeEvidence` 5, …). The bank-
+related ones are all SAT/ACT/TSIA2:
+
+- `digitalSAT_pathQuestionBank_seed.json` wraps its payload in `items`, not
+  `documents`. Three tests read `.documents` directly and throw on it.
+- `pathBankSeed.test.mjs` expects SAT 1,672 / ACT 1,800 / TSIA2 1,800 documents.
+  Those files hold **664 / 136 / 200**. Their challenge tiers are described by
+  the tests and the manifest but are not in the repository.
+- The coverage manifest on `main` claimed 7,601 documents; the seed directory
+  holds 3,329. Regenerating it fixes the total. It still fails on per-standard
+  counts, because `rebuild-path-manifest.mjs` credits a document to its *first*
+  `texas:` alignment key while the test credits it to *all* of them, and 384
+  documents carry more than one. All 384 are in the SAT, ACT and TSIA2 banks;
+  **zero are ASVAB.**
+
+None of that is in this lane and none of it was touched. It is written down here
+because "get ASVAB onto `main`" and "`main` is green" are separate jobs, and the
+second one is not this one.
+
+### The finding the operator has to decide about
+
+The 438 challenge families are not independent content. Each one carries
+`ccmrFidelity.sourceFamilyId` pointing at one of the **730 original families this
+rebuild replaced** — 438 distinct sources, all resolving into the old bank — and
+its prompt is that old prompt with a sentence glued to the front.
+
+Running this rebuild's own auditor over the merged bank:
+
+```
+node scripts/audit-asvab-fidelity.mjs
+verdicts: keep=735  revise=0  replace=438
+```
+
+Every issue it reports belongs to the challenge tier:
+
+| Issue | Count | Reading |
+| --- | --- | --- |
+| `answerKeyExtremeBias` / `answerKeyMagnitudeBias` | 242 | The key sits at one extreme in 100% of draws. |
+| `mkTooManySentences` / `mkTooLong` | 347 / 157 | Past the Mathematics Knowledge register cap. |
+| `arTooManySentences` / `arTooLong` | 88 / 8 | Past the Arithmetic Reasoning cap. |
+| `taskClone` / `frameClone` / `promptOverlap` | 24 / 14 / 24 | Challenge families of one standard duplicating each other. |
+
+Structurally: **287 of the 438 build their three distractors as key + 1, key + 2,
+key + 3**, which makes the key the smallest of four every time — the same defect
+class §1 documents in the original bank, reproduced. And 438 of 1,173 prompts
+(37.3%) open with the same five words, 244 of them with the identical sentence
+*"Without using a calculator, a test taker chose X."*
+
+Two counts in that audit should **not** be held against them:
+`distractorUnexplained` (1,314) and `distractorErrorsRepeat` (438) fire because
+the 438 carry no misconception codes at all. That is a convention mismatch with
+this rebuild's authoring kit, not evidence about the distractors themselves.
+
+**What this means.** Merging as resolved is the only option that keeps `main`'s
+progression runtime working and loses nobody's work, and it is what is committed.
+But a student who reaches ASVAB tier 2 is served items that inherit the validity
+defect the direct rebuild exists to remove. The direct tier — what a student
+meets first, and for most of their practice — is clean.
+
+**Recommended next job:** author 441 real ASVAB challenge families (147
+code-subtest pairs × 3) at band ≥ 4 / DOK ≥ 2 through
+`scripts/lib/asvabAuthoring.mjs`, and retire the 438. The authoring kit, the
+fidelity gates and the tests all exist now; this is content work, not
+infrastructure work. Until then the challenge tier is inherited, not owned.
+
+**Not recommended:** dropping the 438 without replacing them. That empties the
+tier-2 candidate pool for ASVAB, and the runtime's fallback needs direct families
+at band ≥ 4, which this bank has none of.
+

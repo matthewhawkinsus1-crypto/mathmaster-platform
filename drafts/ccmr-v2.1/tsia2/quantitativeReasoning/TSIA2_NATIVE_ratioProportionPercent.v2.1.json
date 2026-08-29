@@ -1,0 +1,912 @@
+{
+  "schemaVersion": 2,
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "tsia2",
+  "domainId": "quantitativeReasoning",
+  "nativeSkillId": "ratioProportionPercent",
+  "officialSkillFamily": "Ratio, proportion, and percent",
+  "tsia2TestScope": "crcAndDiagnostic",
+  "status": "authored-pass-1",
+  "documents": [
+    {
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "tsia2",
+          "domainId": "quantitativeReasoning",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "tsia2",
+        "examStyle": true,
+        "domainId": "quantitativeReasoning",
+        "nativeSkillId": "ratioProportionPercent",
+        "tsia2TestScope": "crcAndDiagnostic"
+      },
+      "questionType": "response",
+      "activityRole": "practice",
+      "assessedConstruct": "TSIA2-native:ratioProportionPercent",
+      "supportHints": [
+        "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
+      ],
+      "solutionReview": {
+        "headline": "Use the stated relationship.",
+        "reasoning": [
+          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+        ],
+        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "tsia2-correct"
+        }
+      ],
+      "id": "mm_tsia2_qr_rpp_1_v21",
+      "familyId": "mathmaster:tsia2:native:ratioProportionPercent:part-whole-ratio",
+      "familyVersion": 1,
+      "difficultyBand": 2,
+      "dok": 1,
+      "examCalculatorMode": "none",
+      "taskType": "ratioPartWholeFraction",
+      "representation": "part-whole",
+      "ccmrChallengeTier": 1,
+      "ccmrFamilyRole": "direct",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "ratioProportionPercent",
+        "officialSkillFamily": "ratio, proportion, and percent",
+        "stemProfile": "part-whole-ratio",
+        "answerChoiceCount": 4
+      },
+      "prompt": "A container holds {{red}} red tiles and {{blue}} blue tiles. What fraction of the tiles are red?",
+      "generator": {
+        "parameters": {
+          "red": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "blue": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        },
+        "derived": {
+          "total": "red+blue"
+        },
+        "constraints": [
+          "red!=blue"
+        ]
+      },
+      "choices": [
+        {
+          "id": "tsia2-correct",
+          "label": "$\\frac{ {{red}} }{ {{total}} }$"
+        },
+        {
+          "id": "tsia2-d1",
+          "label": "$\\frac{ {{red}} }{ {{blue}} }$"
+        },
+        {
+          "id": "tsia2-d2",
+          "label": "$\\frac{ {{blue}} }{ {{total}} }$"
+        },
+        {
+          "id": "tsia2-d3",
+          "label": "$\\frac{ {{total}} }{ {{red}} }$"
+        }
+      ]
+    },
+    {
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "tsia2",
+          "domainId": "quantitativeReasoning",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "tsia2",
+        "examStyle": true,
+        "domainId": "quantitativeReasoning",
+        "nativeSkillId": "ratioProportionPercent",
+        "tsia2TestScope": "crcAndDiagnostic"
+      },
+      "questionType": "response",
+      "activityRole": "practice",
+      "assessedConstruct": "TSIA2-native:ratioProportionPercent",
+      "supportHints": [
+        "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
+      ],
+      "solutionReview": {
+        "headline": "Use the stated relationship.",
+        "reasoning": [
+          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+        ],
+        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "tsia2-correct"
+        }
+      ],
+      "id": "mm_tsia2_qr_rpp_2_v21",
+      "familyId": "mathmaster:tsia2:native:ratioProportionPercent:similar-image-proportion",
+      "familyVersion": 1,
+      "difficultyBand": 2,
+      "dok": 2,
+      "examCalculatorMode": "basic",
+      "taskType": "similarImageProportion",
+      "representation": "geometry-context",
+      "ccmrChallengeTier": 1,
+      "ccmrFamilyRole": "direct",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "ratioProportionPercent",
+        "officialSkillFamily": "ratio, proportion, and percent",
+        "stemProfile": "similar-image-proportion",
+        "answerChoiceCount": 4
+      },
+      "prompt": "A rectangular image is {{width}} inches wide and {{height}} inches high. It is enlarged proportionally to a width of {{newWidth}} inches. What is the new height?",
+      "generator": {
+        "parameters": {
+          "width": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "height": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "scale": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          }
+        },
+        "derived": {
+          "newWidth": "width*scale",
+          "newHeight": "height*scale",
+          "d1": "height+scale",
+          "d2": "width*scale",
+          "d3": "newHeight+width"
+        },
+        "constraints": [
+          "width!=height",
+          "newHeight!=d1",
+          "newHeight!=d2",
+          "newHeight!=d3",
+          "d1!=d2",
+          "d1!=d3",
+          "d2!=d3"
+        ]
+      },
+      "choices": [
+        {
+          "id": "tsia2-correct",
+          "label": "${{newHeight}}$ inches"
+        },
+        {
+          "id": "tsia2-d1",
+          "label": "${{d1}}$ inches"
+        },
+        {
+          "id": "tsia2-d2",
+          "label": "${{d2}}$ inches"
+        },
+        {
+          "id": "tsia2-d3",
+          "label": "${{d3}}$ inches"
+        }
+      ]
+    },
+    {
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "tsia2",
+          "domainId": "quantitativeReasoning",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "tsia2",
+        "examStyle": true,
+        "domainId": "quantitativeReasoning",
+        "nativeSkillId": "ratioProportionPercent",
+        "tsia2TestScope": "crcAndDiagnostic"
+      },
+      "questionType": "response",
+      "activityRole": "practice",
+      "assessedConstruct": "TSIA2-native:ratioProportionPercent",
+      "supportHints": [
+        "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
+      ],
+      "solutionReview": {
+        "headline": "Use the stated relationship.",
+        "reasoning": [
+          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+        ],
+        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "tsia2-correct"
+        }
+      ],
+      "id": "mm_tsia2_qr_rpp_3_v21",
+      "familyId": "mathmaster:tsia2:native:ratioProportionPercent:percent-poll-count",
+      "familyVersion": 1,
+      "difficultyBand": 2,
+      "dok": 1,
+      "examCalculatorMode": "basic",
+      "taskType": "percentPollCount",
+      "representation": "survey-context",
+      "ccmrChallengeTier": 1,
+      "ccmrFamilyRole": "direct",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "ratioProportionPercent",
+        "officialSkillFamily": "ratio, proportion, and percent",
+        "stemProfile": "percent-poll-count",
+        "answerChoiceCount": 4
+      },
+      "prompt": "In a survey of {{total}} people, {{percent}}% selected one response. How many people selected that response?",
+      "generator": {
+        "parameters": {
+          "base": {
+            "type": "int",
+            "min": 5,
+            "max": 20
+          },
+          "percent": {
+            "type": "choice",
+            "values": [
+              10,
+              20,
+              25,
+              40,
+              50,
+              60,
+              75
+            ]
+          }
+        },
+        "derived": {
+          "total": "20*base",
+          "answer": "total*percent/100",
+          "d1": "total-answer",
+          "d2": "answer+percent",
+          "d3": "percent"
+        },
+        "constraints": [
+          "answer!=d1",
+          "answer!=d2",
+          "answer!=d3",
+          "d1!=d2",
+          "d1!=d3",
+          "d2!=d3"
+        ]
+      },
+      "choices": [
+        {
+          "id": "tsia2-correct",
+          "label": "${{answer}}$"
+        },
+        {
+          "id": "tsia2-d1",
+          "label": "${{d1}}$"
+        },
+        {
+          "id": "tsia2-d2",
+          "label": "${{d2}}$"
+        },
+        {
+          "id": "tsia2-d3",
+          "label": "${{d3}}$"
+        }
+      ]
+    },
+    {
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "tsia2",
+          "domainId": "quantitativeReasoning",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "tsia2",
+        "examStyle": true,
+        "domainId": "quantitativeReasoning",
+        "nativeSkillId": "ratioProportionPercent",
+        "tsia2TestScope": "crcAndDiagnostic"
+      },
+      "questionType": "response",
+      "activityRole": "practice",
+      "assessedConstruct": "TSIA2-native:ratioProportionPercent",
+      "supportHints": [
+        "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
+      ],
+      "solutionReview": {
+        "headline": "Use the stated relationship.",
+        "reasoning": [
+          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+        ],
+        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "tsia2-correct"
+        }
+      ],
+      "id": "mm_tsia2_qr_rpp_4_v21",
+      "familyId": "mathmaster:tsia2:native:ratioProportionPercent:percent-from-part",
+      "familyVersion": 1,
+      "difficultyBand": 2,
+      "dok": 2,
+      "examCalculatorMode": "basic",
+      "taskType": "percentFromPart",
+      "representation": "data-context",
+      "ccmrChallengeTier": 1,
+      "ccmrFamilyRole": "direct",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "ratioProportionPercent",
+        "officialSkillFamily": "ratio, proportion, and percent",
+        "stemProfile": "percent-from-part",
+        "answerChoiceCount": 4
+      },
+      "prompt": "Of {{total}} tickets sold, {{part}} were student tickets. What percent of the tickets were student tickets?",
+      "generator": {
+        "parameters": {
+          "base": {
+            "type": "int",
+            "min": 4,
+            "max": 15
+          },
+          "percent": {
+            "type": "choice",
+            "values": [
+              10,
+              20,
+              25,
+              40,
+              60,
+              75,
+              80
+            ]
+          }
+        },
+        "derived": {
+          "total": "20*base",
+          "part": "total*percent/100",
+          "d1": "percent+10",
+          "d2": "100-percent",
+          "d3": "percent/2"
+        },
+        "constraints": [
+          "percent!=d1",
+          "percent!=d2",
+          "percent!=d3",
+          "d1!=d2",
+          "d1!=d3",
+          "d2!=d3"
+        ]
+      },
+      "choices": [
+        {
+          "id": "tsia2-correct",
+          "label": "${{percent}}\\%$"
+        },
+        {
+          "id": "tsia2-d1",
+          "label": "${{d1}}\\%$"
+        },
+        {
+          "id": "tsia2-d2",
+          "label": "${{d2}}\\%$"
+        },
+        {
+          "id": "tsia2-d3",
+          "label": "${{d3}}\\%$"
+        }
+      ]
+    },
+    {
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "tsia2",
+          "domainId": "quantitativeReasoning",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "tsia2",
+        "examStyle": true,
+        "domainId": "quantitativeReasoning",
+        "nativeSkillId": "ratioProportionPercent",
+        "tsia2TestScope": "crcAndDiagnostic"
+      },
+      "questionType": "response",
+      "activityRole": "practice",
+      "assessedConstruct": "TSIA2-native:ratioProportionPercent",
+      "supportHints": [
+        "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
+      ],
+      "solutionReview": {
+        "headline": "Use the stated relationship.",
+        "reasoning": [
+          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+        ],
+        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "tsia2-correct"
+        }
+      ],
+      "id": "mm_tsia2_qr_rpp_5_v21",
+      "familyId": "mathmaster:tsia2:native:ratioProportionPercent:solve-proportion",
+      "familyVersion": 1,
+      "difficultyBand": 3,
+      "dok": 2,
+      "examCalculatorMode": "basic",
+      "taskType": "solveProportion",
+      "representation": "symbolic",
+      "ccmrChallengeTier": 1,
+      "ccmrFamilyRole": "direct",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "ratioProportionPercent",
+        "officialSkillFamily": "ratio, proportion, and percent",
+        "stemProfile": "solve-proportion",
+        "answerChoiceCount": 4
+      },
+      "prompt": "If $\\frac{ {{a}} }{ {{b}} }=\\frac{x}{ {{c}} }$, what is the value of $x$?",
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "c": "b*k",
+          "answer": "a*k",
+          "d1": "a+b",
+          "d2": "c-a",
+          "d3": "answer+b"
+        },
+        "constraints": [
+          "answer!=d1",
+          "answer!=d2",
+          "answer!=d3",
+          "d1!=d2",
+          "d1!=d3",
+          "d2!=d3"
+        ]
+      },
+      "choices": [
+        {
+          "id": "tsia2-correct",
+          "label": "${{answer}}$"
+        },
+        {
+          "id": "tsia2-d1",
+          "label": "${{d1}}$"
+        },
+        {
+          "id": "tsia2-d2",
+          "label": "${{d2}}$"
+        },
+        {
+          "id": "tsia2-d3",
+          "label": "${{d3}}$"
+        }
+      ]
+    },
+    {
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "tsia2",
+          "domainId": "quantitativeReasoning",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "tsia2",
+        "examStyle": true,
+        "domainId": "quantitativeReasoning",
+        "nativeSkillId": "ratioProportionPercent",
+        "tsia2TestScope": "crcAndDiagnostic"
+      },
+      "questionType": "response",
+      "activityRole": "practice",
+      "assessedConstruct": "TSIA2-native:ratioProportionPercent",
+      "supportHints": [
+        "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
+      ],
+      "solutionReview": {
+        "headline": "Use the stated relationship.",
+        "reasoning": [
+          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+        ],
+        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "tsia2-correct"
+        }
+      ],
+      "id": "mm_tsia2_qr_rpp_6_v21",
+      "familyId": "mathmaster:tsia2:native:ratioProportionPercent:ratio-after-addition",
+      "familyVersion": 1,
+      "difficultyBand": 4,
+      "dok": 3,
+      "examCalculatorMode": "none",
+      "taskType": "ratioAfterAddition",
+      "representation": "multi-step-context",
+      "ccmrChallengeTier": 2,
+      "ccmrFamilyRole": "challenge",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "ratioProportionPercent",
+        "officialSkillFamily": "ratio, proportion, and percent",
+        "stemProfile": "ratio-after-addition",
+        "answerChoiceCount": 4,
+        "authoredChallenge": true
+      },
+      "prompt": "A box contains {{redStart}} red beads and {{blueCount}} blue beads. After {{addRed}} red beads are added, what is the ratio of red beads to blue beads in simplest form?",
+      "generator": {
+        "parameters": {
+          "ratioRed": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "ratioBlue": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "scale": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "addRed": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "blueCount": "ratioBlue*scale",
+          "newRed": "ratioRed*scale",
+          "redStart": "newRed-addRed",
+          "d2red": "ratioRed+1",
+          "d3blue": "ratioBlue+1"
+        },
+        "constraints": [
+          "gcd(ratioRed,ratioBlue)==1",
+          "ratioRed!=ratioBlue",
+          "redStart>0"
+        ]
+      },
+      "choices": [
+        {
+          "id": "tsia2-correct",
+          "label": "${{ratioRed}}:{{ratioBlue}}$"
+        },
+        {
+          "id": "tsia2-d1",
+          "label": "${{redStart}}:{{blueCount}}$"
+        },
+        {
+          "id": "tsia2-d2",
+          "label": "${{d2red}}:{{ratioBlue}}$"
+        },
+        {
+          "id": "tsia2-d3",
+          "label": "${{ratioRed}}:{{d3blue}}$"
+        }
+      ]
+    },
+    {
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "tsia2",
+          "domainId": "quantitativeReasoning",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "tsia2",
+        "examStyle": true,
+        "domainId": "quantitativeReasoning",
+        "nativeSkillId": "ratioProportionPercent",
+        "tsia2TestScope": "crcAndDiagnostic"
+      },
+      "questionType": "response",
+      "activityRole": "practice",
+      "assessedConstruct": "TSIA2-native:ratioProportionPercent",
+      "supportHints": [
+        "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
+      ],
+      "solutionReview": {
+        "headline": "Use the stated relationship.",
+        "reasoning": [
+          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+        ],
+        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "tsia2-correct"
+        }
+      ],
+      "id": "mm_tsia2_qr_rpp_7_v21",
+      "familyId": "mathmaster:tsia2:native:ratioProportionPercent:nested-percent-relationship",
+      "familyVersion": 1,
+      "difficultyBand": 4,
+      "dok": 3,
+      "examCalculatorMode": "basic",
+      "taskType": "nestedPercentRelationship",
+      "representation": "population-context",
+      "ccmrChallengeTier": 2,
+      "ccmrFamilyRole": "challenge",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "ratioProportionPercent",
+        "officialSkillFamily": "ratio, proportion, and percent",
+        "stemProfile": "nested-percent-relationship",
+        "answerChoiceCount": 4,
+        "authoredChallenge": true
+      },
+      "prompt": "In a group, {{firstPercent}}% of the people meet one condition. Of those people, {{secondPercent}}% meet a second condition. What percent of the entire group meet both conditions?",
+      "generator": {
+        "parameters": {
+          "firstPercent": {
+            "type": "choice",
+            "values": [
+              20,
+              25,
+              40,
+              50,
+              60,
+              75,
+              80
+            ]
+          },
+          "secondPercent": {
+            "type": "choice",
+            "values": [
+              20,
+              25,
+              40,
+              50,
+              60,
+              75,
+              80
+            ]
+          }
+        },
+        "derived": {
+          "answer": "firstPercent*secondPercent/100",
+          "d1": "firstPercent+secondPercent",
+          "d2": "abs(firstPercent-secondPercent)",
+          "d3": "secondPercent"
+        },
+        "constraints": [
+          "answer!=d1",
+          "answer!=d2",
+          "answer!=d3",
+          "d1!=d2",
+          "d1!=d3",
+          "d2!=d3"
+        ]
+      },
+      "choices": [
+        {
+          "id": "tsia2-correct",
+          "label": "${{answer}}\\%$"
+        },
+        {
+          "id": "tsia2-d1",
+          "label": "${{d1}}\\%$"
+        },
+        {
+          "id": "tsia2-d2",
+          "label": "${{d2}}\\%$"
+        },
+        {
+          "id": "tsia2-d3",
+          "label": "${{d3}}\\%$"
+        }
+      ]
+    },
+    {
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "tsia2",
+          "domainId": "quantitativeReasoning",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "tsia2",
+        "examStyle": true,
+        "domainId": "quantitativeReasoning",
+        "nativeSkillId": "ratioProportionPercent",
+        "tsia2TestScope": "crcAndDiagnostic"
+      },
+      "questionType": "response",
+      "activityRole": "practice",
+      "assessedConstruct": "TSIA2-native:ratioProportionPercent",
+      "supportHints": [
+        "Set up the relationship among the quantities before calculating. Keep the ratio, proportion, or percent tied to what the question asks."
+      ],
+      "solutionReview": {
+        "headline": "Use the stated relationship.",
+        "reasoning": [
+          "Represent the ratio, proportion, or percent with the quantities in the problem, then solve for the requested value."
+        ],
+        "answerSummary": "Check that the result has the correct units and is reasonable compared with the original quantities."
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "tsia2-correct"
+        }
+      ],
+      "id": "mm_tsia2_qr_rpp_8_v21",
+      "familyId": "mathmaster:tsia2:native:ratioProportionPercent:mixture-percent-after-addition",
+      "familyVersion": 1,
+      "difficultyBand": 4,
+      "dok": 3,
+      "examCalculatorMode": "basic",
+      "taskType": "mixturePercentAfterAddition",
+      "representation": "mixture-context",
+      "ccmrChallengeTier": 2,
+      "ccmrFamilyRole": "challenge",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "ratioProportionPercent",
+        "officialSkillFamily": "ratio, proportion, and percent",
+        "stemProfile": "mixture-percent-after-addition",
+        "answerChoiceCount": 4,
+        "authoredChallenge": true
+      },
+      "prompt": "A mixture contains {{concentrateCount}} cups of concentrate and {{waterCount}} cups of water. After {{addedWater}} more cups of water are added, approximately what percent of the new mixture is concentrate?",
+      "generator": {
+        "parameters": {
+          "concentrateCount": {
+            "type": "int",
+            "min": 2,
+            "max": 10
+          },
+          "waterCount": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "addedWater": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "total": "concentrateCount+waterCount+addedWater",
+          "answer": "round(1000*concentrateCount/total)/10",
+          "d1": "round(1000*concentrateCount/(concentrateCount+waterCount))/10",
+          "d2": "round(1000*(concentrateCount+addedWater)/total)/10",
+          "d3": "round(1000*waterCount/total)/10"
+        },
+        "constraints": [
+          "answer!=d1",
+          "answer!=d2",
+          "answer!=d3",
+          "d1!=d2",
+          "d1!=d3",
+          "d2!=d3"
+        ]
+      },
+      "choices": [
+        {
+          "id": "tsia2-correct",
+          "label": "${{answer}}\\%$"
+        },
+        {
+          "id": "tsia2-d1",
+          "label": "${{d1}}\\%$"
+        },
+        {
+          "id": "tsia2-d2",
+          "label": "${{d2}}\\%$"
+        },
+        {
+          "id": "tsia2-d3",
+          "label": "${{d3}}\\%$"
+        }
+      ]
+    }
+  ]
+}

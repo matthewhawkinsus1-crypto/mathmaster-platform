@@ -27,6 +27,7 @@ export const STAGE_OUTPUT = Object.freeze({
   CHOICE: 'choice',
   TEXT: 'text',
   ROLES: 'roles',
+  AXES: 'axes',
 });
 
 const stage = (id, definition) => [id, Object.freeze({ id, ...definition })];
@@ -38,6 +39,19 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
     produces: STAGE_OUTPUT.ROLES,
     consumes: [],
     fields: { prompt: 'string', quantities: 'array', correctIndependentId: 'string', correctDependentId: 'string' },
+  }),
+  stage('axisSetup', {
+    label: 'Label the graph',
+    studentAction: 'Labels the x- and y-axes, assigns units, and chooses a reasonable scale on a physical coordinate graph.',
+    produces: STAGE_OUTPUT.AXES,
+    consumes: [STAGE_OUTPUT.ROLES],
+    fields: {
+      prompt: 'string',
+      quantities: 'array',
+      graph: 'object',
+      requireUnits: 'boolean',
+      requireScale: 'boolean',
+    },
   }),
   stage('equationInput', {
     label: 'Write the equation',
@@ -63,10 +77,10 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
   }),
   stage('functionGraph', {
     label: 'Build the graph',
-    studentAction: 'Constructs a continuous function graph.',
+    studentAction: 'Constructs a function graph, using point-only or connected mode when continuity has been decided.',
     produces: STAGE_OUTPUT.GRAPH,
     consumes: [STAGE_OUTPUT.EQUATION, STAGE_OUTPUT.TABLE],
-    fields: { prompt: 'string', graph: 'object', graphMode: 'string' },
+    fields: { prompt: 'string', graph: 'object', graphMode: 'string', continuityStageId: 'string' },
   }),
   stage('mappingDiagram', {
     label: 'Build the mapping diagram',
@@ -107,7 +121,7 @@ export const INTERACTION_STAGES = Object.freeze(Object.fromEntries([
     label: 'Classify',
     studentAction: 'Chooses between named categories.',
     produces: STAGE_OUTPUT.CHOICE,
-    consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.POINTS],
+    consumes: [STAGE_OUTPUT.GRAPH, STAGE_OUTPUT.TABLE, STAGE_OUTPUT.POINTS, STAGE_OUTPUT.EQUATION],
     fields: { prompt: 'string', choices: 'array' },
   }),
   stage('multipleChoice', {

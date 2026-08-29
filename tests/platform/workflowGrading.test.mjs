@@ -172,6 +172,42 @@ test('quantity roles are graded per role', () => {
   assert.match(swapped.detail, /independent and dependent/);
 });
 
+test('axis setup grades labels, units, and scale on one graph stage', () => {
+  const stage = { id: 'axes', kind: 'axisSetup' };
+  const rule = {
+    xLabel: ['Time'],
+    yLabel: ['Amount of water added'],
+    xUnit: ['minutes'],
+    yUnit: ['gallons'],
+    xStep: ['1'],
+    yStep: ['12'],
+    requireUnits: true,
+    requireScale: true,
+  };
+  const response = {
+    __mathmasterWorkflowArtifact: 'axes',
+    isComplete: true,
+    xLabel: 'Time',
+    yLabel: 'Amount of water added',
+    xUnit: 'minutes',
+    yUnit: 'gallons',
+    xStep: '1',
+    yStep: '12',
+  };
+  assert.equal(gradeStage({ stage, rule, responses: { axes: response } }).isCorrect, true);
+  assert.equal(
+    gradeStage({ stage, rule, responses: { axes: { ...response, yStep: '10' } } }).isCorrect,
+    false,
+  );
+
+  const openScaleRule = { ...rule, xStep: [], yStep: [] };
+  assert.equal(
+    gradeStage({ stage, rule: openScaleRule, responses: { axes: { ...response, xStep: '2', yStep: '15' } } }).isCorrect,
+    true,
+    'when no exact scale is prescribed, any positive reasonable count-by values are accepted',
+  );
+});
+
 test('several accepted answers are allowed', () => {
   const stage = { id: 'domain', kind: 'domainInput' };
   assert.equal(

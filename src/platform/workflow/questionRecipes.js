@@ -42,6 +42,7 @@ export const relationIsFunction = (pairs = []) => {
 // --- Function modelling (the public type `relationshipModel`) ----------------
 
 const latestModelSource = (asked) => asked.has('graph') ? 'graph' : asked.has('table') ? 'table' : asked.has('equation') ? 'equation' : null;
+const latestPreGraphModelSource = (asked) => asked.has('table') ? 'table' : asked.has('equation') ? 'equation' : null;
 
 const FUNCTION_MODELING = {
   label: 'Model a relationship',
@@ -71,7 +72,12 @@ const FUNCTION_MODELING = {
     graph: (question, asked) => ({
       id: 'graph',
       kind: 'graphConstruction',
-      graphMode: question.graphMode || (question.continuity === 'discrete' ? 'discrete' : 'continuous'),
+      // If continuity is part of the student's work, their classification — not
+      // the answer key — decides whether the graph is point-only or connected.
+      graphMode: asked.has('continuity')
+        ? 'studentSelected'
+        : (question.graphMode || (question.continuity === 'discrete' ? 'discrete' : 'continuous')),
+      ...(asked.has('continuity') ? { continuityStageId: 'continuity' } : {}),
       prompt: question.graphPrompt || 'Build the graph of the relationship.',
       ...(isObject(question.graph) ? { graph: question.graph } : {}),
       // Prefer the table because it contains the student's plotted values AND
@@ -89,6 +95,19 @@ const FUNCTION_MODELING = {
       ...(Array.isArray(question.domainChoices) && question.domainChoices.length ? { choices: question.domainChoices } : {}),
       ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
     }),
+    domainWords: (question, asked) => ({
+      id: 'domainWords',
+      kind: 'shortResponse',
+      prompt: question.domainWordsPrompt || 'State the domain in words.',
+      ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
+    }),
+    domainInequality: (question, asked) => ({
+      id: 'domainInequality',
+      kind: 'domainInput',
+      prompt: question.domainInequalityPrompt || 'Write the domain using inequalities.',
+      notation: 'inequality',
+      ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
+    }),
     range: (question, asked) => ({
       id: 'range',
       kind: 'rangeInput',
@@ -97,12 +116,25 @@ const FUNCTION_MODELING = {
       ...(Array.isArray(question.rangeChoices) && question.rangeChoices.length ? { choices: question.rangeChoices } : {}),
       ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
     }),
+    rangeWords: (question, asked) => ({
+      id: 'rangeWords',
+      kind: 'shortResponse',
+      prompt: question.rangeWordsPrompt || 'State the range in words.',
+      ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
+    }),
+    rangeInequality: (question, asked) => ({
+      id: 'rangeInequality',
+      kind: 'rangeInput',
+      prompt: question.rangeInequalityPrompt || 'Write the range using inequalities.',
+      notation: 'inequality',
+      ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
+    }),
     continuity: (question, asked) => ({
       id: 'continuity',
       kind: 'classification',
-      prompt: question.continuityPrompt || 'Is the relationship discrete or continuous?',
+      prompt: question.continuityPrompt || 'Should this relationship be represented as discrete points or as a continuous graph?',
       choices: ['discrete', 'continuous'],
-      ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
+      ...(latestPreGraphModelSource(asked) ? { source: { fromStage: latestPreGraphModelSource(asked) } } : {}),
     }),
     interpretation: (question) => ({
       id: 'interpretation',
@@ -131,7 +163,11 @@ const FUNCTION_MODELING = {
     }
     if (asked.has('continuity') && question.continuity) rules.continuity = question.continuity;
     if (asked.has('domain') && question.correctDomain) rules.domain = question.correctDomain;
+    if (asked.has('domainWords') && question.correctDomainWords) rules.domainWords = question.correctDomainWords;
+    if (asked.has('domainInequality') && question.correctDomainInequality) rules.domainInequality = question.correctDomainInequality;
     if (asked.has('range') && question.correctRange) rules.range = question.correctRange;
+    if (asked.has('rangeWords') && question.correctRangeWords) rules.rangeWords = question.correctRangeWords;
+    if (asked.has('rangeInequality') && question.correctRangeInequality) rules.rangeInequality = question.correctRangeInequality;
     return rules;
   },
 };

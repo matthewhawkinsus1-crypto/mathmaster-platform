@@ -1,0 +1,56 @@
+name: Correct Answer Acceptance Audit
+
+on:
+  push:
+    paths:
+      - 'functions/shared/**'
+      - 'functions/lib/mathPath.js'
+      - 'src/MathInput.jsx'
+      - 'src/platform/interaction/mobileKeypadPolicy.js'
+      - 'tests/platform/mobileEquationKeypadPolicy.test.mjs'
+      - 'tests/platform/mathInputMobileBackspace.test.mjs'
+      - 'tests/platform/functionInvestigationIntervalGrading.test.mjs'
+      - 'src/InteractiveGraphWorkspace.jsx'
+      - 'functions/seeds/pathQuestionBank/**'
+      - 'seed/pathQuestionBank/**'
+      - 'src/grading/**'
+      - 'teacher-import-jsons/**'
+      - 'scripts/audit-correct-answer-acceptance.mjs'
+      - 'tests/platform/correctAnswerAcceptance.test.mjs'
+      - 'tests/platform/pathPassCompletion.test.mjs'
+      - '.github/workflows/answer-acceptance-audit.yml'
+      - 'package.json'
+  pull_request:
+    paths:
+      - 'functions/shared/**'
+      - 'functions/lib/mathPath.js'
+      - 'src/MathInput.jsx'
+      - 'src/platform/interaction/mobileKeypadPolicy.js'
+      - 'tests/platform/mobileEquationKeypadPolicy.test.mjs'
+      - 'tests/platform/mathInputMobileBackspace.test.mjs'
+      - 'tests/platform/functionInvestigationIntervalGrading.test.mjs'
+      - 'src/InteractiveGraphWorkspace.jsx'
+      - 'functions/seeds/pathQuestionBank/**'
+      - 'seed/pathQuestionBank/**'
+      - 'src/grading/**'
+      - 'teacher-import-jsons/**'
+      - 'scripts/audit-correct-answer-acceptance.mjs'
+      - 'tests/platform/correctAnswerAcceptance.test.mjs'
+      - 'tests/platform/pathPassCompletion.test.mjs'
+      - '.github/workflows/answer-acceptance-audit.yml'
+      - 'package.json'
+
+jobs:
+  answer-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm --prefix functions ci
+      - run: node --test tests/platform/correctAnswerAcceptance.test.mjs tests/platform/pathPassCompletion.test.mjs tests/platform/mobileEquationKeypadPolicy.test.mjs tests/platform/mathInputMobileBackspace.test.mjs tests/platform/functionInvestigationIntervalGrading.test.mjs tests/platform/algebraicForm.test.mjs tests/platform/setAnswerEquivalence.test.mjs tests/platform/pathToolGraders.test.mjs
+      - run: npm run audit:answer-acceptance

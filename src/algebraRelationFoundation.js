@@ -188,6 +188,57 @@ export const relationStateToText = (state) => {
   }).join(state.connective === 'OR' ? ' OR ' : ' ');
 };
 
+
+const relationComparisonHolds = (left, relation, right, tolerance = 1e-8) => {
+  if (!Number.isFinite(left) || !Number.isFinite(right)) return null;
+  if (relation === '=') return Math.abs(left - right) <= tolerance;
+  if (relation === '<') return left < right - tolerance;
+  if (relation === '<=') return left <= right + tolerance;
+  if (relation === '>') return left > right + tolerance;
+  if (relation === '>=') return left >= right - tolerance;
+  return null;
+};
+
+const evaluateRelationBranchAt = (branch, variable, candidate) => {
+  if (!branch || !Array.isArray(branch.expressions) || !Array.isArray(branch.relations)) return null;
+  try {
+    const scope = { [variable]: Number(candidate) };
+    const values = branch.expressions.map((expression) => Number(evaluate(String(expression), scope)));
+    if (values.some((value) => !Number.isFinite(value))) return null;
+    const checks = branch.relations.map((relation, index) => (
+      relationComparisonHolds(values[index], relation, values[index + 1])
+    ));
+    if (checks.some((value) => value === null)) return null;
+    return checks.every(Boolean);
+  } catch {
+    return null;
+  }
+};
+
+export const relationStateContainsAbsoluteValue = (state) => (
+  /\babs\s*\(/i.test(String(state?.original || ''))
+);
+
+export const verifyRelationCandidate = (state, candidate, variable = state?.variable || 'x') => {
+  const numericCandidate = Number(candidate);
+  if (!state || !Number.isFinite(numericCandidate)) return null;
+  if (state.special === 'noSolution') return false;
+  if (state.special === 'allReals') return true;
+
+  const branchResults = (state.branches || []).map((branch) => (
+    evaluateRelationBranchAt(branch, variable, numericCandidate)
+  ));
+  if (!branchResults.length || branchResults.some((value) => value === null)) return null;
+  return state.connective === 'OR' ? branchResults.some(Boolean) : branchResults.every(Boolean);
+};
+
+export const verifyRelationCandidates = (state, candidates = [], variable = state?.variable || 'x') => (
+  (Array.isArray(candidates) ? candidates : []).map((value) => ({
+    value,
+    valid: verifyRelationCandidate(state, value, variable),
+  }))
+);
+
 const operationExpression = (expression, operation, operand, placement = null) => {
   if (operation === 'add' || operation === 'subtract') {
     if (placement && typeof placement === 'object') {
@@ -802,10 +853,17 @@ export const relationSolutionSummary = (state) => {
     // such as x = 5 OR x = -2.
     const numericValues = isolatedValues.map((expression) => numericValue(expression));
     if (numericValues.every((value) => value !== null)) {
+      const candidates = [];
+      numericValues.forEach((value, index) => {
+        if (candidates.some((candidate) => Math.abs(candidate.value - value) <= 1e-10)) return;
+        candidates.push({ value, expression: String(isolatedValues[index]).trim() });
+      });
+      candidates.sort((left, right) => left.value - right.value);
       return {
         solved: true,
         kind: 'values',
-        values: [...new Set(numericValues)].sort((a, b) => a - b),
+        values: candidates.map((candidate) => candidate.value),
+        valueExpressions: candidates.map((candidate) => candidate.expression),
       };
     }
 

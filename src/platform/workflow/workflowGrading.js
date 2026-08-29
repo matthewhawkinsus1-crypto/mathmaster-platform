@@ -185,6 +185,61 @@ const gradePairs = (response, expected) => {
   };
 };
 
+const matchesAxisText = (response, expected) => {
+  const options = Array.isArray(expected) ? expected : [expected];
+  return options
+    .filter((value) => value !== undefined && value !== null && String(value).trim() !== '')
+    .some((value) => normalizeMathAnswer(response) === normalizeMathAnswer(value));
+};
+
+const matchesAxisScale = (response, expected) => {
+  const actual = Number(response);
+  if (!Number.isFinite(actual) || actual <= 0) return false;
+  const options = (Array.isArray(expected) ? expected : [expected])
+    .filter((value) => value !== undefined && value !== null && String(value).trim() !== '');
+  // If the author asks the student to choose a reasonable scale but does not
+  // prescribe one exact count-by value, any positive scale is a valid
+  // completion. This preserves the old relationshipModel behavior and avoids
+  // turning an open design choice into a hidden answer.
+  if (!options.length) return true;
+  return options.some((value) => {
+    const target = Number(value);
+    return Number.isFinite(target) && Math.abs(actual - target) <= 1e-9;
+  });
+};
+
+const gradeAxes = (response, rule = {}) => {
+  const answer = isObject(response) ? response : {};
+  const checks = [
+    ['xLabel', 'x-axis quantity', matchesAxisText],
+    ['yLabel', 'y-axis quantity', matchesAxisText],
+  ];
+  if (rule.requireUnits !== false) {
+    checks.push(
+      ['xUnit', 'x-axis unit', matchesAxisText],
+      ['yUnit', 'y-axis unit', matchesAxisText],
+    );
+  }
+  if (rule.requireScale === true) {
+    checks.push(
+      ['xStep', 'x-axis scale', matchesAxisScale],
+      ['yStep', 'y-axis scale', matchesAxisScale],
+    );
+  }
+
+  const wrong = checks
+    .filter(([field, , matcher]) => !matcher(answer[field], rule[field]))
+    .map(([, label]) => label);
+
+  return {
+    graded: true,
+    isCorrect: wrong.length === 0,
+    detail: wrong.length
+      ? `Check the ${wrong.join(', ')}.`
+      : 'The graph axes, units, and scale are labeled correctly.',
+  };
+};
+
 const gradeTableValues = (response, values) => {
   const answer = isObject(response) ? response : {};
   const keys = Object.keys(values);
@@ -256,6 +311,7 @@ export const gradeStage = ({ stage, rule, responses = {} }) => {
   if (isObject(rule) && Array.isArray(rule.set)) return { ...base, ...gradeSet(response, rule.set) };
   if (isObject(rule) && rule.values) return { ...base, ...gradeTableValues(responsePayload(response), rule.values) };
   if (stage.kind === 'quantityRoles' && isObject(rule)) return { ...base, ...gradeRoles(response, rule) };
+  if (stage.kind === 'axisSetup' && isObject(rule)) return { ...base, ...gradeAxes(response, rule) };
 
   const expected = isObject(rule) ? (rule.anyOf ?? rule.equals) : rule;
   if (expected === undefined) {

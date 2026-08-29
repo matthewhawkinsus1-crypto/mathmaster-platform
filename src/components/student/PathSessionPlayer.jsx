@@ -16,6 +16,10 @@ import { toDisplayCode } from '../../utils/teksUtils.js';
 import StandardBadge from '../common/StandardBadge.jsx';
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 import { questionAssessmentFramework } from '../../platform/student/questionAlignmentInfo.js';
+import { getAssessmentStandardReferences, referenceLabel } from '../../platform/ccmr/assessmentStandardReferences.js';
+import { assessmentItemTypeLabel, describeChallengeTier, frameworkExperience } from '../../platform/ccmr/assessmentFidelity.js';
+import { ENTER_TO_CONTINUE_HINT, shouldAdvanceOnEnter } from '../../platform/interaction/answerEntryUx.js';
+import { gradingClosesQuestion, latestAttemptCount } from '../../platform/path/pathProgression.js';
 
 // Three ways a path question can arrive, in order of preference.
 //
@@ -37,7 +41,15 @@ import { questionAssessmentFramework } from '../../platform/student/questionAlig
 //
 // The distinction is the payload's, not a setting.
 
-const WRAPPER = { maxWidth: 880, margin: '0 auto', padding: '14px 14px 44px' };
+const WRAPPER = {
+  width: '100%',
+  maxWidth: 880,
+  minWidth: 0,
+  margin: '0 auto',
+  padding: '14px 14px 44px',
+  boxSizing: 'border-box',
+  overflowX: 'clip',
+};
 
 // A tool needs the room. 880px is right for a prompt and an answer box, but a
 // coordinate plane shares that width with a panel of point tasks, and the plane
@@ -84,7 +96,7 @@ const skillNameFor = (questionInstance, session) => {
  * on a practice session turns every question into a grade, which is the
  * opposite of what practice is for.
  */
-function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowed, assessmentFramework = null, onExit = null }) {
+function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowed, assessmentFramework = null, weeklyGoalRequired = null, onExit = null }) {
   const total = Number(session?.requiredQuestions) || 5;
   const done = Number(session?.summary?.completedQuestions) || 0;
   const current = Math.min(total, done + 1);
@@ -107,6 +119,13 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
   const directFramework = authoredAssessment.examStyle
     ? authoredAssessment.framework
     : (!bridgeFramework && assessmentFramework && !questionInstance?.assessmentContext ? assessmentFramework : null);
+  const challengeTier = Number(questionInstance?.ccmrChallengeTier || session?.ccmrChallengeTier || 1);
+  const challenge = describeChallengeTier(challengeTier, directFramework);
+  const experience = directFramework ? frameworkExperience(directFramework) : null;
+  const assessmentReferences = directFramework && questionCode
+    ? getAssessmentStandardReferences(teksSkillId(questionCode), directFramework)
+    : [];
+  const primaryAssessmentReference = assessmentReferences[0] || null;
 
   return (
     <header style={{ marginBottom: 12 }}>
@@ -144,6 +163,45 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
           {attemptsAllowed > 1 && attemptsLeft > 0 ? ` · ${attemptsLeft} ${attemptsLeft === 1 ? 'try' : 'tries'} left` : ''}
         </span>
       </div>
+      {session?.weeklySlotKey && (
+        <div role="status" style={{ marginTop: 8, padding: '9px 11px', borderRadius: 9, background: '#e6f4ea', border: '1px solid #b7e0c4', color: '#12633a', fontSize: 12.5, fontWeight: 850, lineHeight: 1.45 }}>
+          WEEKLY PATH · Session {session?.weeklySlot || '?'}{weeklyGoalRequired ? ` of ${weeklyGoalRequired}` : ''} · Completing this session counts toward your weekly target.
+        </div>
+      )}
+      {directFramework && !bridgeFramework && (
+        <div
+          role="status"
+          style={{
+            margin: '9px 0 0', padding: '11px 13px', borderRadius: 11,
+            background: challengeTier >= 2 ? '#f3ecfd' : '#e8f0fe',
+            border: `2px solid ${challengeTier >= 2 ? '#7e57c2' : '#1a73e8'}`,
+            color: '#202124', lineHeight: 1.45,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'baseline' }}>
+            <strong style={{ color: challengeTier >= 2 ? '#5b21b6' : '#174ea6', fontSize: 13, letterSpacing: 0.35 }}>
+              {experience?.shortLabel || FRAMEWORK_LABELS[directFramework] || directFramework} · {challenge.shortLabel}
+            </strong>
+            <span style={{ color: '#5f6368', fontSize: 11.5, fontWeight: 800 }}>
+              {assessmentItemTypeLabel(questionInstance || {})}
+            </span>
+          </div>
+          {primaryAssessmentReference && (
+            <div style={{ marginTop: 4, color: '#5b21b6', fontWeight: 850, fontSize: 12 }}>
+              {referenceLabel(primaryAssessmentReference)}
+            </div>
+          )}
+          <div style={{ marginTop: 5, display: 'flex', flexWrap: 'wrap', gap: '4px 12px', color: '#5f6368', fontSize: 11.5 }}>
+            <span>{experience?.calculatorSummary || (questionInstance?.calculatorPolicy === 'none' ? 'No calculator' : 'Calculator policy follows the assessment')}</span>
+            <span>{challenge.label}</span>
+          </div>
+          {challengeTier >= 2 && (
+            <div style={{ marginTop: 5, color: '#5b21b6', fontSize: 11.5, fontWeight: 750 }}>
+              {challenge.explanation}
+            </div>
+          )}
+        </div>
+      )}
       {bridgeFramework && (
         <p role="status" style={{ margin: '6px 0 0', padding: '7px 10px', width: 'fit-content', maxWidth: '100%', borderRadius: 8, background: '#fef7e0', border: '1px solid #f0d489', color: '#7a4f00', fontSize: 12.5, fontWeight: 800, lineHeight: 1.45 }}>
           Foundation bridge for {FRAMEWORK_LABELS[bridgeFramework] || bridgeFramework} practice · strengthen this math first, then return to exam-format questions.
@@ -209,7 +267,10 @@ export const PathSessionPlayer = ({
   solutionReview = null,
   routeNotice = null,
   isSubmitting,
+  isAdvancing = false,
+  continueLabel = 'Next question',
   assessmentFramework = null,
+  weeklyGoalRequired = null,
   studentProfile,
   onSubmitAnswer,
   onContinue = null,
@@ -225,6 +286,7 @@ export const PathSessionPlayer = ({
   // server intersects both with the authorized set before believing them.
   const [supportDelivery, setSupportDelivery] = useState({ presented: [], used: [] });
   const feedbackRef = useRef(null);
+  const workspaceRef = useRef(null);
 
   const instanceId = questionInstance?.questionInstanceId || '';
   const activityRole = questionInstance?.activityRole || 'practice';
@@ -277,6 +339,69 @@ export const PathSessionPlayer = ({
     [supportDelivery.presented],
   );
 
+  // Path pages must never pan sideways. MathLive, native numeric fields and
+  // SVG keyboard interaction can all ask Chromium to reveal a focused caret.
+  // When browser zoom/device scaling makes a wide tool barely exceed the visual
+  // viewport, Chromium may satisfy that request by changing document scrollX.
+  // Preserve vertical scrolling, but force the document's horizontal origin
+  // back to zero for the entire Path question.
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+    let frame = 0;
+
+    let trailingTimer = 0;
+
+    const restoreHorizontalOrigin = () => {
+      frame = 0;
+      const top = Number(window.scrollY || window.pageYOffset || 0);
+
+      // Reset the page AND any horizontally-scrollable ancestor Chromium chose
+      // while trying to reveal the MathLive caret.
+      let node = workspaceRef.current;
+      while (node) {
+        if (Number(node.scrollLeft || 0) !== 0) node.scrollLeft = 0;
+        node = node.parentElement;
+      }
+
+      if (Number(window.scrollX || window.pageXOffset || 0) !== 0) window.scrollTo(0, top);
+      if (document.documentElement) document.documentElement.scrollLeft = 0;
+      if (document.body) document.body.scrollLeft = 0;
+    };
+
+    const scheduleRestore = () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      if (trailingTimer) window.clearTimeout(trailingTimer);
+
+      // MathLive and Chromium can schedule their own reveal AFTER the keydown
+      // handler. Reset once on the next paint and once after that work settles.
+      frame = window.requestAnimationFrame(() => {
+        restoreHorizontalOrigin();
+        window.requestAnimationFrame(restoreHorizontalOrigin);
+      });
+      trailingTimer = window.setTimeout(restoreHorizontalOrigin, 40);
+    };
+
+    const root = workspaceRef.current;
+    root?.addEventListener('focusin', scheduleRestore, true);
+    root?.addEventListener('keydown', scheduleRestore, true);
+    root?.addEventListener('input', scheduleRestore, true);
+    document.addEventListener('scroll', scheduleRestore, true);
+    window.addEventListener('scroll', scheduleRestore, { passive: true });
+    window.visualViewport?.addEventListener?.('scroll', scheduleRestore, { passive: true });
+    scheduleRestore();
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      if (trailingTimer) window.clearTimeout(trailingTimer);
+      root?.removeEventListener('focusin', scheduleRestore, true);
+      root?.removeEventListener('keydown', scheduleRestore, true);
+      root?.removeEventListener('input', scheduleRestore, true);
+      document.removeEventListener('scroll', scheduleRestore, true);
+      window.removeEventListener('scroll', scheduleRestore);
+      window.visualViewport?.removeEventListener?.('scroll', scheduleRestore);
+    };
+  }, [instanceId]);
+
   // Move the reader to the response when it changes. Chromebook screens are
   // short, and a student who submitted at the bottom of the card should not
   // have to hunt for what the platform said back.
@@ -284,26 +409,46 @@ export const PathSessionPlayer = ({
     if (lastFeedback || lastGradingResult) feedbackRef.current?.focus?.();
   }, [lastFeedback, lastGradingResult]);
 
+  // Once a response is correct, Enter becomes the same deliberate continue
+  // action as the visible Next question button. A window listener is used here
+  // because locking the answer can move focus away from the disabled field.
+  // This only activates after correctness is confirmed; wrong/finalized work
+  // still requires the student to review the on-screen next step.
+  useEffect(() => {
+    const canAdvance = Boolean(gradingClosesQuestion(lastGradingResult) && typeof onContinue === 'function' && !isAdvancing);
+    if (!canAdvance || typeof window === 'undefined') return undefined;
+    const handleContinueShortcut = (event) => {
+      if (!shouldAdvanceOnEnter({ event, canAdvance })) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onContinue();
+    };
+    window.addEventListener('keydown', handleContinueShortcut, true);
+    return () => window.removeEventListener('keydown', handleContinueShortcut, true);
+  }, [lastGradingResult, onContinue, isAdvancing]);
+
   if (!questionInstance) {
     return <div style={{ padding: 50, textAlign: 'center', color: '#5f6368' }}>Preparing the next question…</div>;
   }
 
-  const attemptsUsed = Number(questionInstance.attemptsUsed ?? lastGradingResult?.attemptNumber) || 0;
+  const attemptsUsed = latestAttemptCount(questionInstance, lastGradingResult);
   const attemptsAllowed = Number(questionInstance.attemptsAllowed) || activityPolicy.attempts || 3;
   const attemptsLeft = Math.max(0, attemptsAllowed - attemptsUsed);
+  const finalized = gradingClosesQuestion(lastGradingResult);
 
   // A secure payload wins over a canonical one: if the server built a tool
   // payload it also kept the grading definition, and the verdict is its own.
   const canonical = secureQuestion || questionInstance.canonicalQuestion || null;
   if (canonical) {
     return (
-      <main style={TOOL_WRAPPER}>
+      <main ref={workspaceRef} style={TOOL_WRAPPER}>
         <SessionHeader
           session={session}
           questionInstance={questionInstance}
           attemptsLeft={attemptsLeft}
           attemptsAllowed={attemptsAllowed}
           assessmentFramework={assessmentFramework}
+          weeklyGoalRequired={weeklyGoalRequired}
           onExit={onExit}
         />
         <DecisionBanner notice={routeNotice} />
@@ -345,8 +490,8 @@ export const PathSessionPlayer = ({
         />
 
         <PathSolutionReview review={solutionReview} wasCorrect={Boolean(lastGradingResult?.isCorrect)} />
-        {solutionReview && onContinue && (
-          <button type="button" onClick={onContinue} style={continueButtonStyle}>Next question</button>
+        {onContinue && (
+          <ContinueAction onContinue={onContinue} pending={isAdvancing} label={continueLabel} />
         )}
       </main>
     );
@@ -359,7 +504,6 @@ export const PathSessionPlayer = ({
     : [{ id: 'answer', label: 'Answer', inputProfile: questionInstance.choices?.length ? 'choice' : 'text' }];
   const values = responsesByQuestion[instanceId] || {};
   const complete = pathResponseComplete(fields, values);
-  const finalized = Boolean(lastGradingResult?.questionFinalized);
 
   const setFieldValue = (fieldId, value) => {
     setResponsesByQuestion((current) => ({
@@ -402,13 +546,14 @@ export const PathSessionPlayer = ({
       : { background: '#fff4ce', color: '#7a4f00' };
 
   return (
-    <main style={WRAPPER}>
+    <main ref={workspaceRef} style={WRAPPER}>
       <SessionHeader
         session={session}
         questionInstance={questionInstance}
         attemptsLeft={attemptsLeft}
         attemptsAllowed={attemptsAllowed}
         assessmentFramework={assessmentFramework}
+        weeklyGoalRequired={weeklyGoalRequired}
         onExit={onExit}
       />
       <DecisionBanner notice={routeNotice} />
@@ -527,13 +672,36 @@ export const PathSessionPlayer = ({
       <PathSolutionReview review={solutionReview} wasCorrect={Boolean(lastGradingResult?.isCorrect)} />
 
       {finalized && onContinue && (
-        <button type="button" onClick={onContinue} style={continueButtonStyle}>Next question</button>
+        <ContinueAction onContinue={onContinue} pending={isAdvancing} label={continueLabel} />
       )}
 
       <CalculatorPanel policy={calculatorPolicy} onCalculatorOpened={() => setCalculatorUsed(true)} />
     </main>
   );
 };
+
+const ContinueAction = ({ onContinue, pending = false, label = 'Next question' }) => (
+  <div style={{ marginTop: 16 }}>
+    <button
+      type="button"
+      onClick={onContinue}
+      disabled={pending}
+      aria-keyshortcuts="Enter"
+      aria-busy={pending ? 'true' : undefined}
+      style={{
+        ...continueButtonStyle,
+        marginTop: 0,
+        opacity: pending ? 0.7 : 1,
+        cursor: pending ? 'wait' : 'pointer',
+      }}
+    >
+      {pending ? 'Loading next question…' : label}
+    </button>
+    <p style={{ margin: '7px 0 0', textAlign: 'center', color: '#5f6368', fontSize: 12.5, fontWeight: 750 }}>
+      {ENTER_TO_CONTINUE_HINT}
+    </p>
+  </div>
+);
 
 const continueButtonStyle = {
   width: '100%',

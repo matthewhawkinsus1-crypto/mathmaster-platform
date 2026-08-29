@@ -4,11 +4,17 @@ import StudentLearningPath from './StudentLearningPath.jsx';
 import CCMRHub from './CCMRHub.jsx';
 import MyMathPathProductionContainer from './MyMathPathProductionContainer.jsx';
 import StudentPracticeHistory from './StudentPracticeHistory.jsx';
+import WeeklyPathGoalPanel from './WeeklyPathGoalPanel.jsx';
 import { fetchStudentMasteryState } from '../../services/masteryStateService.js';
+import { fetchMyMathPathSkillProgress } from '../../services/pathSessionService.js';
 import { fetchStudentEvidenceEvents } from '../../platform/history/evidencePersistence.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
 import { fetchPathCoverage } from '../../platform/path/pathCoverageService.js';
-import { isSkillLaunchable } from '../../../functions/shared/pathCoverage.mjs';
+import {
+  frameworkCoverageKnown,
+  isFrameworkSkillLaunchable,
+  isSkillLaunchable,
+} from '../../../functions/shared/pathCoverage.mjs';
 import { curateStudentPanel } from '../../platform/path/studentPanel.js';
 import { teksCodeFromSkillId, teksSkillId } from '../../platform/path/skillGraph.js';
 import { statusForSkill } from '../../platform/path/pathMap.js';
@@ -22,6 +28,12 @@ import { DEFAULT_MASTERY_COURSE_ID, getWheelTeksForCourse } from '../../platform
 import {
   buildStudentAssessmentContext, readCcmrGoals, writeCcmrGoals,
 } from '../../platform/ccmr/studentAssessmentContext.js';
+import { FRAMEWORK_LABELS, getSkillCrosswalk } from '../../platform/ccmr/assessmentCrosswalk.js';
+import {
+  mathPathRouteKey,
+  readMathPathRouteState,
+  writeMathPathRouteState,
+} from '../../platform/student/browserHistory.js';
 
 // The mastery-status priority list this used to be was a second, competing
 // idea of what to recommend, sitting beside the path engine and able to
@@ -93,6 +105,7 @@ export const MyMathPathExperience = ({
   // simulating the copy.
   masteryData = { masteryProfilesByTEKS: {}, retentionSchedulesByTEKS: {} },
   evidenceEvents = [],
+  skillProgressByTEKS = {},
   // The Teacher Path Simulator forces assessment evidence directly — "what
   // does this student's SAT wheel look like at 45%?" — so it supplies the
   // whole context rather than having one derived from a synthetic document.
@@ -116,8 +129,67 @@ export const MyMathPathExperience = ({
   // choose Mastery Overview first, but the same component stays the source of truth.
   const [activeTab, setActiveTab] = useState(() => initialTab);
   const [sessionConfig, setSessionConfig] = useState(null);
+
+  // Keep My Math Path's own tabs/session in the browser history too. App.jsx
+  // owns the outer student surface (Assignments, My Math Path, Exams); this
+  // component owns the levels INSIDE My Math Path. Together they make the
+  // browser Back button behave like the in-platform Back controls instead of
+  // jumping to the site that opened MathMaster.
+  const mathPathBrowserHistoryReadyRef = useRef(false);
+  const mathPathBrowserRoute = useMemo(() => ({
+    tab: activeTab,
+    sessionConfig: activeTab === 'session' ? sessionConfig : null,
+  }), [activeTab, sessionConfig]);
+
+  useEffect(() => {
+    if (readOnly) return;
+
+    const current = readMathPathRouteState(window.history.state);
+    const currentKey = current ? mathPathRouteKey(current) : null;
+    const targetKey = mathPathRouteKey(mathPathBrowserRoute);
+
+    if (!mathPathBrowserHistoryReadyRef.current) {
+      mathPathBrowserHistoryReadyRef.current = true;
+      if (currentKey !== targetKey) {
+        // The outer App has already created (or is about to create) the My Math
+        // Path entry. Augment that entry rather than adding a visually
+        // identical extra Back step on initial mount.
+        writeMathPathRouteState(mathPathBrowserRoute, { replace: true });
+      }
+      return;
+    }
+
+    if (currentKey !== targetKey) {
+      writeMathPathRouteState(mathPathBrowserRoute);
+    }
+  }, [mathPathBrowserRoute, readOnly]);
+
+  useEffect(() => {
+    if (readOnly) return undefined;
+
+    const restoreMathPathHistory = (event) => {
+      const route = readMathPathRouteState(event.state);
+      if (!route) return;
+
+      if (route.tab === 'session' && route.sessionConfig) {
+        setSessionConfig(route.sessionConfig);
+        setActiveTab('session');
+        return;
+      }
+
+      setSessionConfig(null);
+      setActiveTab(route.tab || 'path');
+    };
+
+    window.addEventListener('popstate', restoreMathPathHistory);
+    return () => window.removeEventListener('popstate', restoreMathPathHistory);
+  }, [readOnly]);
+
   const teacherReadOnlyNotice = 'Teacher view is read-only. Use Path Simulator to test questions or routing without changing this student.';
-  const visibleTabs = readOnly ? TABS.filter(([tab]) => tab !== 'ccmr') : TABS;
+  // Teachers inspecting a real student now get the same CCMR evidence and
+  // official-standard explorer the student sees. The hub itself is read-only,
+  // so teachers can search and inspect without changing goals or launching work.
+  const visibleTabs = TABS;
 
   const recommendedTeks = useMemo(
     () => chooseRecommendedTeks({ profiles: masteryData.masteryProfilesByTEKS, pathOptions, courseId }),
@@ -141,6 +213,27 @@ export const MyMathPathExperience = ({
 
   const honors = String(studentProfile?.courseLevel || '').toLowerCase() === 'honors';
 
+  // Load the secure-bank coverage BEFORE building this week's plan. Assessment
+  // transfer slots must never be frozen for a TEKS/framework pair the active
+  // bank cannot issue.
+  const [coverage, setCoverage] = useState(() => coverageOverride || null);
+  const [coverageLoaded, setCoverageLoaded] = useState(() => Boolean(coverageOverride));
+  useEffect(() => {
+    if (coverageOverride) {
+      setCoverage(coverageOverride);
+      setCoverageLoaded(true);
+      return undefined;
+    }
+    let cancelled = false;
+    setCoverageLoaded(false);
+    fetchPathCoverage(courseId).then((index) => {
+      if (cancelled) return;
+      setCoverage(index);
+      setCoverageLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, [courseId, coverageOverride]);
+
   const weeklyPlan = useMemo(() => (pathOptions ? buildWeeklyPathPlan({
     options: pathOptions,
     courseId,
@@ -154,7 +247,8 @@ export const MyMathPathExperience = ({
     honors,
     interventionMode: Boolean(weeklyGoalConfig?.interventionMode),
     pinnedSkills: weeklyGoalConfig?.pinnedSkills || [],
-  }) : null), [pathOptions, courseId, learningProfile, masteryData, evidenceEvents, honors, weeklyGoalConfig]);
+    coverage,
+  }) : null), [pathOptions, courseId, learningProfile, masteryData, evidenceEvents, honors, weeklyGoalConfig, coverage]);
 
   const proposedWeeklyGoal = useMemo(() => (weeklyPlan ? buildWeeklyGoal({
     plan: weeklyPlan, config: weeklyGoalConfig || {}, honors, studentId, courseId,
@@ -215,6 +309,10 @@ export const MyMathPathExperience = ({
     teacherPriorities: teacherAssessmentPriorities,
     evidenceEvents,
   })), [assessmentContextOverride, studentRecord, assignments, goals, teacherAssessmentPriorities, evidenceEvents]);
+  const assessmentContextWithCoverage = useMemo(() => ({
+    ...(assessmentContext || {}),
+    coverage,
+  }), [assessmentContext, coverage]);
   const changeGoals = useCallback((next) => {
     if (readOnly) {
       setCoverageNotice(teacherReadOnlyNotice);
@@ -224,74 +322,94 @@ export const MyMathPathExperience = ({
     writeCcmrGoals(studentId, next);
   }, [studentId, readOnly]);
 
-  // Whether the secure bank can actually issue a question for a standard. A
-  // student is never sent somewhere that ends in "No authored question ...";
-  // the check happens here, before the session starts, rather than as an error
-  // afterwards.
-  const [coverage, setCoverage] = useState(() => coverageOverride || null);
-  const [coverageLoaded, setCoverageLoaded] = useState(() => Boolean(coverageOverride));
-  useEffect(() => {
-    if (coverageOverride) {
-      setCoverage(coverageOverride);
-      setCoverageLoaded(true);
-      return undefined;
-    }
-    let cancelled = false;
-    setCoverageLoaded(false);
-    fetchPathCoverage(courseId).then((index) => {
-      if (cancelled) return;
-      setCoverage(index);
-      setCoverageLoaded(true);
-    });
-    return () => { cancelled = true; };
-  }, [courseId, coverageOverride]);
-
   const startSession = (teksCode, options = {}) => {
     if (readOnly) {
       setCoverageNotice(teacherReadOnlyNotice);
       return;
     }
-    // Fails closed: an index that has never been built, or a standard missing
-    // from it, means MathMaster has not confirmed there is anything to practise.
-    if (!isSkillLaunchable(coverage, teksCode)) {
-      // Named the way the student names it. The TEKS code is a teacher/report
-      // identifier and has no business in a sentence a fifteen-year-old reads
-      // about their own afternoon.
-      const skillName = studentLabelForTeks(teksCode) || 'That skill';
+
+    const skillName = studentLabelForTeks(teksCode) || 'That skill';
+    const requestedFramework = options.framework && options.framework !== 'course'
+      ? options.framework
+      : null;
+
+    if (requestedFramework) {
+      const frameworkLabel = FRAMEWORK_LABELS[requestedFramework] || requestedFramework;
+      if (!frameworkCoverageKnown(coverage, requestedFramework)) {
+        setCoverageNotice(
+          coverageLoaded
+            ? `MathMaster has not rebuilt ${frameworkLabel} publication coverage on this deployment. Ask your teacher to refresh Path content coverage.`
+            : `MathMaster is still checking which ${frameworkLabel} practice is published. Try again in a moment.`,
+        );
+        return;
+      }
+      if (!isFrameworkSkillLaunchable(coverage, teksCode, requestedFramework)) {
+        const mapped = Boolean(getSkillCrosswalk(teksCode).frameworks?.[requestedFramework]);
+        setCoverageNotice(
+          mapped
+            ? `${frameworkLabel} practice is not available for ${skillName}. Choose another open path; your teacher can see this publication mismatch in Path content coverage.`
+            : `${skillName} is not part of ${frameworkLabel} math practice.`,
+        );
+        return;
+      }
+    } else if (!isSkillLaunchable(coverage, teksCode)) {
       setCoverageNotice(
         coverageLoaded
-          ? `${skillName} does not have practice ready yet, so it cannot be started. Everything else on your path is still open, and your teacher can see what is missing.`
-          : 'MathMaster is still checking which practice is ready. Try again in a moment.',
+          ? `${skillName} does not have enough published course practice to start a full session. Everything else on your path is still open.`
+          : 'MathMaster is still checking which course practice is ready. Try again in a moment.',
       );
       return;
     }
+
     setCoverageNotice(null);
     setSessionConfig({
       targetAlignmentKey: toCanonicalKey(teksCode),
       sessionKind: options.sessionKind || 'practice',
       requiredQuestions: options.requiredQuestions || (options.sessionKind === 'retentionProbe' ? 2 : 5),
-      // WHICH TEST THE STUDENT PRESSED FOR. Every CCMR entry point already
-      // passed this — "practise this for the SAT" — and it was dropped here, so
-      // the session that opened was indistinguishable from an ordinary one and
-      // the student had nothing on screen telling them what they were
-      // practising for, or which standard. It is presentation only: the
-      // questions and the grading are the server's, and unchanged.
-      assessmentFramework: options.framework || null,
+      assessmentFramework: requestedFramework,
       weekKey: options.weekKey || null,
       weeklySlotKey: options.weeklySlotKey || null,
       weeklySlot: options.weeklySlot || null,
+      weeklyGoalRequired: options.weeklySlotKey
+        ? (weeklyProgress?.required ?? weeklyGoal?.goalSessions ?? null)
+        : null,
+      completesWeeklyGoal: Boolean(
+        options.weeklySlotKey
+        && weeklyProgress?.remaining === 1
+        && !completedSlots.includes(Number(options.weeklySlot)),
+      ),
     });
     setActiveTab('session');
   };
 
-  // Launch once per target. Without the ref a return to the dashboard would
-  // immediately bounce the student back into the session they just left.
+  // Launch once per target, but only AFTER secure coverage has loaded.
+  // Recommended-for-You used to set the ref before coverage arrived. The first
+  // attempt therefore failed closed as "still checking", and the ref then
+  // prevented the exact skill the student chose from ever retrying. The result
+  // was seventeen different recommendation buttons that all behaved like the
+  // same generic "open My Math Path" button.
   const launchedRef = useRef(null);
   useEffect(() => {
-    if (!launchTeksCode || launchedRef.current === launchTeksCode) return;
+    if (!launchTeksCode || launchedRef.current === launchTeksCode || !coverageLoaded) return;
     launchedRef.current = launchTeksCode;
     startSession(launchTeksCode);
-  }, [launchTeksCode]);
+  }, [launchTeksCode, coverageLoaded, coverage]);
+
+  const startWeeklySession = (session) => {
+    const code = session?.teksCode || teksCodeFromSkillId(session?.skillId);
+    if (!code) return;
+    startSession(code, {
+      weekKey: weeklyGoal?.weekKey || null,
+      weeklySlotKey: session?.weeklySlotKey || null,
+      weeklySlot: session?.slot || null,
+      framework: session?.context && session.context !== 'course' ? session.context : null,
+    });
+  };
+
+  const weeklyFreeChoiceLocked = Boolean(weeklyGoal && weeklyProgress && weeklyProgress.remaining > 0);
+  const weeklyFreeChoiceMessage = weeklyFreeChoiceLocked
+    ? `${weeklyProgress.completed} of ${weeklyProgress.required} weekly sessions complete. Finish ${weeklyProgress.remaining} more ${weeklyProgress.remaining === 1 ? 'session' : 'sessions'} above to unlock free-choice paths.`
+    : null;
 
   const returnToDashboard = () => {
     setSessionConfig(null);
@@ -323,21 +441,36 @@ export const MyMathPathExperience = ({
         </div>
       )}
       {activeTab === 'path' && (
-        <StudentLearningPath
-          pathOptions={pathOptions}
-          // Availability is checked BEFORE the card is drawn, not after the
-          // student clicks it. `startSession` still fails closed on top of
-          // this; a student should simply never reach that path.
-          isCovered={coverageLoaded
-            ? (skillId) => isSkillLaunchable(coverage, teksCodeFromSkillId(skillId))
-            : null}
-          onChooseSkill={(card) => { const code = teksCodeFromSkillId(card.skillId); if (code) startSession(code); }}
-          assessmentContext={assessmentContext}
-          onPracticeAs={({ skillId, framework }) => {
-            const code = teksCodeFromSkillId(skillId);
-            if (code) startSession(code, { framework });
-          }}
-        />
+        <>
+          {weeklyGoal && (
+            <div style={{ maxWidth: '940px', margin: '0 auto', padding: '20px 16px 0' }}>
+              <WeeklyPathGoalPanel
+                goal={weeklyGoal}
+                progress={weeklyProgress}
+                completedSlots={completedSlots}
+                onStartSession={startWeeklySession}
+              />
+            </div>
+          )}
+          <StudentLearningPath
+            pathOptions={pathOptions}
+            skillProgressByTEKS={skillProgressByTEKS}
+            // Availability is checked BEFORE the card is drawn, not after the
+            // student clicks it. `startSession` still fails closed on top of
+            // this; a student should simply never reach that path.
+            isCovered={coverageLoaded
+              ? (skillId) => isSkillLaunchable(coverage, teksCodeFromSkillId(skillId))
+              : null}
+            freeChoiceLocked={weeklyFreeChoiceLocked}
+            freeChoiceMessage={weeklyFreeChoiceMessage}
+            onChooseSkill={(card) => { const code = teksCodeFromSkillId(card.skillId); if (code) startSession(code); }}
+            assessmentContext={assessmentContextWithCoverage}
+            onPracticeAs={({ skillId, framework }) => {
+              const code = teksCodeFromSkillId(skillId);
+              if (code) startSession(code, { framework });
+            }}
+          />
+        </>
       )}
       {activeTab === 'ccmr' && (
         <div style={{ maxWidth: '940px', margin: '0 auto', padding: '20px 16px 40px' }}>
@@ -345,15 +478,17 @@ export const MyMathPathExperience = ({
             pathOptions={pathOptions}
             assessmentEvidence={assessmentContext.assessmentEvidence}
             directIndex={assessmentContext.directIndex}
+            coverage={coverage}
             goals={assessmentContext.goals}
             teacherPriorities={assessmentContext.teacherPriorities}
             onChangeGoals={changeGoals}
             onPractise={(item) => { const code = teksCodeFromSkillId(item.skillId); if (code) startSession(code, { framework: item.framework }); }}
             onReturnToCourse={() => setActiveTab('path')}
+            readOnly={readOnly}
           />
         </div>
       )}
-      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || studentId || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContext} weeklyGoal={weeklyGoal} weeklyProgress={weeklyProgress} completedSlots={completedSlots} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} />}
+      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || studentId || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContextWithCoverage} weeklyGoal={weeklyGoal} weeklyProgress={weeklyProgress} completedSlots={completedSlots} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} onStartWeeklySession={startWeeklySession} onOpenPath={() => setActiveTab('path')} />}
       {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} />}
       {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} sessionProvider={sessionProvider} onSimulationController={onSimulationController} onSimulationEvent={onSimulationEvent} onReturnToDashboard={returnToDashboard} onSessionComplete={() => onReload?.()} />}
     </div>
@@ -370,6 +505,7 @@ export const MyMathPathApp = (props) => {
   const { studentId, assignments } = props;
   const [masteryData, setMasteryData] = useState({ masteryProfilesByTEKS: {}, retentionSchedulesByTEKS: {} });
   const [evidenceEvents, setEvidenceEvents] = useState([]);
+  const [skillProgressByTEKS, setSkillProgressByTEKS] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [historyError, setHistoryError] = useState(null);
@@ -377,14 +513,22 @@ export const MyMathPathApp = (props) => {
   const loadState = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const [masteryResult, historyResult] = await Promise.allSettled([
+    const [masteryResult, historyResult, passProgressResult] = await Promise.allSettled([
       fetchStudentMasteryState(studentId, { assignments }),
       fetchStudentEvidenceEvents(studentId),
+      fetchMyMathPathSkillProgress(),
     ]);
     if (masteryResult.status === 'fulfilled') setMasteryData(masteryResult.value);
     else setError(masteryResult.reason?.message || 'Mastery data is unavailable.');
     if (historyResult.status === 'fulfilled') { setEvidenceEvents(historyResult.value); setHistoryError(null); }
     else setHistoryError(historyResult.reason?.message || 'Practice history is temporarily unavailable.');
+    if (passProgressResult.status === 'fulfilled') {
+      setSkillProgressByTEKS(passProgressResult.value?.byTeksCode || {});
+    } else {
+      // Pass badges are an enhancement, never a gate to the learning path.
+      setSkillProgressByTEKS({});
+      console.warn('Could not load Path pass progress:', passProgressResult.reason);
+    }
     setLoading(false);
   }, [studentId, assignments]);
 
@@ -395,6 +539,7 @@ export const MyMathPathApp = (props) => {
       {...props}
       masteryData={masteryData}
       evidenceEvents={evidenceEvents}
+      skillProgressByTEKS={skillProgressByTEKS}
       loading={loading}
       error={error}
       historyError={historyError}

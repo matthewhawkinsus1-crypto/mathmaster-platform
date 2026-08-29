@@ -2,7 +2,8 @@
 //
 // This is the test that would have caught the defect the DOK/difficulty audit
 // found: `resolveTarget` extended a student at Band 4 by asking for Band 5, and
-// nothing in the entire 5,150-template bank is authored at Band 5. The student
+// ordinary course templates historically stopped at Band 4. CCMR challenge
+// families may go higher without widening the course recommendation engine. The student
 // does not experience that as "there is nothing harder here". They experience
 // it as a session that will not start.
 //
@@ -26,7 +27,7 @@ const bankTemplates = () => {
   readdirSync(SEED_DIR).filter((name) => name.endsWith('.json')).forEach((name) => {
     const parsed = JSON.parse(readFileSync(join(SEED_DIR, name), 'utf8'));
     (parsed.documents || []).forEach((doc) => {
-      if (doc.active !== false) docs.push(doc);
+      if (doc.active !== false && String(doc?.assessmentContext?.framework || 'course') === 'course') docs.push(doc);
     });
   });
   return docs;

@@ -3,6 +3,11 @@ import * as liveSessionService from '../../services/pathSessionService.js';
 import { generateRuntimeUUID } from '../../utils/idUtils.js';
 import PathSessionPlayer from './PathSessionPlayer.jsx';
 import { explainStepForStudent } from '../../platform/path/pathSessionRouting.js';
+import { fetchQuestionWithContentReleaseRollover } from '../../platform/path/sessionContentReleaseRollover.js';
+import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
+import { describeChallengeTier } from '../../platform/ccmr/assessmentFidelity.js';
+import { responseClosesQuestion } from '../../platform/path/pathProgression.js';
+import { coursePathLevelName } from '../../platform/path/pathPassPresentation.js';
 
 // The session runtime is injected.
 //
@@ -24,6 +29,8 @@ export const MyMathPathProductionContainer = ({
   weekKey = null,
   weeklySlotKey = null,
   weeklySlot = null,
+  weeklyGoalRequired = null,
+  completesWeeklyGoal = false,
   studentProfile,
   sessionProvider = null,
   onReturnToDashboard,
@@ -43,6 +50,7 @@ export const MyMathPathProductionContainer = ({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [errorReason, setErrorReason] = useState(null);
   const [configurationError, setConfigurationError] = useState(null);
   const [submissionError, setSubmissionError] = useState(null);
   const [lastGradingResult, setLastGradingResult] = useState(null);
@@ -53,6 +61,7 @@ export const MyMathPathProductionContainer = ({
   // a review the student never sees is not a review, and auto-advancing past it
   // is how "show a meaningful solution" turns into "flash one for 300ms".
   const [awaitingContinue, setAwaitingContinue] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
   const [routeNotice, setRouteNotice] = useState(null);
   const pendingSubmissionRef = useRef(null);
   const completionReportedRef = useRef(false);
@@ -65,6 +74,25 @@ export const MyMathPathProductionContainer = ({
   const [retryCount, setRetryCount] = useState(0);
   const [slowLoad, setSlowLoad] = useState(false);
 
+  // One canonical launch description is reused for start and release rollover.
+  // This is what keeps a frozen weekly slot, its assessment framework, and its
+  // question-count contract intact if the assessment bank changes mid-session.
+  const sessionLaunchConfig = useMemo(() => ({
+    targetAlignmentKey,
+    sessionKind,
+    requiredQuestions,
+    assessmentFramework,
+    weekKey,
+    weeklySlotKey,
+    weeklySlot,
+  }), [targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot]);
+
+  const contentRefreshNotice = {
+    headline: 'Practice updated',
+    message: 'This assessment was updated, so MathMaster started a fresh session for the same skill. Your earlier answers are still saved.',
+    tone: 'return',
+  };
+
   const clearAttemptState = () => {
     setLastGradingResult(null);
     setLastFeedback(null);
@@ -76,32 +104,42 @@ export const MyMathPathProductionContainer = ({
   const initializeSession = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setErrorReason(null);
     setConfigurationError(null);
     setSubmissionError(null);
     completionReportedRef.current = false;
     try {
-      const result = await startOrResumePathSession({ targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot });
+      const result = await startOrResumePathSession(sessionLaunchConfig);
       // A successful load clears the record of past failures, so a student who
       // hits one blip and recovers is not permanently shown the "this is not
       // working" screen.
       setRetryCount(0);
-      setSession(result.session);
+      setErrorReason(null);
       if (result.session.status === 'active') {
-        const next = await fetchNextSanitizedQuestion({ sessionId: result.session.sessionId });
+        const next = await fetchQuestionWithContentReleaseRollover({
+          session: result.session,
+          sessionConfig: sessionLaunchConfig,
+          fetchNextSanitizedQuestion,
+          startOrResumePathSession,
+        });
+        setSession(next.session);
         setCurrentQuestion(next.questionInstance);
+        if (next.rolledOver) setRouteNotice(contentRefreshNotice);
       } else {
+        setSession(result.session);
         setCurrentQuestion(null);
       }
     } catch (caught) {
       // A deployment that cannot reach the secure Path is a service problem,
       // not a mathematics problem, and it is said differently.
       setRetryCount((current) => current + 1);
+      setErrorReason(caught?.reason || null);
       if (caught?.isConfigurationError) setConfigurationError(caught.message);
       else setError(caught.message || 'Unable to load this My Math Path session.');
     } finally {
       setLoading(false);
     }
-  }, [targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot]);
+  }, [sessionLaunchConfig, startOrResumePathSession, fetchNextSanitizedQuestion]);
 
   useEffect(() => { initializeSession(); }, [initializeSession]);
 
@@ -142,20 +180,36 @@ export const MyMathPathProductionContainer = ({
   }, [session?.lastDecision]);
 
   const advanceToNextQuestion = useCallback(async () => {
-    if (!session || session.status !== 'active') return;
-    setAwaitingContinue(false);
+    if (!session || session.status !== 'active' || advancing) return;
+    // IMPORTANT: awaitingContinue stays TRUE until the next question actually
+    // arrives. The previous code cleared it before the network call, so one
+    // failed request removed the student's Next button and stranded them.
     setSubmissionError(null);
+    setAdvancing(true);
     try {
-      const next = await fetchNextSanitizedQuestion({ sessionId: session.sessionId });
+      const next = await fetchQuestionWithContentReleaseRollover({
+        session,
+        sessionConfig: sessionLaunchConfig,
+        fetchNextSanitizedQuestion,
+        startOrResumePathSession,
+      });
+      setSession(next.session);
       setCurrentQuestion(next.questionInstance);
       clearAttemptState();
       // The explanation is carried forward onto the question it explains, so a
-      // student meeting a prerequisite reads why on that question's screen.
-      setRouteNotice(decisionNotice);
+      // student meeting a prerequisite reads why on that question's screen. A
+      // content refresh gets its own plain-language explanation instead.
+      if (next.rolledOver) setRouteNotice(contentRefreshNotice);
+      else setRouteNotice(decisionNotice);
     } catch (caught) {
+      // Leave awaitingContinue true. The same button becomes an explicit retry
+      // rather than disappearing after a Wi-Fi/callable failure.
+      setAwaitingContinue(true);
       setSubmissionError(caught.message || 'The next question could not be loaded. Try again.');
+    } finally {
+      setAdvancing(false);
     }
-  }, [session, fetchNextSanitizedQuestion, decisionNotice]);
+  }, [session, sessionLaunchConfig, fetchNextSanitizedQuestion, startOrResumePathSession, decisionNotice, advancing]);
 
   const handleSubmitAnswer = async (responsePayload, supportUsage = {}, grade = null) => {
     if (!session || !currentQuestion || submitting) return;
@@ -192,7 +246,8 @@ export const MyMathPathProductionContainer = ({
       setSolutionReview(result.solutionReview || null);
       setSession(result.session);
 
-      if (result.grading?.questionFinalized && result.session.status === 'active') {
+      const questionClosed = responseClosesQuestion(result);
+      if (questionClosed && result.session.status === 'active') {
         // Hold here so the review can be read. `advanceToNextQuestion` is what
         // fetches the next one, and the student presses the button.
         setAwaitingContinue(true);
@@ -203,8 +258,8 @@ export const MyMathPathProductionContainer = ({
       } else {
         // Session finished. The review stays on screen; the completion panel
         // renders under it once the student continues.
-        setAwaitingContinue(Boolean(result.solutionReview));
-        if (!result.solutionReview) setCurrentQuestion(null);
+        setAwaitingContinue(Boolean(result.solutionReview) || questionClosed);
+        if (!result.solutionReview && !questionClosed) setCurrentQuestion(null);
       }
       onSimulationEvent?.({
         id: `path-event-${Date.now()}`,
@@ -417,6 +472,53 @@ export const MyMathPathProductionContainer = ({
     );
   }
 
+  const nextLevelUnavailable = errorReason === 'all-candidate-preparations-failed';
+  const completedSessionError = /session is already complete|session is already completed/i.test(String(error || ''));
+
+  if (nextLevelUnavailable || completedSessionError) {
+    return (
+      <section
+        role="status"
+        style={{
+          maxWidth: 620,
+          margin: '40px auto',
+          padding: 24,
+          borderRadius: 14,
+          background: completedSessionError ? '#e6f4ea' : '#fff4ce',
+          border: completedSessionError ? '2px solid #81c995' : '2px solid #f0d489',
+          color: completedSessionError ? '#137333' : '#7a4f00',
+          textAlign: 'left',
+        }}
+      >
+        <h1 style={{ margin: '0 0 8px', fontSize: 21, color: 'inherit' }}>
+          {completedSessionError ? 'This Path pass is already complete' : 'Next level is temporarily unavailable'}
+        </h1>
+        <p style={{ margin: '0 0 10px', lineHeight: 1.65, color: '#3c4043' }}>
+          {completedSessionError
+            ? 'Your completed pass is saved. Return to My Math Path to see its completion badge and choose the next level or another open skill.'
+            : 'Your earlier Path pass is still complete. MathMaster could not prepare a usable question for the next level, so it stopped instead of giving you broken or duplicate work.'}
+        </p>
+        {!completedSessionError && (
+          <p style={{ margin: '0 0 14px', fontSize: 13, lineHeight: 1.6, color: '#7a4f00' }}>
+            Your teacher can repair the affected question family in Path content coverage. This does not erase the level you already completed.
+          </p>
+        )}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {nextLevelUnavailable && retryCount < 2 && (
+            <button type="button" onClick={initializeSession} style={{ minHeight: 44, padding: '0 16px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 850, cursor: 'pointer' }}>
+              Try next level again
+            </button>
+          )}
+          {onReturnToDashboard && (
+            <button type="button" onClick={onReturnToDashboard} style={{ minHeight: 44, padding: '10px 16px', border: '1px solid #9aa0a6', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 850, cursor: 'pointer' }}>
+              Back to My Math Path
+            </button>
+          )}
+        </div>
+      </section>
+    );
+  }
+
   if (error) {
     return (
       <div role="alert" style={{ maxWidth: 560, margin: '40px auto', padding: 22, borderRadius: 10, background: '#fce8e6', color: '#a50e0e', textAlign: 'left' }}>
@@ -444,18 +546,96 @@ export const MyMathPathProductionContainer = ({
   const sessionOver = session?.status === 'completed' || session?.status === 'teacherSupportNeeded';
   if (sessionOver && !awaitingContinue) {
     const paused = session.status === 'teacherSupportNeeded';
+    const directAssessment = Boolean(session?.assessmentFramework);
+    const challengeTier = Math.max(1, Math.min(3, Number(session?.ccmrChallengeTier || 1)));
+    const challenge = describeChallengeTier(challengeTier, session?.assessmentFramework);
+    const completedCount = Math.max(1, Number(session?.summary?.completedQuestions || session?.requiredQuestions || 1));
+    const sessionAccuracy = Number(session?.summary?.correctQuestions || 0) / completedCount;
+    const independentRate = Number(session?.summary?.independentSuccesses || 0) / completedCount;
+    const challengePassed = sessionAccuracy >= 0.8 && independentRate >= 0.6;
+    const weeklyTargetReached = Boolean(completesWeeklyGoal && !paused);
+    const coursePassLevel = !directAssessment && session?.sessionKind !== 'retentionProbe'
+      ? Math.max(1, Math.min(3, Number(session?.coursePassLevel || 1)))
+      : null;
+    const coursePassName = coursePassLevel ? coursePathLevelName(coursePassLevel) : null;
+    const nextCourseLevel = coursePassLevel && coursePassLevel < 3 ? coursePassLevel + 1 : null;
     return (
-      <section style={{ maxWidth: 620, margin: '36px auto', padding: 30, border: '1px solid #dadce0', borderRadius: 12, background: '#fff', textAlign: 'center' }}>
-        <h1 style={{ color: '#202124' }}>{paused ? 'Practice paused' : 'Session complete'}</h1>
+      <section style={{
+        maxWidth: 650, margin: '36px auto', padding: weeklyTargetReached ? 38 : 30,
+        border: weeklyTargetReached ? '4px solid #58a96b' : '1px solid #dadce0',
+        borderRadius: 16,
+        background: weeklyTargetReached ? 'linear-gradient(135deg, #e6f4ea 0%, #fff4ce 100%)' : '#fff',
+        textAlign: 'center',
+        boxShadow: weeklyTargetReached ? '0 16px 46px rgba(19,115,51,.20)' : 'none',
+      }}>
+        {weeklyTargetReached && <div aria-hidden="true" style={{ fontSize: 54, lineHeight: 1, marginBottom: 8 }}>🎉</div>}
+        <h1 style={{ color: weeklyTargetReached ? '#12633a' : '#202124', fontSize: weeklyTargetReached ? 30 : undefined, marginBottom: weeklyTargetReached ? 8 : undefined }}>
+          {weeklyTargetReached
+            ? 'Weekly target reached!'
+            : paused
+              ? 'Practice paused'
+              : directAssessment
+                ? `${challenge.label} complete`
+                : coursePassLevel
+                  ? `Level ${coursePassLevel} complete`
+                  : 'Session complete'}
+        </h1>
+        {weeklyTargetReached && (
+          <div style={{ margin: '0 auto 16px', maxWidth: 520, color: '#245c33', fontSize: 16, fontWeight: 800, lineHeight: 1.55 }}>
+            {weeklyGoalRequired
+              ? `You completed all ${weeklyGoalRequired} of ${weeklyGoalRequired} weekly Path sessions.`
+              : 'You completed every assigned weekly Path session.'}
+            {' '}Free-choice paths are unlocked for the rest of the week.
+          </div>
+        )}
+        {coursePassLevel && !paused && (
+          <div style={{ margin: '0 auto 16px', maxWidth: 540 }}>
+            <div style={{ display: 'inline-block', padding: '6px 11px', borderRadius: 999, background: '#e6f4ea', color: '#137333', fontSize: 12, fontWeight: 950, letterSpacing: '.04em', textTransform: 'uppercase' }}>
+              ✓ Path Pass {coursePassLevel} complete · {coursePassName}
+            </div>
+            <p style={{ margin: '10px 0 0', color: '#3c4043', fontSize: 14, lineHeight: 1.6 }}>
+              {nextCourseLevel
+                ? `This pass is recorded on your Path card. Your next visit is Level ${nextCourseLevel} · ${coursePathLevelName(nextCourseLevel)}, with more demanding work.`
+                : 'This advanced pass is recorded on your Path card. If the mastery evidence is not complete yet, you can continue advanced practice without losing any completed passes.'}
+            </p>
+          </div>
+        )}
+        {directAssessment && !paused && (
+          <div style={{ display: 'inline-block', margin: '0 0 10px', padding: '5px 10px', borderRadius: 999, background: challengeTier >= 2 ? '#f3ecfd' : '#e8f0fe', color: challengeTier >= 2 ? '#5b21b6' : '#174ea6', fontSize: 12, fontWeight: 900 }}>
+            {FRAMEWORK_LABELS[session.assessmentFramework] || session.assessmentFramework} · {challenge.shortLabel}
+          </div>
+        )}
         <p style={{ color: '#5f6368', lineHeight: 1.6 }}>
           {paused
             ? (session.teacherMessage || 'Your progress is saved. Check in with your teacher before continuing this skill.')
-            : `You worked through ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions.`}
+            : coursePassLevel
+              ? `You completed ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions in this Path pass.`
+              : `You worked through ${session.summary?.completedQuestions || session.pathState?.counters?.questionsThisSession || 0} questions.`}
         </p>
         {!paused && (
           <div style={{ margin: '18px 0', padding: 13, borderRadius: 8, background: '#e6f4ea', color: '#137333', lineHeight: 1.6 }}>
             <strong>{session.summary?.correctQuestions || 0}</strong> right first time or after a retry ·{' '}
             <strong>{session.summary?.independentSuccesses || 0}</strong> of those on your own
+          </div>
+        )}
+        {directAssessment && !paused && (
+          <div style={{ margin: '0 0 18px', padding: 13, borderRadius: 9, background: challengePassed ? '#f3ecfd' : '#fef7e0', color: challengePassed ? '#5b21b6' : '#7a4f00', lineHeight: 1.55, textAlign: 'left' }}>
+            <strong style={{ display: 'block', marginBottom: 3 }}>
+              {challengePassed
+                ? challengeTier === 1
+                  ? 'Harder challenge unlocked'
+                  : challengeTier === 2
+                    ? 'Advanced challenge unlocked'
+                    : 'Assessment challenge complete'
+                : 'Keep building this format'}
+            </strong>
+            {challengePassed
+              ? challengeTier === 1
+                ? 'The next time you choose this skill in this assessment, MathMaster will give you a shorter, harder set instead of repeating the direct-practice level.'
+                : challengeTier === 2
+                  ? 'The next set uses the highest-demand challenge families for this skill.'
+                  : 'This skill will cool down in recommendations. It stays available for maintenance, but MathMaster will push other needs ahead of it.'
+              : 'This set stays at the current level on your next visit so you can strengthen the assessment format before the difficulty rises.'}
           </div>
         )}
         <button type="button" onClick={onReturnToDashboard} style={{ minHeight: 44, padding: '11px 20px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 900, cursor: 'pointer' }}>Back to My Math Path</button>
@@ -480,7 +660,10 @@ export const MyMathPathProductionContainer = ({
         solutionReview={solutionReview}
         routeNotice={routeNotice}
         isSubmitting={submitting}
+        isAdvancing={advancing}
+        continueLabel={submissionError && awaitingContinue ? 'Try next question again' : 'Next question'}
         assessmentFramework={assessmentFramework}
+        weeklyGoalRequired={weeklyGoalRequired}
         studentProfile={studentProfile}
         onSubmitAnswer={handleSubmitAnswer}
         onContinue={awaitingContinue

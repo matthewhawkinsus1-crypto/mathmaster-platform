@@ -1,62 +1,91 @@
-# MathMaster Authoring Intent V5 — Implemented
+# MathMaster Assignment V5 — Canonical Foundation
 
-## Purpose
+## Decision
 
-Outside AIs describe mathematical intent. MathMaster compiles that intent into the existing V4 runtime/tool contracts. V4 remains the persistence and student-runtime compatibility format; outside AIs are not expected to author V4 renderer plumbing.
+MathMaster is pre-production. There are no real student records or live assignment data that require backward compatibility.
 
-## Pipeline
+Assignment V5 is now the only supported authoring format. V4/V3/V2 assignment packages and raw question arrays are intentionally unsupported and may be discarded.
 
-1. Parse/repair incoming AI text.
-2. Preserve the SOURCE authoring version before compilation.
-3. If `schemaVersion: 5`, compile Authoring Intent V5 to canonical V4.
-4. Compose multi-action questions from workflow stages instead of collapsing them into one narrow legacy renderer.
-5. Normalize renderer/storage aliases and question-level standards.
-6. Run structural/tool validation.
-7. Run workflow-aware semantic/student-experience validation.
-8. Open teacher Preflight.
+## Architecture
 
-## Main implementation
+Assignment V5 is the authoring and persistence source of truth.
 
-- `src/platform/contract/authoringIntentV5.js`
-  - stable `studentActions` vocabulary;
-  - intent-to-tool resolution;
-  - function/relation/sequence/graph normalization;
-  - multi-action function composition (`table -> graph -> domain/range -> classification`);
-  - connected contextual `relationshipModel` workflow compilation;
-  - function-derived table keys when the mathematics makes them deterministic;
-  - graph-analysis requests derived from studentActions rather than trusted V4 plumbing;
-  - specialist workspace mappings;
-  - 34 currently student-authorable runtime destinations.
-- `src/platform/workflow/WorkflowRunner.jsx`
-  - renders the parent prompt for composed questions;
-  - carries a given function into a table artifact and the completed table into the graph;
-  - checks table/function contradictions before graphing;
-  - supports set notation as a real response profile.
-- `src/platform/workflow/workflowGrading.js`
-  - semantic roster-set grading for domain/range stages;
-  - stage-by-stage partial credit and consistency grading.
-- `src/platform/contract/semanticValidation.js`
-  - visual-promise validation understands composed workflow stages, so a workflow graph/table counts as the graph/table the prompt promises.
-- `src/assignmentBlueprint.js`
-  - detects V5, records its source schema, and compiles it before V4 runtime validation/storage.
-- `src/platform/contract/authoringContract.js`
-  - default teacher-facing AI contract is V5;
-  - V5 repair requests stay V5 and explicitly prohibit adding V4 renderer plumbing as a workaround.
-- `src/AssignmentIntake.jsx` + `src/App.jsx`
-  - V5 renderer-plumbing failures are classified as MathMaster compiler defects rather than sent back to the assignment-writing AI.
-- `scripts/validate-authoring-v5.mjs`
-  - permanent smoke validation includes a rich multi-action question, not just a one-tool graph sample.
-- `scripts/validate-assignments.mjs`
-  - batch assignment structural + semantic + registry-tool validation.
+A V5 assignment contains:
 
-## Backward compatibility
+- `assignment`: title, course, folder, instructional purpose, grading purpose.
+- `sections[]`: Warm-Up, Classwork, Practice, DOL, Quiz, and Test sections.
+- `variantPolicy`: shared/personalized/adaptive delivery.
+- `differentiationPolicy`: bounded differentiation, Honors behavior, CCMR target share.
+- `supportPolicy`: student-profile supports without silently changing the standard.
+- `toolPolicy`: calculator/keyboard/tool availability.
+- `deliveryPolicy`: section gating and access.
+- `gradingPolicy`: attempt/scoring policy.
+- `evidencePolicy`: grade/mastery/recommendation/analytics eligibility.
+- `outputProfiles`: digital, printable worksheet, lesson-notes PDF, future teacher/answer-key PDFs.
+- `classroomIntegration`: Google Classroom publishing intent.
+- `provenance`: content/generator/grader release metadata.
+- `preflight`: teacher review requirements.
 
-- Existing V4 JSON still imports normally.
-- Bundle V3 activity packaging still imports normally.
-- A V5 object with `studentActions` is always compiled from intent. Stray `type`, `toolId`, `functionSpec`, `analysisRequests`, or renderer `graph` plumbing added by a repair AI cannot bypass the V5 compiler.
-- Legacy V5 objects that contain no studentActions may still preserve an already-canonical internal type for compatibility.
-- No existing assignment migration is required because V5 is compiled before runtime persistence.
+## Question compilation
 
-## Design rule
+Outside authors describe mathematics and `studentActions`. They do not choose React components, `type`, `toolId`, viewport bounds, Firestore state, or renderer plumbing.
 
-The outside AI owns mathematical intent, source fidelity, wording, standards, and the actions students must perform. MathMaster owns renderer/tool choice, workflow composition, deterministic answer derivation when possible, graph/runtime plumbing, storage shapes, and validation of whether the requested student experience can actually happen.
+MathMaster compiles each V5 question into the existing mature interaction/rendering contracts. Those renderer contracts are implementation details, not an older assignment schema.
+
+Generated expected answers must come from the same parameters that generate the prompt. Equivalent formatting should be handled by the grader rather than padded accepted-answer arrays.
+
+## Persistence
+
+New assignment documents persist:
+
+- `schemaVersion: 5`
+- canonical `sections[]`
+- all V5 policy groups
+- `runtimeProjectionVersion: 1`
+- a temporary flat `questions[]` runtime projection
+
+The flat projection exists only so mature student renderers, grading paths, and server code do not all need to be rewritten in the same foundation change. New authoring and persistence logic treats `sections[]` as canonical.
+
+Question editing and assignment duplication rebuild canonical sections whenever the runtime projection changes.
+
+## Preflight
+
+The existing Lesson Preflight UI is retained as a working view. V5 sections are explicitly adapted to its activity model. The source package is no longer treated as Bundle V3.
+
+## Honors + CCMR
+
+Honors placement is inherited from the destination class rather than authored as a question flag.
+
+For a full Honors assignment with independent Practice, the V5 default targets about 15% authentic CCMR transfer practice over the recent sequence, while preserving the lesson TEKS and instructional ceiling.
+
+Authentic CCMR items must use the approved TEKS-to-assessment crosswalk and carry explicit assessment metadata for Digital SAT, ACT, TSIA2, or ASVAB. The recent Authentic Language/Fidelity rules remain in force.
+
+## PDF and print
+
+Digital and printable student work use the same resolved questions.
+
+Currently supported:
+- student worksheet PDF
+- separate 1–2 page lesson-notes PDF
+
+Declared but disabled until dedicated solution renderers are finished:
+- teacher worksheet with solutions
+- answer-key-only PDF
+
+## Validation
+
+The canonical V5 gate now tests:
+
+- V5 schema normalization and validation
+- V4/raw-array rejection
+- V5 question compilation
+- composed workflows
+- instructional scope
+- semantic validation
+- Honors/CCMR metadata
+- Firestore persistence wiring
+- worksheet/PDF regression paths
+- Digital SAT V2.1 authoring gate
+- production build
+
+See `.github/workflows/assignment-v5-foundation.yml`.

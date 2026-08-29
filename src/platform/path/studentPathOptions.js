@@ -185,14 +185,15 @@ export const buildStudentPathOptions = ({
     pacing: effectivePacing,
     pacingProvider,
     teacherOverrides,
-    // Teacher-assigned work is the classroom contract, and the Path is
-    // supposed to say so rather than merely nudge its score. Every caller in
-    // the app omitted `requiredSkillIds`, so the REQUIRED state — and the
-    // "finish your assigned work first" rule that depends on it — could never
-    // fire for a real student.
-    requiredSkillIds: Array.isArray(requiredSkillIds)
-      ? requiredSkillIds
-      : collectRequiredSkillIds(safeAssignments, nowValue),
+    // Assignment TEKS are RELEVANCE, not an invisible Path completion contract.
+    // The old default promoted every skill in every open classroom assignment
+    // to REQUIRED. A student could complete the same Path session repeatedly
+    // and still be told "finish the work your teacher assigned" because the
+    // assignment's due window — not Path evidence — was the thing keeping the
+    // requirement alive. Only a caller that owns an explicit Path requirement
+    // may set REQUIRED now. Weekly Path commitments are tracked separately with
+    // exact session slots and visible x-of-y progress.
+    requiredSkillIds: Array.isArray(requiredSkillIds) ? requiredSkillIds : [],
     assignmentSkillIds: collectAssignmentSkillIds(safeAssignments),
   });
 };

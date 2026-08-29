@@ -1,0 +1,857 @@
+{
+  "schemaVersion": 1,
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "act",
+  "domainId": "preparingHigherMath",
+  "nativeSkillId": "numberQuantity",
+  "officialSkillFamily": "number and quantity",
+  "status": "authored-pass-1",
+  "documents": [
+    {
+      "id": "mm_act_nq_1_rational-exponent-value_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "act",
+          "domainId": "preparingHigherMath",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "act",
+        "examStyle": true,
+        "domainId": "preparingHigherMath",
+        "nativeSkillId": "numberQuantity",
+        "actSubcategory": "numberQuantity",
+        "modeling": false
+      },
+      "familyId": "mathmaster:act:native:numberQuantity:rational-exponent-value",
+      "familyVersion": 2,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "ACT-native:numberQuantity",
+      "taskType": "rationalExponent",
+      "representation": "numeric",
+      "ccmrChallengeTier": 1,
+      "ccmrFamilyRole": "direct",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "numberQuantity",
+        "officialSkillFamily": "number and quantity",
+        "stemProfile": "rational-exponent-value",
+        "answerChoiceCount": 4
+      },
+      "prompt": "What is the value of ${{base}}^{2/3}$?",
+      "generator": {
+        "parameters": {
+          "n": {
+            "type": "choice",
+            "values": [
+              2,
+              4,
+              5,
+              6,
+              7
+            ]
+          }
+        },
+        "derived": {
+          "base": "n^3",
+          "answer": "n^2",
+          "d1": "n",
+          "d2": "n^3",
+          "d3": "n^2+1"
+        }
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "choices": [
+        {
+          "id": "act-correct",
+          "label": "${{answer}}$"
+        },
+        {
+          "id": "act-d1",
+          "label": "${{d1}}$"
+        },
+        {
+          "id": "act-d2",
+          "label": "${{d2}}$"
+        },
+        {
+          "id": "act-d3",
+          "label": "${{d3}}$"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "act-correct"
+        }
+      ],
+      "attemptFeedback": [
+        "Use the stated numerical relationships and operations to determine the requested quantity."
+      ],
+      "supportHints": [
+        "Track signs, exponents, units, and matrix or vector positions carefully."
+      ],
+      "solutionReview": {
+        "headline": "Use the relevant number relationship.",
+        "reasoning": [
+          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+        ],
+        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+      }
+    },
+    {
+      "id": "mm_act_nq_2_identify-irrational_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "act",
+          "domainId": "preparingHigherMath",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "act",
+        "examStyle": true,
+        "domainId": "preparingHigherMath",
+        "nativeSkillId": "numberQuantity",
+        "actSubcategory": "numberQuantity",
+        "modeling": false
+      },
+      "familyId": "mathmaster:act:native:numberQuantity:identify-irrational",
+      "familyVersion": 2,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "ACT-native:numberQuantity",
+      "taskType": "numberClassification",
+      "representation": "numeric",
+      "ccmrChallengeTier": 1,
+      "ccmrFamilyRole": "direct",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "numberQuantity",
+        "officialSkillFamily": "number and quantity",
+        "stemProfile": "identify-irrational",
+        "answerChoiceCount": 4
+      },
+      "prompt": "For the positive integer {{p}}, which of the following numbers is irrational?",
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "choice",
+            "values": [
+              2,
+              3,
+              5,
+              7,
+              11,
+              13
+            ]
+          }
+        }
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "choices": [
+        {
+          "id": "act-correct",
+          "label": "$\\sqrt{{{p}}}$"
+        },
+        {
+          "id": "act-d1",
+          "label": "$\\dfrac{{{p}}}{2}$"
+        },
+        {
+          "id": "act-d2",
+          "label": "${{p}}$"
+        },
+        {
+          "id": "act-d3",
+          "label": "$0.125$"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "act-correct"
+        }
+      ],
+      "attemptFeedback": [
+        "Use the stated numerical relationships and operations to determine the requested quantity."
+      ],
+      "supportHints": [
+        "Track signs, exponents, units, and matrix or vector positions carefully."
+      ],
+      "solutionReview": {
+        "headline": "Use the relevant number relationship.",
+        "reasoning": [
+          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+        ],
+        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+      }
+    },
+    {
+      "id": "mm_act_nq_3_complex-addition_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "act",
+          "domainId": "preparingHigherMath",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "act",
+        "examStyle": true,
+        "domainId": "preparingHigherMath",
+        "nativeSkillId": "numberQuantity",
+        "actSubcategory": "numberQuantity",
+        "modeling": false
+      },
+      "familyId": "mathmaster:act:native:numberQuantity:complex-addition",
+      "familyVersion": 2,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "ACT-native:numberQuantity",
+      "taskType": "complexArithmetic",
+      "representation": "symbolic",
+      "ccmrChallengeTier": 1,
+      "ccmrFamilyRole": "direct",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "numberQuantity",
+        "officialSkillFamily": "number and quantity",
+        "stemProfile": "complex-addition",
+        "answerChoiceCount": 4
+      },
+      "prompt": "What is the sum of $({{a}}+{{b}}i)$ and $({{c}}-{{d}}i)$?",
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          },
+          "c": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          }
+        },
+        "derived": {
+          "real": "a+c",
+          "imag": "b-d",
+          "r1": "a+c",
+          "i1": "b+d",
+          "r2": "a-c",
+          "i2": "b-d",
+          "r3": "a-c",
+          "i3": "b+d"
+        },
+        "constraints": [
+          "b!=d"
+        ]
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "choices": [
+        {
+          "id": "act-correct",
+          "label": "${{real}} {{imag|signed}}i$"
+        },
+        {
+          "id": "act-d1",
+          "label": "${{r1}} {{i1|signed}}i$"
+        },
+        {
+          "id": "act-d2",
+          "label": "${{r2}} {{i2|signed}}i$"
+        },
+        {
+          "id": "act-d3",
+          "label": "${{r3}} {{i3|signed}}i$"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "act-correct"
+        }
+      ],
+      "attemptFeedback": [
+        "Use the stated numerical relationships and operations to determine the requested quantity."
+      ],
+      "supportHints": [
+        "Track signs, exponents, units, and matrix or vector positions carefully."
+      ],
+      "solutionReview": {
+        "headline": "Use the relevant number relationship.",
+        "reasoning": [
+          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+        ],
+        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+      }
+    },
+    {
+      "id": "mm_act_nq_4_matrix-product-entry_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "act",
+          "domainId": "preparingHigherMath",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "act",
+        "examStyle": true,
+        "domainId": "preparingHigherMath",
+        "nativeSkillId": "numberQuantity",
+        "actSubcategory": "numberQuantity",
+        "modeling": false
+      },
+      "familyId": "mathmaster:act:native:numberQuantity:matrix-product-entry",
+      "familyVersion": 2,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "ACT-native:numberQuantity",
+      "taskType": "matrixMultiplication",
+      "representation": "matrix",
+      "ccmrChallengeTier": 1,
+      "ccmrFamilyRole": "direct",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "numberQuantity",
+        "officialSkillFamily": "number and quantity",
+        "stemProfile": "matrix-product-entry",
+        "answerChoiceCount": 4
+      },
+      "prompt": "Let $A=\\begin{pmatrix}{{p}}&{{q}}\\\\1&1\\end{pmatrix}$ and $B=\\begin{pmatrix}1&{{r}}\\\\1&{{s}}\\end{pmatrix}$. What is the entry in row 1, column 2 of $AB$?",
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "q": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "s": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          }
+        },
+        "derived": {
+          "answer": "p*r+q*s",
+          "d1": "p*r",
+          "d2": "q*s",
+          "d3": "p+q+r+s"
+        },
+        "constraints": [
+          "answer!=d1",
+          "answer!=d2",
+          "answer!=d3",
+          "d1!=d2",
+          "d1!=d3",
+          "d2!=d3"
+        ]
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "choices": [
+        {
+          "id": "act-correct",
+          "label": "${{answer}}$"
+        },
+        {
+          "id": "act-d1",
+          "label": "${{d1}}$"
+        },
+        {
+          "id": "act-d2",
+          "label": "${{d2}}$"
+        },
+        {
+          "id": "act-d3",
+          "label": "${{d3}}$"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "act-correct"
+        }
+      ],
+      "attemptFeedback": [
+        "Use the stated numerical relationships and operations to determine the requested quantity."
+      ],
+      "supportHints": [
+        "Track signs, exponents, units, and matrix or vector positions carefully."
+      ],
+      "solutionReview": {
+        "headline": "Use the relevant number relationship.",
+        "reasoning": [
+          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+        ],
+        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+      }
+    },
+    {
+      "id": "mm_act_nq_5_vector-magnitude_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "act",
+          "domainId": "preparingHigherMath",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "act",
+        "examStyle": true,
+        "domainId": "preparingHigherMath",
+        "nativeSkillId": "numberQuantity",
+        "actSubcategory": "numberQuantity",
+        "modeling": false
+      },
+      "familyId": "mathmaster:act:native:numberQuantity:vector-magnitude",
+      "familyVersion": 2,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "ACT-native:numberQuantity",
+      "taskType": "vectorMagnitude",
+      "representation": "vector",
+      "ccmrChallengeTier": 1,
+      "ccmrFamilyRole": "direct",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "numberQuantity",
+        "officialSkillFamily": "number and quantity",
+        "stemProfile": "vector-magnitude",
+        "answerChoiceCount": 4
+      },
+      "prompt": "What is the magnitude of the vector $\\langle {{x}},{{y}}\\rangle$?",
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 1,
+            "max": 12
+          }
+        },
+        "derived": {
+          "x": "3*k",
+          "y": "4*k",
+          "answer": "5*k",
+          "d1": "7*k",
+          "d2": "12*k",
+          "d3": "k"
+        }
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "choices": [
+        {
+          "id": "act-correct",
+          "label": "${{answer}}$"
+        },
+        {
+          "id": "act-d1",
+          "label": "${{d1}}$"
+        },
+        {
+          "id": "act-d2",
+          "label": "${{d2}}$"
+        },
+        {
+          "id": "act-d3",
+          "label": "${{d3}}$"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "act-correct"
+        }
+      ],
+      "attemptFeedback": [
+        "Use the stated numerical relationships and operations to determine the requested quantity."
+      ],
+      "supportHints": [
+        "Track signs, exponents, units, and matrix or vector positions carefully."
+      ],
+      "solutionReview": {
+        "headline": "Use the relevant number relationship.",
+        "reasoning": [
+          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+        ],
+        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+      }
+    },
+    {
+      "id": "mm_act_nq_ch1_complex-conjugates_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "act",
+          "domainId": "preparingHigherMath",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "act",
+        "examStyle": true,
+        "domainId": "preparingHigherMath",
+        "nativeSkillId": "numberQuantity",
+        "actSubcategory": "numberQuantity",
+        "modeling": false
+      },
+      "familyId": "mathmaster:act:native:numberQuantity:challenge-complex-conjugates",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "ACT-native:numberQuantity",
+      "taskType": "complexStructure",
+      "representation": "symbolic",
+      "ccmrChallengeTier": 2,
+      "ccmrFamilyRole": "challenge",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "numberQuantity",
+        "officialSkillFamily": "number and quantity",
+        "stemProfile": "challenge-complex-conjugates",
+        "answerChoiceCount": 4,
+        "authoredChallenge": true
+      },
+      "prompt": "What is the value of $({{a}}+{{b}}i)({{a}}-{{b}}i)$?",
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "answer": "a^2+b^2",
+          "d1": "a^2-b^2",
+          "d2": "(a+b)^2",
+          "d3": "a+b"
+        },
+        "constraints": [
+          "answer!=d1",
+          "answer!=d2",
+          "answer!=d3",
+          "d1!=d2",
+          "d1!=d3",
+          "d2!=d3"
+        ]
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "choices": [
+        {
+          "id": "act-correct",
+          "label": "${{answer}}$"
+        },
+        {
+          "id": "act-d1",
+          "label": "${{d1}}$"
+        },
+        {
+          "id": "act-d2",
+          "label": "${{d2}}$"
+        },
+        {
+          "id": "act-d3",
+          "label": "${{d3}}$"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "act-correct"
+        }
+      ],
+      "attemptFeedback": [
+        "Use the stated numerical relationships and operations to determine the requested quantity."
+      ],
+      "supportHints": [
+        "Track signs, exponents, units, and matrix or vector positions carefully."
+      ],
+      "solutionReview": {
+        "headline": "Use the relevant number relationship.",
+        "reasoning": [
+          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+        ],
+        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+      }
+    },
+    {
+      "id": "mm_act_nq_ch2_matrix-vector-product_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "act",
+          "domainId": "preparingHigherMath",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "act",
+        "examStyle": true,
+        "domainId": "preparingHigherMath",
+        "nativeSkillId": "numberQuantity",
+        "actSubcategory": "numberQuantity",
+        "modeling": false
+      },
+      "familyId": "mathmaster:act:native:numberQuantity:challenge-matrix-vector-product",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "ACT-native:numberQuantity",
+      "taskType": "matrixVectorProduct",
+      "representation": "matrix",
+      "ccmrChallengeTier": 2,
+      "ccmrFamilyRole": "challenge",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "numberQuantity",
+        "officialSkillFamily": "number and quantity",
+        "stemProfile": "challenge-matrix-vector-product",
+        "answerChoiceCount": 4,
+        "authoredChallenge": true
+      },
+      "prompt": "The matrix $\\begin{pmatrix}2&1\\\\1&3\\end{pmatrix}$ is multiplied by the column vector $\\begin{pmatrix}{{x}}\\\\{{y}}\\end{pmatrix}$. What is the second entry of the resulting column vector?",
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 12
+          }
+        },
+        "derived": {
+          "y": "x+1",
+          "answer": "x+3*y",
+          "d1": "2*x+y",
+          "d2": "x+y",
+          "d3": "3*x+y"
+        }
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "choices": [
+        {
+          "id": "act-correct",
+          "label": "${{answer}}$"
+        },
+        {
+          "id": "act-d1",
+          "label": "${{d1}}$"
+        },
+        {
+          "id": "act-d2",
+          "label": "${{d2}}$"
+        },
+        {
+          "id": "act-d3",
+          "label": "${{d3}}$"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "act-correct"
+        }
+      ],
+      "attemptFeedback": [
+        "Use the stated numerical relationships and operations to determine the requested quantity."
+      ],
+      "supportHints": [
+        "Track signs, exponents, units, and matrix or vector positions carefully."
+      ],
+      "solutionReview": {
+        "headline": "Use the relevant number relationship.",
+        "reasoning": [
+          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+        ],
+        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+      }
+    },
+    {
+      "id": "mm_act_nq_ch3_miles-hour-to-feet-minute_v21",
+      "active": true,
+      "alignmentKeys": [],
+      "alignments": [
+        {
+          "framework": "act",
+          "domainId": "preparingHigherMath",
+          "role": "primary",
+          "evidenceMode": "direct"
+        }
+      ],
+      "assessmentContext": {
+        "framework": "act",
+        "examStyle": true,
+        "domainId": "preparingHigherMath",
+        "nativeSkillId": "numberQuantity",
+        "actSubcategory": "numberQuantity",
+        "modeling": true
+      },
+      "familyId": "mathmaster:act:native:numberQuantity:challenge-unit-conversion",
+      "familyVersion": 1,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 5,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "ACT-native:numberQuantity",
+      "taskType": "compoundUnitConversion",
+      "representation": "context",
+      "ccmrChallengeTier": 2,
+      "ccmrFamilyRole": "challenge",
+      "ccmrAuthenticLanguage": {
+        "version": "2.1",
+        "authored": true,
+        "nativeSkillId": "numberQuantity",
+        "officialSkillFamily": "number and quantity",
+        "stemProfile": "challenge-unit-conversion",
+        "answerChoiceCount": 4,
+        "authoredChallenge": true
+      },
+      "prompt": "A vehicle travels at {{v}} miles per hour. At the same rate, how many feet does the vehicle travel in 1 minute? (There are 5,280 feet in 1 mile.)",
+      "generator": {
+        "parameters": {
+          "v": {
+            "type": "int",
+            "min": 15,
+            "max": 65
+          }
+        },
+        "derived": {
+          "answer": "88*v",
+          "d1": "60*v",
+          "d2": "5280*v",
+          "d3": "v"
+        }
+      },
+      "assessmentItemFormat": "multipleChoice",
+      "choices": [
+        {
+          "id": "act-correct",
+          "label": "${{answer}}$"
+        },
+        {
+          "id": "act-d1",
+          "label": "${{d1}}$"
+        },
+        {
+          "id": "act-d2",
+          "label": "${{d2}}$"
+        },
+        {
+          "id": "act-d3",
+          "label": "${{d3}}$"
+        }
+      ],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Choose the correct answer",
+          "inputProfile": "choice",
+          "expected": "act-correct"
+        }
+      ],
+      "attemptFeedback": [
+        "Use the stated numerical relationships and operations to determine the requested quantity."
+      ],
+      "supportHints": [
+        "Track signs, exponents, units, and matrix or vector positions carefully."
+      ],
+      "solutionReview": {
+        "headline": "Use the relevant number relationship.",
+        "reasoning": [
+          "Apply the numerical, exponent, complex-number, matrix, vector, or unit relationship required by the question."
+        ],
+        "answerSummary": "Check that the selected value satisfies the original numerical conditions."
+      }
+    }
+  ]
+}

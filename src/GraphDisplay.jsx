@@ -104,6 +104,71 @@ const toPathData = (points) =>
     .map(([x, y], index) => `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`)
     .join(' ');
 
+const restrictedFunctionEndpoints = (functions = []) => functions.flatMap((spec, functionIndex) => {
+  const domain = spec?.domain || spec?.restrictedDomain;
+  if (!domain || typeof domain !== 'object') return [];
+
+  const unrestricted = { ...spec };
+  delete unrestricted.domain;
+  delete unrestricted.restrictedDomain;
+
+  const boundaries = [
+    {
+      side: 'min',
+      value: Number(domain.min),
+      closed: domain.minClosed !== false && domain.minInclusive !== false,
+    },
+    {
+      side: 'max',
+      value: Number(domain.max),
+      closed: domain.maxClosed !== false && domain.maxInclusive !== false,
+    },
+  ];
+
+  return boundaries.flatMap((boundary) => {
+    if (!Number.isFinite(boundary.value)) return [];
+    const y = evaluateFunction(unrestricted, boundary.value);
+    if (!Number.isFinite(y)) return [];
+    return [{
+      id: `function-${functionIndex}-${boundary.side}-boundary`,
+      point: [boundary.value, y],
+      marker: boundary.closed ? 'closed' : 'open',
+    }];
+  });
+});
+
+const continuationFunctionEndpoints = (functions = [], xMin, xMax, yMin, yMax) => {
+  const span = Math.max(1, Number(xMax) - Number(xMin));
+  const probe = Math.max(span / 60, 0.05);
+
+  const visibleArrow = (spec, functionIndex, side, x, innerX) => {
+    const y = evaluateFunction(spec, x);
+    const innerY = evaluateFunction(spec, innerX);
+    if (!Number.isFinite(y) || !Number.isFinite(innerY)) return [];
+    if (y < yMin || y > yMax) return [];
+    return [{
+      id: `function-${functionIndex}-${side}-continuation`,
+      point: [x, y],
+      marker: 'arrow',
+      vector: [x - innerX, y - innerY],
+    }];
+  };
+
+  return functions.flatMap((spec, functionIndex) => {
+    const domain = spec?.domain || spec?.restrictedDomain || {};
+    const hasFiniteMin = Number.isFinite(Number(domain.min));
+    const hasFiniteMax = Number.isFinite(Number(domain.max));
+    const unrestricted = { ...spec };
+    delete unrestricted.domain;
+    delete unrestricted.restrictedDomain;
+
+    return [
+      ...(!hasFiniteMin ? visibleArrow(unrestricted, functionIndex, 'left', xMin, xMin + probe) : []),
+      ...(!hasFiniteMax ? visibleArrow(unrestricted, functionIndex, 'right', xMax, xMax - probe) : []),
+    ];
+  });
+};
+
 const axisTitle = (label, unit) => {
   const cleanLabel = String(label || '').trim();
   const cleanUnit = String(unit || '').trim();
@@ -143,7 +208,13 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
   const functions = normalizeFunctionList(displayGraph);
   const points = Array.isArray(displayGraph.points) ? displayGraph.points : [];
   const segments = Array.isArray(displayGraph.segments) ? displayGraph.segments : [];
-  const endpointRequirements = Array.isArray(displayGraph.endpointRequirements) ? displayGraph.endpointRequirements : [];
+  const authoredEndpointRequirements = Array.isArray(displayGraph.endpointRequirements) ? displayGraph.endpointRequirements : [];
+  const endpointRequirements = authoredEndpointRequirements.length
+    ? authoredEndpointRequirements
+    : [
+        ...restrictedFunctionEndpoints(functions),
+        ...continuationFunctionEndpoints(functions, xMin, xMax, yMin, yMax),
+      ];
   const axisDisplay = displayGraph.axisDisplay && typeof displayGraph.axisDisplay === 'object' ? displayGraph.axisDisplay : {};
   const showXTickLabels = axisDisplay.showXTickLabels !== false;
   const showYTickLabels = axisDisplay.showYTickLabels !== false;

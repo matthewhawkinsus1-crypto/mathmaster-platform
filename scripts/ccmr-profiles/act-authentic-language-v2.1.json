@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "act",
+  "purpose": "Author original MathMaster generator families that train the mathematics, pacing, vocabulary, and response conventions of the current enhanced ACT Mathematics test without copying ACT items.",
+  "officialSources": {
+    "sectionStructure": "https://www.act.org/content/act/en/products-and-services/the-act/test-preparation/act-exam-sections-and-structure.html",
+    "mathDescription": "https://www.act.org/content/act/en/products-and-services/the-act/test-preparation/description-of-math-test.html",
+    "enhancedFaq": "https://www.act.org/content/act/en/products-and-services/the-act-educator/the-act-test/enhancements-k12/faqs.html",
+    "designFramework2026": "https://www.act.org/content/dam/act/unsecured/documents/R2519-Design-Framework-for-the-ACT-Enhancements-2026-02.pdf",
+    "officialPractice": "https://www.act.org/content/act/en/products-and-services/the-act/test-preparation/free-act-test-prep/act-online-test-sample-questions.html"
+  },
+  "currentBlueprint": {
+    "mathMinutes": 50,
+    "totalQuestions": 45,
+    "operationalQuestions": 41,
+    "fieldTestQuestions": 4,
+    "answerChoicesPerQuestion": 4,
+    "calculatorPermitted": true,
+    "reportingCategories": {
+      "preparingHigherMath": {
+        "share": 0.80,
+        "subcategories": {
+          "numberQuantity": "10-12%",
+          "algebra": "17-20%",
+          "functions": "17-20%",
+          "geometry": "17-20%",
+          "statisticsProbability": "12-15%"
+        }
+      },
+      "integratingEssentialSkills": {
+        "share": 0.20
+      },
+      "modeling": {
+        "minimumShare": 0.20,
+        "crossCutting": true,
+        "rule": "Modeling items are also counted in an appropriate content reporting category; do not create Modeling as an isolated mathematics domain."
+      }
+    }
+  },
+  "responseRules": {
+    "assessmentItemFormat": "multipleChoice",
+    "choices": 4,
+    "studentProducedResponseAllowed": false,
+    "rule": "Every ACT V2.1 Math family must render four mathematically distinct answer choices."
+  },
+  "globalLanguageRules": {
+    "do": [
+      "Use direct mathematical prose and conventional ACT vocabulary such as value, expression, equation, function, graph, coordinate, probability, average, median, radius, volume, matrix, vector, real number, complex number, and unit when the construct requires it.",
+      "Use 'average' only when arithmetic mean is intended, matching ACT's stated convention unless the item explicitly defines another average.",
+      "Write self-contained questions unless a shared graph, table, or chart is genuinely required.",
+      "Let multi-step difficulty come from mathematical dependence and efficient selection of a method, not from extra coaching text.",
+      "Use distractors that correspond to likely intermediate results, sign errors, reciprocal errors, unit errors, or incomplete multi-step solutions.",
+      "Use functional real-world contexts for Integrating Essential Skills and Modeling rather than attaching a story to a routine symbolic exercise.",
+      "Assume a calculator is permitted; do not instruct students to solve without one."
+    ],
+    "avoid": [
+      "Select the best ACT answer.",
+      "Challenge:",
+      "A student chose ...",
+      "A test taker ...",
+      "Show your work.",
+      "Explain your reasoning.",
+      "Use the workspace/tool.",
+      "ACT-style question",
+      "DOK or difficulty-band language",
+      "teacher-facing coaching in the stem",
+      "five-choice legacy ACT formatting"
+    ],
+    "copyrightRule": "Model current ACT constructs, directions, and linguistic register; do not reproduce or lightly paraphrase proprietary ACT question text."
+  },
+  "domains": {
+    "preparingHigherMath": {
+      "officialShare": 0.80,
+      "subcategories": {
+        "numberQuantity": {
+          "officialShare": "10-12%",
+          "constructs": [
+            "rational and irrational numbers",
+            "integer and rational exponents and radicals",
+            "vectors and matrices",
+            "complex numbers",
+            "quantities and units"
+          ]
+        },
+        "algebra": {
+          "officialShare": "17-20%",
+          "constructs": [
+            "linear expressions, equations, and inequalities",
+            "polynomial, radical, rational, and exponential relationships",
+            "systems of equations",
+            "algebraic modeling and operations"
+          ]
+        },
+        "functions": {
+          "officialShare": "17-20%",
+          "constructs": [
+            "function definition and notation",
+            "multiple representations",
+            "linear, radical, piecewise, polynomial, exponential, and logarithmic functions",
+            "transformations and graph features",
+            "function applications"
+          ]
+        },
+        "geometry": {
+          "officialShare": "17-20%",
+          "constructs": [
+            "congruence and similarity",
+            "surface area and volume",
+            "triangles and circles",
+            "trigonometric ratios",
+            "conic sections",
+            "composite figures and solids"
+          ]
+        },
+        "statisticsProbability": {
+          "officialShare": "12-15%",
+          "constructs": [
+            "center and spread of distributions",
+            "data collection methods",
+            "bivariate data and models",
+            "probability and sample spaces"
+          ]
+        }
+      }
+    },
+    "essentialSkills": {
+      "officialShare": 0.20,
+      "constructs": [
+        "rates and percentages",
+        "proportional relationships",
+        "perimeter, area, surface area, and volume",
+        "mean and median",
+        "equivalent number representations",
+        "nonroutine multi-step chains of familiar skills",
+        "measurement and units in context"
+      ],
+      "register": [
+        "Context should be functional and quantities should carry units when relevant.",
+        "A correct distractor may be an intermediate result rather than the final quantity requested.",
+        "Use multiple operations or linked representations when the item is intended to measure integration rather than a single isolated procedure."
+      ]
+    }
+  },
+  "challengeRules": {
+    "minimum": "Three independently authored challenge families per completed scope unit.",
+    "mustDifferFromDirectSource": [
+      "generator structure",
+      "mathematical dependency or solution path",
+      "distractor model",
+      "task grammar when the construct permits it"
+    ],
+    "forbidden": [
+      "Clone a direct generator and only raise difficultyBand or DOK.",
+      "Create difficulty by adding test-prep narration.",
+      "Reuse a Digital SAT generator with only ACT branding or wording changes."
+    ]
+  },
+  "versioningRules": {
+    "familyVersion": "Increment any re-authored family version.",
+    "contentRelease": "Pin new ACT sessions to the V2.1 content release and preserve submitted evidence from older releases.",
+    "staleSessionPolicy": "Retire stale active ACT practice sessions at the release boundary rather than hot-swapping unanswered questions. Secure ACT simulations remain pinned to their original release."
+  }
+}

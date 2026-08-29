@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 2,
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "act",
+  "mode": "domain-authoring",
+  "domain": "preparingHigherMath",
+  "scopeUnits": 5,
+  "documents": 40,
+  "direct": 25,
+  "challenge": 15,
+  "multipleChoice": 40,
+  "studentProducedResponse": 0,
+  "modelingTagged": 5,
+  "domains": {
+    "preparingHigherMath": 40
+  },
+  "highSimilarityPairs": [],
+  "failures": [],
+  "warnings": [],
+  "output": null
+}

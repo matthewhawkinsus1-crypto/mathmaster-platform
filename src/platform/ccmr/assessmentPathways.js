@@ -18,10 +18,16 @@
 // contexts.
 
 import { STATUS } from '../path/recommendationEngine.js';
-import { describeSkill } from '../path/skillGraph.js';
+import { describeSkill, teksCodeFromSkillId } from '../path/skillGraph.js';
 import { ASSESSMENT_FRAMEWORKS, FRAMEWORK_LABELS, listFrameworkAlignments, resolveAlignment } from './assessmentCrosswalk.js';
 import { EVIDENCE_BASIS, getEvidence, hasPractised } from './assessmentEvidence.js';
 import { getAssessmentProfile } from './assessmentProfiles.js';
+import { CCMR_STAGE, resolveAssessmentPracticeStage } from './assessmentFidelity.js';
+import { getAssessmentStandardReferences } from './assessmentStandardReferences.js';
+import {
+  frameworkCoverageKnown,
+  frameworkCoverageRecord,
+} from '../../../functions/shared/pathCoverage.mjs';
 
 export const READINESS = Object.freeze({
   NOT_AVAILABLE: 'not_available',
@@ -31,6 +37,8 @@ export const READINESS = Object.freeze({
   STRENGTHEN: 'strengthen',
   TRANSFER_GAP: 'transfer_gap',
   STRONG: 'strong',
+  CHALLENGE_READY: 'challenge_ready',
+  MAINTENANCE: 'maintenance',
 });
 
 export const CCMR_REASON = Object.freeze({
@@ -44,6 +52,10 @@ export const CCMR_REASON = Object.freeze({
   LOW_EVIDENCE: 'assessment-context-low-evidence',
   TRANSFER_GAP: 'transfer-gap-detected',
   CONTEXT_STRONG: 'assessment-context-strong',
+  DIRECT_PRACTICE_COMPLETE: 'direct-practice-complete',
+  CHALLENGE_PASSED: 'assessment-challenge-passed',
+  ADVANCED_CHALLENGE_PASSED: 'advanced-assessment-challenge-passed',
+  COOLED_DOWN: 'assessment-skill-cooled-down',
   CONTEXT_BELOW_CORE: 'assessment-context-performance-lower-than-core',
   NOT_PRACTISED: 'not-yet-practiced',
   NO_ALIGNMENT: 'no-meaningful-alignment',
@@ -53,6 +65,10 @@ export const CCMR_REASON = Object.freeze({
   NO_ASVAB_ALIGNMENT: 'no-meaningful-asvab-alignment',
   BEYOND_PACING: 'beyond-course-pacing',
   HIGH_RELEVANCE: 'high-relevance-to-selected-framework',
+  COVERAGE_UNKNOWN: 'assessment-publication-coverage-unknown',
+  PUBLISHED_ASSESSMENT_PRACTICE: 'published-assessment-practice',
+  CROSSWALK_WITHOUT_PUBLISHED_PRACTICE: 'crosswalk-without-published-assessment-practice',
+  PUBLISHED_WITHOUT_CROSSWALK: 'published-assessment-practice-without-crosswalk',
 });
 
 // Core mastery at or above this is "the student can do the mathematics", which
@@ -99,6 +115,73 @@ const weightFor = ({ framework, goals, teacherPriorities }) => {
   if ((goals || []).includes(framework)) weight += 0.35;
   if ((teacherPriorities || []).includes(framework)) weight += 0.5;
   return weight;
+};
+
+
+/**
+ * Publication is a fact about the active secure bank, not about the crosswalk.
+ * Undefined preserves old pure-unit callers; an explicit null/old index fails
+ * closed in production until coverage has been rebuilt to schema 2.
+ */
+export const resolveAssessmentPublication = ({ coverage = undefined, skillId, framework, alignment }) => {
+  if (coverage === undefined) {
+    return { known: false, legacy: true, published: true, familyCount: null, state: 'legacy_assumed' };
+  }
+  const teksCode = teksCodeFromSkillId(skillId) || String(skillId || '').replace(/^teks:/i, '');
+  if (!frameworkCoverageKnown(coverage, framework)) {
+    return { known: false, legacy: false, published: false, familyCount: 0, state: 'coverage_unknown' };
+  }
+  const record = frameworkCoverageRecord(coverage, teksCode, framework);
+  const published = record?.published === true;
+  let state = published ? 'published' : 'not_published';
+  if (alignment && !published) state = 'crosswalk_without_published_practice';
+  if (!alignment && published) state = 'published_without_crosswalk';
+  return {
+    known: true,
+    legacy: false,
+    published,
+    familyCount: Number(record?.familyCount || 0),
+    issuableCount: Number(record?.issuableCount || 0),
+    state,
+  };
+};
+
+const applyPublicationGate = ({ verdict, alignment, publication }) => {
+  if (publication.legacy) return verdict;
+  if (!publication.known) {
+    return {
+      ...verdict,
+      status: READINESS.NOT_AVAILABLE,
+      available: false,
+      score: 0,
+      reasons: [...new Set([...(verdict.reasons || []), CCMR_REASON.COVERAGE_UNKNOWN])],
+    };
+  }
+  if (!alignment && publication.published) {
+    return {
+      ...verdict,
+      status: READINESS.NOT_AVAILABLE,
+      available: false,
+      score: 0,
+      reasons: [...new Set([...(verdict.reasons || []), CCMR_REASON.PUBLISHED_WITHOUT_CROSSWALK])],
+    };
+  }
+  if (alignment && !publication.published) {
+    return {
+      ...verdict,
+      status: READINESS.NOT_AVAILABLE,
+      available: false,
+      score: 0,
+      reasons: [...new Set([...(verdict.reasons || []), CCMR_REASON.CROSSWALK_WITHOUT_PUBLISHED_PRACTICE])],
+    };
+  }
+  if (alignment && publication.published) {
+    return {
+      ...verdict,
+      reasons: [...new Set([...(verdict.reasons || []), CCMR_REASON.PUBLISHED_ASSESSMENT_PRACTICE])],
+    };
+  }
+  return verdict;
 };
 
 /**
@@ -190,8 +273,23 @@ export const classifyAssessmentSkill = ({
     base = 0.9;
   } else if (proficiency != null && proficiency >= CONTEXT_STRONG) {
     reasons.push(CCMR_REASON.CONTEXT_STRONG);
-    status = READINESS.STRONG;
-    base = 0.25;
+    const stage = resolveAssessmentPracticeStage(evidence);
+    if (stage.stage === CCMR_STAGE.MAINTENANCE) {
+      reasons.push(CCMR_REASON.ADVANCED_CHALLENGE_PASSED, CCMR_REASON.COOLED_DOWN);
+      status = READINESS.MAINTENANCE;
+      base = 0.08;
+    } else if (stage.stage === CCMR_STAGE.ADVANCED_CHALLENGE) {
+      reasons.push(CCMR_REASON.CHALLENGE_PASSED);
+      status = READINESS.CHALLENGE_READY;
+      base = 0.2;
+    } else if (stage.stage === CCMR_STAGE.CHALLENGE_READY) {
+      reasons.push(CCMR_REASON.DIRECT_PRACTICE_COMPLETE);
+      status = READINESS.CHALLENGE_READY;
+      base = 0.32;
+    } else {
+      status = READINESS.STRONG;
+      base = 0.25;
+    }
   } else if (proficiency != null && proficiency < CONTEXT_WEAK) {
     status = READINESS.STRENGTHEN;
     base = 0.75;
@@ -224,6 +322,7 @@ export const getAssessmentPathOptions = ({
   pathOptions = null,
   assessmentEvidence = {},
   directIndex = null,
+  coverage = undefined,
   goals = [],
   teacherPriorities = [],
 } = {}) => {
@@ -231,7 +330,10 @@ export const getAssessmentPathOptions = ({
   const pathways = ASSESSMENT_FRAMEWORKS.map((framework) => {
     const alignment = resolveAlignment({ skillId, framework, directIndex });
     const evidence = getEvidence(assessmentEvidence, skillId, framework);
-    const verdict = classifyAssessmentSkill({ row, framework, alignment, evidence, goals, teacherPriorities });
+    const publication = resolveAssessmentPublication({ coverage, skillId, framework, alignment });
+    const rawVerdict = classifyAssessmentSkill({ row, framework, alignment, evidence, goals, teacherPriorities });
+    const verdict = applyPublicationGate({ verdict: rawVerdict, alignment, publication });
+    const practiceStage = resolveAssessmentPracticeStage(evidence);
     return {
       framework,
       label: FRAMEWORK_LABELS[framework],
@@ -239,11 +341,16 @@ export const getAssessmentPathOptions = ({
       available: verdict.available,
       alignmentType: alignment?.alignmentType || null,
       domainTitle: alignment?.domainTitle || null,
+      references: getAssessmentStandardReferences(skillId, framework),
       practised: verdict.practised,
       proficiency: verdict.proficiency,
       status: verdict.status,
       score: verdict.score,
       reasonCodes: verdict.reasons,
+      publicationState: publication.state,
+      publishedFamilyCount: publication.familyCount,
+      practiceStage,
+      evidence,
     };
   });
 
@@ -276,6 +383,8 @@ const BUCKET_FOR_STATUS = {
   [READINESS.NOT_PRACTICED]: 'recommended',
   [READINESS.READY]: 'available',
   [READINESS.STRONG]: 'challenge',
+  [READINESS.CHALLENGE_READY]: 'challenge',
+  [READINESS.MAINTENANCE]: 'challenge',
   [READINESS.NOT_AVAILABLE]: 'unavailable',
 };
 
@@ -292,6 +401,7 @@ export const getAssessmentRecommendations = ({
   pathOptions = null,
   assessmentEvidence = {},
   directIndex = null,
+  coverage = undefined,
   goals = [],
   teacherPriorities = [],
 } = {}) => {
@@ -299,13 +409,17 @@ export const getAssessmentRecommendations = ({
   const items = rows.map((row) => {
     const alignment = resolveAlignment({ skillId: row.skillId, framework, directIndex });
     const evidence = getEvidence(assessmentEvidence, row.skillId, framework);
-    const verdict = classifyAssessmentSkill({ row, framework, alignment, evidence, goals, teacherPriorities });
+    const publication = resolveAssessmentPublication({ coverage, skillId: row.skillId, framework, alignment });
+    const rawVerdict = classifyAssessmentSkill({ row, framework, alignment, evidence, goals, teacherPriorities });
+    const verdict = applyPublicationGate({ verdict: rawVerdict, alignment, publication });
+    const practiceStage = resolveAssessmentPracticeStage(evidence);
     return {
       skillId: row.skillId,
       label: row.label,
       framework,
       domainId: alignment?.domainId || null,
       domainTitle: alignment?.domainTitle || null,
+      references: getAssessmentStandardReferences(row.skillId, framework),
       coreMastery: verdict.coreMastery,
       assessmentProficiency: verdict.proficiency,
       status: verdict.status,
@@ -314,6 +428,10 @@ export const getAssessmentRecommendations = ({
       provisional: verdict.provisional,
       score: verdict.score,
       reasons: verdict.reasons,
+      publicationState: publication.state,
+      publishedFamilyCount: publication.familyCount,
+      practiceStage,
+      evidence,
     };
   });
 
@@ -332,7 +450,9 @@ export const getAssessmentRecommendations = ({
     summary: {
       readySkills: eligible.length,
       practisedSkills: eligible.filter((item) => item.evidenceBasis === EVIDENCE_BASIS.DIRECT).length,
-      strongSkills: eligible.filter((item) => item.status === READINESS.STRONG).length,
+      strongSkills: eligible.filter((item) => [READINESS.STRONG, READINESS.CHALLENGE_READY, READINESS.MAINTENANCE].includes(item.status)).length,
+      challengeReadySkills: eligible.filter((item) => item.status === READINESS.CHALLENGE_READY).length,
+      maintainedSkills: eligible.filter((item) => item.status === READINESS.MAINTENANCE).length,
       transferGaps: eligible.filter((item) => item.status === READINESS.TRANSFER_GAP).length,
     },
     // §38 — assessment domains are a presentation grouping over canonical
@@ -358,6 +478,15 @@ function groupByDomain(items) {
 export const explainAssessmentRecommendation = (item) => {
   if (!item) return '';
   const name = getAssessmentProfile(item.framework)?.displayName || item.framework;
+  if (item.reasons?.includes(CCMR_REASON.COVERAGE_UNKNOWN)) {
+    return `MathMaster is checking which ${name} practice is published. Try again in a moment.`;
+  }
+  if (item.reasons?.includes(CCMR_REASON.CROSSWALK_WITHOUT_PUBLISHED_PRACTICE)) {
+    return `${name} practice is not available for this skill.`;
+  }
+  if (item.reasons?.includes(CCMR_REASON.NO_ALIGNMENT) || item.reasons?.includes(CCMR_REASON.PUBLISHED_WITHOUT_CROSSWALK)) {
+    return `This skill is not part of ${name} math practice.`;
+  }
   switch (item.status) {
     case READINESS.TRANSFER_GAP:
       return `You know the math — practice the format. Your course performance on this is strong, but ${name}-style questions have been harder. Let's work on transferring what you know.`;
@@ -367,14 +496,20 @@ export const explainAssessmentRecommendation = (item) => {
       return item.coreMastery != null && item.coreMastery >= CORE_MASTERED
         ? `You've already shown strong understanding of this. This practice helps you apply that skill in ${name}-style questions.`
         : `You haven't tried this one in ${name} format yet.`;
+    case READINESS.CHALLENGE_READY:
+      return item.practiceStage?.stage === CCMR_STAGE.ADVANCED_CHALLENGE
+        ? `You passed the first ${name} challenge. The next set is the advanced challenge, with harder families only.`
+        : `You completed the direct ${name} practice. The next set gets harder instead of repeating the same level.`;
+    case READINESS.MAINTENANCE:
+      return `You have already passed the advanced ${name} challenge for this skill. It stays available for maintenance, but MathMaster will prioritize other needs first.`;
     case READINESS.STRONG:
-      return `You're doing well with this on the ${name}. Keep it warm, or try it in another format.`;
+      return `You're doing well with this on the ${name}. Finish the direct set to unlock a harder challenge.`;
     case READINESS.READY:
       return `This skill is ready to practise in ${name} format.`;
     default:
       return item.reasons?.includes(CCMR_REASON.CORE_NOT_READY)
         ? 'Strengthen the math first. This pathway uses a skill you\'re still developing — build the skill, then come back to this version.'
-        : `This isn't part of the ${name} yet.`;
+        : `This skill is not part of ${name} math practice.`;
   }
 };
 

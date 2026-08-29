@@ -326,38 +326,57 @@ test('nothing a student receives carries the answer', () => {
   });
 });
 
+// ASVAB's two domains are two separate tests a recruit sits, not two reporting
+// categories inside one test, so its direct tier is authored and counted per
+// subtest. Every other framework's domains are reporting categories.
+const SUBTEST_FRAMEWORKS = new Set(['asvab']);
+
 const ASSESSMENT_BANK_EXPECTATIONS = Object.freeze({
-  digitalSAT: { documents: 1045, standards: 209 },
-  act: { documents: 1125, standards: 225 },
-  tsia2: { documents: 1125, standards: 225 },
-  asvab: { documents: 735, standards: 146 },
+  digitalSAT: { documents: 1672, direct: 1045, challenge: 627, standards: 209 },
+  act: { documents: 1800, direct: 1125, challenge: 675, standards: 225 },
+  tsia2: { documents: 1800, direct: 1125, challenge: 675, standards: 225 },
+  asvab: { documents: 1173, direct: 735, challenge: 438, standards: 146 },
 });
 
 Object.entries(ASSESSMENT_BANK_EXPECTATIONS).forEach(([framework, expected]) => {
-  test(`${framework} standards have five directly-authored exam-style families and stay out of course selection`, () => {
+  test(`${framework} standards have five direct families plus three challenge families and stay out of course selection`, () => {
     const items = SEED.filter((entry) => entry?.assessmentContext?.framework === framework && entry?.assessmentContext?.examStyle === true);
     assert.equal(items.length, expected.documents);
     // Five families per standard PER SUBTEST. A2.6L is assessed in both ASVAB
     // subtests and carries five families in each, so grouping by code alone
     // counted ten and failed on correct content. The standards count stays a
     // count of distinct codes, which is what it means.
-    const byCode = new Set();
+    const byCode = new Map();
     const byCodeAndDomain = new Map();
     items.forEach((entry) => {
       (entry.alignmentKeys || []).forEach((key) => {
         const code = String(key).replace(/^texas:/i, '').toUpperCase();
-        byCode.add(code);
+        if (!byCode.has(code)) byCode.set(code, []);
+        byCode.get(code).push(entry);
         const pair = `${code} / ${entry?.assessmentContext?.domainId || ''}`;
         if (!byCodeAndDomain.has(pair)) byCodeAndDomain.set(pair, []);
         byCodeAndDomain.get(pair).push(entry);
       });
     });
     assert.equal(byCode.size, expected.standards);
-    byCodeAndDomain.forEach((families, code) => {
-      assert.equal(new Set(families.map((entry) => entry.familyId)).size, 5, `${code} does not have five distinct ${framework} families`);
+    // The direct tier is counted per subtest and the challenge tier per code.
+    // ASVAB is the only framework whose domains are separate tests rather than
+    // reporting categories, and A2.6L is assessed in both of them with five
+    // direct families in each. The challenge tier is built one set of three per
+    // code, so it is still counted that way.
+    const directGroups = SUBTEST_FRAMEWORKS.has(framework) ? byCodeAndDomain : byCode;
+    directGroups.forEach((families, key) => {
+      const direct = families.filter((entry) => Number(entry.ccmrChallengeTier || 1) === 1 && entry.ccmrFamilyRole === 'direct');
+      assert.equal(new Set(direct.map((entry) => entry.familyId)).size, 5, `${key} does not have five distinct direct ${framework} families`);
+      assert.ok(families.every((entry) => entry.ccmrFidelity?.version === 2), `${key} has a ${framework} family without Fidelity V2 metadata`);
       assert.ok(families.every((entry) => entry.assessmentContext.framework === framework));
-      const bareCode = code.split(' / ')[0];
-      assert.ok(families.every((entry) => !candidatesFor(bareCode).includes(entry)), `${code} leaked ${framework} content into course candidates`);
+      const bareCode = key.split(' / ')[0];
+      assert.ok(families.every((entry) => !candidatesFor(bareCode).includes(entry)), `${key} leaked ${framework} content into course candidates`);
+    });
+    byCode.forEach((families, code) => {
+      const challenge = families.filter((entry) => Number(entry.ccmrChallengeTier || 1) >= 2 && entry.ccmrFamilyRole === 'challenge');
+      assert.equal(new Set(challenge.map((entry) => entry.familyId)).size, 3, `${code} does not have three distinct challenge ${framework} families`);
+      assert.ok(challenge.every((entry) => Number(entry.difficultyBand) >= 4 && Number(entry.dok) >= 2), `${code} has a challenge family below the challenge floor`);
     });
   });
 });

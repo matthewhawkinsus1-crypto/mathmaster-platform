@@ -450,7 +450,7 @@
       ],
       "courseId": "algebra2",
       "familyId": "mathmaster:A2.2B:gen-inverse-point-graph",
-      "familyVersion": 2,
+      "familyVersion": 3,
       "questionType": "response",
       "activityRole": "practice",
       "difficultyBand": 3,
@@ -459,14 +459,15 @@
       "assessedConstruct": "A2.2B",
       "taskType": "representationTranslation",
       "representation": "graph",
-      "prompt": "Graph $f(x)={{m}}x{{b|signed}}$ at $x=0$ and $x={{x}}$. Then give the inverse point corresponding to $({{x}},{{y}})$.",
+      "prompt": "Graph $f(x)={{m}}x{{b|signed}}$ at $x=0$ and $x={{x}}$. Then reflect both plotted points across $y=x$, draw $f^{-1}$ on the same coordinate plane, and write the equation of the inverse.",
       "solutionReview": {
-        "headline": "Inverse functions swap coordinates.",
+        "headline": "An inverse reflects the graph across $y=x$.",
         "reasoning": [
-          "A point $(x,y)$ on $f$ becomes $(y,x)$ on $f^{-1}$.",
-          "So $({{x}},{{y}})$ becomes $({{y}},{{x}})$."
+          "Each point $(x,y)$ on $f$ becomes $(y,x)$ on $f^{-1}$.",
+          "Reflect both plotted points, then draw the line through the reflected points.",
+          "For $f(x)={{m}}x{{b|signed}}$, swap $x$ and $y$ and solve for $y$: $f^{-1}(x)=\\frac{x-({{b}})}{ {{m}} }$."
         ],
-        "answerSummary": "$({{y}},{{x}})$"
+        "answerSummary": "$f^{-1}(x)=\\frac{x-({{b}})}{ {{m}} }$"
       },
       "attemptFeedback": [
         "Identify what changes and what must stay mathematically equivalent."
@@ -538,7 +539,21 @@
             "({{y}},{{x}})"
           ]
         }
-      ]
+      ],
+      "inverseReflection": {
+        "enabled": true,
+        "sourceTaskIds": [
+          "p0",
+          "px"
+        ],
+        "consumeAnalysisId": "inverse",
+        "showReferenceLine": true,
+        "requireInverseSketch": true,
+        "requireInverseEquation": true,
+        "equationPartId": "inverse-equation",
+        "equationLabel": "Write the equation of $f^{-1}(x)$.",
+        "inverseLineLabel": "Draw $f^{-1}$ through both reflected points."
+      }
     },
     {
       "id": "mm_A2_2B_gen3_inverse-from-table",

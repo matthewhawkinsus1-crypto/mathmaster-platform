@@ -159,6 +159,7 @@ export const collectStudentEvidence = ({ student, assignments = [] } = {}) => {
   // its own boundary for exactly this reason; the coercion belongs here, where
   // the iteration is.
   (Array.isArray(assignments) ? assignments : []).forEach((assignment) => {
+    if (assignment?.evidencePolicy?.masteryEligible === false) return;
     const assignmentGrades = gradesByAssignment?.[assignment.id];
     if (!assignmentGrades || !Array.isArray(assignment.questions)) return;
 
@@ -342,6 +343,7 @@ export const buildStudentMasteryProfile = ({ student, assignments = [] } = {}) =
       let attemptedQuestions = 0;
       let taggedQuestions = 0;
       (Array.isArray(assignments) ? assignments : []).forEach((assignment) => {
+        if (assignment?.evidencePolicy?.masteryEligible === false) return;
         const assignmentGrades = student?.gradesByAssignment?.[assignment.id];
         if (!assignmentGrades) return;
         assignment.questions?.forEach((question, index) => {
@@ -392,6 +394,7 @@ export const buildItemAnalytics = ({ students = [], assignments = [] } = {}) => 
   const safeStudents = Array.isArray(students) ? students : [];
   const rows = [];
   (Array.isArray(assignments) ? assignments : []).forEach((assignment) => {
+    if (assignment?.evidencePolicy?.analyticsEligible === false) return;
     assignment.questions?.forEach((question, questionIndex) => {
       if (question?.teacherExcluded === true) return;
       const metadata = normalizeQuestionInstructionalMetadata(question, assignment);

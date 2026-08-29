@@ -40,10 +40,14 @@ const intents = [
   q('Use the interactive algebra workspace.', ['interactiveAlgebra'], { equationModel: { a: 3, b: 6, c: 21 } }),
 ];
 
-const payload = { schemaVersion: 5, assignment: { title: 'Destination coverage', courseId: 'algebra1' }, questions: intents };
+const payload = { schemaVersion: 5, assignment: { title: 'Destination coverage', courseId: 'algebra1' }, sections: [{ role: 'practice', title: 'Practice', questions: intents }] };
 const parsed = parseAssignmentBlueprintText(JSON.stringify(payload));
 const types = parsed.questions.map((question) => question.type || question.toolId);
 assert.equal(types.length, 34);
-assert.equal(new Set(types).size, 34, `expected 34 unique destinations; got ${types.join(', ')}`);
+assert.equal(types[0], 'stepAlgebra', 'solveEquation should use the balance workspace, not the retired algebra answer box');
+assert.equal(types[4], 'graphAnalysis', 'readGraph should use graph analysis, not the retired line-only graphing renderer');
+assert.equal(new Set(types).size, 32, `expected 32 active destinations after retiring algebra + line-only graphing; got ${types.join(', ')}`);
+assert.equal(types.filter((type) => type === 'stepAlgebra').length, 2);
+assert.equal(types.filter((type) => type === 'graphAnalysis').length, 2);
 validateAssignmentQuestions(parsed.questions);
-console.log(`authoringIntentV5Destinations.test.mjs: ${types.length} destinations passed`);
+console.log(`authoringIntentV5Destinations.test.mjs: ${types.length} intents across 32 active destinations passed`);

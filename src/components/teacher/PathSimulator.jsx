@@ -18,6 +18,8 @@ import { getWheelTeksForCourse } from '../../platform/mastery/strandConfig.js';
 import { COURSES } from '../../../functions/shared/classModel.mjs';
 import { buildAssessmentEvidence, withSimulatedEvidence } from '../../platform/ccmr/assessmentEvidence';
 import { getDirectAlignmentIndex } from '../../platform/ccmr/assessmentCrosswalk';
+import { ASSESSMENT_FRAMEWORKS, FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentPathways';
+import { getAssessmentStandardReferences, matchesAssessmentReferenceSearch, referenceLabel } from '../../platform/ccmr/assessmentStandardReferences.js';
 import { normalizeAssessmentContext, normalizeQuestionAlignments } from '../../platform/contract/alignments';
 import AssessmentSkillInspector from './AssessmentSkillInspector';
 import SimulatedStudentExperience from './SimulatedStudentExperience';
@@ -153,6 +155,7 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
   const [showInspector, setShowInspector] = useState(false);
   const [inspectSkillId, setInspectSkillId] = useState('');
   const [whatIfSkillId, setWhatIfSkillId] = useState('');
+  const [ccmrStandardSearch, setCcmrStandardSearch] = useState('');
   const [copied, setCopied] = useState('');
 
   useEffect(() => {
@@ -255,6 +258,30 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
   const branchImpact = useMemo(() => (
     activeSkillId ? describeBranchImpact({ courseId: inspectionCourseId, skillId: activeSkillId }) : null
   ), [inspectionCourseId, activeSkillId]);
+
+  // Teachers can search the same official CCMR references students see. This
+  // makes ACT codes such as F 502, SAT skill names, TSIA2 testing points, and
+  // ASVAB AR/MK useful navigation rather than labels that only appear after a
+  // teacher happens to select the corresponding Texas skill.
+  const ccmrStandardSearchMatches = useMemo(() => {
+    const query = ccmrStandardSearch.trim();
+    if (!query) return [];
+    return courseSkills.map((skill) => {
+      const frameworks = ASSESSMENT_FRAMEWORKS.filter((framework) => {
+        const references = getAssessmentStandardReferences(skill.skillId, framework);
+        return references.length > 0
+          && matchesAssessmentReferenceSearch({ skillId: skill.skillId, label: skill.title || skill.label || '', framework }, query);
+      });
+      if (!frameworks.length) return null;
+      return {
+        ...skill,
+        frameworks,
+        references: frameworks.flatMap((framework) => (
+          getAssessmentStandardReferences(skill.skillId, framework).map((reference) => ({ framework, reference }))
+        )),
+      };
+    }).filter(Boolean).slice(0, 25);
+  }, [ccmrStandardSearch, courseSkills]);
 
   // --- CCMR simulation -----------------------------------------------------
   // Assessment-context evidence is a separate map from core mastery, so the
@@ -1087,6 +1114,37 @@ export default function PathSimulator({ assignments = [], teacherId = 'teacher',
               routing — core mastery is a separate record and will not move, which is how a
               <strong> transfer gap</strong> (strong course performance, weak assessment format) becomes visible.
             </p>
+
+            <div style={{ marginBottom: 14, padding: '12px 13px', borderRadius: 10, background: '#f8fbff', border: '1px solid #d9e2f1' }}>
+              <label style={{ display: 'block', fontWeight: 850, fontSize: 12.5, color: '#3c4043' }}>Search CCMR standards and official assessment skills
+                <input
+                  value={ccmrStandardSearch}
+                  onChange={(event) => setCcmrStandardSearch(event.target.value)}
+                  placeholder="ACT F 502, SAT nonlinear functions, TSIA2 Algebraic Reasoning, ASVAB MK, or A.12C"
+                  style={input}
+                />
+              </label>
+              {ccmrStandardSearch.trim() && (
+                <div style={{ marginTop: 10, display: 'grid', gap: 7 }}>
+                  {ccmrStandardSearchMatches.length ? ccmrStandardSearchMatches.map((skill) => (
+                    <button
+                      key={`ccmr-search:${skill.skillId}`}
+                      type="button"
+                      onClick={() => { setInspectSkillId(skill.skillId); setWhatIfSkillId(''); }}
+                      style={{ textAlign: 'left', padding: '9px 10px', borderRadius: 8, border: '1px solid #c5d5ef', background: skill.skillId === activeSkillId ? '#e8f0fe' : '#fff', cursor: 'pointer' }}
+                    >
+                      <strong style={{ display: 'block', color: '#202124', fontSize: 12.5 }}>{skill.skillId.replace('teks:', '')} — {skill.title || skill.label}</strong>
+                      <span style={{ display: 'block', marginTop: 3, color: '#5b21b6', fontSize: 11.5, lineHeight: 1.45 }}>
+                        {skill.references.slice(0, 4).map(({ framework, reference }) => `${FRAMEWORK_LABELS[framework]}: ${referenceLabel(reference)}`).join(' · ')}
+                      </span>
+                    </button>
+                  )) : (
+                    <p style={{ margin: 0, color: '#5f6368', fontSize: 12 }}>No skill in this course matches that CCMR reference.</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             <AssessmentSkillInspector
               skillId={activeSkillId}
               pathOptions={ccmrPathOptions}

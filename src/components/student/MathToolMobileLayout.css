@@ -1,3 +1,10 @@
+/* Assignment QuestionEngine owns the canonical student-facing task prompt.
+   ToolShell cards may add tool-specific directions, but they should not repeat
+   the same authored prompt a second time inside a tall workspace. */
+.mathmaster-question-engine-has-anchor .mathmaster-tool-task-card .mathmaster-tool-task-prompt {
+  display: none;
+}
+
 .mathmaster-question-container {
   width: 100%;
   height: var(--mm-visual-viewport-height, 100dvh);

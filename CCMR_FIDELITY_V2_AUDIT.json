@@ -1,0 +1,76 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-24T01:52:46.179Z",
+  "frameworks": {
+    "digitalSAT": {
+      "documents": 1672,
+      "standards": 209,
+      "direct": 1045,
+      "challenge": 627,
+      "formats": {
+        "multipleChoice": 1250,
+        "studentProducedResponse": 422
+      }
+    },
+    "act": {
+      "documents": 1800,
+      "standards": 225,
+      "direct": 1125,
+      "challenge": 675,
+      "formats": {
+        "multipleChoice": 1800
+      }
+    },
+    "tsia2": {
+      "documents": 1800,
+      "standards": 225,
+      "direct": 1125,
+      "challenge": 675,
+      "formats": {
+        "multipleChoice": 1800
+      }
+    },
+    "asvab": {
+      "documents": 1168,
+      "standards": 146,
+      "direct": 730,
+      "challenge": 438,
+      "formats": {
+        "multipleChoice": 1168
+      }
+    }
+  },
+  "crossFrameworkExactPromptOverlap": {
+    "digitalSAT__act": {
+      "compared": 1672,
+      "exact": 0,
+      "rate": 0
+    },
+    "digitalSAT__tsia2": {
+      "compared": 1672,
+      "exact": 0,
+      "rate": 0
+    },
+    "act__tsia2": {
+      "compared": 1800,
+      "exact": 0,
+      "rate": 0
+    },
+    "digitalSAT__asvab": {
+      "compared": 1040,
+      "exact": 0,
+      "rate": 0
+    },
+    "act__asvab": {
+      "compared": 1168,
+      "exact": 0,
+      "rate": 0
+    },
+    "tsia2__asvab": {
+      "compared": 1168,
+      "exact": 0,
+      "rate": 0
+    }
+  },
+  "failures": []
+}

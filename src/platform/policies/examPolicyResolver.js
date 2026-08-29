@@ -60,7 +60,22 @@ export const EXAM_POLICIES = Object.freeze({
   }),
 });
 
-const concreteModes = new Set([CALCULATOR_MODES.NONE, CALCULATOR_MODES.BASIC, CALCULATOR_MODES.SCIENTIFIC, CALCULATOR_MODES.GRAPHING]);
+const concreteModes = new Set([
+  CALCULATOR_MODES.NONE,
+  CALCULATOR_MODES.BASIC,
+  CALCULATOR_MODES.SQUARE_ROOT,
+  CALCULATOR_MODES.SCIENTIFIC,
+  CALCULATOR_MODES.GRAPHING,
+]);
+
+// The TSIA2 on-screen item calculator has assessment-defined modes. Scientific
+// is intentionally excluded even though MathMaster supports it elsewhere.
+const TSIA2_ITEM_CALCULATOR_MODES = new Set([
+  CALCULATOR_MODES.NONE,
+  CALCULATOR_MODES.BASIC,
+  CALCULATOR_MODES.SQUARE_ROOT,
+  CALCULATOR_MODES.GRAPHING,
+]);
 
 const calculatorSupport = (profile) => {
   // `supportProfile` is a key nothing in production writes — the teacher UI
@@ -102,7 +117,8 @@ export const resolveExamCalculatorPolicy = ({ examType, questionSpec = {}, stude
 
   if (policy.calculatorAvailability === 'itemLevelPopup') {
     const requested = String(questionSpec.examCalculatorMode || questionSpec.calculatorMode || '').trim();
-    const itemMode = concreteModes.has(requested) ? requested : CALCULATOR_MODES.NONE;
+    const allowedModes = examType === EXAM_TYPES.TSIA2 ? TSIA2_ITEM_CALCULATOR_MODES : concreteModes;
+    const itemMode = allowedModes.has(requested) ? requested : CALCULATOR_MODES.NONE;
     if (itemMode === CALCULATOR_MODES.NONE) return { available: false, mode: CALCULATOR_MODES.NONE, source: 'examItemPolicy', reason: 'This TSIA2-style item does not provide a calculator.' };
     return { available: true, mode: itemMode, source: 'examItemPolicy', reason: 'Calculator mode is provided for this TSIA2-style item.' };
   }

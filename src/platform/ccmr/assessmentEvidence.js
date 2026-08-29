@@ -30,6 +30,7 @@ import { getQuestionCredit, normalizeQuestionRecord } from '../../attemptPolicy.
 import { normalizeAssessmentContext, normalizeQuestionAlignments } from '../contract/alignments.js';
 import { teksSkillId } from '../path/skillGraph.js';
 import { ALIGNMENT_TYPE, ASSESSMENT_FRAMEWORKS, getSkillCrosswalk } from './assessmentCrosswalk.js';
+import { CHALLENGE_TIER } from './assessmentFidelity.js';
 
 // Enough assessment-context items before proficiency is treated as settled.
 // Deliberately low: assessment practice is expensive and a student will not sit
@@ -58,6 +59,15 @@ const emptyEvidence = (skillId, framework) => ({
   provisional: false,
   evidenceStrength: 0,
   lastAttemptAt: null,
+  // Fidelity V2 keeps direct evidence separated by challenge tier. A student
+  // who passed a five-question introductory SAT set should not return to the
+  // same difficulty forever. Session-completion counts are carried on the last
+  // evidence event of each secure Path session.
+  tierDirectItemsAttempted: { 1: 0, 2: 0, 3: 0 },
+  tierDirectItemsCorrect: { 1: 0, 2: 0, 3: 0 },
+  tierSessionsCompleted: { 1: 0, 2: 0, 3: 0 },
+  tierSessionsPassed: { 1: 0, 2: 0, 3: 0 },
+  highestChallengeTierSeen: 0,
 });
 
 /**
@@ -164,6 +174,8 @@ export const buildAssessmentEvidence = ({ student, assignments = [], evidenceEve
       ? String(event?.source?.examType || '')
       : String(event?.source?.assessmentFramework || '');
     const directFramework = ASSESSMENT_FRAMEWORKS.includes(sourceFramework) ? sourceFramework : null;
+    const rawTier = Number(event?.source?.ccmrChallengeTier || event?.questionSnapshot?.ccmrChallengeTier || CHALLENGE_TIER.DIRECT);
+    const challengeTier = directFramework ? Math.max(1, Math.min(3, Math.round(rawTier || 1))) : null;
     const rawScore = Number(event?.performance?.score);
     const credit = clamp01(Number.isFinite(rawScore) ? (rawScore > 1 ? rawScore / 100 : rawScore) : (event?.performance?.isCorrect ? 1 : 0));
     const occurredAt = event?.occurredAt || null;
@@ -176,8 +188,19 @@ export const buildAssessmentEvidence = ({ student, assignments = [], evidenceEve
         const entry = bucket(skillId, framework);
         entry.attempts += 1;
         entry.correct += credit;
-        if (directFramework) entry.directItemsAttempted += 1;
-        else entry.crosswalkItemsAttempted += 1;
+        if (directFramework) {
+          entry.directItemsAttempted += 1;
+          const tierKey = String(challengeTier || CHALLENGE_TIER.DIRECT);
+          entry.tierDirectItemsAttempted[tierKey] = Number(entry.tierDirectItemsAttempted[tierKey] || 0) + 1;
+          entry.tierDirectItemsCorrect[tierKey] = Number(entry.tierDirectItemsCorrect[tierKey] || 0) + credit;
+          entry.highestChallengeTierSeen = Math.max(Number(entry.highestChallengeTierSeen || 0), Number(challengeTier || 1));
+          if (event?.source?.ccmrSessionCompleted === true) {
+            entry.tierSessionsCompleted[tierKey] = Number(entry.tierSessionsCompleted[tierKey] || 0) + 1;
+            if (event?.source?.ccmrSessionPassed === true) {
+              entry.tierSessionsPassed[tierKey] = Number(entry.tierSessionsPassed[tierKey] || 0) + 1;
+            }
+          }
+        } else entry.crosswalkItemsAttempted += 1;
         if (occurredAt != null) entry.lastAttemptAt = occurredAt;
         const key = directFramework ? '_directCredit' : '_crosswalkCredit';
         entry[key] = (entry[key] || 0) + credit;
@@ -238,6 +261,11 @@ export const withSimulatedEvidence = (evidence, { skillId, framework, proficienc
         correct: value * items,
         recentAccuracy: value,
         directItemsAttempted: items,
+        tierDirectItemsAttempted: { 1: items, 2: 0, 3: 0 },
+        tierDirectItemsCorrect: { 1: value * items, 2: 0, 3: 0 },
+        tierSessionsCompleted: { 1: items >= CONFIDENT_ASSESSMENT_ITEMS ? 1 : 0, 2: 0, 3: 0 },
+        tierSessionsPassed: { 1: items >= CONFIDENT_ASSESSMENT_ITEMS && value >= 0.8 ? 1 : 0, 2: 0, 3: 0 },
+        highestChallengeTierSeen: 1,
         proficiency: value,
         basis: EVIDENCE_BASIS.DIRECT,
         provisional: items < CONFIDENT_ASSESSMENT_ITEMS,

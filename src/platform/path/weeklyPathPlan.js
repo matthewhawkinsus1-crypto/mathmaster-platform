@@ -171,6 +171,7 @@ export const buildWeeklyPathPlan = ({
   sessions = 4,
   honors = false,
   interventionMode = false,
+  coverage = undefined,
   now = Date.now(),
 } = {}) => {
   const strandIndex = buildStrandIndex(courseId);
@@ -207,6 +208,7 @@ export const buildWeeklyPathPlan = ({
     sessions,
     honors,
     interventionMode,
+    coverage,
     now,
   });
 

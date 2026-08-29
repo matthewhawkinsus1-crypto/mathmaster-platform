@@ -2,13 +2,20 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const source = fs.readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
+const source = fs.readFileSync(new URL('../../src/components/student/MobileViewportContainer.jsx', import.meta.url), 'utf8');
 
-test('QuestionEngine imports QuestionPrompt before rendering the desktop question anchor', () => {
-  assert.match(source, /import\s+QuestionPrompt\s+from\s+['"]\.\/QuestionPrompt['"];?/);
-  // Attributes allowed: the anchor is rendered as `<QuestionPrompt variant="task">`
-  // now. What this guards is that the prompt is wrapped by the imported
-  // component at all — the crash it was written for was QuestionPrompt being
-  // used without being imported — not the exact spelling of the opening tag.
-  assert.match(source, /<QuestionPrompt(\s[^>]*)?>[\s\S]*processedQuestion\?\.prompt/);
+test('MobileViewportContainer owns and imports the canonical student task prompt', () => {
+  assert.match(source, /import\s+QuestionPrompt\s+from\s+['"]\.\.\/\.\.\/QuestionPrompt['"];?/);
+  assert.match(source, /className="mathmaster-desktop-question-anchor"[\s\S]*<QuestionPrompt variant="task">/);
+  assert.match(source, /promptText \|\| 'Complete the math task\.'/);
+});
+
+
+test('embedded ToolShell task cards do not duplicate the canonical assignment prompt', () => {
+  const toolShell = fs.readFileSync(new URL('../../src/tools/shared/ToolShell.jsx', import.meta.url), 'utf8');
+  const css = fs.readFileSync(new URL('../../src/components/student/MathToolMobileLayout.css', import.meta.url), 'utf8');
+  const engine = fs.readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
+  assert.match(toolShell, /mathmaster-tool-task-prompt/);
+  assert.match(css, /mathmaster-question-engine-has-anchor[\s\S]*mathmaster-tool-task-prompt[\s\S]*display:\s*none/);
+  assert.doesNotMatch(engine, /className="mathmaster-desktop-question-anchor"/);
 });

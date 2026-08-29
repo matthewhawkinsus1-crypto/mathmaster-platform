@@ -16,6 +16,7 @@ test('ordinary aligned questions expose TEKS meaning and CCMR connections withou
   const info = buildQuestionAlignmentInfo({ code: 'A.2B' });
   assert.equal(info.displayCode, 'A.2B');
   assert.match(info.description, /linear equations/i);
+  assert.equal(info.studentLabel, 'Writing linear equations from a point and slope');
   assert.equal(info.isExamStyle, false);
   assert.equal(info.activeFramework, null);
   assert.equal(info.connections.length, 4);
@@ -32,6 +33,19 @@ test('direct exam-style questions identify the active framework and assessment d
   assert.equal(active.domainTitle, 'Algebra');
 });
 
+test('direct audited CCMR items use their authored SAT skill family instead of a broad TEKS inference', () => {
+  const info = buildQuestionAlignmentInfo({
+    code: 'A2.2A',
+    framework: 'digitalSAT',
+    domainId: 'advancedMath',
+    examStyle: true,
+    assessmentSkillLabel: 'nonlinear functions',
+  });
+  assert.equal(info.activeSkillLabel, 'Nonlinear functions');
+  const active = info.connections.find((entry) => entry.active);
+  assert.equal(active.references[0]?.title, 'Nonlinear functions');
+});
+
 test('partial crosswalks expose the allowed overlap instead of implying the whole TEKS is tested', () => {
   const info = buildQuestionAlignmentInfo({ code: 'A.2A', framework: 'asvab', examStyle: true });
   const asvab = info.connections.find((entry) => entry.framework === 'asvab');
@@ -42,11 +56,15 @@ test('partial crosswalks expose the allowed overlap instead of implying the whol
 
 
 test('direct exam-style display uses the item authored domain when a TEKS maps to several domains', () => {
-  const defaultInfo = buildQuestionAlignmentInfo({ code: '7.4C', framework: 'digitalSAT', examStyle: true });
+  // Grade 6-8 TEKS are intentionally excluded from direct Digital SAT evidence
+  // in the V2.1 scope correction. Use a high-school TEKS that legitimately maps
+  // to more than one SAT domain so this test exercises the authored-domain
+  // override without contradicting the current assessment scope policy.
+  const defaultInfo = buildQuestionAlignmentInfo({ code: 'A.9B', framework: 'digitalSAT', examStyle: true });
   const defaultActive = defaultInfo.connections.find((entry) => entry.active);
-  assert.equal(defaultActive.domainId, 'algebra');
+  assert.equal(defaultActive.domainId, 'advancedMath');
 
-  const info = buildQuestionAlignmentInfo({ code: '7.4C', framework: 'digitalSAT', domainId: 'problemSolvingData', examStyle: true });
+  const info = buildQuestionAlignmentInfo({ code: 'A.9B', framework: 'digitalSAT', domainId: 'problemSolvingData', examStyle: true });
   const active = info.connections.find((entry) => entry.active);
   assert.equal(active.domainId, 'problemSolvingData');
   assert.equal(active.domainTitle, 'Problem-Solving and Data Analysis');
@@ -76,15 +94,21 @@ test('assessment style label requires direct framework/domain alignment for auth
 test('student UI has one alignment owner per question and the details are clickable', () => {
   assert.match(engineSource, /showStandardBadge = true/);
   assert.match(engineSource, /showStandardBadge && questionStandardCode/);
+  assert.match(engineSource, /assessmentSkillLabel=\{processedQuestion\?\.ccmrAuthenticLanguage\?\.officialSkillFamily/);
+  assert.match(badgeSource, /info\.activeSkillLabel/);
   assert.match(pathSource, /showStandardBadge=\{false\}/);
   assert.match(pathSource, /<StandardBadge[^>]*framework=\{directFramework\}/s);
   assert.doesNotMatch(toolShellSource, /StandardBadge/);
   assert.doesNotMatch(toolShellSource, /Skill focus/);
   assert.match(badgeSource, /role="dialog"/);
-  assert.match(badgeSource, /What this question is building/);
-  assert.match(badgeSource, /This is a course question/);
-  assert.match(badgeSource, /This is \{info\.activeFrameworkLabel\}-style practice/);
+  assert.match(badgeSource, /What you are learning/);
+  assert.match(badgeSource, /Where this math shows up/);
+  assert.match(badgeSource, /The skill to remember/);
+  assert.match(badgeSource, /Texas learning target/);
+  assert.match(badgeSource, /This is still a course-practice question/);
+  assert.match(badgeSource, /You are practicing this in \{info\.activeFrameworkLabel\} format right now/);
   assert.match(badgeSource, /CCMR connection/);
+  assert.match(badgeSource, /Calculator available throughout math/);
   assert.match(badgeSource, /event\.key === 'Escape'/);
   assert.match(badgeSource, /autoFocus aria-label="Close standards details"/);
 });

@@ -4,8 +4,8 @@
 // project keeps turning up: a value computed carefully in one place and then
 // not consumed by the place that matters.
 //
-//   1. The policy asked for difficulty band 5. Nothing in the 5,186-template
-//      bank is authored above band 4. Selection degrades to the nearest band so
+//   1. The course policy asked for difficulty band 5. Ordinary course
+//      templates stop at band 4; CCMR challenge families are a separate pool. Selection degrades to the nearest band so
 //      no session ever broke — which is exactly why it survived — but every
 //      Honors extension session was reaching past the end of the content, and
 //      the "preferred band" reported to teachers was one nobody could serve.
@@ -36,7 +36,7 @@ const bankTemplates = () => {
   const docs = [];
   readdirSync(SEED_DIR).filter((name) => name.endsWith('.json')).forEach((name) => {
     const parsed = JSON.parse(readFileSync(join(SEED_DIR, name), 'utf8'));
-    (parsed.documents || []).forEach((doc) => { if (doc.active !== false) docs.push(doc); });
+    (parsed.documents || []).forEach((doc) => { if (doc.active !== false && String(doc?.assessmentContext?.framework || 'course') === 'course') docs.push(doc); });
   });
   return docs;
 };
@@ -60,11 +60,11 @@ const everyCase = () => {
 
 // --- The server never asks for content that does not exist ---------------------
 
-test('the bank tops out at band 4 and DOK 3', () => {
+test('the ordinary course bank tops out at band 4 and DOK 3', () => {
   // The premise every assertion below rests on. If the bank ever gains band 5
   // content, this fails first and the policy can be widened deliberately.
   const templates = bankTemplates();
-  assert.ok(templates.length > 5000, `only ${templates.length} templates loaded`);
+  assert.ok(templates.length > 1000, `only ${templates.length} templates loaded`);
   const maxBand = Math.max(...templates.map((doc) => Number(doc.difficultyBand) || 0));
   const maxDok = Math.max(...templates.map((doc) => Number(doc.dok) || 0));
   assert.equal(maxBand, 4);

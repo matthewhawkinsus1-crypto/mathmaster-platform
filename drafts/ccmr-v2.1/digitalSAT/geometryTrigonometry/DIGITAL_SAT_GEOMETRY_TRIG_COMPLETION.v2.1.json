@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 2,
+  "artifactType": "completionManifest",
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "digitalSAT",
+  "domainId": "geometryTrigonometry",
+  "completedStandards": [],
+  "completedNativeSkills": ["areaVolume", "linesAnglesTriangles", "rightTrianglesTrigonometry", "circles"],
+  "completedStandardsCount": 0,
+  "completedNativeSkillsCount": 4,
+  "completedScopeUnitsCount": 4,
+  "familiesTotal": 32,
+  "validation": {
+    "randomizedInstancesPerScopeUnit": 2000,
+    "randomizedInstancesTotal": 8000,
+    "checks": [
+      "five direct plus three independently authored challenge families per skill",
+      "area, surface-area, volume, and dimensional scale-factor relationships",
+      "triangle angle, parallel-line, congruence, and similarity relationships",
+      "Pythagorean theorem and special right-triangle relationships",
+      "sine, cosine, tangent, complementary-angle, and similar-right-triangle reasoning",
+      "circle angles, tangents, arc length, sector area, angle-unit conversion, and circle equations",
+      "semantic validation of integer Pythagorean triples and trigonometric side ratios",
+      "semantic validation of central/inscribed-angle, tangent-radius, arc/sector, radian, and completing-square circle relationships",
+      "four unique rendered MCQ choices where applicable",
+      "no unresolved generator placeholders",
+      "no exact generator reuse within a scope unit",
+      "SAT-native banks carry no fabricated Texas alignment"
+    ]
+  },
+  "coverageStatus": {
+    "areaVolume": "complete",
+    "linesAnglesTriangles": "complete",
+    "rightTrianglesTrigonometry": "complete",
+    "circles": "complete"
+  },
+  "note": "All four official Digital SAT Geometry and Trigonometry skill families are complete as SAT-native V2.1 content."
+}

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 3,
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "mode": "domain-authoring",
+  "domain": "problemSolvingData",
+  "scopeUnits": 13,
+  "documents": 104,
+  "direct": 65,
+  "challenge": 39,
+  "formats": {
+    "multipleChoice": 62,
+    "studentProducedResponse": 42,
+    "mcqRate": 0.5961538461538461
+  },
+  "domains": {
+    "problemSolvingData": 104
+  },
+  "antiCloneOverridesApplied": 7,
+  "highSimilarityPairs": [],
+  "failures": [],
+  "warnings": [],
+  "output": null
+}

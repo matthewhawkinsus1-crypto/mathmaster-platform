@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 2,
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "act",
+  "mode": "domain-authoring",
+  "domain": "essentialSkills",
+  "scopeUnits": 12,
+  "documents": 96,
+  "direct": 60,
+  "challenge": 36,
+  "multipleChoice": 96,
+  "studentProducedResponse": 0,
+  "modelingTagged": 39,
+  "domains": {
+    "essentialSkills": 96
+  },
+  "highSimilarityPairs": [],
+  "failures": [],
+  "warnings": [],
+  "output": null
+}

@@ -159,7 +159,7 @@ export default function StepAlgebra2({ questionData = {}, onAction }) {
                 inputMode="decimal"
                 value={operand}
                 onChange={(event) => { setOperand(event.target.value); setInputError(''); }}
-                onKeyDown={(event) => { if (event.key === 'Enter') apply(); }}
+                onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); apply(); } }}
                 placeholder="e.g. 6"
                 style={controlStyle}
               />

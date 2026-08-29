@@ -1,53 +1,30 @@
 // Whether My Math Path actually has content for a skill.
 //
-// The wheel offers a student every TEKS in their course. The secure bank holds
-// whatever has been authored. Nothing connected those two facts, so a student
-// could click a standard and be told "No authored question ... aligned to
-// [TEKS]" — a dead end produced by a content gap, surfaced as a server error.
+// Course practice and assessment practice are deliberately different promises.
+// Course coverage requires a session's worth of course-authored families.
+// Assessment coverage answers a narrower question: does the ACTIVE secure bank
+// contain at least one issuable family authored for this exact assessment and
+// TEKS?  The secure issuer remains the final authority at launch time.
 //
-// The fix is not to catch the error. It is to know, before the student clicks,
-// whether the skill is launchable, and to say so honestly everywhere: on the
-// wheel, in the routing engine that may send a student into a prerequisite, and
-// in an audit a teacher can read before a class ever meets it.
-//
-// WHAT COUNTS AS COVERAGE. Not "a question exists with this TEKS". A question
-// counts only when the server could actually issue and grade it — the same
-// `buildIssuePlan` check `issueNextQuestion` runs. A question whose tool has no
-// server grader, or that carries no answer, is authored content that cannot
-// teach anybody, and counting it would move the dead end rather than remove it.
-//
-// FOUR STATES, because "missing" and "broken" need different work from a human:
-//
-//   none              nobody has authored anything for this standard
-//   authoredUnusable  something exists and the server cannot issue it
-//   minimal           issuable, but fewer than a session's worth of families
-//   adequate          five or more, spread across difficulty bands
-//
-// `minimal` is NOT student-ready. A standard with one or two families would
-// hand the same problem to a student repeatedly inside a single session, so it
-// is reported as partial progress toward the target rather than as a skill
-// anyone can be routed into.
+// Keeping those facts separate prevents SAT/ACT/TSIA2/ASVAB items from making a
+// course skill look covered, and prevents a crosswalk row from advertising an
+// assessment button when the live bank cannot issue the requested assessment.
 
-// A My Math Path session is FIVE questions. One family only stops the crash; it
-// also guarantees the student meets the same problem five times, which teaches
-// them the bank is empty whatever the coverage screen claims. So the minimum a
-// standard must have before a student is sent to it is one family per question
-// in a session.
-//
-// This is deliberately stricter than "issuableCount > 0". A standard below it
-// reads as "Coming soon" on the wheel rather than as a thin but usable skill.
 import { analyzeStandardContent, CONTENT_STATE, summarizeStandardStates } from './pathStandardQuality.mjs';
 
 export { CONTENT_STATE, CONTENT_STATE_LABELS, CONTENT_STATE_ORDER } from './pathStandardQuality.mjs';
 
 export const SESSION_QUESTION_COUNT = 5;
 export const MINIMUM_ISSUABLE_FAMILIES = SESSION_QUESTION_COUNT;
-
-/** The same five, spread across bands, which is what a session should feel like. */
 export const ADEQUATE_ISSUABLE_FAMILIES = SESSION_QUESTION_COUNT;
-
-/** Spread matters as much as count: three copies of one band is not variety. */
 export const ADEQUATE_DISTINCT_BANDS = 2;
+
+export const ASSESSMENT_COVERAGE_FRAMEWORKS = Object.freeze([
+  'digitalSAT',
+  'act',
+  'tsia2',
+  'asvab',
+]);
 
 export const COVERAGE_STATE = Object.freeze({
   NONE: 'none',
@@ -69,16 +46,35 @@ const list = (value) => (Array.isArray(value) ? value : []);
 export const coverageKey = (value) => String(value ?? '')
   .trim()
   .replace(/^texas:/i, '')
+  .replace(/^teks:/i, '')
   .toUpperCase()
   .replace(/\s+/g, '');
 
+export const normalizeAssessmentFramework = (value) => {
+  const raw = String(value ?? '').trim();
+  if (!raw || raw.toLowerCase() === 'course') return null;
+  const key = raw.toLowerCase().replace(/[\s_-]+/g, '');
+  if (['digitalsat', 'sat'].includes(key)) return 'digitalSAT';
+  if (key === 'act') return 'act';
+  if (['tsia2', 'tsi2', 'tsi'].includes(key)) return 'tsia2';
+  if (key === 'asvab') return 'asvab';
+  return null;
+};
+
 /**
- * Coverage for one standard, from its bank items and their issue plans.
+ * The framework physically authored on a bank item.
  *
- * `plans` are the results of the SAME `buildIssuePlan` the server runs when it
- * issues a question, keyed by bank id. Passing them in rather than recomputing
- * here is what keeps this file pure and keeps the two definitions of "issuable"
- * from drifting into two different answers.
+ * Unknown non-course framework strings stay non-null so a typo cannot make an
+ * assessment item silently count as ordinary course content.
+ */
+export const assessmentFrameworkForItem = (item = {}) => {
+  const raw = item?.assessmentContext?.framework ?? item?.assessmentFramework ?? null;
+  if (raw == null || String(raw).trim() === '' || String(raw).trim().toLowerCase() === 'course') return null;
+  return normalizeAssessmentFramework(raw) || String(raw).trim();
+};
+
+/**
+ * Course coverage for one standard, from its bank items and their issue plans.
  */
 export const evaluateSkillCoverage = ({ displayCode, items = [], plans = {} }) => {
   const active = items.filter((item) => item?.active !== false);
@@ -102,19 +98,11 @@ export const evaluateSkillCoverage = ({ displayCode, items = [], plans = {} }) =
   if (issuable.length >= ADEQUATE_ISSUABLE_FAMILIES && distinctBands >= ADEQUATE_DISTINCT_BANDS) {
     state = COVERAGE_STATE.ADEQUATE;
   } else if (issuable.length > 0) {
-    // Some usable content, but not yet a session's worth — or a session's worth
-    // all sitting in one band. Real progress; not a door.
     state = COVERAGE_STATE.MINIMAL;
   } else if (items.length > 0) {
-    // Something was authored for this standard and none of it can be issued.
-    // That is a different job from writing new content, so it says so.
     state = COVERAGE_STATE.AUTHORED_UNUSABLE;
   }
 
-  // ISSUABLE IS NOT FINISHED. `state` above answers "can the server serve a
-  // question here". `quality` answers "is what it would serve worth a student's
-  // time" — five text boxes asking for a letter satisfy the first and fail the
-  // second, and reporting only the first is what made 97 standards read Ready.
   const quality = analyzeStandardContent({ displayCode, items, plans });
 
   return {
@@ -124,24 +112,53 @@ export const evaluateSkillCoverage = ({ displayCode, items = [], plans = {} }) =
     issuableCount: issuable.length,
     byBand,
     distinctBands,
-    // Why the authored items cannot be issued, so the audit can be acted on
-    // rather than merely read.
     unusable: unusable.slice(0, 25),
     state,
-    // The one field the student UI and the routing engine consult.
     studentReady: issuable.length >= MINIMUM_ISSUABLE_FAMILIES,
-    // The teacher/admin view of the same standard.
     contentState: quality.state,
     quality,
   };
 };
 
 /**
- * The coverage index for a course — the document stored at
- * `pathCoverage/{courseId}` and read by every surface that needs to know
- * whether a skill can be launched.
+ * Assessment publication coverage intentionally uses a different threshold
+ * from course Path coverage. One valid generative assessment family is a real
+ * published assessment family; requiring five would incorrectly hide much of
+ * the deliberately-authored V2.1 ACT/TSIA2 corpus.
  */
-export const buildCoverageIndex = ({ courseId, wheelTeks = [], bankItems = [], plans = {}, generatedAt = null }) => {
+export const evaluateAssessmentSkillCoverage = ({ displayCode, items = [], plans = {} }) => {
+  const active = items.filter((item) => item?.active !== false);
+  const issuable = [];
+  const unusable = [];
+
+  active.forEach((item) => {
+    const plan = plans[item.id];
+    if (plan?.issuable) issuable.push(item);
+    else unusable.push({ id: item.id, reason: plan?.reason || 'not_evaluated' });
+  });
+
+  const familyIds = [...new Set(
+    issuable.map((item) => String(item.familyId || item.id || '')).filter(Boolean),
+  )];
+  const byBand = {};
+  issuable.forEach((item) => {
+    const band = Number(item.difficultyBand) || 3;
+    byBand[band] = (byBand[band] || 0) + 1;
+  });
+
+  return {
+    displayCode,
+    authoredCount: items.length,
+    activeCount: active.length,
+    issuableCount: issuable.length,
+    familyCount: familyIds.length,
+    byBand,
+    published: familyIds.length > 0,
+    unusable: unusable.slice(0, 5),
+  };
+};
+
+const indexItemsByCode = (bankItems = []) => {
   const itemsByCode = new Map();
   bankItems.forEach((item) => {
     const keys = new Set(list(item.alignmentKeys).map(coverageKey).filter(Boolean));
@@ -150,8 +167,13 @@ export const buildCoverageIndex = ({ courseId, wheelTeks = [], bankItems = [], p
       itemsByCode.get(key).push(item);
     });
   });
+  return itemsByCode;
+};
 
+const buildCourseSlice = ({ wheelTeks = [], bankItems = [], plans = {} }) => {
+  const itemsByCode = indexItemsByCode(bankItems);
   const skills = {};
+
   wheelTeks.forEach((code) => {
     const key = coverageKey(code);
     skills[key] = evaluateSkillCoverage({
@@ -161,9 +183,6 @@ export const buildCoverageIndex = ({ courseId, wheelTeks = [], bankItems = [], p
     });
   });
 
-  // Bank content aligned to a standard that is not on this course's wheel. Not
-  // an error — a prerequisite from an earlier course is exactly this — but the
-  // routing engine may send a student there, so its coverage is recorded too.
   const offWheel = {};
   itemsByCode.forEach((items, key) => {
     if (skills[key]) return;
@@ -172,14 +191,6 @@ export const buildCoverageIndex = ({ courseId, wheelTeks = [], bankItems = [], p
 
   const values = Object.values(skills);
   return {
-    courseId,
-    generatedAt: generatedAt ?? null,
-    schemaVersion: 1,
-    thresholds: {
-      minimumIssuableFamilies: MINIMUM_ISSUABLE_FAMILIES,
-      adequateIssuableFamilies: ADEQUATE_ISSUABLE_FAMILIES,
-      adequateDistinctBands: ADEQUATE_DISTINCT_BANDS,
-    },
     skills,
     offWheel,
     summary: {
@@ -189,22 +200,94 @@ export const buildCoverageIndex = ({ courseId, wheelTeks = [], bankItems = [], p
       minimal: values.filter((entry) => entry.state === COVERAGE_STATE.MINIMAL).length,
       authoredUnusable: values.filter((entry) => entry.state === COVERAGE_STATE.AUTHORED_UNUSABLE).length,
       none: values.filter((entry) => entry.state === COVERAGE_STATE.NONE).length,
-      // The launch gate, per the coverage spec: every wheel TEKS issuable.
       fullyCovered: values.length > 0 && values.every((entry) => entry.studentReady),
-      // The quality gate, which is a different and higher bar.
       quality: summarizeStandardStates(values.map((entry) => entry.quality)),
       productionReady: values.filter((entry) => entry.contentState === CONTENT_STATE.PRODUCTION_READY).length,
     },
   };
 };
 
+const buildFrameworkSlice = ({ framework, wheelTeks = [], bankItems = [], plans = {} }) => {
+  const frameworkItems = bankItems.filter((item) => assessmentFrameworkForItem(item) === framework);
+  const itemsByCode = indexItemsByCode(frameworkItems);
+  const skills = {};
+
+  wheelTeks.forEach((code) => {
+    const key = coverageKey(code);
+    skills[key] = evaluateAssessmentSkillCoverage({
+      displayCode: key,
+      items: itemsByCode.get(key) || [],
+      plans,
+    });
+  });
+
+  // Off-wheel assessment rows stay lightweight. They matter for prerequisite
+  // routes and for the audit, but duplicating full quality reports four times
+  // would needlessly inflate every Firestore coverage document.
+  const offWheel = {};
+  itemsByCode.forEach((items, key) => {
+    if (skills[key]) return;
+    offWheel[key] = evaluateAssessmentSkillCoverage({ displayCode: key, items, plans });
+  });
+
+  const values = Object.values(skills);
+  const offWheelValues = Object.values(offWheel);
+  return {
+    framework,
+    sourceItemCount: frameworkItems.length,
+    skills,
+    offWheel,
+    summary: {
+      wheelSkills: values.length,
+      published: values.filter((entry) => entry.published).length,
+      missing: values.filter((entry) => !entry.published).length,
+      offWheelPublished: offWheelValues.filter((entry) => entry.published).length,
+    },
+  };
+};
+
 /**
- * Can a student be sent here?
+ * The coverage document stored at pathCoverage/{courseId}.
  *
- * Fails CLOSED when the index is missing or the skill is unknown: an unknown
- * skill is one nobody has confirmed content for, and guessing yes is how the
- * dead end came back.
+ * Schema 2 keeps the existing course fields stable and adds framework-specific
+ * publication indexes. Assessment-authored items no longer count toward the
+ * ordinary course launch gate.
  */
+export const buildCoverageIndex = ({
+  courseId,
+  wheelTeks = [],
+  bankItems = [],
+  plans = {},
+  generatedAt = null,
+}) => {
+  const courseItems = bankItems.filter((item) => assessmentFrameworkForItem(item) === null);
+  const course = buildCourseSlice({ wheelTeks, bankItems: courseItems, plans });
+
+  const frameworks = Object.fromEntries(
+    ASSESSMENT_COVERAGE_FRAMEWORKS.map((framework) => [
+      framework,
+      buildFrameworkSlice({ framework, wheelTeks, bankItems, plans }),
+    ]),
+  );
+
+  return {
+    courseId,
+    generatedAt: generatedAt ?? null,
+    schemaVersion: 2,
+    thresholds: {
+      minimumIssuableFamilies: MINIMUM_ISSUABLE_FAMILIES,
+      adequateIssuableFamilies: ADEQUATE_ISSUABLE_FAMILIES,
+      adequateDistinctBands: ADEQUATE_DISTINCT_BANDS,
+      assessmentPublishedFamilies: 1,
+    },
+    skills: course.skills,
+    offWheel: course.offWheel,
+    summary: course.summary,
+    frameworks,
+  };
+};
+
+/** Can a student be sent to ordinary course Path practice here? */
 export const isSkillLaunchable = (index, teksCode) => {
   const key = coverageKey(teksCode);
   if (!key) return false;
@@ -212,7 +295,29 @@ export const isSkillLaunchable = (index, teksCode) => {
   return record?.studentReady === true;
 };
 
-/** Why not, in words a teacher can act on. */
+export const frameworkCoverageKnown = (index, framework) => {
+  const normalized = normalizeAssessmentFramework(framework);
+  return Boolean(normalized && index?.frameworks && Object.prototype.hasOwnProperty.call(index.frameworks, normalized));
+};
+
+export const frameworkCoverageRecord = (index, teksCode, framework) => {
+  const normalized = normalizeAssessmentFramework(framework);
+  const key = coverageKey(teksCode);
+  if (!normalized || !key || !frameworkCoverageKnown(index, normalized)) return null;
+  const frameworkIndex = index.frameworks[normalized];
+  return frameworkIndex?.skills?.[key] || frameworkIndex?.offWheel?.[key] || null;
+};
+
+/**
+ * Can the active secure bank issue this exact assessment for this exact skill?
+ *
+ * Fails closed when the schema has not been rebuilt yet.
+ */
+export const isFrameworkSkillLaunchable = (index, teksCode, framework) => (
+  frameworkCoverageRecord(index, teksCode, framework)?.published === true
+);
+
+/** Why course Path is not launchable, in words a teacher can act on. */
 export const explainCoverage = (index, teksCode) => {
   const key = coverageKey(teksCode);
   const record = index?.skills?.[key] || index?.offWheel?.[key];
@@ -230,13 +335,7 @@ export const explainCoverage = (index, teksCode) => {
   }
 };
 
-/**
- * The audit, as rows.
- *
- * Deliberately the shape the request asked to see — "A.12A — 8 usable question
- * families" — because until coverage is visible, authoring hundreds of
- * questions is guessing about whether routing can use them.
- */
+/** The ordinary course audit, as rows. */
 export const summarizeCoverage = (index, { onlyGaps = false } = {}) => {
   const rows = Object.values(index?.skills || {})
     .map((entry) => ({
@@ -254,13 +353,6 @@ export const summarizeCoverage = (index, { onlyGaps = false } = {}) => {
   return onlyGaps ? rows.filter((row) => !row.studentReady || row.state === COVERAGE_STATE.MINIMAL) : rows;
 };
 
-/**
- * Which of these standards would leave a gap.
- *
- * Used at publish time: an author saving an assignment can be told that the
- * standards it touches still have no Path content, before anyone routes a
- * student into one of them.
- */
 export const findUncoveredStandards = (index, teksCodes = []) => (
   [...new Set(teksCodes.map(coverageKey).filter(Boolean))]
     .filter((key) => !isSkillLaunchable(index, key))

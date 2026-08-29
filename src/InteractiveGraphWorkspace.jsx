@@ -5,9 +5,12 @@ import MathText from './components/common/MathText.jsx';
 import { toPlainMath } from './components/common/mathSegments.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import QuestionPrompt from './QuestionPrompt';
-import { FUNCTION_GRAPH_LABELS } from './functionGraphUtils';
+import { FUNCTION_GRAPH_LABELS, evaluateGraphFunction } from './functionGraphUtils';
 import { POINT_FEATURES } from './analysisRequestCatalog';
-import { analysisKeypadProfile } from '../functions/shared/pathToolContracts.mjs';
+import {
+  analysisKeypadProfile,
+  pathAnalysisTextMatches,
+} from '../functions/shared/pathToolContracts.mjs';
 import useUndoHistory from './useUndoHistory';
 import useLocalDraftState from './useLocalDraftState';
 import useMobileInteractionMode from './platform/mobile/useMobileInteractionMode.js';
@@ -35,7 +38,6 @@ import {
   resolveTaskExpected,
   roughSketchMatchesGraph,
   sampleVisibleFunctionPaths,
-  setAnswerMatches,
   getSignAcceptedAnswers,
 } from './interactiveGraphEngine';
 
@@ -133,6 +135,37 @@ const normalizeAnalysisRequests = (question, spec, window, allowDefault) => {
   const requests = provided || (allowDefault ? [{ id: 'feature', kind: 'point', feature: question.analysisFeature || 'vertex', label: question.analysisFeatureLabel || question.analysisFeature || 'requested feature' }] : []);
   return requests.map((request, index) => {
     const id = String(request.id || `analysis-${index + 1}`);
+    if (request.kind === 'inversePoint') {
+      const sourceTask = (question.pointTasks || []).find((task) => String(task?.id || '') === String(request.sourceTaskId || ''));
+      const sourceX = Number(sourceTask?.x);
+      const sourceY = Number.isFinite(sourceX) ? evaluateGraphFunction(spec, sourceX) : Number.NaN;
+      const expected = Number.isFinite(sourceX) && Number.isFinite(sourceY) ? [[sourceY, sourceX]] : [];
+      return {
+        ...request,
+        id,
+        kind: 'inversePoint',
+        expected,
+        requiredCount: expected.length,
+        allowNone: false,
+        responseMode: request.responseMode || 'click',
+      };
+    }
+    if (request.kind === 'value') {
+      const authoredExpected = Array.isArray(request.expected)
+        ? request.expected
+        : request.expected !== undefined && request.expected !== null
+          ? [request.expected]
+          : [];
+      const authoredAccepted = Array.isArray(request.acceptedAnswers) ? request.acceptedAnswers : [];
+      return {
+        ...request,
+        id,
+        kind: 'value',
+        label: request.label || request.prompt || 'Answer',
+        responseMode: request.responseMode || 'input',
+        acceptedAnswers: authoredAccepted.length ? authoredAccepted : authoredExpected,
+      };
+    }
     if (['domain', 'range'].includes(request.kind)) {
       const notation = request.notation || 'interval';
       return { ...request, id, kind: request.kind, label: request.label || `${request.kind === 'domain' ? 'Domain' : 'Range'} in ${notation} notation`, notation, acceptedAnswers: request.acceptedAnswers || getDomainRangeAcceptedAnswers(spec, request.kind, notation) };
@@ -203,7 +236,25 @@ const stageButtonStyle = (active, disabled = false) => ({
 // The keypad decision itself lives in the contract (analysisKeypadProfile) —
 // it is the same question the `kind` answers, and keeping it there is what
 // lets it be tested without a browser.
+const analysisAnswerFormatFor = (part) => {
+  const declared = String(part?.answerFormat || part?.notation || '').trim();
+  const normalized = declared.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  if (['orderedpair', 'coordinate', 'coordinates', 'point'].includes(normalized)) return 'orderedPair';
+  if (declared) return declared;
+
+  // Existing secure Path questions predate answerFormat metadata. Their
+  // student-visible label is still enough to distinguish a point/coordinate
+  // value from a scalar without exposing the answer.
+  const language = `${part?.label || ''} ${part?.prompt || ''}`.toLowerCase();
+  if (part?.kind === 'value' && /\b(ordered\s*pair|coordinate|inverse\s*point|point)\b/.test(language)) {
+    return 'orderedPair';
+  }
+  return '';
+};
+
 const analysisPlaceholderFor = (part) => {
+  const answerFormat = analysisAnswerFormatFor(part);
+  if (answerFormat === 'orderedPair') return 'for example (2, -5)';
   const keypad = analysisKeypadProfile(part);
   if (keypad === 'interval') return 'for example [2, ∞)';
   if (keypad === 'inequality') return 'for example x ≥ 2';
@@ -235,6 +286,8 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   const studentChoosesX = Boolean(question.studentChoosesX || question.chooseXValues);
   const pointOnly = Boolean(question.pointOnly || question.plotMode === 'points');
   const constructionEnabled = mode !== 'analysis';
+  const inverseReflection = question.inverseReflection?.enabled ? question.inverseReflection : null;
+  const inverseReflectionEnabled = Boolean(inverseReflection && constructionEnabled);
   const tasks = useMemo(() => constructionEnabled ? (question.pointTasks || buildInteractivePointTasks(functionSpec, { points: question.graphAnswer?.suggestedPoints, includeUndefinedChecks: question.includeUndefinedChecks, undefinedCount: question.undefinedCount, studentChoosesX })) : [], [question, functionSpec, studentChoosesX, constructionEnabled]);
   // Magnetic targets are NEVER inferred from task.expected. They must be
   // explicitly supplied as student-known coordinates (for example, points from
@@ -244,7 +297,31 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     () => normalizeMagneticSnapTargets(question.magneticSnapTargets, tasks),
     [question.magneticSnapTargets, tasks],
   );
-  const window = useMemo(() => buildInteractiveGraphWindow(functionSpec, tasks, graph), [functionSpec, tasks, graph]);
+  const inversePreviewPoints = useMemo(() => {
+    if (!inverseReflectionEnabled) return [];
+    const requested = new Set((inverseReflection.sourceTaskIds || []).map(String));
+    return (question.pointTasks || [])
+      .filter((task) => !requested.size || requested.has(String(task?.id || '')))
+      .map((task) => {
+        const sourceX = Number(task?.x);
+        const sourceY = Number.isFinite(sourceX) ? evaluateGraphFunction(functionSpec, sourceX) : Number.NaN;
+        return Number.isFinite(sourceX) && Number.isFinite(sourceY) ? [sourceY, sourceX] : null;
+      })
+      .filter(Boolean);
+  }, [inverseReflectionEnabled, inverseReflection, question.pointTasks, functionSpec]);
+
+  const baseWindow = useMemo(() => buildInteractiveGraphWindow(functionSpec, tasks, graph), [functionSpec, tasks, graph]);
+  const window = useMemo(() => {
+    if (!inverseReflectionEnabled || !inversePreviewPoints.length) return baseWindow;
+    const margin = Math.max(1, Number(baseWindow.snapStep || 0.5) * 2);
+    return {
+      ...baseWindow,
+      xMin: Math.min(Number(baseWindow.xMin), ...inversePreviewPoints.map((point) => point[0] - margin)),
+      xMax: Math.max(Number(baseWindow.xMax), ...inversePreviewPoints.map((point) => point[0] + margin)),
+      yMin: Math.min(Number(baseWindow.yMin), ...inversePreviewPoints.map((point) => point[1] - margin)),
+      yMax: Math.max(Number(baseWindow.yMax), ...inversePreviewPoints.map((point) => point[1] + margin)),
+    };
+  }, [baseWindow, inverseReflectionEnabled, inversePreviewPoints]);
   const xGridStep = Math.max(0.000001, Number(window.xStep ?? 1));
   const yGridStep = Math.max(0.000001, Number(window.yStep ?? 1));
   const skipCounting = xGridStep > 1 || yGridStep > 1;
@@ -291,6 +368,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     graph: window,
     pointTasks: tasks,
     analysisRequests: analysisParts,
+    inverseReflection,
     pointOnly,
   });
 
@@ -301,7 +379,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     draftKey ? `${draftKey}:graph-construction` : null,
   );
   const analysisHistory = useUndoHistory(
-    { selections: {}, answers: {}, typedPoints: {}, noneSelections: {} },
+    { selections: {}, answers: {}, typedPoints: {}, noneSelections: {}, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false },
     60,
     draftKey ? `${draftKey}:graph-analysis` : null,
   );
@@ -320,6 +398,18 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   const axisY = window.xMin <= 0 && window.xMax >= 0 ? toScreenX(0) : toScreenX(window.xMin);
   const idealPaths = useMemo(() => visiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [visiblePaths, window]);
   const idealScreenPointPaths = useMemo(() => visiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)])), [visiblePaths, window]);
+  const inverseVisiblePaths = useMemo(
+    () => inverseReflectionEnabled
+      ? visiblePaths
+        .map((path) => path.map(([x, y]) => [y, x]).filter(([x, y]) => x >= window.xMin && x <= window.xMax && y >= window.yMin && y <= window.yMax))
+        .filter((path) => path.length > 1)
+      : [],
+    [inverseReflectionEnabled, visiblePaths, window],
+  );
+  const inverseIdealPaths = useMemo(() => inverseVisiblePaths.map((path) => buildSmoothGraphPath(path, toScreenX, toScreenY)), [inverseVisiblePaths, window]);
+  const inverseIdealScreenPointPaths = useMemo(() => inverseVisiblePaths.map((path) => path.map(([x, y]) => [toScreenX(x), toScreenY(y)])), [inverseVisiblePaths, window]);
+  const reflectionLineMin = Math.max(window.xMin, window.yMin);
+  const reflectionLineMax = Math.min(window.xMax, window.yMax);
   const resolvedPointTasks = useMemo(() => tasks.map((task) => ({ ...task, resolvedExpected: resolveTaskExpected(task, functionSpec, construction.chosenXValues) })), [tasks, functionSpec, construction.chosenXValues]);
   const requiredGraphPoints = useMemo(() => resolvedPointTasks.filter((task) => Array.isArray(task.resolvedExpected) && task.role !== 'center').map((task) => [toScreenX(task.resolvedExpected[0]), toScreenY(task.resolvedExpected[1])]), [resolvedPointTasks, window]);
   const requiredStrokeCount = functionSpec.type === 'rational' ? 2 : 1;
@@ -330,7 +420,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   useEffect(() => {
     if (!draftKey) {
       constructionHistory.reset({ placements: {}, chosenXValues: initialChosenX, pointsValidated: false, strokes: [], snapped: false, markerPlacements: {} });
-      analysisHistory.reset({ selections: {}, answers: {}, typedPoints: {}, noneSelections: {} });
+      analysisHistory.reset({ selections: {}, answers: {}, typedPoints: {}, noneSelections: {}, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false });
     }
     setActiveTaskId(null);
     setDraggingTaskId(null);
@@ -341,7 +431,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     setPointFeedback('');
     setDrawFeedback('');
     setActiveMarker(null);
-    setActiveAnalysisPartId(analysisParts.find((part) => part.kind === 'point')?.id || analysisParts[0]?.id || null);
+    setActiveAnalysisPartId(analysisParts.find((part) => ['inversePoint', 'point'].includes(part.kind))?.id || analysisParts[0]?.id || null);
     if (!draftKey) setStage(mode === 'analysis' ? 'analysis' : 'construct');
   }, [questionSemanticKey, draftKey]);
 
@@ -355,8 +445,25 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     return () => onUndoStateChange?.(null);
   }, [stage, construction, analysis, constructionHistory.canUndo, analysisHistory.canUndo, onUndoStateChange]);
 
+  useEffect(() => {
+    const recovered = {};
+    analysisParts.forEach((part) => {
+      if (part.kind !== 'value') return;
+      if (String(analysis.answers?.[part.id] || '').trim()) return;
+      const staleSelections = analysis.selections?.[part.id];
+      if (Array.isArray(staleSelections) && staleSelections.length === 1 && Array.isArray(staleSelections[0])) {
+        recovered[part.id] = pointLabel(staleSelections[0]);
+      }
+    });
+    if (!Object.keys(recovered).length) return;
+    analysisHistory.setValue((current) => ({
+      ...current,
+      answers: { ...current.answers, ...recovered },
+    }), { record: false });
+  }, [analysisParts, analysis.answers, analysis.selections]);
+
   const analysisGradeParts = useMemo(() => analysisParts.map((part) => {
-    if (part.kind === 'point') {
+    if (['point', 'inversePoint'].includes(part.kind)) {
       const selected = analysis.selections[part.id] || [];
       const noneSelected = Boolean(analysis.noneSelections[part.id]);
       const typed = String(analysis.typedPoints[part.id] || '');
@@ -369,8 +476,40 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       return { id: part.id, label: part.label, isComplete: clickComplete && inputComplete, isCorrect: clickCorrect && inputCorrect, response: `${noneSelected ? 'Does not exist' : selected.map(pointLabel).join(', ')}${typed ? `; typed: ${typed}` : ''}` };
     }
     const response = String(analysis.answers[part.id] || '');
-    return { id: part.id, label: part.label, isComplete: response.trim() !== '', isCorrect: response.trim() !== '' && setAnswerMatches(response, part.acceptedAnswers), response };
+    return {
+      id: part.id,
+      label: part.label,
+      isComplete: response.trim() !== '',
+      isCorrect: response.trim() !== '' && pathAnalysisTextMatches(
+        response,
+        part.acceptedAnswers,
+        { kind: part.kind, notation: part.notation, tolerance: Math.max(0.28, snapStep * 0.58) },
+      ),
+      response,
+    };
   }), [analysisParts, analysis, snapStep]);
+
+  const inversePointParts = useMemo(() => analysisParts.filter((part) => part.kind === 'inversePoint'), [analysisParts]);
+  const inversePointGrades = useMemo(() => inversePointParts.map((part) => analysisGradeParts.find((grade) => grade.id === part.id)).filter(Boolean), [inversePointParts, analysisGradeParts]);
+  const inversePointsComplete = inversePointGrades.length > 0 && inversePointGrades.every((part) => part.isComplete);
+  const inversePointsCorrect = inversePointGrades.length > 0 && inversePointGrades.every((part) => part.isCorrect);
+  const inverseRequiredGraphPoints = useMemo(() => inversePointParts.flatMap((part) => part.expected || []).map(([x, y]) => [toScreenX(x), toScreenY(y)]), [inversePointParts, window]);
+  const inverseSketchRequired = Boolean(inverseReflectionEnabled && inverseReflection?.requireInverseSketch !== false);
+  const inverseSketchComplete = !inverseSketchRequired || Boolean(analysis.inverseSnapped);
+
+  const checkInversePoints = () => {
+    if (!inversePointsComplete) {
+      setDrawFeedback('Place both reflected points before checking them.');
+      return;
+    }
+    if (!inversePointsCorrect) {
+      analysisHistory.setValue((current) => ({ ...current, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false }));
+      setDrawFeedback('At least one reflected point needs revision. Reflection across y=x swaps the coordinates.');
+      return;
+    }
+    analysisHistory.setValue((current) => ({ ...current, inversePointsValidated: true, inverseStrokes: [], inverseSnapped: false }));
+    setDrawFeedback('Both reflected points are correct. Now draw the inverse line through them.');
+  };
 
   const markerParts = useMemo(() => endpointRequirements.flatMap((requirement, index) => {
     const placement = construction.markerPlacements[requirement.id];
@@ -409,9 +548,12 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       ...(pointOnly ? [] : [{ id: 'graph-curve', label: 'Freehand curve and snap', isComplete: construction.snapped, isCorrect: construction.snapped, response: construction.snapped ? 'snapped' : 'not snapped' }]),
       ...(pointOnly ? [] : markerParts),
     ] : [];
-    const parts = [...constructionParts, ...(analysisEnabled ? analysisGradeParts : [])];
+    const inverseSketchPart = inverseSketchRequired
+      ? [{ id: 'inverse-line-sketch', label: 'Draw the inverse through the reflected points', isComplete: Boolean(analysis.inverseSnapped), isCorrect: Boolean(analysis.inverseSnapped), response: analysis.inverseSnapped ? 'snapped' : 'not complete' }]
+      : [];
+    const parts = [...constructionParts, ...(analysisEnabled ? [...analysisGradeParts, ...inverseSketchPart] : [])];
     const constructionComplete = !constructionEnabled || (construction.pointsValidated && (pointOnly || (construction.snapped && allMarkersPlaced)));
-    const analysisComplete = !analysisEnabled || (analysisGradeParts.length > 0 && analysisGradeParts.every((part) => part.isComplete));
+    const analysisComplete = !analysisEnabled || (analysisGradeParts.length > 0 && analysisGradeParts.every((part) => part.isComplete) && inverseSketchComplete);
     const complete = constructionComplete && analysisComplete;
     const correct = complete && parts.every((part) => part.isCorrect);
     onStateChange({
@@ -421,7 +563,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       questionDetails: `${question.prompt || (pointOnly ? 'Plot the table points.' : 'Investigate the function.')} Points: ${Object.entries(construction.placements).map(([id, value]) => `${id}=${taskPlacementLabel(value)}`).join('; ') || 'not required'}. ${pointOnly ? 'Point-only graph.' : `Curve: ${construction.snapped ? 'complete' : 'incomplete'}. Graph boundaries/continuation: ${Object.entries(construction.markerPlacements).map(([id, value]) => `${id}=${markerValue(value)}`).join('; ') || 'not entered'}.`} Analysis: ${analysisGradeParts.map((part) => `${part.label}=${part.response || 'blank'}`).join('; ') || 'not required'}.`,
       parts,
     });
-  }, [construction, analysis, constructionEnabled, analysisEnabled, pointParts, markerParts, analysisGradeParts, allMarkersPlaced, pointOnly, question, onStateChange]);
+  }, [construction, analysis, constructionEnabled, analysisEnabled, pointParts, markerParts, analysisGradeParts, allMarkersPlaced, pointOnly, question, onStateChange, inverseSketchRequired, inverseSketchComplete]);
 
   const eventToScreenPoint = (event) => {
     const svg = svgRef.current;
@@ -524,12 +666,17 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     const point = eventToGraphPoint(event);
     if (!point) return;
     if (stage === 'analysis') {
-      const part = analysisParts.find((item) => item.id === activeAnalysisPartId && item.kind === 'point');
-      if (!part || part.responseMode === 'input') return;
+      const part = analysisParts.find((item) => item.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(item.kind));
+      if (!part || part.responseMode === 'input' || (part.kind === 'inversePoint' && analysis.inversePointsValidated)) return;
       analysisHistory.setValue((current) => {
         const existing = current.selections[part.id] || [];
         const selected = existing.length >= Math.max(1, part.expected.length) ? [point] : [...existing, point];
-        return { ...current, noneSelections: { ...current.noneSelections, [part.id]: false }, selections: { ...current.selections, [part.id]: selected } };
+        return {
+          ...current,
+          noneSelections: { ...current.noneSelections, [part.id]: false },
+          selections: { ...current.selections, [part.id]: selected },
+          ...(part.kind === 'inversePoint' ? { inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false } : {}),
+        };
       });
       return;
     }
@@ -552,8 +699,8 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     if (!point || !Number.isFinite(point[0]) || !Number.isFinite(point[1])) return false;
     const target = clampToWindow(point);
     if (stage === 'analysis') {
-      const part = analysisParts.find((item) => item.id === activeAnalysisPartId && item.kind === 'point');
-      if (!part || part.responseMode === 'input') {
+      const part = analysisParts.find((item) => item.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(item.kind));
+      if (!part || part.responseMode === 'input' || (part.kind === 'inversePoint' && analysis.inversePointsValidated)) {
         setKeyboardAnnouncement('Choose which part you are answering first.');
         return false;
       }
@@ -564,6 +711,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
           ...current,
           noneSelections: { ...current.noneSelections, [part.id]: false },
           selections: { ...current.selections, [part.id]: selected },
+          ...(part.kind === 'inversePoint' ? { inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false } : {}),
         };
       });
       setKeyboardAnnouncement(`Selected ${pointLabel(target)} for ${part.label}.`);
@@ -638,7 +786,10 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   };
 
   const beginDrawing = (event) => {
-    if (pointOnly || stage !== 'construct' || !construction.pointsValidated || construction.snapped) return;
+    if (pointOnly) return;
+    const drawingOriginal = stage === 'construct' && construction.pointsValidated && !construction.snapped;
+    const drawingInverse = stage === 'analysis' && inverseReflectionEnabled && analysis.inversePointsValidated && !analysis.inverseSnapped;
+    if (!drawingOriginal && !drawingInverse) return;
     const point = eventToScreenPoint(event);
     if (!point) return;
     drawingRef.current = [point];
@@ -655,7 +806,10 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       setDropCandidate(taskPlacement.point);
       setDropMagneticTarget(taskPlacement.magnetic);
     }
-    if (pointOnly || !drawing || !construction.pointsValidated || construction.snapped) return;
+    if (pointOnly || !drawing) return;
+    const drawingOriginal = stage === 'construct' && construction.pointsValidated && !construction.snapped;
+    const drawingInverse = stage === 'analysis' && inverseReflectionEnabled && analysis.inversePointsValidated && !analysis.inverseSnapped;
+    if (!drawingOriginal && !drawingInverse) return;
     const point = eventToScreenPoint(event);
     if (!point) return;
     const previous = drawingRef.current[drawingRef.current.length - 1];
@@ -668,6 +822,26 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     const finished = [...drawingRef.current];
     drawingRef.current = [];
     if (finished.length < 2) return;
+
+    if (stage === 'analysis' && inverseReflectionEnabled) {
+      const completed = [...(analysis.inverseStrokes || []), finished];
+      analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed }));
+      const matches = roughSketchMatchesGraph({
+        strokes: completed,
+        requiredScreenPoints: inverseRequiredGraphPoints,
+        idealScreenPaths: inverseIdealScreenPointPaths,
+        requiredStrokeCount: 1,
+        tolerance: 68,
+      });
+      if (matches) {
+        analysisHistory.setValue((current) => ({ ...current, inverseStrokes: completed, inverseSnapped: true }));
+        setDrawFeedback('The inverse sketch passed through both reflected points and snapped to the exact inverse. Finish the inverse equation.');
+      } else {
+        setDrawFeedback('The inverse line must pass through both reflected points. Clear the inverse sketch and try again.');
+      }
+      return;
+    }
+
     const completed = [...construction.strokes, finished];
     constructionHistory.setValue((current) => ({ ...current, strokes: completed }));
     if (completed.length < requiredStrokeCount) {
@@ -682,17 +856,19 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   };
 
   const showPredrawnGraph = !pointOnly && (mode === 'analysis' || construction.snapped);
-  const activePointPart = analysisParts.find((part) => part.id === activeAnalysisPartId && part.kind === 'point');
+  const activePointPart = analysisParts.find((part) => part.id === activeAnalysisPartId && ['point', 'inversePoint'].includes(part.kind));
   const dragGuideActive = Boolean((draggingTaskId || activeTaskId) && dropCandidate && !construction.pointsValidated);
   const markerGhostActive = Boolean((draggingMarkerType || activeMarker) && dropCandidate && construction.snapped);
 
   const workspaceTitle = pointOnly
     ? 'Plot the Points'
-    : question.type === 'functionGraph'
-      ? 'Graph the Function'
-    : mode === 'analysis'
-      ? 'Analyze the Graph'
-      : 'Explore the Function';
+    : inverseReflectionEnabled && stage === 'analysis'
+      ? 'Build the Inverse'
+      : question.type === 'functionGraph'
+        ? 'Graph the Function'
+        : mode === 'analysis'
+          ? 'Analyze the Graph'
+          : 'Explore the Function';
 
   return (
     <div style={{ textAlign: 'left' }}>
@@ -711,7 +887,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginBottom: '12px' }}>
         {constructionEnabled && <button type="button" onClick={() => setStage('construct')} style={stageButtonStyle(stage === 'construct')}>{pointOnly ? '1. Plot Points' : '1. Construct Graph'}</button>}
-        {analysisEnabled && <button type="button" disabled={!constructionReadyForAnalysis} onClick={() => constructionReadyForAnalysis && setStage('analysis')} style={stageButtonStyle(stage === 'analysis', !constructionReadyForAnalysis)}>2. Analyze Function</button>}
+        {analysisEnabled && <button type="button" disabled={!constructionReadyForAnalysis} onClick={() => constructionReadyForAnalysis && setStage('analysis')} style={stageButtonStyle(stage === 'analysis', !constructionReadyForAnalysis)}>{inverseReflectionEnabled ? '2. Build Inverse' : '2. Analyze Function'}</button>}
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
         <span style={{ padding: '7px 12px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>{pointOnly ? 'Table Points' : (FUNCTION_GRAPH_LABELS[functionSpec.type] || 'Function')}</span>
@@ -737,10 +913,14 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
         <aside style={{ border: '1px solid #dfe3e7', borderRadius: '12px', background: '#f8fbff', padding: '12px' }}>
           {stage === 'construct' ? (
             <>
-              <h3 style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>Plotting Points</h3>
-              <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px' }}>{mobileInteraction.isMobile ? 'Tap a point card, then tap its location on the coordinate plane.' : 'Drag a point, or select it and click the coordinate plane. Colored guides show the exact location.'}</p>
-              {magneticSnapTargets.length > 0 && <p style={{ margin: '0 0 10px', padding: '7px 8px', borderRadius: '7px', background: '#e6f4ea', color: '#137333', fontSize: '12px', lineHeight: 1.4 }}><strong>Magnetic placement is on.</strong> Points from your completed table will gently snap to the exact coordinate when you get close.</p>}
-              <div style={{ display: 'grid', gap: '8px' }}>
+              <h3 style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>
+                {construction.snapped && endpointRequirements.length > 0 ? endpointSectionTitle : 'Plotting Points'}
+              </h3>
+              {!construction.snapped && (
+                <>
+                  <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px' }}>{mobileInteraction.isMobile ? 'Tap a point card, then tap its location on the coordinate plane.' : 'Drag a point, or select it and click the coordinate plane. Colored guides show the exact location.'}</p>
+                  {magneticSnapTargets.length > 0 && <p style={{ margin: '0 0 10px', padding: '7px 8px', borderRadius: '7px', background: '#e6f4ea', color: '#137333', fontSize: '12px', lineHeight: 1.4 }}><strong>Magnetic placement is on.</strong> Points from your completed table will gently snap to the exact coordinate when you get close.</p>}
+                  <div style={{ display: 'grid', gap: '8px' }}>
                 {tasks.map((task) => {
                   const placement = construction.placements[task.id];
                   const active = activeTaskId === task.id;
@@ -760,11 +940,12 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                     {task.studentChoosesX && <label style={{ display: 'block', marginTop: '7px', fontSize: '12px', fontWeight: 'bold', color: '#5f6368' }}>Choose x<input type="number" step={xSnapStep} value={xValue} onChange={(event) => constructionHistory.setValue((current) => ({ ...current, chosenXValues: { ...current.chosenXValues, [task.id]: event.target.value }, placements: { ...current.placements, [task.id]: undefined } }))} style={{ width: '100%', marginTop: '4px', padding: '7px', boxSizing: 'border-box', borderRadius: '6px', border: '1px solid #9fb8dd' }} /></label>}
                   </div>;
                 })}
-              </div>
-              {tasks.some((task) => task.expected === 'undefined') && <button type="button" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeTask(event.dataTransfer.getData('application/x-mathmaster-point') || activeTaskId, 'undefined'); }} onClick={() => activeTaskId && placeTask(activeTaskId, 'undefined')} style={{ width: '100%', marginTop: '12px', minHeight: '72px', border: '2px dashed #9334e6', borderRadius: '10px', background: '#f8f0ff', color: '#6f2da8', fontWeight: 'bold' }}>Not Real / Undefined</button>}
-              {!construction.pointsValidated && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
-              {construction.snapped && endpointRequirements.length > 0 && <div style={{ marginTop: '14px', borderTop: '1px solid #dfe3e7', paddingTop: '12px' }}>
-                <h3 style={{ margin: '0 0 5px', fontSize: '15px' }}>{endpointSectionTitle}</h3>
+                  </div>
+                  {tasks.some((task) => task.expected === 'undefined') && <button type="button" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeTask(event.dataTransfer.getData('application/x-mathmaster-point') || activeTaskId, 'undefined'); }} onClick={() => activeTaskId && placeTask(activeTaskId, 'undefined')} style={{ width: '100%', marginTop: '12px', minHeight: '72px', border: '2px dashed #9334e6', borderRadius: '10px', background: '#f8f0ff', color: '#6f2da8', fontWeight: 'bold' }}>Not Real / Undefined</button>}
+                  {!construction.pointsValidated && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
+                </>
+              )}
+              {construction.snapped && endpointRequirements.length > 0 && <div style={{ marginTop: '4px' }}>
                 <p style={{ margin: '0 0 8px', fontSize: '11px', color: '#5f6368', lineHeight: 1.45 }}>{endpointInstruction} {mobileInteraction.isMobile ? 'Tap a marker, then tap near a graph end; a generous magnetic area helps it snap into place.' : 'Drag or select a marker, then place it near a graph end; a generous magnetic area helps it snap into place.'}</p>
                 {availableMarkerTypes.map((type) => { const label = markerLabels[type]; return <button key={type} type="button" draggable={!mobileInteraction.isMobile} onDragStart={(event) => { event.dataTransfer.setData('application/x-mathmaster-marker', type); event.dataTransfer.setDragImage(makeMarkerDragImage(type), 26, 26); setDraggingMarkerType(type); }} onDragEnd={() => { setDraggingMarkerType(null); setDropCandidate(null); setDropMagneticTarget(null); }} aria-pressed={activeMarker === type}
                   onClick={() => { setActiveMarker(type); setKeyboardAnnouncement(`${label} selected. Use the arrow keys on the plane and press Enter, or type an exact coordinate.`); }} style={{ width: '100%', marginTop: '6px', padding: '9px', border: activeMarker === type ? '2px solid #1a73e8' : '1px solid #c9d4e5', borderRadius: '8px', background: '#fff', fontWeight: 'bold', cursor: 'grab', display: 'flex', alignItems: 'center', gap: '9px' }}><span style={{ fontSize: '23px', color: '#1a73e8' }}>{markerSymbols[type]}</span><span><span style={{ display: 'block' }}>{label}</span><span style={{ display: 'block', fontSize: '11px', color: '#5f6368', fontWeight: 400 }}>{markerExplanations[type]}</span></span></button>; })}
@@ -773,20 +954,34 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
             </>
           ) : (
             <>
-              <h3 style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>Analysis Parts</h3>
+              <h3 style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>{inverseReflectionEnabled ? 'Build the Inverse' : 'Analysis Parts'}</h3>
+              {inverseReflectionEnabled && <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px', lineHeight: 1.5 }}>Reflect both validated points across <strong>y=x</strong>. After both reflected points are correct, draw the inverse through them and write <strong>f⁻¹(x)</strong>.</p>}
               {analysisParts.map((part) => {
+                if (inverseReflectionEnabled && part.id === inverseReflection?.equationPartId && !analysis.inverseSnapped) return null;
                 const grade = feedback?.partGrades?.find((item) => item.id === part.id);
                 const selected = analysis.selections[part.id] || [];
                 const noneSelected = Boolean(analysis.noneSelections[part.id]);
                 return <div key={part.id} style={{ marginTop: '9px', padding: '10px', borderRadius: '9px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : activeAnalysisPartId === part.id ? '#1a73e8' : '#d9e2f1'}`, background: grade && !grade.isCorrect ? '#fff8f7' : '#fff' }}>
                   <button type="button" onClick={() => setActiveAnalysisPartId(part.id)} style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'left', fontWeight: 'bold', color: '#202124' }}><MathText>{part.label}</MathText></button>
-                  {part.kind === 'point' ? <>
+                  {['point', 'inversePoint'].includes(part.kind) ? <>
                     {part.responseMode !== 'input' && <div style={{ marginTop: '5px', fontSize: '12px', color: '#5f6368' }}>{noneSelected ? 'Marked: does not exist' : `${selected.length}/${part.expected.length || 1} selected`}</div>}
                     {part.allowNone && part.responseMode !== 'input' && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, noneSelections: { ...current.noneSelections, [part.id]: !current.noneSelections[part.id] }, selections: { ...current.selections, [part.id]: [] } }))} style={{ marginTop: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: noneSelected ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}
                     {part.responseMode !== 'click' && <div style={{ marginTop: '8px' }}><MathInput value={analysis.typedPoints[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, typedPoints: { ...current.typedPoints, [part.id]: value } }))} placeholder={part.expected.length > 1 ? '(x₁, y₁), (x₂, y₂)' : '(x, y) or DNE'} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
-                  </> : <div style={{ marginTop: '8px' }}>{part.allowsEmptyAnswer && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: 'does not exist' } }))} style={{ marginBottom: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: String(analysis.answers[part.id] || '').toLowerCase().includes('exist') ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}<MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} showToolsInitially placeholder={analysisPlaceholderFor(part)} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
+                  </> : <div style={{ marginTop: '8px' }}>{part.allowsEmptyAnswer && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: 'does not exist' } }))} style={{ marginBottom: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: String(analysis.answers[part.id] || '').toLowerCase().includes('exist') ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}<MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} answerFormat={analysisAnswerFormatFor(part)} showToolsInitially placeholder={analysisPlaceholderFor(part)} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
                 </div>;
               })}
+              {inverseReflectionEnabled && !analysis.inversePointsValidated && (
+                <button
+                  type="button"
+                  onClick={checkInversePoints}
+                  disabled={!inversePointsComplete}
+                  style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: inversePointsComplete ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}
+                >
+                  Check Reflected Points
+                </button>
+              )}
+              {inverseReflectionEnabled && analysis.inversePointsValidated && !analysis.inverseSnapped && <p style={{ margin: '12px 0 0', color: '#6f2da8', fontSize: '12px', lineHeight: 1.5, fontWeight: 'bold' }}>Both reflected points are correct. Draw f⁻¹ directly on the coordinate plane through both points.</p>}
+              {inverseReflectionEnabled && analysis.inverseSnapped && <p style={{ margin: '12px 0 0', color: '#137333', fontSize: '12px', lineHeight: 1.5, fontWeight: 'bold' }}>Inverse graph complete. Finish the equation field above.</p>}
             </>
           )}
         </aside>
@@ -830,6 +1025,12 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
             {xTicks.map((tick) => { const x = toScreenX(tick); return <g key={`x-${tick}`}><line x1={x} y1={PADDING} x2={x} y2={HEIGHT - PADDING} stroke="#eceff1" /><text x={x} y={axisX + 20} textAnchor="middle" fontSize="12" fill="#5f6368">{tick}</text></g>; })}
             {yTicks.map((tick) => { const y = toScreenY(tick); return <g key={`y-${tick}`}><line x1={PADDING} y1={y} x2={WIDTH - PADDING} y2={y} stroke="#eceff1" />{tick !== 0 && <text x={axisY - 9} y={y + 4} textAnchor="end" fontSize="12" fill="#5f6368">{tick}</text>}</g>; })}
             <line x1={PADDING} y1={axisX} x2={WIDTH - PADDING} y2={axisX} stroke="#5f6368" strokeWidth="2" /><line x1={axisY} y1={PADDING} x2={axisY} y2={HEIGHT - PADDING} stroke="#5f6368" strokeWidth="2" />
+            {stage === 'analysis' && inverseReflectionEnabled && inverseReflection?.showReferenceLine !== false && reflectionLineMax > reflectionLineMin && (
+              <g pointerEvents="none">
+                <line x1={toScreenX(reflectionLineMin)} y1={toScreenY(reflectionLineMin)} x2={toScreenX(reflectionLineMax)} y2={toScreenY(reflectionLineMax)} stroke="#9334e6" strokeWidth="2.5" strokeDasharray="10 8" opacity="0.65" />
+                <text x={toScreenX(reflectionLineMax) - 8} y={toScreenY(reflectionLineMax) + 20} textAnchor="end" fontSize="13" fontWeight="bold" fill="#6f2da8">y = x</text>
+              </g>
+            )}
 
             {/* The keyboard cursor. Visible, because a student navigating by
                 arrow keys still needs to see where they are. */}
@@ -843,13 +1044,15 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
             )}
 
             {showPredrawnGraph && idealPaths.map((path, index) => <path key={`ideal-${index}`} className={construction.snapped ? 'mathmaster-snap-curve' : ''} d={path} fill="none" stroke="#1a73e8" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />)}
+            {inverseReflectionEnabled && analysis.inverseSnapped && inverseIdealPaths.map((path, index) => <path key={`inverse-ideal-${index}`} d={path} fill="none" stroke="#9334e6" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />)}
             {mode === 'analysis' && endpointRequirements.map((requirement) => { const x = toScreenX(requirement.point[0]); const y = toScreenY(requirement.point[1]); const angle = (Math.atan2(toScreenY(requirement.point[1] + requirement.vector[1]) - y, toScreenX(requirement.point[0] + requirement.vector[0]) - x) * 180) / Math.PI; return <EndpointMarker key={`analysis-${requirement.id}`} type={requirement.marker} x={x} y={y} angle={angle} color="#1a73e8" />; })}
             {!construction.snapped && construction.strokes.map((stroke, strokeIndex) => <polyline key={`stroke-${strokeIndex}`} points={stroke.map((point) => point.join(',')).join(' ')} fill="none" stroke="#7baaf7" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.88" />)}
-            {drawing && drawingRef.current.length > 1 && <polyline points={drawingRef.current.map((point) => point.join(',')).join(' ')} fill="none" stroke="#7baaf7" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.88" />}
+            {stage === 'analysis' && inverseReflectionEnabled && !analysis.inverseSnapped && (analysis.inverseStrokes || []).map((stroke, strokeIndex) => <polyline key={`inverse-stroke-${strokeIndex}`} points={stroke.map((point) => point.join(',')).join(' ')} fill="none" stroke="#b38ae8" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />)}
+            {drawing && drawingRef.current.length > 1 && <polyline points={drawingRef.current.map((point) => point.join(',')).join(' ')} fill="none" stroke={stage === 'analysis' && inverseReflectionEnabled ? '#b38ae8' : '#7baaf7'} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" opacity="0.88" />}
 
             {constructionEnabled && tasks.filter((task) => Array.isArray(construction.placements[task.id])).map((task) => { const point = construction.placements[task.id]; const isCenter = task.role === 'center'; const x = toScreenX(point[0]); const y = toScreenY(point[1]); return <g key={task.id}><circle cx={x} cy={y} r={isCenter ? 10 : 8} fill={isCenter ? '#fff' : POINT_GUIDE_COLOR} stroke={isCenter ? '#9334e6' : '#fff'} strokeWidth="3" />{isCenter && <text x={x - 4} y={y + 5} fontSize="17" fontWeight="bold" fill="#9334e6">×</text>}<rect x={x + 8} y={y - 29} width={Math.max(36, toPlainMath(task.label).length * 7 + 12)} height="21" rx="6" fill="rgba(255,255,255,0.58)" /><text x={x + 14} y={y - 14} fontSize="12" fontWeight="bold" fill="#174ea6">{toPlainMath(task.label)}</text></g>; })}
             {dragGuideActive && <g pointerEvents="none"><line x1={toScreenX(dropCandidate[0])} y1={PADDING} x2={toScreenX(dropCandidate[0])} y2={HEIGHT - PADDING} stroke={POINT_GUIDE_COLOR} strokeWidth={dropMagneticTarget ? 4 : 3} strokeDasharray="8 5" opacity="0.84" /><line x1={PADDING} y1={toScreenY(dropCandidate[1])} x2={WIDTH - PADDING} y2={toScreenY(dropCandidate[1])} stroke={POINT_GUIDE_COLOR} strokeWidth={dropMagneticTarget ? 4 : 3} strokeDasharray="8 5" opacity="0.84" />{dropMagneticTarget && <circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="24" fill="rgba(19,115,51,0.10)" stroke="#137333" strokeWidth="3" strokeDasharray="5 4" />}<circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="15" fill="rgba(0,166,166,0.22)" stroke={dropMagneticTarget ? '#137333' : POINT_GUIDE_COLOR} strokeWidth="4" /><circle cx={toScreenX(dropCandidate[0])} cy={toScreenY(dropCandidate[1])} r="6" fill={dropMagneticTarget ? '#137333' : POINT_GUIDE_COLOR} />{dropMagneticTarget && <text x={toScreenX(dropCandidate[0])} y={toScreenY(dropCandidate[1]) - 31} textAnchor="middle" fontSize="12" fontWeight="bold" fill="#137333">Snap</text>}</g>}
-            {stage === 'analysis' && activePointPart && (analysis.selections[activePointPart.id] || []).map((point, index) => <g key={`analysis-${index}`}><circle cx={toScreenX(point[0])} cy={toScreenY(point[1])} r="8" fill="#d93025" stroke="#fff" strokeWidth="3" /><rect x={toScreenX(point[0]) + 8} y={toScreenY(point[1]) - 29} width="82" height="22" rx="6" fill="rgba(255,255,255,0.62)" /><text x={toScreenX(point[0]) + 13} y={toScreenY(point[1]) - 14} fontSize="12" fontWeight="bold" fill="#3c4043">{pointLabel(point)}</text></g>)}
+            {stage === 'analysis' && analysisParts.filter((part) => ['point', 'inversePoint'].includes(part.kind)).flatMap((part) => (analysis.selections[part.id] || []).map((point, index) => <g key={`analysis-${part.id}-${index}`}><circle cx={toScreenX(point[0])} cy={toScreenY(point[1])} r="8" fill={part.kind === 'inversePoint' ? '#9334e6' : '#d93025'} stroke="#fff" strokeWidth="3" /><rect x={toScreenX(point[0]) + 8} y={toScreenY(point[1]) - 29} width="82" height="22" rx="6" fill="rgba(255,255,255,0.72)" /><text x={toScreenX(point[0]) + 13} y={toScreenY(point[1]) - 14} fontSize="12" fontWeight="bold" fill="#3c4043">{pointLabel(point)}</text></g>))}
 
             {construction.snapped && endpointRequirements.map((requirement) => { const placement = construction.markerPlacements[requirement.id]; const displayPoint = markerPoint(placement) || requirement.point; const x = toScreenX(displayPoint[0]); const y = toScreenY(displayPoint[1]); const correctX = toScreenX(requirement.point[0]); const correctY = toScreenY(requirement.point[1]); const angle = (Math.atan2(toScreenY(requirement.point[1] + requirement.vector[1]) - correctY, toScreenX(requirement.point[0] + requirement.vector[0]) - correctX) * 180) / Math.PI; return <g key={requirement.id}>{!placement && <><circle cx={correctX} cy={correctY} r="25" fill="rgba(251,188,4,0.10)" stroke="#f9ab00" strokeWidth="2" strokeDasharray="6 6" className="mathmaster-endpoint-pulse" /><text x={correctX} y={correctY - 31} textAnchor="middle" fontSize="11" fontWeight="bold" fill="#8a5a00">Graph end {endpointRequirements.indexOf(requirement) + 1}</text></>}{placement && <EndpointMarker type={markerValue(placement)} x={x} y={y} angle={angle} />}</g>; })}
             {markerGhostActive && <EndpointMarker type={draggingMarkerType || activeMarker} x={toScreenX(dropCandidate[0])} y={toScreenY(dropCandidate[1])} opacity={0.55} scale={1.15} />}
@@ -860,60 +1063,119 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       </div>
       </EnlargeableFigure>
 
-      {stage === 'construct' && <div style={{ maxWidth: '960px', margin: '14px auto 0', textAlign: 'center' }}>
-        {pointFeedback && <p style={{ margin: '8px 0', color: construction.pointsValidated ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{pointFeedback}</p>}
-        {!pointOnly && construction.pointsValidated && !construction.snapped && <p style={{ margin: '8px 0', color: '#174ea6', fontWeight: 'bold' }}>Draw through all validated points. {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''}</p>}
-        {drawFeedback && <p style={{ margin: '8px 0', color: construction.snapped ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{drawFeedback}</p>}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginTop: '10px' }}>
-          {/* EXACT ENTRY. The equal-precision alternative to pointing, and the
-              one that matters most: a trackpad on a school Chromebook cannot
-              reliably hit (2, -3.5), and fighting the interface is not part of
-              the mathematics. The student still has to work out the coordinate
-              — nothing here computes one. */}
-          <div style={{ display: 'flex', gap: '7px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <label style={{ fontSize: '12px', fontWeight: 700, color: '#3c4043' }}>
-              x
-              <input
-                type="number"
-                inputMode="decimal"
-                value={typedX}
-                onChange={(event) => setTypedX(event.target.value)}
-                onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
-                style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid #c9ced6', borderRadius: '7px' }}
-              />
-            </label>
-            <label style={{ fontSize: '12px', fontWeight: 700, color: '#3c4043' }}>
-              y
-              <input
-                type="number"
-                inputMode="decimal"
-                value={typedY}
-                onChange={(event) => setTypedY(event.target.value)}
-                onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
-                style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid #c9ced6', borderRadius: '7px' }}
-              />
-            </label>
-            <button
-              id="graph-exact-place"
-              type="button"
-              onClick={() => {
-                const point = [Number(typedX), Number(typedY)];
-                if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) {
-                  setKeyboardAnnouncement('Enter a number for both x and y.');
-                  return;
-                }
-                if (placeAtCoordinate(point)) { setTypedX(''); setTypedY(''); }
-              }}
-              style={{ minHeight: '40px', padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}
-            >
-              Place at this coordinate
-            </button>
-          </div>
+      {(stage === 'construct' || (stage === 'analysis' && inverseReflectionEnabled)) && <div style={{ maxWidth: '960px', margin: '14px auto 0', textAlign: 'center' }}>
+        {stage === 'construct' ? (
+          <>
+            {pointFeedback && <p style={{ margin: '8px 0', color: construction.pointsValidated ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{pointFeedback}</p>}
+            {!pointOnly && construction.pointsValidated && !construction.snapped && <p style={{ margin: '8px 0', color: '#174ea6', fontWeight: 'bold' }}>Draw through all validated points. {requiredStrokeCount === 2 ? 'Draw both rational branches as separate strokes.' : ''}</p>}
+            {drawFeedback && <p style={{ margin: '8px 0', color: construction.snapped ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{drawFeedback}</p>}
+          </>
+        ) : (
+          <>
+            <p style={{ margin: '8px 0', color: '#6f2da8', fontWeight: 'bold' }}>
+              {!analysis.inversePointsValidated
+                ? 'Reflect both original points across y=x. Select each reflected-point card, then place its image on the plane.'
+                : !analysis.inverseSnapped
+                  ? 'Both reflected points are correct. Draw the inverse line through both points.'
+                  : 'The inverse graph is complete. Finish the inverse equation.'}
+            </p>
+            {drawFeedback && <p style={{ margin: '8px 0', color: analysis.inverseSnapped ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{drawFeedback}</p>}
+          </>
+        )}
 
-          {!pointOnly && construction.pointsValidated && !construction.snapped && <button type="button" onClick={() => constructionHistory.setValue((current) => ({ ...current, strokes: [] }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Clear Sketch</button>}
-          <button type="button" onClick={() => constructionHistory.reset({ placements: {}, chosenXValues: initialChosenX, pointsValidated: false, strokes: [], snapped: false, markerPlacements: {} })} style={{ padding: '9px 14px', border: '1px solid #e0b4b0', borderRadius: '8px', background: '#fff', color: '#a50e0e', fontWeight: 'bold' }}>Reset Graph</button>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginTop: '10px' }}>
+          {((stage === 'construct' && !construction.pointsValidated)
+            || (stage === 'analysis' && inverseReflectionEnabled && !analysis.inversePointsValidated)) && (
+            <div style={{ display: 'flex', gap: '7px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: '#3c4043' }}>
+                x
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={typedX}
+                  onChange={(event) => setTypedX(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
+                  style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid #c9ced6', borderRadius: '7px' }}
+                />
+              </label>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: '#3c4043' }}>
+                y
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={typedY}
+                  onChange={(event) => setTypedY(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); document.getElementById('graph-exact-place')?.click(); } }}
+                  style={{ display: 'block', width: '84px', minHeight: '40px', marginTop: '3px', padding: '6px 8px', border: '1px solid #c9ced6', borderRadius: '7px' }}
+                />
+              </label>
+              <button
+                id="graph-exact-place"
+                type="button"
+                onClick={() => {
+                  const point = [Number(typedX), Number(typedY)];
+                  if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) {
+                    setKeyboardAnnouncement('Enter a number for both x and y.');
+                    return;
+                  }
+                  if (placeAtCoordinate(point)) { setTypedX(''); setTypedY(''); }
+                }}
+                style={{ minHeight: '40px', padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}
+              >
+                Place at this coordinate
+              </button>
+            </div>
+          )}
+
+          {stage === 'construct' && !pointOnly && construction.pointsValidated && !construction.snapped && (
+            <button type="button" onClick={() => constructionHistory.setValue((current) => ({ ...current, strokes: [] }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Clear Sketch</button>
+          )}
+
+          {stage === 'analysis' && inverseReflectionEnabled && analysis.inversePointsValidated && !analysis.inverseSnapped && (
+            <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#6f2da8', fontWeight: 'bold' }}>Clear Inverse Sketch</button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              if (stage === 'analysis' && inverseReflectionEnabled) {
+                analysisHistory.reset({
+                  selections: {},
+                  answers: {},
+                  typedPoints: {},
+                  noneSelections: {},
+                  inversePointsValidated: false,
+                  inverseStrokes: [],
+                  inverseSnapped: false,
+                });
+                setDrawFeedback('');
+                setActiveAnalysisPartId(analysisParts.find((part) => part.kind === 'inversePoint')?.id || analysisParts[0]?.id || null);
+              } else {
+                constructionHistory.reset({
+                  placements: {},
+                  chosenXValues: initialChosenX,
+                  pointsValidated: false,
+                  strokes: [],
+                  snapped: false,
+                  markerPlacements: {},
+                });
+              }
+            }}
+            style={{ padding: '9px 14px', border: '1px solid #e0b4b0', borderRadius: '8px', background: '#fff', color: '#a50e0e', fontWeight: 'bold' }}
+          >
+            {stage === 'analysis' && inverseReflectionEnabled ? 'Reset Inverse' : 'Reset Graph'}
+          </button>
         </div>
-        {!pointOnly && construction.snapped && endpointRequirements.length > 0 && <p style={{ margin: '12px 0 0', color: allMarkersPlaced ? '#137333' : '#6f2da8', fontWeight: 'bold' }}>{allMarkersPlaced ? (analysisEnabled ? `All ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'} are entered. Continue to Analyze Function; each placement and symbol will be graded separately.` : `All ${endpointCompletionNoun}${endpointRequirements.length === 1 ? '' : 's'} are entered. You may submit even if a placement or symbol is incorrect; partial credit is calculated by part.`) : `Place one ${endpointCompletionNoun} at each of the ${endpointRequirements.length} graph ends.`}</p>}
+
+        {stage === 'construct' && !pointOnly && construction.snapped && endpointRequirements.length > 0 && (
+          <p style={{ margin: '12px 0 0', color: allMarkersPlaced ? '#137333' : '#6f2da8', fontWeight: 'bold' }}>
+            {allMarkersPlaced
+              ? (analysisEnabled
+                ? 'All ' + endpointCompletionNoun + (endpointRequirements.length === 1 ? '' : 's') + ' are entered. Continue to ' + (inverseReflectionEnabled ? 'Build Inverse' : 'Analyze Function') + '; each placement and symbol will be graded separately.'
+                : 'All ' + endpointCompletionNoun + (endpointRequirements.length === 1 ? '' : 's') + ' are entered. You may submit even if a placement or symbol is incorrect; partial credit is calculated by part.')
+              : 'Place one ' + endpointCompletionNoun + ' at each of the ' + endpointRequirements.length + ' graph ends.'}
+          </p>
+        )}
       </div>}
       {/* Everything the keyboard route does, said out loud. Without this a
           screen-reader student presses Enter and receives silence. */}
@@ -921,7 +1183,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
         {keyboardAnnouncement}
       </p>
 
-      {stage === 'analysis' && activePointPart && activePointPart.responseMode !== 'input' && <div style={{ textAlign: 'center', marginTop: '12px' }}><p style={{ color: '#174ea6', fontWeight: 'bold' }}>Active part: {activePointPart.label}. Select {activePointPart.expected.length || 1} location(s), or choose “Does not exist.”</p>{(analysis.selections[activePointPart.id] || []).length > 0 && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, selections: { ...current.selections, [activePointPart.id]: [] } }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Clear This Selection</button>}</div>}
+      {stage === 'analysis' && activePointPart && activePointPart.responseMode !== 'input' && !(inverseReflectionEnabled && analysis.inversePointsValidated) && <div style={{ textAlign: 'center', marginTop: '12px' }}><p style={{ color: '#174ea6', fontWeight: 'bold' }}>Active part: {activePointPart.label}. Select {activePointPart.expected.length || 1} location(s){activePointPart.allowNone ? ', or choose “Does not exist.”' : '.'}</p>{(analysis.selections[activePointPart.id] || []).length > 0 && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, selections: { ...current.selections, [activePointPart.id]: [] }, inversePointsValidated: false, inverseStrokes: [], inverseSnapped: false }))} style={{ padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>Clear This Selection</button>}</div>}
     </div>
   );
 }

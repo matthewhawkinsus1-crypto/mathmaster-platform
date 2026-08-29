@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 2,
+  "artifactType": "completionManifest",
+  "releaseTarget": "ccmr-fidelity-v2.1-authentic-language",
+  "framework": "digitalSAT",
+  "domainId": "problemSolvingData",
+  "completedStandards": ["A.3B", "A.4C", "A.8B", "A.9E", "A2.6L", "A2.8A", "A2.8C"],
+  "completedNativeSkills": ["ratiosRatesProportionsUnits", "percentages", "oneVariableData", "probabilityConditionalProbability", "inferenceMarginOfError", "evaluatingStatisticalClaims"],
+  "completedStandardsCount": 7,
+  "completedNativeSkillsCount": 6,
+  "completedScopeUnitsCount": 13,
+  "familiesTotal": 104,
+  "validation": {
+    "randomizedInstancesPerScopeUnit": 2000,
+    "randomizedInstancesTotal": 26000,
+    "checks": [
+      "ratio scaling, unit rates, conversion factors, scale relationships, density, multi-step speed conversion, ratio partitioning, and compound rate chains",
+      "inverse-variation constant-product relationships and contextual rate/work relationships",
+      "two-variable linear, quadratic, exponential, and cross-model reasoning",
+      "percent-of, percent change, reverse percent, successive percent changes, and percent-versus-percentage-point reasoning",
+      "one-variable data center, spread, transformations, outliers, weighted means, standard-deviation comparison, and interquartile range",
+      "simple, complement, joint, conditional, union, expected-count, subgroup, and independence probability reasoning",
+      "sample estimates, margin-of-error intervals, sample-size effects, population estimates, recovered margins, and interval-based population bounds",
+      "observational-study association limits, random-assignment causation, random-sample generalization, convenience-sample bias, and combined sampling/assignment conclusions",
+      "semantic validation that mathematically equivalent distractors are rejected",
+      "exhaustive MCQ collision checks for discrete ratio/rate/unit generators",
+      "four unique rendered MCQ choices",
+      "no unresolved generator placeholders",
+      "five direct plus three independently authored challenge families",
+      "no exact generator reuse within a scope unit"
+    ]
+  },
+  "coverageStatus": {
+    "ratiosRatesProportionsUnits": "complete",
+    "percentages": "complete",
+    "oneVariableData": "complete",
+    "twoVariableData": "teks-backed-complete",
+    "probabilityConditionalProbability": "complete",
+    "inferenceMarginOfError": "complete",
+    "evaluatingStatisticalClaims": "complete"
+  },
+  "note": "All seven official Digital SAT PSDA skill families now have V2.1 authored coverage. Native banks carry no fabricated Texas alignment."
+}

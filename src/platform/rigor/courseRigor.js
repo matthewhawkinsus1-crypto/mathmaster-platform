@@ -97,6 +97,8 @@ const directCcmrFramework = (question = {}) => {
 const isDirectCcmrQuestion = (question = {}) => Boolean(directCcmrFramework(question));
 const isDirectCcmrPracticeQuestion = (question = {}) => (
   isDirectCcmrQuestion(question)
+  && question?.ccmrSource?.source === 'auditedBank'
+  && String(question?.ccmrSource?.releaseTarget || '').trim() === 'ccmr-fidelity-v2.1-authentic-language'
   && String(question.activityRole || question.role || '').trim().toLowerCase() === 'practice'
 );
 
@@ -150,10 +152,11 @@ export const inspectHonorsRigor = (questions = [], { allowNarrowCheckpoint = fal
       .filter((question) => !isDirectCcmrQuestion(question))
       .flatMap(questionTeks),
   );
-  // A full Honors assignment earns CCMR credit only from a directly-authored,
-  // crosswalk-valid exam-style item in independent Practice that transfers a
-  // TEKS taught elsewhere in this assignment. Keywords and legacy flags are
-  // informational at most; they cannot stand in for authentic transfer work.
+  // A full Honors assignment earns CCMR credit only from a crosswalk-valid,
+  // bank-backed V2.1 exam-style item in independent Practice that transfers a
+  // TEKS taught elsewhere in this assignment. A prompt that merely LOOKS like
+  // SAT/ACT/TSIA2/ASVAB practice is not enough: provenance must say the item
+  // came from MathMaster's audited CCMR release.
   checks.ccmrEnrichment = included.some((question) => (
     isDirectCcmrPracticeQuestion(question)
     && questionTeks(question).some((code) => lessonTeks.has(code))

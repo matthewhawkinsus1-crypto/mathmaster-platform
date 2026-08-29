@@ -43,13 +43,34 @@ export const parseFunctionModel = (value) => {
   if (!expression) return null;
 
   // f(x), W(t), A(n), y, etc.  A bare expression defaults to x.
+  // A modelling equation may also use a named dependent quantity without
+  // function notation, e.g. V = 12t. In that case V is the OUTPUT name, not
+  // the input variable. If the right side contains exactly one other symbol,
+  // infer that symbol as the independent variable so V = 12t and V(t) = 12t
+  // are treated as the same model.
   let variable = 'x';
   if (left) {
     const call = left.match(/^[A-Za-z][A-Za-z0-9_]*\(([A-Za-z])\)$/);
     const bare = left.match(/^([A-Za-z])$/);
-    if (call) variable = call[1];
-    else if (bare && bare[1].toLowerCase() !== 'y') variable = bare[1];
-    else if (!bare) return null;
+    if (call) {
+      variable = call[1];
+    } else if (bare) {
+      if (bare[1].toLowerCase() === 'y') {
+        variable = 'x';
+      } else {
+        try {
+          const symbols = [...new Set(parse(expression)
+            .filter((node) => node?.isSymbolNode)
+            .map((node) => node.name)
+            .filter((name) => /^[A-Za-z]$/.test(name) && name !== bare[1] && !['e'].includes(name.toLowerCase())))];
+          variable = symbols.length === 1 ? symbols[0] : bare[1];
+        } catch {
+          variable = bare[1];
+        }
+      }
+    } else {
+      return null;
+    }
   }
 
   try {

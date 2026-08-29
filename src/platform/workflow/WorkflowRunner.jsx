@@ -4,8 +4,10 @@ import MathDisplay from '../../MathDisplay';
 import QuestionPrompt from '../../QuestionPrompt';
 import TableGrader from '../../TableGrader';
 import InteractiveGraphWorkspace from '../../InteractiveGraphWorkspace';
+import GraphDisplay from '../../GraphDisplay';
 import StepByStepAlgebra from '../../StepByStepAlgebra';
 import IntervalNumberLine from '../../tools/intervalNumberLine/IntervalNumberLine';
+import AxisSetupStage from './AxisSetupStage';
 import RelationMapping from '../../tools/relationMapping/RelationMapping';
 import { getStage } from './interactionStages';
 import { hasStageResponse, readComposedQuestion, resolveStageInput, summarizeWorkflowProgress } from './questionWorkflow';
@@ -14,6 +16,7 @@ import { buildExpressionFunctionSpec, evaluateModelAt, evaluateNumericValue, par
 import { evaluateGraphFunction } from '../../functionGraphUtils';
 import { buildStudentTableMagneticTargets } from '../../graphInteractionPrecision';
 import { buildWorkflowSummaryItems, shouldUseWorkflowFocusMode } from './workflowFocusMode';
+import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../interaction/choiceOptions.js';
 import './WorkflowFocusMode.css';
 
 // Renders a question composed from interaction primitives.
@@ -35,6 +38,7 @@ const panel = {
 };
 const stageHeading = { margin: '0 0 8px', fontSize: 13, fontWeight: 900, color: '#174ea6' };
 const waitingPanel = { ...panel, background: '#f8f9fa', borderStyle: 'dashed', color: '#5f6368' };
+
 
 const niceGridStep = (range, fallback = 1) => {
   const safeRange = Math.abs(Number(range));
@@ -119,7 +123,10 @@ function StageSource({ input, stages }) {
 }
 
 function ChoiceStage({ stage, value, onChange, disabled }) {
-  const choices = Array.isArray(stage.choices) ? stage.choices : [];
+  const choices = stableShuffleChoices(
+    strengthenTwoChoiceSet(Array.isArray(stage.choices) ? stage.choices : []),
+    choiceSeed(stage.id, stage.prompt, stage.label),
+  );
   return (
     <div style={chipRow}>
       {choices.map((choice) => {
@@ -421,6 +428,8 @@ const DELEGATES = {
     const tablePoints = sourceIsTable && Array.isArray(source.points) ? source.points : [];
     const sourceModel = sourceIsTable ? source.sourceModel : (typeof source === 'string' ? source : null);
     const sourceFunctionSpec = sourceIsTable ? source.sourceFunctionSpec : null;
+    const resolvedGraphMode = String(stage.resolvedGraphMode || stage.graphMode || 'continuous').toLowerCase();
+    const pointOnly = resolvedGraphMode === 'discrete';
     const authoredGraphWindow = stage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
     const points = tablePoints.length ? tablePoints : (() => {
       if (!sourceModel) return [];
@@ -481,10 +490,12 @@ const DELEGATES = {
           magneticSnapTargets,
           showCoordinates: true,
           studentChoosesX: false,
+          pointOnly,
+          plotMode: pointOnly ? 'points' : undefined,
           // A restricted relationship needs explicit visual boundaries. The
           // domain stage still asks the student to STATE the domain, but the
           // graph itself is incomplete until its open/closed endpoints are shown.
-          requireEndpointMarkers: stage.requireEndpointMarkers ?? Boolean(stage.domainRestriction),
+          requireEndpointMarkers: pointOnly ? false : (stage.requireEndpointMarkers ?? Boolean(stage.domainRestriction)),
         }}
         mode="construct"
         onStateChange={onChange}
@@ -515,12 +526,22 @@ function StageBody({ stage, input, content, value, onChange, disabled, draftKey 
   if (delegate) return delegate({ stage, input, content, onChange, draftKey, disabled });
 
   switch (stage.kind) {
+    case 'axisSetup':
+      return (
+        <AxisSetupStage
+          stage={stage}
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+        />
+      );
     case 'equationInput':
       return (
         <MathInput
           value={value || ''}
           onChange={onChange}
           toolProfile="function"
+          functionNotationKeys={stage.functionNotationKeys || []}
           showToolsInitially
           placeholder={stage.placeholder || 'f(x) = …'}
           ariaLabel={stage.prompt || 'Function equation'}
@@ -581,12 +602,136 @@ const dependencyFingerprint = (value) => {
   return (hash >>> 0).toString(36);
 };
 
+const staticGraphSpec = (spec = {}) => {
+  if (!spec || typeof spec !== 'object') return null;
+  if (spec.type === 'linear') {
+    return {
+      type: 'line',
+      m: Number(spec.m ?? spec.a ?? 1),
+      b: Number(spec.b ?? spec.k ?? 0),
+      ...(spec.domain ? { domain: spec.domain } : {}),
+    };
+  }
+  return spec.type === 'expression' ? null : spec;
+};
+
+const endpointRequirementsForModel = (model, domain) => {
+  if (!model || !domain) return [];
+  return [
+    { side: 'min', x: Number(domain.min), inclusive: domain.minInclusive !== false },
+    { side: 'max', x: Number(domain.max), inclusive: domain.maxInclusive !== false },
+  ].flatMap((entry) => {
+    if (!Number.isFinite(entry.x)) return [];
+    const y = evaluateModelAt(model, entry.x);
+    if (!Number.isFinite(Number(y))) return [];
+    return [{
+      id: `checked-${entry.side}`,
+      point: [entry.x, Number(y)],
+      marker: entry.inclusive ? 'closed' : 'open',
+    }];
+  });
+};
+
+const sampleModelSegments = (model, graphWindow, domain) => {
+  const authoredMin = Number(graphWindow?.xMin);
+  const authoredMax = Number(graphWindow?.xMax);
+  let xMin = Number.isFinite(authoredMin) ? authoredMin : -10;
+  let xMax = Number.isFinite(authoredMax) ? authoredMax : 10;
+  if (domain && Number.isFinite(Number(domain.min))) xMin = Math.max(xMin, Number(domain.min));
+  if (domain && Number.isFinite(Number(domain.max))) xMax = Math.min(xMax, Number(domain.max));
+  if (!(xMax > xMin)) return [];
+
+  const samples = Array.from({ length: 65 }, (_, index) => {
+    const x = xMin + ((xMax - xMin) * index) / 64;
+    const y = evaluateModelAt(model, x);
+    return Number.isFinite(Number(y)) ? [Number(x.toFixed(6)), Number(y)] : null;
+  });
+
+  const segments = [];
+  for (let index = 1; index < samples.length; index += 1) {
+    const previous = samples[index - 1];
+    const current = samples[index];
+    if (!previous || !current) continue;
+    segments.push({ from: previous, to: current, stroke: '#1a73e8', strokeWidth: 3 });
+  }
+  return segments;
+};
+
+const normalizeWorkflowPoint = (point) => {
+  const x = Array.isArray(point) ? Number(point[0]) : Number(point?.x);
+  const y = Array.isArray(point) ? Number(point[1]) : Number(point?.y);
+  return Number.isFinite(x) && Number.isFinite(y) ? [x, y] : null;
+};
+
+const checkedGraphReference = ({ workflow, responses, content, grading, activeStageIndex }) => {
+  if (!Array.isArray(workflow) || activeStageIndex <= 0) return null;
+  let graphIndex = -1;
+  for (let index = Math.min(activeStageIndex - 1, workflow.length - 1); index >= 0; index -= 1) {
+    if (['functionGraph', 'coordinatePlot'].includes(workflow[index]?.kind)) {
+      graphIndex = index;
+      break;
+    }
+  }
+  if (graphIndex < 0) return null;
+
+  const graphStage = workflow[graphIndex];
+  const graphResponse = responses?.[graphStage.id];
+  if (graphResponse?.[WORKFLOW_ARTIFACT] !== 'graph' || graphResponse.isComplete !== true || graphResponse.isCorrect !== true) return null;
+
+  const input = resolveStageInput({ stage: graphStage, responses, content });
+  const source = input?.from === 'student' ? input.value : null;
+  const sourceIsTable = source?.[WORKFLOW_ARTIFACT] === 'table';
+  const rawPoints = sourceIsTable && Array.isArray(source.points)
+    ? source.points
+    : (Array.isArray(graphStage.pairs) ? graphStage.pairs : (Array.isArray(content?.pairs) ? content.pairs : []));
+  const points = rawPoints.map(normalizeWorkflowPoint).filter(Boolean);
+  const graphWindow = expandGraphWindowToPoints(
+    graphStage.graph || content?.graph || { xMin: -10, xMax: 10, yMin: -10, yMax: 10 },
+    points,
+  );
+
+  if (graphStage.kind === 'coordinatePlot') {
+    if (!points.length) return null;
+    return {
+      ...graphWindow,
+      points: points.map(([x, y]) => ({ x: Number(x), y: Number(y) })),
+      ariaLabel: 'Your checked graph',
+    };
+  }
+
+  const sourceModel = sourceIsTable ? source.sourceModel : (typeof source === 'string' ? source : null);
+  const sourceFunctionSpec = sourceIsTable ? source.sourceFunctionSpec : null;
+  const domain = graphStage.domainRestriction || parseIntervalDomainRestriction(grading?.domain);
+
+  if (sourceModel) {
+    const segments = sampleModelSegments(sourceModel, graphWindow, domain);
+    if (!segments.length) return null;
+    return {
+      ...graphWindow,
+      segments,
+      points: points.map(([x, y]) => ({ x: Number(x), y: Number(y) })),
+      endpointRequirements: endpointRequirementsForModel(sourceModel, domain),
+      ariaLabel: 'Your checked graph',
+    };
+  }
+
+  const spec = staticGraphSpec(sourceFunctionSpec || content?.functionSpec);
+  if (!spec) return null;
+  return {
+    ...graphWindow,
+    functions: [{ ...spec, ...(domain ? { domain } : {}) }],
+    points: points.map(([x, y]) => ({ x: Number(x), y: Number(y) })),
+    ariaLabel: 'Your checked graph',
+  };
+};
+
 export default function WorkflowRunner({
   question,
   onStateChange,
   onProgressChange,
   disabled = false,
   draftKey = null,
+  showPrompt = true,
 }) {
   const { content, workflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
   const [responses, setResponses] = useState({});
@@ -680,6 +825,13 @@ export default function WorkflowRunner({
     label: getStage(stage.kind)?.label || stage.kind,
   }));
   const summaryItems = buildWorkflowSummaryItems(summaryStages, responses);
+  const graphReference = checkedGraphReference({
+    workflow,
+    responses,
+    content,
+    grading,
+    activeStageIndex: safeActiveIndex,
+  });
 
   const renderStage = (stage, index, { focused = false } = {}) => {
     const definition = getStage(stage.kind);
@@ -690,17 +842,25 @@ export default function WorkflowRunner({
     const domainRestriction = stage.kind === 'functionGraph'
       ? parseIntervalDomainRestriction(grading?.domain)
       : null;
-    const effectiveStage = domainRestriction && !stage.domainRestriction
+    const baseEffectiveStage = domainRestriction && !stage.domainRestriction
       ? { ...stage, domainRestriction }
       : stage;
+    const effectiveStage = stage.continuityStageId
+      ? {
+          ...baseEffectiveStage,
+          resolvedGraphMode: String(responses?.[stage.continuityStageId] || '').toLowerCase(),
+        }
+      : baseEffectiveStage;
     const input = resolveStageInput({ stage, responses, content });
-    const waiting = Boolean(stage.sourceStageId) && !input.ready;
+    const continuityReady = !stage.continuityStageId || hasStageResponse(responses?.[stage.continuityStageId]);
+    const waiting = (Boolean(stage.sourceStageId) && !input.ready) || !continuityReady;
+    const waitingStageId = !continuityReady ? stage.continuityStageId : stage.sourceStageId;
     const shellClass = focusMode
       ? `workflow-focus__stage-shell${focused ? ' workflow-focus__stage-shell--active' : ''}`
       : '';
 
     if (waiting) {
-      const upstream = workflow.find((entry) => entry.id === stage.sourceStageId);
+      const upstream = workflow.find((entry) => entry.id === waitingStageId);
       return (
         <section key={stage.id} className={shellClass} style={focusMode ? undefined : waitingPanel}>
           <div style={focusMode ? waitingPanel : undefined}>
@@ -708,7 +868,7 @@ export default function WorkflowRunner({
               Step {index + 1}. {definition?.label || stage.kind}
             </h4>
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55 }}>
-              Finish <strong>{getStage(upstream?.kind)?.label || stage.sourceStageId}</strong> first — this step is built
+              Finish <strong>{getStage(upstream?.kind)?.label || waitingStageId}</strong> first — this step is built
               from what you write there.
             </p>
           </div>
@@ -736,12 +896,12 @@ export default function WorkflowRunner({
 
   const promptAndScenario = (
     <>
-      {content?.prompt && (
+      {showPrompt && content?.prompt && (
         <div style={{ ...panel, background: '#f8fbff', borderColor: '#c5d5ef' }}>
           <QuestionPrompt>{content.prompt}</QuestionPrompt>
         </div>
       )}
-      {content?.scenario && !question?.suppressScenarioDisplay && content.scenario !== content?.prompt && (
+      {showPrompt && content?.scenario && !question?.suppressScenarioDisplay && content.scenario !== content?.prompt && (
         <div style={{ ...panel, background: '#f8f9fa' }}>
           <QuestionPrompt variant="plain">{content.scenario}</QuestionPrompt>
         </div>
@@ -798,12 +958,24 @@ export default function WorkflowRunner({
       <section className="workflow-focus__summary" aria-label="Model so far">
         <p className="workflow-focus__summary-title">Model so far</p>
         <div className="workflow-focus__summary-items">
-          {summaryItems.length ? summaryItems.map((item, index) => (
-            <div className="workflow-focus__summary-item" key={`${item.label}-${index}`}>
-              <strong>{item.label}:</strong>
-              {item.kind === 'math' ? <MathDisplay value={item.text} inline /> : <span>{item.text}</span>}
-            </div>
-          )) : (
+          {summaryItems.length ? summaryItems.map((item, index) => {
+            const stageIndex = workflow.findIndex((stage) => stage.id === item.stageId);
+            return (
+              <button
+                type="button"
+                className="workflow-focus__summary-item workflow-focus__summary-link"
+                key={`${item.stageId || item.label}-${index}`}
+                disabled={stageIndex < 0}
+                onClick={() => {
+                  if (stageIndex >= 0) setActiveStageIndex(stageIndex);
+                }}
+                aria-label={stageIndex >= 0 ? `Return to ${item.label}` : undefined}
+              >
+                <strong>{item.label}:</strong>
+                {item.kind === 'math' ? <MathDisplay value={item.text} inline /> : <span>{item.text}</span>}
+              </button>
+            );
+          }) : (
             <div className="workflow-focus__summary-item">
               <span>Your completed work will collect here as you build the model.</span>
             </div>
@@ -816,7 +988,18 @@ export default function WorkflowRunner({
           <h4>Step {safeActiveIndex + 1}. {activeDefinition?.label || activeStage?.kind}</h4>
           <span className="workflow-focus__counter">{safeActiveIndex + 1} of {workflow.length}</span>
         </div>
-        {workflow.map((stage, index) => renderStage(stage, index, { focused: index === safeActiveIndex }))}
+        <div className={graphReference ? 'workflow-focus__workspace-body workflow-focus__workspace-body--with-graph' : 'workflow-focus__workspace-body'}>
+          <div className="workflow-focus__active-stage">
+            {workflow.map((stage, index) => renderStage(stage, index, { focused: index === safeActiveIndex }))}
+          </div>
+          {graphReference && (
+            <aside className="workflow-focus__graph-reference" aria-label="Your checked graph">
+              <div className="workflow-focus__graph-reference-title">Your checked graph</div>
+              <p>Use the graph you just completed while answering the remaining analysis steps.</p>
+              <GraphDisplay graph={graphReference} title="Your checked graph" />
+            </aside>
+          )}
+        </div>
       </main>
 
       <footer className="workflow-focus__footer">

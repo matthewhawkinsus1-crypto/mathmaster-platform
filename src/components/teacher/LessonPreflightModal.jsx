@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { MathMasterToolWrapper } from '../../platform/ToolWrapper';
 import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies';
 import { PUBLICATION_STRATEGIES, planClassroomPublication } from '../../platform/publishing/publicationPlanner';
-import { validateLessonBundle } from '../../platform/validation/bundleValidator';
+import { normalizeLessonPublishingIntentV5 } from '../../platform/authoring/lessonPublishingIntent.js';
+import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
 import InteractiveModelingLabPlayer from '../labs/InteractiveModelingLabPlayer.jsx';
-import { buildHonorsEnrichmentQuestion, inspectHonorsRigor, splitClassPeriodsByRigor } from '../../platform/rigor/courseRigor.js';
+import { buildHonorsEnrichmentQuestion, inspectHonorsRigor } from '../../platform/rigor/courseRigor.js';
 import RepresentationAudit from './RepresentationAudit';
 import SectionBalanceRigorAudit from './SectionBalanceRigorAudit.jsx';
 import {
@@ -12,6 +13,13 @@ import {
   describePreflightAction, stepIndex, summarizePreflightReadiness,
 } from './preflightSteps';
 import AdaptivePreview from './AdaptivePreview.jsx';
+import { buildPreflightReviewedAssignmentV5 } from './preflightV5Review.js';
+import { buildQuestionRepairRequest, parseQuestionRepairResponse } from '../../platform/contract/questionRepairRequest.js';
+import {
+  groupQuestionPreflightIssues,
+  newlyIntroducedPreflightErrors,
+  replaceQuestionAtFlatIndex,
+} from '../../platform/preflight/preflightQuestionRepair.js';
 
 // Narrow enough that side-by-side panels stop working. Matches the breakpoint
 // the student-side mobile container already uses, so the two agree about what
@@ -65,8 +73,6 @@ const initialReviewDraft = (draft = {}) => {
     dueAt: '',
     lateDueAt: '',
     releaseAt: '',
-    assignmentType: 'practice',
-    variantMode: 'shared',
     sectionVariantModes: {},
     sectionAccessDefaults: { classwork: 'open', practice: 'open' },
     guidedNotesBySection: { classwork: 'automatic', practice: 'off' },
@@ -112,7 +118,7 @@ const StepBlockers = ({ blockers }) => {
 };
 
 export const LessonPreflightModal = ({
-  lessonBundle,
+  assignmentV5,
   publicationPlan: suppliedPublicationPlan = null,
   initialDraft = {},
   classPeriods = [],
@@ -124,16 +130,9 @@ export const LessonPreflightModal = ({
   onClose,
   onConfirmPublish,
   busy = false,
+  reviewMode = 'create',
+  allowQuestionRepair = true,
 }) => {
-  const activities = Array.isArray(lessonBundle?.activities) ? lessonBundle.activities : [];
-  const activityRoles = useMemo(() => [...new Set(activities.map((activity) => activity?.role).filter(Boolean))], [activities]);
-  const hasAuthoredWarmup = activityRoles.includes('warmup');
-  const hasAuthoredDOL = activityRoles.includes('dol');
-  // Activity sections are the source of truth. `assignmentType` remains in the
-  // saved document only for backwards compatibility with older runtime code.
-  const derivedAssignmentType = activityRoles.some((role) => role === 'warmup' || role === 'classwork')
-    ? 'notesClasswork'
-    : 'practice';
   const isNarrow = useIsNarrow();
   const [draft, setDraft] = useState(() => initialReviewDraft(initialDraft));
   const [activeStep, setActiveStep] = useState('details');
@@ -144,39 +143,46 @@ export const LessonPreflightModal = ({
   const [showDemoControls, setShowDemoControls] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [honorsEnrichmentQuestion, setHonorsEnrichmentQuestion] = useState(null);
+  const [workingAssignmentV5, setWorkingAssignmentV5] = useState(() => assignmentV5);
+  const [repairTargetIndex, setRepairTargetIndex] = useState(null);
+  const [repairInstruction, setRepairInstruction] = useState('');
+  const [repairBusy, setRepairBusy] = useState(false);
+  const [repairMessage, setRepairMessage] = useState('');
 
-  const effectiveBundle = useMemo(() => ({
-    ...lessonBundle,
-    lessonMetadata: {
-      ...lessonBundle?.lessonMetadata,
-      title: draft.title || lessonBundle?.lessonMetadata?.title || 'Untitled Lesson',
-    },
-  }), [lessonBundle, draft.title]);
-
-  // The bundle stores questions per activity; the preview wants them flat, each
-  // still carrying the activity role that decides its delivery mode.
-  const previewQuestions = useMemo(() => activities.flatMap((activity) => (
-    (Array.isArray(activity?.questions) ? activity.questions : []).map((question) => ({
-      ...question,
-      activityRole: question?.activityRole || activity?.role || 'practice',
-    }))
-  )), [activities]);
-
-  const validationReport = useMemo(() => validateLessonBundle(effectiveBundle), [effectiveBundle]);
-  const validationErrors = useMemo(() => [
-    ...(validationReport.criticalErrors || []),
-    ...(validationReport.activityReports || []).flatMap((activity) => (
-      (activity.errors || []).map((error) => `${activity.title || activity.role || 'Activity'}: ${error}`)
-    )),
-  ], [validationReport]);
+  // Teacher review controls edit canonical Assignment V5 directly. The exact
+  // reviewed V5 object is revalidated before it
+  // powers preview, Classroom planning, and final publishing.
+  const reviewedAssignmentV5 = useMemo(
+    () => buildPreflightReviewedAssignmentV5(workingAssignmentV5, draft),
+    [workingAssignmentV5, draft],
+  );
+  const preflightModel = useMemo(
+    () => buildAssignmentV5PreflightModel(reviewedAssignmentV5),
+    [reviewedAssignmentV5],
+  );
+  const effectiveAssignmentV5 = preflightModel.assignmentV5;
+  const publishingIntent = useMemo(() => normalizeLessonPublishingIntentV5({
+    classroom: effectiveAssignmentV5.classroomIntegration,
+    lessonResources: { notesPdf: effectiveAssignmentV5.outputProfiles?.lessonNotesPdf },
+  }, effectiveAssignmentV5.assignment, []), [effectiveAssignmentV5]);
+  const activities = preflightModel.sections;
+  const activityRoles = useMemo(() => [...new Set(activities.map((section) => section?.role).filter(Boolean))], [activities]);
+  const hasAuthoredWarmup = activityRoles.includes('warmup');
+  const hasAuthoredDOL = activityRoles.includes('dol');
+  const previewQuestions = preflightModel.questions;
+  const validationErrors = preflightModel.errors;
+  const questionRepairIssues = useMemo(
+    () => groupQuestionPreflightIssues(validationErrors, previewQuestions),
+    [validationErrors, previewQuestions],
+  );
 
   const computedPublicationPlan = useMemo(() => planClassroomPublication({
-    lessonBundle: effectiveBundle,
+    assignmentV5: effectiveAssignmentV5,
     strategy: draft.publicationStrategy || PUBLICATION_STRATEGIES.HYBRID,
     mainDueDate: draft.dueAt || null,
     homeworkDueDate: draft.homeworkDueAt || null,
     includeWarmupInClassroom: draft.includeWarmupInClassroom === true,
-  }), [effectiveBundle, draft.publicationStrategy, draft.dueAt, draft.homeworkDueAt, draft.includeWarmupInClassroom]);
+  }), [effectiveAssignmentV5, draft.publicationStrategy, draft.dueAt, draft.homeworkDueAt, draft.includeWarmupInClassroom]);
 
   const publicationPlan = suppliedPublicationPlan && !initialDraft.publicationStrategy
     ? suppliedPublicationPlan
@@ -188,15 +194,14 @@ export const LessonPreflightModal = ({
   const currentPolicy = currentActivity ? getEffectiveActivityPolicy(currentActivity.role) : null;
 
   const activeClassChoices = useMemo(() => (Array.isArray(classes) ? classes : []).filter((entry) => entry?.status !== 'archived' && entry?.classId), [classes]);
-  const usesClassEntities = activeClassChoices.length > 0;
-  const rigorDestinations = useMemo(() => {
-    if (!usesClassEntities || !(draft.assignedClassIds || []).length) return splitClassPeriodsByRigor(draft.assignedClassPeriods, courseProfiles);
-    const selected = activeClassChoices.filter((entry) => draft.assignedClassIds.includes(entry.classId));
-    return {
-      standard: selected.filter((entry) => entry.courseLevel !== 'honors').map((entry) => entry.name || entry.period),
-      honors: selected.filter((entry) => entry.courseLevel === 'honors').map((entry) => entry.name || entry.period),
-    };
-  }, [draft.assignedClassIds, draft.assignedClassPeriods, activeClassChoices, usesClassEntities, courseProfiles]);
+  const selectedClassChoices = useMemo(
+    () => activeClassChoices.filter((entry) => (draft.assignedClassIds || []).includes(entry.classId)),
+    [activeClassChoices, draft.assignedClassIds],
+  );
+  const rigorDestinations = useMemo(() => ({
+    standard: selectedClassChoices.filter((entry) => entry.courseLevel !== 'honors').map((entry) => entry.name || entry.period),
+    honors: selectedClassChoices.filter((entry) => entry.courseLevel === 'honors').map((entry) => entry.name || entry.period),
+  }), [selectedClassChoices]);
   const sourceRigorQuestions = useMemo(() => activities.flatMap((activity) => [
     ...(Array.isArray(activity.questions) ? activity.questions.map((question) => ({
       ...question,
@@ -223,8 +228,8 @@ export const LessonPreflightModal = ({
   const readiness = useMemo(() => summarizePreflightReadiness({
     blockers: collectReviewBlockers({ draft, classPeriods, honorsSelected, honorsReport }),
     validationErrors,
-    bundleIsValid: validationReport.isValid,
-  }), [draft, classPeriods, honorsSelected, honorsReport, validationErrors, validationReport.isValid]);
+    bundleIsValid: preflightModel.isValid,
+  }), [draft, classPeriods, honorsSelected, honorsReport, validationErrors, preflightModel.isValid]);
 
   useEffect(() => {
     if (demoActivityIndex >= activities.length) setDemoActivityIndex(Math.max(0, activities.length - 1));
@@ -234,10 +239,101 @@ export const LessonPreflightModal = ({
     if (demoQuestionIndex >= questions.length) setDemoQuestionIndex(Math.max(0, questions.length - 1));
   }, [questions.length, demoQuestionIndex]);
 
-  if (!lessonBundle) return null;
+  if (!assignmentV5) return null;
 
   const setField = (field, value) => setDraft((current) => ({ ...current, [field]: value }));
-  const sectionVariantMode = (role) => draft.sectionVariantModes?.[role] || draft.variantMode || 'shared';
+  const repairIssueForIndex = (questionIndex) => (
+    questionRepairIssues.find((entry) => entry.questionIndex === questionIndex) || null
+  );
+
+  const beginQuestionRepair = (questionIndex) => {
+    if (!allowQuestionRepair) {
+      setRepairMessage('Student records already exist for this assignment. Duplicate the assignment before rewriting question content so historical responses stay attached to what students actually saw.');
+      return;
+    }
+    setRepairTargetIndex(questionIndex);
+    setRepairInstruction('');
+    setRepairMessage('');
+    if (isNarrow) setActiveStep('check');
+  };
+
+  const repairInstructionText = () => {
+    const issue = repairIssueForIndex(repairTargetIndex);
+    const lines = [
+      'MathMaster found these blockers for this question:',
+      ...(issue?.errors || []).map((message) => `- ${message}`),
+    ];
+    if (String(repairInstruction || '').trim()) {
+      lines.push('', 'Teacher note:', String(repairInstruction).trim());
+    }
+    return lines.join('\n');
+  };
+
+  const copyQuestionRepairRequest = async () => {
+    if (!allowQuestionRepair) return;
+    const issue = repairIssueForIndex(repairTargetIndex);
+    if (!issue?.question) return;
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Clipboard copy is unavailable in this browser.');
+      }
+      const request = buildQuestionRepairRequest({
+        assignment: effectiveAssignmentV5,
+        question: issue.question,
+        instruction: repairInstructionText(),
+        questionNumber: issue.questionNumber,
+      });
+      await navigator.clipboard.writeText(request);
+      setRepairMessage('Repair request copied. Paste it into your AI, copy the replacement question, then return here.');
+    } catch (error) {
+      setRepairMessage(error.message);
+    }
+  };
+
+  const pasteQuestionRepairReplacement = async () => {
+    if (!allowQuestionRepair) return;
+    const issue = repairIssueForIndex(repairTargetIndex);
+    if (!issue?.question) return;
+    setRepairBusy(true);
+    setRepairMessage('');
+    try {
+      if (!navigator.clipboard?.readText) {
+        throw new Error('Clipboard paste is unavailable in this browser.');
+      }
+      const raw = await navigator.clipboard.readText();
+      const replacement = parseQuestionRepairResponse(raw);
+      const candidate = replaceQuestionAtFlatIndex(
+        effectiveAssignmentV5,
+        repairTargetIndex,
+        replacement,
+      );
+      const candidateModel = buildAssignmentV5PreflightModel(candidate);
+      const afterGroups = groupQuestionPreflightIssues(candidateModel.errors, candidateModel.questions);
+      const afterTarget = afterGroups.find((entry) => entry.questionIndex === repairTargetIndex);
+      if (afterTarget?.errors?.length) {
+        throw new Error(`The replacement still has blockers:\n${afterTarget.errors.join('\n')}`);
+      }
+      const newErrors = newlyIntroducedPreflightErrors(validationErrors, candidateModel.errors);
+      if (newErrors.length) {
+        throw new Error(`The replacement introduced a new assignment blocker:\n${newErrors.join('\n')}`);
+      }
+      setWorkingAssignmentV5(candidateModel.assignmentV5);
+      setRepairTargetIndex(null);
+      setRepairInstruction('');
+      setRepairMessage(`Question ${issue.questionNumber} replacement accepted. MathMaster rechecked the assignment.`);
+    } catch (error) {
+      setRepairMessage(error.message);
+    } finally {
+      setRepairBusy(false);
+    }
+  };
+
+  const sectionVariantMode = (role) => (
+    draft.sectionVariantModes?.[role]
+    || assignmentV5?.variantPolicy?.sectionModes?.[role]
+    || assignmentV5?.variantPolicy?.mode
+    || 'shared'
+  );
   const setSectionVariantMode = (role, value) => setDraft((current) => ({
     ...current,
     sectionVariantModes: { ...(current.sectionVariantModes || {}), [role]: value },
@@ -253,15 +349,22 @@ export const LessonPreflightModal = ({
     ...current,
     guidedNotesBySection: { ...(current.guidedNotesBySection || {}), [role]: value },
   }));
-  const resolvedSectionVariantModes = Object.fromEntries(activityRoles.map((role) => [role, sectionVariantMode(role)]));
-  // The assignment-level value is a COMPATIBILITY field for readers that predate
-  // per-section modes. It must never report 'shared' for a bundle that is not
-  // shared, and it reports 'adaptive' only when a section genuinely is — an old
-  // reader seeing 'adaptive' falls back to variant behaviour, which is right.
-  const sectionModeValues = Object.values(resolvedSectionVariantModes);
-  const legacyVariantMode = sectionModeValues.every((mode) => mode === 'shared')
-    ? 'shared'
-    : sectionModeValues.some((mode) => mode === 'adaptive') ? 'adaptive' : 'personalized';
+  const outputProfileEnabled = (key) => (
+    draft.outputProfiles?.[key]?.enabled
+    ?? assignmentV5?.outputProfiles?.[key]?.enabled
+    ?? true
+  );
+  const setOutputProfileEnabled = (key, enabled) => setDraft((current) => ({
+    ...current,
+    outputProfiles: {
+      ...(current.outputProfiles || assignmentV5?.outputProfiles || {}),
+      [key]: {
+        ...(assignmentV5?.outputProfiles?.[key] || {}),
+        ...(current.outputProfiles?.[key] || {}),
+        enabled,
+      },
+    },
+  }));
   const localToday = (() => {
     const date = new Date();
     const year = date.getFullYear();
@@ -304,16 +407,6 @@ export const LessonPreflightModal = ({
     };
   });
   const toggleClassChoice = (classRecord) => {
-    if (!usesClassEntities) {
-      const period = classRecord.period;
-      setDraft((current) => ({
-        ...current,
-        assignedClassPeriods: current.assignedClassPeriods.includes(period)
-          ? current.assignedClassPeriods.filter((item) => item !== period)
-          : [...current.assignedClassPeriods, period],
-      }));
-      return;
-    }
     const currentIds = draft.assignedClassIds || [];
     setSelectedClassIds(currentIds.includes(classRecord.classId)
       ? currentIds.filter((item) => item !== classRecord.classId)
@@ -321,6 +414,7 @@ export const LessonPreflightModal = ({
   };
 
   const canCreate = readiness.canCreate && !busy;
+  const isUpdateMode = reviewMode === 'update';
   // The button says which of the two actions it performs. A teacher who has
   // selected no class is saving to the library, and the label should not
   // promise them an assignment their students will receive.
@@ -346,17 +440,17 @@ export const LessonPreflightModal = ({
   const renderDetails = () => (
     <section aria-label="Details">
       {isNarrow && <StepBlockers blockers={blockersForStep(readiness, 'details')} />}
-      <RepresentationAudit questions={sourceQuestions} warnings={authoringWarnings} />
-      <SectionBalanceRigorAudit lessonBundle={effectiveBundle} />
+      <RepresentationAudit questions={previewQuestions} warnings={authoringWarnings} />
+      <SectionBalanceRigorAudit assignmentV5={effectiveAssignmentV5} />
 
       <div style={{ padding: '12px 14px', marginBottom: 16, background: '#e8f0fe', color: '#174ea6', border: '1px solid #aecbfa', borderRadius: 9, fontSize: 13, lineHeight: 1.5 }}>
         <strong>AI-prepared Classroom and notes package.</strong> MathMaster carries the AI-written topic, post text, grade-passback settings, and 1–2 page student-notes plan into the saved lesson. The teacher still chooses classes and dates here before anything is published.
-        {(draft.classroomPackage || draft.lessonResources?.notesPdf) && (
+        {(publishingIntent.classroomPackage || publishingIntent.lessonResources?.notesPdf) && (
           <div style={{ marginTop: 9, padding: '9px 10px', borderRadius: 8, background: '#fff', border: '1px solid #c5d5ef', color: '#3c4043' }}>
-            <div><strong>Classroom topic:</strong> {draft.classroomPackage?.topic?.name || 'MathMaster will infer this from the folder.'}</div>
-            <div><strong>Assignment post:</strong> {draft.classroomPackage?.assignmentPost?.title || draft.title || 'Prepared from the lesson title'}</div>
-            {draft.lessonResources?.notesPdf && <div><strong>Student notes PDF:</strong> {draft.lessonResources.notesPdf.title || 'Student Notes'} · {Number(draft.lessonResources.notesPdf.targetPages) === 1 ? 1 : 2} page target · {(draft.lessonResources.notesPdf.sections || []).length} authored section{(draft.lessonResources.notesPdf.sections || []).length === 1 ? '' : 's'}</div>}
-            {draft.classroomPackage?.resourcesPost?.enabled !== false && <div><strong>Resources post:</strong> {draft.classroomPackage?.resourcesPost?.postingMode === 'attachToAssignment' ? 'attach resources to the graded assignment' : 'separate Notes & Resources material post'}</div>}
+            <div><strong>Classroom topic:</strong> {publishingIntent.classroomPackage?.topic?.name || 'MathMaster will infer this from the folder.'}</div>
+            <div><strong>Assignment post:</strong> {publishingIntent.classroomPackage?.assignmentPost?.title || draft.title || 'Prepared from the lesson title'}</div>
+            {publishingIntent.lessonResources?.notesPdf && <div><strong>Student notes PDF:</strong> {publishingIntent.lessonResources.notesPdf.title || 'Student Notes'} · {Number(publishingIntent.lessonResources.notesPdf.targetPages) === 1 ? 1 : 2} page target · {(publishingIntent.lessonResources.notesPdf.sections || []).length} authored section{(publishingIntent.lessonResources.notesPdf.sections || []).length === 1 ? '' : 's'}</div>}
+            {publishingIntent.classroomPackage?.resourcesPost?.enabled !== false && <div><strong>Resources post:</strong> {publishingIntent.classroomPackage?.resourcesPost?.postingMode === 'attachToAssignment' ? 'attach resources to the graded assignment' : 'separate Notes & Resources material post'}</div>}
           </div>
         )}
       </div>
@@ -378,17 +472,18 @@ export const LessonPreflightModal = ({
       <fieldset style={{ ...fieldsetStyle, marginTop: 0 }}>
         <legend style={legendStyle}>Assign to MathMaster classes</legend>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 11 }}>
-          <button type="button" onClick={() => usesClassEntities
-            ? setSelectedClassIds(activeClassChoices.map((entry) => entry.classId))
-            : setField('assignedClassPeriods', [...classPeriods])} style={{ minHeight: 44, padding: '7px 13px' }}>Select all</button>
-          <button type="button" onClick={() => usesClassEntities ? setSelectedClassIds([]) : setField('assignedClassPeriods', [])} style={{ minHeight: 44, padding: '7px 13px' }}>Clear</button>
-          <span style={{ alignSelf: 'center', color: '#5f6368', fontSize: 12 }}>{usesClassEntities ? (draft.assignedClassIds || []).length : draft.assignedClassPeriods.length} selected</span>
+          <button type="button" onClick={() => setSelectedClassIds(activeClassChoices.map((entry) => entry.classId))} disabled={!activeClassChoices.length} style={{ minHeight: 44, padding: '7px 13px' }}>Select all</button>
+          <button type="button" onClick={() => setSelectedClassIds([])} style={{ minHeight: 44, padding: '7px 13px' }}>Clear</button>
+          <span style={{ alignSelf: 'center', color: '#5f6368', fontSize: 12 }}>{(draft.assignedClassIds || []).length} selected</span>
         </div>
+        {!activeClassChoices.length && (
+          <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: '#fff4ce', color: '#7a4f00', fontSize: 12 }}>
+            No active MathMaster classes are available. Save this assignment to the Library, then create or restore a class before assigning it.
+          </div>
+        )}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          {(usesClassEntities ? activeClassChoices : classPeriods.map((period) => ({ classId: null, name: period, period }))).map((classRecord) => {
-            const selected = usesClassEntities
-              ? (draft.assignedClassIds || []).includes(classRecord.classId)
-              : draft.assignedClassPeriods.includes(classRecord.period);
+          {activeClassChoices.map((classRecord) => {
+            const selected = (draft.assignedClassIds || []).includes(classRecord.classId);
             return (
               <label key={classRecord.classId || classRecord.period} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 14px', background: selected ? '#e8f0fe' : '#fff', border: '1px solid #c5d5ef', borderRadius: 999, fontWeight: 800, cursor: 'pointer' }}>
                 <input type="checkbox" style={checkboxStyle} checked={selected} onChange={() => toggleClassChoice(classRecord)} />
@@ -397,7 +492,7 @@ export const LessonPreflightModal = ({
             );
           })}
         </div>
-        {usesClassEntities && <div style={{ marginTop: 9, color: '#5f6368', fontSize: 12 }}>Assignments are targeted by class ID. Period is kept only for bell-schedule timing and legacy compatibility.</div>}
+        <div style={{ marginTop: 9, color: '#5f6368', fontSize: 12 }}>Assignments are targeted by MathMaster class ID. Period is derived from the selected class only for bell-schedule timing.</div>
       </fieldset>
 
       <fieldset style={{ ...fieldsetStyle, border: `1px solid ${honorsSelected ? '#c7a9ea' : '#d8dde6'}`, background: honorsSelected ? '#fcf9ff' : '#fff' }}>
@@ -413,12 +508,12 @@ export const LessonPreflightModal = ({
         ].map(([key, label]) => <div key={key} style={{ padding: '8px 10px', borderRadius: 8, background: honorsReport.checks[key] ? '#e6f4ea' : '#fff4ce', color: honorsReport.checks[key] ? '#137333' : '#7a4f00', fontWeight: 800, fontSize: 12 }}>{honorsReport.checks[key] ? '✓' : '!'} {label}</div>)}</div>}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.checks.ccmrEnrichment && (
           <div style={{ marginTop: 11, padding: '11px 13px', borderRadius: 9, background: '#fff4ce', border: '1px solid #f0d489', color: '#7a4f00', fontSize: 12.5, lineHeight: 1.55 }}>
-            <strong>Authentic CCMR Practice is still needed.</strong> For a full Honors assignment, include at least one independent Practice question deliberately written in Digital SAT, ACT, TSIA2, or ASVAB style and aligned to mathematics actually taught in this lesson. MathMaster will not invent or relabel an ordinary course question here. The AI authoring contract now requires this when you ask for Honors work.
+            <strong>Audited CCMR Practice will be sourced at publish.</strong> Because an Honors destination is selected, MathMaster will replace matching Practice work with an audited CCMR Fidelity V2.1 family on the same lesson TEKS. Standard destinations keep the regular course Practice. Exam-looking wording by itself never counts as authentic CCMR.
           </div>
         )}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.isHonorsReady && honorsReport.missing.some((key) => key !== 'ccmrEnrichment') && <button type="button" onClick={() => {
-          const firstHonorsPeriod = rigorDestinations.honors[0];
-          setHonorsEnrichmentQuestion(buildHonorsEnrichmentQuestion({ questions: sourceRigorQuestions, course: courseProfiles?.[firstHonorsPeriod]?.course || 'algebra1' }));
+          const firstHonorsClass = selectedClassChoices.find((entry) => entry.courseLevel === 'honors');
+          setHonorsEnrichmentQuestion(buildHonorsEnrichmentQuestion({ questions: sourceRigorQuestions, course: firstHonorsClass?.course || 'algebra1' }));
         }} style={{ marginTop: 12, minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: '#6f2da8', color: '#fff', fontWeight: 900 }}>Build Honors Depth Extension</button>}
         {honorsEnrichmentQuestion && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#e6f4ea', color: '#137333', fontSize: 12 }}><strong>MathMaster depth extension prepared.</strong> It strengthens modeling/justification for the Honors destination, but it does not substitute for an authentic CCMR-style Practice item.</div>}
         {honorsSelected && honorsReport.isHonorsReady && !honorsReport.isNarrowCheckpoint && !honorsEnrichmentQuestion && <div style={{ marginTop: 10, color: '#137333', fontWeight: 800, fontSize: 12 }}>✓ Source assignment already satisfies the Honors contract; MathMaster will not rewrite it.</div>}
@@ -433,20 +528,17 @@ export const LessonPreflightModal = ({
       <div style={{ padding: '13px 15px', marginBottom: 14, border: '1px solid #c5d5ef', borderRadius: 10, background: '#f8fbff' }}>
         <strong style={{ color: '#174ea6' }}>Activity sections control student behavior</strong>
         <p style={{ margin: '6px 0 8px', color: '#3c4043', lineHeight: 1.5 }}>
-          Warm-Up, Classwork, Practice, DOL, Quiz, and Test behavior comes from the activity roles authored in the JSON. You no longer need to choose a second Classwork/Practice designation here.
+          Warm-Up, Classwork, Practice, DOL, Quiz, and Test behavior comes from the sections already built into the assignment. You no longer need to choose a second Classwork/Practice designation here.
         </p>
         <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
           {activityRoles.map((role) => <span key={role} style={{ padding: '5px 9px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6', fontSize: 11, fontWeight: 900 }}>{humanRole(role)}</span>)}
         </div>
-        <p style={{ margin: '8px 0 0', color: '#5f6368', fontSize: 11 }}>
-          Compatibility field saved automatically: {derivedAssignmentType === 'notesClasswork' ? 'notesClasswork' : 'practice'}.
-        </p>
       </div>
 
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Question versions by section</legend>
         <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
-          Choose independently for each bundled section. <strong>Same questions</strong> gives everyone the
+          Choose independently for each assignment section. <strong>Same questions</strong> gives everyone the
           identical version. <strong>Different versions</strong> keeps the task, the depth and the complexity
           identical and changes only the numbers. <strong>Pitched to the student</strong> keeps the standard you
           assigned and lets MathMaster move complexity and depth by one step, using what each student has
@@ -485,11 +577,7 @@ export const LessonPreflightModal = ({
         */}
         <div style={{ marginTop: 16 }}>
           <AdaptivePreview
-            assignment={{
-              ...draft,
-              variantMode: legacyVariantMode,
-              sectionVariantModes: resolvedSectionVariantModes,
-            }}
+            assignment={effectiveAssignmentV5}
             questions={previewQuestions}
             courseId={draft?.courseId || 'algebra1'}
             honors={String(draft?.courseLevel || '').toLowerCase() === 'honors'}
@@ -497,11 +585,46 @@ export const LessonPreflightModal = ({
         </div>
       </fieldset>
 
+      <fieldset style={fieldsetStyle}>
+        <legend style={legendStyle}>Printable and shareable outputs</legend>
+        <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
+          PDFs are optional and can be enabled or disabled at any time. Enabling one immediately adds its
+          representation and page-fit safety checks; leaving PDFs off never blocks the digital Library copy.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
+          {[
+            ['studentWorksheetPdf', 'Student worksheet PDF', 'Printable assignment without answers.'],
+            ['teacherWorksheetPdf', 'Teacher copy PDF', 'Answers and available worked solutions.'],
+            ['answerKeyPdf', 'Compact answer key PDF', 'Answer-focused print copy.'],
+            ['lessonNotesPdf', 'Lesson notes PDF', 'Separate notes/resource handout.'],
+          ].map(([key, label, description]) => (
+            <label key={key} style={{
+              display: 'flex', gap: 10, alignItems: 'flex-start', minHeight: 58,
+              padding: 10, border: '1px solid #d8dde6', borderRadius: 8, background: '#fbfdff',
+            }}>
+              <input
+                type="checkbox"
+                style={{ ...checkboxStyle, marginTop: 2 }}
+                checked={outputProfileEnabled(key)}
+                onChange={(event) => setOutputProfileEnabled(key, event.target.checked)}
+              />
+              <span>
+                <strong style={{ display: 'block', color: '#202124' }}>{label}</strong>
+                <span style={{ display: 'block', marginTop: 2, color: '#5f6368', fontSize: 11.5, lineHeight: 1.4 }}>{description}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <div style={{ marginTop: 10, padding: '9px 11px', borderRadius: 8, background: '#f7faff', color: '#526274', fontSize: 12, lineHeight: 1.5 }}>
+          Student IEP/504/EB access supports remain automatic and server-resolved. Changing an output does not change the assessed standard.
+        </div>
+      </fieldset>
+
       {activityRoles.some((role) => ['classwork', 'practice'].includes(role)) && (
         <fieldset style={fieldsetStyle}>
           <legend style={legendStyle}>Guided Notes by section</legend>
           <p style={{ margin: '0 0 12px', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>
-            Guided Notes should teach the mathematics, not narrate the interface. Automatic uses authored notes when present and otherwise builds tool/workflow-aware guidance. Authored only hides the panel unless the JSON includes meaningful notes. Off removes the panel entirely.
+            Guided Notes should teach the mathematics, not narrate the interface. Automatic uses authored notes when present and otherwise builds tool/workflow-aware guidance. Authored only hides the panel unless the assignment includes meaningful notes. Off removes the panel entirely.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12 }}>
             {activityRoles.filter((role) => ['classwork', 'practice'].includes(role)).map((role) => (
@@ -569,7 +692,7 @@ export const LessonPreflightModal = ({
             )}
           </>
         ) : (
-          <p style={{ margin: 0, color: '#5f6368', lineHeight: 1.5 }}>This assignment has no Warm-Up activity section, so no class-start Warm-Up window will be created.</p>
+          <p style={{ margin: 0, color: '#5f6368', lineHeight: 1.5 }}>This assignment has no Warm-Up section, so no class-start Warm-Up window will be created.</p>
         )}
       </fieldset>
 
@@ -598,18 +721,18 @@ export const LessonPreflightModal = ({
             )}
           </>
         ) : (
-          <p style={{ margin: 0, color: '#5f6368', lineHeight: 1.5 }}>This assignment has no DOL activity section, so no timed DOL window will be created.</p>
+          <p style={{ margin: 0, color: '#5f6368', lineHeight: 1.5 }}>This assignment has no DOL section, so no timed DOL window will be created.</p>
         )}
       </fieldset>
 
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Publication plan</legend>
         <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
-          <label style={labelStyle}>Strategy<select value={draft.publicationStrategy} onChange={(event) => setField('publicationStrategy', event.target.value)} style={inputStyle}><option value="hybrid">Hybrid</option><option value="bundle">Bundle</option><option value="split">Split by activity</option></select></label>
+          <label style={labelStyle}>Strategy<select value={draft.publicationStrategy} onChange={(event) => setField('publicationStrategy', event.target.value)} style={inputStyle}><option value="hybrid">Hybrid</option><option value="bundle">Bundle</option><option value="split">Split by section</option></select></label>
           <label style={labelStyle}>Separate homework due date (optional)<input type="datetime-local" value={draft.homeworkDueAt || ''} onChange={(event) => setField('homeworkDueAt', event.target.value)} style={inputStyle} /></label>
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, marginTop: 8, fontWeight: 800 }}><input type="checkbox" style={checkboxStyle} checked={draft.includeWarmupInClassroom === true} onChange={(event) => setField('includeWarmupInClassroom', event.target.checked)} /> Include Warm-Up as a Classroom post</label>
-        <div style={{ marginTop: 8, color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>{publicationPlan.summary} {publicationPlan.omittedWarmupCount ? `${publicationPlan.omittedWarmupCount} Warm-Up activity omitted by default.` : ''}</div>
+        <div style={{ marginTop: 8, color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>{publicationPlan.summary} {publicationPlan.omittedWarmupCount ? `${publicationPlan.omittedWarmupCount} Warm-Up section omitted by default.` : ''}</div>
       </fieldset>
 
       <details style={{ ...fieldsetStyle, padding: 0 }}>
@@ -624,7 +747,7 @@ export const LessonPreflightModal = ({
                 <div style={{ minWidth: 0 }}><strong>{post.title}</strong><div style={{ fontSize: 12, color: '#5f6368' }}>Due {post.dueDate || 'not set'} · {post.maxPoints} pts · {post.gradingMode}</div></div>
               </div>
               <p style={{ color: '#3c4043', margin: '8px 0 10px', lineHeight: 1.5 }}>{post.description}</p>
-              <div style={{ fontSize: 12, padding: '9px 11px', background: '#f8f9fa', borderRadius: 7 }}><strong>Activities:</strong> {post.activities.map((activity) => `${activity.title} (${activity.role})`).join(' + ')}</div>
+              <div style={{ fontSize: 12, padding: '9px 11px', background: '#f8f9fa', borderRadius: 7 }}><strong>Sections:</strong> {post.activities.map((activity) => `${activity.title} (${activity.role})`).join(' + ')}</div>
             </article>
           ))}
         </div>
@@ -634,13 +757,13 @@ export const LessonPreflightModal = ({
 
   const demoControls = (
     <>
-      <label style={{ display: 'block', fontSize: 12, fontWeight: 800, marginBottom: 4 }}>Activity stage</label>
+      <label style={{ display: 'block', fontSize: 12, fontWeight: 800, marginBottom: 4 }}>Section</label>
       <select value={demoActivityIndex} onChange={(event) => { setDemoActivityIndex(Number(event.target.value)); setDemoQuestionIndex(0); }} style={{ ...inputStyle, marginBottom: 14 }}>
-        {activities.map((activity, index) => <option key={activity.activityId} value={index}>{activity.title} ({activity.role.toUpperCase()})</option>)}
+        {activities.map((activity, index) => <option key={activity.id || activity.sectionId} value={index}>{activity.title} ({activity.role.toUpperCase()})</option>)}
       </select>
       {currentPolicy && (
         <div style={{ background: '#fff', padding: 10, borderRadius: 6, border: '1px solid #e0e0e0', marginBottom: 14, fontSize: 12, lineHeight: 1.55 }}>
-          <strong style={{ color: '#1a73e8' }}>Enforced activity policy</strong>
+          <strong style={{ color: '#1a73e8' }}>Enforced section policy</strong>
           <div>Attempts: {currentPolicy.attempts}</div>
           <div>Feedback: <code>{currentPolicy.feedback}</code></div>
           <div>Hints: {currentPolicy.hintsAllowed ? 'Allowed' : 'Disabled'}</div>
@@ -655,8 +778,8 @@ export const LessonPreflightModal = ({
 
   const studentPreview = (
     <>
-      {!currentActivity && <p>No activities are available to preview.</p>}
-      {currentActivity && !currentQuestion && !currentActivity.isModelingLab && <p>This activity has no questions to preview.</p>}
+      {!currentActivity && <p>No sections are available to preview.</p>}
+      {currentActivity && !currentQuestion && !currentActivity.isModelingLab && <p>This section has no questions to preview.</p>}
       {currentActivity?.isModelingLab && <InteractiveModelingLabPlayer rawLabSpec={currentActivity.labDefinition} executionScope="teacherPreview" />}
       {currentQuestion && (
         <>
@@ -668,7 +791,7 @@ export const LessonPreflightModal = ({
             <div style={{ fontSize: 12, color: '#5f6368' }}>Question {demoQuestionIndex + 1} of {questions.length}</div>
           </div>
           <MathMasterToolWrapper
-            key={`${currentActivity.activityId}-${currentQuestion.questionId}-${demoCalculator}-${demoTranslation}`}
+            key={`${currentActivity.id || currentActivity.sectionId}-${currentQuestion.questionId || demoQuestionIndex}-${demoCalculator}-${demoTranslation}`}
             activityRole={currentActivity.role}
             question={currentQuestion}
             student={{ id: 'teacher_preview_user', supportProfile: { accommodations: demoCalculator ? ['calculator'] : [], modifications: [], translationLanguage: demoTranslation } }}
@@ -687,9 +810,79 @@ export const LessonPreflightModal = ({
     <section aria-label="Check">
       {isNarrow && <StepBlockers blockers={blockersForStep(readiness, 'check')} />}
 
+      {questionRepairIssues.length > 0 && (
+        <div style={{ marginBottom: 18, padding: 14, border: '1px solid #f1a5a0', borderRadius: 10, background: '#fff8f7' }}>
+          <strong style={{ color: '#a50e0e' }}>Questions MathMaster can target directly</strong>
+          <p style={{ margin: '5px 0 11px', color: '#5f6368', fontSize: 12.5, lineHeight: 1.5 }}>
+            Each button builds a repair request for only that question. Other assignment blockers stay untouched.
+          </p>
+          {!allowQuestionRepair && (
+            <div style={{ margin: '0 0 11px', padding: '9px 10px', borderRadius: 8, background: '#fef7e0', border: '1px solid #f0d489', color: '#7a4f00', fontSize: 12.5, lineHeight: 1.5 }}>
+              Student records already exist, so question content is locked to preserve historical evidence. Duplicate the assignment to repair or rewrite its questions.
+            </div>
+          )}
+          <div style={{ display: 'grid', gap: 9 }}>
+            {questionRepairIssues.map((issue) => (
+              <div key={issue.questionIndex} style={{ padding: 11, border: '1px solid #ead1ce', borderRadius: 8, background: '#fff' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <div style={{ flex: '1 1 420px', minWidth: 0 }}>
+                    <strong>Question {issue.questionNumber}</strong>
+                    <div style={{ marginTop: 4, color: '#3c4043', fontSize: 12.5, lineHeight: 1.45 }}>
+                      {String(issue.question?.prompt || issue.question?.scenario || issue.question?.title || '').replace(/\s+/g, ' ').slice(0, 180) || 'Question content'}
+                    </div>
+                    <ul style={{ margin: '7px 0 0', paddingLeft: 18, color: '#a50e0e', fontSize: 12, lineHeight: 1.45 }}>
+                      {issue.errors.map((message) => <li key={message}>{message}</li>)}
+                    </ul>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => beginQuestionRepair(issue.questionIndex)}
+                    disabled={!allowQuestionRepair}
+                    title={!allowQuestionRepair ? 'Duplicate the assignment before rewriting question content because student records already exist.' : 'Build a targeted AI repair request for this question.'}
+                    style={{ minHeight: 40, padding: '8px 12px', border: '1px solid #1a73e8', borderRadius: 7, background: '#fff', color: allowQuestionRepair ? '#174ea6' : '#9aa0a6', fontWeight: 800, cursor: allowQuestionRepair ? 'pointer' : 'not-allowed' }}
+                  >
+                    Repair with AI
+                  </button>
+                </div>
+                {repairTargetIndex === issue.questionIndex && (
+                  <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid #eee' }}>
+                    <label style={{ display: 'block', fontWeight: 800, fontSize: 12.5 }}>
+                      Anything else you want the AI to know? <span style={{ fontWeight: 500, color: '#5f6368' }}>(optional)</span>
+                      <textarea
+                        value={repairInstruction}
+                        onChange={(event) => setRepairInstruction(event.target.value)}
+                        placeholder="Example: Keep the graph and same TEKS. The issue is only that an equivalent answer is being rejected."
+                        style={{ display: 'block', width: '100%', minHeight: 82, boxSizing: 'border-box', marginTop: 6, padding: 10, border: '1px solid #bdc7d6', borderRadius: 7, fontFamily: 'inherit', fontSize: 14 }}
+                      />
+                    </label>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
+                      <button type="button" onClick={copyQuestionRepairRequest} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: 0, borderRadius: 7, background: '#1a73e8', color: '#fff', fontWeight: 800 }}>
+                        Copy AI Repair Request
+                      </button>
+                      <button type="button" onClick={pasteQuestionRepairReplacement} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: 0, borderRadius: 7, background: '#188038', color: '#fff', fontWeight: 800 }}>
+                        {repairBusy ? 'Checking…' : 'Paste AI Replacement'}
+                      </button>
+                      <button type="button" onClick={() => { setRepairTargetIndex(null); setRepairInstruction(''); setRepairMessage(''); }} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: '1px solid #cbd1da', borderRadius: 7, background: '#fff', fontWeight: 800 }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {repairMessage && (
+        <div role="status" style={{ marginBottom: 14, padding: '10px 12px', border: '1px solid #c6d8f1', borderRadius: 8, background: '#f8fbff', color: '#3c4043', fontSize: 12.5, lineHeight: 1.45 }}>
+          {repairMessage}
+        </div>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginBottom: 18 }}>
         {activities.map((activity) => (
-          <div key={activity.activityId} style={{ padding: 11, border: '1px solid #d9e2f1', borderRadius: 8, background: '#fbfdff' }}>
+          <div key={activity.id || activity.sectionId} style={{ padding: 11, border: '1px solid #d9e2f1', borderRadius: 8, background: '#fbfdff' }}>
             <strong>{humanRole(activity.role)}</strong>
             <div style={{ fontSize: 12, color: '#5f6368', lineHeight: 1.5 }}>
               {activity.isModelingLab ? `DOK ${activity.labDefinition?.dokLevel || 3} modeling lab` : `${activity.questions.length} question${activity.questions.length === 1 ? '' : 's'}`} · {activity.policy.attemptsAllowed} attempt{activity.policy.attemptsAllowed === 1 ? '' : 's'} · {activity.policy.feedbackMode}
@@ -768,7 +961,7 @@ export const LessonPreflightModal = ({
       >
         <header style={{ padding: isNarrow ? '12px 14px' : '15px 20px', background: '#1a73e8', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
           <div style={{ textAlign: 'left', minWidth: 0 }}>
-            <h3 style={{ margin: 0, fontSize: isNarrow ? 17 : 20 }}>Review before posting</h3>
+            <h3 style={{ margin: 0, fontSize: isNarrow ? 17 : 20 }}>{isUpdateMode ? 'Review assignment setup' : 'Review assignment'}</h3>
             <span style={{ fontSize: 12, opacity: 0.92, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {draft.title || 'Untitled assignment'}{sourceLabel ? ` · ${sourceLabel}` : ''}
             </span>
@@ -834,7 +1027,7 @@ export const LessonPreflightModal = ({
         <footer style={{ padding: isNarrow ? '10px 14px calc(10px + env(safe-area-inset-bottom))' : '13px 18px', borderTop: '1px solid #ccc', background: '#f8f9fa', display: 'flex', flexDirection: isNarrow ? 'column' : 'row', justifyContent: 'space-between', alignItems: isNarrow ? 'stretch' : 'center', gap: 10 }}>
           <span style={{ fontSize: 12, color: readiness.total === 0 ? '#5f6368' : '#a50e0e', textAlign: isNarrow ? 'center' : 'left' }}>
             {readiness.total === 0
-              ? 'Ready to create. Your review overrides the JSON metadata.'
+              ? (isUpdateMode ? 'Ready to save. These reviewed choices will update this assignment.' : 'Ready to create. These reviewed choices are what MathMaster will publish.')
               : `${readiness.total} thing${readiness.total === 1 ? '' : 's'} still to fix${readiness.firstBlockedStep && readiness.firstBlockedStep !== activeStep ? ` — see step ${stepIndex(readiness.firstBlockedStep) + 1}` : ''}.`}
           </span>
 
@@ -846,7 +1039,7 @@ export const LessonPreflightModal = ({
               <button type="button" onClick={onClose} disabled={busy} style={{ flex: 1, minHeight: 48, padding: '10px 16px', fontWeight: 700 }}>Cancel</button>
             )}
             {!isNarrow && (
-              <button type="button" onClick={onClose} disabled={busy} style={{ minHeight: 44, padding: '9px 16px' }}>Back to JSON</button>
+              <button type="button" onClick={onClose} disabled={busy} style={{ minHeight: 44, padding: '9px 16px' }}>{isUpdateMode ? 'Cancel' : 'Back to Creator'}</button>
             )}
 
             {isNarrow && !isLastStep ? (
@@ -860,11 +1053,36 @@ export const LessonPreflightModal = ({
                   // teacher can tap it at all it always does something: create,
                   // or jump to the step that is blocking creation.
                   if (!canCreate) { if (readiness.firstBlockedStep) goToStep(readiness.firstBlockedStep); return; }
-                  onConfirmPublish?.({ draft: { ...draft, assignmentType: derivedAssignmentType, variantMode: legacyVariantMode, sectionVariantModes: resolvedSectionVariantModes, warmupEnabled: hasAuthoredWarmup && draft.warmupEnabled !== false, warmupInstructionDate: resolvedWarmupInstructionDate, warmupInstructionDatesByClassPeriod: resolvedWarmupInstructionDatesByClassPeriod, dolEnabled: hasAuthoredDOL && draft.dolEnabled === true, dolInstructionDate: resolvedDOLInstructionDate, dolInstructionDatesByClassPeriod: resolvedDOLInstructionDatesByClassPeriod, honorsEnrichmentQuestion }, publicationPlan, lessonBundle: effectiveBundle, honorsReport });
+                  onConfirmPublish?.({
+                    draft: {
+                      ...draft,
+                      variantPolicy: effectiveAssignmentV5.variantPolicy,
+                      differentiationPolicy: effectiveAssignmentV5.differentiationPolicy,
+                      supportPolicy: effectiveAssignmentV5.supportPolicy,
+                      toolPolicy: effectiveAssignmentV5.toolPolicy,
+                      deliveryPolicy: effectiveAssignmentV5.deliveryPolicy,
+                      gradingPolicy: effectiveAssignmentV5.gradingPolicy,
+                      evidencePolicy: effectiveAssignmentV5.evidencePolicy,
+                      outputProfiles: effectiveAssignmentV5.outputProfiles,
+                      classroomIntegration: effectiveAssignmentV5.classroomIntegration,
+                      provenance: effectiveAssignmentV5.provenance,
+                      preflight: effectiveAssignmentV5.preflight,
+                      warmupEnabled: hasAuthoredWarmup && draft.warmupEnabled !== false,
+                      warmupInstructionDate: resolvedWarmupInstructionDate,
+                      warmupInstructionDatesByClassPeriod: resolvedWarmupInstructionDatesByClassPeriod,
+                      dolEnabled: hasAuthoredDOL && draft.dolEnabled === true,
+                      dolInstructionDate: resolvedDOLInstructionDate,
+                      dolInstructionDatesByClassPeriod: resolvedDOLInstructionDatesByClassPeriod,
+                      honorsEnrichmentQuestion,
+                    },
+                    publicationPlan,
+                    assignmentV5: effectiveAssignmentV5,
+                    honorsReport,
+                  });
                 }}
                 style={{ flex: isNarrow ? 2 : undefined, minHeight: isNarrow ? 48 : 44, padding: '10px 20px', border: 'none', borderRadius: 8, background: canCreate ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 800 }}
               >
-                {busy ? 'Saving…' : isNarrow ? (action.mode === 'library' ? 'Save' : 'Assign') : action.action}
+                {busy ? 'Saving…' : isUpdateMode ? 'Save Setup' : isNarrow ? (action.mode === 'library' ? 'Save' : 'Assign') : action.action}
               </button>
             )}
           </div>
@@ -872,7 +1090,9 @@ export const LessonPreflightModal = ({
           {/* Why the button says what it says. Without this a teacher who
               forgot to tick a class reads "Save to Library" as a bug. */}
           <div style={{ marginTop: 8, color: '#5f6368', fontSize: 12, lineHeight: 1.5, textAlign: isNarrow ? 'center' : 'right' }}>
-            {action.hint}
+            {isUpdateMode
+              ? 'Updates this assignment after the same MathMaster checks used when it was created. It does not create a second copy.'
+              : action.hint}
           </div>
 
           {isNarrow && !canCreate && !busy && readiness.firstBlockedStep && readiness.firstBlockedStep !== activeStep && (

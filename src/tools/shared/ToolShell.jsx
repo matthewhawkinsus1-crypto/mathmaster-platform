@@ -1,9 +1,38 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import MathText from '../../components/common/MathText.jsx';
+import { focusFirstAnswerControl, isSingleLineAnswerTarget } from '../../platform/interaction/answerEntryUx.js';
 
 export default function ToolShell({ title, subtitle, badge, children, footer }) {
+  const shellRef = useRef(null);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => focusFirstAnswerControl(shellRef.current));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  const handleAnswerEnter = (event) => {
+    if (event.defaultPrevented || event.key !== 'Enter' || event.isComposing) return;
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (!isSingleLineAnswerTarget(event.target)) return;
+
+    const findPrimary = (root) => {
+      if (!root?.querySelectorAll) return null;
+      const explicit = root.querySelector('button[data-primary-answer-action="true"]:not([disabled])');
+      if (explicit) return explicit;
+      return [...root.querySelectorAll('button:not([disabled])')].find((button) => (
+        /^(check|submit|verify|evaluate|lock in|record answer|apply)\b/i.test(String(button.textContent || '').trim())
+      )) || null;
+    };
+
+    const panel = event.target?.closest?.('.mathmaster-tool-panel');
+    const primary = findPrimary(panel) || findPrimary(shellRef.current);
+    if (!primary) return;
+    event.preventDefault();
+    primary.click();
+  };
+
   return (
-    <section className="mathmaster-tool-shell" style={{
+    <section ref={shellRef} onKeyDown={handleAnswerEnter} className="mathmaster-tool-shell" style={{
       // Takes the room it is given, up to a limit generous enough for a
       // coordinate plane beside its controls. The old fixed 980px capped a
       // graph well below the width available on a school Chromebook.
@@ -69,21 +98,21 @@ export const TaskCard = ({ task, steps = [], note = null, question = null }) => 
 
 
   return (
-    <div style={{
+    <div className="mathmaster-tool-task-card" style={{
       border: '1px solid #9bb8e8', borderLeft: '6px solid #1a73e8', borderRadius: 12,
       background: '#f4f8ff', padding: '14px 18px', marginBottom: 18,
     }}>
       {authoredPrompt ? (
-        <>
+        <div className="mathmaster-tool-task-prompt">
           <div style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{promptDiffers ? 'Problem' : 'Your task'}</div>
           <MathText as="p" style={{ margin: '6px 0 0', fontSize: 17, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{authoredPrompt}</MathText>
-        </>
+        </div>
       ) : null}
       {taskText && (!authoredPrompt || promptDiffers) ? (
-        <>
+        <div className="mathmaster-tool-task-directions">
           <div style={{ marginTop: authoredPrompt ? 12 : 0, fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#174ea6' }}>{authoredPrompt ? 'What to do' : 'Your task'}</div>
           <MathText as="p" style={{ margin: '6px 0 0', fontSize: 16, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{taskText}</MathText>
-        </>
+        </div>
       ) : null}
       {steps.length ? (
         <ol style={{ margin: '10px 0 0', paddingLeft: 20, color: '#3c4756', lineHeight: 1.6 }}>

@@ -1,0 +1,49 @@
+name: TSIA2 V2.1 Content Audit
+
+on:
+  push:
+    branches:
+      - ccmr-fidelity-v2-1-authentic-language
+    paths:
+      - 'drafts/ccmr-v2.1/tsia2/**'
+      - 'scripts/build-tsia2-v2-1.mjs'
+      - 'scripts/build-tsia2-production-seed.mjs'
+      - 'scripts/lib/tsia2-production-seed.mjs'
+      - 'src/platform/assessment/examDomainRegistry.js'
+      - 'src/platform/assessment/teksExamCrosswalk.js'
+      - 'src/platform/ccmr/assessmentCrosswalk.js'
+      - 'src/platform/ccmr/assessmentStandardReferences.js'
+      - 'functions/shared/texasStandards.mjs'
+      - 'functions/shared/texasMiddleSchoolStandards.mjs'
+      - 'functions/shared/pathBankRelease.mjs'
+      - 'functions/index.js'
+      - 'firebase.json'
+      - 'tests/platform/tsia2*Content.test.mjs'
+      - '.github/workflows/ccmr-v2-1-tsia2-content-audit.yml'
+  workflow_dispatch:
+
+jobs:
+  content-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run TSIA2 generated-content semantics
+        run: node --test tests/platform/tsia2*Content.test.mjs
+      - name: Check every TSIA2 strand authoring state
+        run: |
+          node scripts/build-tsia2-v2-1.mjs --domain quantitativeReasoning --check
+          node scripts/build-tsia2-v2-1.mjs --domain algebraicReasoning --check
+          node scripts/build-tsia2-v2-1.mjs --domain geometricSpatial --check
+          node scripts/build-tsia2-v2-1.mjs --domain probabilisticStatistical --check
+      - name: Check full TSIA2 V2.1 release
+        run: node scripts/build-tsia2-v2-1.mjs --release --check
+      - name: Check TSIA2 production seed package
+        run: node scripts/build-tsia2-production-seed.mjs --check

@@ -207,6 +207,12 @@ export const teacherAdmin = {
     callable('setStudentAccountStatus')({ studentId, active }).then((result) => result.data || {}),
   permanentlyDeleteStudent: (studentId, confirmation) =>
     callable('permanentlyDeleteStudent')({ studentId, confirmation }).then((result) => result.data || {}),
+  previewPreproductionReset: () =>
+    callable('resetPreproductionTestData')({ dryRun: true }).then((result) => result.data || {}),
+  resetPreproductionTestData: (confirmation) =>
+    callable('resetPreproductionTestData')({ dryRun: false, confirmation }).then((result) => result.data || {}),
+  lockPreproductionResetForProduction: (confirmation) =>
+    callable('lockPreproductionResetForProduction')({ confirmation }).then((result) => result.data || {}),
   listAdminAuditLog: (limit = 40) =>
     callable('listAdminAuditLog')({ limit }).then((result) => result.data || {}),
 };

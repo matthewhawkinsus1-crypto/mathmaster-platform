@@ -4,7 +4,7 @@
 // TWO THINGS THIS POLICY GOT WRONG, both found by auditing the actual content.
 //
 // 1. IT ASKED FOR A DIFFICULTY THAT DOES NOT EXIST. `honorsExtension` requested
-//    band 5, and NOTHING in the 5,186-template bank is authored above band 4.
+//    band 5, and ordinary course templates stop at band 4; CCMR challenge families are a separate assessment pool.
 //    Selection degrades to the nearest band so no session broke, but the policy
 //    was reaching past the end of the content on every extension session, and
 //    the "preferred" band it reported to teachers was one nobody could serve.
