@@ -710,6 +710,8 @@ export default function MultiRelationAlgebra({
           setPendingRelationFlip(null);
           setRelationPicker(null);
           setAbsoluteSplitOpen(false);
+          setAbsoluteSplitStructure(null);
+          setAbsoluteSplitValues(['', '']);
           setMessage({ tone: 'growth', text: 'Last relation step undone.' });
           return current.slice(0, -1);
         });
@@ -1275,6 +1277,7 @@ export default function MultiRelationAlgebra({
     setAbsoluteSplitValues(['', '']);
     setMessage(null);
     setRepresentationCorrect(null);
+    setCandidateChecks({});
   };
 
   const active = relationState.branches?.[activeBranch] || null;
