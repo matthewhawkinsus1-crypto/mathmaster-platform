@@ -15,11 +15,11 @@ import {
 // request and replaces it with two `inversePoint` click parts plus an
 // `inverse-equation` part — the reflect-and-write-the-equation task covered by
 // inverseReflectionExperience.test.mjs. So the fixture stopped exercising the
-// plain typed-value path it exists to check. Asking for the y-intercept keeps
-// the same two guarantees on the code path they belong to.
+// plain typed-value path it exists to check. Asking for the slope keeps the
+// same two guarantees on the code path they belong to.
 const question = {
   type: 'functionInvestigation',
-  prompt: 'Graph f(x)=2x-3, then give its y-intercept.',
+  prompt: 'Graph f(x)=2x-3, then give the slope.',
   functionSpec: { type: 'linear', m: 2, b: -3 },
   pointTasks: [
     { id: 'p0', x: 0, expected: [0, -3] },
@@ -27,11 +27,11 @@ const question = {
   ],
   analysisRequests: [
     {
-      id: 'yIntercept',
-      label: 'Give the y-intercept as an ordered pair.',
+      id: 'slope',
+      label: 'Give the slope of the line.',
       kind: 'value',
       responseMode: 'text',
-      expected: ['(0,-3)'],
+      expected: ['2'],
     },
   ],
 };
@@ -42,7 +42,7 @@ test('secure function-investigation value response is graded from answers, not s
     privateGrading,
     raw: {
       placements: { p0: [0, -3], px: [1, -1] },
-      answers: { yIntercept: '(0,-3)' },
+      answers: { slope: '2' },
       selections: {},
     },
   });
@@ -50,12 +50,12 @@ test('secure function-investigation value response is graded from answers, not s
   assert.equal(result.isCorrect, true);
 });
 
-test('public payload keeps value semantics but does not expose the expected value', () => {
+test('public payload keeps typed-value semantics but does not expose the expected slope', () => {
   const payload = buildPublicToolPayload(question);
   assert.equal(payload.tool.analysisRequests[0].kind, 'value');
-  assert.equal(payload.tool.analysisRequests[0].id, 'yIntercept');
+  assert.equal(payload.tool.analysisRequests[0].id, 'slope');
   assert.equal('expected' in payload.tool.analysisRequests[0], false);
-  assert.equal(JSON.stringify(payload).includes('(0,-3)'), false);
+  assert.equal(JSON.stringify(payload).includes('"expected"'), false);
 });
 
 test('graph renderer preserves value responses as typed answers and supplies ordered-pair keys', () => {
