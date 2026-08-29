@@ -14534,6 +14534,659 @@ mk('A.12B', 'notation-read-as-a-product', {
   feedback: 'That is true of a number beside a bracket, but $f$ is a rule, not a number.',
 });
 
+// ================================================================ A.12E
+// Rearranging a formula for a named variable. The answer is an expression
+// rather than a number in every family, which is what separates this from
+// A.5A: nothing here is solved down to a value.
+//
+// Every family draws its coefficients. A formula written entirely in letters
+// has nothing to vary, so all five would generate one fixed item and share an
+// empty relation graph — five clones of each other by construction.
+
+mk('A.12E', 'rearrange-a-perimeter-formula', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  // Three coefficients rather than two: with two, this family drew the same
+  // relation graph as the motion formula below and the pair read as one task.
+  prompt: 'Solve $P = {{a}}L + {{b}}W + {{c}}$ for $W$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { ab: 'a*b', abc: 'a*b*c' },
+    constraints: ['a!=b', 'b!=c'],
+  },
+  choices: [
+    { label: plain('W = \\frac{P - {{a}}L - {{c}}}{{{b}}}'), correct: true },
+    { label: plain('W = P - {{a}}L - {{c}}'), error: 'forgotFinalStep' },
+    { label: plain('W = \\frac{P}{{{b}}} - {{a}}L - {{c}}'), error: 'partialTotal' },
+    { label: plain('W = \\frac{P - {{a}}L + {{c}}}{{{b}}}'), error: 'signError' },
+  ],
+  reasoning: ['Taking ${{a}}L$ and ${{c}}$ from both sides leaves ${{b}}W = P - {{a}}L - {{c}}$.', 'Dividing by ${{b}}$ then divides the whole of that side, not part of it.'],
+  answerSummary: { headline: 'Undo every addition first, then divide the entire remaining side.', text: 'It is $W = \\frac{P - {{a}}L - {{c}}}{{{b}}}$.' },
+  hint: 'What is ${{b}}W$ worth before anything is divided?',
+  feedback: 'The division has to reach both terms, not just the first.',
+});
+
+mk('A.12E', 'rearrange-a-motion-formula', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Solve $v = {{c}}u + {{a}}t$ for $t$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { ac: 'a*c' },
+    constraints: ['a!=c'],
+  },
+  choices: [
+    { label: plain('t = \\frac{v - {{c}}u}{{{a}}}'), correct: true },
+    { label: plain('t = \\frac{v}{{{a}}} - {{c}}u'), error: 'partialTotal' },
+    { label: plain('t = v - {{c}}u - {{a}}'), error: 'operationInverted' },
+    { label: plain('t = \\frac{v + {{c}}u}{{{a}}}'), error: 'signError' },
+  ],
+  reasoning: ['Taking ${{c}}u$ from both sides leaves ${{a}}t = v - {{c}}u$.', 'Dividing by ${{a}}$ divides the whole of $v - {{c}}u$.'],
+  answerSummary: { headline: 'Isolate the product first, then divide by what multiplies the variable.', text: 'It is $t = \\frac{v - {{c}}u}{{{a}}}$.' },
+  hint: 'What is ${{a}}t$ equal to once ${{c}}u$ is removed?',
+  feedback: 'Dividing before subtracting leaves the $u$ undivided.',
+});
+
+mk('A.12E', 'a-variable-in-the-denominator', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Solve $R = \\frac{{{a}}V}{I}$ for $I$.',
+  generator: {
+    parameters: { a: { type: 'int', min: 2, max: 12 } },
+    derived: { aSq: 'a*a' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('I = \\frac{{{a}}V}{R}'), correct: true },
+    { label: plain('I = {{a}}VR'), error: 'operationInverted' },
+    { label: plain('I = \\frac{R}{{{a}}V}'), error: 'ratioReversed' },
+    { label: plain('I = \\frac{V}{{{a}}R}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Multiplying both sides by $I$ gives $RI = {{a}}V$.', 'Dividing by $R$ then leaves $I = \\frac{{{a}}V}{R}$.'],
+  answerSummary: { headline: 'Clear the variable out of the denominator before isolating it.', text: 'It is $I = \\frac{{{a}}V}{R}$.' },
+  hint: 'What has to happen before $I$ can be moved at all?',
+  feedback: 'Multiplying the two would undo the division twice over.',
+});
+
+mk('A.12E', 'a-charging-formula-turned-round', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A bill follows $T = {{a}}h + {{b}}$, where $h$ is hours. Which formula gives the hours from the bill?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 5, max: 25 },
+      b: { type: 'int', min: 5, max: 40 },
+    },
+    derived: { sum: 'a+b' },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: plain('h = \\frac{T - {{b}}}{{{a}}}'), correct: true },
+    { label: plain('h = \\frac{T}{{{a}}} - {{b}}'), error: 'partialTotal' },
+    { label: plain('h = \\frac{T + {{b}}}{{{a}}}'), error: 'signError' },
+    { label: plain('h = \\frac{T - {{a}}}{{{b}}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The fixed $\\${{b}}$ is removed first, leaving ${{a}}h = T - {{b}}$.', 'Dividing by the hourly ${{a}}$ then gives the hours.'],
+  answerSummary: { headline: 'Take off the fixed charge before dividing by the rate.', text: 'It is $h = \\frac{T - {{b}}}{{{a}}}$.' },
+  hint: 'Which part of the bill does not depend on the hours?',
+  feedback: 'Dividing the whole bill by the rate charges the fixed part by the hour.',
+});
+
+mk('A.12E', 'dividing-only-the-first-term', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Solving $A = {{a}}b + c$ for $b$, a student writes $b = \\frac{A}{{{a}}} + c$. What is wrong?',
+  generator: {
+    parameters: { a: { type: 'int', min: 2, max: 9 } },
+    derived: { twice: '2*a' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'The $c$ must be subtracted before dividing: $b = \\frac{A - c}{{{a}}}$.', correct: true },
+    { label: 'Nothing is wrong, since both sides were divided by ${{a}}$.', error: 'usedGivenValue' },
+    { label: 'The sign is the only error, so it should be $b = \\frac{A}{{{a}}} - c$.', error: 'signError' },
+    { label: 'The formula cannot be rearranged while $c$ has no coefficient.', error: 'operationInverted' },
+  ],
+  reasoning: ['Only $b$ is multiplied by ${{a}}$, so $c$ has to be cleared first.', 'Once $c$ is removed, ${{a}}b = A - c$ and the division reaches both terms.'],
+  answerSummary: { headline: 'Remove what is added before dividing by what multiplies.', text: 'It is $b = \\frac{A - c}{{{a}}}$.' },
+  hint: 'Which term is actually being multiplied by ${{a}}$?',
+  feedback: 'The $c$ was never divided, so it has not been dealt with at all.',
+});
+
+// ================================================================ A2.4D
+// Completing the square to reach vertex form, and reading the vertex off
+// algebraically. The crosswalk allows exactly that and excludes transformation
+// analysis and parameter-effect reasoning, so no family here asks what happens
+// to the graph when a coefficient is changed.
+//
+// A.8A already completes the square on a monic trinomial as one route to
+// solving; these families carry a leading coefficient and end at the vertex.
+
+mk('A2.4D', 'complete-the-square-with-a-leading-coefficient', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Write ${{a}}x^2 + {{b}}x + {{c}}$ in vertex form.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 5 },
+      h: { type: 'int', min: 2, max: 7 },
+      c: { type: 'int', min: 3, max: 40 },
+    },
+    derived: { b: '2*a*h', k: 'c-a*h*h', ahh: 'a*h*h', noA: 'c-h*h', twoH: '2*h' },
+    constraints: ['k!=c', 'k!=noA', 'h!=a', 'h!=c'],
+  },
+  choices: [
+    { label: plain('{{a}}(x + {{h}})^2 + {{k}}'), correct: true },
+    { label: plain('{{a}}(x + {{h}})^2 + {{c}}'), error: 'forgotFinalStep' },
+    { label: plain('{{a}}(x + {{h}})^2 + {{noA}}'), error: 'partialTotal' },
+    { label: plain('{{a}}(x + {{b}})^2 + {{k}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Taking ${{a}}$ out of the first two terms gives ${{a}}(x^2 + {{twoH}}x)$, so half of ${{twoH}}$ is ${{h}}$.', 'The square adds ${{a}} \\times {{h}}^2 = {{ahh}}$, which has to be taken back off: ${{c}} - {{ahh}} = {{k}}$.'],
+  answerSummary: { headline: 'What is added inside the bracket is multiplied by the leading coefficient before it is taken back.', text: 'It is ${{a}}(x + {{h}})^2 + {{k}}$.' },
+  hint: 'How much does completing the square actually add, once the ${{a}}$ outside is counted?',
+  feedback: 'The amount added inside the bracket is multiplied by ${{a}}$ on its way out.',
+});
+
+mk('A2.4D', 'vertex-found-by-completing-the-square', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'symbolic',
+  prompt: 'What is the vertex of $y = {{a}}x^2 - {{b}}x + {{c}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 5 },
+      h: { type: 'int', min: 2, max: 7 },
+      c: { type: 'int', min: 3, max: 40 },
+    },
+    derived: { b: '2*a*h', k: 'c-a*h*h', negH: '0-h', negK: '0-c+a*h*h' },
+    constraints: ['h!=k', 'h!=c', 'k!=c', 'h!=a'],
+  },
+  choices: [
+    { label: plain('({{h}}, {{k}})'), correct: true },
+    { label: plain('({{negH}}, {{k}})'), error: 'signError' },
+    { label: plain('({{h}}, {{c}})'), error: 'forgotFinalStep' },
+    { label: plain('({{k}}, {{h}})'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Completing the square gives ${{a}}(x - {{h}})^2 + {{k}}$.', 'The bracket is zero at $x = {{h}}$, where $y = {{k}}$.'],
+  answerSummary: { headline: 'Vertex form shows the turning point directly, once the square is completed.', text: 'It is $({{h}}, {{k}})$.' },
+  hint: 'What does the expression become once it is written as a square plus a constant?',
+  feedback: 'That is the constant of the original form, not the height at the turning point.',
+});
+
+mk('A2.4D', 'which-trinomial-is-already-a-perfect-square', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which of these is already a perfect square?',
+  generator: {
+    parameters: {
+      h: { type: 'int', min: 2, max: 10 },
+      n: { type: 'int', min: 2, max: 10 },
+      off: { type: 'int', min: 1, max: 6 },
+    },
+    derived: { b: '2*h', hSq: 'h*h', near: 'h*h+off', nb: '2*n', nSq: 'n*n', quad: '4*h*h' },
+    constraints: ['h!=n', 'hSq!=near', 'hSq!=nSq', 'b!=nb', 'near!=quad'],
+  },
+  choices: [
+    { label: plain('x^2 + {{b}}x + {{hSq}}'), correct: true },
+    { label: plain('x^2 + {{b}}x + {{near}}'), error: 'partialTotal' },
+    { label: plain('x^2 + {{b}}x + {{quad}}'), error: 'operationInverted' },
+    { label: plain('x^2 + {{nb}}x + {{hSq}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['A perfect square needs a constant that is the square of half the middle coefficient.', 'Half of ${{b}}$ is ${{h}}$, and ${{h}}^2 = {{hSq}}$.'],
+  answerSummary: { headline: 'The constant must be the square of half the middle coefficient, exactly.', text: 'It is $x^2 + {{b}}x + {{hSq}}$.' },
+  hint: 'Halve each middle coefficient and square it.',
+  feedback: 'That constant is close to the right one but not equal to it.',
+});
+
+mk('A2.4D', 'least-value-of-a-cost-rule', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'interpretation', representation: 'context',
+  prompt: 'A cost follows $C = {{a}}x^2 - {{b}}x + {{c}}$. What is the least cost?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 5 },
+      h: { type: 'int', min: 2, max: 7 },
+      extra: { type: 'int', min: 5, max: 40 },
+    },
+    derived: { b: '2*a*h', ahh: 'a*h*h', c: 'a*h*h+extra', k: 'extra', hh: 'h*h' },
+    constraints: ['k!=c', 'k!=h', 'k!=hh', 'h!=a'],
+  },
+  choices: [
+    { label: plain('{{k}}'), correct: true },
+    { label: plain('{{c}}'), error: 'forgotFinalStep' },
+    { label: plain('{{h}}'), error: 'ratioReversed' },
+    { label: plain('{{hh}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Completing the square gives $C = {{a}}(x - {{h}})^2 + {{k}}$.', 'The square is never negative, so the least cost is ${{k}}$, reached at $x = {{h}}$.'],
+  answerSummary: { headline: 'In vertex form the constant is the least value, not the starting value.', text: 'It is ${{k}}$.' },
+  hint: 'What is the smallest the squared bracket can be?',
+  feedback: 'That is the cost at $x = 0$, which is not where the minimum is.',
+});
+
+mk('A2.4D', 'the-square-completed-without-the-coefficient', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Completing the square on ${{a}}x^2 + {{b}}x + {{c}}$ a student subtracts only ${{hh}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 5 },
+      h: { type: 'int', min: 2, max: 7 },
+      c: { type: 'int', min: 3, max: 40 },
+    },
+    derived: { b: '2*a*h', hh: 'h*h', ahh: 'a*h*h', k: 'c-a*h*h' },
+    constraints: ['hh!=ahh', 'h!=c', 'hh!=c'],
+  },
+  choices: [
+    { label: 'The ${{hh}}$ sits inside a bracket multiplied by ${{a}}$, so ${{ahh}}$ was added and ${{ahh}}$ must come off.', correct: true },
+    { label: 'Nothing is wrong, because ${{hh}}$ is exactly what completes the square.', error: 'usedGivenValue' },
+    { label: 'The amount is right but it should be added rather than subtracted.', error: 'signError' },
+    { label: 'The square cannot be completed at all while ${{a}}$ is not $1$.', error: 'operationInverted' },
+  ],
+  reasoning: ['With ${{a}}$ factored out, adding ${{hh}}$ inside the bracket adds ${{a}} \\times {{hh}} = {{ahh}}$ overall.', 'Balancing therefore takes ${{ahh}}$ back off, leaving a constant of ${{k}}$.'],
+  answerSummary: { headline: 'Anything added inside the bracket is scaled by the coefficient outside it.', text: '${{ahh}}$ must be subtracted, not ${{hh}}$.' },
+  hint: 'How much is really being added once the bracket is multiplied out?',
+  feedback: 'It completes the square inside the bracket, but the bracket is not the whole expression.',
+});
+
+// ================================================================ A2.4F
+// Solving quadratic and square root equations. A.8A already solves quadratics
+// by the Algebra I routes, so three of these five are square root equations,
+// which nothing below this standard touches.
+
+mk('A2.4F', 'solve-a-square-root-equation', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve $\\sqrt{x + {{a}}} = {{b}}$.',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 4, max: 10 },
+      // x is drawn and a follows from it. Drawing a over a fixed range instead
+      // left it below b^2 - a in almost every draw, pinning the key's rank.
+      x: { type: 'int', min: 2, max: 98 },
+    },
+    derived: { a: 'b*b-x', plusA: 'b*b+b*b-x', noSquare: 'b-b*b+x' },
+    constraints: ['x<=b*b-2', 'a>=2', 'a!=b', 'x!=a'],
+  },
+  choices: [
+    { label: plain('{{x}}'), correct: true },
+    { label: plain('{{plusA}}'), error: 'signError' },
+    { label: plain('{{noSquare}}'), error: 'forgotFinalStep' },
+    { label: plain('{{a}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Squaring both sides gives $x + {{a}} = {{b}}^2$.', 'Taking ${{a}}$ off leaves $x = {{x}}$.'],
+  answerSummary: { headline: 'Square both sides to clear the root, then undo what is left.', text: 'It is ${{x}}$.' },
+  hint: 'What is $x + {{a}}$ once the root is cleared?',
+  feedback: 'The root has to be squared away before anything is subtracted.',
+});
+
+mk('A2.4F', 'solve-a-root-with-a-coefficient', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Solve ${{k}}\\sqrt{x} = {{p}}$.',
+  generator: {
+    parameters: {
+      // p = k*r is the crossing choice against a key of r*r, so it lands on
+      // either side as k passes r. The two therefore share a range.
+      k: { type: 'int', min: 3, max: 12 },
+      r: { type: 'int', min: 3, max: 12 },
+    },
+    derived: { p: 'k*r', x: 'r*r', squaredWhole: 'k*r*k*r', divided: 'r' },
+    constraints: ['x!=divided', 'x!=k', 'k!=r'],
+  },
+  choices: [
+    { label: plain('{{x}}'), correct: true },
+    { label: plain('{{divided}}'), error: 'forgotFinalStep' },
+    { label: plain('{{squaredWhole}}'), error: 'orderOfOperations' },
+    { label: plain('{{p}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Dividing by ${{k}}$ first gives $\\sqrt{x} = {{r}}$.', 'Squaring then gives $x = {{x}}$.'],
+  answerSummary: { headline: 'Get the root alone before squaring, or the coefficient is squared too.', text: 'It is ${{x}}$.' },
+  hint: 'What does $\\sqrt{x}$ come to on its own?',
+  feedback: 'Squaring first squares the ${{k}}$ along with the root.',
+});
+
+mk('A2.4F', 'quadratic-with-the-formula', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve ${{a}}x^2 - {{b}}x + {{c}} = 0$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 5 },
+      p: { type: 'int', min: 2, max: 9 },
+      q: { type: 'int', min: 2, max: 9 },
+    },
+    // Roots p and q/a, so the quadratic is a(x - p)(x - q/a) = ax^2 - (ap + q)x + pq.
+    derived: { b: 'a*p+q', c: 'p*q', negP: '0-p' },
+    constraints: ['p!=q', 'b!=c', 'gcd(q,a)==1'],
+  },
+  choices: [
+    { label: plain('x = {{p}} \\text{ or } x = \\frac{{{q}}}{{{a}}}'), correct: true },
+    { label: plain('x = {{negP}} \\text{ or } x = -\\frac{{{q}}}{{{a}}}'), error: 'signError' },
+    { label: plain('x = {{p}} \\text{ or } x = {{q}}'), error: 'forgotFinalStep' },
+    { label: plain('x = {{b}} \\text{ or } x = {{c}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The quadratic factors as $({{a}}x - {{q}})(x - {{p}}) = 0$.', 'Each bracket gives a solution: $x = \\frac{{{q}}}{{{a}}}$ and $x = {{p}}$.'],
+  answerSummary: { headline: 'A leading coefficient puts itself under one of the two solutions.', text: 'They are ${{p}}$ and $\\frac{{{q}}}{{{a}}}$.' },
+  hint: 'What two brackets multiply to give this quadratic?',
+  feedback: 'The ${{a}}$ has to divide one of the roots.',
+});
+
+mk('A2.4F', 'time-from-a-depth-formula', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A depth follows $d = \\sqrt{{{k}}t}$ metres after $t$ minutes. Which formula gives the time from the depth?',
+  generator: {
+    parameters: { k: { type: 'int', min: 2, max: 12 } },
+    derived: { kSq: 'k*k' },
+    constraints: [],
+  },
+  choices: [
+    { label: plain('t = \\frac{d^2}{{{k}}}'), correct: true },
+    { label: plain('t = {{k}}d^2'), error: 'operationInverted' },
+    { label: plain('t = \\frac{d}{{{k}}}'), error: 'forgotFinalStep' },
+    { label: plain('t = \\frac{d^2}{{{kSq}}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Squaring both sides gives $d^2 = {{k}}t$.', 'Dividing by ${{k}}$ leaves $t = \\frac{d^2}{{{k}}}$.'],
+  answerSummary: { headline: 'Square to clear the root, then divide by what multiplies the variable.', text: 'It is $t = \\frac{d^2}{{{k}}}$.' },
+  hint: 'What does $d^2$ come to?',
+  feedback: 'Squaring the right side does not square the ${{k}}$, which is outside the root.',
+});
+
+mk('A2.4F', 'squaring-before-the-root-is-alone', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Solving ${{k}}\\sqrt{x} = {{p}}$ a student squares both sides at once and writes $x = {{pSq}}$. What is wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      r: { type: 'int', min: 3, max: 12 },
+    },
+    derived: { p: 'k*r', pSq: 'k*r*k*r', x: 'r*r', kSq: 'k*k' },
+    constraints: ['k!=r', 'x!=kSq'],
+  },
+  choices: [
+    { label: 'Squaring the left side squares the ${{k}}$ as well, so the ${{k}}$ must be divided out first: $x = {{x}}$.', correct: true },
+    { label: 'Nothing is wrong, since both sides were squared equally.', error: 'usedGivenValue' },
+    { label: 'The answer should be $-{{pSq}}$, because squaring changes the sign.', error: 'signError' },
+    { label: 'The equation cannot be solved while a coefficient sits outside the root.', error: 'operationInverted' },
+  ],
+  reasoning: ['Squaring ${{k}}\\sqrt{x}$ gives ${{kSq}}x$, not $x$.', 'Dividing by ${{k}}$ first leaves $\\sqrt{x} = {{r}}$, so $x = {{x}}$.'],
+  answerSummary: { headline: 'Squaring a side squares everything on it, coefficient included.', text: 'It is $x = {{x}}$.' },
+  hint: 'What does ${{k}}\\sqrt{x}$ come to when it is squared?',
+  feedback: 'Both sides were squared, but the left side had more on it than the root.',
+});
+
+// ================================================================ A2.4G
+// Checking the solutions of a radical equation and spotting an extraneous
+// root. The crosswalk allows exactly that and excludes domain-restriction
+// analysis of the square root family, so no family here reasons about which
+// inputs the function will accept in general.
+
+// The constant under the root is derived from the intended solution rather
+// than drawn: for sqrt(x + a) = x - b to have b + d as a genuine root, a must
+// be d^2 - b - d. The squared equation's other root is then b + 1 - d, which
+// makes the right-hand side negative and so cannot be a solution.
+//
+// The choices are statements rather than the two numbers. Ranked by size the
+// surviving root is the larger one in almost every draw, so a numeric version
+// would be answerable without checking anything — which is the one thing this
+// standard is about.
+mk('A2.4G', 'which-candidate-survives-the-check', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Squaring $\\sqrt{x + {{a}}} = x - {{b}}$ gives ${{good}}$ and ${{bad}}$. Which is a real solution?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 2, max: 8 },
+      d: { type: 'int', min: 3, max: 7 },
+    },
+    derived: { a: 'd*d-b-d', good: 'b+d', bad: 'b+1-d', rhs: 'd' },
+    constraints: ['a>=1', 'good!=bad', 'b!=good', 'b!=bad'],
+  },
+  choices: [
+    { label: 'Only ${{good}}$: it makes the right-hand side ${{rhs}}$, which the root can equal.', correct: true },
+    { label: 'Only ${{bad}}$, because it is the smaller of the two roots.', error: 'usedGivenValue' },
+    { label: 'Both, since both came out of the squared equation.', error: 'operationInverted' },
+    { label: 'Neither, because squaring changed the equation.', error: 'partialTotal' },
+  ],
+  reasoning: ['At $x = {{good}}$ the right-hand side is ${{rhs}}$, and a square root can equal a positive number.', 'At $x = {{bad}}$ the right-hand side is negative, which no square root ever is.'],
+  answerSummary: { headline: 'A root that makes the other side negative cannot be a solution.', text: 'Only ${{good}}$ works.' },
+  hint: 'What does $x - {{b}}$ come to at each candidate?',
+  feedback: 'Coming out of the squared equation is exactly what does not guarantee a solution.',
+});
+
+mk('A2.4G', 'why-squaring-adds-a-root', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Why can squaring both sides of a radical equation produce a root that does not work?',
+  generator: {
+    parameters: { a: { type: 'int', min: 2, max: 20 } },
+    derived: { negA: '0-a', aSq: 'a*a' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'Squaring makes ${{a}}$ and $-{{a}}$ agree, so it accepts values the original rejected.', correct: true },
+    { label: 'Squaring changes the equation into a different one with more terms.', error: 'operationInverted' },
+    { label: 'Squaring is only valid when both sides are already positive numbers.', error: 'partialTotal' },
+    { label: 'Squaring loses a solution rather than adding one.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Two numbers with the same square need not be equal, since one may be negative.', 'The squared equation is therefore satisfied by more values than the original.'],
+  answerSummary: { headline: 'Squaring throws away the sign, which is information the original equation used.', text: 'It accepts values the original ruled out.' },
+  hint: 'What do ${{a}}$ and $-{{a}}$ have in common once they are squared?',
+  feedback: 'Squaring never loses solutions; it only ever adds them.',
+});
+
+mk('A2.4G', 'checking-a-candidate-by-substitution', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'interpretation', representation: 'symbolic',
+  prompt: 'Does $x = {{cand}}$ satisfy $\\sqrt{x + {{a}}} = {{b}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 25 },
+      b: { type: 'int', min: 3, max: 10 },
+      off: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { real: 'b*b-a', cand: 'b*b-a+off', inside: 'b*b+off', rooted: 'b*b+off' },
+    constraints: ['real>=1'],
+  },
+  choices: [
+    { label: 'No: it makes the inside ${{inside}}$, whose root is not ${{b}}$.', correct: true },
+    { label: 'Yes, because ${{cand}}$ is larger than ${{a}}$.', error: 'usedGivenValue' },
+    { label: 'Yes, since squaring ${{b}}$ gives a number close to ${{inside}}$.', error: 'partialTotal' },
+    { label: 'It cannot be checked without solving the equation first.', error: 'operationInverted' },
+  ],
+  reasoning: ['Putting $x = {{cand}}$ in gives $\\sqrt{{{inside}}}$.', 'That is not ${{b}}$, since ${{b}}^2$ is ${{inside}}$ less ${{off}}$.'],
+  answerSummary: { headline: 'A candidate is checked by putting it back into the original equation.', text: 'No, it does not satisfy it.' },
+  hint: 'What number ends up under the root?',
+  feedback: 'Being larger than ${{a}}$ only keeps the root defined; it does not make the equation true.',
+});
+
+mk('A2.4G', 'an-extraneous-root-in-context', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A length satisfies $\\sqrt{L + {{a}}} = L - {{b}}$, and squaring gives ${{good}}$ and ${{bad}}$. Which length is possible?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 2, max: 5 },
+      extra: { type: 'int', min: 1, max: 4 },
+    },
+    // d is kept above b + 1 so the second root is negative, which a length
+    // rules out before any algebraic checking is needed.
+    derived: { d: 'b+1+extra', a: '(b+1+extra)*(b+1+extra)-b-(b+1+extra)', good: 'b+b+1+extra', bad: '0-extra' },
+    constraints: ['a>=1', 'bad<0'],
+  },
+  choices: [
+    { label: 'Only ${{good}}$: a length cannot be ${{bad}}$.', correct: true },
+    { label: 'Only ${{bad}}$, since it is the root the squaring produced first.', error: 'signError' },
+    { label: 'Both, because both satisfy the squared equation.', error: 'partialTotal' },
+    { label: 'Neither, because a length cannot appear under a root.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The second root is negative, and no length is negative.', 'That leaves ${{good}}$, which also makes the right-hand side positive.'],
+  answerSummary: { headline: 'A context can reject a root that the algebra alone would keep.', text: 'Only ${{good}}$ is possible.' },
+  hint: 'Which of the two could a length actually be?',
+  feedback: 'Satisfying the squared equation is not enough for either root.',
+});
+
+mk('A2.4G', 'both-roots-kept-without-checking', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'After squaring $\\sqrt{x + {{a}}} = x - {{b}}$ a student keeps both roots without checking. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 25 },
+      b: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {},
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: 'Squaring can add roots, so each one has to be put back into the original equation.', correct: true },
+    { label: 'Nothing is wrong, because squaring is done to both sides equally.', error: 'usedGivenValue' },
+    { label: 'Both roots are always valid once the equation has been squared correctly.', error: 'operationInverted' },
+    { label: 'The mistake is squaring at all; the root should be isolated instead.', error: 'partialTotal' },
+  ],
+  reasoning: ['The squared equation is satisfied by every solution of the original and sometimes by more.', 'Only substitution back into the original can tell them apart.'],
+  answerSummary: { headline: 'Squaring is not reversible, so every root has to be checked.', text: 'Each root must be tested in the original equation.' },
+  hint: 'Is every solution of the squared equation a solution of the original?',
+  feedback: 'Doing the same thing to both sides is correct here; it is the checking that was skipped.',
+});
+
+// ================================================================ A2.6B
+// Solving a cube root equation by cubing. The crosswalk allows solving one and
+// cubing to undo the root, and excludes transformation analysis of the cube
+// root parent function, so nothing here asks about the shape of its graph.
+//
+// The contrast with A2.4G is the point of two of these: cubing keeps the sign,
+// so a cube root equation produces no extraneous root and needs no checking.
+
+mk('A2.6B', 'solve-a-cube-root-equation', {
+  courseId: 'algebra2',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve $\\sqrt[3]{x + {{a}}} = {{b}}$.',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 3, max: 6 },
+      x: { type: 'int', min: 2, max: 214 },
+    },
+    derived: { a: 'b*b*b-x', plusA: 'b*b*b+b*b*b-x', squared: 'b*b-b*b*b+x' },
+    constraints: ['x<=b*b*b-2', 'a>=2', 'a!=b', 'x!=a'],
+  },
+  choices: [
+    { label: plain('{{x}}'), correct: true },
+    { label: plain('{{plusA}}'), error: 'signError' },
+    { label: plain('{{squared}}'), error: 'exponentError' },
+    { label: plain('{{a}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Cubing both sides gives $x + {{a}} = {{b}}^3$.', 'Taking ${{a}}$ off leaves $x = {{x}}$.'],
+  answerSummary: { headline: 'A cube root is undone by cubing, not by squaring.', text: 'It is ${{x}}$.' },
+  hint: 'What power undoes a cube root?',
+  feedback: 'Squaring undoes a square root; this one needs a cube.',
+});
+
+mk('A2.6B', 'a-cube-root-of-a-negative-value', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which working solves $\\sqrt[3]{x} = -{{b}}$ correctly?',
+  generator: {
+    parameters: { b: { type: 'int', min: 2, max: 8 } },
+    derived: { x: '0-b*b*b', pos: 'b*b*b', sq: 'b*b' },
+    constraints: ['b!=sq'],
+  },
+  choices: [
+    { label: 'Cube both sides: $x = (-{{b}})^3 = {{x}}$.', correct: true },
+    { label: 'Cube both sides and drop the sign: $x = {{pos}}$.', error: 'signError' },
+    { label: 'Square both sides: $x = {{sq}}$.', error: 'exponentError' },
+    { label: 'There is no solution, because a root cannot be negative.', error: 'operationInverted' },
+  ],
+  reasoning: ['A cube root is undone by cubing, and cubing keeps the sign.', 'So $x = (-{{b}})^3 = {{x}}$, which is a genuine solution.'],
+  answerSummary: { headline: 'Cubing undoes a cube root and leaves a negative value negative.', text: 'It is $x = {{x}}$.' },
+  hint: 'What does $-{{b}}$ come to when it is cubed?',
+  feedback: 'That rule holds for square roots; a cube root may be negative.',
+});
+
+mk('A2.6B', 'cube-root-with-a-coefficient', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve ${{k}}\\sqrt[3]{x} = {{p}}$.',
+  generator: {
+    parameters: {
+      // The cube of the coefficient crosses the cube of the root as k passes
+      // r, so the two share a range. k*r against r*r*r sat below the key in
+      // nine draws out of ten.
+      k: { type: 'int', min: 2, max: 8 },
+      r: { type: 'int', min: 2, max: 8 },
+    },
+    derived: { p: 'k*r', x: 'r*r*r', cubedWhole: 'k*r*k*r*k*r', kCubed: 'k*k*k' },
+    constraints: ['k!=r', 'x!=p', 'x!=k'],
+  },
+  choices: [
+    { label: plain('{{x}}'), correct: true },
+    { label: plain('{{cubedWhole}}'), error: 'orderOfOperations' },
+    { label: plain('{{r}}'), error: 'forgotFinalStep' },
+    { label: plain('{{kCubed}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Dividing by ${{k}}$ first gives $\\sqrt[3]{x} = {{r}}$.', 'Cubing then gives $x = {{x}}$.'],
+  answerSummary: { headline: 'Isolate the root before cubing, or the coefficient is cubed too.', text: 'It is ${{x}}$.' },
+  hint: 'What is $\\sqrt[3]{x}$ worth on its own?',
+  feedback: 'Cubing first cubes the ${{k}}$ along with the root.',
+});
+
+mk('A2.6B', 'side-of-a-cubical-tank', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A cubical tank holds ${{v}}$ cubic metres and a second holds ${{k}}$ times as much. What is the side of the second?',
+  generator: {
+    parameters: {
+      // The volume factor crosses the answer as m^2 passes s, so the side
+      // range has to reach up past m squared. A narrower one put the key at
+      // one rank in seven draws out of eight.
+      s: { type: 'int', min: 2, max: 18 },
+      m: { type: 'int', min: 2, max: 4 },
+    },
+    // The volume factor itself crosses the answer as m^2 passes s, which keeps
+    // the key off the bottom; adding it instead sat above the key always.
+    derived: { v: 's*s*s', k: 'm*m*m', side: 's*m', firstSide: 's', timesK: 's*m*m*m' },
+    constraints: ['s!=m', 'side!=k', 'side!=timesK', 'k!=firstSide'],
+  },
+  choices: [
+    { label: plain('{{side}}'), correct: true },
+    { label: plain('{{firstSide}}'), error: 'forgotFinalStep' },
+    { label: plain('{{timesK}}'), error: 'operationInverted' },
+    { label: plain('{{k}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The first side is $\\sqrt[3]{{{v}}} = {{s}}$.', 'Multiplying the volume by ${{k}}$ multiplies the side by $\\sqrt[3]{{{k}}} = {{m}}$, giving ${{side}}$.'],
+  answerSummary: { headline: 'A volume multiplier acts on a side through its cube root.', text: 'It is ${{side}}$ metres.' },
+  hint: 'What does multiplying a volume by ${{k}}$ do to the side?',
+  feedback: 'The side grows by the cube root of the volume factor, not by the factor itself.',
+});
+
+mk('A2.6B', 'a-cube-root-checked-for-extraneous-roots', {
+  courseId: 'algebra2',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student rejects the solution of $\\sqrt[3]{x} = -{{b}}$, saying a root cannot be negative. What is wrong?',
+  generator: {
+    parameters: { b: { type: 'int', min: 2, max: 8 } },
+    derived: { x: '0-b*b*b', pos: 'b*b*b' },
+    constraints: [],
+  },
+  choices: [
+    { label: 'That rule is for square roots. A cube root may be negative, so $x = {{x}}$ stands.', correct: true },
+    { label: 'Nothing is wrong, because no root of any kind is ever negative.', error: 'usedGivenValue' },
+    { label: 'The solution should be ${{pos}}$ instead, with the sign dropped.', error: 'signError' },
+    { label: 'The equation has no solution at all, whatever sign is used.', error: 'operationInverted' },
+  ],
+  reasoning: ['A square root is never negative because no real square is negative.', 'A cube of a negative number is negative, so a cube root of a negative number exists.'],
+  answerSummary: { headline: 'Odd roots keep the sign; even roots do not.', text: 'The solution $x = {{x}}$ is valid.' },
+  hint: 'What is the cube of a negative number?',
+  feedback: 'It holds for square roots, but not for cube roots.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

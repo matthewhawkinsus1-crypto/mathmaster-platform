@@ -59454,6 +59454,2819 @@
      "expected": "choice-d"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_A_12E_rearrange_a_perimeter_formula",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.12E:rearrange-a-perimeter-formula",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12E",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $P = {{a}}L + {{b}}W + {{c}}$ for $W$.",
+   "solutionReview": {
+    "headline": "Undo every addition first, then divide the entire remaining side.",
+    "reasoning": [
+     "Taking ${{a}}L$ and ${{c}}$ from both sides leaves ${{b}}W = P - {{a}}L - {{c}}$.",
+     "Dividing by ${{b}}$ then divides the whole of that side, not part of it."
+    ],
+    "answerSummary": "It is $W = \\frac{P - {{a}}L - {{c}}}{{{b}}}$."
+   },
+   "attemptFeedback": [
+    "The division has to reach both terms, not just the first."
+   ],
+   "supportHints": [
+    "What is ${{b}}W$ worth before anything is divided?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "ab": "a*b",
+     "abc": "a*b*c"
+    },
+    "constraints": [
+     "a!=b",
+     "b!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$W = \\frac{P}{{{b}}} - {{a}}L - {{c}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$W = \\frac{P - {{a}}L + {{c}}}{{{b}}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$W = \\frac{P - {{a}}L - {{c}}}{{{b}}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$W = P - {{a}}L - {{c}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_12E_rearrange_a_motion_formula",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.12E:rearrange-a-motion-formula",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12E",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $v = {{c}}u + {{a}}t$ for $t$.",
+   "solutionReview": {
+    "headline": "Isolate the product first, then divide by what multiplies the variable.",
+    "reasoning": [
+     "Taking ${{c}}u$ from both sides leaves ${{a}}t = v - {{c}}u$.",
+     "Dividing by ${{a}}$ divides the whole of $v - {{c}}u$."
+    ],
+    "answerSummary": "It is $t = \\frac{v - {{c}}u}{{{a}}}$."
+   },
+   "attemptFeedback": [
+    "Dividing before subtracting leaves the $u$ undivided."
+   ],
+   "supportHints": [
+    "What is ${{a}}t$ equal to once ${{c}}u$ is removed?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "ac": "a*c"
+    },
+    "constraints": [
+     "a!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$t = \\frac{v + {{c}}u}{{{a}}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$t = \\frac{v - {{c}}u}{{{a}}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$t = \\frac{v}{{{a}}} - {{c}}u$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$t = v - {{c}}u - {{a}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_12E_a_variable_in_the_denominator",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.12E:a-variable-in-the-denominator",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12E",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $R = \\frac{{{a}}V}{I}$ for $I$.",
+   "solutionReview": {
+    "headline": "Clear the variable out of the denominator before isolating it.",
+    "reasoning": [
+     "Multiplying both sides by $I$ gives $RI = {{a}}V$.",
+     "Dividing by $R$ then leaves $I = \\frac{{{a}}V}{R}$."
+    ],
+    "answerSummary": "It is $I = \\frac{{{a}}V}{R}$."
+   },
+   "attemptFeedback": [
+    "Multiplying the two would undo the division twice over."
+   ],
+   "supportHints": [
+    "What has to happen before $I$ can be moved at all?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "aSq": "a*a"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$I = \\frac{V}{{{a}}R}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$I = \\frac{{{a}}V}{R}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$I = {{a}}VR$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$I = \\frac{R}{{{a}}V}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_12E_a_charging_formula_turned_round",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.12E:a-charging-formula-turned-round",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12E",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A bill follows $T = {{a}}h + {{b}}$, where $h$ is hours. Which formula gives the hours from the bill?",
+   "solutionReview": {
+    "headline": "Take off the fixed charge before dividing by the rate.",
+    "reasoning": [
+     "The fixed $\\${{b}}$ is removed first, leaving ${{a}}h = T - {{b}}$.",
+     "Dividing by the hourly ${{a}}$ then gives the hours."
+    ],
+    "answerSummary": "It is $h = \\frac{T - {{b}}}{{{a}}}$."
+   },
+   "attemptFeedback": [
+    "Dividing the whole bill by the rate charges the fixed part by the hour."
+   ],
+   "supportHints": [
+    "Which part of the bill does not depend on the hours?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 5,
+      "max": 25
+     },
+     "b": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     }
+    },
+    "derived": {
+     "sum": "a+b"
+    },
+    "constraints": [
+     "a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$h = \\frac{T + {{b}}}{{{a}}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$h = \\frac{T}{{{a}}} - {{b}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$h = \\frac{T - {{b}}}{{{a}}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$h = \\frac{T - {{a}}}{{{b}}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_12E_dividing_only_the_first_term",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.12E:dividing-only-the-first-term",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12E",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solving $A = {{a}}b + c$ for $b$, a student writes $b = \\frac{A}{{{a}}} + c$. What is wrong?",
+   "solutionReview": {
+    "headline": "Remove what is added before dividing by what multiplies.",
+    "reasoning": [
+     "Only $b$ is multiplied by ${{a}}$, so $c$ has to be cleared first.",
+     "Once $c$ is removed, ${{a}}b = A - c$ and the division reaches both terms."
+    ],
+    "answerSummary": "It is $b = \\frac{A - c}{{{a}}}$."
+   },
+   "attemptFeedback": [
+    "The $c$ was never divided, so it has not been dealt with at all."
+   ],
+   "supportHints": [
+    "Which term is actually being multiplied by ${{a}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "twice": "2*a"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, since both sides were divided by ${{a}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "The formula cannot be rearranged while $c$ has no coefficient.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The sign is the only error, so it should be $b = \\frac{A}{{{a}}} - c$.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "The $c$ must be subtracted before dividing: $b = \\frac{A - c}{{{a}}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_4D_complete_the_square_with_a_leading_coefficient",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.4D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.4D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.4D:complete-the-square-with-a-leading-coefficient",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.4D",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Write ${{a}}x^2 + {{b}}x + {{c}}$ in vertex form.",
+   "solutionReview": {
+    "headline": "What is added inside the bracket is multiplied by the leading coefficient before it is taken back.",
+    "reasoning": [
+     "Taking ${{a}}$ out of the first two terms gives ${{a}}(x^2 + {{twoH}}x)$, so half of ${{twoH}}$ is ${{h}}$.",
+     "The square adds ${{a}} \\times {{h}}^2 = {{ahh}}$, which has to be taken back off: ${{c}} - {{ahh}} = {{k}}$."
+    ],
+    "answerSummary": "It is ${{a}}(x + {{h}})^2 + {{k}}$."
+   },
+   "attemptFeedback": [
+    "The amount added inside the bracket is multiplied by ${{a}}$ on its way out."
+   ],
+   "supportHints": [
+    "How much does completing the square actually add, once the ${{a}}$ outside is counted?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "c": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     }
+    },
+    "derived": {
+     "b": "2*a*h",
+     "k": "c-a*h*h",
+     "ahh": "a*h*h",
+     "noA": "c-h*h",
+     "twoH": "2*h"
+    },
+    "constraints": [
+     "k!=c",
+     "k!=noA",
+     "h!=a",
+     "h!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}}(x + {{h}})^2 + {{noA}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}(x + {{b}})^2 + {{k}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}(x + {{h}})^2 + {{c}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}(x + {{h}})^2 + {{k}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_4D_vertex_found_by_completing_the_square",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.4D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.4D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.4D:vertex-found-by-completing-the-square",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.4D",
+   "taskType": "application",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the vertex of $y = {{a}}x^2 - {{b}}x + {{c}}$?",
+   "solutionReview": {
+    "headline": "Vertex form shows the turning point directly, once the square is completed.",
+    "reasoning": [
+     "Completing the square gives ${{a}}(x - {{h}})^2 + {{k}}$.",
+     "The bracket is zero at $x = {{h}}$, where $y = {{k}}$."
+    ],
+    "answerSummary": "It is $({{h}}, {{k}})$."
+   },
+   "attemptFeedback": [
+    "That is the constant of the original form, not the height at the turning point."
+   ],
+   "supportHints": [
+    "What does the expression become once it is written as a square plus a constant?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "c": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     }
+    },
+    "derived": {
+     "b": "2*a*h",
+     "k": "c-a*h*h",
+     "negH": "0-h",
+     "negK": "0-c+a*h*h"
+    },
+    "constraints": [
+     "h!=k",
+     "h!=c",
+     "k!=c",
+     "h!=a"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{h}}, {{k}})$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{k}}, {{h}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{h}}, {{c}})$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{negH}}, {{k}})$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_4D_which_trinomial_is_already_a_perfect_square",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.4D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.4D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.4D:which-trinomial-is-already-a-perfect-square",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.4D",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which of these is already a perfect square?",
+   "solutionReview": {
+    "headline": "The constant must be the square of half the middle coefficient, exactly.",
+    "reasoning": [
+     "A perfect square needs a constant that is the square of half the middle coefficient.",
+     "Half of ${{b}}$ is ${{h}}$, and ${{h}}^2 = {{hSq}}$."
+    ],
+    "answerSummary": "It is $x^2 + {{b}}x + {{hSq}}$."
+   },
+   "attemptFeedback": [
+    "That constant is close to the right one but not equal to it."
+   ],
+   "supportHints": [
+    "Halve each middle coefficient and square it."
+   ],
+   "generator": {
+    "parameters": {
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "off": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "b": "2*h",
+     "hSq": "h*h",
+     "near": "h*h+off",
+     "nb": "2*n",
+     "nSq": "n*n",
+     "quad": "4*h*h"
+    },
+    "constraints": [
+     "h!=n",
+     "hSq!=near",
+     "hSq!=nSq",
+     "b!=nb",
+     "near!=quad"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x^2 + {{nb}}x + {{hSq}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x^2 + {{b}}x + {{hSq}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x^2 + {{b}}x + {{near}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x^2 + {{b}}x + {{quad}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_4D_least_value_of_a_cost_rule",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.4D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.4D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.4D:least-value-of-a-cost-rule",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.4D",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cost follows $C = {{a}}x^2 - {{b}}x + {{c}}$. What is the least cost?",
+   "solutionReview": {
+    "headline": "In vertex form the constant is the least value, not the starting value.",
+    "reasoning": [
+     "Completing the square gives $C = {{a}}(x - {{h}})^2 + {{k}}$.",
+     "The square is never negative, so the least cost is ${{k}}$, reached at $x = {{h}}$."
+    ],
+    "answerSummary": "It is ${{k}}$."
+   },
+   "attemptFeedback": [
+    "That is the cost at $x = 0$, which is not where the minimum is."
+   ],
+   "supportHints": [
+    "What is the smallest the squared bracket can be?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "extra": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     }
+    },
+    "derived": {
+     "b": "2*a*h",
+     "ahh": "a*h*h",
+     "c": "a*h*h+extra",
+     "k": "extra",
+     "hh": "h*h"
+    },
+    "constraints": [
+     "k!=c",
+     "k!=h",
+     "k!=hh",
+     "h!=a",
+     "c!=h",
+     "c!=hh",
+     "h!=hh"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{k}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{hh}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{h}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{c}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_4D_the_square_completed_without_the_coefficient",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.4D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.4D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.4D:the-square-completed-without-the-coefficient",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.4D",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Completing the square on ${{a}}x^2 + {{b}}x + {{c}}$ a student subtracts only ${{hh}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Anything added inside the bracket is scaled by the coefficient outside it.",
+    "reasoning": [
+     "With ${{a}}$ factored out, adding ${{hh}}$ inside the bracket adds ${{a}} \\times {{hh}} = {{ahh}}$ overall.",
+     "Balancing therefore takes ${{ahh}}$ back off, leaving a constant of ${{k}}$."
+    ],
+    "answerSummary": "${{ahh}}$ must be subtracted, not ${{hh}}$."
+   },
+   "attemptFeedback": [
+    "It completes the square inside the bracket, but the bracket is not the whole expression."
+   ],
+   "supportHints": [
+    "How much is really being added once the bracket is multiplied out?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "c": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     }
+    },
+    "derived": {
+     "b": "2*a*h",
+     "hh": "h*h",
+     "ahh": "a*h*h",
+     "k": "c-a*h*h"
+    },
+    "constraints": [
+     "hh!=ahh",
+     "h!=c",
+     "hh!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The amount is right but it should be added rather than subtracted.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong, because ${{hh}}$ is exactly what completes the square.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The ${{hh}}$ sits inside a bracket multiplied by ${{a}}$, so ${{ahh}}$ was added and ${{ahh}}$ must come off."
+    },
+    {
+     "id": "choice-d",
+     "label": "The square cannot be completed at all while ${{a}}$ is not $1$.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_4F_solve_a_square_root_equation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.4F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.4F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.4F:solve-a-square-root-equation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.4F",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $\\sqrt{x + {{a}}} = {{b}}$.",
+   "solutionReview": {
+    "headline": "Square both sides to clear the root, then undo what is left.",
+    "reasoning": [
+     "Squaring both sides gives $x + {{a}} = {{b}}^2$.",
+     "Taking ${{a}}$ off leaves $x = {{x}}$."
+    ],
+    "answerSummary": "It is ${{x}}$."
+   },
+   "attemptFeedback": [
+    "The root has to be squared away before anything is subtracted."
+   ],
+   "supportHints": [
+    "What is $x + {{a}}$ once the root is cleared?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 4,
+      "max": 10
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 98
+     }
+    },
+    "derived": {
+     "a": "b*b-x",
+     "plusA": "b*b+b*b-x",
+     "noSquare": "b-b*b+x"
+    },
+    "constraints": [
+     "x<=b*b-2",
+     "a>=2",
+     "a!=b",
+     "x!=a",
+     "x!=plusA",
+     "x!=noSquare",
+     "plusA!=noSquare",
+     "plusA!=a",
+     "noSquare!=a"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{x}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{plusA}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{noSquare}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_4F_solve_a_root_with_a_coefficient",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.4F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.4F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.4F:solve-a-root-with-a-coefficient",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.4F",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve ${{k}}\\sqrt{x} = {{p}}$.",
+   "solutionReview": {
+    "headline": "Get the root alone before squaring, or the coefficient is squared too.",
+    "reasoning": [
+     "Dividing by ${{k}}$ first gives $\\sqrt{x} = {{r}}$.",
+     "Squaring then gives $x = {{x}}$."
+    ],
+    "answerSummary": "It is ${{x}}$."
+   },
+   "attemptFeedback": [
+    "Squaring first squares the ${{k}}$ along with the root."
+   ],
+   "supportHints": [
+    "What does $\\sqrt{x}$ come to on its own?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "r": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     }
+    },
+    "derived": {
+     "p": "k*r",
+     "x": "r*r",
+     "squaredWhole": "k*r*k*r",
+     "divided": "r"
+    },
+    "constraints": [
+     "x!=divided",
+     "x!=k",
+     "k!=r",
+     "x!=squaredWhole",
+     "x!=p",
+     "divided!=squaredWhole",
+     "divided!=p",
+     "squaredWhole!=p"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{divided}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{p}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{squaredWhole}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{x}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_4F_quadratic_with_the_formula",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.4F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.4F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.4F:quadratic-with-the-formula",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.4F",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve ${{a}}x^2 - {{b}}x + {{c}} = 0$.",
+   "solutionReview": {
+    "headline": "A leading coefficient puts itself under one of the two solutions.",
+    "reasoning": [
+     "The quadratic factors as $({{a}}x - {{q}})(x - {{p}}) = 0$.",
+     "Each bracket gives a solution: $x = \\frac{{{q}}}{{{a}}}$ and $x = {{p}}$."
+    ],
+    "answerSummary": "They are ${{p}}$ and $\\frac{{{q}}}{{{a}}}$."
+   },
+   "attemptFeedback": [
+    "The ${{a}}$ has to divide one of the roots."
+   ],
+   "supportHints": [
+    "What two brackets multiply to give this quadratic?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "b": "a*p+q",
+     "c": "p*q",
+     "negP": "0-p"
+    },
+    "constraints": [
+     "p!=q",
+     "b!=c",
+     "gcd(q,a)==1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x = {{p}} \\text{ or } x = \\frac{{{q}}}{{{a}}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x = {{p}} \\text{ or } x = {{q}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x = {{negP}} \\text{ or } x = -\\frac{{{q}}}{{{a}}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x = {{b}} \\text{ or } x = {{c}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_4F_time_from_a_depth_formula",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.4F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.4F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.4F:time-from-a-depth-formula",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.4F",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A depth follows $d = \\sqrt{{{k}}t}$ metres after $t$ minutes. Which formula gives the time from the depth?",
+   "solutionReview": {
+    "headline": "Square to clear the root, then divide by what multiplies the variable.",
+    "reasoning": [
+     "Squaring both sides gives $d^2 = {{k}}t$.",
+     "Dividing by ${{k}}$ leaves $t = \\frac{d^2}{{{k}}}$."
+    ],
+    "answerSummary": "It is $t = \\frac{d^2}{{{k}}}$."
+   },
+   "attemptFeedback": [
+    "Squaring the right side does not square the ${{k}}$, which is outside the root."
+   ],
+   "supportHints": [
+    "What does $d^2$ come to?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "kSq": "k*k"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$t = {{k}}d^2$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$t = \\frac{d^2}{{{kSq}}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$t = \\frac{d}{{{k}}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$t = \\frac{d^2}{{{k}}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_4F_squaring_before_the_root_is_alone",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.4F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.4F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.4F:squaring-before-the-root-is-alone",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.4F",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solving ${{k}}\\sqrt{x} = {{p}}$ a student squares both sides at once and writes $x = {{pSq}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Squaring a side squares everything on it, coefficient included.",
+    "reasoning": [
+     "Squaring ${{k}}\\sqrt{x}$ gives ${{kSq}}x$, not $x$.",
+     "Dividing by ${{k}}$ first leaves $\\sqrt{x} = {{r}}$, so $x = {{x}}$."
+    ],
+    "answerSummary": "It is $x = {{x}}$."
+   },
+   "attemptFeedback": [
+    "Both sides were squared, but the left side had more on it than the root."
+   ],
+   "supportHints": [
+    "What does ${{k}}\\sqrt{x}$ come to when it is squared?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "r": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     }
+    },
+    "derived": {
+     "p": "k*r",
+     "pSq": "k*r*k*r",
+     "x": "r*r",
+     "kSq": "k*k"
+    },
+    "constraints": [
+     "k!=r",
+     "x!=kSq"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Squaring the left side squares the ${{k}}$ as well, so the ${{k}}$ must be divided out first: $x = {{x}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "The answer should be $-{{pSq}}$, because squaring changes the sign.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "The equation cannot be solved while a coefficient sits outside the root.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, since both sides were squared equally.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_4G_which_candidate_survives_the_check",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.4G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.4G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.4G:which-candidate-survives-the-check",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.4G",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Squaring $\\sqrt{x + {{a}}} = x - {{b}}$ gives ${{good}}$ and ${{bad}}$. Which is a real solution?",
+   "solutionReview": {
+    "headline": "A root that makes the other side negative cannot be a solution.",
+    "reasoning": [
+     "At $x = {{good}}$ the right-hand side is ${{rhs}}$, and a square root can equal a positive number.",
+     "At $x = {{bad}}$ the right-hand side is negative, which no square root ever is."
+    ],
+    "answerSummary": "Only ${{good}}$ works."
+   },
+   "attemptFeedback": [
+    "Coming out of the squared equation is exactly what does not guarantee a solution."
+   ],
+   "supportHints": [
+    "What does $x - {{b}}$ come to at each candidate?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "d": {
+      "type": "int",
+      "min": 3,
+      "max": 7
+     }
+    },
+    "derived": {
+     "a": "d*d-b-d",
+     "good": "b+d",
+     "bad": "b+1-d",
+     "rhs": "d"
+    },
+    "constraints": [
+     "a>=1",
+     "good!=bad",
+     "b!=good",
+     "b!=bad"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Only ${{bad}}$, because it is the smaller of the two roots.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "Both, since both came out of the squared equation.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Neither, because squaring changed the equation.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Only ${{good}}$: it makes the right-hand side ${{rhs}}$, which the root can equal."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_4G_why_squaring_adds_a_root",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.4G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.4G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.4G:why-squaring-adds-a-root",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.4G",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Why can squaring both sides of a radical equation produce a root that does not work?",
+   "solutionReview": {
+    "headline": "Squaring throws away the sign, which is information the original equation used.",
+    "reasoning": [
+     "Two numbers with the same square need not be equal, since one may be negative.",
+     "The squared equation is therefore satisfied by more values than the original."
+    ],
+    "answerSummary": "It accepts values the original ruled out."
+   },
+   "attemptFeedback": [
+    "Squaring never loses solutions; it only ever adds them."
+   ],
+   "supportHints": [
+    "What do ${{a}}$ and $-{{a}}$ have in common once they are squared?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "negA": "0-a",
+     "aSq": "a*a"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Squaring is only valid when both sides are already positive numbers.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Squaring changes the equation into a different one with more terms.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Squaring makes ${{a}}$ and $-{{a}}$ agree, so it accepts values the original rejected."
+    },
+    {
+     "id": "choice-d",
+     "label": "Squaring loses a solution rather than adding one.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_4G_checking_a_candidate_by_substitution",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.4G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.4G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.4G:checking-a-candidate-by-substitution",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.4G",
+   "taskType": "interpretation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Does $x = {{cand}}$ satisfy $\\sqrt{x + {{a}}} = {{b}}$?",
+   "solutionReview": {
+    "headline": "A candidate is checked by putting it back into the original equation.",
+    "reasoning": [
+     "Putting $x = {{cand}}$ in gives $\\sqrt{{{inside}}}$.",
+     "That is not ${{b}}$, since ${{b}}^2$ is ${{inside}}$ less ${{off}}$."
+    ],
+    "answerSummary": "No, it does not satisfy it."
+   },
+   "attemptFeedback": [
+    "Being larger than ${{a}}$ only keeps the root defined; it does not make the equation true."
+   ],
+   "supportHints": [
+    "What number ends up under the root?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 25
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 10
+     },
+     "off": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "real": "b*b-a",
+     "cand": "b*b-a+off",
+     "inside": "b*b+off",
+     "rooted": "b*b+off"
+    },
+    "constraints": [
+     "real>=1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Yes, because ${{cand}}$ is larger than ${{a}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "No: it makes the inside ${{inside}}$, whose root is not ${{b}}$."
+    },
+    {
+     "id": "choice-c",
+     "label": "It cannot be checked without solving the equation first.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "Yes, since squaring ${{b}}$ gives a number close to ${{inside}}$.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_4G_an_extraneous_root_in_context",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.4G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.4G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.4G:an-extraneous-root-in-context",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.4G",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A length satisfies $\\sqrt{L + {{a}}} = L - {{b}}$, and squaring gives ${{good}}$ and ${{bad}}$. Which length is possible?",
+   "solutionReview": {
+    "headline": "A context can reject a root that the algebra alone would keep.",
+    "reasoning": [
+     "The second root is negative, and no length is negative.",
+     "That leaves ${{good}}$, which also makes the right-hand side positive."
+    ],
+    "answerSummary": "Only ${{good}}$ is possible."
+   },
+   "attemptFeedback": [
+    "Satisfying the squared equation is not enough for either root."
+   ],
+   "supportHints": [
+    "Which of the two could a length actually be?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "extra": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "d": "b+1+extra",
+     "a": "(b+1+extra)*(b+1+extra)-b-(b+1+extra)",
+     "good": "b+b+1+extra",
+     "bad": "0-extra"
+    },
+    "constraints": [
+     "a>=1",
+     "bad<0"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Only ${{good}}$: a length cannot be ${{bad}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "Neither, because a length cannot appear under a root.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "Both, because both satisfy the squared equation.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Only ${{bad}}$, since it is the root the squaring produced first.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_4G_both_roots_kept_without_checking",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.4G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.4G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.4G:both-roots-kept-without-checking",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.4G",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "After squaring $\\sqrt{x + {{a}}} = x - {{b}}$ a student keeps both roots without checking. What is wrong?",
+   "solutionReview": {
+    "headline": "Squaring is not reversible, so every root has to be checked.",
+    "reasoning": [
+     "The squared equation is satisfied by every solution of the original and sometimes by more.",
+     "Only substitution back into the original can tell them apart."
+    ],
+    "answerSummary": "Each root must be tested in the original equation."
+   },
+   "attemptFeedback": [
+    "Doing the same thing to both sides is correct here; it is the checking that was skipped."
+   ],
+   "supportHints": [
+    "Is every solution of the squared equation a solution of the original?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 25
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {},
+    "constraints": [
+     "a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The mistake is squaring at all; the root should be isolated instead.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Squaring can add roots, so each one has to be put back into the original equation."
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, because squaring is done to both sides equally.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "Both roots are always valid once the equation has been squared correctly.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6B_solve_a_cube_root_equation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6B:solve-a-cube-root-equation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $\\sqrt[3]{x + {{a}}} = {{b}}$.",
+   "solutionReview": {
+    "headline": "A cube root is undone by cubing, not by squaring.",
+    "reasoning": [
+     "Cubing both sides gives $x + {{a}} = {{b}}^3$.",
+     "Taking ${{a}}$ off leaves $x = {{x}}$."
+    ],
+    "answerSummary": "It is ${{x}}$."
+   },
+   "attemptFeedback": [
+    "Squaring undoes a square root; this one needs a cube."
+   ],
+   "supportHints": [
+    "What power undoes a cube root?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 6
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 214
+     }
+    },
+    "derived": {
+     "a": "b*b*b-x",
+     "plusA": "b*b*b+b*b*b-x",
+     "squared": "b*b-b*b*b+x"
+    },
+    "constraints": [
+     "x<=b*b*b-2",
+     "a>=2",
+     "a!=b",
+     "x!=a",
+     "x!=plusA",
+     "x!=squared",
+     "plusA!=squared",
+     "plusA!=a",
+     "squared!=a"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{plusA}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{x}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{squared}}$",
+     "error": "exponentError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6B_a_cube_root_of_a_negative_value",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6B:a-cube-root-of-a-negative-value",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6B",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which working solves $\\sqrt[3]{x} = -{{b}}$ correctly?",
+   "solutionReview": {
+    "headline": "Cubing undoes a cube root and leaves a negative value negative.",
+    "reasoning": [
+     "A cube root is undone by cubing, and cubing keeps the sign.",
+     "So $x = (-{{b}})^3 = {{x}}$, which is a genuine solution."
+    ],
+    "answerSummary": "It is $x = {{x}}$."
+   },
+   "attemptFeedback": [
+    "That rule holds for square roots; a cube root may be negative."
+   ],
+   "supportHints": [
+    "What does $-{{b}}$ come to when it is cubed?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "x": "0-b*b*b",
+     "pos": "b*b*b",
+     "sq": "b*b"
+    },
+    "constraints": [
+     "b!=sq"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Cube both sides: $x = (-{{b}})^3 = {{x}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "Square both sides: $x = {{sq}}$.",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-c",
+     "label": "Cube both sides and drop the sign: $x = {{pos}}$.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "There is no solution, because a root cannot be negative.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6B_cube_root_with_a_coefficient",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6B:cube-root-with-a-coefficient",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve ${{k}}\\sqrt[3]{x} = {{p}}$.",
+   "solutionReview": {
+    "headline": "Isolate the root before cubing, or the coefficient is cubed too.",
+    "reasoning": [
+     "Dividing by ${{k}}$ first gives $\\sqrt[3]{x} = {{r}}$.",
+     "Cubing then gives $x = {{x}}$."
+    ],
+    "answerSummary": "It is ${{x}}$."
+   },
+   "attemptFeedback": [
+    "Cubing first cubes the ${{k}}$ along with the root."
+   ],
+   "supportHints": [
+    "What is $\\sqrt[3]{x}$ worth on its own?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "p": "k*r",
+     "x": "r*r*r",
+     "cubedWhole": "k*r*k*r*k*r",
+     "kCubed": "k*k*k"
+    },
+    "constraints": [
+     "k!=r",
+     "x!=p",
+     "x!=k",
+     "x!=cubedWhole",
+     "x!=r",
+     "x!=kCubed",
+     "cubedWhole!=r",
+     "cubedWhole!=kCubed",
+     "r!=kCubed"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{cubedWhole}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{x}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{kCubed}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{r}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6B_side_of_a_cubical_tank",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6B:side-of-a-cubical-tank",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cubical tank holds ${{v}}$ cubic metres and a second holds ${{k}}$ times as much. What is the side of the second?",
+   "solutionReview": {
+    "headline": "A volume multiplier acts on a side through its cube root.",
+    "reasoning": [
+     "The first side is $\\sqrt[3]{{{v}}} = {{s}}$.",
+     "Multiplying the volume by ${{k}}$ multiplies the side by $\\sqrt[3]{{{k}}} = {{m}}$, giving ${{side}}$."
+    ],
+    "answerSummary": "It is ${{side}}$ metres."
+   },
+   "attemptFeedback": [
+    "The side grows by the cube root of the volume factor, not by the factor itself."
+   ],
+   "supportHints": [
+    "What does multiplying a volume by ${{k}}$ do to the side?"
+   ],
+   "generator": {
+    "parameters": {
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 18
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     }
+    },
+    "derived": {
+     "v": "s*s*s",
+     "k": "m*m*m",
+     "side": "s*m",
+     "firstSide": "s",
+     "timesK": "s*m*m*m"
+    },
+    "constraints": [
+     "s!=m",
+     "side!=k",
+     "side!=timesK",
+     "k!=firstSide",
+     "side!=firstSide",
+     "firstSide!=timesK",
+     "timesK!=k"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{side}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{firstSide}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{timesK}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{k}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A2_6B_a_cube_root_checked_for_extraneous_roots",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:A2.6B:a-cube-root-checked-for-extraneous-roots",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.6B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student rejects the solution of $\\sqrt[3]{x} = -{{b}}$, saying a root cannot be negative. What is wrong?",
+   "solutionReview": {
+    "headline": "Odd roots keep the sign; even roots do not.",
+    "reasoning": [
+     "A square root is never negative because no real square is negative.",
+     "A cube of a negative number is negative, so a cube root of a negative number exists."
+    ],
+    "answerSummary": "The solution $x = {{x}}$ is valid."
+   },
+   "attemptFeedback": [
+    "It holds for square roots, but not for cube roots."
+   ],
+   "supportHints": [
+    "What is the cube of a negative number?"
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "x": "0-b*b*b",
+     "pos": "b*b*b"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The solution should be ${{pos}}$ instead, with the sign dropped.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "The equation has no solution at all, whatever sign is used.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, because no root of any kind is ever negative.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "That rule is for square roots. A cube root may be negative, so $x = {{x}}$ stands."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
   }
  ]
 }
