@@ -9,7 +9,7 @@ import {
 
 const question = {
   type: 'functionInvestigation',
-  prompt: 'Graph f(x)=2x-3, then give the inverse point.',
+  prompt: 'Graph f(x)=2x-3, then give the slope.',
   functionSpec: { type: 'linear', m: 2, b: -3 },
   pointTasks: [
     { id: 'p0', x: 0, expected: [0, -3] },
@@ -17,11 +17,11 @@ const question = {
   ],
   analysisRequests: [
     {
-      id: 'inverse',
-      label: 'Give the corresponding inverse point.',
+      id: 'slope',
+      label: 'Give the slope of the line.',
       kind: 'value',
       responseMode: 'text',
-      expected: ['(-1,1)'],
+      expected: ['2'],
     },
   ],
 };
@@ -32,7 +32,7 @@ test('secure function-investigation value response is graded from answers, not s
     privateGrading,
     raw: {
       placements: { p0: [0, -3], px: [1, -1] },
-      answers: { inverse: '(-1,1)' },
+      answers: { slope: '2' },
       selections: {},
     },
   });
@@ -40,12 +40,12 @@ test('secure function-investigation value response is graded from answers, not s
   assert.equal(result.isCorrect, true);
 });
 
-test('public payload keeps value semantics but does not expose the expected inverse point', () => {
+test('public payload keeps typed-value semantics but does not expose the expected slope', () => {
   const payload = buildPublicToolPayload(question);
   assert.equal(payload.tool.analysisRequests[0].kind, 'value');
-  assert.equal(payload.tool.analysisRequests[0].id, 'inverse');
+  assert.equal(payload.tool.analysisRequests[0].id, 'slope');
   assert.equal('expected' in payload.tool.analysisRequests[0], false);
-  assert.equal(JSON.stringify(payload).includes('(-1,1)'), false);
+  assert.equal(JSON.stringify(payload).includes('"expected"'), false);
 });
 
 test('graph renderer preserves value responses as typed answers and supplies ordered-pair keys', () => {
