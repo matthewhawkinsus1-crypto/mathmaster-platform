@@ -539,7 +539,7 @@ export default function MultiRelationAlgebra({
   const [rewriteValue, setRewriteValue] = useState('');
   const [rewriteFocusSignal, setRewriteFocusSignal] = useState(0);
 
-  const [otherOpen, setOtherOpen] = useState(false);
+  const [otherOpen, setOtherOpen] = useState(true);
 
   const [completeSquareOpen, setCompleteSquareOpen] = useState(false);
   const [completeSquareValue, setCompleteSquareValue] = useState('');
@@ -572,7 +572,7 @@ export default function MultiRelationAlgebra({
     setPlacementByKey({});
     setRewriteOpen(false);
     setRewriteValue('');
-    setOtherOpen(false);
+    setOtherOpen(true);
     setCompleteSquareOpen(false);
     setCompleteSquareValue('');
     setCancellationSelection({});
@@ -1263,7 +1263,7 @@ export default function MultiRelationAlgebra({
     setPlacementByKey({});
     setRewriteOpen(false);
     setRewriteValue('');
-    setOtherOpen(false);
+    setOtherOpen(true);
     setCompleteSquareOpen(false);
     setCompleteSquareValue('');
     setCancellationSelection({});
