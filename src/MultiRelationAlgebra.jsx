@@ -691,6 +691,7 @@ export default function MultiRelationAlgebra({
           setRelationState(current[current.length - 1]);
           setActiveBranch(0);
           setRepresentationCorrect(null);
+          setCandidateChecks({});
           setCancellationSelection({});
           setPlacementByKey({});
           setPendingRelationFlip(null);
@@ -731,6 +732,7 @@ export default function MultiRelationAlgebra({
     setHistory((current) => [...current, before]);
     setRelationState(next);
     setRepresentationCorrect(null);
+    setCandidateChecks({});
     setCancellationSelection({});
     setDragCancellationKey(null);
     setDragStroke(null);
