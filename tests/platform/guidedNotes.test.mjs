@@ -53,7 +53,7 @@ test('V5 compiler preserves authored guidedNotes for the runtime', () => {
   const compiled = compileAuthoringIntentV5({
     schemaVersion: 5,
     assignment: { title: 'Guided Notes Test', courseId: 'algebra1' },
-    activities: [{
+    sections: [{
       role: 'classwork',
       title: 'Classwork',
       questions: [{
@@ -66,5 +66,5 @@ test('V5 compiler preserves authored guidedNotes for the runtime', () => {
       }],
     }],
   });
-  assert.equal(compiled.package.activities[0].questions[0].guidedNotes.steps[0].title, 'Substitute');
+  assert.equal(compiled.package.sections[0].questions[0].guidedNotes.steps[0].title, 'Substitute');
 });
