@@ -27,7 +27,7 @@ const PROVIDERS = {
 const practice = (id, overrides = {}) => ({
   id,
   title: id,
-  assignedClassPeriods: ['Period 1'],
+  assignedClassIds: ['class-1'],
   assignmentType: 'practice',
   dueAt: inHours(4),
   lateDueAt: inHours(24 * 7),
@@ -36,6 +36,7 @@ const practice = (id, overrides = {}) => ({
 });
 
 const model = (overrides = {}) => buildStudentDashboardModel({
+  classId: 'class-1',
   classPeriod: 'Period 1',
   nowValue: NOW,
   providers: PROVIDERS,
@@ -44,7 +45,7 @@ const model = (overrides = {}) => buildStudentDashboardModel({
 
 test('only this student\'s class sees an assignment', () => {
   const result = model({
-    assignments: [practice('mine'), practice('theirs', { assignedClassPeriods: ['Period 6'] })],
+    assignments: [practice('mine'), practice('theirs', { assignedClassIds: ['class-6'] })],
   });
   assert.deepEqual(result.visibleAssignments.map((assignment) => assignment.id), ['mine']);
 });
