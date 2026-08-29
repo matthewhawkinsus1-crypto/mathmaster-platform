@@ -2986,9 +2986,11 @@ function App() {
       // JSON is the whole reset.
       setAssignmentPreflight(null);
       await fetchAssignments();
-      const repairMessage = parsed.repairs.length
-        ? `\n\nPaste formatting repaired automatically: ${parsed.repairs.join('; ')}.`
-        : '';
+      // Creation consumes the already-reviewed canonical V5 object. There is
+      // no local `parsed` result in this function; referencing one here used
+      // to throw after Firestore had successfully saved the assignment, making
+      // a successful library save look like a failure.
+      const repairMessage = '';
       const sourceMessage = 'Created with MathMaster Assignment Creator after teacher review.';
       toastSuccess(
         creationMode === 'library' ? `Saved “${title}” to the library` : `Published “${title}”`,
