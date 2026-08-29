@@ -592,11 +592,13 @@ export default function MultiRelationAlgebra({
   }, [draftKey, relationState, activeBranch, pendingRelationFlip, candidateChecks]);
 
   const summary = useMemo(() => relationSolutionSummary(relationState), [relationState]);
-  const candidateVerification = useMemo(() => (
-    summary.kind === 'values' && relationStateContainsAbsoluteValue(pristine)
-      ? verifyRelationCandidates(pristine, summary.values, pristine.variable)
-      : []
-  ), [pristine, summary]);
+  const candidateVerification = useMemo(() => {
+    if (summary.kind !== 'values' || !relationStateContainsAbsoluteValue(pristine)) return [];
+    return verifyRelationCandidates(pristine, summary.values, pristine.variable).map((candidate, index) => ({
+      ...candidate,
+      expression: summary.valueExpressions?.[index] || String(candidate.value),
+    }));
+  }, [pristine, summary]);
   const requireCandidateVerification = candidateVerification.length > 0;
   const candidateVerificationComplete = !requireCandidateVerification
     || candidateVerification.every(({ value }) => candidateChecks[String(value)] != null);
