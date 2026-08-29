@@ -283,7 +283,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
   return <ToolShell title="Build the Sequence Model" subtitle="Keep the table, discrete graph, pattern, and rules connected in one piece of work." badge="Integrated sequence model">
     <TaskCard
       question={questionData}
-      task="Build the sequence as a discrete function, then use the same representation to analyze and write its rules."
+      task="Build the sequence as a discrete function, then use the same connected representations to complete the requested analysis."
       steps={taskSteps}
     />
     <ToolGrid min={360}>
