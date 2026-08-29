@@ -30,6 +30,7 @@ const practice = (id, overrides = {}) => {
     : [{ type: 'algebra', prompt: 'Solve', equationLatex: '2x=8' }];
   const { questions: _retiredQuestions, ...rest } = overrides;
   return {
+    schemaVersion: 5,
     id,
     title: id,
     assignedClassIds: ['class-1'],
