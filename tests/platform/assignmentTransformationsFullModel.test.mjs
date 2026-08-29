@@ -14,6 +14,8 @@ import {
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { validateQuestionsSemantics } from '../../src/platform/contract/semanticValidation.js';
 import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
+import { assertFirestoreSafeAssignmentPayload } from '../../src/assignmentBlueprint.js';
+import { generateQuestion } from '../../src/problemGenerator.js';
 
 test('full a f(b(x-h))+k model follows x reciprocal/opposite and y direct behavior', () => {
   const spec = normalizeTransformationSpec({
@@ -95,7 +97,11 @@ test('V5 compiler preserves b and ALEKS-style source points for transformation p
   assert.equal(compiled.mode, 'plotTransform');
   assert.equal(compiled.function.b, 1);
   assert.equal(compiled.function.h, -1);
-  assert.deepEqual(compiled.sourcePoints, source.sections[0].questions[0].sourcePoints);
+  assert.deepEqual(compiled.sourcePoints, [
+    { x: -2, y: -4 },
+    { x: 0, y: 0 },
+    { x: 4, y: -2 },
+  ]);
   assert.equal(compiled.snapStep, 1);
 });
 
@@ -135,5 +141,62 @@ test('the complete Lesson 1 ALEKS bridge compiles and its transformation visuals
   assert.ok(plotItems.length >= 6, 'bridge should exercise several ALEKS-style source-graph transformations');
   plotItems.forEach((question) => {
     assert.ok(Array.isArray(question.sourcePoints) && question.sourcePoints.length >= 2);
+    assert.ok(question.sourcePoints.every((point) => (
+      point && typeof point === 'object' && !Array.isArray(point)
+      && Number.isFinite(Number(point.x)) && Number.isFinite(Number(point.y))
+    )), 'plotTransform source points must be Firestore-safe coordinate objects');
   });
+
+  assert.doesNotThrow(
+    () => assertFirestoreSafeAssignmentPayload(compiled),
+    'the complete reviewed Lesson 1 V5 assignment must be directly saveable to Firestore',
+  );
+});
+
+
+test('absolute-value match grading uses the displayed family instead of silently grading a quadratic', () => {
+  const target = normalizeTransformationSpec({ type: 'absolute', a: 1, b: 2, h: 0, k: -4 }, 'absolute');
+  const student = normalizeTransformationSpec({ type: 'absolute', a: 1, b: 2, h: 0, k: -4 }, 'absolute');
+  assert.equal(transformationGraphScore(student, target).isCorrect, true);
+
+  const component = fs.readFileSync('src/tools/transformations/TransformationsLab.jsx', 'utf8');
+  assert.match(component, /transformationGraphScore\(studentSpec, expected/);
+  assert.doesNotMatch(component, /transformationGraphScore\(student, expected/);
+});
+
+test('the audited Lesson 1 SAT template is instantiated before student delivery', () => {
+  const source = JSON.parse(fs.readFileSync(
+    'teacher-import-jsons/algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json',
+    'utf8',
+  ));
+  const compiled = compileAuthoringIntentV5(source).package;
+  const questions = compiled.sections.flatMap((section) => section.questions || []);
+  const template = questions.find((question) => (
+    question.familyId === 'mathmaster:sat:A2.2A:absolute-value-interval-maximum'
+  ));
+  assert.ok(template, 'Lesson 1 should contain the audited A2.2A Digital SAT item');
+
+  const delivered = generateQuestion(template, 'lesson1-sat-student-1');
+  assert.ok(delivered, 'the generator must return a student-ready question');
+
+  const strings = [];
+  const collect = (value) => {
+    if (typeof value === 'string') strings.push(value);
+    else if (Array.isArray(value)) value.forEach(collect);
+    else if (value && typeof value === 'object') Object.values(value).forEach(collect);
+  };
+  collect(delivered);
+  assert.ok(!strings.some((value) => /\{\{\s*[A-Za-z_]/.test(value)), 'no generator placeholder may reach the student');
+  assert.match(delivered.prompt, /domain is restricted to/);
+  assert.ok(!/\{\{/.test(delivered.prompt));
+  assert.equal(typeof delivered.answerFields?.[0]?.answer, 'number');
+});
+
+test('successful library creation no longer throws from a stale parsed variable', () => {
+  const app = fs.readFileSync('src/App.jsx', 'utf8');
+  const start = app.indexOf('const handleCreateAssignment = async');
+  const end = app.indexOf('const updateExistingAssignmentFromReview', start);
+  assert.ok(start >= 0 && end > start);
+  const createBlock = app.slice(start, end);
+  assert.doesNotMatch(createBlock, /parsed\.repairs/);
 });

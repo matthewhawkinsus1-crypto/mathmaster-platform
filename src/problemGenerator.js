@@ -9,6 +9,10 @@ import {
 } from './interactiveGraphEngine.js';
 import { applyStudentSupportToQuestion } from './studentSupport.js';
 import { applyAdaptiveDifferentiation, chooseVariantsForAdaptiveBand } from './differentiationEngine.js';
+import {
+  generatePathInstanceWithRetries,
+  hasPathGenerator,
+} from '../functions/shared/pathQuestionGeneration.mjs';
 
 const hashString = (value) => {
   let hash = 2166136261;
@@ -515,6 +519,19 @@ const generateQuestionFromKey = (question, generationKey) => {
   const random = createRandom(`${generationKey}|v${question.generatorVersion || 1}`);
   const variantQuestion = selectVariant(question, random);
   const kind = variantQuestion.generator?.kind;
+
+  // Audited CCMR and Path-authored templates share the generic
+  // { parameters, derived, constraints } generator contract. Assignment
+  // delivery used to ignore that contract and send literal {{a}}/{{ans}}
+  // placeholders to students. Instantiate the template before any renderer
+  // sees it, using the same deterministic generator the Path already audits.
+  if (hasPathGenerator(variantQuestion)) {
+    const generated = generatePathInstanceWithRetries(variantQuestion, generationKey);
+    if (!generated.question) {
+      throw new Error(`Could not generate assignment question: ${generated.reason || 'invalid generator template'}`);
+    }
+    return generated.question;
+  }
 
   if (kind === 'stepLinearEquation') return generateStepLinearEquation(variantQuestion, random);
   if (kind === 'literalLinear') return generateLiteralLinear(variantQuestion, random);

@@ -24,6 +24,12 @@ const MODE_TASKS = {'match': 'Change a, b, h and k until your graph sits exactly
 const MODE_STEPS = {'match': ['Change one parameter at a time and watch what moves.', 'Use h and k for position, then a and b for reflections/scales.', 'Press Check when the two graphs overlap.'], 'identify': ['Find the defining feature of the graph — that gives you h and k.', 'Use one or more additional points to recover a and b.', 'Enter all four, then check.'], 'pointMap': ['For x, undo the inside multiplier b, then apply h.', 'For y, apply a and then k exactly as written.', 'Enter the transformed coordinates.'], 'plotTransform': ['Map each corner/end point using x/b + h and ay + k.', 'Plot the transformed defining points on the grid.', 'Connect them in the same order as the source graph, then check.'], 'describe': ['Read the inside changes for x using opposite/reciprocal behavior.', 'Read the outside changes for y exactly as written.', 'Then account for h and k translations.'], 'anchor': ['Identify which feature defines this family.', 'Find it on the transformed graph.', 'Count gridlines across, then up or down.']};
 const HINTS = {'match': ['Start with h and k to put the graph in the right place, then fix reflections/scales with a and b.', 'Use y = a·f(b(x − h)) + k. Inside changes control x; outside changes control y.', 'Remember the class rule: x\'s lie, y\'s tell the truth. For x, signs reverse and scale factors become reciprocals.'], 'identify': ['Find the defining feature first — the vertex, the corner, the endpoint. Its coordinates are (h, k).', 'Then compare another point. Outside a acts directly on y; inside b acts reciprocally on x.', 'Negative a reflects across the x-axis. Negative b reflects across the y-axis.'], 'pointMap': ['x and y are transformed by different parameters, so handle them separately.', 'For x, divide the parent x-coordinate by b, then add h.', 'For y, multiply by a first and then add k — y tells the truth.'], 'plotTransform': ['Move one defining point at a time instead of trying to redraw the whole graph at once.', 'For x, use opposite/reciprocal behavior; for y, use the outside transformation exactly as written.', 'The transformed graph keeps the same connections between corresponding defining points.'], 'describe': ['Compare the graph with the parent shape one feature at a time.', 'Outside a is direct: sign gives x-axis reflection and |a| is the vertical scale.', 'Inside b is opposite/reciprocal: sign gives y-axis reflection and the horizontal scale is 1/|b|.'], 'anchor': ['Every family is organized around one feature: a vertex, a corner, an endpoint, or an asymptote intersection.', 'On the parent function that feature sits at the origin. The transformation moves it to (h, k).', 'Count the gridlines rather than estimating — go across for x first, then up or down for y.']};
 
+const pointCoordinates = (point) => (
+  Array.isArray(point)
+    ? [Number(point[0]), Number(point[1])]
+    : [Number(point?.x), Number(point?.y)]
+);
+
 const parameterFields = (values, setters, keys) => (
   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))', gap: 10 }}>
     {keys.map((key, index) => <label key={key}><strong>{key}</strong><input type="number" step="0.5" value={values[index]} onChange={(event) => setters[index](event.target.value)} style={inputStyle} /></label>)}
@@ -78,7 +84,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
   const checkParameters = (expected) => {
     const student = { a: Number(a), b: Number(b), h: Number(h), k: Number(k) };
     const result = mode === 'match'
-      ? transformationGraphScore(student, expected, { xMin: graphBounds.xMin, xMax: graphBounds.xMax, tolerance: 0.02 })
+      ? transformationGraphScore(studentSpec, expected, { xMin: graphBounds.xMin, xMax: graphBounds.xMax, tolerance: 0.02 })
       : transformationParameterScore(student, expected, 0.01);
     submit({ isCorrect: result.isCorrect, score: result.score }, student, { mode, family, graphEquivalent: mode === 'match' });
   };
@@ -207,7 +213,10 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
               { points: plottedPoints, stroke: '#1a73e8', strokeWidth: 3 },
             ]}
             points={[
-              ...sourcePoints.map((point, index) => ({ x: point[0], y: point[1], label: `S${index + 1}`, fill: '#5f6b7a' })),
+              ...sourcePoints.map((point, index) => {
+                const [x, y] = pointCoordinates(point);
+                return { x, y, label: `S${index + 1}`, fill: '#5f6b7a' };
+              }),
               ...plottedPoints.map((point, index) => ({ x: point[0], y: point[1], label: `P${index + 1}` })),
             ]}
             cursorLabel="Transformed point"

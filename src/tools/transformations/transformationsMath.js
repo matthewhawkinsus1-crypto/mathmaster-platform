@@ -33,18 +33,22 @@ export const evaluateTransformedFunction = (spec, x) => {
   return Number.isFinite(parentValue) ? normalized.a * parentValue + normalized.k : Number.NaN;
 };
 
+const pointCoordinates = (point) => (
+  Array.isArray(point)
+    ? [Number(point[0]), Number(point[1])]
+    : [Number(point?.x), Number(point?.y)]
+);
+
 export const mapParentPoint = (point, spec = {}) => {
-  if (!Array.isArray(point) || point.length !== 2) return null;
   const normalized = normalizeTransformationSpec(spec, spec.type || 'quadratic');
-  const [x, y] = point.map(Number);
+  const [x, y] = pointCoordinates(point);
   if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
   return [round(x / normalized.b + normalized.h, 6), round(normalized.a * y + normalized.k, 6)];
 };
 
 export const unmapTransformedPoint = (point, spec = {}) => {
-  if (!Array.isArray(point) || point.length !== 2) return null;
   const normalized = normalizeTransformationSpec(spec, spec.type || 'quadratic');
-  const [x, y] = point.map(Number);
+  const [x, y] = pointCoordinates(point);
   if (!Number.isFinite(x) || !Number.isFinite(y) || nearlyEqual(normalized.a, 0) || nearlyEqual(normalized.b, 0)) return null;
   return [round(normalized.b * (x - normalized.h), 6), round((y - normalized.k) / normalized.a, 6)];
 };

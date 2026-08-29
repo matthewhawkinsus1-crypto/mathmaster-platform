@@ -14,6 +14,17 @@ import {
 
 const asArray = (value) => Array.isArray(value) ? value : value == null ? [] : [value];
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);
+
+const normalizePointListForStorage = (value) => (
+  Array.isArray(value)
+    ? value.map((point) => (
+        Array.isArray(point) && point.length === 2
+          ? { x: point[0], y: point[1] }
+          : point
+      ))
+    : value
+);
+
 const clean = (value) => String(value ?? '').trim();
 const normalizeToken = (value) => clean(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
 const ACTION_ALIASES = Object.freeze({
@@ -995,7 +1006,7 @@ const compileOne = (q, index, repairs) => {
         function: transformationFunction,
         target: q.target || t.target,
         parentPoint: q.parentPoint || t.parentPoint,
-        sourcePoints: q.sourcePoints || t.sourcePoints,
+        sourcePoints: normalizePointListForStorage(q.sourcePoints || t.sourcePoints),
         sourceLabel: q.sourceLabel || t.sourceLabel,
         graphBounds: q.graphBounds || t.graphBounds,
         snapStep: q.snapStep ?? t.snapStep,
