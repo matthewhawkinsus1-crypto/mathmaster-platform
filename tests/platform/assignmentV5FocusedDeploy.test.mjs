@@ -24,6 +24,7 @@ test('focused deploy refuses stale or dirty source and checks the live surfaces'
 
 test('focused deploy gate covers CCMR hydration across every Assignment V5 authoring route', () => {
   const command = packageJson.scripts?.['test:assignment-v5-followup'] || '';
+  assert.match(command, /assignmentTransformationsFullModel\.test\.mjs/);
   assert.match(command, /assignmentCcmrAllRoutes\.test\.mjs/);
   assert.match(command, /assignmentCcmrBankHydration\.test\.mjs/);
   assert.match(command, /assignmentEvidencePolicy\.test\.mjs/);
