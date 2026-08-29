@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { matchesNumericAnswer, round } from '../shared/toolMath';
+import { evaluate } from 'mathjs';
 import useToolSubmission from '../shared/useToolSubmission';
 import {
   compareSequencesAt,
@@ -26,11 +27,104 @@ const sequenceFromQuestion = (questionData = {}) => {
 
 const graphBounds = (values = []) => {
   const finite = values.filter(Number.isFinite);
-  const low = Math.min(0, ...finite);
-  const high = Math.max(0, ...finite);
-  const span = Math.max(4, high - low);
+  if (!finite.length) return { yMin: -5, yMax: 5 };
+  const dataLow = Math.min(...finite);
+  const dataHigh = Math.max(...finite);
+  const span = Math.max(4, dataHigh - dataLow);
   const margin = Math.max(2, span * 0.12);
-  return { yMin: Math.floor(low - margin), yMax: Math.ceil(high + margin) };
+  let low = dataLow - margin;
+  let high = dataHigh + margin;
+
+  // Include zero when the data naturally lives near it or crosses it, but do
+  // not waste most of the graph on empty space. This matters for sequences
+  // such as 125, 143, 161, ... where forcing y=0 made the actual points appear
+  // in a tiny strip at the top of a dense grid.
+  if (dataLow <= 0 && dataHigh >= 0) {
+    low = Math.min(low, 0);
+    high = Math.max(high, 0);
+  } else if (dataLow > 0 && dataLow <= span * 0.6) {
+    low = 0;
+  } else if (dataHigh < 0 && Math.abs(dataHigh) <= span * 0.6) {
+    high = 0;
+  }
+
+  return { yMin: Math.floor(low), yMax: Math.ceil(high) };
+};
+
+
+const inferPlotSnapStep = (rows = [], authored = null) => {
+  const supplied = Number(authored);
+  if (Number.isFinite(supplied) && supplied > 0) return supplied;
+  const values = rows.map((row) => Number(row.value)).filter(Number.isFinite);
+  if (values.every((value) => Math.abs(value - Math.round(value)) <= 1e-9)) return 1;
+  if (values.every((value) => Math.abs(value * 4 - Math.round(value * 4)) <= 1e-9)) return 0.25;
+  if (values.every((value) => Math.abs(value * 10 - Math.round(value * 10)) <= 1e-9)) return 0.1;
+  return 0.01;
+};
+
+const stripRuleLeftSide = (value = '') => {
+  const text = String(value || '').trim().replace(/−/g, '-').replace(/×/g, '*').replace(/·/g, '*');
+  const equalsIndex = text.indexOf('=');
+  return equalsIndex >= 0 ? text.slice(equalsIndex + 1).trim() : text;
+};
+
+const normalizePreviousTermToken = (value = '') => (
+  stripRuleLeftSide(value)
+    .replace(/a\s*[_]?\s*\{?\s*n\s*[-−]\s*1\s*\}?/gi, 'p')
+    .replace(/a\s*\(\s*n\s*[-−]\s*1\s*\)/gi, 'p')
+    .replace(/a\s*\[\s*n\s*[-−]\s*1\s*\]/gi, 'p')
+    .replace(/aₙ₋₁/gi, 'p')
+);
+
+const normalizeSequenceExpressionText = (value = '') => (
+  String(value || '')
+    .trim()
+    .replace(/−/g, '-')
+    .replace(/[×·]/g, '*')
+    .replace(/\s+/g, '')
+    .replace(/(\d|\))(?=[A-Za-z(])/g, '$1*')
+    .replace(/([A-Za-z])(?=\d|\()/g, '$1*')
+);
+
+const expressionMatchesSamples = (value, samples = [], expectedAt = () => Number.NaN) => {
+  const expression = normalizeSequenceExpressionText(value);
+  if (!expression) return false;
+  try {
+    return samples.every((scope) => {
+      const actual = Number(evaluate(expression, scope));
+      const expected = Number(expectedAt(scope));
+      return Number.isFinite(actual) && Number.isFinite(expected) && Math.abs(actual - expected) <= 1e-6;
+    });
+  } catch {
+    return false;
+  }
+};
+
+const matchesExplicitRule = (value, spec) => {
+  const rhs = stripRuleLeftSide(value);
+  return expressionMatchesSamples(
+    rhs,
+    [1, 2, 3, 5, 8].map((n) => ({ n })),
+    ({ n }) => sequenceTerm(spec, n),
+  );
+};
+
+const matchesRecursiveRule = (value, spec) => {
+  const rhs = normalizePreviousTermToken(value);
+  const change = sequenceChange(spec);
+  return expressionMatchesSamples(
+    rhs,
+    [-11, -2.5, 0, 3, 10].map((p) => ({ p })),
+    ({ p }) => spec.kind === 'arithmetic' ? p + change : p * change,
+  );
+};
+
+const pointSetMatchesRows = (points = [], rows = [], tolerance = 0.02) => {
+  if (!Array.isArray(points) || points.length !== rows.length) return false;
+  return rows.every((row) => points.some((point) => (
+    Math.abs(Number(point?.[0]) - Number(row.n)) <= tolerance
+    && Math.abs(Number(point?.[1]) - Number(row.value)) <= tolerance
+  )));
 };
 
 function SequenceVisual({ spec, count = 7, title = 'Table + discrete graph' }) {
@@ -57,6 +151,7 @@ function SequenceVisual({ spec, count = 7, title = 'Table + discrete graph' }) {
 export default function SequenceExplorer({ questionData = {}, onAction }) {
   const mode = questionData.mode || 'analyze';
   const { feedback, submit } = useToolSubmission(onAction);
+  if (mode === 'fullBridge') return <FullSequenceBridge questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'ruleBridge') return <RuleBridge questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'missingTerm') return <MissingTerm questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
   if (mode === 'partialSum') return <PartialSum questionData={questionData} feedback={feedback} submit={submit} onAction={onAction} />;
@@ -91,33 +186,323 @@ function AnalyzeSequence({ questionData, feedback, submit, onAction }) {
   </ToolShell>;
 }
 
+
+function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
+  const spec = sequenceFromQuestion(questionData);
+  const actions = Array.isArray(questionData.studentActions) ? questionData.studentActions : [];
+  const targetN = Number(questionData.targetN || 0);
+  const requestedCount = Number(questionData.displayCount ?? 5);
+  const count = sequenceEvidenceCount(
+    Math.max(3, requestedCount),
+    targetN > 0 ? targetN : null,
+    { revealTarget: questionData.revealTargetTerm === true, cap: 8 },
+  );
+  const rows = generateSequence(spec, count);
+  const bounds = graphBounds(rows.map((row) => row.value));
+  const plotSnapStep = inferPlotSnapStep(rows, questionData.plotSnapStep);
+
+  const requireTable = actions.includes('buildSequenceTable');
+  const requirePlot = actions.includes('plotSequence');
+  const requireAnalyze = actions.includes('analyzeSequence');
+  const requireExplicit = actions.includes('writeExplicit');
+  const requireRecursive = actions.includes('writeRecursive');
+  const requireTarget = actions.includes('findSequenceTerm') && targetN > 0;
+
+  const [tableValues, setTableValues] = useState(() => rows.map(() => ''));
+  const [plottedPoints, setPlottedPoints] = useState([]);
+  const [plotMessage, setPlotMessage] = useState('');
+  const [kindAnswer, setKindAnswer] = useState('');
+  const [changeAnswer, setChangeAnswer] = useState('');
+  const [explicitRule, setExplicitRule] = useState('');
+  const [recursiveFirst, setRecursiveFirst] = useState('');
+  const [recursiveRule, setRecursiveRule] = useState('');
+  const [termAnswer, setTermAnswer] = useState('');
+
+  const handlePlot = (point) => {
+    const rawN = Number(point?.[0]);
+    const value = Number(point?.[1]);
+    const n = Math.round(rawN);
+    if (!Number.isFinite(rawN) || !Number.isFinite(value) || Math.abs(rawN - n) > 1e-7 || n < 1 || n > count) {
+      setPlotMessage(`Sequence inputs are whole-number term positions from n = 1 through n = ${count}.`);
+      return;
+    }
+    setPlotMessage('');
+    setPlottedPoints((current) => {
+      const withoutSameInput = current.filter((entry) => Number(entry[0]) !== n);
+      return [...withoutSameInput, [n, value]].sort((left, right) => Number(left[0]) - Number(right[0]));
+    });
+  };
+
+  const check = () => {
+    const checks = [];
+    if (requireTable) checks.push(tableValues.every((value, index) => matchesNumber(value, rows[index].value, 0.01)));
+    if (requirePlot) checks.push(pointSetMatchesRows(plottedPoints, rows, Math.max(0.02, plotSnapStep / 3)));
+    if (requireAnalyze) {
+      checks.push(kindAnswer === spec.kind);
+      checks.push(matchesNumber(changeAnswer, sequenceChange(spec), 0.001));
+    }
+    if (requireExplicit) checks.push(matchesExplicitRule(explicitRule, spec));
+    if (requireRecursive) {
+      checks.push(matchesNumber(recursiveFirst, spec.first, 0.001));
+      checks.push(matchesRecursiveRule(recursiveRule, spec));
+    }
+    if (requireTarget) checks.push(matchesNumber(termAnswer, sequenceTerm(spec, targetN), 0.01));
+
+    const safeChecks = checks.length ? checks : [false];
+    submit(
+      {
+        isCorrect: safeChecks.every(Boolean),
+        score: safeChecks.filter(Boolean).length / safeChecks.length,
+      },
+      {
+        tableValues,
+        plottedPoints,
+        kindAnswer,
+        changeAnswer,
+        explicitRule,
+        recursiveFirst,
+        recursiveRule,
+        termAnswer,
+      },
+      {
+        mode: 'fullBridge',
+        targetN: requireTarget ? targetN : null,
+        representationCount: count,
+      },
+    );
+  };
+
+  const taskSteps = [
+    requireTable && 'Build the table so the term number n is the input and aₙ is the output.',
+    requirePlot && 'Plot the ordered pairs (n, aₙ) as separate discrete points.',
+    requireAnalyze && 'Classify the pattern and identify its common difference or ratio.',
+    (requireExplicit || requireRecursive) && 'Write the sequence rules, not just the constants in a template.',
+    requireTarget && `Use your explicit rule to determine a₍${targetN}₎ without extending every intermediate term.`,
+  ].filter(Boolean);
+
+  return <ToolShell title="Build the Sequence Model" subtitle="Keep the table, discrete graph, pattern, and rules connected in one piece of work." badge="Integrated sequence model">
+    <TaskCard
+      question={questionData}
+      task="Build the sequence as a discrete function, then use the same connected representations to complete the requested analysis."
+      steps={taskSteps}
+    />
+    <ToolGrid min={360}>
+      <Panel title="1. Build the table and discrete graph">
+        <div style={{ overflowX: 'auto', marginBottom: 12 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 360 }}>
+            <thead>
+              <tr>
+                <th style={{ padding: 7, textAlign: 'left' }}>Domain input n</th>
+                {rows.map((row) => <th key={row.n} style={{ padding: 7 }}>{row.n}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th style={{ padding: 7, textAlign: 'left' }}>Output aₙ</th>
+                {rows.map((row, index) => (
+                  <td key={row.n} style={{ padding: 5 }}>
+                    <input
+                      aria-label={`Sequence output a${row.n}`}
+                      value={tableValues[index]}
+                      onChange={(event) => setTableValues((current) => current.map((item, valueIndex) => (
+                        valueIndex === index ? event.target.value : item
+                      )))}
+                      inputMode="decimal"
+                      style={{ ...inputStyle, minWidth: 72, textAlign: 'center' }}
+                      disabled={!requireTable}
+                    />
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style={{ margin: '0 0 12px', color: '#5f6b7a', lineHeight: 1.45 }}>
+          The term number <strong>n is the domain input</strong>. Each sequence value aₙ is the output paired with that input.
+          A sequence graph is discrete, so plot only the individual ordered pairs — do not connect them.
+        </p>
+        <CoordinatePlane
+          xMin={0}
+          xMax={count + 1}
+          yMin={bounds.yMin}
+          yMax={bounds.yMax}
+          points={plottedPoints.map(([x, y]) => ({ 0: x, 1: y, label: `(${numberText(x)}, ${numberText(y)})` }))}
+          onPlot={requirePlot ? handlePlot : null}
+          snapStep={plotSnapStep}
+          cursorLabel="Sequence point"
+          ariaLabel="Discrete sequence graph"
+        />
+        {requirePlot && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 10 }}>
+            <button
+              type="button"
+              onClick={() => setPlottedPoints((current) => current.slice(0, -1))}
+              disabled={!plottedPoints.length}
+              style={{ ...actionStyle, marginTop: 0, background: '#fff', color: '#174ea6', border: '1px solid #aecbfa' }}
+            >
+              Undo last point
+            </button>
+            <button
+              type="button"
+              onClick={() => setPlottedPoints([])}
+              disabled={!plottedPoints.length}
+              style={{ ...actionStyle, marginTop: 0, background: '#fff', color: '#174ea6', border: '1px solid #aecbfa' }}
+            >
+              Clear graph
+            </button>
+            <span style={{ color: '#5f6b7a', fontSize: 13 }}>{plottedPoints.length}/{rows.length} term inputs plotted</span>
+          </div>
+        )}
+        {plotMessage && <p style={{ margin: '8px 0 0', color: '#b06000', fontWeight: 700 }}>{plotMessage}</p>}
+      </Panel>
+
+      <Panel title="2. Analyze and write the rules">
+        {requireAnalyze && <>
+          <label>
+            Sequence family
+            <select value={kindAnswer} onChange={(event) => setKindAnswer(event.target.value)} style={inputStyle}>
+              <option value="">Choose…</option>
+              <option value="arithmetic">Arithmetic</option>
+              <option value="geometric">Geometric</option>
+            </select>
+          </label>
+          <label style={{ display: 'block', marginTop: 10 }}>
+            Common {kindAnswer === 'arithmetic' ? 'difference' : kindAnswer === 'geometric' ? 'ratio' : 'change'}
+            <input value={changeAnswer} onChange={(event) => setChangeAnswer(event.target.value)} inputMode="decimal" style={inputStyle} />
+          </label>
+        </>}
+
+        {requireExplicit && (
+          <label style={{ display: 'block', marginTop: 16 }}>
+            Explicit rule
+            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center', marginTop: 4 }}>
+              <strong style={{ fontSize: 20 }}>aₙ =</strong>
+              <input
+                value={explicitRule}
+                onChange={(event) => setExplicitRule(event.target.value)}
+                placeholder={spec.kind === 'arithmetic' ? 'Write an expression in n' : 'Write an exponential expression in n'}
+                style={inputStyle}
+              />
+            </div>
+          </label>
+        )}
+
+        {requireRecursive && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontWeight: 800, marginBottom: 6 }}>Recursive rule</div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              <label style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center' }}>
+                <strong style={{ fontSize: 18 }}>a₁ =</strong>
+                <input value={recursiveFirst} onChange={(event) => setRecursiveFirst(event.target.value)} inputMode="decimal" style={inputStyle} />
+              </label>
+              <label style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center' }}>
+                <strong style={{ fontSize: 18 }}>aₙ =</strong>
+                <input
+                  value={recursiveRule}
+                  onChange={(event) => setRecursiveRule(event.target.value)}
+                  placeholder="Use aₙ₋₁ in your rule"
+                  style={inputStyle}
+                />
+              </label>
+            </div>
+          </div>
+        )}
+
+        {requireTarget && (
+          <label style={{ display: 'block', marginTop: 16 }}>
+            Use the rule to find a<sub>{targetN}</sub>
+            <input value={termAnswer} onChange={(event) => setTermAnswer(event.target.value)} inputMode="decimal" style={inputStyle} />
+          </label>
+        )}
+
+        <button type="button" onClick={check} style={actionStyle}>Check the complete sequence model</button>
+        {feedback ? <div style={{ marginTop: 12 }}>
+          <ResultPill ok={feedback.isCorrect}>
+            {feedback.isCorrect
+              ? 'Your table, discrete graph, pattern, formulas, and requested term all describe the same sequence.'
+              : 'Keep every representation consistent: n is the table/graph input, the plotted points must match the table, and both rules must generate those same outputs.'}
+          </ResultPill>
+        </div> : null}
+        <HintPanel
+          hints={[
+            'Start with the table: n = 1, 2, 3, … are the domain inputs. Generate the matching sequence outputs before you graph anything.',
+            'Every point on the graph should be (term number, term value). Sequence graphs use separate points because n takes whole-number positions.',
+            spec.kind === 'arithmetic'
+              ? 'For an arithmetic sequence, an explicit rule can be written as aₙ = a₁ + (n − 1)d. The recursive rule starts at a₁ and adds d to the previous term.'
+              : 'For a geometric sequence, an explicit rule can be written as aₙ = a₁(r)ⁿ⁻¹. The recursive rule starts at a₁ and multiplies the previous term by r.',
+          ]}
+          onHintUsed={() => onAction?.("HINT_USED")}
+        />
+      </Panel>
+    </ToolGrid>
+  </ToolShell>;
+}
+
 function RuleBridge({ questionData, feedback, submit, onAction }) {
   const spec = sequenceFromQuestion(questionData);
-  const parts = sequenceRuleParts(spec);
-  const [explicitFirst, setExplicitFirst] = useState('');
-  const [explicitChange, setExplicitChange] = useState('');
+  const [explicitRule, setExplicitRule] = useState('');
   const [recursiveFirst, setRecursiveFirst] = useState('');
-  const [recursiveChange, setRecursiveChange] = useState('');
-  const changeName = spec.kind === 'arithmetic' ? 'D' : 'R';
+  const [recursiveRule, setRecursiveRule] = useState('');
   const check = () => {
     const checks = [
-      matchesNumber(explicitFirst, parts.first, 0.001), matchesNumber(explicitChange, parts.change, 0.001),
-      matchesNumber(recursiveFirst, parts.first, 0.001), matchesNumber(recursiveChange, parts.change, 0.001),
+      matchesExplicitRule(explicitRule, spec),
+      matchesNumber(recursiveFirst, spec.first, 0.001),
+      matchesRecursiveRule(recursiveRule, spec),
     ];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length }, { explicitFirst, explicitChange, recursiveFirst, recursiveChange }, { mode: 'ruleBridge', kind: spec.kind });
+    submit(
+      { isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length },
+      { explicitRule, recursiveFirst, recursiveRule },
+      { mode: 'ruleBridge', kind: spec.kind },
+    );
   };
-  return <ToolShell title="Write the Sequence Rules" subtitle="Move between explicit and recursive descriptions of the same sequence." badge="Recursive and explicit">
-    <TaskCard question={questionData} task={'Write the same sequence both explicitly and recursively.'} steps={['The explicit rule gets any term directly from its position n.', 'The recursive rule builds each term from the one before it.', 'Both must produce the same sequence.']} />
+  return <ToolShell title="Write the Sequence Rules" subtitle="Write complete explicit and recursive equations for the same sequence." badge="Recursive and explicit">
+    <TaskCard
+      question={questionData}
+      task="Write the same sequence both explicitly and recursively."
+      steps={[
+        'The explicit equation must give aₙ directly from n.',
+        'The recursive definition needs the starting value a₁ and a rule using aₙ₋₁.',
+        'Both equations must generate the sequence shown.',
+      ]}
+    />
     <ToolGrid min={330}>
       <SequenceVisual spec={spec} count={6} title="Evidence from the sequence" />
-      <Panel title="Complete both rules">
-        <p style={{ fontWeight: 900 }}>{parts.explicitTemplate}</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>A<input value={explicitFirst} onChange={(event) => setExplicitFirst(event.target.value)} style={inputStyle} /></label><label>{changeName}<input value={explicitChange} onChange={(event) => setExplicitChange(event.target.value)} style={inputStyle} /></label></div>
-        <p style={{ fontWeight: 900, marginTop: 18 }}>{parts.recursiveTemplate}</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}><label>a₁<input value={recursiveFirst} onChange={(event) => setRecursiveFirst(event.target.value)} style={inputStyle} /></label><label>{spec.kind === 'arithmetic' ? 'added change' : 'multiplier'}<input value={recursiveChange} onChange={(event) => setRecursiveChange(event.target.value)} style={inputStyle} /></label></div>
-        <button type="button" onClick={check} style={actionStyle}>Check both representations</button>
-        {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'The explicit and recursive rules encode the same structure.' : 'Both forms must use the same first term and the same common change.'}</ResultPill></div> : null}
-      <HintPanel hints={['An explicit rule is a shortcut to any term. A recursive rule is a set of instructions you follow term by term.', 'For an arithmetic sequence the explicit rule is first term + (n − 1) × common difference.', 'A recursive rule always needs two pieces: the starting term, and how to get from one term to the next.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
+      <Panel title="Write both equations">
+        <label>
+          Explicit rule
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center', marginTop: 4 }}>
+            <strong style={{ fontSize: 20 }}>aₙ =</strong>
+            <input value={explicitRule} onChange={(event) => setExplicitRule(event.target.value)} placeholder="Write the full expression in n" style={inputStyle} />
+          </div>
+        </label>
+        <div style={{ marginTop: 18, fontWeight: 800 }}>Recursive rule</div>
+        <label style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center', marginTop: 6 }}>
+          <strong style={{ fontSize: 18 }}>a₁ =</strong>
+          <input value={recursiveFirst} onChange={(event) => setRecursiveFirst(event.target.value)} inputMode="decimal" style={inputStyle} />
+        </label>
+        <label style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 8, alignItems: 'center', marginTop: 8 }}>
+          <strong style={{ fontSize: 18 }}>aₙ =</strong>
+          <input value={recursiveRule} onChange={(event) => setRecursiveRule(event.target.value)} placeholder="Use aₙ₋₁ in your rule" style={inputStyle} />
+        </label>
+        <button type="button" onClick={check} style={actionStyle}>Check both equations</button>
+        {feedback ? <div style={{ marginTop: 12 }}>
+          <ResultPill ok={feedback.isCorrect}>
+            {feedback.isCorrect
+              ? 'Both equations generate the same sequence.'
+              : 'Check the starting value, the previous-term rule, and the explicit expression in n.'}
+          </ResultPill>
+        </div> : null}
+        <HintPanel
+          hints={[
+            'An explicit rule is a shortcut to any term. A recursive rule builds one term from the previous term.',
+            spec.kind === 'arithmetic'
+              ? 'Arithmetic: use aₙ = a₁ + (n − 1)d and aₙ = aₙ₋₁ + d.'
+              : 'Geometric: use aₙ = a₁(r)ⁿ⁻¹ and aₙ = r·aₙ₋₁.',
+            'You are writing the actual equations now — not just filling in A, D, or R.',
+          ]}
+          onHintUsed={() => onAction?.("HINT_USED")}
+        />
+      </Panel>
     </ToolGrid>
   </ToolShell>;
 }

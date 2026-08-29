@@ -78,6 +78,7 @@ const toolSection = () => {
   rows.push(line('**Student-experience rules for registry tools:**'));
   rows.push(bullet('Always write a complete student-facing `prompt`. MathMaster shows the authored problem above the tool directions; do not rely on an internal mode name to explain the task.'));
   rows.push(bullet('For `sequenceExplorer` in `analyze` mode, the evidence shown before submission must stop before the requested target term: use `displayCount < targetN`. The runtime also enforces this so the answer cannot be printed in the table/graph by accident.'));
+  rows.push(bullet('When students are learning sequences as discrete functions, prefer the semantic actions `buildSequenceTable` and `plotSequence` together with `analyzeSequence`, `writeRecursive`, `writeExplicit`, and/or `findSequenceTerm`. MathMaster keeps those actions in one integrated sequence workspace so students build the n → aₙ table, plot (n, aₙ), write the formulas, and use the same model instead of receiving separate disconnected questions.'));
   rows.push(bullet('For sequence compare and finite-sum tasks, do not deliberately reveal the requested comparison/final term unless the item is a worked example.'));
   rows.push(bullet('Use V5 `alignments` for standards. `masteryEvidenceKeys` is platform-owned and must not be authored by the AI.'));
   rows.push(bullet('For `representationMatch`, supply explicit `sets`; never depend on demo/default representations.'));

@@ -18,6 +18,18 @@ test('guard impossible tool configs',()=>{
   assert.equal(validateToolQuestion({toolId:'stepAlgebra2',equation:{a:0}}).isValid,false);
 });
 
+test('sequenceExplorer accepts the integrated table-plot-rule bridge',()=>{
+  const result=validateToolQuestion({
+    toolId:'sequenceExplorer',
+    mode:'fullBridge',
+    sequence:{kind:'arithmetic',first:4,difference:3},
+    targetN:12,
+    displayCount:5,
+    masteryEvidenceKeys:['texas:A.12D'],
+  });
+  assert.equal(result.isValid,true,result.errors.join('; '));
+});
+
 test('representationMatch completeSet requires authored sets instead of hidden fallback content',()=>{
   const missing=validateToolQuestion({toolId:'representationMatch',mode:'completeSet',targetId:'linear',masteryEvidenceKeys:['texas:A.12A']});
   assert.equal(missing.isValid,false);

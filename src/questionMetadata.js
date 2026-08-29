@@ -117,10 +117,27 @@ export const normalizeQuestionStandards = (questionOrStandards = {}) => {
     return { primary: [], secondary: [], prerequisite: [] };
   }
 
+  // Assignment V5 authoring commonly uses singular `standard` plus
+  // `secondaryStandards` / `prerequisiteStandards`. These must remain
+  // first-class runtime metadata so the clickable TEKS/CCMR chips beneath
+  // YOUR TASK do not disappear after V5 compilation.
   // Legacy shorthand { teks: ["A.2A"] } is treated as primary alignment.
-  const primarySource = raw.primary ?? raw.primaryTEKS ?? raw.teks ?? raw.codes ?? [];
-  const secondarySource = raw.secondary ?? raw.secondaryTEKS ?? raw.process ?? [];
-  const prerequisiteSource = raw.prerequisite ?? raw.prerequisiteTEKS ?? [];
+  const primarySource = raw.primary
+    ?? raw.primaryTEKS
+    ?? raw.teks
+    ?? raw.codes
+    ?? raw.primaryStandard
+    ?? raw.standard
+    ?? [];
+  const secondarySource = raw.secondary
+    ?? raw.secondaryTEKS
+    ?? raw.process
+    ?? raw.secondaryStandards
+    ?? [];
+  const prerequisiteSource = raw.prerequisite
+    ?? raw.prerequisiteTEKS
+    ?? raw.prerequisiteStandards
+    ?? [];
 
   return {
     primary: normalizeStandardList(primarySource, 'assessed'),

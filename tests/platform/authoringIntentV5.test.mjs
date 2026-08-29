@@ -32,6 +32,14 @@ const v5 = {
         sequence: { kind: 'arithmetic', first: 7, difference: 4 }, displayCount: 5,
       },
       {
+        standard: 'A.12D',
+        prompt: 'Build the table, plot the discrete sequence, write both rules, and find a₁₂.',
+        studentActions: ['buildSequenceTable','plotSequence','analyzeSequence','writeRecursive','writeExplicit','findSequenceTerm'],
+        sequence: { kind: 'geometric', first: 3, ratio: 2 },
+        displayCount: 5,
+        targetN: 12,
+      },
+      {
         standard: 'A.3C', prompt: 'Compare the graphs.',
         studentActions: ['compareGraphs'],
         candidateGraphs: [
@@ -46,13 +54,18 @@ const v5 = {
 
 const direct = compileAuthoringIntentV5(v5);
 assert.equal(direct.package.schemaVersion, 5);
-assert.deepEqual(direct.package.sections[0].questions.map((q) => q.type), ['functionGraph','relationMapping','relationshipModel','sequenceExplorer','graphComparison']);
+assert.deepEqual(direct.package.sections[0].questions.map((q) => q.type), ['functionGraph','relationMapping','relationshipModel','sequenceExplorer','sequenceExplorer','graphComparison']);
 assert.deepEqual(direct.package.sections[0].questions[2].recipe.ask, ['quantities','equation','table','continuity','graph','domain','range']);
 assert.equal(direct.package.sections[0].questions[3].mode, 'ruleBridge');
+assert.equal(direct.package.sections[0].questions[4].mode, 'fullBridge');
+assert.deepEqual(
+  direct.package.sections[0].questions[4].studentActions,
+  ['buildSequenceTable','plotSequence','analyzeSequence','writeRecursive','writeExplicit','findSequenceTerm'],
+);
 
 const parsed = parseAssignmentBlueprintText(JSON.stringify(v5));
 assert.equal(parsed.assignmentV5.schemaVersion, 5, 'V5 remains canonical through runtime validation');
-assert.equal(parsed.questions.length, 5);
+assert.equal(parsed.questions.length, 6);
 assert.deepEqual(parsed.questions[1].pairs, [{ x: -2, y: 3 }, { x: 1, y: 2 }, { x: 3, y: -1 }]);
 assert.equal(parsed.questions[0].alignments[0].code, 'A.3C');
 validateAssignmentQuestions(parsed.questions);
