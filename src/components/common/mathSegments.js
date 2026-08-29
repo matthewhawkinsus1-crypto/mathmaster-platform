@@ -55,7 +55,7 @@ const isCurrencyProseOpening = (text, start, end) => {
   // \\$54.75$" the word "times" must therefore not make "$3" look like an
   // ordinary currency opening. Remove command names before looking for real
   // prose words.
-  const withoutLatexCommands = afterAmount.replace(/\\\\[A-Za-z]+/g, '');
+  const withoutLatexCommands = afterAmount.replace(/\\[A-Za-z]+/g, '');
   // "$3 + 2$" remains valid legacy inline math because there are no prose
   // words after the numeric prefix. "$15 per month. Solve $..." is currency.
   return /[A-Za-z]{2,}/.test(withoutLatexCommands);
