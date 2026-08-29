@@ -56,11 +56,15 @@ test('partial crosswalks expose the allowed overlap instead of implying the whol
 
 
 test('direct exam-style display uses the item authored domain when a TEKS maps to several domains', () => {
-  const defaultInfo = buildQuestionAlignmentInfo({ code: '7.4C', framework: 'digitalSAT', examStyle: true });
+  // Grade 6-8 TEKS are intentionally excluded from direct Digital SAT evidence
+  // in the V2.1 scope correction. Use a high-school TEKS that legitimately maps
+  // to more than one SAT domain so this test exercises the authored-domain
+  // override without contradicting the current assessment scope policy.
+  const defaultInfo = buildQuestionAlignmentInfo({ code: 'A.9B', framework: 'digitalSAT', examStyle: true });
   const defaultActive = defaultInfo.connections.find((entry) => entry.active);
-  assert.equal(defaultActive.domainId, 'algebra');
+  assert.equal(defaultActive.domainId, 'advancedMath');
 
-  const info = buildQuestionAlignmentInfo({ code: '7.4C', framework: 'digitalSAT', domainId: 'problemSolvingData', examStyle: true });
+  const info = buildQuestionAlignmentInfo({ code: 'A.9B', framework: 'digitalSAT', domainId: 'problemSolvingData', examStyle: true });
   const active = info.connections.find((entry) => entry.active);
   assert.equal(active.domainId, 'problemSolvingData');
   assert.equal(active.domainTitle, 'Problem-Solving and Data Analysis');
