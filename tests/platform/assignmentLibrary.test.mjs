@@ -115,7 +115,7 @@ test('a library save produces no destinations, which is the correct answer', () 
   // Not an error and not a default. Nobody has been given it, so there is
   // nothing to split — and materialising a Standard variant now would be wrong
   // the moment the teacher assigns it to an Honors class.
-  assert.deepEqual(buildDestinationGroups({ assignedClassIds: [], courseProfiles }), []);
+  assert.deepEqual(buildDestinationGroups({ assignedClassIds: [], classes: CLASSES }), []);
 });
 
 test('assignmentKey is only qualified when the destination actually splits', () => {
