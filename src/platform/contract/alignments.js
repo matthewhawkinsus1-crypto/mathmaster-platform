@@ -148,9 +148,9 @@ export const normalizeQuestionAlignments = (question = {}, { includeCrosswalks =
       });
     } else if (legacy && typeof legacy === 'object') {
       [
-        ['primary', legacy.primary ?? legacy.primaryTEKS ?? legacy.teks ?? legacy.codes],
-        ['secondary', legacy.secondary ?? legacy.secondaryTEKS ?? legacy.process],
-        ['prerequisite', legacy.prerequisite ?? legacy.prerequisiteTEKS],
+        ['primary', legacy.primary ?? legacy.primaryTEKS ?? legacy.teks ?? legacy.codes ?? legacy.primaryStandard ?? legacy.standard],
+        ['secondary', legacy.secondary ?? legacy.secondaryTEKS ?? legacy.process ?? legacy.secondaryStandards],
+        ['prerequisite', legacy.prerequisite ?? legacy.prerequisiteTEKS ?? legacy.prerequisiteStandards],
       ].forEach(([role, values]) => {
         asArray(values).forEach((entry) => {
           const normalized = normalizeAlignmentEntry(entry, role);
