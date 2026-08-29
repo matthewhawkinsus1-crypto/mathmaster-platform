@@ -33,6 +33,19 @@ test('direct exam-style questions identify the active framework and assessment d
   assert.equal(active.domainTitle, 'Algebra');
 });
 
+test('direct audited CCMR items use their authored SAT skill family instead of a broad TEKS inference', () => {
+  const info = buildQuestionAlignmentInfo({
+    code: 'A2.2A',
+    framework: 'digitalSAT',
+    domainId: 'advancedMath',
+    examStyle: true,
+    assessmentSkillLabel: 'nonlinear functions',
+  });
+  assert.equal(info.activeSkillLabel, 'Nonlinear functions');
+  const active = info.connections.find((entry) => entry.active);
+  assert.equal(active.references[0]?.title, 'Nonlinear functions');
+});
+
 test('partial crosswalks expose the allowed overlap instead of implying the whole TEKS is tested', () => {
   const info = buildQuestionAlignmentInfo({ code: 'A.2A', framework: 'asvab', examStyle: true });
   const asvab = info.connections.find((entry) => entry.framework === 'asvab');
@@ -77,6 +90,8 @@ test('assessment style label requires direct framework/domain alignment for auth
 test('student UI has one alignment owner per question and the details are clickable', () => {
   assert.match(engineSource, /showStandardBadge = true/);
   assert.match(engineSource, /showStandardBadge && questionStandardCode/);
+  assert.match(engineSource, /assessmentSkillLabel=\{processedQuestion\?\.ccmrAuthenticLanguage\?\.officialSkillFamily/);
+  assert.match(badgeSource, /info\.activeSkillLabel/);
   assert.match(pathSource, /showStandardBadge=\{false\}/);
   assert.match(pathSource, /<StandardBadge[^>]*framework=\{directFramework\}/s);
   assert.doesNotMatch(toolShellSource, /StandardBadge/);

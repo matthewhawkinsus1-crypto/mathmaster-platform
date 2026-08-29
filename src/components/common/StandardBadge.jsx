@@ -178,12 +178,15 @@ function AlignmentDetailsDialog({ info, onClose, titleId, initialView = 'skill' 
   );
 }
 
-export default function StandardBadge({ code, framework = null, domainId = null, examStyle = false, showName = false, style = {} }) {
+export default function StandardBadge({ code, framework = null, domainId = null, examStyle = false, assessmentSkillLabel = '', showName = false, style = {} }) {
   const [open, setOpen] = useState(false);
   const [initialView, setInitialView] = useState('skill');
   const triggerRef = useRef(null);
   const titleId = useId();
-  const info = useMemo(() => buildQuestionAlignmentInfo({ code, framework, domainId, examStyle }), [code, framework, domainId, examStyle]);
+  const info = useMemo(
+    () => buildQuestionAlignmentInfo({ code, framework, domainId, examStyle, assessmentSkillLabel }),
+    [code, framework, domainId, examStyle, assessmentSkillLabel],
+  );
   if (!info) return null;
 
   const connectionCount = info.connections.length;
@@ -206,7 +209,7 @@ export default function StandardBadge({ code, framework = null, domainId = null,
         {showName && info.studentLabel && <span style={{ fontSize: 12, color: '#5f6368', lineHeight: 1.5 }}>{info.studentLabel}</span>}
         {info.activeFramework && (
           <button type="button" onClick={() => openDetails('ccmr')} aria-label={`Open ${info.activeFrameworkLabel} alignment details`} style={buttonReset(ACTIVE_CHIP)}>
-            {info.activeFrameworkLabel} practice{activeReference ? ` · ${activeReference.officialCode || activeReference.title}` : activeConnection?.domainTitle ? ` · ${activeConnection.domainTitle}` : ''} <span aria-hidden="true">›</span>
+            {info.activeFrameworkLabel} practice{info.activeSkillLabel ? ` · ${info.activeSkillLabel}` : activeReference ? ` · ${activeReference.officialCode || activeReference.title}` : activeConnection?.domainTitle ? ` · ${activeConnection.domainTitle}` : ''} <span aria-hidden="true">›</span>
           </button>
         )}
         {!info.activeFramework && connectionCount > 0 && (

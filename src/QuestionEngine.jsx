@@ -720,6 +720,7 @@ export default function QuestionEngine({
       framework={questionAssessment.framework}
       domainId={questionAssessment.domainId}
       examStyle={questionAssessment.examStyle}
+      assessmentSkillLabel={processedQuestion?.ccmrAuthenticLanguage?.officialSkillFamily || ''}
       style={{ margin: '8px 0 0', maxWidth: '860px' }}
     />
   ) : null;
