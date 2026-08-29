@@ -5,12 +5,27 @@ import {
   buildQuestionAlignmentInfo,
   questionAssessmentFramework,
 } from '../../src/platform/student/questionAlignmentInfo.js';
+import { normalizeQuestionStandards } from '../../src/questionMetadata.js';
 
 const engineSource = readFileSync(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8');
 const pathSource = readFileSync(new URL('../../src/components/student/PathSessionPlayer.jsx', import.meta.url), 'utf8');
 const badgeSource = readFileSync(new URL('../../src/components/common/StandardBadge.jsx', import.meta.url), 'utf8');
 const toolShellSource = readFileSync(new URL('../../src/tools/shared/ToolShell.jsx', import.meta.url), 'utf8');
 const secureExamSource = readFileSync(new URL('../../src/components/assessment/SecureExamQuestionPlayer.jsx', import.meta.url), 'utf8');
+
+test('Assignment V5 singular standard fields survive runtime metadata normalization', () => {
+  const direct = normalizeQuestionStandards({
+    standard: 'A.12C',
+    secondaryStandards: ['A.12A'],
+    prerequisiteStandards: ['8.5I'],
+  });
+  assert.deepEqual(direct.primary.map((entry) => entry.code), ['A.12C']);
+  assert.deepEqual(direct.secondary.map((entry) => entry.code), ['A.12A']);
+  assert.deepEqual(direct.prerequisite.map((entry) => entry.code), ['8.5I']);
+
+  const primaryStandard = normalizeQuestionStandards({ primaryStandard: 'A.12D' });
+  assert.deepEqual(primaryStandard.primary.map((entry) => entry.code), ['A.12D']);
+});
 
 test('ordinary aligned questions expose TEKS meaning and CCMR connections without claiming exam style', () => {
   const info = buildQuestionAlignmentInfo({ code: 'A.2B' });
