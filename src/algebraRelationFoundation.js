@@ -853,10 +853,17 @@ export const relationSolutionSummary = (state) => {
     // such as x = 5 OR x = -2.
     const numericValues = isolatedValues.map((expression) => numericValue(expression));
     if (numericValues.every((value) => value !== null)) {
+      const candidates = [];
+      numericValues.forEach((value, index) => {
+        if (candidates.some((candidate) => Math.abs(candidate.value - value) <= 1e-10)) return;
+        candidates.push({ value, expression: String(isolatedValues[index]).trim() });
+      });
+      candidates.sort((left, right) => left.value - right.value);
       return {
         solved: true,
         kind: 'values',
-        values: [...new Set(numericValues)].sort((a, b) => a - b),
+        values: candidates.map((candidate) => candidate.value),
+        valueExpressions: candidates.map((candidate) => candidate.expression),
       };
     }
 
