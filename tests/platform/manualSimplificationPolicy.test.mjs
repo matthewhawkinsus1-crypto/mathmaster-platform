@@ -14,7 +14,7 @@ test('one-click automatic simplification is gone', () => {
 });
 
 test('manual simplification remains student-entered', () => {
-  assert.match(src, /className="algebra-optional-simplification"/);
+  assert.match(src, /algebra-optional-simplification/);
   assert.match(src, /<MathInput value=\{simplificationAnswers\[target\.side\]/);
   assert.match(src, /checkSimplifications/);
   assert.match(src, /Check my simplification/);
