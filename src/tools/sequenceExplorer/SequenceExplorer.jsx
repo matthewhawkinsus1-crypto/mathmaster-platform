@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import ToolShell, { Panel, ToolGrid, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { matchesNumericAnswer, round } from '../shared/toolMath';
-import { sameEquivalentExpression } from '../../grading/equivalentExpression.js';
+import { evaluate } from 'mathjs';
 import useToolSubmission from '../shared/useToolSubmission';
 import {
   compareSequencesAt,
@@ -59,26 +59,47 @@ const normalizePreviousTermToken = (value = '') => (
     .replace(/aₙ₋₁/gi, 'p')
 );
 
-const explicitRuleExpected = (spec) => (
-  spec.kind === 'arithmetic'
-    ? `${numberText(spec.first)} + (${numberText(spec.difference)})*(n-1)`
-    : `(${numberText(spec.first)})*(${numberText(spec.ratio)})^(n-1)`
+const normalizeSequenceExpressionText = (value = '') => (
+  String(value || '')
+    .trim()
+    .replace(/−/g, '-')
+    .replace(/[×·]/g, '*')
+    .replace(/\s+/g, '')
+    .replace(/(\d|\))(?=[A-Za-z(])/g, '$1*')
+    .replace(/([A-Za-z])(?=\d|\()/g, '$1*')
 );
 
-const recursiveRuleExpected = (spec) => (
-  spec.kind === 'arithmetic'
-    ? `p + (${numberText(spec.difference)})`
-    : `(${numberText(spec.ratio)})*p`
-);
+const expressionMatchesSamples = (value, samples = [], expectedAt = () => Number.NaN) => {
+  const expression = normalizeSequenceExpressionText(value);
+  if (!expression) return false;
+  try {
+    return samples.every((scope) => {
+      const actual = Number(evaluate(expression, scope));
+      const expected = Number(expectedAt(scope));
+      return Number.isFinite(actual) && Number.isFinite(expected) && Math.abs(actual - expected) <= 1e-6;
+    });
+  } catch {
+    return false;
+  }
+};
 
 const matchesExplicitRule = (value, spec) => {
   const rhs = stripRuleLeftSide(value);
-  return Boolean(rhs) && sameEquivalentExpression(rhs, explicitRuleExpected(spec));
+  return expressionMatchesSamples(
+    rhs,
+    [1, 2, 3, 5, 8].map((n) => ({ n })),
+    ({ n }) => sequenceTerm(spec, n),
+  );
 };
 
 const matchesRecursiveRule = (value, spec) => {
   const rhs = normalizePreviousTermToken(value);
-  return Boolean(rhs) && sameEquivalentExpression(rhs, recursiveRuleExpected(spec));
+  const change = sequenceChange(spec);
+  return expressionMatchesSamples(
+    rhs,
+    [-11, -2.5, 0, 3, 10].map((p) => ({ p })),
+    ({ p }) => spec.kind === 'arithmetic' ? p + change : p * change,
+  );
 };
 
 const pointSetMatchesRows = (points = [], rows = [], tolerance = 0.02) => {
