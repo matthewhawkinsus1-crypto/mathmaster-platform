@@ -1528,8 +1528,8 @@
      },
      "want": {
       "type": "int",
-      "min": 20,
-      "max": 50,
+      "min": 10,
+      "max": 40,
       "step": 10
      }
     },
@@ -4650,6 +4650,1067 @@
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:6.5B:which-shift-cleared-the-larger-share",
     "sourcePrompt": "Two shifts worked different sized batches, as shown, and the log reported a gap of {{reported}}. How many more {{item}} did the larger shift really clear?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_5C_three_forms_of_one_order",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.5C:three-forms-of-one-order",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Of {{total}} {{item}}, {{p}}% went to one depot and $\\frac{{{num}}}{{{den}}}$ to another, with {{held}} expected to stay. How many actually stayed?",
+   "solutionReview": {
+    "headline": "Put both shares into counts before subtracting.",
+    "reasoning": [
+     "{{p}}% of {{total}} is {{first}} and $\\frac{{{num}}}{{{den}}}$ of it is {{second}}.",
+     "That leaves {{answer}} held back."
+    ],
+    "answerSummary": "${{answer}}$ were held back."
+   },
+   "attemptFeedback": [
+    "The expected figure is what was planned, not what the two shares leave."
+   ],
+   "supportHints": [
+    "A percent and a fraction both have to become counts of {{item}} first."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 20,
+      "step": 10
+     },
+     "num": {
+      "type": "int",
+      "min": 1,
+      "max": 1
+     },
+     "den": {
+      "type": "int",
+      "min": 4,
+      "max": 5
+     },
+     "held": {
+      "type": "int",
+      "min": 100,
+      "max": 470
+     }
+    },
+    "derived": {
+     "total": "hundreds*100",
+     "first": "total*p/100",
+     "second": "total*num/den",
+     "answer": "total-first-second",
+     "d_partialTotal": "first+second",
+     "d_percentNotApplied": "total-first",
+     "d_usedGivenValue": "held"
+    },
+    "constraints": [
+     "num<den",
+     "total-first-second>first+second",
+     "held!=answer",
+     "answer!=d_partialTotal",
+     "answer!=d_percentNotApplied",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=d_percentNotApplied",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_percentNotApplied!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.5C:three-forms-of-one-order",
+    "sourcePrompt": "Of {{total}} {{item}}, {{p}}% went to one depot and $\\frac{{{num}}}{{{den}}}$ to another, with {{held}} expected to stay. How many actually stayed?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_5C_order_size_behind_two_shares",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.5C:order-size-behind-two-shares",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5C",
+   "taskType": "reverseReasoning",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A depot took {{p}}% of an order and a second took $\\frac{{{num}}}{{{den}}}$ of it. Together they took {{taken}} {{item}}. How large was the order?",
+   "solutionReview": {
+    "headline": "Add the two shares as one fraction of the order.",
+    "reasoning": [
+     "The two shares are {{p}}% and $\\frac{{{num}}}{{{den}}}$ of the order, so {{taken}} is their combined share of it.",
+     "That makes the order {{answer}}."
+    ],
+    "answerSummary": "The order was ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The two depots took part of the order, not all of it."
+   ],
+   "supportHints": [
+    "Both shares are measured against the same order."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 40,
+      "step": 10
+     },
+     "num": {
+      "type": "int",
+      "min": 1,
+      "max": 2
+     },
+     "den": {
+      "type": "int",
+      "min": 4,
+      "max": 5
+     },
+     "stated": {
+      "type": "int",
+      "min": 150,
+      "max": 1000
+     }
+    },
+    "derived": {
+     "answer": "hundreds*100",
+     "first": "answer*p/100",
+     "second": "answer*num/den",
+     "taken": "first+second",
+     "d_forgotFinalStep": "taken",
+     "d_partialTotal": "answer+taken",
+     "d_usedGivenValue": "stated"
+    },
+    "constraints": [
+     "num<den",
+     "stated!=answer",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.5C:order-size-behind-two-shares",
+    "sourcePrompt": "A depot took {{p}}% of an order and a second took $\\frac{{{num}}}{{{den}}}$ of it. Together they took {{taken}} {{item}}. How large was the order?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_5C_correcting_the_record_that_disagrees",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.5C:correcting-the-record-that-disagrees",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5C",
+   "taskType": "errorAnalysis",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Three clerks recorded the same share of {{total}} {{item}} and one disagrees. What should clerk C have recorded?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Clerk",
+     "Record"
+    ],
+    "rows": [
+     [
+      "A",
+      "{{p}}%"
+     ],
+     [
+      "B",
+      "$\\frac{{{num}}}{{{den}}}$"
+     ],
+     [
+      "C",
+      "{{cCount}} {{item}}"
+     ],
+     [
+      "Noted",
+      "{{noted}} {{item}}"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "Two records agree; correct the third to match them.",
+    "reasoning": [
+     "{{p}}% and $\\frac{{{num}}}{{{den}}}$ of {{total}} both come to {{answer}}.",
+     "Clerk C recorded {{cCount}}, so {{answer}} is what the record should read."
+    ],
+    "answerSummary": "It should read ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Taking the fraction a second time shrinks a share that was already correct."
+   ],
+   "supportHints": [
+    "Turn the percent and the fraction into counts and see that they match."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "num": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "den": {
+      "type": "int",
+      "min": 4,
+      "max": 5
+     },
+     "off": {
+      "type": "int",
+      "min": 8,
+      "max": 60,
+      "step": 4
+     },
+     "noted": {
+      "type": "int",
+      "min": 30,
+      "max": 400
+     }
+    },
+    "derived": {
+     "total": "hundreds*100",
+     "p": "round(num*100/den)",
+     "answer": "total*num/den",
+     "share": "answer",
+     "cCount": "answer+off",
+     "d_forgotFinalStep": "cCount",
+     "d_exponentError": "round(answer*num/den)",
+     "d_usedGivenValue": "noted"
+    },
+    "constraints": [
+     "num<den",
+     "noted!=answer",
+     "round(answer*num/den)!=answer",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_exponentError",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_exponentError",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_exponentError!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_exponentError}}$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.5C:correcting-the-record-that-disagrees",
+    "sourcePrompt": "Three clerks recorded the same share of {{total}} {{item}} and one disagrees. What should clerk C have recorded?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_7_4B_pay_across_two_rates",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.4B:pay-across-two-rates",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{worker}} is paid $${{rate}}$ an hour for the first {{plain}} hours and $${{over}}$ an hour after that. What is the pay for a {{total}}-hour week?",
+   "solutionReview": {
+    "headline": "The two rates cover different parts of the week.",
+    "reasoning": [
+     "{{plain}} hours at $${{rate}}$ and {{extra}} hours at $${{over}}$.",
+     "Together that is $${{answer}}$."
+    ],
+    "answerSummary": "The pay is $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Paying every hour at one rate ignores the change after {{plain}} hours."
+   ],
+   "supportHints": [
+    "Only the hours past the first block earn the higher rate."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "technician",
+       "driver",
+       "fitter",
+       "welder"
+      ]
+     },
+     "rate": {
+      "type": "int",
+      "min": 12,
+      "max": 25
+     },
+     "bump": {
+      "type": "int",
+      "min": 4,
+      "max": 12
+     },
+     "plain": {
+      "type": "int",
+      "min": 30,
+      "max": 40,
+      "step": 5
+     },
+     "extra": {
+      "type": "int",
+      "min": 4,
+      "max": 14
+     },
+     "offered": {
+      "type": "int",
+      "min": 380,
+      "max": 1250
+     }
+    },
+    "derived": {
+     "over": "rate+bump",
+     "total": "plain+extra",
+     "answer": "plain*rate+extra*over",
+     "d_percentNotApplied": "total*rate",
+     "d_partialTotal": "total*over",
+     "d_usedGivenValue": "offered"
+    },
+    "constraints": [
+     "offered!=answer",
+     "answer!=d_percentNotApplied",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_percentNotApplied!=d_partialTotal",
+     "d_percentNotApplied!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.4B:pay-across-two-rates",
+    "sourcePrompt": "A {{worker}} is paid $${{rate}}$ an hour for the first {{plain}} hours and $${{over}}$ an hour after that. What is the pay for a {{total}}-hour week?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_7_4B_hours_behind_a_pay_packet",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.4B:hours-behind-a-pay-packet",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4B",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{worker}} earning $${{rate}}$ an hour, then $${{over}}$ after {{plain}} hours, took home $${{answerPay}}$. How many hours were worked?",
+   "solutionReview": {
+    "headline": "Take off the basic block before dividing the remainder.",
+    "reasoning": [
+     "The first {{plain}} hours pay {{plain}}x$${{rate}}$, leaving the rest at $${{over}}$ an hour.",
+     "That is {{extra}} more hours, so {{answer}} in all."
+    ],
+    "answerSummary": "It was ${{answer}}$ hours."
+   },
+   "attemptFeedback": [
+    "Dividing the whole packet by the basic rate ignores the higher rate."
+   ],
+   "supportHints": [
+    "Some of the packet is earned before the higher rate starts."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "technician",
+       "driver",
+       "fitter",
+       "welder"
+      ]
+     },
+     "rate": {
+      "type": "int",
+      "min": 12,
+      "max": 22
+     },
+     "bump": {
+      "type": "int",
+      "min": 4,
+      "max": 10
+     },
+     "plain": {
+      "type": "int",
+      "min": 30,
+      "max": 40,
+      "step": 5
+     },
+     "extra": {
+      "type": "int",
+      "min": 5,
+      "max": 16
+     },
+     "listed": {
+      "type": "int",
+      "min": 28,
+      "max": 66
+     }
+    },
+    "derived": {
+     "over": "rate+bump",
+     "answer": "plain+extra",
+     "answerPay": "plain*rate+extra*over",
+     "d_forgotFinalStep": "extra",
+     "d_operationInverted": "round(answerPay/rate)",
+     "d_usedGivenValue": "listed"
+    },
+    "constraints": [
+     "listed!=answer",
+     "round(answerPay/rate)!=answer",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.4B:hours-behind-a-pay-packet",
+    "sourcePrompt": "A {{worker}} earning $${{rate}}$ an hour, then $${{over}}$ after {{plain}} hours, took home $${{answerPay}}$. How many hours were worked?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_7_4B_which_quote_is_cheapest_per_unit",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.4B:which-quote-is-cheapest-per-unit",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4B",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Three suppliers quote as shown. What does the cheapest one charge for {{want}} {{item}}?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Supplier",
+     "{{item}}",
+     "Price"
+    ],
+    "rows": [
+     [
+      "A",
+      "{{nA}}",
+      "$${{pA}}$"
+     ],
+     [
+      "B",
+      "{{nB}}",
+      "$${{pB}}$"
+     ],
+     [
+      "C",
+      "{{nC}}",
+      "$${{pC}}$"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "The lowest quoted total is not the lowest price each.",
+    "reasoning": [
+     "Per {{item}} the quotes work out at $${{low}}$, $${{eachB}}$ and $${{eachC}}$.",
+     "The cheapest is $${{low}}$, so {{want}} cost $${{answer}}$."
+    ],
+    "answerSummary": "It costs $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Adding two of the quotes prices their samples, not this order."
+   ],
+   "supportHints": [
+    "The three quotes cover different counts, so compare the price of one."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "low": {
+      "type": "int",
+      "min": 3,
+      "max": 8
+     },
+     "midBump": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "hiBump": {
+      "type": "int",
+      "min": 5,
+      "max": 9
+     },
+     "nA": {
+      "type": "int",
+      "min": 6,
+      "max": 14
+     },
+     "nB": {
+      "type": "int",
+      "min": 6,
+      "max": 14
+     },
+     "nC": {
+      "type": "int",
+      "min": 6,
+      "max": 14
+     },
+     "want": {
+      "type": "int",
+      "min": 10,
+      "max": 40,
+      "step": 10
+     }
+    },
+    "derived": {
+     "eachB": "low+midBump",
+     "eachC": "low+hiBump",
+     "pA": "nA*low",
+     "pB": "nB*eachB",
+     "pC": "nC*eachC",
+     "answer": "low*want",
+     "d_forgotFinalStep": "low",
+     "d_partialTotal": "eachC*want",
+     "d_usedGivenValue": "pA+pB"
+    },
+    "constraints": [
+     "midBump<hiBump",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.4B:which-quote-is-cheapest-per-unit",
+    "sourcePrompt": "Three suppliers quote as shown. What does the cheapest one charge for {{want}} {{item}}?"
    }
   }
  ]

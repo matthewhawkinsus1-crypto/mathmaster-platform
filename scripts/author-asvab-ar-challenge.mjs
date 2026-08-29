@@ -360,7 +360,7 @@ arc('6.4D', 'which-supplier-is-cheaper-and-by-how-much', {
       eachB: { type: 'int', min: 4, max: 15 },
       nA: { type: 'int', min: 5, max: 12 },
       nB: { type: 'int', min: 5, max: 12 },
-      want: { type: 'int', min: 20, max: 50, step: 10 },
+      want: { type: 'int', min: 10, max: 40, step: 10 },
     },
     derived: {
       pA: 'nA*eachA',
@@ -1041,6 +1041,237 @@ arc('6.5B', 'which-shift-cleared-the-larger-share', {
   answerSummary: { headline: 'A percentage of a bigger batch is a bigger count.', text: 'The gap is ${{answer}}$ {{item}}.' },
   hint: 'The two percentages describe batches of different sizes.',
   feedback: 'The reported gap is what the log claims, not what the figures give.',
+});
+
+// ================================================================ 6.5C
+// Equivalent forms of one share.
+
+arc('6.5C', 'three-forms-of-one-order', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'Of {{total}} {{item}}, {{p}}% went to one depot and $\\frac{{{num}}}{{{den}}}$ to another, with {{held}} expected to stay. How many actually stayed?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      hundreds: { type: 'int', min: 2, max: 8 },
+      p: { type: 'int', min: 10, max: 20, step: 10 },
+      num: { type: 'int', min: 1, max: 1 },
+      den: { type: 'int', min: 4, max: 5 },
+      held: { type: 'int', min: 100, max: 470 },
+    },
+    derived: {
+      total: 'hundreds*100',
+      first: 'total*p/100',
+      second: 'total*num/den',
+      answer: 'total-first-second',
+      // The two shares together stay under half the order, so what is held back
+      // is dependably larger than what was sent and this is a real undershoot.
+      d_partialTotal: 'first+second',
+      d_percentNotApplied: 'total-first',
+      d_usedGivenValue: 'held',
+    },
+    constraints: ['num<den', 'total-first-second>first+second', 'held!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{p}}% of {{total}} is {{first}} and $\\frac{{{num}}}{{{den}}}$ of it is {{second}}.', 'That leaves {{answer}} held back.'],
+  answerSummary: { headline: 'Put both shares into counts before subtracting.', text: '${{answer}}$ were held back.' },
+  hint: 'A percent and a fraction both have to become counts of {{item}} first.',
+  feedback: 'The expected figure is what was planned, not what the two shares leave.',
+});
+
+arc('6.5C', 'order-size-behind-two-shares', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: 'A depot took {{p}}% of an order and a second took $\\frac{{{num}}}{{{den}}}$ of it. Together they took {{taken}} {{item}}. How large was the order?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      hundreds: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 10, max: 40, step: 10 },
+      num: { type: 'int', min: 1, max: 2 },
+      den: { type: 'int', min: 4, max: 5 },
+      stated: { type: 'int', min: 150, max: 1000 },
+    },
+    derived: {
+      answer: 'hundreds*100',
+      first: 'answer*p/100',
+      second: 'answer*num/den',
+      taken: 'first+second',
+      d_forgotFinalStep: 'taken',
+      d_partialTotal: 'answer+taken',
+      d_usedGivenValue: 'stated',
+    },
+    constraints: ['num<den', 'stated!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The two shares are {{p}}% and $\\frac{{{num}}}{{{den}}}$ of the order, so {{taken}} is their combined share of it.', 'That makes the order {{answer}}.'],
+  answerSummary: { headline: 'Add the two shares as one fraction of the order.', text: 'The order was ${{answer}}$.' },
+  hint: 'Both shares are measured against the same order.',
+  feedback: 'The two depots took part of the order, not all of it.',
+});
+
+arc('6.5C', 'correcting-the-record-that-disagrees', {
+  difficultyBand: 5, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'Three clerks recorded the same share of {{total}} {{item}} and one disagrees. What should clerk C have recorded?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Clerk', 'Record'],
+    rows: [['A', '{{p}}%'], ['B', '$\\frac{{{num}}}{{{den}}}$'], ['C', '{{cCount}} {{item}}'], ['Noted', '{{noted}} {{item}}']],
+  },
+  generator: {
+    parameters: {
+      item: GOODS,
+      hundreds: { type: 'int', min: 2, max: 8 },
+      num: { type: 'int', min: 1, max: 3 },
+      den: { type: 'int', min: 4, max: 5 },
+      off: { type: 'int', min: 8, max: 60, step: 4 },
+      noted: { type: 'int', min: 30, max: 400 },
+    },
+    derived: {
+      total: 'hundreds*100',
+      p: 'round(num*100/den)',
+      answer: 'total*num/den',
+      share: 'answer',
+      cCount: 'answer+off',
+      d_forgotFinalStep: 'cCount',
+      d_exponentError: 'round(answer*num/den)',
+      d_usedGivenValue: 'noted',
+    },
+    constraints: ['num<den', 'noted!=answer', 'round(answer*num/den)!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{p}}% and $\\frac{{{num}}}{{{den}}}$ of {{total}} both come to {{answer}}.', 'Clerk C recorded {{cCount}}, so {{answer}} is what the record should read.'],
+  answerSummary: { headline: 'Two records agree; correct the third to match them.', text: 'It should read ${{answer}}$.' },
+  hint: 'Turn the percent and the fraction into counts and see that they match.',
+  feedback: 'Taking the fraction a second time shrinks a share that was already correct.',
+});
+
+// ================================================================ 7.4B
+// Unit rates.
+
+arc('7.4B', 'pay-across-two-rates', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{worker}} is paid $\$\{{rate}}$ an hour for the first {{plain}} hours and $\$\{{over}}$ an hour after that. What is the pay for a {{total}}-hour week?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
+      rate: { type: 'int', min: 12, max: 25 },
+      bump: { type: 'int', min: 4, max: 12 },
+      plain: { type: 'int', min: 30, max: 40, step: 5 },
+      extra: { type: 'int', min: 4, max: 14 },
+      offered: { type: 'int', min: 380, max: 1250 },
+    },
+    derived: {
+      over: 'rate+bump',
+      total: 'plain+extra',
+      answer: 'plain*rate+extra*over',
+      d_percentNotApplied: 'total*rate',
+      d_partialTotal: 'total*over',
+      d_usedGivenValue: 'offered',
+    },
+    constraints: ['offered!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{plain}} hours at $\$\{{rate}}$ and {{extra}} hours at $\$\{{over}}$.', 'Together that is $\$\{{answer}}$.'],
+  answerSummary: { headline: 'The two rates cover different parts of the week.', text: 'The pay is $\$\{{answer}}$.' },
+  hint: 'Only the hours past the first block earn the higher rate.',
+  feedback: 'Paying every hour at one rate ignores the change after {{plain}} hours.',
+});
+
+arc('7.4B', 'hours-behind-a-pay-packet', {
+  difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A {{worker}} earning $\$\{{rate}}$ an hour, then $\$\{{over}}$ after {{plain}} hours, took home $\$\{{answerPay}}$. How many hours were worked?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
+      rate: { type: 'int', min: 12, max: 22 },
+      bump: { type: 'int', min: 4, max: 10 },
+      plain: { type: 'int', min: 30, max: 40, step: 5 },
+      extra: { type: 'int', min: 5, max: 16 },
+      listed: { type: 'int', min: 28, max: 66 },
+    },
+    derived: {
+      over: 'rate+bump',
+      answer: 'plain+extra',
+      answerPay: 'plain*rate+extra*over',
+      d_forgotFinalStep: 'extra',
+      d_operationInverted: 'round(answerPay/rate)',
+      d_usedGivenValue: 'listed',
+    },
+    constraints: ['listed!=answer', 'round(answerPay/rate)!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The first {{plain}} hours pay {{plain}}x$\$\{{rate}}$, leaving the rest at $\$\{{over}}$ an hour.', 'That is {{extra}} more hours, so {{answer}} in all.'],
+  answerSummary: { headline: 'Take off the basic block before dividing the remainder.', text: 'It was ${{answer}}$ hours.' },
+  hint: 'Some of the packet is earned before the higher rate starts.',
+  feedback: 'Dividing the whole packet by the basic rate ignores the higher rate.',
+});
+
+arc('7.4B', 'which-quote-is-cheapest-per-unit', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Three suppliers quote as shown. What does the cheapest one charge for {{want}} {{item}}?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Supplier', '{{item}}', 'Price'],
+    rows: [['A', '{{nA}}', '$\$\{{pA}}$'], ['B', '{{nB}}', '$\$\{{pB}}$'], ['C', '{{nC}}', '$\$\{{pC}}$']],
+  },
+  generator: {
+    parameters: {
+      item: GOODS,
+      low: { type: 'int', min: 3, max: 8 },
+      midBump: { type: 'int', min: 1, max: 4 },
+      hiBump: { type: 'int', min: 5, max: 9 },
+      nA: { type: 'int', min: 6, max: 14 },
+      nB: { type: 'int', min: 6, max: 14 },
+      nC: { type: 'int', min: 6, max: 14 },
+      want: { type: 'int', min: 10, max: 40, step: 10 },
+    },
+    derived: {
+      eachB: 'low+midBump',
+      eachC: 'low+hiBump',
+      pA: 'nA*low',
+      pB: 'nB*eachB',
+      pC: 'nC*eachC',
+      answer: 'low*want',
+      d_forgotFinalStep: 'low',
+      d_partialTotal: 'eachC*want',
+      d_usedGivenValue: 'pA+pB',
+    },
+    constraints: ['midBump<hiBump'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Per {{item}} the quotes work out at $\$\{{low}}$, $\$\{{eachB}}$ and $\$\{{eachC}}$.', 'The cheapest is $\$\{{low}}$, so {{want}} cost $\$\{{answer}}$.'],
+  answerSummary: { headline: 'The lowest quoted total is not the lowest price each.', text: 'It costs $\$\{{answer}}$.' },
+  hint: 'The three quotes cover different counts, so compare the price of one.',
+  feedback: 'Adding two of the quotes prices their samples, not this order.',
 });
 
 // ---------------------------------------------------------------- emit
