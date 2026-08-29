@@ -12,7 +12,7 @@ const cleanFramework = (value) => {
   return EXAM_FRAMEWORKS.has(framework) ? framework : null;
 };
 
-export const buildQuestionAlignmentInfo = ({ code, framework = null, domainId = null, examStyle = false } = {}) => {
+export const buildQuestionAlignmentInfo = ({ code, framework = null, domainId = null, examStyle = false, assessmentSkillLabel = '' } = {}) => {
   const normalized = normalizeTeksCode(String(code || '').replace(/^texas:/i, ''));
   if (!normalized) return null;
   const standard = getTexasStandard(normalized);
@@ -27,6 +27,16 @@ export const buildQuestionAlignmentInfo = ({ code, framework = null, domainId = 
     const allowedDomainIds = Array.isArray(entry.domainIds) && entry.domainIds.length ? entry.domainIds : [entry.domainId].filter(Boolean);
     const activeDomainId = requestedDomain && allowedDomainIds.includes(requestedDomain) ? requestedDomain : (entry.domainId || '');
     const activeDomain = (EXAM_DOMAIN_REGISTRY[id] || []).find((candidate) => candidate.id === activeDomainId);
+    const references = getAssessmentStandardReferences(normalized, id);
+    const directSkill = id === examFramework ? String(assessmentSkillLabel || '').trim() : '';
+    const normalizedDirectSkill = directSkill.toLowerCase();
+    const orderedReferences = normalizedDirectSkill
+      ? [...references].sort((left, right) => {
+          const leftMatch = String(left?.title || '').trim().toLowerCase() === normalizedDirectSkill ? 1 : 0;
+          const rightMatch = String(right?.title || '').trim().toLowerCase() === normalizedDirectSkill ? 1 : 0;
+          return rightMatch - leftMatch;
+        })
+      : references;
     return {
       framework: id,
       label: FRAMEWORK_LABELS[id] || id,
@@ -36,7 +46,7 @@ export const buildQuestionAlignmentInfo = ({ code, framework = null, domainId = 
       allowedAspects: Array.isArray(entry.allowedAspects) ? entry.allowedAspects : [],
       excludedAspects: Array.isArray(entry.excludedAspects) ? entry.excludedAspects : [],
       active: id === examFramework,
-      references: getAssessmentStandardReferences(normalized, id),
+      references: orderedReferences,
     };
   });
 
@@ -50,6 +60,9 @@ export const buildQuestionAlignmentInfo = ({ code, framework = null, domainId = 
     classification: standard.classification || '',
     activeFramework: examFramework,
     activeFrameworkLabel: examFramework ? (FRAMEWORK_LABELS[examFramework] || examFramework) : '',
+    activeSkillLabel: examFramework && String(assessmentSkillLabel || '').trim()
+      ? String(assessmentSkillLabel).trim().replace(/^./, (character) => character.toUpperCase())
+      : '',
     isExamStyle: Boolean(examFramework),
     connections,
   };
