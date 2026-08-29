@@ -27,11 +27,28 @@ const sequenceFromQuestion = (questionData = {}) => {
 
 const graphBounds = (values = []) => {
   const finite = values.filter(Number.isFinite);
-  const low = Math.min(0, ...finite);
-  const high = Math.max(0, ...finite);
-  const span = Math.max(4, high - low);
+  if (!finite.length) return { yMin: -5, yMax: 5 };
+  const dataLow = Math.min(...finite);
+  const dataHigh = Math.max(...finite);
+  const span = Math.max(4, dataHigh - dataLow);
   const margin = Math.max(2, span * 0.12);
-  return { yMin: Math.floor(low - margin), yMax: Math.ceil(high + margin) };
+  let low = dataLow - margin;
+  let high = dataHigh + margin;
+
+  // Include zero when the data naturally lives near it or crosses it, but do
+  // not waste most of the graph on empty space. This matters for sequences
+  // such as 125, 143, 161, ... where forcing y=0 made the actual points appear
+  // in a tiny strip at the top of a dense grid.
+  if (dataLow <= 0 && dataHigh >= 0) {
+    low = Math.min(low, 0);
+    high = Math.max(high, 0);
+  } else if (dataLow > 0 && dataLow <= span * 0.6) {
+    low = 0;
+  } else if (dataHigh < 0 && Math.abs(dataHigh) <= span * 0.6) {
+    high = 0;
+  }
+
+  return { yMin: Math.floor(low), yMax: Math.ceil(high) };
 };
 
 
