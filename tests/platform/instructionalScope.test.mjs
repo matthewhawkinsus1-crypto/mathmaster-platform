@@ -6,7 +6,7 @@ const base = (lessons, questions) => ({
   schemaVersion: 5,
   assignment: { courseId: 'algebra1', title: 'Scope test' },
   lessonMetadata: { provider: 'Bluebonnet', course: 'Algebra I', module: 1, topic: 1, lessons },
-  activities: [{ role: 'classwork', questions }],
+  sections: [{ id: 'classwork', role: 'classwork', title: 'Classwork', questions }],
 });
 
 const twoGraphs = [
