@@ -602,6 +602,228 @@ arc('6.4E', 'gap-between-two-written-forms', {
   feedback: 'The expected gap on the sheet is not what the two records actually differ by.',
 });
 
+// ================================================================ 6.4F
+// Benchmark percents.
+
+arc('6.4F', 'two-markdowns-in-sequence', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{tool}} listed at $\$\{{list}}$ is cut {{p}}%, then the sale price is cut {{q}}% more. What is the final price?',
+  generator: {
+    parameters: {
+      tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
+      hundreds: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 10, max: 50, step: 10 },
+      q: { type: 'int', min: 10, max: 50, step: 10 },
+      posted: { type: 'int', min: 40, max: 480 },
+    },
+    derived: {
+      list: 'hundreds*100',
+      afterFirst: 'list*(100-p)/100',
+      answer: 'afterFirst*(100-q)/100',
+      d_forgotFinalStep: 'afterFirst',
+      d_percentNotApplied: 'list*(100-p-q)/100',
+      d_usedGivenValue: 'posted',
+    },
+    constraints: ['p!=q', 'p+q<90', 'posted!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{p}}% off $\$\{{list}}$ leaves $\$\{{afterFirst}}$.', '{{q}}% off that leaves $\$\{{answer}}$.'],
+  answerSummary: { headline: 'The second cut applies to the reduced price.', text: 'It ends at $\$\{{answer}}$.' },
+  hint: 'The second discount is not taken from the original ticket.',
+  feedback: 'Adding the two percentages treats both cuts as coming off the list price.',
+});
+
+arc('6.4F', 'list-price-behind-a-benchmark-cut', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: 'After {{p}}% was taken off, a {{tool}} sold for $\$\{{sale}}$ and the {{shop}} kept $\$\{{fee}}$ of that as a fee. What was the list price?',
+  generator: {
+    parameters: {
+      tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
+      shop: SHOPS,
+      hundreds: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 10, max: 60, step: 10 },
+      fee: { type: 'int', min: 5, max: 40, step: 5 },
+      ticket: { type: 'int', min: 90, max: 900 },
+    },
+    derived: {
+      answer: 'hundreds*100',
+      sale: 'answer*(100-p)/100',
+      d_forgotFinalStep: 'sale',
+      d_partialTotal: 'answer+sale',
+      d_usedGivenValue: 'ticket',
+    },
+    constraints: ['ticket!=answer', 'sale>fee'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['$\$\{{sale}}$ is {{100-p}}% of the list price.', 'That makes the list price $\$\{{answer}}$; the fee comes out of the sale, not the list.'],
+  answerSummary: { headline: 'The sale price is a percentage of the list price.', text: 'The list price was $\$\{{answer}}$.' },
+  hint: 'Ask what fraction of the list price the sale price represents.',
+  feedback: 'The fee is taken from what was received, so it does not change the list price.',
+});
+
+arc('6.4F', 'which-claim-the-figures-support', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'A {{crew}} logged two days against a target of {{total}} {{item}} and pledged {{pledge}}. How many more must be cleared to reach {{goal}}% of the target?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Day', '{{item}} cleared'],
+    rows: [['1', '{{day1}}'], ['2', '{{day2}}']],
+  },
+  generator: {
+    parameters: {
+      crew: WORKERS,
+      item: GOODS,
+      hundreds: { type: 'int', min: 3, max: 9 },
+      p: { type: 'int', min: 10, max: 20, step: 10 },
+      q: { type: 'int', min: 10, max: 20, step: 10 },
+      goal: { type: 'int', min: 70, max: 90, step: 10 },
+      pledge: { type: 'int', min: 60, max: 620 },
+    },
+    derived: {
+      total: 'hundreds*100',
+      day1: 'total*p/100',
+      day2: 'total*q/100',
+      target: 'total*goal/100',
+      answer: 'target-day1-day2',
+      d_percentNotApplied: 'total-day1-day2',
+      d_partialTotal: 'day1+day2',
+      d_usedGivenValue: 'pledge',
+    },
+    // 2*(p+q) < goal keeps what is already cleared below what remains, so
+    // `day1+day2` is a dependable undershoot rather than a second crosser.
+    constraints: ['2*(p+q)<goal', 'target-day1-day2>0', 'pledge!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{goal}}% of {{total}} is {{target}}, and {{day1}}+{{day2}} are already cleared.', 'That leaves {{answer}} still to clear.'],
+  answerSummary: { headline: 'The goal is a percentage of the target, not the whole of it.', text: '${{answer}}$ are still to clear.' },
+  hint: 'Work out how many the goal actually asks for before subtracting.',
+  feedback: 'The pledge is what was promised, not what the goal still needs.',
+});
+
+// ================================================================ 6.4G
+// Percents and money.
+
+arc('6.4G', 'bill-with-tip-and-split', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{crew}} of {{people}} splits a $\$\{{bill}}$ bill evenly after adding a {{p}}% tip. What does each person pay?',
+  generator: {
+    parameters: {
+      crew: WORKERS,
+      people: { type: 'int', min: 3, max: 8 },
+      tens: { type: 'int', min: 4, max: 30 },
+      p: { type: 'int', min: 10, max: 25, step: 5 },
+      each: { type: 'int', min: 6, max: 60 },
+    },
+    derived: {
+      bill: 'tens*10',
+      withTip: 'bill*(100+p)/100',
+      answer: 'round(withTip/people)',
+      d_percentNotApplied: 'round(bill/people)',
+      d_forgotFinalStep: 'withTip',
+      d_usedGivenValue: 'each',
+    },
+    constraints: ['each!=answer', 'withTip>people'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['A {{p}}% tip takes $\$\{{bill}}$ to $\$\{{withTip}}$.', 'Split {{people}} ways that is about $\$\{{answer}}$ each.'],
+  answerSummary: { headline: 'Add the tip before splitting, not after.', text: 'Each pays about $\$\{{answer}}$.' },
+  hint: 'Everyone shares the tip as well as the bill.',
+  feedback: 'Splitting the bill alone leaves the tip unpaid.',
+});
+
+arc('6.4G', 'ticket-price-inside-a-total', {
+  difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A receipt of $\$\{{total}}$ covers a {{tool}}, {{p}}% sales tax on it, and an untaxed $\$\{{fee}}$ delivery. What did the {{tool}} cost?',
+  generator: {
+    parameters: {
+      tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
+      hundreds: { type: 'int', min: 1, max: 8 },
+      p: { type: 'int', min: 5, max: 25, step: 5 },
+      fee: { type: 'int', min: 10, max: 45, step: 5 },
+      shown: { type: 'int', min: 90, max: 760 },
+    },
+    derived: {
+      answer: 'hundreds*100',
+      taxed: 'answer*(100+p)/100',
+      total: 'taxed+fee',
+      d_wrongPercentBase: 'round(taxed*(100-p)/100)',
+      d_forgotFinalStep: 'total',
+      d_usedGivenValue: 'shown',
+    },
+    constraints: ['shown!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Taking off the untaxed $\$\{{fee}}$ leaves $\$\{{taxed}}$, which is {{100+p}}% of the price.', 'That makes the price $\$\{{answer}}$.'],
+  answerSummary: { headline: 'Remove the untaxed part before undoing the tax.', text: 'It cost $\$\{{answer}}$.' },
+  hint: 'The delivery charge carries no tax, so it is not part of the taxed amount.',
+  feedback: 'Taking the tax rate off again is not the same as undoing the tax that was added.',
+});
+
+arc('6.4G', 'total-cost-of-a-payment-plan', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Two ways to pay for a $\$\{{price}}$ {{tool}} are shown. What does plan A cost in total?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Plan', 'Terms'],
+    rows: [['A', '{{p}}% deposit, then {{months}} payments of $\$\{{monthly}}$'], ['B', 'full price less {{q}}%']],
+  },
+  generator: {
+    parameters: {
+      tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
+      hundreds: { type: 'int', min: 4, max: 12 },
+      p: { type: 'int', min: 20, max: 40, step: 10 },
+      q: { type: 'int', min: 5, max: 20, step: 5 },
+      months: { type: 'int', min: 3, max: 9 },
+      monthly: { type: 'int', min: 40, max: 120, step: 20 },
+    },
+    derived: {
+      price: 'hundreds*100',
+      planA: 'price*p/100+months*monthly',
+      planB: 'price*(100-q)/100',
+      answer: 'planA',
+      d_partialTotal: 'price+planA',
+      d_forgotFinalStep: 'months*monthly',
+      d_usedGivenValue: 'planB',
+    },
+    constraints: ['abs(planA-planB)>15', 'planA!=planB'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The deposit is {{p}}% of $\$\{{price}}$, and the {{months}} payments add {{months}}x$\$\{{monthly}}$.', 'Together plan A costs $\$\{{answer}}$.'],
+  answerSummary: { headline: 'A deposit and instalments are both part of the plan.', text: 'Plan A costs $\$\{{answer}}$.' },
+  hint: 'The deposit is a percentage of the ticket price, not of the instalments.',
+  feedback: 'The instalments alone leave the deposit unpaid.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

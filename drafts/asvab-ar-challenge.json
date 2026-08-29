@@ -2603,6 +2603,1038 @@
     "sourceFamilyId": "mathmaster:asvab:ar:6.4E:gap-between-two-written-forms",
     "sourcePrompt": "Two {{shop}} records describe shares of one order of {{total}} {{item}}. The sheet expected a gap of {{expected}}. How many more {{item}} does the larger share cover?"
    }
+  },
+  {
+   "id": "mm_asvab_ar_6_4F_two_markdowns_in_sequence",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.4F:two-markdowns-in-sequence",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4F",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{tool}} listed at $${{list}}$ is cut {{p}}%, then the sale price is cut {{q}}% more. What is the final price?",
+   "solutionReview": {
+    "headline": "The second cut applies to the reduced price.",
+    "reasoning": [
+     "{{p}}% off $${{list}}$ leaves $${{afterFirst}}$.",
+     "{{q}}% off that leaves $${{answer}}$."
+    ],
+    "answerSummary": "It ends at $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Adding the two percentages treats both cuts as coming off the list price."
+   ],
+   "supportHints": [
+    "The second discount is not taken from the original ticket."
+   ],
+   "generator": {
+    "parameters": {
+     "tool": {
+      "type": "choice",
+      "values": [
+       "drill",
+       "compressor",
+       "welder",
+       "generator",
+       "grinder"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 50,
+      "step": 10
+     },
+     "q": {
+      "type": "int",
+      "min": 10,
+      "max": 50,
+      "step": 10
+     },
+     "posted": {
+      "type": "int",
+      "min": 40,
+      "max": 480
+     }
+    },
+    "derived": {
+     "list": "hundreds*100",
+     "afterFirst": "list*(100-p)/100",
+     "answer": "afterFirst*(100-q)/100",
+     "d_forgotFinalStep": "afterFirst",
+     "d_percentNotApplied": "list*(100-p-q)/100",
+     "d_usedGivenValue": "posted"
+    },
+    "constraints": [
+     "p!=q",
+     "p+q<90",
+     "posted!=answer",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_percentNotApplied",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_percentNotApplied",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_percentNotApplied!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.4F:two-markdowns-in-sequence",
+    "sourcePrompt": "A {{tool}} listed at $${{list}}$ is cut {{p}}%, then the sale price is cut {{q}}% more. What is the final price?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_4F_list_price_behind_a_benchmark_cut",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.4F:list-price-behind-a-benchmark-cut",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4F",
+   "taskType": "reverseReasoning",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "After {{p}}% was taken off, a {{tool}} sold for $${{sale}}$ and the {{shop}} kept $${{fee}}$ of that as a fee. What was the list price?",
+   "solutionReview": {
+    "headline": "The sale price is a percentage of the list price.",
+    "reasoning": [
+     "$${{sale}}$ is {{100-p}}% of the list price.",
+     "That makes the list price $${{answer}}$; the fee comes out of the sale, not the list."
+    ],
+    "answerSummary": "The list price was $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The fee is taken from what was received, so it does not change the list price."
+   ],
+   "supportHints": [
+    "Ask what fraction of the list price the sale price represents."
+   ],
+   "generator": {
+    "parameters": {
+     "tool": {
+      "type": "choice",
+      "values": [
+       "drill",
+       "compressor",
+       "welder",
+       "generator",
+       "grinder"
+      ]
+     },
+     "shop": {
+      "type": "choice",
+      "values": [
+       "hardware store",
+       "supply depot",
+       "warehouse outlet",
+       "parts counter"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 60,
+      "step": 10
+     },
+     "fee": {
+      "type": "int",
+      "min": 5,
+      "max": 40,
+      "step": 5
+     },
+     "ticket": {
+      "type": "int",
+      "min": 90,
+      "max": 900
+     }
+    },
+    "derived": {
+     "answer": "hundreds*100",
+     "sale": "answer*(100-p)/100",
+     "d_forgotFinalStep": "sale",
+     "d_partialTotal": "answer+sale",
+     "d_usedGivenValue": "ticket"
+    },
+    "constraints": [
+     "ticket!=answer",
+     "sale>fee",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.4F:list-price-behind-a-benchmark-cut",
+    "sourcePrompt": "After {{p}}% was taken off, a {{tool}} sold for $${{sale}}$ and the {{shop}} kept $${{fee}}$ of that as a fee. What was the list price?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_4F_which_claim_the_figures_support",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.4F:which-claim-the-figures-support",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4F",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{crew}} logged two days against a target of {{total}} {{item}} and pledged {{pledge}}. How many more must be cleared to reach {{goal}}% of the target?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Day",
+     "{{item}} cleared"
+    ],
+    "rows": [
+     [
+      "1",
+      "{{day1}}"
+     ],
+     [
+      "2",
+      "{{day2}}"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "The goal is a percentage of the target, not the whole of it.",
+    "reasoning": [
+     "{{goal}}% of {{total}} is {{target}}, and {{day1}}+{{day2}} are already cleared.",
+     "That leaves {{answer}} still to clear."
+    ],
+    "answerSummary": "${{answer}}$ are still to clear."
+   },
+   "attemptFeedback": [
+    "The pledge is what was promised, not what the goal still needs."
+   ],
+   "supportHints": [
+    "Work out how many the goal actually asks for before subtracting."
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 20,
+      "step": 10
+     },
+     "q": {
+      "type": "int",
+      "min": 10,
+      "max": 20,
+      "step": 10
+     },
+     "goal": {
+      "type": "int",
+      "min": 70,
+      "max": 90,
+      "step": 10
+     },
+     "pledge": {
+      "type": "int",
+      "min": 60,
+      "max": 620
+     }
+    },
+    "derived": {
+     "total": "hundreds*100",
+     "day1": "total*p/100",
+     "day2": "total*q/100",
+     "target": "total*goal/100",
+     "answer": "target-day1-day2",
+     "d_percentNotApplied": "total-day1-day2",
+     "d_partialTotal": "day1+day2",
+     "d_usedGivenValue": "pledge"
+    },
+    "constraints": [
+     "2*(p+q)<goal",
+     "target-day1-day2>0",
+     "pledge!=answer",
+     "answer!=d_percentNotApplied",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_percentNotApplied!=d_partialTotal",
+     "d_percentNotApplied!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.4F:which-claim-the-figures-support",
+    "sourcePrompt": "A {{crew}} logged two days against a target of {{total}} {{item}} and pledged {{pledge}}. How many more must be cleared to reach {{goal}}% of the target?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_4G_bill_with_tip_and_split",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.4G:bill-with-tip-and-split",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4G",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{crew}} of {{people}} splits a $${{bill}}$ bill evenly after adding a {{p}}% tip. What does each person pay?",
+   "solutionReview": {
+    "headline": "Add the tip before splitting, not after.",
+    "reasoning": [
+     "A {{p}}% tip takes $${{bill}}$ to $${{withTip}}$.",
+     "Split {{people}} ways that is about $${{answer}}$ each."
+    ],
+    "answerSummary": "Each pays about $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Splitting the bill alone leaves the tip unpaid."
+   ],
+   "supportHints": [
+    "Everyone shares the tip as well as the bill."
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "people": {
+      "type": "int",
+      "min": 3,
+      "max": 8
+     },
+     "tens": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 25,
+      "step": 5
+     },
+     "each": {
+      "type": "int",
+      "min": 6,
+      "max": 60
+     }
+    },
+    "derived": {
+     "bill": "tens*10",
+     "withTip": "bill*(100+p)/100",
+     "answer": "round(withTip/people)",
+     "d_percentNotApplied": "round(bill/people)",
+     "d_forgotFinalStep": "withTip",
+     "d_usedGivenValue": "each"
+    },
+    "constraints": [
+     "each!=answer",
+     "withTip>people",
+     "answer!=d_percentNotApplied",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_percentNotApplied!=d_forgotFinalStep",
+     "d_percentNotApplied!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.4G:bill-with-tip-and-split",
+    "sourcePrompt": "A {{crew}} of {{people}} splits a $${{bill}}$ bill evenly after adding a {{p}}% tip. What does each person pay?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_4G_ticket_price_inside_a_total",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.4G:ticket-price-inside-a-total",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4G",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A receipt of $${{total}}$ covers a {{tool}}, {{p}}% sales tax on it, and an untaxed $${{fee}}$ delivery. What did the {{tool}} cost?",
+   "solutionReview": {
+    "headline": "Remove the untaxed part before undoing the tax.",
+    "reasoning": [
+     "Taking off the untaxed $${{fee}}$ leaves $${{taxed}}$, which is {{100+p}}% of the price.",
+     "That makes the price $${{answer}}$."
+    ],
+    "answerSummary": "It cost $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Taking the tax rate off again is not the same as undoing the tax that was added."
+   ],
+   "supportHints": [
+    "The delivery charge carries no tax, so it is not part of the taxed amount."
+   ],
+   "generator": {
+    "parameters": {
+     "tool": {
+      "type": "choice",
+      "values": [
+       "drill",
+       "compressor",
+       "welder",
+       "generator",
+       "grinder"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "p": {
+      "type": "int",
+      "min": 5,
+      "max": 25,
+      "step": 5
+     },
+     "fee": {
+      "type": "int",
+      "min": 10,
+      "max": 45,
+      "step": 5
+     },
+     "shown": {
+      "type": "int",
+      "min": 90,
+      "max": 760
+     }
+    },
+    "derived": {
+     "answer": "hundreds*100",
+     "taxed": "answer*(100+p)/100",
+     "total": "taxed+fee",
+     "d_wrongPercentBase": "round(taxed*(100-p)/100)",
+     "d_forgotFinalStep": "total",
+     "d_usedGivenValue": "shown"
+    },
+    "constraints": [
+     "shown!=answer",
+     "answer!=d_wrongPercentBase",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_wrongPercentBase!=d_forgotFinalStep",
+     "d_wrongPercentBase!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_wrongPercentBase}}$",
+     "error": "wrongPercentBase"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.4G:ticket-price-inside-a-total",
+    "sourcePrompt": "A receipt of $${{total}}$ covers a {{tool}}, {{p}}% sales tax on it, and an untaxed $${{fee}}$ delivery. What did the {{tool}} cost?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_4G_total_cost_of_a_payment_plan",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.4G:total-cost-of-a-payment-plan",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4G",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two ways to pay for a $${{price}}$ {{tool}} are shown. What does plan A cost in total?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Plan",
+     "Terms"
+    ],
+    "rows": [
+     [
+      "A",
+      "{{p}}% deposit, then {{months}} payments of $${{monthly}}$"
+     ],
+     [
+      "B",
+      "full price less {{q}}%"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "A deposit and instalments are both part of the plan.",
+    "reasoning": [
+     "The deposit is {{p}}% of $${{price}}$, and the {{months}} payments add {{months}}x$${{monthly}}$.",
+     "Together plan A costs $${{answer}}$."
+    ],
+    "answerSummary": "Plan A costs $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The instalments alone leave the deposit unpaid."
+   ],
+   "supportHints": [
+    "The deposit is a percentage of the ticket price, not of the instalments."
+   ],
+   "generator": {
+    "parameters": {
+     "tool": {
+      "type": "choice",
+      "values": [
+       "drill",
+       "compressor",
+       "welder",
+       "generator",
+       "grinder"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 4,
+      "max": 12
+     },
+     "p": {
+      "type": "int",
+      "min": 20,
+      "max": 40,
+      "step": 10
+     },
+     "q": {
+      "type": "int",
+      "min": 5,
+      "max": 20,
+      "step": 5
+     },
+     "months": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     },
+     "monthly": {
+      "type": "int",
+      "min": 40,
+      "max": 120,
+      "step": 20
+     }
+    },
+    "derived": {
+     "price": "hundreds*100",
+     "planA": "price*p/100+months*monthly",
+     "planB": "price*(100-q)/100",
+     "answer": "planA",
+     "d_partialTotal": "price+planA",
+     "d_forgotFinalStep": "months*monthly",
+     "d_usedGivenValue": "planB"
+    },
+    "constraints": [
+     "abs(planA-planB)>15",
+     "planA!=planB",
+     "answer!=d_partialTotal",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=d_forgotFinalStep",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.4G:total-cost-of-a-payment-plan",
+    "sourcePrompt": "Two ways to pay for a $${{price}}$ {{tool}} are shown. What does plan A cost in total?"
+   }
   }
  ]
 }
