@@ -13,6 +13,7 @@ import {
   needsMultiRelationWorkspace,
   parseRelationSource,
   relationContainsInvisibleNegativeAbsolute,
+  relationExpressionsEquivalent,
   relationSolutionSummary,
   relationStateContainsAbsoluteValue,
   relationStateToText,
