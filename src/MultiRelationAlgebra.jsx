@@ -1193,6 +1193,7 @@ export default function MultiRelationAlgebra({
   const chooseOtherOperation = async (id) => {
     setOtherOpen(false);
     setRewriteOpen(false);
+    setRewriteValue('');
 
     if (id === 'completeSquare') {
       // Completing the square is a strategy choice, not an automatic algebra
