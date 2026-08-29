@@ -7,6 +7,10 @@ concurrency:
 on:
   push:
     branches:
+      # main is listed so the suite keeps guarding the branch itself after this
+      # cleanup merges. Without it the only push coverage would be a branch that
+      # stops existing, and main could go red again unnoticed between PRs.
+      - main
       - fix/main-full-platform-suite-green
   pull_request:
     branches:
