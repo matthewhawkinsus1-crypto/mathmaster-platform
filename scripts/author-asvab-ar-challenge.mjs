@@ -824,6 +824,225 @@ arc('6.4G', 'total-cost-of-a-payment-plan', {
   feedback: 'The instalments alone leave the deposit unpaid.',
 });
 
+// ================================================================ 6.4H
+// Measurement conversion within a system.
+
+arc('6.4H', 'material-in-two-units', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A job needs {{pieces}} lengths of {{part}} at {{feetEach}} feet {{inchEach}} inches each. How many whole feet of material is that?',
+  generator: {
+    parameters: {
+      part: contextParam(['conduit', 'trim', 'channel', 'rail', 'edging']),
+      pieces: { type: 'int', min: 4, max: 12 },
+      feetEach: { type: 'int', min: 2, max: 9 },
+      inchEach: { type: 'int', min: 3, max: 9, step: 3 },
+      ordered: { type: 'int', min: 8, max: 90 },
+    },
+    derived: {
+      totalInches: 'pieces*(feetEach*12+inchEach)',
+      answer: 'floor(totalInches/12)',
+      d_unitConversion: 'totalInches',
+      d_forgotFinalStep: 'pieces*feetEach',
+      d_usedGivenValue: 'ordered',
+    },
+    constraints: ['ordered!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Each length is {{feetEach}}x12+{{inchEach}} inches, so {{pieces}} of them come to {{totalInches}} inches.', 'That is {{answer}} whole feet.'],
+  answerSummary: { headline: 'Work in one unit before totalling.', text: 'It is ${{answer}}$ whole feet.' },
+  hint: 'The spare inches on each length add up to more feet.',
+  feedback: 'Counting only the whole feet on each length loses the inches.',
+});
+
+arc('6.4H', 'pieces-a-roll-yields', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A roll holds {{yards}} yards of {{part}}. Each piece takes {{inchEach}} inches. How many whole pieces does the roll give?',
+  generator: {
+    parameters: {
+      part: contextParam(['conduit', 'trim', 'channel', 'rail', 'edging']),
+      yards: { type: 'int', min: 5, max: 20 },
+      inchEach: { type: 'int', min: 7, max: 20 },
+      quoted: { type: 'int', min: 6, max: 58 },
+    },
+    derived: {
+      totalInches: 'yards*36',
+      answer: 'floor(totalInches/inchEach)',
+      d_convertedWrongWay: 'floor(yards*12/inchEach)',
+      d_unitConversion: 'totalInches',
+      d_usedGivenValue: 'quoted',
+    },
+    constraints: ['quoted!=answer', 'floor(yards*12/inchEach)>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{yards}} yards is {{totalInches}} inches.', 'At {{inchEach}} inches a piece that gives {{answer}} whole pieces.'],
+  answerSummary: { headline: 'Yards to inches before dividing.', text: 'It gives ${{answer}}$ pieces.' },
+  hint: 'A yard is three feet, and a foot is twelve inches.',
+  feedback: 'Treating a yard as twelve inches uses the wrong conversion.',
+});
+
+arc('6.4H', 'conversion-row-that-does-not-fit', {
+  difficultyBand: 5, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'This conversion chart should use one steady rate. One row does not. What should that row read?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Pounds', 'Ounces'],
+    rows: [['{{a1}}', '{{o1}}'], ['{{a2}}', '{{o2}}'], ['{{a3}}', '{{oBad}}'], ['{{a4}}', '{{o4}}']],
+  },
+  generator: {
+    parameters: {
+      a1: { type: 'int', min: 2, max: 5 },
+      a3: { type: 'int', min: 8, max: 16 },
+      off: { type: 'int', min: 5, max: 27 },
+      printed: { type: 'int', min: 60, max: 320 },
+    },
+    derived: {
+      a2: 'a1+2',
+      a4: 'a1+4',
+      o1: 'a1*16',
+      o2: 'a2*16',
+      o4: 'a4*16',
+      answer: 'a3*16',
+      oBad: 'answer+off',
+      d_forgotFinalStep: 'oBad',
+      d_offByOneStep: 'o2',
+      d_usedGivenValue: 'printed',
+    },
+    constraints: ['off!=16', 'a3>a1+3', 'printed!=answer', 'oBad!=o4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The rows that agree use 16 ounces to the pound.', '{{a3}} pounds should read {{answer}} ounces, not {{oBad}}.'],
+  answerSummary: { headline: 'Recover the rate from the rows that agree.', text: 'It should read ${{answer}}$ ounces.' },
+  hint: 'Three rows share one conversion. Use them to test the fourth.',
+  feedback: 'The figure printed in that row is the error, not the correction.',
+});
+
+// ================================================================ 6.5B
+// Part, whole and percent.
+
+arc('6.5B', 'shortfall-against-a-percentage-target', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{crew}} inspected {{done}} of {{total}} {{item}}. The shift asks for {{p}}%. How many more must be inspected?',
+  generator: {
+    parameters: {
+      crew: WORKERS,
+      item: GOODS,
+      hundreds: { type: 'int', min: 3, max: 9 },
+      p: { type: 'int', min: 60, max: 90, step: 10 },
+      donePct: { type: 'int', min: 10, max: 40, step: 10 },
+      logged: { type: 'int', min: 60, max: 700 },
+    },
+    derived: {
+      total: 'hundreds*100',
+      done: 'total*donePct/100',
+      target: 'total*p/100',
+      answer: 'target-done',
+      d_percentNotApplied: 'total-done',
+      d_forgotFinalStep: 'done',
+      d_usedGivenValue: 'logged',
+    },
+    constraints: ['2*donePct<p', 'logged!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{p}}% of {{total}} is {{target}}, and {{done}} are inspected.', 'That leaves {{answer}} to go.'],
+  answerSummary: { headline: 'The shift asks for a percentage, not the whole batch.', text: '${{answer}}$ more must be inspected.' },
+  hint: 'Work out how many the target actually is before subtracting.',
+  feedback: 'Inspecting every one is more than the shift asks for.',
+});
+
+arc('6.5B', 'batch-size-from-a-failure-rate', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: '{{failed}} {{item}} failed, which was {{p}}% of a batch, and a second batch of {{second}} had none fail. The sheet counted {{counted}}. How many were there really?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      hundreds: { type: 'int', min: 2, max: 8 },
+      p: { type: 'int', min: 10, max: 50, step: 10 },
+      second: { type: 'int', min: 40, max: 300, step: 20 },
+      counted: { type: 'int', min: 150, max: 1050 },
+    },
+    derived: {
+      batch: 'hundreds*100',
+      failed: 'batch*p/100',
+      answer: 'batch+second',
+      d_forgotFinalStep: 'batch',
+      d_partialTotal: 'answer+failed',
+      d_usedGivenValue: 'counted',
+    },
+    constraints: ['p!=100', 'counted!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{failed}} is {{p}}% of the first batch, so that batch held {{batch}}.', 'With the second batch of {{second}} there were {{answer}} in all.'],
+  answerSummary: { headline: 'Recover the first batch before adding the second.', text: 'There were ${{answer}}$ altogether.' },
+  hint: 'The percentage describes the first batch only.',
+  feedback: 'The figure on the sheet is what was counted, not what the two batches hold.',
+});
+
+arc('6.5B', 'which-shift-cleared-the-larger-share', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Two shifts worked different sized batches, as shown, and the log reported a gap of {{reported}}. How many more {{item}} did the larger shift really clear?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Shift', 'Batch', 'Cleared'],
+    rows: [['Early', '{{tA}}', '{{pA}}%'], ['Late', '{{tB}}', '{{pB}}%']],
+  },
+  generator: {
+    parameters: {
+      item: GOODS,
+      hA: { type: 'int', min: 2, max: 9 },
+      hB: { type: 'int', min: 2, max: 9 },
+      pA: { type: 'int', min: 20, max: 80, step: 10 },
+      pB: { type: 'int', min: 20, max: 80, step: 10 },
+      reported: { type: 'int', min: 20, max: 380 },
+    },
+    derived: {
+      tA: 'hA*100',
+      tB: 'hB*100',
+      cA: 'tA*pA/100',
+      cB: 'tB*pB/100',
+      answer: 'abs(cA-cB)',
+      d_forgotFinalStep: 'max(cA,cB)',
+      d_wrongPercentBase: 'abs(pA-pB)',
+      d_usedGivenValue: 'reported',
+    },
+    constraints: ['reported!=answer', 'cA!=cB', 'abs(cA-cB)>19', 'pA!=pB'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Early cleared {{cA}} and Late cleared {{cB}}.', 'The gap between them is {{answer}} {{item}}.'],
+  answerSummary: { headline: 'A percentage of a bigger batch is a bigger count.', text: 'The gap is ${{answer}}$ {{item}}.' },
+  hint: 'The two percentages describe batches of different sizes.',
+  feedback: 'The reported gap is what the log claims, not what the figures give.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

@@ -3635,6 +3635,1022 @@
     "sourceFamilyId": "mathmaster:asvab:ar:6.4G:total-cost-of-a-payment-plan",
     "sourcePrompt": "Two ways to pay for a $${{price}}$ {{tool}} are shown. What does plan A cost in total?"
    }
+  },
+  {
+   "id": "mm_asvab_ar_6_4H_material_in_two_units",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.4H:material-in-two-units",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4H",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A job needs {{pieces}} lengths of {{part}} at {{feetEach}} feet {{inchEach}} inches each. How many whole feet of material is that?",
+   "solutionReview": {
+    "headline": "Work in one unit before totalling.",
+    "reasoning": [
+     "Each length is {{feetEach}}x12+{{inchEach}} inches, so {{pieces}} of them come to {{totalInches}} inches.",
+     "That is {{answer}} whole feet."
+    ],
+    "answerSummary": "It is ${{answer}}$ whole feet."
+   },
+   "attemptFeedback": [
+    "Counting only the whole feet on each length loses the inches."
+   ],
+   "supportHints": [
+    "The spare inches on each length add up to more feet."
+   ],
+   "generator": {
+    "parameters": {
+     "part": {
+      "type": "choice",
+      "values": [
+       "conduit",
+       "trim",
+       "channel",
+       "rail",
+       "edging"
+      ]
+     },
+     "pieces": {
+      "type": "int",
+      "min": 4,
+      "max": 12
+     },
+     "feetEach": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "inchEach": {
+      "type": "int",
+      "min": 3,
+      "max": 9,
+      "step": 3
+     },
+     "ordered": {
+      "type": "int",
+      "min": 8,
+      "max": 90
+     }
+    },
+    "derived": {
+     "totalInches": "pieces*(feetEach*12+inchEach)",
+     "answer": "floor(totalInches/12)",
+     "d_unitConversion": "totalInches",
+     "d_forgotFinalStep": "pieces*feetEach",
+     "d_usedGivenValue": "ordered"
+    },
+    "constraints": [
+     "ordered!=answer",
+     "answer!=d_unitConversion",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_unitConversion!=d_forgotFinalStep",
+     "d_unitConversion!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.4H:material-in-two-units",
+    "sourcePrompt": "A job needs {{pieces}} lengths of {{part}} at {{feetEach}} feet {{inchEach}} inches each. How many whole feet of material is that?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_4H_pieces_a_roll_yields",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.4H:pieces-a-roll-yields",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4H",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A roll holds {{yards}} yards of {{part}}. Each piece takes {{inchEach}} inches. How many whole pieces does the roll give?",
+   "solutionReview": {
+    "headline": "Yards to inches before dividing.",
+    "reasoning": [
+     "{{yards}} yards is {{totalInches}} inches.",
+     "At {{inchEach}} inches a piece that gives {{answer}} whole pieces."
+    ],
+    "answerSummary": "It gives ${{answer}}$ pieces."
+   },
+   "attemptFeedback": [
+    "Treating a yard as twelve inches uses the wrong conversion."
+   ],
+   "supportHints": [
+    "A yard is three feet, and a foot is twelve inches."
+   ],
+   "generator": {
+    "parameters": {
+     "part": {
+      "type": "choice",
+      "values": [
+       "conduit",
+       "trim",
+       "channel",
+       "rail",
+       "edging"
+      ]
+     },
+     "yards": {
+      "type": "int",
+      "min": 5,
+      "max": 20
+     },
+     "inchEach": {
+      "type": "int",
+      "min": 7,
+      "max": 20
+     },
+     "quoted": {
+      "type": "int",
+      "min": 6,
+      "max": 58
+     }
+    },
+    "derived": {
+     "totalInches": "yards*36",
+     "answer": "floor(totalInches/inchEach)",
+     "d_convertedWrongWay": "floor(yards*12/inchEach)",
+     "d_unitConversion": "totalInches",
+     "d_usedGivenValue": "quoted"
+    },
+    "constraints": [
+     "quoted!=answer",
+     "floor(yards*12/inchEach)>0",
+     "answer!=d_convertedWrongWay",
+     "answer!=d_unitConversion",
+     "answer!=d_usedGivenValue",
+     "d_convertedWrongWay!=d_unitConversion",
+     "d_convertedWrongWay!=d_usedGivenValue",
+     "d_unitConversion!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_unitConversion}}$",
+     "error": "unitConversion"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_convertedWrongWay}}$",
+     "error": "convertedWrongWay"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.4H:pieces-a-roll-yields",
+    "sourcePrompt": "A roll holds {{yards}} yards of {{part}}. Each piece takes {{inchEach}} inches. How many whole pieces does the roll give?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_4H_conversion_row_that_does_not_fit",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.4H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.4H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.4H:conversion-row-that-does-not-fit",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.4H",
+   "taskType": "errorAnalysis",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "This conversion chart should use one steady rate. One row does not. What should that row read?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Pounds",
+     "Ounces"
+    ],
+    "rows": [
+     [
+      "{{a1}}",
+      "{{o1}}"
+     ],
+     [
+      "{{a2}}",
+      "{{o2}}"
+     ],
+     [
+      "{{a3}}",
+      "{{oBad}}"
+     ],
+     [
+      "{{a4}}",
+      "{{o4}}"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "Recover the rate from the rows that agree.",
+    "reasoning": [
+     "The rows that agree use 16 ounces to the pound.",
+     "{{a3}} pounds should read {{answer}} ounces, not {{oBad}}."
+    ],
+    "answerSummary": "It should read ${{answer}}$ ounces."
+   },
+   "attemptFeedback": [
+    "The figure printed in that row is the error, not the correction."
+   ],
+   "supportHints": [
+    "Three rows share one conversion. Use them to test the fourth."
+   ],
+   "generator": {
+    "parameters": {
+     "a1": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "a3": {
+      "type": "int",
+      "min": 8,
+      "max": 16
+     },
+     "off": {
+      "type": "int",
+      "min": 5,
+      "max": 27
+     },
+     "printed": {
+      "type": "int",
+      "min": 60,
+      "max": 320
+     }
+    },
+    "derived": {
+     "a2": "a1+2",
+     "a4": "a1+4",
+     "o1": "a1*16",
+     "o2": "a2*16",
+     "o4": "a4*16",
+     "answer": "a3*16",
+     "oBad": "answer+off",
+     "d_forgotFinalStep": "oBad",
+     "d_offByOneStep": "o2",
+     "d_usedGivenValue": "printed"
+    },
+    "constraints": [
+     "off!=16",
+     "a3>a1+3",
+     "printed!=answer",
+     "oBad!=o4",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_offByOneStep",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_offByOneStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.4H:conversion-row-that-does-not-fit",
+    "sourcePrompt": "This conversion chart should use one steady rate. One row does not. What should that row read?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_5B_shortfall_against_a_percentage_target",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.5B:shortfall-against-a-percentage-target",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{crew}} inspected {{done}} of {{total}} {{item}}. The shift asks for {{p}}%. How many more must be inspected?",
+   "solutionReview": {
+    "headline": "The shift asks for a percentage, not the whole batch.",
+    "reasoning": [
+     "{{p}}% of {{total}} is {{target}}, and {{done}} are inspected.",
+     "That leaves {{answer}} to go."
+    ],
+    "answerSummary": "${{answer}}$ more must be inspected."
+   },
+   "attemptFeedback": [
+    "Inspecting every one is more than the shift asks for."
+   ],
+   "supportHints": [
+    "Work out how many the target actually is before subtracting."
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 60,
+      "max": 90,
+      "step": 10
+     },
+     "donePct": {
+      "type": "int",
+      "min": 10,
+      "max": 40,
+      "step": 10
+     },
+     "logged": {
+      "type": "int",
+      "min": 60,
+      "max": 700
+     }
+    },
+    "derived": {
+     "total": "hundreds*100",
+     "done": "total*donePct/100",
+     "target": "total*p/100",
+     "answer": "target-done",
+     "d_percentNotApplied": "total-done",
+     "d_forgotFinalStep": "done",
+     "d_usedGivenValue": "logged"
+    },
+    "constraints": [
+     "2*donePct<p",
+     "logged!=answer",
+     "answer!=d_percentNotApplied",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_percentNotApplied!=d_forgotFinalStep",
+     "d_percentNotApplied!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.5B:shortfall-against-a-percentage-target",
+    "sourcePrompt": "A {{crew}} inspected {{done}} of {{total}} {{item}}. The shift asks for {{p}}%. How many more must be inspected?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_5B_batch_size_from_a_failure_rate",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.5B:batch-size-from-a-failure-rate",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5B",
+   "taskType": "reverseReasoning",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "{{failed}} {{item}} failed, which was {{p}}% of a batch, and a second batch of {{second}} had none fail. The sheet counted {{counted}}. How many were there really?",
+   "solutionReview": {
+    "headline": "Recover the first batch before adding the second.",
+    "reasoning": [
+     "{{failed}} is {{p}}% of the first batch, so that batch held {{batch}}.",
+     "With the second batch of {{second}} there were {{answer}} in all."
+    ],
+    "answerSummary": "There were ${{answer}}$ altogether."
+   },
+   "attemptFeedback": [
+    "The figure on the sheet is what was counted, not what the two batches hold."
+   ],
+   "supportHints": [
+    "The percentage describes the first batch only."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 50,
+      "step": 10
+     },
+     "second": {
+      "type": "int",
+      "min": 40,
+      "max": 300,
+      "step": 20
+     },
+     "counted": {
+      "type": "int",
+      "min": 150,
+      "max": 1050
+     }
+    },
+    "derived": {
+     "batch": "hundreds*100",
+     "failed": "batch*p/100",
+     "answer": "batch+second",
+     "d_forgotFinalStep": "batch",
+     "d_partialTotal": "answer+failed",
+     "d_usedGivenValue": "counted"
+    },
+    "constraints": [
+     "p!=100",
+     "counted!=answer",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.5B:batch-size-from-a-failure-rate",
+    "sourcePrompt": "{{failed}} {{item}} failed, which was {{p}}% of a batch, and a second batch of {{second}} had none fail. The sheet counted {{counted}}. How many were there really?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_5B_which_shift_cleared_the_larger_share",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.5B:which-shift-cleared-the-larger-share",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.5B",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two shifts worked different sized batches, as shown, and the log reported a gap of {{reported}}. How many more {{item}} did the larger shift really clear?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Shift",
+     "Batch",
+     "Cleared"
+    ],
+    "rows": [
+     [
+      "Early",
+      "{{tA}}",
+      "{{pA}}%"
+     ],
+     [
+      "Late",
+      "{{tB}}",
+      "{{pB}}%"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "A percentage of a bigger batch is a bigger count.",
+    "reasoning": [
+     "Early cleared {{cA}} and Late cleared {{cB}}.",
+     "The gap between them is {{answer}} {{item}}."
+    ],
+    "answerSummary": "The gap is ${{answer}}$ {{item}}."
+   },
+   "attemptFeedback": [
+    "The reported gap is what the log claims, not what the figures give."
+   ],
+   "supportHints": [
+    "The two percentages describe batches of different sizes."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "hA": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "hB": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "pA": {
+      "type": "int",
+      "min": 20,
+      "max": 80,
+      "step": 10
+     },
+     "pB": {
+      "type": "int",
+      "min": 20,
+      "max": 80,
+      "step": 10
+     },
+     "reported": {
+      "type": "int",
+      "min": 20,
+      "max": 380
+     }
+    },
+    "derived": {
+     "tA": "hA*100",
+     "tB": "hB*100",
+     "cA": "tA*pA/100",
+     "cB": "tB*pB/100",
+     "answer": "abs(cA-cB)",
+     "d_forgotFinalStep": "max(cA,cB)",
+     "d_wrongPercentBase": "abs(pA-pB)",
+     "d_usedGivenValue": "reported"
+    },
+    "constraints": [
+     "reported!=answer",
+     "cA!=cB",
+     "abs(cA-cB)>19",
+     "pA!=pB",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_wrongPercentBase",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_wrongPercentBase",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_wrongPercentBase!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_wrongPercentBase}}$",
+     "error": "wrongPercentBase"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.5B:which-shift-cleared-the-larger-share",
+    "sourcePrompt": "Two shifts worked different sized batches, as shown, and the log reported a gap of {{reported}}. How many more {{item}} did the larger shift really clear?"
+   }
   }
  ]
 }
