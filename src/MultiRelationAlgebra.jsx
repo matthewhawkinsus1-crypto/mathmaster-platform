@@ -25,6 +25,8 @@ import {
   normalizeRelationExpressionInput,
   relationSolutionSummary,
   relationSourceFromQuestion,
+  relationStateContainsAbsoluteValue,
+  verifyRelationCandidates,
   relationStateToLatex,
   relationStateToText,
   resolveRelationNumberLineConfig,
@@ -77,6 +79,10 @@ const initialStateFor = (question, draftKey) => {
 
 const initialPendingRelationFlipFor = (draftKey) => (
   readQuestionDraft(draftKeyFor(draftKey), null)?.pendingRelationFlip || null
+);
+
+const initialCandidateChecksFor = (draftKey) => (
+  readQuestionDraft(draftKeyFor(draftKey), null)?.candidateChecks || {}
 );
 
 const compactText = (value) => String(value ?? '').replace(/\s+/g, '');
@@ -550,6 +556,7 @@ export default function MultiRelationAlgebra({
 
   const [message, setMessage] = useState(null);
   const [representationCorrect, setRepresentationCorrect] = useState(null);
+  const [candidateChecks, setCandidateChecks] = useState(() => initialCandidateChecksFor(draftKey));
 
   useEffect(() => {
     setRelationState(initialStateFor(question, draftKey));
@@ -572,13 +579,34 @@ export default function MultiRelationAlgebra({
     setAbsoluteSplitOpen(false);
     setMessage(null);
     setRepresentationCorrect(null);
+    setCandidateChecks(initialCandidateChecksFor(draftKey));
   }, [question, draftKey]);
 
   useEffect(() => {
-    writeQuestionDraft(draftKeyFor(draftKey), { relationState, activeBranch, pendingRelationFlip });
-  }, [draftKey, relationState, activeBranch, pendingRelationFlip]);
+    writeQuestionDraft(draftKeyFor(draftKey), {
+      relationState,
+      activeBranch,
+      pendingRelationFlip,
+      candidateChecks,
+    });
+  }, [draftKey, relationState, activeBranch, pendingRelationFlip, candidateChecks]);
 
   const summary = useMemo(() => relationSolutionSummary(relationState), [relationState]);
+  const candidateVerification = useMemo(() => (
+    summary.kind === 'values' && relationStateContainsAbsoluteValue(pristine)
+      ? verifyRelationCandidates(pristine, summary.values, pristine.variable)
+      : []
+  ), [pristine, summary]);
+  const requireCandidateVerification = candidateVerification.length > 0;
+  const candidateVerificationComplete = !requireCandidateVerification
+    || candidateVerification.every(({ value }) => candidateChecks[String(value)] != null);
+  const candidateVerificationCorrect = !requireCandidateVerification
+    || candidateVerification.every(({ value, valid }) => (
+      candidateChecks[String(value)] === (valid ? 'valid' : 'extraneous')
+    ));
+  const verifiedSolutions = candidateVerification
+    .filter(({ valid }) => valid)
+    .map(({ value }) => value);
 
   // Process messages such as "Cancellation complete" are useful while the
   // student is working, but once every solution branch is isolated they
@@ -601,14 +629,19 @@ export default function MultiRelationAlgebra({
   const requireRepresentations = summary.kind === 'intervals' && question.representSolution !== false;
   const fullyComplete = !pendingRelationFlip
     && summary.solved
+    && candidateVerificationComplete
     && (!requireRepresentations || representationCorrect === true);
+  const fullyCorrect = fullyComplete && candidateVerificationCorrect;
 
   useEffect(() => {
+    const candidateDetail = requireCandidateVerification
+      ? ` Candidate checks: ${candidateVerification.map(({ value }) => `${relationState.variable}=${value}:${candidateChecks[String(value)] || 'unchecked'}`).join(', ')}.`
+      : '';
     onStateChange?.({
       isComplete: fullyComplete,
-      isCorrect: fullyComplete,
-      responseKey: fullyComplete ? relationStateToText(relationState) : '',
-      questionDetails: `${summary.solved ? 'Solved relation' : 'Current relation'}: ${relationStateToText(relationState)}`,
+      isCorrect: fullyCorrect,
+      responseKey: fullyComplete ? `${relationStateToText(relationState)}|${JSON.stringify(candidateChecks)}` : '',
+      questionDetails: `${summary.solved ? 'Solved relation' : 'Current relation'}: ${relationStateToText(relationState)}.${candidateDetail}`,
       parts: [
         {
           id: 'relation-work',
@@ -617,6 +650,13 @@ export default function MultiRelationAlgebra({
           isCorrect: summary.solved,
           response: relationStateToText(relationState),
         },
+        ...(requireCandidateVerification ? [{
+          id: 'candidate-verification',
+          label: 'Check candidates in the original equation',
+          isComplete: candidateVerificationComplete,
+          isCorrect: candidateVerificationComplete && candidateVerificationCorrect,
+          response: candidateVerification.map(({ value }) => `${value}:${candidateChecks[String(value)] || 'unchecked'}`).join(', '),
+        }] : []),
         ...(requireRepresentations ? [{
           id: 'solution-representations',
           label: 'Graph and interval notation',
@@ -627,10 +667,16 @@ export default function MultiRelationAlgebra({
       ],
     });
   }, [
+    candidateChecks,
+    candidateVerification,
+    candidateVerificationComplete,
+    candidateVerificationCorrect,
     fullyComplete,
+    fullyCorrect,
     onStateChange,
     relationState,
     representationCorrect,
+    requireCandidateVerification,
     requireRepresentations,
     summary,
   ]);
