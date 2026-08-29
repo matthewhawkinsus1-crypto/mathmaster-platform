@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 import { normalizeLabDefinition } from '../../src/platform/labs/labDefinitionSchema.js';
-import { normalizeLessonBundle } from '../../src/platform/schemas/BundleDefinition.js';
-import { validateLessonBundle } from '../../src/platform/validation/bundleValidator.js';
+import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
+import { validateAssignmentV5 } from '../../src/platform/contract/assignmentSchemaV5.js';
 import { parseAssignmentBlueprintText, validateAssignmentQuestions } from '../../src/assignmentBlueprint.js';
 import { calculateDomainQuotas } from '../../src/platform/assessment/examBlueprint.js';
 import { predictExamScoresFromMastery } from '../../src/platform/assessment/examScorePredictor.js';
@@ -52,11 +52,22 @@ test('Phase 6A lab evaluator uses restricted math and rewards distinct trials', 
   assert.equal(distinct.humanReviewRecommended, true);
 });
 
-test('Phase 6A Bundle V3 accepts a modeling-lab-only activity and flattens a real lab question', () => {
-  const source = { schemaVersion: 3, lessonMetadata: { title: 'Lab lesson', course: 'Algebra I' }, activities: [{ activityId: 'lab-activity', role: 'classwork', labDefinition: rawLab }] };
-  const normalized = normalizeLessonBundle(source);
-  const report = validateLessonBundle(normalized);
-  assert.equal(report.isValid, true, JSON.stringify(report));
+test('Phase 6A Assignment V5 accepts a modeling-lab question and keeps private evaluation out of public authoring', () => {
+  const source = {
+    schemaVersion: 5,
+    assignment: { title: 'Lab lesson', courseId: 'algebra1' },
+    sections: [{
+      role: 'classwork',
+      questions: [{
+        standard: 'A.5A',
+        prompt: 'Investigate the parameter choices and justify the best model.',
+        studentActions: ['modelingLab'],
+        labDefinition: rawLab,
+      }],
+    }],
+  };
+  const compiled = compileAuthoringIntentV5(source).package;
+  assert.deepEqual(validateAssignmentV5(compiled).errors, []);
   const parsed = parseAssignmentBlueprintText(JSON.stringify(source));
   assert.equal(parsed.questions.length, 1);
   assert.equal(parsed.questions[0].type, 'modelingLab');
