@@ -1,5 +1,9 @@
 name: Full Platform Test Suite
 
+concurrency:
+  group: full-platform-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
