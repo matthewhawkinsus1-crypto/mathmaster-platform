@@ -472,10 +472,21 @@ const compactTeksSection = (courseId = null) => {
   }).join('\n');
 };
 
-export const buildAdvancedAuthoringContract = (options = {}) => [
-  buildAuthoringContract(options),
+/**
+ * The sections that carry the type-by-type authoring guidance.
+ *
+ * These used to hang off a separate `buildAdvancedAuthoringContract`, so the
+ * contract the teacher UI actually hands to an AI never contained them. Nothing
+ * in production ever called the advanced builder — assignmentCreatorPlan.js,
+ * AssignmentIntake.jsx and validate-authoring-v5.mjs all call the canonical one
+ * — which meant an outside AI authored against a document that never told it
+ * what the student physically does for a type, or named the traps each type
+ * has. They are part of the one public contract now.
+ */
+const guidanceSections = () => [
   fidelitySection(),
   taskFidelitySection(),
+  typeRecipeSection(),
   activityRoleSection(),
   instructionalScopeSection(),
   sectionBalanceRigorSection(),
@@ -483,7 +494,7 @@ export const buildAdvancedAuthoringContract = (options = {}) => [
   toolSection(),
   examSection(),
   ccmrCrosswalkSection(),
-].filter(Boolean).join('\n');
+].filter(Boolean);
 
 export const AUTHORING_INTENT_SCHEMA_VERSION = 5;
 export const AUTHORING_INTENT_SCHEMA_NAME = 'MathMaster Assignment V5';
@@ -610,7 +621,14 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '',
   '## Output',
   'Return exactly one MathMaster Assignment V5 JSON object. Older assignment formats and raw question arrays are unsupported.',
+  ...guidanceSections(),
 ].join('\n');
+
+/**
+ * Retained so the callers that still import this name keep working. There is
+ * one public authoring contract; this is not a second, richer one.
+ */
+export const buildAdvancedAuthoringContract = (options = {}) => buildAuthoringContract(options);
 
 export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {}) => {
   const errorList = (Array.isArray(errors) ? errors : [errors]).filter(Boolean);

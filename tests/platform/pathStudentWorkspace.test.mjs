@@ -65,10 +65,14 @@ test('multiple choice renders selectable options rather than asking for a typed 
 });
 
 test('the generic renderer supports the response profiles a Path question actually needs', () => {
+  // `number` is the canonical profile and `numeric` is an alias for it, not the
+  // other way round: the interaction contract's canonical set is
+  // ['choice','text','number',...], toolProfileForInputProfile keys off
+  // `number`, and the shipped banks use `number` 756 times and `numeric` never.
   const expected = {
     choice: 'choice',
-    number: 'numeric',
-    numeric: 'numeric',
+    number: 'number',
+    numeric: 'number',
     expression: 'expression',
     equation: 'equation',
     interval: 'interval',
