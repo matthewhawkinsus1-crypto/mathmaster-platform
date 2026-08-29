@@ -331,6 +331,57 @@ export const applyBalancedOperationToRelation = (
   };
 };
 
+
+export const applyBalancedOperationToBranches = (
+  state,
+  operation,
+  rawOperand,
+  {
+    branchIndices = [],
+    placementByBranch = {},
+    requireExplicitPlacement = false,
+  } = {},
+) => {
+  const uniqueBranchIndices = [...new Set(
+    (Array.isArray(branchIndices) ? branchIndices : [])
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value)),
+  )];
+
+  if (!uniqueBranchIndices.length) {
+    throw new Error('Place the operation on at least one complete equation branch before committing.');
+  }
+
+  let next = cloneRelationState(state);
+  const branchResults = [];
+
+  uniqueBranchIndices.forEach((branchIndex) => {
+    const result = applyBalancedOperationToRelation(
+      next,
+      operation,
+      rawOperand,
+      {
+        branchIndex,
+        placementByExpression: placementByBranch?.[branchIndex] || {},
+        requireExplicitPlacement,
+      },
+    );
+    next = result.state;
+    branchResults.push({
+      branchIndex,
+      requiresInequalityFlip: result.requiresInequalityFlip,
+      expectedRelations: result.expectedRelations,
+      operand: result.operand,
+    });
+  });
+
+  return {
+    state: next,
+    branchResults,
+    requiresInequalityFlip: branchResults.some((result) => result.requiresInequalityFlip),
+  };
+};
+
 const numericValue = (expression) => {
   try {
     const node = parse(String(expression));
