@@ -25,6 +25,10 @@ test('Assignment V5 singular standard fields survive runtime metadata normalizat
 
   const primaryStandard = normalizeQuestionStandards({ primaryStandard: 'A.12D' });
   assert.deepEqual(primaryStandard.primary.map((entry) => entry.code), ['A.12D']);
+
+  const info = buildQuestionAlignmentInfo({ code: direct.primary[0].code });
+  assert.equal(info.displayCode, 'A.12C');
+  assert.equal(info.connections.some((entry) => entry.framework === 'digitalSAT'), true);
 });
 
 test('ordinary aligned questions expose TEKS meaning and CCMR connections without claiming exam style', () => {
