@@ -323,6 +323,93 @@ export const asvabItem = ({
 export const contextParam = (values) => ({ type: 'choice', values });
 
 /**
+ * One ASVAB tier-2 challenge item.
+ *
+ * The tier this replaces was not authored. It took each direct family, glued
+ * "Without using a calculator, a test taker chose X. Rework the mathematics and
+ * select the correct ASVAB answer." to the front of its prompt, and built the
+ * three distractors as key + 1, key + 2, key + 3 — so the key was the smallest
+ * of four every time in 287 of 438 families, and 242 sat at one extreme in
+ * 100% of draws. It also produced 18 unbalanced math segments, because the
+ * wrapper's closing `$` landed next to a currency amount opening the prompt it
+ * prefixed. A harder question is not a direct question with a sentence in front
+ * of it.
+ *
+ * So a challenge family is authored as its own question, through the same gates
+ * as a direct one, and additionally:
+ *
+ *   * it sits at difficulty band 4 or 5, and at DOK 2 or higher;
+ *   * band and DOK stay separate ideas — a long multi-step computation is
+ *     harder without being deeper, and a short judgement can be DOK 3 — so this
+ *     does not silently raise DOK to match the band;
+ *   * the three families for a standard are three different escalations, not
+ *     one task at three sizes.
+ *
+ * The escalation kinds that earn a band-4/5 label, used across both subtests:
+ *
+ *   SYNTHESIS      two linked quantities, where the result of the first is the
+ *                  input to the second, so the student has to plan the order.
+ *   INVERSE        the outcome is given and an input has to be recovered, so
+ *                  the relation has to be undone rather than applied.
+ *   JUDGEMENT      several candidates or a threshold, so the student evaluates
+ *                  and compares rather than computing one value. Usually DOK 3.
+ */
+export const asvabChallengeItem = ({ difficultyBand = 4, dok = 2, ...spec }) => {
+  if (!(difficultyBand >= 4 && difficultyBand <= 5)) {
+    throw new Error(`${spec.code}/${spec.slug}: a challenge family sits at band 4 or 5, got ${difficultyBand}.`);
+  }
+  if (!(dok >= 2 && dok <= 4)) {
+    throw new Error(`${spec.code}/${spec.slug}: a challenge family sits at DOK 2 or higher, got ${dok}.`);
+  }
+  const item = asvabItem({ ...spec, difficultyBand, dok });
+  return {
+    ...item,
+    ccmrChallengeTier: 2,
+    ccmrFamilyRole: 'challenge',
+    ccmrFidelity: {
+      version: 2,
+      variantKind: 'authored-challenge',
+      responseMode: 'multipleChoice',
+      officialReferenceIds: [spec.domain === AR ? 'asvab-ar' : 'asvab-mk'],
+      officialReferenceCodes: [spec.domain === AR ? 'AR' : 'MK'],
+      officialReferencePrecision: ['subtest'],
+      directAssessmentEvidence: true,
+      // An authored challenge family is nobody's derivative. It cites itself,
+      // where the retired tier cited the direct family it wrapped.
+      sourceFamilyId: item.familyId,
+      sourcePrompt: item.prompt,
+    },
+  };
+};
+
+/**
+ * The challenge-tier requirement, checked at build time.
+ *
+ * Three families per standard, and the three have to be three different
+ * escalations. Same reasoning as assertStandardVariety: if all three ask the
+ * student to do the same kind of thinking, the standard has one challenge
+ * question written out three times.
+ */
+export const assertChallengeVariety = (items) => {
+  const byCode = new Map();
+  for (const item of items) {
+    if (!byCode.has(item.assessedConstruct)) byCode.set(item.assessedConstruct, []);
+    byCode.get(item.assessedConstruct).push(item);
+  }
+  const problems = [];
+  for (const [code, group] of byCode) {
+    const distinct = (key) => new Set(group.map((item) => item[key])).size;
+    if (group.length !== 3) problems.push(`${code}: ${group.length} challenge families, expected 3`);
+    if (distinct('taskType') < 3) problems.push(`${code}: ${distinct('taskType')} challenge task types, needs 3`);
+    if (distinct('representation') < 2) problems.push(`${code}: ${distinct('representation')} challenge representations, needs 2`);
+    if (group.some((item) => Number(item.difficultyBand) < 4)) problems.push(`${code}: a challenge family sits below band 4`);
+    if (group.some((item) => Number(item.dok) < 2)) problems.push(`${code}: a challenge family sits below DOK 2`);
+  }
+  if (problems.length) throw new Error(`ASVAB challenge variety:\n  ${problems.join('\n  ')}`);
+  return byCode.size;
+};
+
+/**
  * The five-family requirement, checked at build time.
  *
  * functions/shared/pathStandardQuality.mjs will not call a standard
@@ -351,4 +438,4 @@ export const assertStandardVariety = (items) => {
   return byCode.size;
 };
 
-export default { AR, MK, asvabItem, assertStandardVariety, contextParam, money, plain };
+export default { AR, MK, asvabItem, asvabChallengeItem, assertStandardVariety, assertChallengeVariety, contextParam, money, plain };
