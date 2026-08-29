@@ -249,3 +249,13 @@ test('advanced workspace always exposes Other operations and reuses IntervalNumb
   assert.match(src, /IntervalNumberLine/);
   assert.match(src, /ask: \['graph', 'interval'\]/);
 });
+
+test('advanced solver opens Other operations by default on load and reset', () => {
+  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  assert.match(src, /const \[otherOpen, setOtherOpen\] = useState\(true\)/);
+  assert.match(src, /setRewriteValue\(''\);\s*setOtherOpen\(true\);\s*setCompleteSquareOpen\(false\);/);
+  const resetStart = src.indexOf('const reset = () =>');
+  const resetEnd = src.indexOf('const active =', resetStart);
+  assert.ok(resetStart >= 0 && resetEnd > resetStart);
+  assert.match(src.slice(resetStart, resetEnd), /setOtherOpen\(true\)/);
+});
