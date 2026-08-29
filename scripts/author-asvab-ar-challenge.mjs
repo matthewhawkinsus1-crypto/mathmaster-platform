@@ -384,6 +384,224 @@ arc('6.4D', 'which-supplier-is-cheaper-and-by-how-much', {
   feedback: 'The two quoted totals added together is what the samples cost, not the saving.',
 });
 
+// ================================================================ 6.5A
+// Proportional reasoning and scale.
+
+arc('6.5A', 'two-stage-scale-conversion', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'On a plan 1 inch stands for {{feet}} feet and a wall is drawn {{drawn}} inches long. Fencing costs $\$\{{rate}}$ a foot. What does that wall cost to fence?',
+  generator: {
+    parameters: {
+      feet: { type: 'int', min: 3, max: 12 },
+      drawn: { type: 'int', min: 3, max: 14 },
+      rate: { type: 'int', min: 4, max: 15 },
+      quoted: { type: 'int', min: 30, max: 1100 },
+    },
+    derived: {
+      real: 'drawn*feet',
+      answer: 'real*rate',
+      d_partialTotal: 'answer+real*feet',
+      d_forgotFinalStep: 'real',
+      d_usedGivenValue: 'quoted',
+    },
+    constraints: ['quoted!=answer', 'real!=rate'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{drawn}} inches at {{feet}} feet an inch is {{real}} feet.', 'At $\$\{{rate}}$ a foot that is $\$\{{answer}}$.'],
+  answerSummary: { headline: 'Convert the drawing to feet before pricing it.', text: 'It costs $\$\{{answer}}$.' },
+  hint: 'The scale turns inches into feet; the rate turns feet into dollars.',
+  feedback: 'The length in feet is not yet a price.',
+});
+
+arc('6.5A', 'drawn-length-from-a-budget', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A plan uses 1 inch to {{feet}} feet. Fencing runs $\$\{{rate}}$ a foot, $\$\{{budget}}$ is available and {{allowance}} inches are already fenced. How many more inches can be fenced?',
+  generator: {
+    parameters: {
+      feet: { type: 'int', min: 3, max: 10 },
+      rate: { type: 'int', min: 3, max: 12 },
+      drawn: { type: 'int', min: 8, max: 20 },
+      allowance: { type: 'int', min: 2, max: 24 },
+    },
+    derived: {
+      real: 'drawn*feet',
+      budget: 'real*rate',
+      answer: 'drawn',
+      d_forgotFinalStep: 'real',
+      d_convertedWrongWay: 'round(drawn/feet)',
+      d_usedGivenValue: 'allowance',
+    },
+    constraints: ['allowance!=answer', 'drawn!=feet', 'round(drawn/feet)>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['$\$\{{budget}}$ at $\$\{{rate}}$ a foot buys {{real}} feet.', 'At {{feet}} feet an inch that is {{answer}} inches on the plan.'],
+  answerSummary: { headline: 'Money to feet, then feet back to the drawing.', text: 'It is ${{answer}}$ inches.' },
+  hint: 'Work back through the rate first, then through the scale.',
+  feedback: 'The length in feet still has to be turned back into inches on the plan.',
+});
+
+arc('6.5A', 'which-scale-row-is-wrong', {
+  difficultyBand: 5, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'A plan is drawn to one scale, but one row of this schedule does not fit it. What should that row read in feet?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Drawn (in)', 'Real (ft)'],
+    rows: [['{{a1}}', '{{r1}}'], ['{{a2}}', '{{r2}}'], ['{{a3}}', '{{rBad}}'], ['{{a4}}', '{{r4}}']],
+  },
+  generator: {
+    parameters: {
+      feet: { type: 'int', min: 4, max: 14 },
+      a1: { type: 'int', min: 2, max: 5 },
+      a3: { type: 'int', min: 7, max: 16 },
+      off: { type: 'int', min: 3, max: 19 },
+      listed: { type: 'int', min: 20, max: 200 },
+    },
+    derived: {
+      a2: 'a1+2',
+      a4: 'a1+4',
+      r1: 'a1*feet',
+      r2: 'a2*feet',
+      r4: 'a4*feet',
+      answer: 'a3*feet',
+      rBad: 'answer+off',
+      d_forgotFinalStep: 'rBad',
+      d_offByOneStep: 'r2',
+      d_usedGivenValue: 'listed',
+    },
+    constraints: ['off!=feet', 'a3>a1+2', 'listed!=answer', 'rBad!=r4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The rows that agree use {{feet}} feet to the inch.', '{{a3}} inches should read {{answer}} feet, not {{rBad}}.'],
+  answerSummary: { headline: 'Recover the scale from the rows that agree.', text: 'It should read ${{answer}}$ feet.' },
+  hint: 'Three rows share one scale. Use them to test the fourth.',
+  feedback: 'The figure printed in that row is the error, not the correction.',
+});
+
+// ================================================================ 6.4E
+// Percents, fractions and decimals as equivalent forms.
+
+arc('6.4E', 'percent-of-a-percent-order', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'Of {{total}} {{item}} delivered, {{p}}% were checked. Of those checked, {{q}}% passed. How many passed?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      hundreds: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 20, max: 80, step: 10 },
+      q: { type: 'int', min: 20, max: 90, step: 10 },
+      logged: { type: 'int', min: 8, max: 340 },
+    },
+    derived: {
+      total: 'hundreds*100',
+      checked: 'total*p/100',
+      answer: 'checked*q/100',
+      d_forgotFinalStep: 'checked',
+      d_wrongPercentBase: 'round(p*q/100)',
+      d_usedGivenValue: 'logged',
+    },
+    constraints: ['p!=q', 'logged!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{p}}% of {{total}} is {{checked}} checked.', '{{q}}% of those {{checked}} is {{answer}}.'],
+  answerSummary: { headline: 'The second percent applies to the checked ones only.', text: '${{answer}}$ passed.' },
+  hint: 'The second percentage is taken of a smaller group than the delivery.',
+  feedback: 'Combining the two percentages as numbers loses the count they apply to.',
+});
+
+arc('6.4E', 'delivery-size-from-two-percents', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: '{{p}}% of a delivery was checked and {{passed}} of those checked passed, which was {{q}}% of them. How many {{item}} were delivered?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      hundreds: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 20, max: 80, step: 10 },
+      q: { type: 'int', min: 20, max: 80, step: 10 },
+      stated: { type: 'int', min: 100, max: 950 },
+    },
+    derived: {
+      answer: 'hundreds*100',
+      checked: 'answer*p/100',
+      passed: 'checked*q/100',
+      d_forgotFinalStep: 'checked',
+      d_partialTotal: 'checked+answer',
+      d_usedGivenValue: 'stated',
+    },
+    constraints: ['p!=q', 'stated!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{passed}} is {{q}}% of the checked group, so {{checked}} were checked.', '{{checked}} is {{p}}% of the delivery, so {{answer}} were delivered.'],
+  answerSummary: { headline: 'Undo the inner percent first, then the outer one.', text: '${{answer}}$ were delivered.' },
+  hint: 'Two percentages were applied in turn, so two have to be undone in turn.',
+  feedback: 'Stopping at the checked group answers only half the question.',
+});
+
+arc('6.4E', 'gap-between-two-written-forms', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Two {{shop}} records describe shares of one order of {{total}} {{item}}. The sheet expected a gap of {{expected}}. How many more {{item}} does the larger share cover?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Record', 'Share'],
+    rows: [['First', '{{p}}%'], ['Second', '$\\frac{{{num}}}{{{den}}}$']],
+  },
+  generator: {
+    parameters: {
+      shop: SHOPS,
+      item: GOODS,
+      hundreds: { type: 'int', min: 2, max: 8 },
+      p: { type: 'int', min: 20, max: 80, step: 10 },
+      num: { type: 'int', min: 1, max: 3 },
+      den: { type: 'int', min: 4, max: 5 },
+      expected: { type: 'int', min: 8, max: 260 },
+    },
+    derived: {
+      total: 'hundreds*100',
+      first: 'total*p/100',
+      second: 'total*num/den',
+      answer: 'abs(first-second)',
+      d_forgotFinalStep: 'max(first,second)',
+      d_wrongPercentBase: 'abs(p-round(num*100/den))',
+      d_usedGivenValue: 'expected',
+    },
+    constraints: ['expected!=answer', 'num<den', 'total*p/100!=total*num/den', 'abs(first-second)>9'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{p}}% of {{total}} is {{first}}; $\\frac{{{num}}}{{{den}}}$ of {{total}} is {{second}}.', 'The gap between them is {{answer}} {{item}}.'],
+  answerSummary: { headline: 'Put both shares into {{item}} before comparing.', text: 'The gap is ${{answer}}$ {{item}}.' },
+  hint: 'A percent and a fraction cannot be compared until both are counts.',
+  feedback: 'The expected gap on the sheet is not what the two records actually differ by.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
