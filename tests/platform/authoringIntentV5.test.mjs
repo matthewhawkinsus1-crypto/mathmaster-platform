@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { parseAssignmentBlueprintText, validateAssignmentQuestions } from '../../src/assignmentBlueprint.js';
+import { needsMultiRelationWorkspace } from '../../src/algebraRelationFoundation.js';
 
 const v5 = {
   schemaVersion: 5,
@@ -56,5 +57,23 @@ assert.deepEqual(parsed.questions[1].pairs, [{ x: -2, y: 3 }, { x: 1, y: 2 }, { 
 assert.equal(parsed.questions[0].alignments[0].code, 'A.3C');
 validateAssignmentQuestions(parsed.questions);
 assert.ok(parsed.repairs.some((r) => r.includes('canonical V5')));
+
+const advancedSolverIntent = compileAuthoringIntentV5({
+  schemaVersion: 5,
+  assignment: { title: 'Advanced solver routing', courseId: 'algebra2' },
+  sections: [{
+    role: 'classwork',
+    questions: [{
+      standard: 'A2.6E',
+      prompt: 'Solve the absolute-value equation step by step.',
+      studentActions: ['solveStepByStep'],
+      equation: '|8 + p| = 2p - 3',
+    }],
+  }],
+});
+const advancedSolverQuestion = advancedSolverIntent.package.sections[0].questions[0];
+assert.equal(advancedSolverQuestion.type, 'stepAlgebra');
+assert.equal(advancedSolverQuestion.equation, '|8 + p| = 2p - 3');
+assert.equal(needsMultiRelationWorkspace(advancedSolverQuestion), true);
 
 console.log('authoringIntentV5.test.mjs: all assertions passed');
