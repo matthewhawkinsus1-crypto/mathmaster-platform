@@ -11,7 +11,9 @@ import {
   parseRelationSource,
   relationContainsInvisibleNegativeAbsolute,
   relationSolutionSummary,
+  relationStateContainsAbsoluteValue,
   relationStateToText,
+  verifyRelationCandidates,
   takeSquareRootOfRelation,
 } from '../../src/algebraRelationFoundation.js';
 
@@ -124,6 +126,37 @@ test('two isolated equation branches become two solution values', () => {
   assert.equal(summary.solved, true);
   assert.equal(summary.kind, 'values');
   assert.deepEqual(summary.values, [-2, 5]);
+});
+
+test('numeric relation summaries preserve exact candidate expressions for student verification', () => {
+  const summary = relationSolutionSummary(parseRelationSource('p = 11 OR p = -5/3', 'p'));
+  assert.deepEqual(summary.values, [-5 / 3, 11]);
+  assert.deepEqual(summary.valueExpressions, ['-5 / 3', '11']);
+});
+
+test('absolute-value candidates are checked against the original equation for extraneous values', () => {
+  const original = parseRelationSource('|8 + p| = 2*p - 3', 'p');
+  assert.equal(relationStateContainsAbsoluteValue(original), true);
+  assert.deepEqual(
+    verifyRelationCandidates(original, [-5 / 3, 11], 'p').map(({ valid }) => valid),
+    [false, true],
+  );
+});
+
+test('ordinary absolute-value equations verify both legitimate branches', () => {
+  const original = parseRelationSource('|x| = 2', 'x');
+  assert.deepEqual(
+    verifyRelationCandidates(original, [-2, 2], 'x').map(({ valid }) => valid),
+    [true, true],
+  );
+});
+
+test('advanced absolute-value UI requires the student to classify candidates in the original equation', () => {
+  const src = fs.readFileSync('src/MultiRelationAlgebra.jsx', 'utf8');
+  assert.match(src, /Check each candidate in the original equation/);
+  assert.match(src, /Valid solution/);
+  assert.match(src, /Extraneous/);
+  assert.match(src, /candidateVerificationCorrect/);
 });
 
 test('Other operations is stable rather than contextually revealing a strategy', () => {
