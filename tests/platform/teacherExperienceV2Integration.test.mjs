@@ -8,12 +8,14 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
 const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
-test('AI authoring and blueprint both preserve adaptive assignment mode', () => {
+test('AI authoring and blueprint preserve Assignment V5 adaptive policy and rigor metadata', () => {
   const contract = read('src/platform/contract/authoringContract.js');
   const blueprint = read('src/assignmentBlueprint.js');
-  assert.match(contract, /variantMode\\": \\"adaptive \\| personalized \\| shared/);
-  assert.match(contract, /difficultyRange/);
-  assert.match(contract, /dokRange/);
+  assert.match(contract, /"variantPolicy"/);
+  assert.match(contract, /"mode": "personalized"/);
+  assert.match(contract, /sectionModes/);
+  assert.match(contract, /difficultyBand/);
+  assert.match(contract, /dok is 1–4 cognitive complexity/);
   assert.match(blueprint, /\['adaptive', 'pitched'/);
   assert.match(blueprint, /\['shared', 'personalized', 'variant', 'adaptive'\]/);
 });
