@@ -11,6 +11,7 @@ import {
 import { describeSkill, teksSkillId } from '../../src/platform/path/skillGraph.js';
 import { deriveStudentLabel, studentLabelForTeks } from '../../src/platform/path/skillLabels.js';
 import { explainStepForStudent, PATH_ACTION } from '../../src/platform/path/pathSessionRouting.js';
+import { normalizeInteractionInputProfile } from '../../src/platform/interaction/interactionContract.js';
 
 const read = (relativePath) => readFileSync(new URL(`../../${relativePath}`, import.meta.url), 'utf8');
 
@@ -63,10 +64,26 @@ test('multiple choice renders selectable options rather than asking for a typed 
   assert.ok(responses.includes('MathText'), 'option text is rendered as mathematics');
 });
 
-test('the generic renderer supports the response types a Path question actually needs', () => {
-  ['choice', 'number', 'expression', 'equation', 'interval', 'inequality', 'text'].forEach((profile) => {
-    assert.ok(responses.includes(`'${profile}'`), `${profile} responses must be supported`);
+test('the generic renderer supports the response profiles a Path question actually needs', () => {
+  // `number` is the canonical profile and `numeric` is an alias for it, not the
+  // other way round: the interaction contract's canonical set is
+  // ['choice','text','number',...], toolProfileForInputProfile keys off
+  // `number`, and the shipped banks use `number` 756 times and `numeric` never.
+  const expected = {
+    choice: 'choice',
+    number: 'number',
+    numeric: 'number',
+    expression: 'expression',
+    equation: 'equation',
+    interval: 'interval',
+    inequality: 'inequality',
+    text: 'text',
+  };
+  Object.entries(expected).forEach(([profile, normalized]) => {
+    assert.equal(normalizeInteractionInputProfile(profile), normalized, `${profile} responses must be supported`);
   });
+  assert.match(responses, /normalizeInteractionInputProfile/);
+  assert.match(responses, /<MathField/);
 });
 
 test('Enter activates the primary check action', () => {

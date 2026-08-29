@@ -35,10 +35,10 @@ test('operation input is narrow enough to keep equations and controls close', ()
   assert.match(src, />\s*Commit step\s*</);
 });
 
-test('split dock tells the student which branch is active', () => {
-  // JSX renders this as text + an expression:
-  // Working on Branch {branchLabel(activeBranch)}
-  assert.match(src, /Working on Branch\s*\{branchLabel\(activeBranch\)\}/);
+test('split dock tells the student which branch or branches are being worked', () => {
+  assert.match(src, /Staging Branches/);
+  assert.match(src, /Working on Branch/);
+  assert.match(src, /branchLabel\(activeBranch\)/);
 });
 
 test('old full-width bottom operation panel is gone', () => {

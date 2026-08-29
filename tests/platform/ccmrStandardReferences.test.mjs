@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { TEKS_EXAM_CROSSWALK } from '../../src/platform/assessment/teksExamCrosswalk.js';
+import { mapTEKSToExamDomains } from '../../src/platform/assessment/examDomainRegistry.js';
 import {
   ACT_REFERENCES,
   getAssessmentStandardReferences,
@@ -64,15 +65,30 @@ test('student search accepts official codes, official skill names, domains, subt
   }
 });
 
-test('every authored TEKS assessment crosswalk has an explanatory official-reference layer', () => {
+test('every assessment crosswalk the platform claims has an explanatory official-reference layer', () => {
+  // Measured over the EFFECTIVE crosswalk — what mapTEKSToExamDomains actually
+  // returns — rather than the raw authored table.
+  //
+  // CCMR V2.1 suppresses rows the authored table still carries: grade 6-8 TEKS
+  // are no longer direct Digital SAT evidence (College Board's Texas report
+  // aligns middle school to PSAT 8/9), and Table 25/26 do not mark A.2A, A.4A,
+  // A.4B, A2.3B or A2.8B for the SAT. 117 authored rows are suppressed this
+  // way, and requiring an official reference for an alignment the platform
+  // deliberately refuses to make was asserting the opposite of the V2.1 intent.
+  //
+  // The rule that matters is unchanged: an alignment MathMaster shows a student
+  // must be explainable from the framework's own published references.
   const missing = [];
-  for (const [code, mapping] of Object.entries(TEKS_EXAM_CROSSWALK)) {
-    for (const framework of Object.keys(mapping)) {
-      const refs = getAssessmentStandardReferences(code, framework);
-      if (!refs.length) missing.push(`${code}:${framework}`);
+  let claimed = 0;
+  for (const code of Object.keys(TEKS_EXAM_CROSSWALK)) {
+    for (const framework of Object.keys(mapTEKSToExamDomains(code))) {
+      claimed += 1;
+      if (!getAssessmentStandardReferences(code, framework).length) missing.push(`${code}:${framework}`);
     }
   }
   assert.deepEqual(missing, []);
+  // Guards against the check going vacuous if the effective crosswalk empties.
+  assert.ok(claimed > 500, `only ${claimed} crosswalk claims were checked`);
 });
 
 test('ACT reference codes returned by the mapper exist in the authored ACT CCRS registry', () => {

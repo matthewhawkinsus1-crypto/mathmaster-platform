@@ -1,6 +1,7 @@
 import { validateInstructionalScopeV5 } from '../curriculum/instructionalScope.js';
 import { looksLikeFiniteSetNotation } from '../../../functions/shared/answerEquivalence.mjs';
 import { normalizeStaticGraphPoints } from '../../graphPointUtils.js';
+import { normalizeLabDefinition } from '../labs/labDefinitionSchema.js';
 import {
   axisExpectedOptions,
   axisQuantityChoicesFromIntent,
@@ -950,9 +951,27 @@ const compileOne = (q, index, repairs) => {
       });
       break;
     }
-    case 'modelingLab':
-      out = copyCommon(q, { type, labDefinition: q.labDefinition || q.lab || q.modeling });
+    case 'modelingLab': {
+      // Through the public normalizer, not raw.
+      //
+      // A raw labDefinition carries `evaluation` — the objective expression and
+      // the target value the student is supposed to discover. Copying it
+      // verbatim put the answer into the compiled authoring package, which is
+      // the artifact the teacher UI shows and hands back to an AI.
+      // normalizeLabDefinition drops it unless includeEvaluation is asked for,
+      // and the private evaluation is rebuilt where grading actually needs it.
+      const authoredLab = q.labDefinition || q.lab || q.modeling;
+      let labDefinition = authoredLab;
+      try {
+        if (authoredLab) labDefinition = normalizeLabDefinition(authoredLab);
+      } catch {
+        // Leave the authored object in place so the modelingLab validator can
+        // report what is wrong with it instead of the compile throwing here.
+        labDefinition = authoredLab;
+      }
+      out = copyCommon(q, { type, labDefinition });
       break;
+    }
     case 'dataModelingLab': {
       const data = q.data || {};
       out = copyCommon(q, { type, mode: q.mode || (actions.includes('fitDataModel') ? 'lineFit' : actions.includes('predictFromModel') ? 'prediction' : 'full'), points: q.points || data.points, predictionX: q.predictionX ?? data.predictionX, predictionTolerance: q.predictionTolerance ?? data.predictionTolerance });

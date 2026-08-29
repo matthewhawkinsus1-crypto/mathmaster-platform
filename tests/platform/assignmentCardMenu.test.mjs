@@ -7,6 +7,6 @@ test('desktop assignment menu stays in the three-dot button coordinate system', 
   assert.match(source, /position: 'absolute'/);
   assert.match(source, /right: 0/);
   assert.match(source, /open && layout\?\.mode === 'popover' \? menuItems : null/);
-  assert.match(source, /layout\?\.mode === 'sheet'.*createPortal/s);
-  assert.doesNotMatch(source, /layout\?\.mode === 'popover'[\s\S]{0,120}createPortal/);
+  assert.match(source, /open && layout\?\.mode === 'popover' \? menuItems : null/);
+  assert.match(source, /open && layout\?\.mode === 'sheet'[\s\S]*createPortal\([\s\S]*document\.body/s);
 });

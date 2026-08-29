@@ -21,7 +21,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { normalizeAssignmentPackageMetadata } from '../../src/assignmentBlueprint.js';
+import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
+import { flattenV5Sections } from '../../src/platform/contract/assignmentSchemaV5.js';
 import { getSectionVariantMode } from '../../src/assignmentLifecycle.js';
 import { resolveDeliveredQuestionMetadata, adaptationRecord } from '../../src/platform/assignments/assignmentAdaptation.js';
 import { buildAttemptEvidenceEvent } from '../../src/platform/history/evidenceEvent.js';
@@ -30,61 +31,71 @@ import { buildStudentLearningProfile, INSTRUCTIONAL_BAND } from '../../src/platf
 // --- Stage 1: what an external AI author actually writes -----------------------
 
 const AI_PACKAGE = {
+  schemaVersion: 5,
   assignment: {
     title: 'Systems of Equations — Practice',
-    assignmentType: 'practice',
-    variantMode: 'adaptive',
-    sectionVariantModes: { practice: 'adaptive', dol: 'shared' },
     courseId: 'algebra1',
-    classes: ['Period 3'],
+    instructionalPurpose: 'practice',
+    gradingPurpose: 'practice',
   },
-  questions: [
+  variantPolicy: {
+    mode: 'adaptive',
+    sectionModes: { practice: 'adaptive', dol: 'shared' },
+  },
+  sections: [
     {
-      type: 'algebra',
-      prompt: 'Solve the system for x.',
-      activityRole: 'practice',
-      dok: 2,
-      difficultyBand: 3,
-      responseType: 'numeric',
-      alignments: [{ framework: 'teks', code: 'A.5C', role: 'primary', evidenceLevel: 'assessed' }],
+      role: 'practice',
+      questions: [{
+        standard: 'A.5C',
+        prompt: 'Solve the system for x.',
+        studentActions: ['solveSystem'],
+        equations: ['x + y = 5', 'x - y = 1'],
+        dok: 2,
+        difficultyBand: 3,
+      }],
     },
     {
-      type: 'algebra',
-      prompt: 'Demonstrate of Learning: solve the system.',
-      activityRole: 'dol',
-      dok: 2,
-      difficultyBand: 3,
-      responseType: 'numeric',
-      alignments: [{ framework: 'teks', code: 'A.5C', role: 'primary', evidenceLevel: 'assessed' }],
+      role: 'dol',
+      questions: [{
+        standard: 'A.5C',
+        prompt: 'Demonstrate of Learning: solve the system.',
+        studentActions: ['solveSystem'],
+        equations: ['x + y = 5', 'x - y = 1'],
+        dok: 2,
+        difficultyBand: 3,
+      }],
     },
   ],
 };
 
-const imported = normalizeAssignmentPackageMetadata(AI_PACKAGE.assignment, AI_PACKAGE.questions);
+const imported = compileAuthoringIntentV5(AI_PACKAGE).package;
+const importedQuestions = flattenV5Sections(imported);
 
-test('an AI-authored adaptive assignment survives import as adaptive', () => {
-  // The specific regression: import used to know two modes, so "adaptive"
-  // normalized to "personalized" and the teacher published Variant while
-  // believing they had published Adaptive.
-  assert.equal(imported.variantMode, 'adaptive');
+test('an AI-authored adaptive assignment survives V5 compilation as adaptive', () => {
+  assert.equal(imported.variantPolicy.mode, 'adaptive');
 });
 
 test('a per-section adaptive mode is not flattened into the assignment mode', () => {
-  assert.equal(imported.sectionVariantModes.practice, 'adaptive');
-  assert.equal(imported.sectionVariantModes.dol, 'shared');
+  assert.equal(imported.variantPolicy.sectionModes.practice, 'adaptive');
+  assert.equal(imported.variantPolicy.sectionModes.dol, 'shared');
 });
 
-test('legacy personalized still means Variant and is never promoted', () => {
-  const legacy = normalizeAssignmentPackageMetadata(
-    { ...AI_PACKAGE.assignment, variantMode: 'personalized', sectionVariantModes: {} },
-    AI_PACKAGE.questions,
-  );
-  assert.equal(legacy.variantMode, 'personalized');
+test('V5 personalized still means Variant and is never promoted', () => {
+  const legacyEquivalent = compileAuthoringIntentV5({
+    ...AI_PACKAGE,
+    variantPolicy: { mode: 'personalized', sectionModes: {} },
+  }).package;
+  assert.equal(legacyEquivalent.variantPolicy.mode, 'personalized');
 });
 
 // --- Stage 2: what the runtime asks for, section by section --------------------
 
-const published = { id: 'asn-1', title: imported.title, ...imported };
+const published = {
+  id: 'asn-1',
+  title: imported.assignment.title,
+  ...imported,
+  questions: importedQuestions,
+};
 
 test('the runtime resolves the authored section mode, not the assignment default', () => {
   assert.equal(getSectionVariantMode(published, 'practice'), 'adaptive');
@@ -145,7 +156,7 @@ const STUDENTS = {
   }),
 };
 
-const practiceQuestion = published.questions?.[0] || AI_PACKAGE.questions[0];
+const practiceQuestion = published.questions.find((question) => question.activityRole === 'practice');
 
 const deliverTo = (profile, role = 'practice') => resolveDeliveredQuestionMetadata({
   question: practiceQuestion,

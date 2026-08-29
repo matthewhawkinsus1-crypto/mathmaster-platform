@@ -6,7 +6,7 @@ const pkg = {
   schemaVersion: 5,
   assignment: { courseId: 'algebra1', title: 'Representation test' },
   lessonMetadata: { provider: 'Bluebonnet', course: 'Algebra I', module: 1, topic: 1, lessons: [1,2] },
-  activities: [{
+  sections: [{
     role: 'practice',
     questions: [{
       prompt: 'Use the displayed graph to classify its behavior and shape.',
@@ -23,7 +23,7 @@ const pkg = {
 
 test('V5 multiAnswer turns a supplied function into a visible static graph', () => {
   const { package: compiled } = compileAuthoringIntentV5(pkg);
-  const question = compiled.activities[0].questions[0];
+  const question = compiled.sections[0].questions[0];
   assert.equal(question.type, 'multiAnswer');
   assert.deepEqual(question.graph?.functions?.[0], { type: 'line', m: -4, b: 7 });
   assert.equal(question.assessedConstruct, 'graphicalBehavior');

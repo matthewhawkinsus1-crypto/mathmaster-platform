@@ -5,6 +5,8 @@ import { mappedCourseIdsForAssignment, shouldAutoPublishClassroomPackage } from 
 import { readFile } from 'node:fs/promises';
 
 const assignment = {
+  schemaVersion: 5,
+  assignment: { title: 'Class boundary fixture', courseId: 'algebra1' },
   assignedClassIds: ['class-A'],
   assignedClassPeriods: ['Period 3'],
   dueAt: '2026-08-24T23:59:00Z',
@@ -15,7 +17,7 @@ const assignment = {
       overridesByClassPeriod: { 'Period 3': { state: 'open' } },
     },
   },
-  questions: [{ activityRole: 'classwork' }],
+  sections: [{ id: 'classwork', role: 'classwork', questions: [{ activityRole: 'classwork' }] }],
 };
 
 test('a matching period cannot widen a modern assignment audience to a different class', () => {

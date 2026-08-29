@@ -1,0 +1,38 @@
+name: Full Platform Test Suite
+
+concurrency:
+  group: full-platform-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      # main is listed so the suite keeps guarding the branch itself after this
+      # cleanup merges. Without it the only push coverage would be a branch that
+      # stops existing, and main could go red again unnoticed between PRs.
+      - main
+      - fix/main-full-platform-suite-green
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  full-platform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Run every platform test
+        run: node --test tests/platform/*.test.mjs
+      - name: Build
+        if: always()
+        run: npm run build
+      - name: Lint
+        if: always()
+        run: npm run lint
