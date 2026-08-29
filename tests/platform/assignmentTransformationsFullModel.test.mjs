@@ -12,6 +12,7 @@ import {
   transformationParameterScore,
 } from '../../src/tools/transformations/transformationsMath.js';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
+import { validateQuestionsSemantics } from '../../src/platform/contract/semanticValidation.js';
 
 test('full a f(b(x-h))+k model follows x reciprocal/opposite and y direct behavior', () => {
   const spec = normalizeTransformationSpec({
@@ -101,4 +102,29 @@ test('CoordinatePlane exposes reusable polyline rendering for source and student
   const source = fs.readFileSync('src/tools/shared/CoordinatePlane.jsx', 'utf8');
   assert.match(source, /polylines = \[\]/);
   assert.match(source, /<polyline/);
+});
+
+
+test('the complete Lesson 1 ALEKS bridge compiles and its transformation visuals satisfy Preflight', () => {
+  const source = JSON.parse(fs.readFileSync(
+    'teacher-import-jsons/algebra2-honors-module1/L1_Absolute_Value_ALEKS_Bridge_20260828.json',
+    'utf8',
+  ));
+  const compiled = compileAuthoringIntentV5(source).package;
+  const questions = compiled.sections.flatMap((section) => section.questions || []);
+  const semantic = validateQuestionsSemantics(questions);
+
+  assert.deepEqual(
+    semantic.errors,
+    [],
+    `Lesson 1 ALEKS bridge must be fully renderable in Preflight:\n${semantic.errors.join('\n')}`,
+  );
+
+  const plotItems = questions.filter(
+    (question) => question.type === 'transformationsLab' && question.mode === 'plotTransform',
+  );
+  assert.ok(plotItems.length >= 6, 'bridge should exercise several ALEKS-style source-graph transformations');
+  plotItems.forEach((question) => {
+    assert.ok(Array.isArray(question.sourcePoints) && question.sourcePoints.length >= 2);
+  });
 });
