@@ -7,11 +7,11 @@ const base = {
   releaseAt: '2026-08-13T08:00',
   dueAt: '2026-08-13T15:00',
   lateDueAt: '2026-08-13T16:00',
-  questions: [
-    { activityRole: 'warmup' },
-    { activityRole: 'classwork' },
-    { activityRole: 'practice' },
-    { activityRole: 'dol' },
+  sections: [
+    { id: 'warmup', role: 'warmup', questions: [{ activityRole: 'warmup' }] },
+    { id: 'classwork', role: 'classwork', questions: [{ activityRole: 'classwork' }] },
+    { id: 'practice', role: 'practice', questions: [{ activityRole: 'practice' }] },
+    { id: 'dol', role: 'dol', questions: [{ activityRole: 'dol' }] },
   ],
 };
 
