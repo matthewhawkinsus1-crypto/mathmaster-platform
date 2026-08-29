@@ -11,7 +11,12 @@ const isPositiveInteger = (value) => Number.isInteger(Number(value)) && Number(v
 const isValidLogBase = (value) => Number.isFinite(Number(value)) && Number(value) > 0 && Math.abs(Number(value) - 1) > 1e-6;
 const isFiniteComplex = (value) => value && Number.isFinite(Number(value.re)) && Number.isFinite(Number(value.im));
 const FUNCTION_FAMILIES = ['linear','quadratic','absolute','cubic','cubeRoot','squareRoot','exponential','logarithmic','rational'];
-const isFinitePoint = (value) => Array.isArray(value) && value.length === 2 && value.every((entry) => Number.isFinite(Number(entry)));
+const isFinitePoint = (value) => {
+  if (Array.isArray(value)) return value.length === 2 && value.every((entry) => Number.isFinite(Number(entry)));
+  return Boolean(value && typeof value === 'object'
+    && Number.isFinite(Number(value.x))
+    && Number.isFinite(Number(value.y)));
+};
 
 const validateFunctionSpec = (spec = {}, label = 'function') => {
   const errors = [];
