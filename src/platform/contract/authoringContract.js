@@ -472,10 +472,18 @@ const compactTeksSection = (courseId = null) => {
   }).join('\n');
 };
 
-export const buildAdvancedAuthoringContract = (options = {}) => buildAuthoringContract({
-  ...options,
-  includeAdvancedNotes: true,
-});
+export const buildAdvancedAuthoringContract = (options = {}) => [
+  buildAuthoringContract(options),
+  fidelitySection(),
+  taskFidelitySection(),
+  activityRoleSection(),
+  instructionalScopeSection(),
+  sectionBalanceRigorSection(),
+  planningSection(),
+  toolSection(),
+  examSection(),
+  ccmrCrosswalkSection(),
+].filter(Boolean).join('\n');
 
 export const AUTHORING_INTENT_SCHEMA_VERSION = 5;
 export const AUTHORING_INTENT_SCHEMA_NAME = 'MathMaster Assignment V5';
