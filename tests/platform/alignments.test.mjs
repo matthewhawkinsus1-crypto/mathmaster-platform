@@ -27,6 +27,20 @@ const find = (list, framework) => list.filter((entry) => entry.framework === fra
   assert.deepEqual(getPrimaryTeksCodes(shorthand), ['A.3C'], 'bare teks list is treated as primary');
 }
 
+{
+  const v5Shorthand = {
+    standard: 'A.12C',
+    secondaryStandards: ['A.12A'],
+    prerequisiteStandards: ['8.5I'],
+  };
+  const out = normalizeQuestionAlignments(v5Shorthand, { includeCrosswalks: false });
+  assert.deepEqual(
+    out.map((entry) => [entry.code, entry.role]),
+    [['A.12C', 'primary'], ['A.12A', 'secondary'], ['8.5I', 'prerequisite']],
+    'Assignment V5 singular/plural standard shorthands remain canonical evidence metadata',
+  );
+}
+
 // --- V4 alignments are canonical -----------------------------------------
 {
   const v4 = {
