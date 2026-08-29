@@ -33,6 +33,7 @@ const question = (overrides = {}) => ({
 
 const adaptiveAssignment = {
   id: 'asn-1',
+  schemaVersion: 5,
   variantPolicy: {
     mode: 'adaptive',
     sectionModes: { practice: 'adaptive', dol: 'shared' },
@@ -104,7 +105,7 @@ test('an assignment where nothing adapts says so, in those words', () => {
   // The case a hard-coded demonstration always gets wrong, because it is built
   // to show adaptation working.
   const preview = buildAdaptivePreview({
-    assignment: { id: 'asn-2', variantPolicy: { mode: 'shared', sectionModes: {} } },
+    assignment: { id: 'asn-2', schemaVersion: 5, variantPolicy: { mode: 'shared', sectionModes: {} } },
     questions: [question(), question({ id: 'q2' })],
   });
   assert.equal(preview.summary.varying, 0);
