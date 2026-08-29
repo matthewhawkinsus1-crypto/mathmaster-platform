@@ -428,3 +428,81 @@ test('a negative fraction is read as a number, so a slope item cannot skip the b
   assert.ok(analyzeAnswerKeyBias(biased).issues.length > 0,
     'a key that is the smallest of four negative-leaning choices must be flagged');
 });
+
+/**
+ * Evaluate a LaTeX polynomial at a numeric x.
+ *
+ * Only the shapes the bank actually writes: sums of coefficient-times-power
+ * terms, and products of bracketed sums. Implicit multiplication before a
+ * bracket has to be made explicit or `7(4x - 12)` parses as a function call.
+ */
+const evaluatePolynomial = (label, x) => {
+  const source = String(label)
+    .replace(/\$/g, '')
+    .replace(/\s+/g, '')
+    .replace(/\^\{?(\d+)\}?/g, '**$1')
+    .replace(/([0-9x)])\(/g, '$1*(')
+    .replace(/(\d)x/g, '$1*x');
+  try {
+    // eslint-disable-next-line no-new-func
+    const value = Function('x', `return (${source})`)(x);
+    return Number.isFinite(value) ? value : null;
+  } catch {
+    return null;
+  }
+};
+
+test('an expand, factor or divide family has a key algebraically identical to its prompt', () => {
+  // Every other gate here checks the shape of an item: that the choices differ,
+  // that the key is not always the smallest, that the five families measure
+  // five things. None of them would notice a factorisation that is simply
+  // wrong. This one substitutes numbers into both sides.
+  //
+  // The families are listed rather than detected, because most items are not
+  // supposed to have a key equal to their prompt — "what is the slope of" and
+  // "where does it cross" both read a property out of an expression instead of
+  // rewriting it. Add a family here when its key is a rewriting of its prompt.
+  const rewritings = [
+    ['mm_asvab_A_10A_add_two_quadratics', (p) => { const m = /Add \$\((.+?)\)\$ and \$\((.+?)\)\$/.exec(p); return m && `(${m[1]})+(${m[2]})`; }],
+    ['mm_asvab_A_10A_subtract_a_quadratic', (p) => { const m = /Subtract \$\((.+?)\)\$ from \$\((.+?)\)\$/.exec(p); return m && `(${m[2]})-(${m[1]})`; }],
+    ['mm_asvab_A_10B_multiply_two_binomials', (p) => /Expand \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_A_10B_square_of_a_binomial', (p) => /Expand \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_A_10B_monomial_across_a_trinomial', (p) => /Expand \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_A_10C_divide_a_quadratic_by_a_binomial', (p) => { const m = /\$\((.+?)\) \\div \((.+?)\)\$/.exec(p); return m && `(${m[1]})/(${m[2]})`; }],
+    ['mm_asvab_A_10C_dividing_out_a_common_factor', (p) => { const m = /\$\((.+?)\) \\div (.+?)\$/.exec(p); return m && `(${m[1]})/(${m[2]})`; }],
+    ['mm_asvab_A_10D_distribute_across_a_bracket', (p) => /Write \$(.+?)\$ without/.exec(p)?.[1]],
+    ['mm_asvab_A_10D_take_out_the_greatest_common_factor', (p) => /Write \$(.+?)\$ as a product/.exec(p)?.[1]],
+    ['mm_asvab_A_10E_factor_a_monic_trinomial', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_A_10E_factor_with_a_leading_coefficient', (p) => /Factor \$(.+?)\$\./.exec(p)?.[1]],
+    ['mm_asvab_A_10E_recognising_a_perfect_square', (p) => /equals \$(.+?)\$\?/.exec(p)?.[1]],
+  ];
+  const byId = Object.fromEntries(draft.map((question) => [question.id, question]));
+
+  for (const [id, readPrompt] of rewritings) {
+    const question = byId[id];
+    assert.ok(question, `${id} is listed here but no longer in the bank — update the list or the family`);
+    for (const { question: instance } of samplePathInstances(question, 60)) {
+      const before = readPrompt(instance.prompt);
+      assert.ok(before, `${id}: could not read the expression out of "${instance.prompt}"`);
+      const keyChoice = instance.choices.find((choice) => choice.id === instance.responseFields[0].expected);
+      for (const x of [2, 3, 5, 7]) {
+        const left = evaluatePolynomial(before, x);
+        const right = evaluatePolynomial(keyChoice.label, x);
+        assert.notEqual(left, null, `${id}: could not evaluate "${before}"`);
+        assert.notEqual(right, null, `${id}: could not evaluate the key "${keyChoice.label}"`);
+        assert.equal(right, left,
+          `${id}: at x = ${x} the prompt gives ${left} but the key "${keyChoice.label}" gives ${right}`);
+      }
+      // And no distractor may be a second correct answer.
+      for (const choice of instance.choices) {
+        if (choice.id === keyChoice.id) continue;
+        const agrees = [2, 3, 5, 7].every((x) => {
+          const left = evaluatePolynomial(before, x);
+          const other = evaluatePolynomial(choice.label, x);
+          return other !== null && other === left;
+        });
+        assert.ok(!agrees, `${id}: the distractor "${choice.label}" is also equal to the prompt`);
+      }
+    }
+  }
+});

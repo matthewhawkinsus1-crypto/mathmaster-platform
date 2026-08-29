@@ -13201,6 +13201,674 @@ mk('A.8A', 'only-the-positive-root-given', {
   feedback: 'That is true of the root symbol, but not of an equation with $x^2$ in it.',
 });
 
+// ================================================================ A.10A
+// Adding and subtracting polynomials. The whole standard is collecting like
+// terms, so the five differ by what makes that hard: a subtraction whose sign
+// has to be carried across a bracket, a sum read off a shape, and working
+// backwards from a known total.
+
+mk('A.10A', 'add-two-quadratics', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Add $({{a}}x^2 + {{b}}x + {{c}})$ and $({{d}}x^2 + {{e}}x + {{f}})$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 }, b: { type: 'int', min: 2, max: 9 }, c: { type: 'int', min: 2, max: 9 },
+      d: { type: 'int', min: 2, max: 9 }, e: { type: 'int', min: 2, max: 9 }, f: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      sa: 'a+d', sb: 'b+e', sc: 'c+f',
+      da: 'a-d', db: 'b-e', dc: 'c-f',
+      whole: 'a+b+c+d+e+f',
+    },
+    constraints: ['a!=d', 'b!=e', 'c!=f', 'da>=1', 'db>=1', 'dc>=1'],
+  },
+  choices: [
+    { label: plain('{{sa}}x^2 + {{sb}}x + {{sc}}'), correct: true },
+    { label: plain('{{da}}x^2 + {{db}}x + {{dc}}'), error: 'signError' },
+    { label: plain('{{sa}}x^4 + {{sb}}x^2 + {{sc}}'), error: 'exponentError' },
+    { label: plain('{{whole}}x^2'), error: 'operationInverted' },
+  ],
+  reasoning: ['Only terms carrying the same power of $x$ may be combined.', 'That gives ${{sa}}x^2$, ${{sb}}x$ and ${{sc}}$ separately.'],
+  answerSummary: { headline: 'Collect each power on its own; the powers themselves do not change.', text: 'It is ${{sa}}x^2 + {{sb}}x + {{sc}}$.' },
+  hint: 'Which terms are allowed to be added together?',
+  feedback: 'Adding coefficients does not add the powers they sit on.',
+});
+
+mk('A.10A', 'subtract-a-quadratic', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Subtract $({{d}}x^2 + {{e}}x + {{f}})$ from $({{a}}x^2 + {{b}}x + {{c}})$.',
+  generator: {
+    parameters: {
+      d: { type: 'int', min: 2, max: 8 }, e: { type: 'int', min: 2, max: 8 }, f: { type: 'int', min: 2, max: 8 },
+      ga: { type: 'int', min: 1, max: 6 }, gb: { type: 'int', min: 1, max: 6 }, gc: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      a: 'd+ga', b: 'e+gb', c: 'f+gc',
+      sa: 'd+ga+d', sb: 'e+gb+e', sc: 'f+gc+f',
+      // The sign carried across the bracket for the first term only.
+      ha: 'ga', hb: 'e+gb+e', hc: 'f+gc+f',
+      ra: '0-ga', rb: '0-gb', rc: '0-gc',
+    },
+    constraints: ['ga!=gb', 'gb!=gc'],
+  },
+  choices: [
+    { label: plain('{{ga}}x^2 + {{gb}}x + {{gc}}'), correct: true },
+    { label: plain('{{sa}}x^2 + {{sb}}x + {{sc}}'), error: 'signError' },
+    { label: plain('{{ha}}x^2 + {{hb}}x + {{hc}}'), error: 'partialTotal' },
+    { label: plain('{{ra}}x^2 + {{rb}}x + {{rc}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The subtraction applies to every term in the second bracket, not just its first.', 'Term by term that leaves ${{ga}}x^2 + {{gb}}x + {{gc}}$.'],
+  answerSummary: { headline: 'A minus in front of a bracket changes the sign of everything inside it.', text: 'It is ${{ga}}x^2 + {{gb}}x + {{gc}}$.' },
+  hint: 'What happens to the ${{e}}x$ term when the bracket is removed?',
+  feedback: 'Only the first term had its sign changed; the other two were added.',
+});
+
+mk('A.10A', 'perimeter-of-an-algebraic-rectangle', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A rectangle is ${{a}}x + {{b}}$ long and ${{c}}x + {{d}}$ wide. What is its perimeter?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 }, b: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 2, max: 9 }, d: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      px: '2*(a+c)', pk: '2*(b+d)',
+      onceX: 'a+c', onceK: 'b+d',
+      areaX: 'a*c', areaK: 'b*d',
+    },
+    constraints: ['a!=c', 'b!=d'],
+  },
+  choices: [
+    { label: plain('{{px}}x + {{pk}}'), correct: true },
+    { label: plain('{{onceX}}x + {{onceK}}'), error: 'partialTotal' },
+    { label: plain('{{areaX}}x^2 + {{areaK}}'), error: 'areaPerimeterSwap' },
+    { label: plain('{{px}}x + {{onceK}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['A perimeter counts each side twice, so it is $2({{a}}x + {{b}}) + 2({{c}}x + {{d}})$.', 'Collecting gives ${{px}}x + {{pk}}$.'],
+  answerSummary: { headline: 'Both pairs of sides are doubled, constants included.', text: 'It is ${{px}}x + {{pk}}$.' },
+  hint: 'How many sides of each length does a rectangle have?',
+  feedback: 'That adds one of each side, which is half the way round.',
+});
+
+mk('A.10A', 'the-polynomial-that-completes-a-sum', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'What must be added to $({{a}}x^2 + {{b}}x + {{c}})$ to give $({{sa}}x^2 + {{sb}}x + {{sc}})$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 8 }, b: { type: 'int', min: 2, max: 8 }, c: { type: 'int', min: 2, max: 8 },
+      ga: { type: 'int', min: 2, max: 7 }, gb: { type: 'int', min: 2, max: 7 }, gc: { type: 'int', min: 2, max: 7 },
+    },
+    derived: {
+      sa: 'a+ga', sb: 'b+gb', sc: 'c+gc',
+      ta: 'a+ga+a', tb: 'b+gb+b', tc: 'c+gc+c',
+      na: '0-ga', nb: '0-gb', nc: '0-gc',
+    },
+    constraints: ['ga!=gb', 'gb!=gc', 'a!=ga', 'b!=gb'],
+  },
+  choices: [
+    { label: plain('{{ga}}x^2 + {{gb}}x + {{gc}}'), correct: true },
+    { label: plain('{{na}}x^2 + {{nb}}x + {{nc}}'), error: 'signError' },
+    { label: plain('{{ta}}x^2 + {{tb}}x + {{tc}}'), error: 'operationInverted' },
+    { label: plain('{{sa}}x^2 + {{sb}}x + {{sc}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The missing polynomial is the total minus what is already there.', 'Term by term that is ${{ga}}x^2 + {{gb}}x + {{gc}}$.'],
+  answerSummary: { headline: 'Work backwards by subtracting the part you already have from the total.', text: 'It is ${{ga}}x^2 + {{gb}}x + {{gc}}$.' },
+  hint: 'How much does each term still need?',
+  feedback: 'That is the total itself, which would double what is already there.',
+});
+
+mk('A.10A', 'minus-applied-to-the-first-term-only', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Working out $({{a}}x^2 + {{b}}x) - ({{d}}x^2 + {{e}}x)$ a student writes ${{ga}}x^2 + {{sb}}x$. What is wrong?',
+  generator: {
+    parameters: {
+      d: { type: 'int', min: 2, max: 8 }, e: { type: 'int', min: 2, max: 8 },
+      ga: { type: 'int', min: 2, max: 7 }, gb: { type: 'int', min: 2, max: 7 },
+    },
+    derived: { a: 'd+ga', b: 'e+gb', sb: 'e+gb+e' },
+    constraints: ['ga!=gb', 'd!=e'],
+  },
+  choices: [
+    { label: 'The minus applies to the ${{e}}x$ term as well, so the answer is ${{ga}}x^2 + {{gb}}x$.', correct: true },
+    { label: 'Nothing is wrong, because the minus sits in front of the first term.', error: 'usedGivenValue' },
+    { label: 'The $x^2$ terms should have been added instead, giving a larger first term.', error: 'signError' },
+    { label: 'The two brackets cannot be combined at all until they are multiplied out.', error: 'operationInverted' },
+  ],
+  reasoning: ['A bracket with a minus in front of it has every term inside it negated.', 'The second term is therefore ${{b}} - {{e}} = {{gb}}$, not ${{b}} + {{e}}$.'],
+  answerSummary: { headline: 'The sign in front of a bracket reaches every term inside it.', text: 'It is ${{ga}}x^2 + {{gb}}x$.' },
+  hint: 'What does the minus reach?',
+  feedback: 'It sits in front of the whole bracket, not just its first term.',
+});
+
+// ================================================================ A.10B
+// Multiplying polynomials. Every family turns on the same rule — each term of
+// one factor meets each term of the other — approached through a plain
+// product, a square, an area, a monomial across a trinomial, and the standing
+// misconception that a squared bracket may be squared term by term.
+
+mk('A.10B', 'multiply-two-binomials', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Expand $(x + {{p}})(x + {{q}})$.',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 12 },
+      q: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { sum: 'p+q', product: 'p*q', diff: 'p-q' },
+    constraints: ['p!=q', 'sum!=product'],
+  },
+  choices: [
+    { label: plain('x^2 + {{sum}}x + {{product}}'), correct: true },
+    { label: plain('x^2 + {{product}}x + {{sum}}'), error: 'ratioReversed' },
+    { label: plain('x^2 + {{product}}'), error: 'partialTotal' },
+    { label: plain('x^2 + {{sum}}x + {{sum}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Each term of the first bracket multiplies each term of the second.', 'The two middle products give ${{sum}}x$ and the constants give ${{product}}$.'],
+  answerSummary: { headline: 'The constants add in the middle term and multiply in the last.', text: 'It is $x^2 + {{sum}}x + {{product}}$.' },
+  hint: 'How many products are there altogether?',
+  feedback: 'Leaving out the middle term skips the two cross products.',
+});
+
+mk('A.10B', 'square-of-a-binomial', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Expand $(x + {{p}})^2$.',
+  generator: {
+    parameters: { p: { type: 'int', min: 2, max: 14 } },
+    derived: { twoP: '2*p', pSq: 'p*p', fourP: '4*p' },
+    constraints: ['twoP!=pSq', 'p!=twoP'],
+  },
+  choices: [
+    { label: plain('x^2 + {{twoP}}x + {{pSq}}'), correct: true },
+    { label: plain('x^2 + {{pSq}}'), error: 'partialTotal' },
+    { label: plain('x^2 + {{p}}x + {{pSq}}'), error: 'forgotFinalStep' },
+    { label: plain('x^2 + {{fourP}}x + {{pSq}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['A square is the bracket multiplied by itself, so there are two identical cross products.', 'Those two give ${{twoP}}x$, and the constants give ${{pSq}}$.'],
+  answerSummary: { headline: 'A squared bracket has a middle term; squaring term by term loses it.', text: 'It is $x^2 + {{twoP}}x + {{pSq}}$.' },
+  hint: 'Write the bracket out twice and multiply.',
+  feedback: 'There are two cross products, not one.',
+});
+
+mk('A.10B', 'area-of-a-rectangle-with-algebraic-sides', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A rectangle is ${{a}}x + {{b}}$ long and $x + {{c}}$ wide. What is its area?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 8 },
+      b: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      mid: 'a*c+b', last: 'b*c',
+      perimX: '2*(a+1)', perimK: '2*(b+c)',
+      noCross: 'a', onlyEnds: 'b*c',
+    },
+    constraints: ['b!=c', 'mid!=last', 'a!=mid'],
+  },
+  choices: [
+    { label: plain('{{a}}x^2 + {{mid}}x + {{last}}'), correct: true },
+    { label: plain('{{a}}x^2 + {{last}}'), error: 'partialTotal' },
+    { label: plain('{{perimX}}x + {{perimK}}'), error: 'areaPerimeterSwap' },
+    { label: plain('{{a}}x^2 + {{mid}}x'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Area is length times width, so every term of one side meets every term of the other.', 'The cross products give ${{mid}}x$ and the constants give ${{last}}$.'],
+  answerSummary: { headline: 'An algebraic area is a product, so all four term pairs appear.', text: 'It is ${{a}}x^2 + {{mid}}x + {{last}}$.' },
+  hint: 'How many pairs of terms have to be multiplied?',
+  feedback: 'Adding the sides gives a distance round the shape, not the space inside it.',
+});
+
+mk('A.10B', 'monomial-across-a-trinomial', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Expand ${{k}}x(x^2 + {{b}}x + {{c}})$.',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { kb: 'k*b', kc: 'k*c' },
+    constraints: ['b!=c', 'k!=b', 'kb!=kc'],
+  },
+  choices: [
+    { label: plain('{{k}}x^3 + {{kb}}x^2 + {{kc}}x'), correct: true },
+    { label: plain('{{k}}x^3 + {{b}}x^2 + {{c}}x'), error: 'partialTotal' },
+    { label: plain('{{k}}x^2 + {{kb}}x + {{kc}}'), error: 'exponentError' },
+    { label: plain('{{k}}x^3 + {{kb}}x^2 + {{kc}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['The ${{k}}x$ outside multiplies all three terms inside.', 'Each product gains one power of $x$ from the $x$ that is multiplying in.'],
+  answerSummary: { headline: 'A monomial reaches every term, and its $x$ raises every power by one.', text: 'It is ${{k}}x^3 + {{kb}}x^2 + {{kc}}x$.' },
+  hint: 'What does the ${{k}}x$ have to reach?',
+  feedback: 'Only the first term was multiplied by ${{k}}$; the other two kept their old coefficients.',
+});
+
+mk('A.10B', 'a-square-taken-term-by-term', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student writes $(x + {{p}})^2$ as $x^2 + {{pSq}}$. What is wrong?',
+  generator: {
+    parameters: { p: { type: 'int', min: 2, max: 14 } },
+    derived: { twoP: '2*p', pSq: 'p*p' },
+    constraints: ['twoP!=pSq'],
+  },
+  choices: [
+    { label: 'The two cross products are missing: the answer is $x^2 + {{twoP}}x + {{pSq}}$.', correct: true },
+    { label: 'Nothing is wrong, since each term inside the bracket has been squared.', error: 'usedGivenValue' },
+    { label: 'The constant is wrong and should be ${{twoP}}$, but the rest is right.', error: 'partialTotal' },
+    { label: 'The answer should be $x^2 + {{p}}x + {{pSq}}$, with one cross product.', error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Squaring a bracket means multiplying it by itself, which produces four products.', 'The two cross products are equal and add to ${{twoP}}x$.'],
+  answerSummary: { headline: 'A bracket cannot be squared one term at a time.', text: 'It is $x^2 + {{twoP}}x + {{pSq}}$.' },
+  hint: 'Multiply $(x + {{p}})$ by $(x + {{p}})$ in full.',
+  feedback: 'Squaring each term separately is exactly what leaves the middle term out.',
+});
+
+// ================================================================ A.10C
+// Dividing a polynomial by a binomial. Every quotient here is exact, which is
+// what the standard asks for, and the divisor is always a genuine factor
+// rather than a term that happens to appear.
+
+mk('A.10C', 'divide-a-quadratic-by-a-binomial', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What is $(x^2 + {{sum}}x + {{product}}) \\div (x + {{p}})$?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 11 },
+      gap: { type: 'int', min: 1, max: 8 },
+    },
+    derived: { q: 'p+gap', sum: 'p+p+gap', product: 'p*(p+gap)' },
+    constraints: ['p!=q', 'q!=sum', 'q!=product'],
+  },
+  choices: [
+    { label: plain('x + {{q}}'), correct: true },
+    { label: plain('x + {{p}}'), error: 'usedGivenValue' },
+    { label: plain('x + {{sum}}'), error: 'partialTotal' },
+    { label: plain('x + {{product}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The quadratic factors as $(x + {{p}})(x + {{q}})$, since ${{p}}$ and ${{q}}$ add to ${{sum}}$ and multiply to ${{product}}$.', 'Dividing by $(x + {{p}})$ leaves the other factor.'],
+  answerSummary: { headline: 'Dividing by one factor leaves the other one behind.', text: 'It is $x + {{q}}$.' },
+  hint: 'What does the quadratic factor into?',
+  feedback: 'That is the divisor itself, not what is left after dividing by it.',
+});
+
+mk('A.10C', 'quotient-when-one-factor-is-known', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'If $x^2 - {{diff}}x - {{product}} = (x + {{p}})(x - {{q}})$, what is it divided by $(x - {{q}})$?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 10 },
+      gap: { type: 'int', min: 1, max: 8 },
+    },
+    derived: { q: 'p+gap', diff: 'gap', product: 'p*(p+gap)', negP: '0-p' },
+    constraints: ['p!=q', 'p!=diff', 'p!=product'],
+  },
+  choices: [
+    { label: plain('x + {{p}}'), correct: true },
+    { label: plain('x - {{p}}'), error: 'signError' },
+    { label: plain('x - {{q}}'), error: 'usedGivenValue' },
+    { label: plain('x + {{product}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['A product divided by one of its factors is whatever the other factor is.', 'Here that other factor is $(x + {{p}})$, exactly as written.'],
+  answerSummary: { headline: 'Once the factors are on show, division just removes one of them.', text: 'It is $x + {{p}}$.' },
+  hint: 'Which factor is left when the divisor is taken away?',
+  feedback: 'That is the factor being divided by, so it is the one that disappears.',
+});
+
+mk('A.10C', 'the-other-side-of-a-rectangle', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A rectangle has area ${{a}}x^2 + {{mid}}x + {{last}}$ and is $x + {{c}}$ wide. How long is it?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 7 },
+      b: { type: 'int', min: 2, max: 11 },
+      c: { type: 'int', min: 2, max: 11 },
+    },
+    derived: { mid: 'a*c+b', last: 'b*c', ac: 'a*c' },
+    constraints: ['b!=c', 'a!=b', 'b!=mid', 'b!=last', 'b!=ac'],
+  },
+  choices: [
+    { label: plain('{{a}}x + {{b}}'), correct: true },
+    { label: plain('{{a}}x + {{c}}'), error: 'usedGivenValue' },
+    { label: plain('{{a}}x + {{last}}'), error: 'partialTotal' },
+    { label: plain('{{a}}x + {{mid}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Length is area divided by width, so the area must factor with $(x + {{c}})$ as one side.', 'The other side is ${{a}}x + {{b}}$, since ${{b}} \\times {{c}} = {{last}}$ and ${{a}} \\times {{c}} + {{b}} = {{mid}}$.'],
+  answerSummary: { headline: 'Divide the area by the side you know to get the side you do not.', text: 'It is ${{a}}x + {{b}}$.' },
+  hint: 'What must multiply $x + {{c}}$ to give a constant term of ${{last}}$?',
+  feedback: 'That is the width again, and the two sides are different.',
+});
+
+mk('A.10C', 'dividing-out-a-common-factor', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'What is $({{ka}}x^2 + {{kb}}x) \\div {{k}}x$?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { ka: 'k*a', kb: 'k*b' },
+    constraints: ['a!=b', 'k!=a', 'ka!=kb'],
+  },
+  choices: [
+    { label: plain('{{a}}x + {{b}}'), correct: true },
+    { label: plain('{{a}}x^2 + {{b}}x'), error: 'exponentError' },
+    { label: plain('{{a}}x + {{kb}}'), error: 'partialTotal' },
+    { label: plain('{{ka}}x + {{b}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Both terms are divided by ${{k}}x$, not just the first.', 'Dividing by the $x$ lowers each power by one, leaving ${{a}}x + {{b}}$.'],
+  answerSummary: { headline: 'A divisor reaches every term, and dividing by $x$ drops each power by one.', text: 'It is ${{a}}x + {{b}}$.' },
+  hint: 'What happens to the power of $x$ in each term?',
+  feedback: 'The second term still has to be divided by ${{k}}$ as well.',
+});
+
+mk('A.10C', 'a-term-cancelled-instead-of-a-factor', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'From $\\frac{x^2 + {{sum}}x + {{product}}}{x + {{p}}}$ a student cancels the $x$ terms and writes ${{sum}}x + {{product}}$. What is wrong?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 11 },
+      gap: { type: 'int', min: 1, max: 8 },
+    },
+    derived: { q: 'p+gap', sum: 'p+p+gap', product: 'p*(p+gap)' },
+    constraints: ['p!=q', 'q!=sum'],
+  },
+  choices: [
+    { label: 'Only whole factors may be cancelled: the top factors as $(x + {{p}})(x + {{q}})$, leaving $x + {{q}}$.', correct: true },
+    { label: 'Nothing is wrong, because $x$ appears on the top and on the bottom.', error: 'usedGivenValue' },
+    { label: 'The cancelling is right but the ${{product}}$ should have gone too.', error: 'partialTotal' },
+    { label: 'The fraction cannot be simplified at all, since the top has three terms.', error: 'operationInverted' },
+  ],
+  reasoning: ['Cancelling removes a factor of the whole top and the whole bottom, not a term of each.', 'Once the top is factored, $(x + {{p}})$ really is a factor and may go.'],
+  answerSummary: { headline: 'Cancel factors, never terms.', text: 'The quotient is $x + {{q}}$.' },
+  hint: 'Is the $x$ on top multiplying everything, or only part of it?',
+  feedback: 'Appearing on both lines is not enough; it has to be a factor of both.',
+});
+
+// ================================================================ A.10D
+// Rewriting a polynomial in an equivalent form using the distributive
+// property, in both directions. A.10B multiplies to expand; here the point is
+// that the two forms are the same expression, so two families go from a
+// product to a sum and two come back the other way.
+
+mk('A.10D', 'distribute-across-a-bracket', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Write ${{k}}({{a}}x - {{b}})$ without a bracket.',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 14 },
+    },
+    derived: { ka: 'k*a', kb: 'k*b', negKb: '0-k*b' },
+    constraints: ['a!=b', 'k!=a', 'ka!=kb'],
+  },
+  choices: [
+    { label: plain('{{ka}}x - {{kb}}'), correct: true },
+    { label: plain('{{ka}}x - {{b}}'), error: 'partialTotal' },
+    { label: plain('{{ka}}x + {{kb}}'), error: 'signError' },
+    { label: plain('{{a}}x - {{kb}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['The ${{k}}$ multiplies both terms inside the bracket.', 'That gives ${{ka}}x$ and ${{kb}}$, and the minus between them is kept.'],
+  answerSummary: { headline: 'A multiplier outside a bracket reaches everything inside it.', text: 'It is ${{ka}}x - {{kb}}$.' },
+  hint: 'How many terms are inside the bracket?',
+  feedback: 'The second term still has to be multiplied by ${{k}}$.',
+});
+
+mk('A.10D', 'take-out-the-greatest-common-factor', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'Write ${{ka}}x + {{kb}}$ as a product with the largest possible factor outside.',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 3, max: 9 },
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 12 },
+      part: { type: 'int', min: 2, max: 3 },
+    },
+    derived: { ka: 'k*a', kb: 'k*b', kOver: 'k*part', aOver: 'a*part', bOver: 'b*part' },
+    // The factor taken out must be the largest available, so a and b share none.
+    constraints: ['gcd(a,b)==1', 'a!=b', 'k!=a', 'k*part<=k*a'],
+  },
+  choices: [
+    { label: plain('{{k}}({{a}}x + {{b}})'), correct: true },
+    { label: plain('{{kOver}}({{a}}x + {{b}})'), error: 'operationInverted' },
+    { label: plain('{{k}}({{ka}}x + {{kb}})'), error: 'forgotFinalStep' },
+    { label: plain('{{a}}({{k}}x + {{b}})'), error: 'partialTotal' },
+  ],
+  reasoning: ['Both coefficients divide by ${{k}}$, and ${{a}}$ and ${{b}}$ share no further factor.', 'So ${{k}}$ is the largest that can come out, leaving ${{a}}x + {{b}}$ inside.'],
+  answerSummary: { headline: 'Take out the largest factor common to every term, and divide every term by it.', text: 'It is ${{k}}({{a}}x + {{b}})$.' },
+  hint: 'What divides both ${{ka}}$ and ${{kb}}$?',
+  feedback: 'Multiplying that back out does not return the expression you started with.',
+});
+
+mk('A.10D', 'two-forms-agreeing-at-every-value', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'Which expression agrees with the recorded values at every row?',
+  stimulus: {
+    kind: 'table',
+    title: 'Recorded values',
+    table: { headers: ['x', 'Value'], rows: [['{{x1}}', '{{v1}}'], ['{{x2}}', '{{v2}}'], ['{{x3}}', '{{v3}}']] },
+  },
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 7 },
+      a: { type: 'int', min: 2, max: 7 },
+      b: { type: 'int', min: 2, max: 11 },
+      x1: { type: 'int', min: 1, max: 5 },
+    },
+    derived: {
+      x2: 'x1+1', x3: 'x1+2',
+      ka: 'k*a', kb: 'k*b',
+      v1: 'k*(a*x1+b)', v2: 'k*(a*(x1+1)+b)', v3: 'k*(a*(x1+2)+b)',
+    },
+    constraints: ['a!=b', 'k!=a', 'ka!=kb'],
+  },
+  choices: [
+    { label: plain('{{k}}({{a}}x + {{b}})'), correct: true },
+    { label: plain('{{k}}{{a}}x + {{b}}'), error: 'partialTotal' },
+    { label: plain('{{ka}}x + {{kb}}x'), error: 'operationInverted' },
+    { label: plain('{{a}}x + {{kb}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['At $x = {{x1}}$ the bracket is ${{a}} \\times {{x1}} + {{b}}$, and ${{k}}$ times that is ${{v1}}$.', 'The same form matches the other two rows, which the others do not.'],
+  answerSummary: { headline: 'Two forms are equivalent only if they agree at every value, not just one.', text: 'It is ${{k}}({{a}}x + {{b}})$.' },
+  hint: 'Test each candidate on the first row, then on the second.',
+  feedback: 'That form leaves the constant outside the multiplication.',
+});
+
+mk('A.10D', 'a-bill-written-two-ways', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: '${{k}}$ people each buy a ticket at $\\${{a}}$ and a programme at $\\${{b}}$. Which expression is not the total?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      a: { type: 'int', min: 3, max: 14 },
+      b: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { ka: 'k*a', kb: 'k*b', sum: 'a+b' },
+    constraints: ['a!=b', 'k!=a', 'k!=b', 'ka!=kb'],
+  },
+  choices: [
+    { label: plain('{{ka}} + {{b}}'), correct: true },
+    { label: plain('{{k}}({{a}} + {{b}})'), error: 'usedGivenValue' },
+    { label: plain('{{ka}} + {{kb}}'), error: 'partialTotal' },
+    { label: plain('{{k}} \\times {{sum}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Every person buys both items, so both prices are multiplied by ${{k}}$.', 'An expression that multiplies only the ticket price charges one programme for the whole group.'],
+  answerSummary: { headline: 'Distributing over a bracket means every term inside is multiplied.', text: '${{ka}} + {{b}}$ is not the total.' },
+  hint: 'How many programmes are bought altogether?',
+  feedback: 'That expression is the bracketed form multiplied out correctly.',
+});
+
+mk('A.10D', 'a-factor-taken-out-of-one-term-only', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student writes ${{ka}}x + {{b}}$ as ${{k}}({{a}}x + {{b}})$. What is wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { ka: 'k*a', kb: 'k*b' },
+    constraints: ['a!=b', 'k!=a', 'k!=b'],
+  },
+  choices: [
+    { label: 'Multiplying back gives ${{ka}}x + {{kb}}$, so the ${{b}}$ was never divided by ${{k}}$.', correct: true },
+    { label: 'Nothing is wrong, because ${{k}}$ does divide the first coefficient.', error: 'usedGivenValue' },
+    { label: 'The factor outside should be ${{a}}$ rather than ${{k}}$.', error: 'ratioReversed' },
+    { label: 'The bracket is right but the sign inside it should be a minus.', error: 'signError' },
+  ],
+  reasoning: ['A factor can only come out of a term that it divides.', 'Here ${{b}}$ was carried into the bracket unchanged, which changes the expression.'],
+  answerSummary: { headline: 'Check a factorisation by multiplying it back out.', text: 'That bracket gives ${{ka}}x + {{kb}}$, not ${{ka}}x + {{b}}$.' },
+  hint: 'Multiply the answer back out and compare.',
+  feedback: 'Dividing one term is not enough; every term has to be divided.',
+});
+
+// ================================================================ A.10E
+// Factoring a trinomial, including the perfect square. A.7B reads zeros off
+// factors that are already written down and A.10C divides by a factor it has
+// been handed; here the student has to find the factors.
+
+mk('A.10E', 'factor-a-monic-trinomial', {
+  courseId: 'algebra1',
+  difficultyBand: 2, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Factor $x^2 + {{sum}}x + {{product}}$.',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 10 },
+      gap: { type: 'int', min: 1, max: 8 },
+    },
+    derived: { q: 'p+gap', sum: 'p+p+gap', product: 'p*(p+gap)' },
+    constraints: ['p!=q', 'sum!=product'],
+  },
+  choices: [
+    { label: plain('(x + {{p}})(x + {{q}})'), correct: true },
+    { label: plain('(x - {{p}})(x - {{q}})'), error: 'signError' },
+    { label: plain('(x + {{sum}})(x + {{product}})'), error: 'usedGivenValue' },
+    { label: plain('(x + {{p}})(x - {{q}})'), error: 'partialTotal' },
+  ],
+  reasoning: ['Two numbers multiplying to ${{product}}$ and adding to ${{sum}}$ are ${{p}}$ and ${{q}}$.', 'Both are positive, so both brackets carry a plus.'],
+  answerSummary: { headline: 'Find the pair that multiplies to the constant and adds to the middle coefficient.', text: 'It is $(x + {{p}})(x + {{q}})$.' },
+  hint: 'Which pairs multiply to ${{product}}$?',
+  feedback: 'Two minus signs would give the same constant but a negative middle term.',
+});
+
+mk('A.10E', 'factor-with-a-leading-coefficient', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Factor ${{a}}x^2 + {{mid}}x + {{last}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 6 },
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { mid: 'a*c+b', last: 'b*c', ac: 'a*c' },
+    constraints: ['b!=c', 'a!=b', 'ac!=b'],
+  },
+  choices: [
+    { label: plain('({{a}}x + {{b}})(x + {{c}})'), correct: true },
+    { label: plain('({{a}}x + {{c}})(x + {{b}})'), error: 'ratioReversed' },
+    { label: plain('({{a}}x + {{b}})(x - {{c}})'), error: 'signError' },
+    { label: plain('({{a}}x + {{last}})(x + {{b}})'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The constants must multiply to ${{last}}$, so they are ${{b}}$ and ${{c}}$.', 'Placing them so the cross products give ${{mid}}x$ puts ${{c}}$ with the plain $x$.'],
+  answerSummary: { headline: 'With a leading coefficient, where each constant goes changes the middle term.', text: 'It is $({{a}}x + {{b}})(x + {{c}})$.' },
+  hint: 'Try both placements and check the middle term each time.',
+  feedback: 'Swapping the constants changes the middle term, so check it before choosing.',
+});
+
+mk('A.10E', 'recognising-a-perfect-square', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 2, taskType: 'conceptual', representation: 'symbolic',
+  prompt: 'Which product equals $x^2 + {{twoP}}x + {{pSq}}$?',
+  generator: {
+    parameters: { p: { type: 'int', min: 2, max: 12 } },
+    derived: { twoP: '2*p', pSq: 'p*p' },
+    constraints: ['twoP!=pSq'],
+  },
+  choices: [
+    { label: plain('(x + {{p}})^2'), correct: true },
+    { label: plain('(x + {{pSq}})^2'), error: 'usedGivenValue' },
+    { label: plain('(x + {{p}})(x - {{p}})'), error: 'signError' },
+    { label: plain('(x + {{twoP}})(x + {{p}})'), error: 'partialTotal' },
+  ],
+  reasoning: ['The constant ${{pSq}}$ is ${{p}}$ squared, and the middle term is twice ${{p}}$.', 'That is exactly the pattern a squared bracket produces.'],
+  answerSummary: { headline: 'A perfect square has a constant that is a square and a middle term twice its root.', text: 'It is $(x + {{p}})^2$.' },
+  hint: 'What is the square root of the constant, and how does it relate to the middle term?',
+  feedback: 'Opposite signs would cancel the middle term altogether.',
+});
+
+mk('A.10E', 'sides-of-a-rectangle-from-its-area', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'application', representation: 'context',
+  prompt: 'A rectangle has area $x^2 + {{sum}}x + {{product}}$. What could its two sides be?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 10 },
+      gap: { type: 'int', min: 1, max: 8 },
+    },
+    derived: { q: 'p+gap', sum: 'p+p+gap', product: 'p*(p+gap)', halfSum: 'p+gap' },
+    constraints: ['p!=q', 'sum!=product', 'p!=gap'],
+  },
+  choices: [
+    { label: plain('x + {{p}} \\text{ and } x + {{q}}'), correct: true },
+    { label: plain('x + {{sum}} \\text{ and } x + {{product}}'), error: 'usedGivenValue' },
+    { label: plain('x \\text{ and } x + {{sum}}'), error: 'partialTotal' },
+    { label: plain('x + {{p}} \\text{ and } x - {{q}}'), error: 'signError' },
+  ],
+  reasoning: ['The two sides multiply to the area, so they are the factors of the trinomial.', 'Those are $x + {{p}}$ and $x + {{q}}$, since the constants add to ${{sum}}$ and multiply to ${{product}}$.'],
+  answerSummary: { headline: 'Factoring an area splits it into the two sides that produced it.', text: 'They are $x + {{p}}$ and $x + {{q}}$.' },
+  hint: 'What two expressions multiply to give this area?',
+  feedback: 'Multiply that pair out and see whether the constant term survives.',
+});
+
+mk('A.10E', 'factors-that-miss-the-middle-term', {
+  courseId: 'algebra1',
+  difficultyBand: 3, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student factors $x^2 + {{sum}}x + {{product}}$ as $(x + {{one}})(x + {{other}})$. What is wrong?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 8 },
+      gap: { type: 'int', min: 2, max: 8 },
+    },
+    // one * other still gives the constant, but they add to the wrong middle
+    // term: the pair is right for the product and wrong for the sum.
+    derived: {
+      q: 'p+gap', sum: 'p+p+gap', product: 'p*(p+gap)',
+      one: '1', other: 'p*(p+gap)', wrongSum: '1+p*(p+gap)',
+    },
+    constraints: ['p!=q', 'sum!=wrongSum', 'p!=gap'],
+  },
+  choices: [
+    { label: 'Those constants multiply to ${{product}}$ but add to ${{wrongSum}}$, not ${{sum}}$: it is $(x + {{p}})(x + {{q}})$.', correct: true },
+    { label: 'Nothing is wrong, since the two constants do multiply to ${{product}}$.', error: 'usedGivenValue' },
+    { label: 'The constants are right but both signs should be minus.', error: 'signError' },
+    { label: 'A trinomial with a middle term cannot be factored into two brackets.', error: 'operationInverted' },
+  ],
+  reasoning: ['A factor pair has to satisfy both conditions at once, not just the product.', 'Only ${{p}}$ and ${{q}}$ multiply to ${{product}}$ and also add to ${{sum}}$.'],
+  answerSummary: { headline: 'The pair must give the constant and the middle term together.', text: 'It is $(x + {{p}})(x + {{q}})$.' },
+  hint: 'Add the two constants the student chose and compare with the middle term.',
+  feedback: 'Matching the product alone is only half of what a factor pair has to do.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

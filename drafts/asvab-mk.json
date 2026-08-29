@@ -53518,6 +53518,2983 @@
      "expected": "choice-c"
     }
    ]
+  },
+  {
+   "id": "mm_asvab_A_10A_add_two_quadratics",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10A:add-two-quadratics",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Add $({{a}}x^2 + {{b}}x + {{c}})$ and $({{d}}x^2 + {{e}}x + {{f}})$.",
+   "solutionReview": {
+    "headline": "Collect each power on its own; the powers themselves do not change.",
+    "reasoning": [
+     "Only terms carrying the same power of $x$ may be combined.",
+     "That gives ${{sa}}x^2$, ${{sb}}x$ and ${{sc}}$ separately."
+    ],
+    "answerSummary": "It is ${{sa}}x^2 + {{sb}}x + {{sc}}$."
+   },
+   "attemptFeedback": [
+    "Adding coefficients does not add the powers they sit on."
+   ],
+   "supportHints": [
+    "Which terms are allowed to be added together?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "e": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "f": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "sa": "a+d",
+     "sb": "b+e",
+     "sc": "c+f",
+     "da": "a-d",
+     "db": "b-e",
+     "dc": "c-f",
+     "whole": "a+b+c+d+e+f"
+    },
+    "constraints": [
+     "a!=d",
+     "b!=e",
+     "c!=f",
+     "da>=1",
+     "db>=1",
+     "dc>=1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{sa}}x^2 + {{sb}}x + {{sc}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{da}}x^2 + {{db}}x + {{dc}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{sa}}x^4 + {{sb}}x^2 + {{sc}}$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{whole}}x^2$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10A_subtract_a_quadratic",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10A:subtract-a-quadratic",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Subtract $({{d}}x^2 + {{e}}x + {{f}})$ from $({{a}}x^2 + {{b}}x + {{c}})$.",
+   "solutionReview": {
+    "headline": "A minus in front of a bracket changes the sign of everything inside it.",
+    "reasoning": [
+     "The subtraction applies to every term in the second bracket, not just its first.",
+     "Term by term that leaves ${{ga}}x^2 + {{gb}}x + {{gc}}$."
+    ],
+    "answerSummary": "It is ${{ga}}x^2 + {{gb}}x + {{gc}}$."
+   },
+   "attemptFeedback": [
+    "Only the first term had its sign changed; the other two were added."
+   ],
+   "supportHints": [
+    "What happens to the ${{e}}x$ term when the bracket is removed?"
+   ],
+   "generator": {
+    "parameters": {
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "e": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "f": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "ga": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "gb": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "gc": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "a": "d+ga",
+     "b": "e+gb",
+     "c": "f+gc",
+     "sa": "d+ga+d",
+     "sb": "e+gb+e",
+     "sc": "f+gc+f",
+     "ha": "ga",
+     "hb": "e+gb+e",
+     "hc": "f+gc+f",
+     "ra": "0-ga",
+     "rb": "0-gb",
+     "rc": "0-gc"
+    },
+    "constraints": [
+     "ga!=gb",
+     "gb!=gc"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{sa}}x^2 + {{sb}}x + {{sc}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{ha}}x^2 + {{hb}}x + {{hc}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{ra}}x^2 + {{rb}}x + {{rc}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{ga}}x^2 + {{gb}}x + {{gc}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10A_perimeter_of_an_algebraic_rectangle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10A:perimeter-of-an-algebraic-rectangle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A rectangle is ${{a}}x + {{b}}$ long and ${{c}}x + {{d}}$ wide. What is its perimeter?",
+   "solutionReview": {
+    "headline": "Both pairs of sides are doubled, constants included.",
+    "reasoning": [
+     "A perimeter counts each side twice, so it is $2({{a}}x + {{b}}) + 2({{c}}x + {{d}})$.",
+     "Collecting gives ${{px}}x + {{pk}}$."
+    ],
+    "answerSummary": "It is ${{px}}x + {{pk}}$."
+   },
+   "attemptFeedback": [
+    "That adds one of each side, which is half the way round."
+   ],
+   "supportHints": [
+    "How many sides of each length does a rectangle have?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "px": "2*(a+c)",
+     "pk": "2*(b+d)",
+     "onceX": "a+c",
+     "onceK": "b+d",
+     "areaX": "a*c",
+     "areaK": "b*d"
+    },
+    "constraints": [
+     "a!=c",
+     "b!=d"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{px}}x + {{pk}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{onceX}}x + {{onceK}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{areaX}}x^2 + {{areaK}}$",
+     "error": "areaPerimeterSwap"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{px}}x + {{onceK}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10A_the_polynomial_that_completes_a_sum",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10A:the-polynomial-that-completes-a-sum",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What must be added to $({{a}}x^2 + {{b}}x + {{c}})$ to give $({{sa}}x^2 + {{sb}}x + {{sc}})$?",
+   "solutionReview": {
+    "headline": "Work backwards by subtracting the part you already have from the total.",
+    "reasoning": [
+     "The missing polynomial is the total minus what is already there.",
+     "Term by term that is ${{ga}}x^2 + {{gb}}x + {{gc}}$."
+    ],
+    "answerSummary": "It is ${{ga}}x^2 + {{gb}}x + {{gc}}$."
+   },
+   "attemptFeedback": [
+    "That is the total itself, which would double what is already there."
+   ],
+   "supportHints": [
+    "How much does each term still need?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "ga": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "gb": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "gc": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     }
+    },
+    "derived": {
+     "sa": "a+ga",
+     "sb": "b+gb",
+     "sc": "c+gc",
+     "ta": "a+ga+a",
+     "tb": "b+gb+b",
+     "tc": "c+gc+c",
+     "na": "0-ga",
+     "nb": "0-gb",
+     "nc": "0-gc"
+    },
+    "constraints": [
+     "ga!=gb",
+     "gb!=gc",
+     "a!=ga",
+     "b!=gb"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{na}}x^2 + {{nb}}x + {{nc}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{sa}}x^2 + {{sb}}x + {{sc}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{ga}}x^2 + {{gb}}x + {{gc}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{ta}}x^2 + {{tb}}x + {{tc}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10A_minus_applied_to_the_first_term_only",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10A:minus-applied-to-the-first-term-only",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Working out $({{a}}x^2 + {{b}}x) - ({{d}}x^2 + {{e}}x)$ a student writes ${{ga}}x^2 + {{sb}}x$. What is wrong?",
+   "solutionReview": {
+    "headline": "The sign in front of a bracket reaches every term inside it.",
+    "reasoning": [
+     "A bracket with a minus in front of it has every term inside it negated.",
+     "The second term is therefore ${{b}} - {{e}} = {{gb}}$, not ${{b}} + {{e}}$."
+    ],
+    "answerSummary": "It is ${{ga}}x^2 + {{gb}}x$."
+   },
+   "attemptFeedback": [
+    "It sits in front of the whole bracket, not just its first term."
+   ],
+   "supportHints": [
+    "What does the minus reach?"
+   ],
+   "generator": {
+    "parameters": {
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "e": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "ga": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "gb": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     }
+    },
+    "derived": {
+     "a": "d+ga",
+     "b": "e+gb",
+     "sb": "e+gb+e"
+    },
+    "constraints": [
+     "ga!=gb",
+     "d!=e"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The $x^2$ terms should have been added instead, giving a larger first term.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "The two brackets cannot be combined at all until they are multiplied out.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing is wrong, because the minus sits in front of the first term.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "The minus applies to the ${{e}}x$ term as well, so the answer is ${{ga}}x^2 + {{gb}}x$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10B_multiply_two_binomials",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10B:multiply-two-binomials",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Expand $(x + {{p}})(x + {{q}})$.",
+   "solutionReview": {
+    "headline": "The constants add in the middle term and multiply in the last.",
+    "reasoning": [
+     "Each term of the first bracket multiplies each term of the second.",
+     "The two middle products give ${{sum}}x$ and the constants give ${{product}}$."
+    ],
+    "answerSummary": "It is $x^2 + {{sum}}x + {{product}}$."
+   },
+   "attemptFeedback": [
+    "Leaving out the middle term skips the two cross products."
+   ],
+   "supportHints": [
+    "How many products are there altogether?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "sum": "p+q",
+     "product": "p*q",
+     "diff": "p-q"
+    },
+    "constraints": [
+     "p!=q",
+     "sum!=product"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x^2 + {{product}}x + {{sum}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x^2 + {{sum}}x + {{product}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x^2 + {{sum}}x + {{sum}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x^2 + {{product}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10B_square_of_a_binomial",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10B:square-of-a-binomial",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10B",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Expand $(x + {{p}})^2$.",
+   "solutionReview": {
+    "headline": "A squared bracket has a middle term; squaring term by term loses it.",
+    "reasoning": [
+     "A square is the bracket multiplied by itself, so there are two identical cross products.",
+     "Those two give ${{twoP}}x$, and the constants give ${{pSq}}$."
+    ],
+    "answerSummary": "It is $x^2 + {{twoP}}x + {{pSq}}$."
+   },
+   "attemptFeedback": [
+    "There are two cross products, not one."
+   ],
+   "supportHints": [
+    "Write the bracket out twice and multiply."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "twoP": "2*p",
+     "pSq": "p*p",
+     "fourP": "4*p"
+    },
+    "constraints": [
+     "twoP!=pSq",
+     "p!=twoP"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x^2 + {{twoP}}x + {{pSq}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x^2 + {{p}}x + {{pSq}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x^2 + {{fourP}}x + {{pSq}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x^2 + {{pSq}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10B_area_of_a_rectangle_with_algebraic_sides",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10B:area-of-a-rectangle-with-algebraic-sides",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A rectangle is ${{a}}x + {{b}}$ long and $x + {{c}}$ wide. What is its area?",
+   "solutionReview": {
+    "headline": "An algebraic area is a product, so all four term pairs appear.",
+    "reasoning": [
+     "Area is length times width, so every term of one side meets every term of the other.",
+     "The cross products give ${{mid}}x$ and the constants give ${{last}}$."
+    ],
+    "answerSummary": "It is ${{a}}x^2 + {{mid}}x + {{last}}$."
+   },
+   "attemptFeedback": [
+    "Adding the sides gives a distance round the shape, not the space inside it."
+   ],
+   "supportHints": [
+    "How many pairs of terms have to be multiplied?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "mid": "a*c+b",
+     "last": "b*c",
+     "perimX": "2*(a+1)",
+     "perimK": "2*(b+c)",
+     "noCross": "a",
+     "onlyEnds": "b*c"
+    },
+    "constraints": [
+     "b!=c",
+     "mid!=last",
+     "a!=mid"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}}x^2 + {{last}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}x^2 + {{mid}}x$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{perimX}}x + {{perimK}}$",
+     "error": "areaPerimeterSwap"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}x^2 + {{mid}}x + {{last}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10B_monomial_across_a_trinomial",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10B:monomial-across-a-trinomial",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10B",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Expand ${{k}}x(x^2 + {{b}}x + {{c}})$.",
+   "solutionReview": {
+    "headline": "A monomial reaches every term, and its $x$ raises every power by one.",
+    "reasoning": [
+     "The ${{k}}x$ outside multiplies all three terms inside.",
+     "Each product gains one power of $x$ from the $x$ that is multiplying in."
+    ],
+    "answerSummary": "It is ${{k}}x^3 + {{kb}}x^2 + {{kc}}x$."
+   },
+   "attemptFeedback": [
+    "Only the first term was multiplied by ${{k}}$; the other two kept their old coefficients."
+   ],
+   "supportHints": [
+    "What does the ${{k}}x$ have to reach?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "kb": "k*b",
+     "kc": "k*c"
+    },
+    "constraints": [
+     "b!=c",
+     "k!=b",
+     "kb!=kc"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{k}}x^3 + {{b}}x^2 + {{c}}x$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{k}}x^3 + {{kb}}x^2 + {{kc}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{k}}x^2 + {{kb}}x + {{kc}}$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{k}}x^3 + {{kb}}x^2 + {{kc}}x$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10B_a_square_taken_term_by_term",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10B:a-square-taken-term-by-term",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student writes $(x + {{p}})^2$ as $x^2 + {{pSq}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "A bracket cannot be squared one term at a time.",
+    "reasoning": [
+     "Squaring a bracket means multiplying it by itself, which produces four products.",
+     "The two cross products are equal and add to ${{twoP}}x$."
+    ],
+    "answerSummary": "It is $x^2 + {{twoP}}x + {{pSq}}$."
+   },
+   "attemptFeedback": [
+    "Squaring each term separately is exactly what leaves the middle term out."
+   ],
+   "supportHints": [
+    "Multiply $(x + {{p}})$ by $(x + {{p}})$ in full."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "twoP": "2*p",
+     "pSq": "p*p"
+    },
+    "constraints": [
+     "twoP!=pSq"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The constant is wrong and should be ${{twoP}}$, but the rest is right.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "The answer should be $x^2 + {{p}}x + {{pSq}}$, with one cross product.",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "The two cross products are missing: the answer is $x^2 + {{twoP}}x + {{pSq}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "Nothing is wrong, since each term inside the bracket has been squared.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10C_divide_a_quadratic_by_a_binomial",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10C:divide-a-quadratic-by-a-binomial",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10C",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is $(x^2 + {{sum}}x + {{product}}) \\div (x + {{p}})$?",
+   "solutionReview": {
+    "headline": "Dividing by one factor leaves the other one behind.",
+    "reasoning": [
+     "The quadratic factors as $(x + {{p}})(x + {{q}})$, since ${{p}}$ and ${{q}}$ add to ${{sum}}$ and multiply to ${{product}}$.",
+     "Dividing by $(x + {{p}})$ leaves the other factor."
+    ],
+    "answerSummary": "It is $x + {{q}}$."
+   },
+   "attemptFeedback": [
+    "That is the divisor itself, not what is left after dividing by it."
+   ],
+   "supportHints": [
+    "What does the quadratic factor into?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 11
+     },
+     "gap": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     }
+    },
+    "derived": {
+     "q": "p+gap",
+     "sum": "p+p+gap",
+     "product": "p*(p+gap)"
+    },
+    "constraints": [
+     "p!=q",
+     "q!=sum",
+     "q!=product"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x + {{q}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x + {{p}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x + {{sum}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x + {{product}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10C_quotient_when_one_factor_is_known",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10C:quotient-when-one-factor-is-known",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10C",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "If $x^2 - {{diff}}x - {{product}} = (x + {{p}})(x - {{q}})$, what is it divided by $(x - {{q}})$?",
+   "solutionReview": {
+    "headline": "Once the factors are on show, division just removes one of them.",
+    "reasoning": [
+     "A product divided by one of its factors is whatever the other factor is.",
+     "Here that other factor is $(x + {{p}})$, exactly as written."
+    ],
+    "answerSummary": "It is $x + {{p}}$."
+   },
+   "attemptFeedback": [
+    "That is the factor being divided by, so it is the one that disappears."
+   ],
+   "supportHints": [
+    "Which factor is left when the divisor is taken away?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "gap": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     }
+    },
+    "derived": {
+     "q": "p+gap",
+     "diff": "gap",
+     "product": "p*(p+gap)",
+     "negP": "0-p"
+    },
+    "constraints": [
+     "p!=q",
+     "p!=diff",
+     "p!=product"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x + {{p}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x - {{q}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x + {{product}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x - {{p}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10C_the_other_side_of_a_rectangle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10C:the-other-side-of-a-rectangle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A rectangle has area ${{a}}x^2 + {{mid}}x + {{last}}$ and is $x + {{c}}$ wide. How long is it?",
+   "solutionReview": {
+    "headline": "Divide the area by the side you know to get the side you do not.",
+    "reasoning": [
+     "Length is area divided by width, so the area must factor with $(x + {{c}})$ as one side.",
+     "The other side is ${{a}}x + {{b}}$, since ${{b}} \\times {{c}} = {{last}}$ and ${{a}} \\times {{c}} + {{b}} = {{mid}}$."
+    ],
+    "answerSummary": "It is ${{a}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "That is the width again, and the two sides are different."
+   ],
+   "supportHints": [
+    "What must multiply $x + {{c}}$ to give a constant term of ${{last}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 11
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 11
+     }
+    },
+    "derived": {
+     "mid": "a*c+b",
+     "last": "b*c",
+     "ac": "a*c"
+    },
+    "constraints": [
+     "b!=c",
+     "a!=b",
+     "b!=mid",
+     "b!=last",
+     "b!=ac"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}}x + {{b}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}x + {{last}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}x + {{mid}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}x + {{c}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10C_dividing_out_a_common_factor",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10C:dividing-out-a-common-factor",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10C",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is $({{ka}}x^2 + {{kb}}x) \\div {{k}}x$?",
+   "solutionReview": {
+    "headline": "A divisor reaches every term, and dividing by $x$ drops each power by one.",
+    "reasoning": [
+     "Both terms are divided by ${{k}}x$, not just the first.",
+     "Dividing by the $x$ lowers each power by one, leaving ${{a}}x + {{b}}$."
+    ],
+    "answerSummary": "It is ${{a}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "The second term still has to be divided by ${{k}}$ as well."
+   ],
+   "supportHints": [
+    "What happens to the power of $x$ in each term?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "ka": "k*a",
+     "kb": "k*b"
+    },
+    "constraints": [
+     "a!=b",
+     "k!=a",
+     "ka!=kb"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}}x + {{kb}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{ka}}x + {{b}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}x^2 + {{b}}x$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}x + {{b}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10C_a_term_cancelled_instead_of_a_factor",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10C:a-term-cancelled-instead-of-a-factor",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10C",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "From $\\frac{x^2 + {{sum}}x + {{product}}}{x + {{p}}}$ a student cancels the $x$ terms and writes ${{sum}}x + {{product}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Cancel factors, never terms.",
+    "reasoning": [
+     "Cancelling removes a factor of the whole top and the whole bottom, not a term of each.",
+     "Once the top is factored, $(x + {{p}})$ really is a factor and may go."
+    ],
+    "answerSummary": "The quotient is $x + {{q}}$."
+   },
+   "attemptFeedback": [
+    "Appearing on both lines is not enough; it has to be a factor of both."
+   ],
+   "supportHints": [
+    "Is the $x$ on top multiplying everything, or only part of it?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 11
+     },
+     "gap": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     }
+    },
+    "derived": {
+     "q": "p+gap",
+     "sum": "p+p+gap",
+     "product": "p*(p+gap)"
+    },
+    "constraints": [
+     "p!=q",
+     "q!=sum"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Nothing is wrong, because $x$ appears on the top and on the bottom.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "The fraction cannot be simplified at all, since the top has three terms.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Only whole factors may be cancelled: the top factors as $(x + {{p}})(x + {{q}})$, leaving $x + {{q}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "The cancelling is right but the ${{product}}$ should have gone too.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10D_distribute_across_a_bracket",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10D:distribute-across-a-bracket",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10D",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Write ${{k}}({{a}}x - {{b}})$ without a bracket.",
+   "solutionReview": {
+    "headline": "A multiplier outside a bracket reaches everything inside it.",
+    "reasoning": [
+     "The ${{k}}$ multiplies both terms inside the bracket.",
+     "That gives ${{ka}}x$ and ${{kb}}$, and the minus between them is kept."
+    ],
+    "answerSummary": "It is ${{ka}}x - {{kb}}$."
+   },
+   "attemptFeedback": [
+    "The second term still has to be multiplied by ${{k}}$."
+   ],
+   "supportHints": [
+    "How many terms are inside the bracket?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "ka": "k*a",
+     "kb": "k*b",
+     "negKb": "0-k*b"
+    },
+    "constraints": [
+     "a!=b",
+     "k!=a",
+     "ka!=kb"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}}x - {{kb}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{ka}}x - {{kb}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{ka}}x - {{b}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{ka}}x + {{kb}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10D_take_out_the_greatest_common_factor",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10D:take-out-the-greatest-common-factor",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10D",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Write ${{ka}}x + {{kb}}$ as a product with the largest possible factor outside.",
+   "solutionReview": {
+    "headline": "Take out the largest factor common to every term, and divide every term by it.",
+    "reasoning": [
+     "Both coefficients divide by ${{k}}$, and ${{a}}$ and ${{b}}$ share no further factor.",
+     "So ${{k}}$ is the largest that can come out, leaving ${{a}}x + {{b}}$ inside."
+    ],
+    "answerSummary": "It is ${{k}}({{a}}x + {{b}})$."
+   },
+   "attemptFeedback": [
+    "Multiplying that back out does not return the expression you started with."
+   ],
+   "supportHints": [
+    "What divides both ${{ka}}$ and ${{kb}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "part": {
+      "type": "int",
+      "min": 2,
+      "max": 3
+     }
+    },
+    "derived": {
+     "ka": "k*a",
+     "kb": "k*b",
+     "kOver": "k*part",
+     "aOver": "a*part",
+     "bOver": "b*part"
+    },
+    "constraints": [
+     "gcd(a,b)==1",
+     "a!=b",
+     "k!=a",
+     "k*part<=k*a"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{k}}({{ka}}x + {{kb}})$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}({{k}}x + {{b}})$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{kOver}}({{a}}x + {{b}})$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{k}}({{a}}x + {{b}})$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10D_two_forms_agreeing_at_every_value",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10D:two-forms-agreeing-at-every-value",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10D",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which expression agrees with the recorded values at every row?",
+   "stimulus": {
+    "kind": "table",
+    "title": "Recorded values",
+    "table": {
+     "headers": [
+      "x",
+      "Value"
+     ],
+     "rows": [
+      [
+       "{{x1}}",
+       "{{v1}}"
+      ],
+      [
+       "{{x2}}",
+       "{{v2}}"
+      ],
+      [
+       "{{x3}}",
+       "{{v3}}"
+      ]
+     ]
+    }
+   },
+   "solutionReview": {
+    "headline": "Two forms are equivalent only if they agree at every value, not just one.",
+    "reasoning": [
+     "At $x = {{x1}}$ the bracket is ${{a}} \\times {{x1}} + {{b}}$, and ${{k}}$ times that is ${{v1}}$.",
+     "The same form matches the other two rows, which the others do not."
+    ],
+    "answerSummary": "It is ${{k}}({{a}}x + {{b}})$."
+   },
+   "attemptFeedback": [
+    "That form leaves the constant outside the multiplication."
+   ],
+   "supportHints": [
+    "Test each candidate on the first row, then on the second."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 11
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     }
+    },
+    "derived": {
+     "x2": "x1+1",
+     "x3": "x1+2",
+     "ka": "k*a",
+     "kb": "k*b",
+     "v1": "k*(a*x1+b)",
+     "v2": "k*(a*(x1+1)+b)",
+     "v3": "k*(a*(x1+2)+b)"
+    },
+    "constraints": [
+     "a!=b",
+     "k!=a",
+     "ka!=kb"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{k}}({{a}}x + {{b}})$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}x + {{kb}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{ka}}x + {{kb}}x$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{k}}{{a}}x + {{b}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10D_a_bill_written_two_ways",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10D:a-bill-written-two-ways",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10D",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "${{k}}$ people each buy a ticket at $\\${{a}}$ and a programme at $\\${{b}}$. Which expression is not the total?",
+   "solutionReview": {
+    "headline": "Distributing over a bracket means every term inside is multiplied.",
+    "reasoning": [
+     "Every person buys both items, so both prices are multiplied by ${{k}}$.",
+     "An expression that multiplies only the ticket price charges one programme for the whole group."
+    ],
+    "answerSummary": "${{ka}} + {{b}}$ is not the total."
+   },
+   "attemptFeedback": [
+    "That expression is the bracketed form multiplied out correctly."
+   ],
+   "supportHints": [
+    "How many programmes are bought altogether?"
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "ka": "k*a",
+     "kb": "k*b",
+     "sum": "a+b"
+    },
+    "constraints": [
+     "a!=b",
+     "k!=a",
+     "k!=b",
+     "ka!=kb"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{ka}} + {{b}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{k}} \\times {{sum}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{ka}} + {{kb}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{k}}({{a}} + {{b}})$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10D_a_factor_taken_out_of_one_term_only",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10D:a-factor-taken-out-of-one-term-only",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10D",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student writes ${{ka}}x + {{b}}$ as ${{k}}({{a}}x + {{b}})$. What is wrong?",
+   "solutionReview": {
+    "headline": "Check a factorisation by multiplying it back out.",
+    "reasoning": [
+     "A factor can only come out of a term that it divides.",
+     "Here ${{b}}$ was carried into the bracket unchanged, which changes the expression."
+    ],
+    "answerSummary": "That bracket gives ${{ka}}x + {{kb}}$, not ${{ka}}x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "Dividing one term is not enough; every term has to be divided."
+   ],
+   "supportHints": [
+    "Multiply the answer back out and compare."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "ka": "k*a",
+     "kb": "k*b"
+    },
+    "constraints": [
+     "a!=b",
+     "k!=a",
+     "k!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The factor outside should be ${{a}}$ rather than ${{k}}$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong, because ${{k}}$ does divide the first coefficient.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "Multiplying back gives ${{ka}}x + {{kb}}$, so the ${{b}}$ was never divided by ${{k}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "The bracket is right but the sign inside it should be a minus.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10E_factor_a_monic_trinomial",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10E:factor-a-monic-trinomial",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 2,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10E",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Factor $x^2 + {{sum}}x + {{product}}$.",
+   "solutionReview": {
+    "headline": "Find the pair that multiplies to the constant and adds to the middle coefficient.",
+    "reasoning": [
+     "Two numbers multiplying to ${{product}}$ and adding to ${{sum}}$ are ${{p}}$ and ${{q}}$.",
+     "Both are positive, so both brackets carry a plus."
+    ],
+    "answerSummary": "It is $(x + {{p}})(x + {{q}})$."
+   },
+   "attemptFeedback": [
+    "Two minus signs would give the same constant but a negative middle term."
+   ],
+   "supportHints": [
+    "Which pairs multiply to ${{product}}$?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "gap": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     }
+    },
+    "derived": {
+     "q": "p+gap",
+     "sum": "p+p+gap",
+     "product": "p*(p+gap)"
+    },
+    "constraints": [
+     "p!=q",
+     "sum!=product"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$(x + {{p}})(x + {{q}})$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(x + {{sum}})(x + {{product}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$(x + {{p}})(x - {{q}})$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(x - {{p}})(x - {{q}})$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10E_factor_with_a_leading_coefficient",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10E:factor-with-a-leading-coefficient",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10E",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Factor ${{a}}x^2 + {{mid}}x + {{last}}$.",
+   "solutionReview": {
+    "headline": "With a leading coefficient, where each constant goes changes the middle term.",
+    "reasoning": [
+     "The constants must multiply to ${{last}}$, so they are ${{b}}$ and ${{c}}$.",
+     "Placing them so the cross products give ${{mid}}x$ puts ${{c}}$ with the plain $x$."
+    ],
+    "answerSummary": "It is $({{a}}x + {{b}})(x + {{c}})$."
+   },
+   "attemptFeedback": [
+    "Swapping the constants changes the middle term, so check it before choosing."
+   ],
+   "supportHints": [
+    "Try both placements and check the middle term each time."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "mid": "a*c+b",
+     "last": "b*c",
+     "ac": "a*c"
+    },
+    "constraints": [
+     "b!=c",
+     "a!=b",
+     "ac!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{a}}x + {{c}})(x + {{b}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{a}}x + {{b}})(x + {{c}})$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{a}}x + {{last}})(x + {{b}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{a}}x + {{b}})(x - {{c}})$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10E_recognising_a_perfect_square",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10E:recognising-a-perfect-square",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10E",
+   "taskType": "conceptual",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which product equals $x^2 + {{twoP}}x + {{pSq}}$?",
+   "solutionReview": {
+    "headline": "A perfect square has a constant that is a square and a middle term twice its root.",
+    "reasoning": [
+     "The constant ${{pSq}}$ is ${{p}}$ squared, and the middle term is twice ${{p}}$.",
+     "That is exactly the pattern a squared bracket produces."
+    ],
+    "answerSummary": "It is $(x + {{p}})^2$."
+   },
+   "attemptFeedback": [
+    "Opposite signs would cancel the middle term altogether."
+   ],
+   "supportHints": [
+    "What is the square root of the constant, and how does it relate to the middle term?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "twoP": "2*p",
+     "pSq": "p*p"
+    },
+    "constraints": [
+     "twoP!=pSq"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$(x + {{p}})(x - {{p}})$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(x + {{pSq}})^2$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$(x + {{p}})^2$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(x + {{twoP}})(x + {{p}})$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10E_sides_of_a_rectangle_from_its_area",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10E:sides-of-a-rectangle-from-its-area",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10E",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A rectangle has area $x^2 + {{sum}}x + {{product}}$. What could its two sides be?",
+   "solutionReview": {
+    "headline": "Factoring an area splits it into the two sides that produced it.",
+    "reasoning": [
+     "The two sides multiply to the area, so they are the factors of the trinomial.",
+     "Those are $x + {{p}}$ and $x + {{q}}$, since the constants add to ${{sum}}$ and multiply to ${{product}}$."
+    ],
+    "answerSummary": "They are $x + {{p}}$ and $x + {{q}}$."
+   },
+   "attemptFeedback": [
+    "Multiply that pair out and see whether the constant term survives."
+   ],
+   "supportHints": [
+    "What two expressions multiply to give this area?"
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "gap": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     }
+    },
+    "derived": {
+     "q": "p+gap",
+     "sum": "p+p+gap",
+     "product": "p*(p+gap)",
+     "halfSum": "p+gap"
+    },
+    "constraints": [
+     "p!=q",
+     "sum!=product",
+     "p!=gap"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x \\text{ and } x + {{sum}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x + {{p}} \\text{ and } x - {{q}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x + {{p}} \\text{ and } x + {{q}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x + {{sum}} \\text{ and } x + {{product}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ]
+  },
+  {
+   "id": "mm_asvab_A_10E_factors_that_miss_the_middle_term",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:A.10E:factors-that-miss-the-middle-term",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 3,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10E",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student factors $x^2 + {{sum}}x + {{product}}$ as $(x + {{one}})(x + {{other}})$. What is wrong?",
+   "solutionReview": {
+    "headline": "The pair must give the constant and the middle term together.",
+    "reasoning": [
+     "A factor pair has to satisfy both conditions at once, not just the product.",
+     "Only ${{p}}$ and ${{q}}$ multiply to ${{product}}$ and also add to ${{sum}}$."
+    ],
+    "answerSummary": "It is $(x + {{p}})(x + {{q}})$."
+   },
+   "attemptFeedback": [
+    "Matching the product alone is only half of what a factor pair has to do."
+   ],
+   "supportHints": [
+    "Add the two constants the student chose and compare with the middle term."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "q": "p+gap",
+     "sum": "p+p+gap",
+     "product": "p*(p+gap)",
+     "one": "1",
+     "other": "p*(p+gap)",
+     "wrongSum": "1+p*(p+gap)"
+    },
+    "constraints": [
+     "p!=q",
+     "sum!=wrongSum",
+     "p!=gap"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Those constants multiply to ${{product}}$ but add to ${{wrongSum}}$, not ${{sum}}$: it is $(x + {{p}})(x + {{q}})$."
+    },
+    {
+     "id": "choice-b",
+     "label": "Nothing is wrong, since the two constants do multiply to ${{product}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The constants are right but both signs should be minus.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "A trinomial with a middle term cannot be factored into two brackets.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ]
   }
  ]
 }
