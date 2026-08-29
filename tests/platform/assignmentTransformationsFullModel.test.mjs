@@ -13,6 +13,7 @@ import {
 } from '../../src/tools/transformations/transformationsMath.js';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { validateQuestionsSemantics } from '../../src/platform/contract/semanticValidation.js';
+import { validateToolQuestion } from '../../src/tools/toolSchemas.js';
 
 test('full a f(b(x-h))+k model follows x reciprocal/opposite and y direct behavior', () => {
   const spec = normalizeTransformationSpec({
@@ -120,9 +121,17 @@ test('the complete Lesson 1 ALEKS bridge compiles and its transformation visuals
     `Lesson 1 ALEKS bridge must be fully renderable in Preflight:\n${semantic.errors.join('\n')}`,
   );
 
-  const plotItems = questions.filter(
-    (question) => question.type === 'transformationsLab' && question.mode === 'plotTransform',
-  );
+  const transformationItems = questions.filter((question) => question.type === 'transformationsLab');
+  transformationItems.forEach((question, index) => {
+    const validation = validateToolQuestion(question);
+    assert.deepEqual(
+      validation.errors,
+      [],
+      `Transformations Lab item ${index + 1} must satisfy the live tool schema: ${validation.errors.join(' | ')}`,
+    );
+  });
+
+  const plotItems = transformationItems.filter((question) => question.mode === 'plotTransform');
   assert.ok(plotItems.length >= 6, 'bridge should exercise several ALEKS-style source-graph transformations');
   plotItems.forEach((question) => {
     assert.ok(Array.isArray(question.sourcePoints) && question.sourcePoints.length >= 2);
