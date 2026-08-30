@@ -2686,3 +2686,34 @@ For each standard:
   - include complete technology-entry/transcription error repair that still requires the student to re-run the regression;
   - keep routine regression fitting DOK 2; reserve DOK 3 for complete error analysis.
 - No separate regression grader should be invented; extend the existing Data Modeling Lab's secure fit modes minimally and retain server/client parity tests.
+
+### 2026-08-30 — A2.8B staged / focused certification
+- Added fit-only Data Modeling Lab modes for linear, quadratic, and exponential regression without prediction contamination.
+- Capability/parity run `33333890598`: **PASS**.
+- Staged five A2.8B Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.8B.json` — commit `f406846d440980e88d9fba9220a0a0900c3b08cc`.
+- Coverage includes noisy overdetermined linear regression, noisy overdetermined quadratic regression, exponential growth regression, exponential decay regression, and complete quadratic regression-transcription repair.
+- Base production/generated/build run `33333964394`: **PASS**.
+- Added focused A2.8B secure regression certification in `tests/platform/a28bRegressionTechnology.test.mjs` — commit `3ded4137d5d5dd49860475f7d89e2b60a9516952`.
+- Focused run `33334056795`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.8B** until that run is green.
+
+### 2026-08-30 — A2.8C pre-audit finding
+- Official construct: **predict and make decisions and critical judgments from a given set of data using linear, quadratic, and exponential models**.
+- TEA breakout contains **nine distinct targets**:
+  - predict using linear, quadratic, and exponential models;
+  - make decisions using linear, quadratic, and exponential models;
+  - make critical judgments using linear, quadratic, and exponential models.
+- Provisional verdict: **REBUILD** after A2.8B locks.
+- Legacy limitations:
+  - the three computational families simply evaluate already-supplied equations rather than grounding predictions in a given data set/model;
+  - the quadratic "decision" item asks only for a numerical prediction and never requires a decision;
+  - the distant-extrapolation caution is useful but not tied to a particular linear/quadratic/exponential fitted model;
+  - the compare-models family uses only two linear equations and asks for a generic strategy rather than a context-specific decision;
+  - the nine model × action breakouts are therefore not covered.
+- Fidelity V2 direction:
+  - use coherent generated variants so all nine breakout combinations are explicitly exercised without creating nine shallow families;
+  - require numeric prediction from a fitted/given model and classify interpolation vs extrapolation where relevant;
+  - require context-based decisions against thresholds/costs/capacity for each model family;
+  - require critical judgments about extrapolation, plausibility, model-domain limits, or whether a prediction should be trusted for each model family;
+  - keep A2.8C distinct from A2.8B: regression coefficients may be supplied or securely fitted as supporting information, but the assessed action must be prediction/decision/judgment rather than writing the regression function;
+  - keep ordinary prediction/decision work DOK 2 and use DOK 3 for genuine critical judgment/error analysis.
