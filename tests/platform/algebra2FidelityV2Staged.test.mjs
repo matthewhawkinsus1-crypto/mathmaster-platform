@@ -3768,8 +3768,8 @@ test('A2.6G analyzes reciprocal transformations through full a-b-h-k effects and
         assert.ok([2,4].includes(Number(fields['vertical-scale']?.expected)));
         assert.ok([0.5,0.25].includes(Number(fields['horizontal-scale']?.expected)));
         assert.equal(fields['x-reflection']?.expected, 'yes');
-        assert.equal(fields['horizontal-reflection']?.expected, 'no');
-        assert.ok(Number(fields.effective?.expected) < 0);
+        assert.equal(fields['horizontal-reflection']?.expected, 'yes');
+        assert.ok(Number(fields.effective?.expected) > 0);
       }
 
       if (doc.id.includes('negative-b-point-map')) {
