@@ -282,7 +282,39 @@
       ],
       "variants": [
         {
-          "coverageKey": "core-2b4"
+          "coverageKey": "core-2b4",
+          "dok": 2,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d2b2-simple-literal-isolation-context",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "application",
+          "representation": "context",
+          "prompt": "A total cost formula is $C=rm+f$, where r is the rate, m is the number of units, and f is a fixed fee. Solve the formula for the fixed fee f. Enter the right-hand side only.",
+          "responseFields": [
+            {
+              "id": "answer",
+              "label": "f =",
+              "inputProfile": "expression",
+              "expected": "C-r*m"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Isolate the target variable by undoing the term added to it.",
+            "reasoning": [
+              "Subtract rm from both sides of $C=rm+f$.",
+              "This leaves $f=C-rm$."
+            ],
+            "answerSummary": "$f=C-rm$"
+          },
+          "attemptFeedback": [
+            "Move the variable term rm to the other side before reading the isolated formula."
+          ],
+          "supportHints": [
+            "Undo addition by subtracting the same expression from both sides."
+          ]
         },
         {
           "coverageKey": "challenge-d3b4-literal-factor-and-isolate-error",
