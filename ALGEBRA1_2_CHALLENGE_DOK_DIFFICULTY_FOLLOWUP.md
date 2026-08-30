@@ -323,3 +323,31 @@ Current Algebra II adaptive counts after A2.3:
 - Strict preferred-cell failures: **37/48**
 
 Next batch: **A2.4A–A2.4H**.
+
+
+## Progress — Algebra II A2.4 adaptive batch green
+
+- Completed the independent-axis pass for **A2.4A–A2.4H**.
+- Every A2.4 standard now contains the preferred five adaptive cells while preserving its certified DOK3/Band4 Challenge endpoint.
+- The batch added:
+  - routine coefficient solving, parabola-attribute inference, transformation mapping, completing-square arithmetic, regression technology, radical solving, extraneous-root verification, and quadratic-inequality work at independently varied difficulty;
+  - simpler but genuine DOK3 analysis/error-repair variants where the reasoning demand needed to rise without simultaneously raising structural difficulty.
+- Fidelity regressions caught and repaired during the batch:
+  - A2.4C's DOK2/Band4 point-mapping variant initially changed the certified family's 0.5 vertical-scale / -4 inside-factor invariant; the variant was repaired to preserve the same transformation while adding a fourth mapped point.
+  - A2.4F's DOK3/Band3 isolation-error variant inherited base stimulus placeholders that its simpler generator did not bind; the variant now carries a self-contained stimulus.
+- Algebra II Fidelity V2 Certification after repairs — run `33338361051`: **PASS**.
+- Cross-course Challenge/DOK Difficulty Audit after repairs — run `33338361055`: **PASS**.
+
+Current Algebra II adaptive counts after A2.4:
+- Challenge-ready: **48/48**
+- Full preferred five-cell target: **19/48**
+- Complete DOK2 axis: **29/48**
+- Complete DOK3 axis: **21/48**
+- Missing 2/2: **10**
+- Missing 2/3: **1**
+- Missing 2/4: **15**
+- Missing 3/3: **27**
+- Missing 3/4: **0**
+- Strict preferred-cell failures: **29/48**
+
+Next batch: **A2.5A–A2.5E**.
