@@ -95,7 +95,96 @@
           "y1": "a+b+c",
           "y2": "4*a+2*b+c"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b2",
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "coverageKey": "adaptive-d2b3-irregular-three-point-standard-form",
+          "dok": 2,
+          "difficultyBand": 3,
+          "taskType": "procedural",
+          "representation": "table",
+          "prompt": "The table gives THREE points on one quadratic at x=-1, 0, and 2. Determine the complete function in standard form $y=ax^2+bx+c$.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Three points",
+            "table": {
+              "headers": [
+                "$x$",
+                "$y$"
+              ],
+              "rows": [
+                [
+                  "-1",
+                  "{{ym1}}"
+                ],
+                [
+                  "0",
+                  "{{y0}}"
+                ],
+                [
+                  "2",
+                  "{{y2}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "quadratic",
+              "label": "Quadratic function in standard form",
+              "inputProfile": "equation",
+              "expected": "y={{a}}x^2{{b|signed}}x{{c|signed}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Use all three coordinates to determine the three coefficients.",
+            "reasoning": [
+              "At x=0, c={{c}}.",
+              "The x=-1 and x=2 rows then determine a={{a}} and b={{b}}.",
+              "The resulting function fits all three points."
+            ],
+            "answerSummary": "$y={{a}}x^2{{b|signed}}x{{c|signed}}$"
+          },
+          "attemptFeedback": [
+            "Do not assume equal x-spacing is needed; substitute the actual x-values shown."
+          ],
+          "supportHints": [
+            "Use the x=0 row first, then substitute the other two points."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": -4,
+                "max": 4,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -7,
+                "max": 7
+              },
+              "c": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "ym1": "a-b+c",
+              "y0": "c",
+              "y2": "4*a+2*b+c"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_4A_v2_nonzero-x-coefficient-system",
@@ -200,7 +289,90 @@
           "y1": "a+b+c",
           "y3": "9*a+3*b+c"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d2b4-nonzero-x-final-function",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "orderedPairs",
+          "prompt": "The points $(-3,{{ym3}})$, $(2,{{y2}})$, and $(4,{{y4}})$ lie on one quadratic. Determine the complete quadratic function in standard form $y=ax^2+bx+c$. None of the points has x=0.",
+          "stimulus": {
+            "kind": "orderedPairs",
+            "title": "Specified points",
+            "orderedPairs": [
+              {
+                "x": -3,
+                "y": "{{ym3}}"
+              },
+              {
+                "x": 2,
+                "y": "{{y2}}"
+              },
+              {
+                "x": 4,
+                "y": "{{y4}}"
+              }
+            ]
+          },
+          "responseFields": [
+            {
+              "id": "quadratic",
+              "label": "Quadratic function in standard form",
+              "inputProfile": "equation",
+              "expected": "y={{a}}x^2{{b|signed}}x{{c|signed}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Harder coefficient arithmetic does not change the reasoning depth.",
+            "reasoning": [
+              "Substitute all three nonzero x-values into $y=ax^2+bx+c$.",
+              "Solve the resulting three linear equations for a={{a}}, b={{b}}, c={{c}}.",
+              "Write the complete quadratic in standard form."
+            ],
+            "answerSummary": "$y={{a}}x^2{{b|signed}}x{{c|signed}}$"
+          },
+          "attemptFeedback": [
+            "Because x=0 is absent, solve for c together with a and b."
+          ],
+          "supportHints": [
+            "Build three coefficient equations from the three ordered pairs, then eliminate variables."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "c": {
+                "type": "int",
+                "min": -7,
+                "max": 7
+              }
+            },
+            "derived": {
+              "ym3": "9*a-3*b+c",
+              "y2": "4*a+2*b+c",
+              "y4": "16*a+4*b+c"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_4A_v2_graph-three-points-standard-form",
