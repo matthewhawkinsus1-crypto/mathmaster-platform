@@ -329,11 +329,11 @@
             }
           ],
           "solutionReview": {
-            "headline": "Each candidate must satisfy both equations independently.",
+            "headline": "Each candidate must satisfy the same two equations independently.",
             "reasoning": [
-              "Candidate A has zero residual in both equations.",
-              "Candidate B lies on the line but has quadratic residual {{residual2}}.",
-              "Therefore only candidate A is an exact system solution."
+              "Candidate A is one actual line–quadratic intersection, so both residuals are 0.",
+              "The same quadratic has its other intersection at x={{other}}, not at x={{x2}}.",
+              "Candidate B lies on the line at x={{x2}} but has quadratic residual {{residual2}}, so only Candidate A is valid."
             ],
             "answerSummary": "Candidate A only."
           },
@@ -368,37 +368,27 @@
                 "min": 1,
                 "max": 5
               },
-              "A": {
+              "other": {
                 "type": "int",
-                "min": -3,
-                "max": 3
-              },
-              "offset": {
-                "type": "choice",
-                "values": [
-                  -4,
-                  -3,
-                  -2,
-                  -1,
-                  1,
-                  2,
-                  3,
-                  4
-                ]
+                "min": -5,
+                "max": 5
               }
             },
             "derived": {
               "y1": "m*x1+b",
               "line1": "y1",
-              "B": "y1-x1*x1-A*x1",
+              "A": "m-x1-other",
+              "B": "b+x1*other",
               "quad1": "x1*x1+A*x1+B",
               "y2": "m*x2+b",
               "line2": "y2",
-              "quad2": "x2*x2+A*x2+B+offset",
+              "quad2": "x2*x2+A*x2+B",
               "residual2": "abs(y2-quad2)"
             },
             "constraints": [
               "x1!=x2",
+              "x1!=other",
+              "x2!=other",
               "residual2!=0"
             ]
           }
