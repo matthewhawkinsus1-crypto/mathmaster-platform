@@ -1,0 +1,608 @@
+{
+  "standard": "A2.2B",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-graph-reflect-write-inverse-across-symbolic-table-and-nonlinear-functions",
+  "rationale": "A2.2B requires students to graph and write an inverse using inverse-function notation. The legacy bank contained sound inverse ideas but only one family completed the full graph → reflect across y=x → inverse graph → inverse equation chain. Fidelity V2 makes that complete action the recurring evidence and adds authentic table and nonlinear cases.",
+  "documents": [
+    {
+      "id": "mm_A2_2B_v2_linear-reflection-write",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2B:v2-linear-reflection-write",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2B",
+      "type": "functionInvestigation",
+      "representation": "graph",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "Construct the graph of $f(x)={{m}}x{{b|signed}}$ from the required points. Then reflect the graph across $y=x$ and write the inverse using $f^{-1}(x)$ notation.",
+      "functionSpec": {
+        "type": "linear",
+        "m": "{{m}}",
+        "b": "{{b}}"
+      },
+      "graph": {
+        "xMin": -12,
+        "xMax": 12,
+        "yMin": -12,
+        "yMax": 12,
+        "xStep": 1,
+        "yStep": 1,
+        "snapStep": 0.5
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot the y-intercept",
+          "x": 0,
+          "expected": [
+            0,
+            "{{b}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot the second required point",
+          "x": "{{x1}}",
+          "expected": [
+            "{{x1}}",
+            "{{y1}}"
+          ]
+        }
+      ],
+      "inverseReflection": {
+        "enabled": true,
+        "sourceTaskIds": [
+          "p0",
+          "p1"
+        ],
+        "requireInverseSketch": true,
+        "requireInverseEquation": true,
+        "expectedEquation": "f^-1(x)=(x-({{b}}))/{{m}}",
+        "equationLabel": "Write the equation of the inverse using inverse-function notation.",
+        "inverseLineLabel": "Draw the inverse graph through the reflected points."
+      },
+      "solutionReview": {
+        "headline": "An inverse swaps every input-output pair.",
+        "reasoning": [
+          "Reflecting across $y=x$ sends each point $(x,y)$ on $f$ to $(y,x)$ on $f^{-1}$.",
+          "Swapping $x$ and $y$ in the linear equation and isolating $y$ gives the inverse equation."
+        ],
+        "answerSummary": "$f^{-1}(x)=\\frac{x-({{b}})}{{{m}}}$"
+      },
+      "attemptFeedback": [
+        "Use the same two source points for the reflection; do not take a reciprocal of the original equation."
+      ],
+      "supportHints": [
+        "An inverse reflection swaps the coordinates of every point."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "choice",
+            "values": [
+              -3,
+              -2,
+              2,
+              3
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "x1": {
+            "type": "choice",
+            "values": [
+              -2,
+              -1,
+              1,
+              2
+            ]
+          }
+        },
+        "derived": {
+          "y1": "m*x1+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2B_v2_table-reflection-write",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2B:v2-table-reflection-write",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2B",
+      "type": "functionInvestigation",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "Use the table to construct the graph of $f$. Then reflect it across $y=x$, draw $f^{-1}$, and write the inverse equation using inverse-function notation.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Values of f",
+        "table": {
+          "headers": [
+            "$x$",
+            "$f(x)$"
+          ],
+          "rows": [
+            [
+              "-1",
+              "{{ym1}}"
+            ],
+            [
+              "0",
+              "{{b}}"
+            ],
+            [
+              "1",
+              "{{y1}}"
+            ]
+          ]
+        }
+      },
+      "functionSpec": {
+        "type": "linear",
+        "m": "{{m}}",
+        "b": "{{b}}"
+      },
+      "graph": {
+        "xMin": -10,
+        "xMax": 10,
+        "yMin": -10,
+        "yMax": 10,
+        "xStep": 1,
+        "yStep": 1,
+        "snapStep": 0.5
+      },
+      "pointTasks": [
+        {
+          "id": "row-left",
+          "label": "Plot the row with x = -1",
+          "x": -1,
+          "expected": [
+            -1,
+            "{{ym1}}"
+          ]
+        },
+        {
+          "id": "row-zero",
+          "label": "Plot the row with x = 0",
+          "x": 0,
+          "expected": [
+            0,
+            "{{b}}"
+          ]
+        },
+        {
+          "id": "row-right",
+          "label": "Plot the row with x = 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        }
+      ],
+      "inverseReflection": {
+        "enabled": true,
+        "sourceTaskIds": [
+          "row-left",
+          "row-right"
+        ],
+        "requireInverseSketch": true,
+        "requireInverseEquation": true,
+        "expectedEquation": "f^-1(x)=(x-({{b}}))/{{m}}",
+        "equationLabel": "Write the inverse equation in $f^{-1}(x)$ notation.",
+        "inverseLineLabel": "Draw the inverse graph through the reflected points."
+      },
+      "solutionReview": {
+        "headline": "The inverse table reverses each ordered pair.",
+        "reasoning": [
+          "The table gives actual points on $f$, so graph those points before reflecting.",
+          "After reflection, the coordinates are swapped and the reflected graph is $f^{-1}$."
+        ],
+        "answerSummary": "$f^{-1}(x)=\\frac{x-({{b}})}{{{m}}}$"
+      },
+      "attemptFeedback": [
+        "Read the table as ordered pairs first; then swap coordinates only when you build the inverse."
+      ],
+      "supportHints": [
+        "A row $(x,f(x))$ becomes $(f(x),x)$ on the inverse."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "choice",
+            "values": [
+              -3,
+              -2,
+              2,
+              3
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          }
+        },
+        "derived": {
+          "ym1": "b-m",
+          "y1": "b+m"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2B_v2_restricted-quadratic-inverse",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2B:v2-restricted-quadratic-inverse",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2B",
+      "type": "functionInvestigation",
+      "representation": "graph",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "reverseReasoning",
+      "prompt": "The quadratic is restricted to $x\\ge {{h}}$ so that it is one-to-one. Construct the restricted graph of $f(x)=(x-({{h}}))^2{{k|signed}}$, reflect it across $y=x$, then write $f^{-1}(x)$.",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": 1,
+        "h": "{{h}}",
+        "k": "{{k}}",
+        "domain": {
+          "min": "{{h}}",
+          "minInclusive": true
+        }
+      },
+      "graph": {
+        "xMin": -7,
+        "xMax": 9,
+        "yMin": -7,
+        "yMax": 12,
+        "xStep": 1,
+        "yStep": 1,
+        "snapStep": 0.5
+      },
+      "pointTasks": [
+        {
+          "id": "vertex",
+          "label": "Plot the restricted endpoint / vertex",
+          "x": "{{h}}",
+          "expected": [
+            "{{h}}",
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "q1",
+          "label": "Plot one unit to the right of the vertex",
+          "x": "{{h1}}",
+          "expected": [
+            "{{h1}}",
+            "{{k1}}"
+          ]
+        },
+        {
+          "id": "q2",
+          "label": "Plot two units to the right of the vertex",
+          "x": "{{h2}}",
+          "expected": [
+            "{{h2}}",
+            "{{k4}}"
+          ]
+        }
+      ],
+      "inverseReflection": {
+        "enabled": true,
+        "sourceTaskIds": [
+          "vertex",
+          "q2"
+        ],
+        "requireInverseSketch": true,
+        "requireInverseEquation": true,
+        "expectedEquation": "f^-1(x)=sqrt(x-({{k}}))+{{h}}",
+        "equationLabel": "Write the inverse equation using $f^{-1}(x)$ notation.",
+        "inverseLineLabel": "Draw the inverse square-root graph through the reflected points."
+      },
+      "solutionReview": {
+        "headline": "The restricted quadratic reflects to a square-root inverse.",
+        "reasoning": [
+          "The domain restriction keeps only one side of the parabola, so the original function is one-to-one.",
+          "Reflecting that branch across $y=x$ produces a square-root graph."
+        ],
+        "answerSummary": "$f^{-1}(x)=\\sqrt{x-({{k}})}+{{h}}$"
+      },
+      "attemptFeedback": [
+        "Do not reflect the missing half of the parabola; the domain restriction is part of the function."
+      ],
+      "supportHints": [
+        "A restricted upward quadratic on the right side of its vertex inverts to the principal square root."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          }
+        },
+        "derived": {
+          "h1": "h+1",
+          "h2": "h+2",
+          "k1": "k+1",
+          "k4": "k+4"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2B_v2_square-root-to-quadratic",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2B:v2-square-root-to-quadratic",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2B",
+      "type": "functionInvestigation",
+      "representation": "graph",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "reverseReasoning",
+      "prompt": "Construct $f(x)=\\sqrt{x-({{h}})}{{k|signed}}$ from the required points. Reflect the graph across $y=x$, draw the inverse branch, and write the equation of $f^{-1}(x)$.",
+      "functionSpec": {
+        "type": "squareRoot",
+        "a": 1,
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "graph": {
+        "xMin": -7,
+        "xMax": 12,
+        "yMin": -7,
+        "yMax": 10,
+        "xStep": 1,
+        "yStep": 1,
+        "snapStep": 0.5
+      },
+      "pointTasks": [
+        {
+          "id": "root0",
+          "label": "Plot the square-root endpoint",
+          "x": "{{h}}",
+          "expected": [
+            "{{h}}",
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "root1",
+          "label": "Plot the point one unit right of the endpoint",
+          "x": "{{h1}}",
+          "expected": [
+            "{{h1}}",
+            "{{k1}}"
+          ]
+        },
+        {
+          "id": "root4",
+          "label": "Plot the point four units right of the endpoint",
+          "x": "{{h4}}",
+          "expected": [
+            "{{h4}}",
+            "{{k2}}"
+          ]
+        }
+      ],
+      "inverseReflection": {
+        "enabled": true,
+        "sourceTaskIds": [
+          "root0",
+          "root4"
+        ],
+        "requireInverseSketch": true,
+        "requireInverseEquation": true,
+        "expectedEquation": "f^-1(x)=(x-({{k}}))^2+{{h}}",
+        "equationLabel": "Write the inverse equation using $f^{-1}(x)$ notation.",
+        "inverseLineLabel": "Draw the inverse quadratic branch through the reflected points."
+      },
+      "solutionReview": {
+        "headline": "A square-root function reflects to one branch of a quadratic.",
+        "reasoning": [
+          "The square-root graph starts at its endpoint and is already one-to-one.",
+          "After coordinates are swapped, the reflected graph is a quadratic branch whose domain begins at the original range endpoint."
+        ],
+        "answerSummary": "$f^{-1}(x)=(x-({{k}}))^2+{{h}}$"
+      },
+      "attemptFeedback": [
+        "Your inverse should be only one quadratic branch, matching the reflected square-root graph."
+      ],
+      "supportHints": [
+        "Swap the coordinates of the endpoint first; it becomes the vertex of the inverse branch."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          }
+        },
+        "derived": {
+          "h1": "h+1",
+          "h4": "h+4",
+          "k1": "k+1",
+          "k2": "k+2"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2B_v2_rational-reflection-write",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2B:v2-rational-reflection-write",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2B",
+      "type": "functionInvestigation",
+      "representation": "graph",
+      "difficultyBand": 5,
+      "dok": 3,
+      "taskType": "reverseReasoning",
+      "prompt": "Construct both branches of $f(x)=\\frac{{{a}}}{x-({{h}})}{{k|signed}}$. Reflect the graph across $y=x$, draw the inverse, and write the inverse equation in $f^{-1}(x)$ notation.",
+      "functionSpec": {
+        "type": "rational",
+        "a": "{{a}}",
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "graph": {
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -8,
+        "yMax": 8,
+        "xStep": 1,
+        "yStep": 1,
+        "snapStep": 0.5
+      },
+      "pointTasks": [
+        {
+          "id": "left2",
+          "label": "Plot two units left of the vertical asymptote",
+          "x": "{{hm2}}",
+          "expected": [
+            "{{hm2}}",
+            "{{leftHalf}}"
+          ]
+        },
+        {
+          "id": "left1",
+          "label": "Plot one unit left of the vertical asymptote",
+          "x": "{{hm1}}",
+          "expected": [
+            "{{hm1}}",
+            "{{leftFull}}"
+          ]
+        },
+        {
+          "id": "right1",
+          "label": "Plot one unit right of the vertical asymptote",
+          "x": "{{hp1}}",
+          "expected": [
+            "{{hp1}}",
+            "{{rightFull}}"
+          ]
+        },
+        {
+          "id": "right2",
+          "label": "Plot two units right of the vertical asymptote",
+          "x": "{{hp2}}",
+          "expected": [
+            "{{hp2}}",
+            "{{rightHalf}}"
+          ]
+        }
+      ],
+      "inverseReflection": {
+        "enabled": true,
+        "sourceTaskIds": [
+          "left1",
+          "right1"
+        ],
+        "requireInverseSketch": true,
+        "requireInverseEquation": true,
+        "expectedEquation": "f^-1(x)={{a}}/(x-({{k}}))+{{h}}",
+        "equationLabel": "Write the inverse rational equation using $f^{-1}(x)$ notation.",
+        "inverseLineLabel": "Draw both branches of the inverse graph through the reflected points."
+      },
+      "solutionReview": {
+        "headline": "Inverting a shifted reciprocal function swaps the horizontal and vertical shifts.",
+        "reasoning": [
+          "Reflection across $y=x$ swaps the roles of the original vertical and horizontal asymptotes.",
+          "Solving the equation after swapping $x$ and $y$ gives another rational function, not the reciprocal $1/f(x)$."
+        ],
+        "answerSummary": "$f^{-1}(x)=\\frac{{{a}}}{x-({{k}})}+{{h}}$"
+      },
+      "attemptFeedback": [
+        "Keep both branches. Inverse-function notation does not mean take the reciprocal of the function value."
+      ],
+      "supportHints": [
+        "For a reciprocal transformation, reflection swaps the vertical asymptote $x=h$ with the horizontal asymptote $y=h$ in the inverse coordinates."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              1,
+              2,
+              3
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -2,
+            "max": 2
+          },
+          "k": {
+            "type": "int",
+            "min": -2,
+            "max": 2
+          }
+        },
+        "derived": {
+          "hm2": "h-2",
+          "hm1": "h-1",
+          "hp1": "h+1",
+          "hp2": "h+2",
+          "leftHalf": "k-a/2",
+          "leftFull": "k-a",
+          "rightFull": "k+a",
+          "rightHalf": "k+a/2"
+        }
+      }
+    }
+  ]
+}
