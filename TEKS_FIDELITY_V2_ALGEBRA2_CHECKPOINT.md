@@ -389,7 +389,7 @@ Do **not** re-audit A2.4F unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4G — PENDING AUDIT
+### A2.4G — REBUILD — AUDITED / AUTHORING
 
 Official construct: **Identify extraneous solutions of square root equations.**
 
@@ -398,6 +398,26 @@ Official construct: **Identify extraneous solutions of square root equations.**
 ### A2.4G
 
 Resume here. Do not reopen A2.2A–A2.4F unless a failing gate names them.
+
+
+### 2026-08-30 — A2.4G audit finding
+- Official construct: **identify extraneous solutions of square root equations**.
+- Verdict: **REBUILD**.
+- The legacy bank contains two aligned candidate-check ideas, but most families drift away from the actual identification task:
+  - family 1 names which generated candidate is extraneous but does not require substitution evidence;
+  - family 2 names the surviving root but again does not make the student evaluate the original equation;
+  - family 3 graphs the radical domain instead of identifying an extraneous solution;
+  - family 4 explains why checking is important but uses an equation whose generated candidate is actually valid;
+  - family 5 states the domain condition abstractly instead of checking candidates created by squaring.
+- Fidelity V2 requirements:
+  - every family must start from candidate solutions produced after squaring a square-root equation;
+  - students must check candidates in the **original unsquared equation**, not only against the squared equation or radical domain;
+  - repeatedly collect concrete left-side/right-side substitution evidence for each candidate;
+  - include both “one candidate is extraneous” and “no candidate is extraneous” cases so students cannot default to always discarding one root;
+  - include a case where the extraneous candidate is inside the radical domain but fails because the isolated right side is negative, proving domain membership alone is insufficient;
+  - include contextual transfer and genuine error analysis where a student keeps all roots of the squared equation and must repair that conclusion.
+- A2.4G stays distinct from A2.4F: A2.4F owns solving the equation; A2.4G owns deciding which squared-equation candidates survive the original equation.
+- Generic secure multi-response grading is sufficient; no new Path tool capability is required.
 
 
 ### 2026-08-30 — A2.4F audit finding
