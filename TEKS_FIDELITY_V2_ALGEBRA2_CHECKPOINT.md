@@ -220,17 +220,38 @@ Certification result:
 
 Do **not** re-audit A2.3E unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.3F
 
-### A2.3F — REBUILD — STAGED / CERTIFICATION RUNNING
+### A2.3F — REBUILD — CERTIFIED
 
 Official construct: **Solve systems of two or more linear inequalities in two variables.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- every family requires secure construction of every boundary and the common solution region;
+- two- and three-inequality systems are both represented repeatedly;
+- inclusive, strict, and mixed boundary styles are required;
+- contextual transfer and union-vs-intersection error repair are included;
+- one contextual three-inequality system has no common solution region;
+- the workspace now visually distinguishes third/fourth/fifth inequality boundaries rather than reusing one color;
+- 200+ generated instances pass production issuability and secure correct-construction self-acceptance;
+- spoiled wrong-shading work is rejected by the server;
+- targeted Algebra II Fidelity V2 Certification run `33318879330`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.3F unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.3G — PENDING AUDIT
+
+Official construct: **Determine possible solutions in the solution set of systems of two or more linear inequalities in two variables.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.3F
+### A2.3G
 
-Resume here. Do not reopen A2.2A–A2.3E unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.3F unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.3F audit finding
@@ -272,8 +293,10 @@ Resume here. Do not reopen A2.2A–A2.3E unless a failing gate names them.
 - Strengthened the contextual no-solution family into a **three-inequality** infeasible system while preserving the no-common-region requirement — commit `97cd9c56a064df056b91c96e38ecc13a23924288`.
 - Consolidated two overlapping A2.3F test blocks into one authoritative gate, retained the stricter repeated-three-constraint requirement, and added an explicit generated no-solution polygon check — commit `2594e6b7e67cf83533ab147351d1ba4be5ffc85d`.
 - No content requirement was weakened: A2.3F now simultaneously requires repeated three-inequality systems, strict/inclusive/mixed boundaries, context, error repair, secure wrong-shade rejection, and a genuine empty solution set.
-- Replacement certification run `33318879330`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.3F** until that run is green.
+- Replacement certification run `33318879330`: **PASS**.
+- Generated content, production issue gate, secure graph-construction grading, no-solution verification, repeated three-constraint coverage, wrong-shade rejection, and student/runtime build all passed.
+- A2.3F is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.3G**.
 
 
 ### 2026-08-30 — A2.3E audit finding
