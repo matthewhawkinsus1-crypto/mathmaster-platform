@@ -2648,3 +2648,12 @@ For each standard:
   - include complete error analysis that repairs the diagnostic and final model selection;
   - keep routine model analysis DOK 2; reserve DOK 3 for full error analysis.
 - No new Path tool is required; secure table + multi-response grading is sufficient.
+
+### 2026-08-30 — A2.8A staged / certification
+- Staged five A2.8A Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.8A.json` — commit `0d8947bd63614153e038b4f2ea2758b6d87e7905`.
+- Coverage includes raw-data linear first differences, quadratic first/second differences, exponential growth and decay ratio variants, non-unit x-spacing rate analysis, and complete quadratic misclassification error repair.
+- Base production/generated/build run `33333628425`: **PASS**.
+- First focused run `33333656945`: **FAIL** only because the certification counter counted the first linear family but omitted the separate non-unit-spacing linear family; all generated mathematics and secure self-grading reached the final aggregate assertion.
+- Fixed the certification counter — commit `cb6deee1a2653853ae52d25ed1cff59072102faa`.
+- Replacement focused run `33333706071`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.8A** until the replacement run is green.
