@@ -65,13 +65,18 @@ test('unstaged Algebra I families are carried forward without mutation', () => {
   }
 });
 
-test('staged standards contain only new Fidelity V2 family ids', () => {
-  const oldIds = new Set(base.filter((doc) => overrideCodes.has(codeOf(doc))).map((doc) => doc.id));
-  const oldFamilyIds = new Set(base.filter((doc) => overrideCodes.has(codeOf(doc))).map((doc) => doc.familyId));
+test('staged standards use the Fidelity V2 id namespace and never fall back to legacy generator ids', () => {
+  const ids = new Set();
+  const familyIds = new Set();
   for (const doc of replacements) {
-    assert.equal(oldIds.has(doc.id), false, `${doc.id} reuses a published id`);
-    assert.equal(oldFamilyIds.has(doc.familyId), false, `${doc.familyId} reuses a published familyId`);
-    assert.ok(doc.id.includes('_v2_'));
-    assert.ok(doc.familyId.includes(':v2-'));
+    assert.equal(ids.has(doc.id), false, `duplicate staged id ${doc.id}`);
+    assert.equal(familyIds.has(doc.familyId), false, `duplicate staged familyId ${doc.familyId}`);
+    ids.add(doc.id);
+    familyIds.add(doc.familyId);
+    assert.ok(doc.id.includes('_v2_'), `${doc.id} is outside the V2 id namespace`);
+    assert.ok(doc.familyId.includes(':v2-'), `${doc.familyId} is outside the V2 family namespace`);
+    assert.doesNotMatch(doc.id, /_gen\d+_/i);
+    assert.doesNotMatch(doc.familyId, /:gen-/i);
+    assert.ok(Number(doc.familyVersion) >= 3, `${doc.familyId} must carry the V2 family version`);
   }
 });
