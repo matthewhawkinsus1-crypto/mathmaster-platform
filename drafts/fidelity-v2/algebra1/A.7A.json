@@ -406,7 +406,134 @@
           "yl": "A+k",
           "yr": "A+k"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-half-unit-vertex-standard-form-graph",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Graph $y={{A}}x^2{{B|signed}}x{{C|signed}}$. The axis of symmetry is a HALF-UNIT value, so use $x=-B/(2A)$ exactly, plot the vertex and symmetric points on the 0.5 grid, then report the vertex and axis.",
+          "equationLatex": "y={{A}}x^2{{B|signed}}x{{C|signed}}",
+          "functionSpec": {
+            "type": "quadratic",
+            "a": "{{A}}",
+            "h": "{{h}}",
+            "k": "{{k}}"
+          },
+          "graph": {
+            "xMin": -8,
+            "xMax": 8,
+            "yMin": -12,
+            "yMax": 12,
+            "snapStep": 0.5
+          },
+          "pointTasks": [
+            {
+              "id": "left",
+              "label": "Plot the point at x={{xl}}",
+              "x": "{{xl}}",
+              "expected": [
+                "{{xl}}",
+                "{{yl}}"
+              ]
+            },
+            {
+              "id": "vertex",
+              "label": "Plot the half-unit vertex",
+              "x": "{{h}}",
+              "expected": [
+                "{{h}}",
+                "{{k}}"
+              ]
+            },
+            {
+              "id": "right",
+              "label": "Plot the point at x={{xr}}",
+              "x": "{{xr}}",
+              "expected": [
+                "{{xr}}",
+                "{{yr}}"
+              ]
+            }
+          ],
+          "analysisRequests": [
+            {
+              "id": "vertexPair",
+              "label": "Vertex ordered pair",
+              "kind": "value",
+              "responseMode": "text",
+              "acceptedAnswers": [
+                "({{h}},{{k}})",
+                "{{h}},{{k}}"
+              ]
+            },
+            {
+              "id": "axis",
+              "label": "Axis of symmetry x-value",
+              "kind": "value",
+              "responseMode": "text",
+              "expected": [
+                "{{h}}"
+              ]
+            }
+          ],
+          "solutionReview": {
+            "headline": "Standard form can place the axis between integer grid lines.",
+            "reasoning": [
+              "Using x=-B/(2A) gives the half-unit axis x={{h}}.",
+              "Evaluating the function there gives vertex ({{h}},{{k}}).",
+              "The points one unit left and right have equal output {{yl}}, confirming symmetry."
+            ],
+            "answerSummary": "Vertex ({{h}},{{k}}); axis x={{h}}."
+          },
+          "attemptFeedback": [
+            "Keep -B/(2A) exact before graphing; do not round the half-unit axis to an integer."
+          ],
+          "supportHints": [
+            "Use the 0.5 snap grid for the vertex, then plot one symmetric point on each side."
+          ],
+          "generator": {
+            "parameters": {
+              "A": {
+                "type": "choice",
+                "values": [
+                  -2,
+                  2
+                ]
+              },
+              "h": {
+                "type": "choice",
+                "values": [
+                  -2.5,
+                  -1.5,
+                  -0.5,
+                  0.5,
+                  1.5,
+                  2.5
+                ]
+              },
+              "k": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            },
+            "derived": {
+              "B": "-2*A*h",
+              "C": "A*h*h+k",
+              "xl": "h-1",
+              "xr": "h+1",
+              "yl": "A+k",
+              "yr": "A+k"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_7A_v2_error-vertex-is-yintercept",
