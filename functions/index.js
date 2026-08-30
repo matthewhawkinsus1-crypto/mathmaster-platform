@@ -6051,7 +6051,10 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     preferredDifficultyBand = Number(session.ccmrChallengeTier) >= 3 ? 5 : Math.max(4, Number(preferredDifficultyBand || 3));
     preferredDok = Number(session.ccmrChallengeTier) >= 3 ? Math.max(3, Number(preferredDok || 2)) : Math.max(2, Number(preferredDok || 2));
   }
-  if (!session.assessmentFramework && session.sessionKind !== "retentionProbe") {
+  // A frozen weekly slot is authoritative while we are on its assigned TEKS.
+  // Do not let an unrelated open-practice pass level rewrite the week's DOK or
+  // difficulty commitment after the snapshot has already been assigned.
+  if (!session.assessmentFramework && session.sessionKind !== "retentionProbe" && !onAssignedWeeklyTarget) {
     const coursePassLevel = Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1)));
     if (coursePassLevel >= 2) {
       preferredDifficultyBand = Math.max(4, Number(preferredDifficultyBand || 3));
@@ -6071,6 +6074,7 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
   // actually receives Challenge work rather than a stale core-rigor question.
   if (
     !session.assessmentFramework
+    && !onAssignedWeeklyTarget
     && session.lastDecision?.action === "enrichment"
     && activeDisplayCode === targetDisplayCode
     && !session.diagnosing
