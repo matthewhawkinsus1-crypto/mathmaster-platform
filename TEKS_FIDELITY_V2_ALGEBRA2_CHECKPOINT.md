@@ -618,7 +618,7 @@ Do **not** re-audit A2.6D unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.6E — ENHANCE — AUDITED / AUTHORING
+### A2.6E — ENHANCE — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Solve absolute value linear equations.**
 
@@ -647,6 +647,21 @@ Resume here. Do not reopen A2.2A–A2.6D unless a failing gate names them.
   - include contextual interpretation and complete error repair;
   - remain solve-focused: A2.6D owns formulation and A2.6F owns inequalities.
 - Generic secure response grading is sufficient; no new Path capability is required.
+
+
+### 2026-08-30 — A2.6E staged and gated
+- Staged five A2.6E Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6E.json` — commit `47d03fce146924328f341b60e72098cebd92b483`.
+- Package/build run `33326413928`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - complete two-case solving from a basic absolute-value equation;
+  - outside-scaled/shifted equations with a nontrivial linear expression inside;
+  - the exactly-one-solution case when isolated absolute value equals zero;
+  - a contextual two-time solve with full isolate/case evidence;
+  - complete no-solution error repair when the isolated absolute value is negative.
+- Added A2.6E-specific generated certification — commit `38329a76f0a9df8676dbff7e55b067eeb1dfc6a3`.
+- The A2.6E gate samples 200+ generated instances, checks production issuability and secure self-grading, requires repeated two-case evidence, one/two/zero solution-count breadth, repeated nontrivial linear interiors, context/error repair, wrong-outcome rejection, and public answer-key stripping.
+- Full A2.6E assertion run `33326432567`: **QUEUED/RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.6E** until that run is green.
 
 
 ### 2026-08-30 — A2.6D audit finding
