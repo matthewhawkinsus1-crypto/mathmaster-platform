@@ -434,3 +434,45 @@ Do not reopen this pass merely because an older snapshot above shows missing cel
 - **Live Challenge** is the separate teacher-led synchronous competition feature.
 - CCMR transfer is also separate and should not substitute for course-TEKS Challenge content.
 
+
+
+## SHIPPING STATUS — Certified Fidelity V2 seeds promoted
+
+Date: 2026-08-30
+
+The adaptive-content work is no longer staged-only.
+
+- Added deterministic production builder:
+  - `scripts/build-algebra-fidelity-v2-production-seeds.mjs`
+- Added guarded promotion workflow:
+  - `.github/workflows/promote-algebra-fidelity-v2-seeds.yml`
+- Promotion workflow run `33341606856`: **PASS**.
+- Auto-commit produced:
+  - `daee909d31e7da6268f796b87cd2799201487a05` — **Promote certified Algebra I II Fidelity V2 Path seeds**
+- The workflow passed, in order:
+  1. certified Algebra I/II seed generation;
+  2. Path coverage manifest rebuild;
+  3. generated seed parity check;
+  4. strict DOK/difficulty metadata audit;
+  5. strict qualitative Challenge audit;
+  6. runtime adaptive-variant targeting tests;
+  7. shipping-seed commit.
+- Algebra I shipping seed now contains **245/245 Fidelity V2 families**.
+- Algebra I shipping seed has **88 variant-bearing families / 210 authored variants** at this checkpoint.
+- Algebra II shipping seed was rebuilt from all **48 certified Fidelity V2 standard packages / 240 families**; workflow parity passed before commit.
+- Both `seed/pathQuestionBank` and `functions/seeds/pathQuestionBank` mirrors are generated from the certified Fidelity V2 source.
+
+### Lock rule
+
+Algebra I / Algebra II core fidelity, Challenge/Extension, independent DOK/difficulty coverage, runtime target-aware variant selection, and shipping seed promotion are now **LOCKED COMPLETE**.
+
+Do not return to course-content authoring unless a named fidelity/adaptive/seed-parity regression fails.
+
+### Next active phase
+
+Resume the previously planned **student Path experience / integration** work:
+- make TEKS / CCMR context visibly useful to students;
+- verify Challenge/Extension and higher-pass states are understandable in the UI;
+- make completion and repeat/higher-level passes visually distinct;
+- verify topic/path navigation does not hide available course or CCMR work;
+- ensure the newly targeted DOK/difficulty variant metadata reaches the student-facing task context without exposing answer keys or internal scoring machinery.
