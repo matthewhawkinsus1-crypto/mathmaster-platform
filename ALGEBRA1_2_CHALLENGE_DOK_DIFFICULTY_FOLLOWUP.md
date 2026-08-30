@@ -145,3 +145,35 @@ The audit should support:
 ## Historical seed-bank snapshot
 
 The older production seeds had broad DOK 1/2/3 and bands 2/3/4 labels but frequently moved DOK and difficulty together. Those historical counts are useful for comparison but are **not** the source of truth for this follow-up. The Fidelity V2 files above are the source of truth.
+
+
+## Progress — Algebra I Challenge complete and A.2 adaptive batch green
+
+### Challenge pass
+- Algebra I Challenge/Extension readiness is now **49/49**.
+- Algebra II Challenge/Extension readiness remains **48/48**.
+- The final Algebra I Challenge head passed both:
+  - Algebra I Fidelity V2 Certification — run `33335277250`;
+  - Algebra I II Challenge DOK Difficulty Audit — run `33335277259`.
+- The earlier "14/49 Challenge-ready" snapshot above is historical; the current source-of-truth challenge count is **49/49**.
+
+### Algebra I independent-axis pass — A.2A through A.2I
+- Added authentic missing 2/2, 2/4, and/or 3/3 variants across A.2A–A.2I while preserving exactly five families per standard.
+- No metadata-only relabeling was used; the variants change the actual task evidence, representation, or reasoning demand.
+- A variant-inheritance issue was caught by the full Fidelity gate: shallow variant merging inherited base solution/stimulus placeholders. All A.2 variants were repaired to be self-contained.
+- Structural placeholder audit after repair: **0 unbound placeholders** across A.2A–A.2I variants.
+- Full Algebra I Fidelity V2 Certification — run `33336037685`: **PASS**.
+- Cross-course Challenge/DOK audit — run `33336037655`: **PASS**.
+
+Current Algebra I adaptive counts after the A.2 batch:
+- Challenge-ready: **49/49**
+- Complete DOK2 axis (2/2 + 2/3 + 2/4): **15/49**
+- Complete DOK3 axis (3/3 + 3/4): **18/49**
+- Missing 2/2: **22**
+- Missing 2/3: **0**
+- Missing 2/4: **17**
+- Missing 3/3: **31**
+- Missing 3/4: **0**
+- Standards still failing strict preferred-cell readiness: **40/49**
+
+Next batch: **A.3A–A.3H**.
