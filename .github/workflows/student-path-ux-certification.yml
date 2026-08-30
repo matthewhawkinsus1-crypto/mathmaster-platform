@@ -17,6 +17,10 @@ on:
       - src/components/student/PathSessionPlayer.jsx
       - src/components/common/StandardBadge.jsx
       - src/platform/path/pathPassPresentation.js
+      - tests/platform/weeklyPathPlan.test.mjs
+      - tests/platform/recommendationV2.test.mjs
+      - src/platform/path/weeklyPathPlan.js
+      - src/platform/path/recommendationV2.js
       - functions/index.js
       - tests/platform/pathAdaptiveVariantTargeting.test.mjs
       - tests/platform/pathPassDashboardUx.test.mjs
@@ -39,6 +43,8 @@ jobs:
             tests/platform/pathPassDashboardUx.test.mjs \
             tests/platform/studentPathEntryUx.test.mjs \
             tests/platform/pathStudentWorkspace.test.mjs \
-            tests/platform/pathAdaptiveVariantTargeting.test.mjs
+            tests/platform/pathAdaptiveVariantTargeting.test.mjs \
+            tests/platform/recommendationV2.test.mjs \
+            tests/platform/weeklyPathPlan.test.mjs
       - name: Build student runtime
         run: npm run build
