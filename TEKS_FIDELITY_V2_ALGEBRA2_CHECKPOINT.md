@@ -716,6 +716,13 @@ Resume here. Do not reopen A2.2A–A2.6L unless a failing gate names them.
   - keep DOK separate from computational difficulty: routine multi-step complex arithmetic remains DOK 2; complete error analysis may be DOK 3.
 - Generic secure expression grading appears sufficient because final responses are simplified linear expressions in (i); certify equivalent term order/sign forms and wrong-operation rejection before locking.
 
+### 2026-08-30 — A2.7A staged
+- Staged five A2.7A Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7A.json` — commit `89a3edc26650c3946da1b59e7574cf87c9450253`.
+- Coverage includes addition with separately graded components, subtraction to a pure-imaginary result, general non-conjugate multiplication, a mixed conjugate-product/subtraction family yielding a pure-real result, and complete (i^2) error repair.
+- Routine multi-step arithmetic remains DOK 2 across difficulty bands 2–4; only complete error repair is DOK 3.
+- Base Algebra II certification run `33330594410`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.7A** until the full generated certification is green.
+
 
 ### 2026-08-30 — A2.6L audit finding
 - Official construct: **formulate and solve equations involving inverse variation**.
