@@ -3717,3 +3717,149 @@ test('A2.6F solves absolute-value linear inequalities through isolation, AND/OR 
   assert.ok(representations.has('verbal'));
 });
 
+test('A2.6G analyzes reciprocal transformations through full a-b-h-k effects and the equivalent a/b coefficient', async () => {
+  const entry = payload('A2.6G');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /full-reciprocal-transform-analysis-a-b-h-k/);
+
+  const authoredText = stringValues(entry.documents).join(' ').toLowerCase();
+  for (const required of ['horizontal scale','horizontal reflection','vertical asymptote','horizontal asymptote','a/b']) {
+    assert.ok(authoredText.includes(required), `A2.6G package is missing required reasoning: ${required}`);
+  }
+
+  let generatedCount = 0;
+  let negativeAFamilies = 0;
+  let negativeBFamilies = 0;
+  let stretchFamilies = 0;
+  let compressionFamilies = 0;
+  let reverseFamilies = 0;
+  let errorFamilies = 0;
+  let wrongEffectRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const text = stringValues(doc).join(' ').toLowerCase();
+    if (/a=-|x-axis reflection/.test(text)) negativeAFamilies += 1;
+    if (/b=-|b<0|-2\(x|-4\(x/.test(text)) negativeBFamilies += 1;
+    if (/horizontal stretch/.test(text)) stretchFamilies += 1;
+    if (/horizontal compression|horizontal scale.*0\.25|horizontal scale.*0\.5/.test(text)) compressionFamilies += 1;
+    if (doc.taskType === 'reverseReasoning') reverseFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let spoiledChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const fields = Object.fromEntries(
+        (question.responseFields || []).map((field) => [field.id, field]),
+      );
+      assert.ok(fields.va && fields.ha, `${doc.id} must preserve both reciprocal asymptotes`);
+
+      if (doc.id.includes('combined-symbolic-effects')) {
+        assert.ok([2,4].includes(Number(fields['vertical-scale']?.expected)));
+        assert.ok([0.5,0.25].includes(Number(fields['horizontal-scale']?.expected)));
+        assert.equal(fields['x-reflection']?.expected, 'yes');
+        assert.equal(fields['horizontal-reflection']?.expected, 'no');
+        assert.ok(Number(fields.effective?.expected) < 0);
+      }
+
+      if (doc.id.includes('negative-b-point-map')) {
+        const neg = String(fields['neg-image']?.expected).match(/^\((-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\)$/);
+        const pos = String(fields['pos-image']?.expected).match(/^\((-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\)$/);
+        assert.ok(neg && pos);
+        const h = Number(fields.va.expected);
+        const k = Number(fields.ha.expected);
+        assert.equal(Number(neg[1]), h + 0.5);
+        assert.equal(Number(pos[1]), h - 0.5);
+        assert.equal(Number(neg[2]), k - 3);
+        assert.equal(Number(pos[2]), k + 3);
+        assert.equal(Number(fields['horizontal-scale']?.expected), 0.5);
+        assert.equal(fields['horizontal-reflection']?.expected, 'yes');
+        assert.equal(Number(fields.effective?.expected), -1.5);
+      }
+
+      if (doc.id.includes('graph-horizontal-stretch')) {
+        const points = question.stimulus?.graph?.points || [];
+        assert.equal(points.length, 2);
+        const h = Number(fields.va.expected);
+        const k = Number(fields.ha.expected);
+        assert.equal(Number(points[0].x), h - 2);
+        assert.equal(Number(points[1].x), h + 2);
+        assert.equal(Number(points[0].y), k - 2);
+        assert.equal(Number(points[1].y), k + 2);
+        assert.equal(Number(fields['horizontal-scale']?.expected), 2);
+        assert.equal(Number(fields['vertical-scale']?.expected), 2);
+        assert.equal(Number(fields.effective?.expected), 4);
+      }
+
+      if (doc.id.includes('reverse-specified-sequence')) {
+        assert.equal(Number(fields.a?.expected), -3);
+        assert.equal(Number(fields.b?.expected), -2);
+        assert.equal(Number(fields.effective?.expected), 1.5);
+        assert.equal(fields.orientation?.expected, 'same');
+      }
+
+      if (doc.taskType === 'errorAnalysis') {
+        assert.equal(Number(fields['horizontal-scale']?.expected), 0.25);
+        assert.equal(fields['horizontal-reflection']?.expected, 'yes');
+        assert.equal(Number(fields.effective?.expected), -0.5);
+        assert.equal(fields.orientation?.expected, 'opposite');
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(correct.fieldResults)}`,
+      );
+
+      if (!spoiledChecked) {
+        const field = grading.fields.find((item) => ['horizontal-scale','horizontal-reflection','orientation','effective'].includes(item.id)) || grading.fields[0];
+        const expected = field.expected ?? field.accepted?.[0];
+        const wrongValue = Number.isFinite(Number(expected))
+          ? Number(expected) + 1
+          : (String(expected) === 'yes' ? 'no' : '__wrong__');
+        const wrong = await gradeResponse(grading, { responses:{...responses,[field.id]:wrongValue} });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted an incorrect reciprocal transformation effect`);
+        wrongEffectRejected += 1;
+        spoiledChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(negativeAFamilies >= 2);
+  assert.ok(negativeBFamilies >= 3);
+  assert.ok(stretchFamilies >= 1);
+  assert.ok(compressionFamilies >= 2);
+  assert.ok(reverseFamilies >= 1);
+  assert.ok(errorFamilies >= 1);
+  assert.equal(wrongEffectRejected, entry.documents.length);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('graph'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('verbal'));
+});
+
