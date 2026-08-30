@@ -1,4 +1,31 @@
-# Algebra I TEKS Fidelity V2 — PROMOTED CHECKPOINT
+# Algebra I TEKS Fidelity V2 — RELEASE-CERTIFIED CHECKPOINT
+
+## Definitive status — August 30, 2026
+
+- Branch: `audit/teks-fidelity-v2-algebra1`
+- Draft PR: **#80**
+- Certified head: `780b9e6fbf5cf6d7bdfba8417a1fb392b4369572`
+- **Algebra I Fidelity V2 is release-certified.**
+- Coverage: **49/49 Algebra I TEKS standards**
+- Candidate/shipping bank: **245/245 V2 families (5 per standard)**
+- Canonical source promotion: **COMPLETE**
+- Both Algebra I seed mirrors: **MATCH canonical source**
+- Path coverage manifests: **REBUILT**
+- Post-promotion required workflows on the certified head:
+  - Correct Answer Acceptance Audit — **GREEN**
+  - Algebra I Fidelity V2 Certification — **GREEN**
+  - Assignment V5 Foundation — **GREEN**
+  - Path Tool Browser Contract — **GREEN**
+  - Full Platform Test Suite — **GREEN**
+- Vercel status is red only because of the known **build-rate-limit** URL; this is not a code/test failure and is not treated as a Fidelity V2 blocker.
+- Firestore/content deployment remains a separate deployment step; certification of the repository content is complete.
+- **Exact next work:** begin Algebra II Fidelity V2 from this exact certified head. Do not reuse an Algebra II branch based on an older head.
+
+---
+
+## Historical working notes
+
+Everything below this line is retained as audit history. If any older note conflicts with the definitive status above, the definitive status above controls.
 
 ## Current resume anchor — August 30, 2026
 
