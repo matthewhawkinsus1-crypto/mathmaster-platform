@@ -29,6 +29,7 @@ on:
       - tests/platform/pathAdaptiveVariantTargeting.test.mjs
       - tests/platform/pathPassDashboardUx.test.mjs
       - tests/platform/teacherPathTargetParity.test.mjs
+      - tests/platform/teacherPathFieldGradingParity.test.mjs
       - .github/workflows/student-path-ux-certification.yml
 
 jobs:
@@ -47,6 +48,7 @@ jobs:
           node --test \
             tests/platform/pathPassDashboardUx.test.mjs \
             tests/platform/teacherPathTargetParity.test.mjs \
+            tests/platform/teacherPathFieldGradingParity.test.mjs \
             tests/platform/studentPathEntryUx.test.mjs \
             tests/platform/pathStudentWorkspace.test.mjs \
             tests/platform/pathAdaptiveVariantTargeting.test.mjs \
