@@ -454,11 +454,25 @@ const shuffleWithRandom = (values, random) => {
 
 // --- the generator --------------------------------------------------------------
 
-export const hasPathGenerator = (question) => Boolean(
+const hasDirectPathGenerator = (question) => Boolean(
   question?.generator && typeof question.generator === 'object'
   && question.generator.parameters && typeof question.generator.parameters === 'object'
-  && Object.keys(question.generator.parameters).length > 0,
+  && Object.keys(question.generator.parameters).length > 0
 );
+
+export const hasPathGenerator = (question) => Boolean(
+  hasDirectPathGenerator(question)
+  || (Array.isArray(question?.variants) && question.variants.some((variant) => hasDirectPathGenerator(variant)))
+);
+
+const selectPathVariant = (template, seedKey) => {
+  const variants = Array.isArray(template?.variants) ? template.variants.filter((entry) => entry && typeof entry === 'object') : [];
+  if (!variants.length) return { template, variantIndex: null };
+  const random = createSeededRandom(`${template.id || 'template'}|${seedKey}|variant`);
+  const variantIndex = Math.floor(random() * variants.length);
+  const { variants: unusedVariants, ...base } = template;
+  return { template: { ...base, ...variants[variantIndex] }, variantIndex };
+};
 
 /**
  * One question from one template, for one seed.
@@ -469,10 +483,14 @@ export const hasPathGenerator = (question) => Boolean(
  * a student asks for a question.
  */
 export const generatePathInstance = (template, seedKey) => {
-  if (!hasPathGenerator(template)) return { question: template, parameters: null, reason: null };
+  const selected = selectPathVariant(template, seedKey);
+  const resolvedTemplate = selected.template;
+  if (!hasDirectPathGenerator(resolvedTemplate)) {
+    return { question: resolvedTemplate, parameters: selected.variantIndex == null ? null : { __variantIndex: selected.variantIndex }, reason: null };
+  }
 
-  const generator = template.generator;
-  const random = createSeededRandom(`${template.id || 'template'}|${seedKey}|v${generator.version || 1}`);
+  const generator = resolvedTemplate.generator;
+  const random = createSeededRandom(`${resolvedTemplate.id || 'template'}|${seedKey}|v${generator.version || 1}`);
   const parameterNames = Object.keys(generator.parameters);
   const derived = generator.derived && typeof generator.derived === 'object' ? generator.derived : {};
   const constraints = Array.isArray(generator.constraints) ? generator.constraints : [];
@@ -507,7 +525,7 @@ export const generatePathInstance = (template, seedKey) => {
 
     if (!constraints.every((expression) => evaluateExpression(expression, scope) === 1)) continue;
 
-    const { generator: unused, ...document } = template;
+    const { generator: unused, variants: unusedVariants, ...document } = resolvedTemplate;
     const filled = substitute(document, scope);
     if (Array.isArray(filled.choices) && filled.choices.length > 1) {
       filled.choices = shuffleWithRandom(filled.choices, random);
@@ -517,7 +535,11 @@ export const generatePathInstance = (template, seedKey) => {
     if (unbound.length) {
       return { question: null, parameters: scope, reason: `unbound_placeholders:${unbound.join(',')}` };
     }
-    return { question: filled, parameters: scope, reason: null };
+    return {
+      question: filled,
+      parameters: selected.variantIndex == null ? scope : { ...scope, __variantIndex: selected.variantIndex },
+      reason: null,
+    };
   }
 
   return { question: null, parameters: null, reason: 'constraints_unsatisfiable' };
