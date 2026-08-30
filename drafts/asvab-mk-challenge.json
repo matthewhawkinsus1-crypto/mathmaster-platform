@@ -39896,6 +39896,3436 @@
     "sourceFamilyId": "mathmaster:asvab:mk:A.10B:what-a-difference-of-brackets-gives",
     "sourcePrompt": "What does $(x + {{p}})(x - {{p}})$ come to?"
    }
+  },
+  {
+   "id": "mm_asvab_mk_A_10C_divide_by_a_binomial_with_a_coefficient",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10C:divide-by-a-binomial-with-a-coefficient",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10C",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is $({{a}}x^2 + {{mid}}x + {{last}}) \\div ({{b}}x + {{q}})$?",
+   "solutionReview": {
+    "headline": "Match the leading terms, then the constants.",
+    "reasoning": [
+     "The leading terms give ${{a}} \\div {{b}} = {{c}}$, so the quotient starts ${{c}}x$.",
+     "The constants give ${{last}} \\div {{q}} = {{p}}$."
+    ],
+    "answerSummary": "It is ${{c}}x + {{p}}$."
+   },
+   "attemptFeedback": [
+    "The quotient is smaller than the polynomial it came from."
+   ],
+   "supportHints": [
+    "Ask what multiplies ${{b}}x$ to give ${{a}}x^2$."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "a": "b*c",
+     "mid": "b*p+c*q",
+     "last": "p*q"
+    },
+    "constraints": [
+     "b!=c",
+     "p!=q",
+     "c!=p",
+     "b*c!=p*q"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{p}}x + {{c}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}x + {{last}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{c}}x + {{p}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{c}}x - {{p}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10C:divide-by-a-binomial-with-a-coefficient",
+    "sourcePrompt": "What is $({{a}}x^2 + {{mid}}x + {{last}}) \\div ({{b}}x + {{q}})$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10C_how_much_longer_the_other_side_is",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10C:how-much-longer-the-other-side-is",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10C",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A rectangle covers $x^2 + {{sum}}x + {{product}}$ and one side is $x + {{p}}$. By how much does the other side exceed it?",
+   "solutionReview": {
+    "headline": "Divide out the known side, then compare the constants.",
+    "reasoning": [
+     "Dividing gives the other side as $x + {{q}}$.",
+     "That exceeds $x + {{p}}$ by ${{answer}}$."
+    ],
+    "answerSummary": "It exceeds it by ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The sum of the constants is the middle coefficient, not the gap."
+   ],
+   "supportHints": [
+    "The two constants multiply to ${{product}}$."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 34
+     },
+     "gap": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     }
+    },
+    "derived": {
+     "q": "p+gap",
+     "sum": "2*p+gap",
+     "product": "p*(p+gap)",
+     "answer": "gap",
+     "d_operationInverted": "2*p+gap",
+     "d_usedGivenValue": "p",
+     "d_signError": "0-gap"
+    },
+    "constraints": [
+     "gap>2",
+     "abs(p-gap)>3",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_operationInverted!=d_signError",
+     "d_usedGivenValue!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10C:how-much-longer-the-other-side-is",
+    "sourcePrompt": "A rectangle covers $x^2 + {{sum}}x + {{product}}$ and one side is $x + {{p}}$. By how much does the other side exceed it?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10C_claim_about_an_exact_division",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10C:claim-about-an-exact-division",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10C",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A quadratic divides exactly by $x + {{p}}$. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "A factor $x + p$ gives the zero $-p$.",
+    "reasoning": [
+     "A factor of $x + {{p}}$ vanishes when $x = -{{p}}$, not when $x = {{p}}$.",
+     "So the zero sits on the negative side."
+    ],
+    "answerSummary": "The zero is $-{{p}}$."
+   },
+   "attemptFeedback": [
+    "Dividing exactly and factoring are the same statement."
+   ],
+   "supportHints": [
+    "Set the factor equal to zero and solve."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     }
+    },
+    "constraints": [
+     "p!=q"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "It has $x + {{p}}$ as one of its factors.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "It has a zero at $x = -{{p}}$.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "It has a zero at $x = {{p}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "Substituting $-{{p}}$ makes it zero.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10C:claim-about-an-exact-division",
+    "sourcePrompt": "A quadratic divides exactly by $x + {{p}}$. Which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10D_two_brackets_one_subtracted",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10D:two-brackets-one-subtracted",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10D",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Write ${{k}}({{a}}x - {{b}}) - {{m}}({{c}}x - {{d}})$ without brackets.",
+   "solutionReview": {
+    "headline": "A subtracted bracket has every sign inside it changed.",
+    "reasoning": [
+     "The minus in front of the second bracket flips both terms inside it.",
+     "That gives ${{coef}}x + {{con}}$."
+    ],
+    "answerSummary": "It is ${{coef}}x + {{con}}$."
+   },
+   "attemptFeedback": [
+    "Subtracting $-{{m}} \\times {{d}}$ adds, so the constant rises."
+   ],
+   "supportHints": [
+    "Expand each bracket separately before combining."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "coef": "k*a-m*c",
+     "con": "m*d-k*b",
+     "conBad": "0-k*b-m*d",
+     "coefBad": "k*a+m*c",
+     "conFlat": "d-b"
+    },
+    "constraints": [
+     "k*a-m*c>0",
+     "m*d-k*b>0",
+     "d-b!=m*d-k*b",
+     "k*a!=m*c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{coefBad}}x + {{con}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{coef}}x + {{conFlat}}$",
+     "error": "incompleteFactoring"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{coef}}x + {{con}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{coef}}x + {{conBad}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10D:two-brackets-one-subtracted",
+    "sourcePrompt": "Write ${{k}}({{a}}x - {{b}}) - {{m}}({{c}}x - {{d}})$ without brackets."
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10D_largest_factor_of_a_binomial",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10D:largest-factor-of-a-binomial",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10D",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Taking out the largest possible factor, ${{ka}}x + {{kb}}$ becomes $g({{a}}x + {{b}})$. What is $g$?",
+   "solutionReview": {
+    "headline": "The largest factor leaves a bracket with nothing left to take out.",
+    "reasoning": [
+     "${{ka}}$ and ${{kb}}$ share the factor ${{g}}$, and what is left shares nothing further.",
+     "So $g = {{answer}}$."
+    ],
+    "answerSummary": "$g = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "A term inside the bracket is what is left after the factor comes out."
+   ],
+   "supportHints": [
+    "Check that ${{a}}$ and ${{b}}$ share no factor."
+   ],
+   "generator": {
+    "parameters": {
+     "g": {
+      "type": "int",
+      "min": 3,
+      "max": 24
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "ka": "g*a",
+     "kb": "g*b",
+     "answer": "g",
+     "d_usedGivenValue": "ka",
+     "d_forgotFinalStep": "a",
+     "d_ratioReversed": "b"
+    },
+    "constraints": [
+     "gcd(a,b)==1",
+     "a!=b",
+     "abs(a-g)>2",
+     "abs(b-g)>2",
+     "answer!=d_usedGivenValue",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_ratioReversed",
+     "d_usedGivenValue!=d_forgotFinalStep",
+     "d_usedGivenValue!=d_ratioReversed",
+     "d_forgotFinalStep!=d_ratioReversed"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10D:largest-factor-of-a-binomial",
+    "sourcePrompt": "Taking out the largest possible factor, ${{ka}}x + {{kb}}$ becomes $g({{a}}x + {{b}})$. What is $g$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10D_shared_factor_across_two_brackets",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10D:shared-factor-across-two-brackets",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10D",
+   "taskType": "representationTranslation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which of the listed expressions equals ${{k}}({{a}}x + {{b}}) + {{k}}({{c}}x + {{d}})$?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Expression"
+    ],
+    "rows": [
+     [
+      "${{k}}({{ac}}x + {{bd}})$"
+     ],
+     [
+      "${{k2}}({{ac}}x + {{bd}})$"
+     ],
+     [
+      "${{k}}({{ac}}x + {{b}})$"
+     ],
+     [
+      "${{k}}({{aTimesC}}x + {{bd}})$"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "A shared factor is taken out once for the whole sum.",
+    "reasoning": [
+     "The shared ${{k}}$ comes out once, not twice.",
+     "What is left inside adds term by term, giving ${{ac}}x + {{bd}}$."
+    ],
+    "answerSummary": "It is ${{k}}({{ac}}x + {{bd}})$."
+   },
+   "attemptFeedback": [
+    "Doubling the factor doubles the whole expression."
+   ],
+   "supportHints": [
+    "Expand both brackets and then take the factor back out."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "ac": "a+c",
+     "bd": "b+d",
+     "k2": "2*k",
+     "aTimesC": "a*c"
+    },
+    "constraints": [
+     "a+c!=a*c",
+     "b+d!=b",
+     "a!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{k2}}({{ac}}x + {{bd}})$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{k}}({{aTimesC}}x + {{bd}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{k}}({{ac}}x + {{b}})$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{k}}({{ac}}x + {{bd}})$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10D:shared-factor-across-two-brackets",
+    "sourcePrompt": "Which of the listed expressions equals ${{k}}({{a}}x + {{b}}) + {{k}}({{c}}x + {{d}})$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10E_perimeter_from_a_factored_area",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10E:perimeter-from-a-factored-area",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10E",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A rectangle covers ${{a}}x^2 + {{mid}}x + {{last}}$. What is its perimeter?",
+   "solutionReview": {
+    "headline": "Factor to find the sides, then double their total.",
+    "reasoning": [
+     "The area factors as $({{b}}x + {{p}})({{c}}x + {{q}})$, which are the two sides.",
+     "Twice their total is ${{coef}}x + {{con}}$."
+    ],
+    "answerSummary": "It is ${{coef}}x + {{con}}$."
+   },
+   "attemptFeedback": [
+    "The sides add for a perimeter; they multiply only for the area."
+   ],
+   "supportHints": [
+    "A perimeter counts each side twice."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "a": "b*c",
+     "mid": "b*q+c*p",
+     "last": "p*q",
+     "coef": "2*(b+c)",
+     "con": "2*(p+q)",
+     "halfCoef": "b+c",
+     "halfCon": "p+q",
+     "prodCoef": "2*b*c",
+     "prodCon": "2*p*q"
+    },
+    "constraints": [
+     "b!=c",
+     "p!=q",
+     "2*(b+c)!=2*b*c",
+     "2*(p+q)!=2*p*q"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{halfCoef}}x + {{halfCon}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{coef}}x + {{halfCon}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{prodCoef}}x + {{prodCon}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{coef}}x + {{con}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10E:perimeter-from-a-factored-area",
+    "sourcePrompt": "A rectangle covers ${{a}}x^2 + {{mid}}x + {{last}}$. What is its perimeter?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10E_missing_constant_in_a_second_factor",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10E:missing-constant-in-a-second-factor",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10E",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A quadratic factors as $({{b}}x + {{p}})({{c}}x + q)$ and its middle coefficient is ${{mid}}$. What is $q$?",
+   "solutionReview": {
+    "headline": "The middle term collects both cross products.",
+    "reasoning": [
+     "The middle coefficient is ${{b}}q + {{c}} \\times {{p}}$.",
+     "Setting that equal to ${{mid}}$ gives $q = {{answer}}$."
+    ],
+    "answerSummary": "$q = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The middle coefficient still has the other cross product inside it."
+   ],
+   "supportHints": [
+    "Write the middle coefficient in terms of $q$ first."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "w": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "q": {
+      "type": "int",
+      "min": 6,
+      "max": 40
+     },
+     "cRaw": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "c": "cRaw",
+     "p": "b*w/cRaw",
+     "mid": "b*q+cRaw*p",
+     "answer": "q",
+     "d_forgotFinalStep": "mid",
+     "d_usedGivenValue": "p",
+     "d_signError": "0-q"
+    },
+    "constraints": [
+     "b*w%cRaw==0",
+     "b*w/cRaw>1",
+     "abs(p-q)>3",
+     "abs(mid-q)>4",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_signError",
+     "d_usedGivenValue!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10E:missing-constant-in-a-second-factor",
+    "sourcePrompt": "A quadratic factors as $({{b}}x + {{p}})({{c}}x + q)$ and its middle coefficient is ${{mid}}$. What is $q$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10E_claim_about_a_monic_factorisation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10E:claim-about-a-monic-factorisation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10E",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A quadratic factors as $(x + {{p}})(x + {{q}})$. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "Add for the middle, multiply for the constant.",
+    "reasoning": [
+     "Expanding gives $x^2 + ({{p}} + {{q}})x + {{p}}{{q}}$.",
+     "The two constants add for the middle term and multiply for the last one."
+    ],
+    "answerSummary": "The middle coefficient is ${{sum}}$."
+   },
+   "attemptFeedback": [
+    "The product does appear, but as the constant term."
+   ],
+   "supportHints": [
+    "Expand the two brackets."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "pq": "p*q",
+     "sum": "p+q"
+    },
+    "constraints": [
+     "p!=q",
+     "p*q!=p+q"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Its middle coefficient is ${{pq}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "Its middle coefficient is ${{sum}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "Its constant term is ${{pq}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "Its zeros are $-{{p}}$ and $-{{q}}$.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10E:claim-about-a-monic-factorisation",
+    "sourcePrompt": "A quadratic factors as $(x + {{p}})(x + {{q}})$. Which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10F_total_of_the_two_factors",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10F:total-of-the-two-factors",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10F",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Factor ${{aSq}}x^2 - {{bSq}}$. What do the two factors add to?",
+   "solutionReview": {
+    "headline": "The two constants are opposites, so they cancel.",
+    "reasoning": [
+     "The factors are $({{a}}x - {{b}})$ and $({{a}}x + {{b}})$.",
+     "Their constants cancel, leaving ${{twoA}}x$."
+    ],
+    "answerSummary": "They add to ${{twoA}}x$."
+   },
+   "attemptFeedback": [
+    "The factors carry ${{a}}x$ each, not ${{a}}^{2}x$."
+   ],
+   "supportHints": [
+    "Write both factors before adding them."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "aSq": "a*a",
+     "bSq": "b*b",
+     "twoA": "2*a",
+     "twoB": "2*b",
+     "aSq2": "2*a*a"
+    },
+    "constraints": [
+     "a!=b",
+     "2*a!=2*a*a"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{aSq2}}x$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{twoA}}x - {{twoB}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{twoA}}x$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{twoA}}x + {{twoB}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10F:total-of-the-two-factors",
+    "sourcePrompt": "Factor ${{aSq}}x^2 - {{bSq}}$. What do the two factors add to?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10F_constant_behind_a_known_factor",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10F:constant-behind-a-known-factor",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10F",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The expression ${{aSq}}x^2 - c$ factors as a difference of two squares with $({{a}}x - {{b}})$ as one factor. What is $c$?",
+   "solutionReview": {
+    "headline": "The constant is the square of the one in the factor.",
+    "reasoning": [
+     "A difference of squares needs the other factor to be $({{a}}x + {{b}})$.",
+     "Multiplying gives ${{aSq}}x^2 - {{answer}}$."
+    ],
+    "answerSummary": "$c = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The constant is squared, not left as it stands."
+   ],
+   "supportHints": [
+    "Write the matching factor and multiply out."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "aSq": "a*a",
+     "answer": "b*b",
+     "d_operationInverted": "a*a*b*b",
+     "d_forgotFinalStep": "b",
+     "d_usedGivenValue": "a*a"
+    },
+    "constraints": [
+     "a!=b",
+     "abs(a*a-b*b)>5",
+     "b*b>7",
+     "answer!=d_operationInverted",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_forgotFinalStep",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10F:constant-behind-a-known-factor",
+    "sourcePrompt": "The expression ${{aSq}}x^2 - c$ factors as a difference of two squares with $({{a}}x - {{b}})$ as one factor. What is $c$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10F_expression_that_is_not_a_difference_of_squares",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10F:expression-that-is-not-a-difference-of-squares",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10F",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which of the listed expressions cannot be factored as a difference of two squares?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Expression"
+    ],
+    "rows": [
+     [
+      "$x^2 + {{bSq}}$"
+     ],
+     [
+      "$x^2 - {{bSq}}$"
+     ],
+     [
+      "${{aSq}}x^2 - {{bSq}}$"
+     ],
+     [
+      "${{bSq}} - x^2$"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "The pattern is a difference, never a sum.",
+    "reasoning": [
+     "The pattern needs one square taken away from another.",
+     "A sum of two squares has no such factorisation over the real numbers."
+    ],
+    "answerSummary": "It is $x^2 + {{bSq}}$."
+   },
+   "attemptFeedback": [
+    "Which square comes first does not matter, so long as one is subtracted."
+   ],
+   "supportHints": [
+    "Look for a minus sign between two squares."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     }
+    },
+    "derived": {
+     "aSq": "a*a",
+     "bSq": "b*b"
+    },
+    "constraints": [
+     "a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x^2 - {{bSq}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{aSq}}x^2 - {{bSq}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{bSq}} - x^2$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x^2 + {{bSq}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10F:expression-that-is-not-a-difference-of-squares",
+    "sourcePrompt": "Which of the listed expressions cannot be factored as a difference of two squares?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_11A_combine_two_scaled_roots",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.11A:combine-two-scaled-roots",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Simplify ${{k}}\\sqrt{{{a}}} + {{m}}\\sqrt{{{b}}}$.",
+   "solutionReview": {
+    "headline": "Reduce both roots to the same surd before adding.",
+    "reasoning": [
+     "$\\sqrt{{{a}}}$ is ${{p}}\\sqrt{{{r}}}$ and $\\sqrt{{{b}}}$ is ${{q}}\\sqrt{{{r}}}$.",
+     "Adding gives $({{k}} \\times {{p}} + {{m}} \\times {{q}})\\sqrt{{{r}}}$."
+    ],
+    "answerSummary": "It is ${{coef}}\\sqrt{{{r}}}$."
+   },
+   "attemptFeedback": [
+    "Roots add only once the surd inside them matches."
+   ],
+   "supportHints": [
+    "Pull the square factors out of each root first."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     }
+    },
+    "derived": {
+     "a": "p*p*r",
+     "b": "q*q*r",
+     "coef": "k*p+m*q",
+     "coefFlat": "k+m",
+     "coefSwap": "k*q+m*p",
+     "ab": "a+b"
+    },
+    "constraints": [
+     "p!=q",
+     "r!=4",
+     "k*p+m*q!=k*q+m*p",
+     "k*p+m*q!=k+m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{coefSwap}}\\sqrt{{{r}}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{coefFlat}}\\sqrt{{{r}}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{coef}}\\sqrt{{{r}}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{coef}}\\sqrt{{{ab}}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.11A:combine-two-scaled-roots",
+    "sourcePrompt": "Simplify ${{k}}\\sqrt{{{a}}} + {{m}}\\sqrt{{{b}}}$."
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_11A_side_from_a_diagonal_in_surd_form",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.11A:side-from-a-diagonal-in-surd-form",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A rectangle is ${{w}}$ cm wide with a diagonal of $\\sqrt{{{d}}}$ cm. How tall is it?",
+   "solutionReview": {
+    "headline": "Work with the squares, then take one root at the end.",
+    "reasoning": [
+     "The diagonal squared is ${{d}}$, and the width squared is ${{w}} \\times {{w}}$.",
+     "What is left is the height squared, so the height is ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$ cm tall."
+   },
+   "attemptFeedback": [
+    "Subtracting the lengths themselves skips the squaring the theorem needs."
+   ],
+   "supportHints": [
+    "The diagonal is already given as a square root."
+   ],
+   "generator": {
+    "parameters": {
+     "w": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     }
+    },
+    "derived": {
+     "d": "w*w+h*h",
+     "answer": "h",
+     "d_operationInverted": "h*h",
+     "d_usedGivenValue": "w",
+     "d_forgotFinalStep": "round(sqrt(d))-w"
+    },
+    "constraints": [
+     "abs(w-h)>2",
+     "h>3",
+     "round(sqrt(w*w+h*h))-w>0",
+     "abs(round(sqrt(w*w+h*h))-w-h)>2",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "answer!=d_forgotFinalStep",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_operationInverted!=d_forgotFinalStep",
+     "d_usedGivenValue!=d_forgotFinalStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.11A:side-from-a-diagonal-in-surd-form",
+    "sourcePrompt": "A rectangle is ${{w}}$ cm wide with a diagonal of $\\sqrt{{{d}}}$ cm. How tall is it?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_11A_claim_about_a_simplified_root",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.11A:claim-about-a-simplified-root",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11A",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which statement about $\\sqrt{{{n}}}$ is wrong?",
+   "solutionReview": {
+    "headline": "A root splits across a product, not a quotient.",
+    "reasoning": [
+     "$\\sqrt{{{n}}}$ splits as $\\sqrt{{{p2}}} \\times \\sqrt{{{r}}}$, a product.",
+     "Dividing instead would give a far smaller value."
+    ],
+    "answerSummary": "The two roots multiply."
+   },
+   "attemptFeedback": [
+    "Pulling the square factor out really does give ${{p}}\\sqrt{{{r}}}$."
+   ],
+   "supportHints": [
+    "Square the claimed value and see what comes out."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     }
+    },
+    "derived": {
+     "n": "p*p*r",
+     "p2": "p*p",
+     "lo": "floor(sqrt(p*p*r))",
+     "hi": "floor(sqrt(p*p*r))+1"
+    },
+    "constraints": [
+     "r!=4",
+     "r!=1",
+     "floor(sqrt(p*p*r))>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "It equals ${{p}}\\sqrt{{{r}}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "It equals $\\sqrt{{{p2}}}$ divided by $\\sqrt{{{r}}}$."
+    },
+    {
+     "id": "choice-c",
+     "label": "It lies between ${{lo}}$ and ${{hi}}$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "Its square is ${{n}}$.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.11A:claim-about-a-simplified-root",
+    "sourcePrompt": "Which statement about $\\sqrt{{{n}}}$ is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_11B_power_of_a_scaled_term_over_a_power",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.11B:power-of-a-scaled-term-over-a-power",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Simplify $\\frac{({{k}}x^{{{a}}})^{{{b}}}}{x^{{{c}}}}$.",
+   "solutionReview": {
+    "headline": "An outer power reaches every factor inside.",
+    "reasoning": [
+     "Raising to the power ${{b}}$ reaches the ${{k}}$ as well as the $x$, giving ${{kb}}x^{{{a}} \\times {{b}}}$.",
+     "Dividing then takes ${{c}}$ off the exponent."
+    ],
+    "answerSummary": "It is ${{kb}}x^{{{exp}}}$."
+   },
+   "attemptFeedback": [
+    "Powers multiply when a power is raised to a power; they do not add."
+   ],
+   "supportHints": [
+    "Deal with the bracket before the division."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 3
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "kb": "k^b",
+     "exp": "a*b-c",
+     "expBad": "a+b-c",
+     "expProd": "a*b*c"
+    },
+    "constraints": [
+     "a*b-c>1",
+     "a+b-c>0",
+     "a*b-c!=a+b-c",
+     "a*b-c!=a*b*c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{kb}}x^{{{exp}}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{kb}}x^{{{expBad}}}$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{k}}x^{{{exp}}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{kb}}x^{{{expProd}}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.11B:power-of-a-scaled-term-over-a-power",
+    "sourcePrompt": "Simplify $\\frac{({{k}}x^{{{a}}})^{{{b}}}}{x^{{{c}}}}$."
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_11B_side_exponent_of_an_algebraic_cube",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.11B:side-exponent-of-an-algebraic-cube",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11B",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cube of side ${{k}}x^{m}$ has volume ${{V}}x^{{{pw}}}$. What is $m$?",
+   "solutionReview": {
+    "headline": "Cubing multiplies the exponent by three.",
+    "reasoning": [
+     "Cubing the side gives ${{k}}^{3}x^{3m}$.",
+     "Matching the exponent gives $3m = {{pw}}$, so $m = {{answer}}$."
+    ],
+    "answerSummary": "$m = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The volume exponent is three times the side exponent, not the side exponent itself."
+   ],
+   "supportHints": [
+    "Write the volume in terms of $m$ first."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "z": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     }
+    },
+    "derived": {
+     "V": "k^3",
+     "pw": "9*z",
+     "answer": "3*z",
+     "d_forgotFinalStep": "pw",
+     "d_operationInverted": "z",
+     "d_usedGivenValue": "k"
+    },
+    "constraints": [
+     "abs(k-3*z)>2",
+     "3*z>5",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.11B:side-exponent-of-an-algebraic-cube",
+    "sourcePrompt": "A cube of side ${{k}}x^{m}$ has volume ${{V}}x^{{{pw}}}$. What is $m$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_11B_claim_about_two_powers_of_the_same_base",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.11B:claim-about-two-powers-of-the-same-base",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.11B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which statement about $x^{{{a}}}$ and $x^{{{b}}}$ is wrong?",
+   "solutionReview": {
+    "headline": "Add exponents to multiply; multiply them to raise a power.",
+    "reasoning": [
+     "Multiplying powers of the same base adds the exponents.",
+     "Multiplying the exponents belongs to raising a power to a power."
+    ],
+    "answerSummary": "The product is $x^{{{sum}}}$."
+   },
+   "attemptFeedback": [
+    "The product ${{prod}}$ does appear, but as the exponent of a power of a power."
+   ],
+   "supportHints": [
+    "Write both powers out in full for small exponents."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "sum": "a+b",
+     "prod": "a*b",
+     "diff": "a-b"
+    },
+    "constraints": [
+     "a>b",
+     "a+b!=a*b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Their quotient is $x^{{{diff}}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(x^{{{a}}})^{{{b}}}$ is $x^{{{prod}}}$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "Their product is $x^{{{sum}}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Their product is $x^{{{prod}}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.11B:claim-about-two-powers-of-the-same-base",
+    "sourcePrompt": "Which statement about $x^{{{a}}}$ and $x^{{{b}}}$ is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_12A_input_that_can_be_added_freely",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.12A:input-that-can-be-added-freely",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12A",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The table lists a relation. Adding which input would keep it a function whatever output it took?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Input",
+     "Output"
+    ],
+    "rows": [
+     [
+      "${{x1}}$",
+      "${{y1}}$"
+     ],
+     [
+      "${{x2}}$",
+      "${{y2}}$"
+     ],
+     [
+      "${{x3}}$",
+      "${{y3}}$"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "A fresh input can take any output.",
+    "reasoning": [
+     "An input already in the table would need to repeat its own output exactly.",
+     "Only ${{x4}}$ is new, so any output at all is safe."
+    ],
+    "answerSummary": "It is ${{x4}}$."
+   },
+   "attemptFeedback": [
+    "An input already listed constrains what output it may take."
+   ],
+   "supportHints": [
+    "Look for the input that does not already appear."
+   ],
+   "generator": {
+    "parameters": {
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "x2": {
+      "type": "int",
+      "min": 10,
+      "max": 19
+     },
+     "x3": {
+      "type": "int",
+      "min": 20,
+      "max": 29
+     },
+     "x4": {
+      "type": "int",
+      "min": 1,
+      "max": 29
+     },
+     "y1": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "y2": {
+      "type": "int",
+      "min": 31,
+      "max": 60
+     },
+     "y3": {
+      "type": "int",
+      "min": 61,
+      "max": 90
+     }
+    },
+    "constraints": [
+     "x4!=x1",
+     "x4!=x2",
+     "x4!=x3",
+     "x1!=x2",
+     "x1!=x3",
+     "x2!=x3"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{x4}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{x3}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{x2}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{x1}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.12A:input-that-can-be-added-freely",
+    "sourcePrompt": "The table lists a relation. Adding which input would keep it a function whatever output it took?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_12A_inputs_behind_a_function_with_repeats",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.12A:inputs-behind-a-function-with-repeats",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12A",
+   "taskType": "reverseReasoning",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A function is written as ${{n}}$ pairs, and only ${{k}}$ different outputs appear. How many different inputs are there?",
+   "solutionReview": {
+    "headline": "Outputs may repeat; inputs may not.",
+    "reasoning": [
+     "A function may send several inputs to one output, but never one input to several.",
+     "So each of the ${{n}}$ pairs carries its own input."
+    ],
+    "answerSummary": "There are ${{n}}$."
+   },
+   "attemptFeedback": [
+    "Only ${{k}}$ outputs appear because several inputs share them."
+   ],
+   "supportHints": [
+    "Ask which side of a pair is allowed to repeat."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 5,
+      "max": 14
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "diff": "n-k",
+     "total": "n+k"
+    },
+    "constraints": [
+     "k<n",
+     "n-k>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{k}}$, one for each output.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{n}}$, one for each pair."
+    },
+    {
+     "id": "choice-c",
+     "label": "${{total}}$, the pairs and the outputs together.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{diff}}$, the pairs left over.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.12A:inputs-behind-a-function-with-repeats",
+    "sourcePrompt": "A function is written as ${{n}}$ pairs, and only ${{k}}$ different outputs appear. How many different inputs are there?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_12A_what_being_a_function_requires",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.12A:what-being-a-function-requires",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12A",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A mapping sends ${{a}}$ and ${{b}}$ to ${{p}}$, and ${{c}}$ to ${{q}}$. Which statement must be true of every function?",
+   "solutionReview": {
+    "headline": "The rule constrains outputs per input only.",
+    "reasoning": [
+     "The mapping described sends two inputs to ${{p}}$ and is still a function.",
+     "The requirement runs the other way: one output per input."
+    ],
+    "answerSummary": "Every input has exactly one output."
+   },
+   "attemptFeedback": [
+    "Sharing an output is exactly what the mapping described does."
+   ],
+   "supportHints": [
+    "Test each claim against the mapping described."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 13,
+      "max": 24
+     },
+     "c": {
+      "type": "int",
+      "min": 25,
+      "max": 36
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "q": {
+      "type": "int",
+      "min": 41,
+      "max": 80
+     }
+    },
+    "constraints": [
+     "p!=q"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Every input has exactly one output."
+    },
+    {
+     "id": "choice-b",
+     "label": "There are as many outputs as inputs.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "No two pairs share an output.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "Every output comes from exactly one input.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.12A:what-being-a-function-requires",
+    "sourcePrompt": "A mapping sends ${{a}}$ and ${{b}}$ to ${{p}}$, and ${{c}}$ to ${{q}}$. Which statement must be true of every function?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_12B_gap_between_two_function_values",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.12B:gap-between-two-function-values",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For $f(x) = {{a}}x + {{b}}$, what is $f({{v}}) - f({{w}})$?",
+   "solutionReview": {
+    "headline": "A difference of outputs cancels the constant.",
+    "reasoning": [
+     "The constant ${{b}}$ appears in both outputs, so it cancels.",
+     "What is left is ${{a}}$ times the gap in inputs, or ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The gap in inputs still has to be scaled by ${{a}}$."
+   ],
+   "supportHints": [
+    "Write both outputs before subtracting."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 140
+     },
+     "w": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     }
+    },
+    "derived": {
+     "v": "w+gap",
+     "answer": "a*gap",
+     "d_operationInverted": "a*(2*w+gap)+2*b",
+     "d_forgotFinalStep": "gap",
+     "d_usedGivenValue": "b"
+    },
+    "constraints": [
+     "a*gap>7",
+     "abs(b-a*gap)>5",
+     "abs(gap-a*gap)>4",
+     "answer!=d_operationInverted",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_forgotFinalStep",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.12B:gap-between-two-function-values",
+    "sourcePrompt": "For $f(x) = {{a}}x + {{b}}$, what is $f({{v}}) - f({{w}})$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_12B_second_output_from_a_known_one",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.12B:second-output-from-a-known-one",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12B",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For $f(x) = {{a}}x + b$, $f({{v}}) = {{t}}$. What is $f({{w}})$?",
+   "solutionReview": {
+    "headline": "The unknown constant cancels between the two outputs.",
+    "reasoning": [
+     "Moving from ${{v}}$ to ${{w}}$ is a change of ${{gap}}$ in the input.",
+     "That raises the output by ${{a}} \\times {{gap}}$, giving ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The rate applies to the change in input, not to the input itself."
+   ],
+   "supportHints": [
+    "The constant $b$ never has to be found."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "t": {
+      "type": "int",
+      "min": 20,
+      "max": 110
+     }
+    },
+    "derived": {
+     "w": "v+gap",
+     "answer": "t+a*gap",
+     "d_operationInverted": "t+a*(2*v+gap)",
+     "d_usedGivenValue": "t",
+     "d_ratioReversed": "a*(v+gap)"
+    },
+    "constraints": [
+     "abs(a*(v+gap)-t-a*gap)>5",
+     "a*gap>5",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "answer!=d_ratioReversed",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_operationInverted!=d_ratioReversed",
+     "d_usedGivenValue!=d_ratioReversed"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.12B:second-output-from-a-known-one",
+    "sourcePrompt": "For $f(x) = {{a}}x + b$, $f({{v}}) = {{t}}$. What is $f({{w}})$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_12B_claim_about_function_notation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.12B:claim-about-function-notation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.12B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For $f(x) = {{a}}x + {{b}}$, which statement is wrong?",
+   "solutionReview": {
+    "headline": "The constant is added once per evaluation, not once per input.",
+    "reasoning": [
+     "Adding the two outputs counts the constant ${{b}}$ twice.",
+     "$f({{v}} + {{w}})$ counts it only once."
+    ],
+    "answerSummary": "The two are not equal."
+   },
+   "attemptFeedback": [
+    "The difference of two outputs really does cancel the constant."
+   ],
+   "supportHints": [
+    "Work out both sides for small values."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "w": {
+      "type": "int",
+      "min": 15,
+      "max": 30
+     }
+    },
+    "constraints": [
+     "b>1",
+     "v<w"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$f({{v}}) - f({{w}})$ equals ${{a}}({{v}} - {{w}})$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$f({{v}} + {{w}})$ equals $f({{v}}) + f({{w}})$."
+    },
+    {
+     "id": "choice-c",
+     "label": "$f({{v}})$ is the output at the input ${{v}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$f({{v}} + {{w}})$ equals ${{a}}({{v}} + {{w}}) + {{b}}$.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.12B:claim-about-function-notation",
+    "sourcePrompt": "For $f(x) = {{a}}x + {{b}}$, which statement is wrong?"
+   }
   }
  ]
 }

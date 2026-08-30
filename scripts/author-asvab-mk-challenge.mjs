@@ -8747,6 +8747,763 @@ mkc('A.10B', 'what-a-difference-of-brackets-gives', {
   feedback: 'The constants multiply to $-{{p2}}$, not to $+{{p2}}$.',
 });
 
+// ================================================================ A.10C
+// Dividing a polynomial by a binomial.
+
+mkc('A.10C', 'divide-by-a-binomial-with-a-coefficient', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'What is $({{a}}x^2 + {{mid}}x + {{last}}) \\div ({{b}}x + {{q}})$?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 2, max: 12 },
+      q: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      a: 'b*c',
+      mid: 'b*p+c*q',
+      last: 'p*q',
+    },
+    constraints: ['b!=c', 'p!=q', 'c!=p', 'b*c!=p*q'],
+  },
+  choices: [
+    { label: plain('{{c}}x + {{p}}'), correct: true },
+    { label: plain('{{c}}x - {{p}}'), error: 'signError' },
+    { label: plain('{{p}}x + {{c}}'), error: 'ratioReversed' },
+    { label: plain('{{a}}x + {{last}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The leading terms give ${{a}} \\div {{b}} = {{c}}$, so the quotient starts ${{c}}x$.', 'The constants give ${{last}} \\div {{q}} = {{p}}$.'],
+  answerSummary: { headline: 'Match the leading terms, then the constants.', text: 'It is ${{c}}x + {{p}}$.' },
+  hint: 'Ask what multiplies ${{b}}x$ to give ${{a}}x^2$.',
+  feedback: 'The quotient is smaller than the polynomial it came from.',
+});
+
+mkc('A.10C', 'how-much-longer-the-other-side-is', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A rectangle covers $x^2 + {{sum}}x + {{product}}$ and one side is $x + {{p}}$. By how much does the other side exceed it?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 34 },
+      gap: { type: 'int', min: 3, max: 30 },
+    },
+    derived: {
+      q: 'p+gap',
+      sum: '2*p+gap',
+      product: 'p*(p+gap)',
+      answer: 'gap',
+      // Added the two constants instead of comparing them.
+      d_operationInverted: '2*p+gap',
+      // Answered the constant that was given.
+      d_usedGivenValue: 'p',
+      // Compared the two the other way round.
+      d_signError: '0-gap',
+    },
+    constraints: ['gap>2', 'abs(p-gap)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['Dividing gives the other side as $x + {{q}}$.', 'That exceeds $x + {{p}}$ by ${{answer}}$.'],
+  answerSummary: { headline: 'Divide out the known side, then compare the constants.', text: 'It exceeds it by ${{answer}}$.' },
+  hint: 'The two constants multiply to ${{product}}$.',
+  feedback: 'The sum of the constants is the middle coefficient, not the gap.',
+});
+
+mkc('A.10C', 'claim-about-an-exact-division', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'A quadratic divides exactly by $x + {{p}}$. Which statement is wrong?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 24 },
+      q: { type: 'int', min: 2, max: 24 },
+    },
+    constraints: ['p!=q'],
+  },
+  choices: [
+    { label: 'It has a zero at $x = {{p}}$.', correct: true },
+    { label: 'It has a zero at $x = -{{p}}$.', error: 'signError' },
+    { label: 'It has $x + {{p}}$ as one of its factors.', error: 'usedGivenValue' },
+    { label: 'Substituting $-{{p}}$ makes it zero.', error: 'partialTotal' },
+  ],
+  reasoning: ['A factor of $x + {{p}}$ vanishes when $x = -{{p}}$, not when $x = {{p}}$.', 'So the zero sits on the negative side.'],
+  answerSummary: { headline: 'A factor $x + p$ gives the zero $-p$.', text: 'The zero is $-{{p}}$.' },
+  hint: 'Set the factor equal to zero and solve.',
+  feedback: 'Dividing exactly and factoring are the same statement.',
+});
+
+// ================================================================ A.10D
+// Distributing and factoring out.
+
+mkc('A.10D', 'two-brackets-one-subtracted', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Write ${{k}}({{a}}x - {{b}}) - {{m}}({{c}}x - {{d}})$ without brackets.',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 14 },
+      m: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 9 },
+      d: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      coef: 'k*a-m*c',
+      con: 'm*d-k*b',
+      conBad: '0-k*b-m*d',
+      coefBad: 'k*a+m*c',
+      conFlat: 'd-b',
+    },
+    constraints: ['k*a-m*c>0', 'm*d-k*b>0', 'd-b!=m*d-k*b', 'k*a!=m*c'],
+  },
+  choices: [
+    { label: plain('{{coef}}x + {{con}}'), correct: true },
+    { label: plain('{{coef}}x + {{conBad}}'), error: 'signError' },
+    { label: plain('{{coefBad}}x + {{con}}'), error: 'operationInverted' },
+    { label: plain('{{coef}}x + {{conFlat}}'), error: 'incompleteFactoring' },
+  ],
+  reasoning: ['The minus in front of the second bracket flips both terms inside it.', 'That gives ${{coef}}x + {{con}}$.'],
+  answerSummary: { headline: 'A subtracted bracket has every sign inside it changed.', text: 'It is ${{coef}}x + {{con}}$.' },
+  hint: 'Expand each bracket separately before combining.',
+  feedback: 'Subtracting $-{{m}} \\times {{d}}$ adds, so the constant rises.',
+});
+
+mkc('A.10D', 'largest-factor-of-a-binomial', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Taking out the largest possible factor, ${{ka}}x + {{kb}}$ becomes $g({{a}}x + {{b}})$. What is $g$?',
+  generator: {
+    parameters: {
+      g: { type: 'int', min: 3, max: 24 },
+      a: { type: 'int', min: 2, max: 20 },
+      b: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      ka: 'g*a',
+      kb: 'g*b',
+      answer: 'g',
+      // Answered the whole leading coefficient.
+      d_usedGivenValue: 'ka',
+      // Answered what is left inside the bracket.
+      d_forgotFinalStep: 'a',
+      // Answered the other term inside the bracket.
+      d_ratioReversed: 'b',
+    },
+    constraints: ['gcd(a,b)==1', 'a!=b', 'abs(a-g)>2', 'abs(b-g)>2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['${{ka}}$ and ${{kb}}$ share the factor ${{g}}$, and what is left shares nothing further.', 'So $g = {{answer}}$.'],
+  answerSummary: { headline: 'The largest factor leaves a bracket with nothing left to take out.', text: '$g = {{answer}}$.' },
+  hint: 'Check that ${{a}}$ and ${{b}}$ share no factor.',
+  feedback: 'A term inside the bracket is what is left after the factor comes out.',
+});
+
+mkc('A.10D', 'shared-factor-across-two-brackets', {
+  difficultyBand: 4, dok: 3, taskType: 'representationTranslation', representation: 'table', courseId: 'algebra1',
+  prompt: 'Which of the listed expressions equals ${{k}}({{a}}x + {{b}}) + {{k}}({{c}}x + {{d}})$?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Expression'],
+    rows: [
+      ['${{k}}({{ac}}x + {{bd}})$'],
+      ['${{k2}}({{ac}}x + {{bd}})$'],
+      ['${{k}}({{ac}}x + {{b}})$'],
+      ['${{k}}({{aTimesC}}x + {{bd}})$'],
+    ],
+  },
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 14 },
+      c: { type: 'int', min: 2, max: 9 },
+      d: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      ac: 'a+c',
+      bd: 'b+d',
+      k2: '2*k',
+      aTimesC: 'a*c',
+    },
+    constraints: ['a+c!=a*c', 'b+d!=b', 'a!=c'],
+  },
+  choices: [
+    { label: plain('{{k}}({{ac}}x + {{bd}})'), correct: true },
+    { label: plain('{{k2}}({{ac}}x + {{bd}})'), error: 'exponentError' },
+    { label: plain('{{k}}({{ac}}x + {{b}})'), error: 'partialTotal' },
+    { label: plain('{{k}}({{aTimesC}}x + {{bd}})'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The shared ${{k}}$ comes out once, not twice.', 'What is left inside adds term by term, giving ${{ac}}x + {{bd}}$.'],
+  answerSummary: { headline: 'A shared factor is taken out once for the whole sum.', text: 'It is ${{k}}({{ac}}x + {{bd}})$.' },
+  hint: 'Expand both brackets and then take the factor back out.',
+  feedback: 'Doubling the factor doubles the whole expression.',
+});
+
+// ================================================================ A.10E
+// Factoring trinomials.
+
+mkc('A.10E', 'perimeter-from-a-factored-area', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A rectangle covers ${{a}}x^2 + {{mid}}x + {{last}}$. What is its perimeter?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 2, max: 12 },
+      q: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      a: 'b*c',
+      mid: 'b*q+c*p',
+      last: 'p*q',
+      coef: '2*(b+c)',
+      con: '2*(p+q)',
+      halfCoef: 'b+c',
+      halfCon: 'p+q',
+      prodCoef: '2*b*c',
+      prodCon: '2*p*q',
+    },
+    constraints: ['b!=c', 'p!=q', '2*(b+c)!=2*b*c', '2*(p+q)!=2*p*q'],
+  },
+  choices: [
+    { label: plain('{{coef}}x + {{con}}'), correct: true },
+    { label: plain('{{halfCoef}}x + {{halfCon}}'), error: 'forgotFinalStep' },
+    { label: plain('{{prodCoef}}x + {{prodCon}}'), error: 'ratioReversed' },
+    { label: plain('{{coef}}x + {{halfCon}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The area factors as $({{b}}x + {{p}})({{c}}x + {{q}})$, which are the two sides.', 'Twice their total is ${{coef}}x + {{con}}$.'],
+  answerSummary: { headline: 'Factor to find the sides, then double their total.', text: 'It is ${{coef}}x + {{con}}$.' },
+  hint: 'A perimeter counts each side twice.',
+  feedback: 'The sides add for a perimeter; they multiply only for the area.',
+});
+
+mkc('A.10E', 'missing-constant-in-a-second-factor', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A quadratic factors as $({{b}}x + {{p}})({{c}}x + q)$ and its middle coefficient is ${{mid}}$. What is $q$?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 2, max: 9 },
+      w: { type: 'int', min: 2, max: 30 },
+      q: { type: 'int', min: 6, max: 40 },
+      cRaw: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      c: 'cRaw',
+      p: 'b*w/cRaw',
+      mid: 'b*q+cRaw*p',
+      answer: 'q',
+      // Answered the middle coefficient itself.
+      d_forgotFinalStep: 'mid',
+      // Answered the constant in the first bracket.
+      d_usedGivenValue: 'p',
+      // Solved for the constant with the sign reversed.
+      d_signError: '0-q',
+    },
+    constraints: ['b*w%cRaw==0', 'b*w/cRaw>1', 'abs(p-q)>3', 'abs(mid-q)>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The middle coefficient is ${{b}}q + {{c}} \\times {{p}}$.', 'Setting that equal to ${{mid}}$ gives $q = {{answer}}$.'],
+  answerSummary: { headline: 'The middle term collects both cross products.', text: '$q = {{answer}}$.' },
+  hint: 'Write the middle coefficient in terms of $q$ first.',
+  feedback: 'The middle coefficient still has the other cross product inside it.',
+});
+
+mkc('A.10E', 'claim-about-a-monic-factorisation', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'A quadratic factors as $(x + {{p}})(x + {{q}})$. Which statement is wrong?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 20 },
+      q: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { pq: 'p*q', sum: 'p+q' },
+    constraints: ['p!=q', 'p*q!=p+q'],
+  },
+  choices: [
+    { label: 'Its middle coefficient is ${{pq}}$.', correct: true },
+    { label: 'Its middle coefficient is ${{sum}}$.', error: 'partialTotal' },
+    { label: 'Its constant term is ${{pq}}$.', error: 'usedGivenValue' },
+    { label: 'Its zeros are $-{{p}}$ and $-{{q}}$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Expanding gives $x^2 + ({{p}} + {{q}})x + {{p}}{{q}}$.', 'The two constants add for the middle term and multiply for the last one.'],
+  answerSummary: { headline: 'Add for the middle, multiply for the constant.', text: 'The middle coefficient is ${{sum}}$.' },
+  hint: 'Expand the two brackets.',
+  feedback: 'The product does appear, but as the constant term.',
+});
+
+// ================================================================ A.10F
+// Difference of two squares.
+
+mkc('A.10F', 'total-of-the-two-factors', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Factor ${{aSq}}x^2 - {{bSq}}$. What do the two factors add to?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      aSq: 'a*a',
+      bSq: 'b*b',
+      twoA: '2*a',
+      twoB: '2*b',
+      aSq2: '2*a*a',
+    },
+    constraints: ['a!=b', '2*a!=2*a*a'],
+  },
+  choices: [
+    { label: plain('{{twoA}}x'), correct: true },
+    { label: plain('{{aSq2}}x'), error: 'exponentError' },
+    { label: plain('{{twoA}}x + {{twoB}}'), error: 'partialTotal' },
+    { label: plain('{{twoA}}x - {{twoB}}'), error: 'signError' },
+  ],
+  reasoning: ['The factors are $({{a}}x - {{b}})$ and $({{a}}x + {{b}})$.', 'Their constants cancel, leaving ${{twoA}}x$.'],
+  answerSummary: { headline: 'The two constants are opposites, so they cancel.', text: 'They add to ${{twoA}}x$.' },
+  hint: 'Write both factors before adding them.',
+  feedback: 'The factors carry ${{a}}x$ each, not ${{a}}^{2}x$.',
+});
+
+mkc('A.10F', 'constant-behind-a-known-factor', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'The expression ${{aSq}}x^2 - c$ factors as a difference of two squares with $({{a}}x - {{b}})$ as one factor. What is $c$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 20 },
+      b: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      aSq: 'a*a',
+      answer: 'b*b',
+      // Multiplied both squares together.
+      d_operationInverted: 'a*a*b*b',
+      // Answered the constant inside the factor.
+      d_forgotFinalStep: 'b',
+      // Answered the square of the other coefficient.
+      d_usedGivenValue: 'a*a',
+    },
+    constraints: ['a!=b', 'abs(a*a-b*b)>5', 'b*b>7'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['A difference of squares needs the other factor to be $({{a}}x + {{b}})$.', 'Multiplying gives ${{aSq}}x^2 - {{answer}}$.'],
+  answerSummary: { headline: 'The constant is the square of the one in the factor.', text: '$c = {{answer}}$.' },
+  hint: 'Write the matching factor and multiply out.',
+  feedback: 'The constant is squared, not left as it stands.',
+});
+
+mkc('A.10F', 'expression-that-is-not-a-difference-of-squares', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'table', courseId: 'algebra1',
+  prompt: 'Which of the listed expressions cannot be factored as a difference of two squares?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Expression'],
+    rows: [
+      ['$x^2 + {{bSq}}$'],
+      ['$x^2 - {{bSq}}$'],
+      ['${{aSq}}x^2 - {{bSq}}$'],
+      ['${{bSq}} - x^2$'],
+    ],
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 16 },
+    },
+    derived: { aSq: 'a*a', bSq: 'b*b' },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: plain('x^2 + {{bSq}}'), correct: true },
+    { label: plain('x^2 - {{bSq}}'), error: 'signError' },
+    { label: plain('{{aSq}}x^2 - {{bSq}}'), error: 'usedGivenValue' },
+    { label: plain('{{bSq}} - x^2'), error: 'partialTotal' },
+  ],
+  reasoning: ['The pattern needs one square taken away from another.', 'A sum of two squares has no such factorisation over the real numbers.'],
+  answerSummary: { headline: 'The pattern is a difference, never a sum.', text: 'It is $x^2 + {{bSq}}$.' },
+  hint: 'Look for a minus sign between two squares.',
+  feedback: 'Which square comes first does not matter, so long as one is subtracted.',
+});
+
+// ================================================================ A.11A
+// Radicals.
+
+mkc('A.11A', 'combine-two-scaled-roots', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Simplify ${{k}}\\sqrt{{{a}}} + {{m}}\\sqrt{{{b}}}$.',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      m: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 2, max: 7 },
+      q: { type: 'int', min: 2, max: 7 },
+      r: { type: 'int', min: 2, max: 7 },
+    },
+    derived: {
+      a: 'p*p*r',
+      b: 'q*q*r',
+      coef: 'k*p+m*q',
+      coefFlat: 'k+m',
+      coefSwap: 'k*q+m*p',
+      ab: 'a+b',
+    },
+    constraints: ['p!=q', 'r!=4', 'k*p+m*q!=k*q+m*p', 'k*p+m*q!=k+m'],
+  },
+  choices: [
+    { label: plain('{{coef}}\\sqrt{{{r}}}'), correct: true },
+    { label: plain('{{coefFlat}}\\sqrt{{{r}}}'), error: 'partialTotal' },
+    { label: plain('{{coefSwap}}\\sqrt{{{r}}}'), error: 'ratioReversed' },
+    { label: plain('{{coef}}\\sqrt{{{ab}}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['$\\sqrt{{{a}}}$ is ${{p}}\\sqrt{{{r}}}$ and $\\sqrt{{{b}}}$ is ${{q}}\\sqrt{{{r}}}$.', 'Adding gives $({{k}} \\times {{p}} + {{m}} \\times {{q}})\\sqrt{{{r}}}$.'],
+  answerSummary: { headline: 'Reduce both roots to the same surd before adding.', text: 'It is ${{coef}}\\sqrt{{{r}}}$.' },
+  hint: 'Pull the square factors out of each root first.',
+  feedback: 'Roots add only once the surd inside them matches.',
+});
+
+mkc('A.11A', 'side-from-a-diagonal-in-surd-form', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A rectangle is ${{w}}$ cm wide with a diagonal of $\\sqrt{{{d}}}$ cm. How tall is it?',
+  generator: {
+    parameters: {
+      w: { type: 'int', min: 2, max: 30 },
+      h: { type: 'int', min: 2, max: 30 },
+    },
+    derived: {
+      d: 'w*w+h*h',
+      answer: 'h',
+      // Stopped before taking the square root.
+      d_operationInverted: 'h*h',
+      // Answered the width that was given.
+      d_usedGivenValue: 'w',
+      // Subtracted the lengths instead of their squares.
+      d_forgotFinalStep: 'round(sqrt(d))-w',
+    },
+    constraints: ['abs(w-h)>2', 'h>3', 'round(sqrt(w*w+h*h))-w>0', 'abs(round(sqrt(w*w+h*h))-w-h)>2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['The diagonal squared is ${{d}}$, and the width squared is ${{w}} \\times {{w}}$.', 'What is left is the height squared, so the height is ${{answer}}$.'],
+  answerSummary: { headline: 'Work with the squares, then take one root at the end.', text: 'It is ${{answer}}$ cm tall.' },
+  hint: 'The diagonal is already given as a square root.',
+  feedback: 'Subtracting the lengths themselves skips the squaring the theorem needs.',
+});
+
+mkc('A.11A', 'claim-about-a-simplified-root', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'Which statement about $\\sqrt{{{n}}}$ is wrong?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 9 },
+      r: { type: 'int', min: 2, max: 7 },
+    },
+    derived: {
+      n: 'p*p*r',
+      p2: 'p*p',
+      lo: 'floor(sqrt(p*p*r))',
+      hi: 'floor(sqrt(p*p*r))+1',
+    },
+    constraints: ['r!=4', 'r!=1', 'floor(sqrt(p*p*r))>1'],
+  },
+  choices: [
+    { label: 'It equals $\\sqrt{{{p2}}}$ divided by $\\sqrt{{{r}}}$.', correct: true },
+    { label: 'It equals ${{p}}\\sqrt{{{r}}}$.', error: 'partialTotal' },
+    { label: 'Its square is ${{n}}$.', error: 'usedGivenValue' },
+    { label: 'It lies between ${{lo}}$ and ${{hi}}$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['$\\sqrt{{{n}}}$ splits as $\\sqrt{{{p2}}} \\times \\sqrt{{{r}}}$, a product.', 'Dividing instead would give a far smaller value.'],
+  answerSummary: { headline: 'A root splits across a product, not a quotient.', text: 'The two roots multiply.' },
+  hint: 'Square the claimed value and see what comes out.',
+  feedback: 'Pulling the square factor out really does give ${{p}}\\sqrt{{{r}}}$.',
+});
+
+// ================================================================ A.11B
+// Exponent rules.
+
+mkc('A.11B', 'power-of-a-scaled-term-over-a-power', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Simplify $\\frac{({{k}}x^{{{a}}})^{{{b}}}}{x^{{{c}}}}$.',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 4 },
+      a: { type: 'int', min: 2, max: 6 },
+      b: { type: 'int', min: 2, max: 3 },
+      c: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      kb: 'k^b',
+      exp: 'a*b-c',
+      expBad: 'a+b-c',
+      expProd: 'a*b*c',
+    },
+    constraints: ['a*b-c>1', 'a+b-c>0', 'a*b-c!=a+b-c', 'a*b-c!=a*b*c'],
+  },
+  choices: [
+    { label: plain('{{kb}}x^{{{exp}}}'), correct: true },
+    { label: plain('{{k}}x^{{{exp}}}'), error: 'partialTotal' },
+    { label: plain('{{kb}}x^{{{expBad}}}'), error: 'exponentError' },
+    { label: plain('{{kb}}x^{{{expProd}}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Raising to the power ${{b}}$ reaches the ${{k}}$ as well as the $x$, giving ${{kb}}x^{{{a}} \\times {{b}}}$.', 'Dividing then takes ${{c}}$ off the exponent.'],
+  answerSummary: { headline: 'An outer power reaches every factor inside.', text: 'It is ${{kb}}x^{{{exp}}}$.' },
+  hint: 'Deal with the bracket before the division.',
+  feedback: 'Powers multiply when a power is raised to a power; they do not add.',
+});
+
+mkc('A.11B', 'side-exponent-of-an-algebraic-cube', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A cube of side ${{k}}x^{m}$ has volume ${{V}}x^{{{pw}}}$. What is $m$?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 14 },
+      z: { type: 'int', min: 2, max: 4 },
+    },
+    derived: {
+      V: 'k^3',
+      pw: '9*z',
+      answer: '3*z',
+      // Answered the volume's exponent.
+      d_forgotFinalStep: 'pw',
+      // Divided by three twice over.
+      d_operationInverted: 'z',
+      // Answered the side's coefficient.
+      d_usedGivenValue: 'k',
+    },
+    constraints: ['abs(k-3*z)>2', '3*z>5'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Cubing the side gives ${{k}}^{3}x^{3m}$.', 'Matching the exponent gives $3m = {{pw}}$, so $m = {{answer}}$.'],
+  answerSummary: { headline: 'Cubing multiplies the exponent by three.', text: '$m = {{answer}}$.' },
+  hint: 'Write the volume in terms of $m$ first.',
+  feedback: 'The volume exponent is three times the side exponent, not the side exponent itself.',
+});
+
+mkc('A.11B', 'claim-about-two-powers-of-the-same-base', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'Which statement about $x^{{{a}}}$ and $x^{{{b}}}$ is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 12 },
+      b: { type: 'int', min: 2, max: 9 },
+    },
+    derived: { sum: 'a+b', prod: 'a*b', diff: 'a-b' },
+    constraints: ['a>b', 'a+b!=a*b'],
+  },
+  choices: [
+    { label: 'Their product is $x^{{{prod}}}$.', correct: true },
+    { label: 'Their product is $x^{{{sum}}}$.', error: 'partialTotal' },
+    { label: 'Their quotient is $x^{{{diff}}}$.', error: 'usedGivenValue' },
+    { label: '$(x^{{{a}}})^{{{b}}}$ is $x^{{{prod}}}$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Multiplying powers of the same base adds the exponents.', 'Multiplying the exponents belongs to raising a power to a power.'],
+  answerSummary: { headline: 'Add exponents to multiply; multiply them to raise a power.', text: 'The product is $x^{{{sum}}}$.' },
+  hint: 'Write both powers out in full for small exponents.',
+  feedback: 'The product ${{prod}}$ does appear, but as the exponent of a power of a power.',
+});
+
+// ================================================================ A.12A
+// Relations and functions.
+
+mkc('A.12A', 'input-that-can-be-added-freely', {
+  difficultyBand: 4, dok: 2, taskType: 'interpretation', representation: 'table', courseId: 'algebra1',
+  prompt: 'The table lists a relation. Adding which input would keep it a function whatever output it took?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Input', 'Output'],
+    rows: [['${{x1}}$', '${{y1}}$'], ['${{x2}}$', '${{y2}}$'], ['${{x3}}$', '${{y3}}$']],
+  },
+  generator: {
+    parameters: {
+      x1: { type: 'int', min: 1, max: 9 },
+      x2: { type: 'int', min: 10, max: 19 },
+      x3: { type: 'int', min: 20, max: 29 },
+      x4: { type: 'int', min: 1, max: 29 },
+      y1: { type: 'int', min: 2, max: 30 },
+      y2: { type: 'int', min: 31, max: 60 },
+      y3: { type: 'int', min: 61, max: 90 },
+    },
+    constraints: ['x4!=x1', 'x4!=x2', 'x4!=x3'],
+  },
+  choices: [
+    { label: plain('{{x4}}'), correct: true },
+    { label: plain('{{x1}}'), error: 'usedGivenValue' },
+    { label: plain('{{x2}}'), error: 'partialTotal' },
+    { label: plain('{{x3}}'), error: 'ratioReversed' },
+  ],
+  rankAnalysisNotApplicable: false,
+  reasoning: ['An input already in the table would need to repeat its own output exactly.', 'Only ${{x4}}$ is new, so any output at all is safe.'],
+  answerSummary: { headline: 'A fresh input can take any output.', text: 'It is ${{x4}}$.' },
+  hint: 'Look for the input that does not already appear.',
+  feedback: 'An input already listed constrains what output it may take.',
+});
+
+mkc('A.12A', 'inputs-behind-a-function-with-repeats', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'A function is written as ${{n}}$ pairs, and only ${{k}}$ different outputs appear. How many different inputs are there?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 5, max: 14 },
+      k: { type: 'int', min: 2, max: 6 },
+    },
+    derived: { diff: 'n-k', total: 'n+k' },
+    constraints: ['k<n', 'n-k>1'],
+  },
+  choices: [
+    { label: '${{n}}$, one for each pair.', correct: true },
+    { label: '${{k}}$, one for each output.', error: 'ratioReversed' },
+    { label: '${{diff}}$, the pairs left over.', error: 'partialTotal' },
+    { label: '${{total}}$, the pairs and the outputs together.', error: 'operationInverted' },
+  ],
+  reasoning: ['A function may send several inputs to one output, but never one input to several.', 'So each of the ${{n}}$ pairs carries its own input.'],
+  answerSummary: { headline: 'Outputs may repeat; inputs may not.', text: 'There are ${{n}}$.' },
+  hint: 'Ask which side of a pair is allowed to repeat.',
+  feedback: 'Only ${{k}}$ outputs appear because several inputs share them.',
+});
+
+mkc('A.12A', 'what-being-a-function-requires', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'A mapping sends ${{a}}$ and ${{b}}$ to ${{p}}$, and ${{c}}$ to ${{q}}$. Which statement must be true of every function?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 13, max: 24 },
+      c: { type: 'int', min: 25, max: 36 },
+      p: { type: 'int', min: 2, max: 40 },
+      q: { type: 'int', min: 41, max: 80 },
+    },
+    constraints: ['p!=q'],
+  },
+  choices: [
+    { label: 'Every input has exactly one output.', correct: true },
+    { label: 'Every output comes from exactly one input.', error: 'ratioReversed' },
+    { label: 'There are as many outputs as inputs.', error: 'partialTotal' },
+    { label: 'No two pairs share an output.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The mapping described sends two inputs to ${{p}}$ and is still a function.', 'The requirement runs the other way: one output per input.'],
+  answerSummary: { headline: 'The rule constrains outputs per input only.', text: 'Every input has exactly one output.' },
+  hint: 'Test each claim against the mapping described.',
+  feedback: 'Sharing an output is exactly what the mapping described does.',
+});
+
+// ================================================================ A.12B
+// Function notation.
+
+mkc('A.12B', 'gap-between-two-function-values', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'For $f(x) = {{a}}x + {{b}}$, what is $f({{v}}) - f({{w}})$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 16 },
+      b: { type: 'int', min: 2, max: 140 },
+      w: { type: 'int', min: 2, max: 14 },
+      gap: { type: 'int', min: 2, max: 16 },
+    },
+    derived: {
+      v: 'w+gap',
+      answer: 'a*gap',
+      // Added the two inputs instead of comparing them.
+      d_operationInverted: 'a*(2*w+gap)+2*b',
+      // Answered the gap between the inputs.
+      d_forgotFinalStep: 'gap',
+      // Answered the constant, which cancels.
+      d_usedGivenValue: 'b',
+    },
+    constraints: ['a*gap>7', 'abs(b-a*gap)>5', 'abs(gap-a*gap)>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The constant ${{b}}$ appears in both outputs, so it cancels.', 'What is left is ${{a}}$ times the gap in inputs, or ${{answer}}$.'],
+  answerSummary: { headline: 'A difference of outputs cancels the constant.', text: 'It is ${{answer}}$.' },
+  hint: 'Write both outputs before subtracting.',
+  feedback: 'The gap in inputs still has to be scaled by ${{a}}$.',
+});
+
+mkc('A.12B', 'second-output-from-a-known-one', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'For $f(x) = {{a}}x + b$, $f({{v}}) = {{t}}$. What is $f({{w}})$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 16 },
+      v: { type: 'int', min: 2, max: 14 },
+      gap: { type: 'int', min: 2, max: 16 },
+      t: { type: 'int', min: 20, max: 110 },
+    },
+    derived: {
+      w: 'v+gap',
+      answer: 't+a*gap',
+      // Added the two inputs instead of the change between them.
+      d_operationInverted: 't+a*(2*v+gap)',
+      // Answered the output that was given.
+      d_usedGivenValue: 't',
+      // Answered the second input scaled by the rate.
+      d_ratioReversed: 'a*(v+gap)',
+    },
+    constraints: ['abs(a*(v+gap)-t-a*gap)>5', 'a*gap>5'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Moving from ${{v}}$ to ${{w}}$ is a change of ${{gap}}$ in the input.', 'That raises the output by ${{a}} \\times {{gap}}$, giving ${{answer}}$.'],
+  answerSummary: { headline: 'The unknown constant cancels between the two outputs.', text: 'It is ${{answer}}$.' },
+  hint: 'The constant $b$ never has to be found.',
+  feedback: 'The rate applies to the change in input, not to the input itself.',
+});
+
+mkc('A.12B', 'claim-about-function-notation', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'For $f(x) = {{a}}x + {{b}}$, which statement is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 16 },
+      b: { type: 'int', min: 2, max: 60 },
+      v: { type: 'int', min: 2, max: 14 },
+      w: { type: 'int', min: 15, max: 30 },
+    },
+    constraints: ['b>1', 'v<w'],
+  },
+  choices: [
+    { label: '$f({{v}} + {{w}})$ equals $f({{v}}) + f({{w}})$.', correct: true },
+    { label: '$f({{v}})$ is the output at the input ${{v}}$.', error: 'usedGivenValue' },
+    { label: '$f({{v}} + {{w}})$ equals ${{a}}({{v}} + {{w}}) + {{b}}$.', error: 'partialTotal' },
+    { label: '$f({{v}}) - f({{w}})$ equals ${{a}}({{v}} - {{w}})$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Adding the two outputs counts the constant ${{b}}$ twice.', '$f({{v}} + {{w}})$ counts it only once.'],
+  answerSummary: { headline: 'The constant is added once per evaluation, not once per input.', text: 'The two are not equal.' },
+  hint: 'Work out both sides for small values.',
+  feedback: 'The difference of two outputs really does cancel the constant.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
