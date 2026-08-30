@@ -473,8 +473,11 @@ function privateGradingDefinition(question) {
     );
     return {
       id,
-      expected: remap(field?.expected),
-      accepted: Array.isArray(field?.accepted) ? field.accepted.map(remap) : null,
+      expected: remap(field?.expected ?? field?.answer),
+      accepted: [
+        ...(Array.isArray(field?.accepted) ? field.accepted : []),
+        ...(Array.isArray(field?.acceptedAnswers) ? field.acceptedAnswers : []),
+      ].map(remap),
       numericTolerance: Number(field?.numericTolerance ?? explicit.numericTolerance ?? 1e-6),
       caseSensitive: Boolean(field?.caseSensitive ?? explicit.caseSensitive),
     };
@@ -541,7 +544,9 @@ async function buildIssuePlan(question) {
 }
 
 async function valuesEquivalent(actual, field) {
-  const candidates = field.accepted?.length ? field.accepted : [field.expected];
+  // Alternatives supplement the primary key; they never replace it.
+  const candidates = [field.expected, ...(Array.isArray(field.accepted) ? field.accepted : [])]
+    .filter((value) => value !== undefined && value !== null);
   const equivalence = await answerEquivalence();
   return candidates.some((expected) => {
     const left = String(actual ?? '').trim();
