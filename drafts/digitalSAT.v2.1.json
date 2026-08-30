@@ -67675,32 +67675,51 @@
             "type": "int",
             "min": 3,
             "max": 8
+          },
+          "side": {
+            "type": "int",
+            "min": 0,
+            "max": 1
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
-          "inside": "estimate+margin-1",
-          "below": "estimate-margin-2",
+          "inside": "estimate+(2*side-1)*(margin-1)",
           "above": "estimate+margin+2",
-          "farBelow": "estimate-margin-5"
-        }
+          "below": "estimate-margin-2",
+          "swing": "estimate+(2*hi-1)*(margin+5)"
+        },
+        "constraints": [
+          "margin>2",
+          "inside!=above",
+          "inside!=below",
+          "inside!=swing",
+          "above!=below",
+          "above!=swing",
+          "below!=swing"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
-        {
-          "id": "choice-c",
-          "label": "${{inside}}\\%$"
-        },
-        {
-          "id": "choice-d",
-          "label": "${{below}}\\%$"
-        },
         {
           "id": "choice-a",
           "label": "${{above}}\\%$"
         },
         {
           "id": "choice-b",
-          "label": "${{farBelow}}\\%$"
+          "label": "${{below}}\\%$"
+        },
+        {
+          "id": "choice-c",
+          "label": "${{inside}}\\%$"
+        },
+        {
+          "id": "choice-d",
+          "label": "${{swing}}\\%$"
         }
       ],
       "responseFields": [
@@ -67778,21 +67797,26 @@
             "type": "int",
             "min": 2,
             "max": 9
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "answer": "estimate-margin",
-          "satDistractor1": "estimate+margin",
-          "satDistractor2": "estimate",
-          "satDistractor3": "margin"
+          "dUpper": "estimate+margin",
+          "dTwice": "estimate-2*margin",
+          "dSwing": "hi*estimate+(1-hi)*margin"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dUpper",
+          "answer!=dTwice",
+          "answer!=dSwing",
+          "dUpper!=dTwice",
+          "dUpper!=dSwing",
+          "dTwice!=dSwing"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -67811,15 +67835,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dUpper}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dTwice}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSwing}}"
         }
       ]
     },
@@ -68065,7 +68089,7 @@
         ],
         "answerSummary": "Check that the conclusion matches the sample information and margin of error."
       },
-      "prompt": "A sample estimate is {{estimate}}%, and the corresponding interval based on the reported margin of error is from {{low}}% to {{high}}%. What is the margin of error, in percentage points?",
+      "prompt": "A sample estimate is {{estimate}}%, and the lower endpoint of the interval determined by its margin of error is {{low}}%. What is the upper endpoint, in percent?",
       "generator": {
         "parameters": {
           "estimate": {
@@ -68077,32 +68101,47 @@
             "type": "int",
             "min": 3,
             "max": 9
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "low": "estimate-margin",
           "high": "estimate+margin",
-          "width": "2*margin",
-          "mp1": "margin+1"
-        }
+          "answer": "estimate+margin",
+          "dNoMargin": "estimate",
+          "dFullWidth": "estimate+2*margin",
+          "dSwing": "hi*(estimate+margin+2)+(1-hi)*(estimate-margin)"
+        },
+        "constraints": [
+          "answer!=dNoMargin",
+          "answer!=dFullWidth",
+          "answer!=dSwing",
+          "dNoMargin!=dFullWidth",
+          "dNoMargin!=dSwing",
+          "dFullWidth!=dSwing"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
         {
-          "id": "choice-c",
-          "label": "${{margin}}$"
-        },
-        {
-          "id": "choice-d",
-          "label": "${{width}}$"
-        },
-        {
           "id": "choice-a",
-          "label": "${{low}}$"
+          "label": "${{dNoMargin}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{mp1}}$"
+          "label": "${{answer}}$"
+        },
+        {
+          "id": "choice-c",
+          "label": "${{dFullWidth}}$"
+        },
+        {
+          "id": "choice-d",
+          "label": "${{dSwing}}$"
         }
       ],
       "responseFields": [
@@ -68110,7 +68149,7 @@
           "id": "answer",
           "label": "Choose the correct answer",
           "inputProfile": "choice",
-          "expected": "choice-c"
+          "expected": "choice-b"
         }
       ]
     },
@@ -68277,13 +68316,27 @@
             "type": "int",
             "min": 3,
             "max": 8
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "low": "estimate-margin",
           "high": "estimate+margin",
-          "width": "2*margin"
-        }
+          "width": "2*margin",
+          "dSwing": "hi*(2*estimate)+(1-hi)*(2*margin)"
+        },
+        "constraints": [
+          "estimate!=high",
+          "estimate!=low",
+          "estimate!=dSwing",
+          "high!=low",
+          "high!=dSwing",
+          "low!=dSwing"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -68293,15 +68346,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{margin}}\\%$"
+          "label": "${{high}}\\%$"
         },
         {
           "id": "choice-c",
-          "label": "${{width}}\\%$"
+          "label": "${{low}}\\%$"
         },
         {
           "id": "choice-d",
-          "label": "${{low}}\\%$"
+          "label": "${{dSwing}}\\%$"
         }
       ],
       "responseFields": [
@@ -68394,6 +68447,11 @@
             "type": "int",
             "min": 10,
             "max": 50
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
@@ -68401,28 +68459,36 @@
           "highPct": "estimate+margin",
           "lowPct": "estimate-margin",
           "upper": "highPct*k",
-          "centerCount": "estimate*k",
           "lower": "lowPct*k",
-          "above": "(highPct+1)*k"
-        }
+          "above": "(highPct+1)*k",
+          "dSwing": "hi*(lowPct+highPct)*k+(1-hi)*estimate*k"
+        },
+        "constraints": [
+          "upper!=lower",
+          "upper!=above",
+          "upper!=dSwing",
+          "lower!=above",
+          "lower!=dSwing",
+          "above!=dSwing"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
         {
-          "id": "choice-d",
-          "label": "${{upper}}$"
-        },
-        {
           "id": "choice-a",
-          "label": "${{centerCount}}$"
-        },
-        {
-          "id": "choice-b",
           "label": "${{lower}}$"
         },
         {
-          "id": "choice-c",
+          "id": "choice-b",
           "label": "${{above}}$"
+        },
+        {
+          "id": "choice-c",
+          "label": "${{dSwing}}$"
+        },
+        {
+          "id": "choice-d",
+          "label": "${{upper}}$"
         }
       ],
       "responseFields": [
@@ -69394,42 +69460,44 @@
         ],
         "answerSummary": "Check that the result is consistent with the direction and size of the percent change."
       },
-      "prompt": "A quantity has value {{base}} and then increases by {{p}}%. What is the new value?",
+      "prompt": "A quantity increases by {{p}}% to a new value of {{newv}}. What was the original value?",
       "generator": {
         "parameters": {
           "p": {
             "type": "choice",
             "values": [
-              5,
               10,
-              15,
               20,
-              25,
-              30,
               40,
               50
             ]
           },
           "k": {
             "type": "int",
-            "min": 5,
-            "max": 40
+            "min": 1,
+            "max": 15
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
-          "base": "20*k",
-          "answer": "base*(100+p)/100",
-          "satDistractor1": "base*p/100",
-          "satDistractor2": "base*(100-p)/100",
-          "satDistractor3": "base*(100+p)"
+          "base": "400*k",
+          "newv": "400*k*(100+p)/100",
+          "answer": "400*k",
+          "dOverApply": "400*k*(100+p)*(100+p)/10000",
+          "dNaiveUndo": "400*k*(100+p)*(100-p)/10000",
+          "dSwing": "hi*(400*k*(100+p)/100-p)+(1-hi)*(400*k*(100+p)*p/10000)"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dOverApply",
+          "answer!=dNaiveUndo",
+          "answer!=dSwing",
+          "dOverApply!=dNaiveUndo",
+          "dOverApply!=dSwing",
+          "dNaiveUndo!=dSwing"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -69438,25 +69506,25 @@
           "id": "answer",
           "label": "Choose the correct answer",
           "inputProfile": "choice",
-          "expected": "choice-d"
+          "expected": "choice-b"
         }
       ],
       "choices": [
         {
-          "id": "choice-d",
-          "label": "{{answer}}"
-        },
-        {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dNaiveUndo}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{answer}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dOverApply}}"
+        },
+        {
+          "id": "choice-d",
+          "label": "{{dSwing}}"
         }
       ]
     },
@@ -69627,41 +69695,49 @@
             "values": [
               10,
               20,
-              25,
-              40
+              40,
+              50
             ]
           },
           "k": {
             "type": "int",
-            "min": 5,
-            "max": 40
+            "min": 1,
+            "max": 10
           }
         },
         "derived": {
           "old": "20*k",
-          "new": "old*(100+p)/100",
-          "twop": "2*p",
-          "comp": "100-p",
-          "grow": "100+p"
-        }
+          "new": "20*k*(100+p)/100",
+          "grow": "100+p",
+          "half": "p/2",
+          "points": "20*k*p/100"
+        },
+        "constraints": [
+          "p!=grow",
+          "p!=half",
+          "p!=points",
+          "grow!=half",
+          "grow!=points",
+          "half!=points"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
+        {
+          "id": "choice-a",
+          "label": "${{grow}}\\%$"
+        },
+        {
+          "id": "choice-b",
+          "label": "${{half}}\\%$"
+        },
         {
           "id": "choice-c",
           "label": "${{p}}\\%$"
         },
         {
           "id": "choice-d",
-          "label": "${{grow}}\\%$"
-        },
-        {
-          "id": "choice-a",
-          "label": "${{comp}}\\%$"
-        },
-        {
-          "id": "choice-b",
-          "label": "${{twop}}\\%$"
+          "label": "${{points}}\\%$"
         }
       ],
       "responseFields": [
@@ -69732,35 +69808,37 @@
           "p": {
             "type": "choice",
             "values": [
-              10,
               20,
-              25,
               30,
               40,
               60,
-              75
+              70,
+              80
             ]
           },
           "k": {
             "type": "int",
-            "min": 5,
-            "max": 50
+            "min": 1,
+            "max": 12
           }
         },
         "derived": {
           "total": "20*k",
-          "part": "total*p/100",
+          "part": "20*k*p/100",
           "comp": "100-p",
-          "half": "p/2",
-          "twop": "2*p"
-        }
+          "half": "p/2"
+        },
+        "constraints": [
+          "p!=comp",
+          "p!=half",
+          "p!=part",
+          "comp!=half",
+          "comp!=part",
+          "half!=part"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
-        {
-          "id": "choice-d",
-          "label": "${{p}}\\%$"
-        },
         {
           "id": "choice-a",
           "label": "${{comp}}\\%$"
@@ -69771,7 +69849,11 @@
         },
         {
           "id": "choice-c",
-          "label": "${{twop}}\\%$"
+          "label": "${{part}}\\%$"
+        },
+        {
+          "id": "choice-d",
+          "label": "${{p}}\\%$"
         }
       ],
       "responseFields": [
@@ -69863,22 +69945,27 @@
             "type": "int",
             "min": 1,
             "max": 10
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "start": "400*k",
-          "answer": "start*(100-d)*(100+u)/10000",
-          "satDistractor1": "start*(100-d+u)/100",
-          "satDistractor2": "start*(100+d)*(100+u)/10000",
-          "satDistractor3": "start*(100-d)*(100-u)/10000"
+          "answer": "400*k*(100-d)*(100+u)/10000",
+          "dBothUp": "400*k*(100+d)*(100+u)/10000",
+          "dBothDown": "400*k*(100-d)*(100-u)/10000",
+          "dSwing": "400*k*(100-d+(2*hi-1)*u)/100"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dBothUp",
+          "answer!=dBothDown",
+          "answer!=dSwing",
+          "dBothUp!=dBothDown",
+          "dBothUp!=dSwing",
+          "dBothDown!=dSwing"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -69887,25 +69974,25 @@
           "id": "answer",
           "label": "Choose the correct answer",
           "inputProfile": "choice",
-          "expected": "choice-d"
+          "expected": "choice-c"
         }
       ],
       "choices": [
         {
-          "id": "choice-d",
-          "label": "{{answer}}"
-        },
-        {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dBothDown}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dSwing}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{answer}}"
+        },
+        {
+          "id": "choice-d",
+          "label": "{{dBothUp}}"
         }
       ]
     },
@@ -70092,23 +70179,30 @@
             "type": "choice",
             "values": [
               20,
-              25,
-              50
+              50,
+              60
             ]
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "p2": "p1*(100+inc)/100",
-          "points": "p2-p1"
+          "points": "p1*inc/100",
+          "dSwing": "hi*(p1+inc)+(1-hi)*(inc/2)"
         },
         "constraints": [
           "(p1*(100+inc))%100==0",
           "p2<100",
           "inc!=points",
-          "inc!=p1",
           "inc!=p2",
-          "points!=p1",
-          "points!=p2"
+          "inc!=dSwing",
+          "points!=p2",
+          "points!=dSwing",
+          "p2!=dSwing"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -70127,7 +70221,7 @@
         },
         {
           "id": "choice-d",
-          "label": "${{p1}}\\%$"
+          "label": "${{dSwing}}\\%$"
         }
       ],
       "responseFields": [
