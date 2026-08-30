@@ -177,7 +177,90 @@
           "b2<=16",
           "ystar<=34"
         ]
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d2b4-fractional-graphical-intersection",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "The workspace graphs two savings models with fractional rates. Use the GRAPH to estimate the break-even point to about the nearest tenth. Enter the intersection coordinates; do not solve the system algebraically first.",
+          "context": {
+            "scenario": "Two savings strategies with fractional constant rates",
+            "note": "The intersection is intentionally non-integer, so accurate graphical reading matters."
+          },
+          "system": {
+            "m1": "{{m1}}",
+            "b1": "{{b1}}",
+            "m2": "{{m2}}",
+            "b2": "{{b2}}"
+          },
+          "graph": {
+            "xMin": 0,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 36
+          },
+          "solutionReview": {
+            "headline": "Harder graphical estimation can stay DOK 2 when the reasoning process is unchanged.",
+            "reasoning": [
+              "The two fractional-rate models cross at approximately ({{xstar}},{{ystar}}).",
+              "Read both coordinates from the crossing point to about the nearest tenth."
+            ],
+            "answerSummary": "Intersection approximately ({{xstar}},{{ystar}})."
+          },
+          "attemptFeedback": [
+            "Zoom in mentally on the crossing point; do not read either axis intercept instead."
+          ],
+          "supportHints": [
+            "Trace both lines until their y-values match, then project the point to both axes."
+          ],
+          "generator": {
+            "parameters": {
+              "m1": {
+                "type": "choice",
+                "values": [
+                  0.5,
+                  1.5,
+                  2.5
+                ]
+              },
+              "m2": {
+                "type": "choice",
+                "values": [
+                  3.5,
+                  4.5,
+                  5.5
+                ]
+              },
+              "xstar": {
+                "type": "choice",
+                "values": [
+                  1.25,
+                  2.25,
+                  3.25,
+                  4.25,
+                  5.25
+                ]
+              },
+              "b1": {
+                "type": "int",
+                "min": 6,
+                "max": 14
+              }
+            },
+            "derived": {
+              "ystar": "m1*xstar+b1",
+              "b2": "ystar-m2*xstar"
+            },
+            "constraints": [
+              "m1!=m2",
+              "b2>=-10",
+              "b2<=16",
+              "ystar<=34"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_3G_v2_transport-estimate",
@@ -441,7 +524,83 @@
           "b2<=16",
           "ystar<=34"
         ]
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d3b3-graph-estimate-equation-cross-check",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Estimate the solution of the two models from their graph. Before submitting, cross-check the estimated point against BOTH displayed equations and decide whether the same ordered pair is reasonable for each model.",
+          "context": {
+            "scenario": "Graphical solution with algebraic reasonableness check",
+            "note": "The numbers are kept moderate so the depth comes from cross-checking one point against both models, not from harder arithmetic."
+          },
+          "system": {
+            "m1": "{{m1}}",
+            "b1": "{{b1}}",
+            "m2": "{{m2}}",
+            "b2": "{{b2}}"
+          },
+          "graph": {
+            "xMin": 0,
+            "xMax": 10,
+            "yMin": -6,
+            "yMax": 30
+          },
+          "solutionReview": {
+            "headline": "A system solution must represent the same ordered pair on both equations.",
+            "reasoning": [
+              "The graph indicates an intersection at about ({{xstar}},{{ystar}}).",
+              "Substituting x={{xstar}} into each model produces the same output {{ystar}}.",
+              "That agreement confirms the graphical estimate is a reasonable system solution."
+            ],
+            "answerSummary": "Intersection ({{xstar}},{{ystar}}), verified by both equations."
+          },
+          "attemptFeedback": [
+            "An intersection estimate is stronger when the same x-value gives the same y-value in both equations."
+          ],
+          "supportHints": [
+            "Read the graph first, then mentally evaluate each equation at the estimated x-coordinate."
+          ],
+          "generator": {
+            "parameters": {
+              "m1": {
+                "type": "choice",
+                "values": [
+                  1,
+                  2
+                ]
+              },
+              "m2": {
+                "type": "choice",
+                "values": [
+                  3,
+                  4
+                ]
+              },
+              "xstar": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "b1": {
+                "type": "int",
+                "min": 4,
+                "max": 10
+              }
+            },
+            "derived": {
+              "ystar": "m1*xstar+b1",
+              "b2": "ystar-m2*xstar"
+            },
+            "constraints": [
+              "m1!=m2",
+              "b2>=-6",
+              "ystar<=28"
+            ]
+          }
+        }
+      ]
     }
   ]
 }
