@@ -32,10 +32,16 @@ async function pathGeneration() {
  * question in the bank today — this is additive, and nothing that works now
  * changes shape.
  */
-async function instantiateQuestion(question, seedKey) {
+async function instantiateQuestion(question, seedKey, {
+  preferredDok = null,
+  preferredDifficultyBand = null,
+} = {}) {
   const generation = await pathGeneration();
   if (!generation.hasPathGenerator(question)) return { question, parameters: null, reason: null };
-  return generation.generatePathInstanceWithRetries(question, seedKey);
+  return generation.generatePathInstanceWithRetries(question, seedKey, 4, {
+    preferredDok,
+    preferredDifficultyBand,
+  });
 }
 
 /**
