@@ -2690,7 +2690,8 @@ test('A2.5D solves exponential and single-log equations through complete methods
 
       if (doc.id.includes('common-log-affine')) {
         const expEq = String(fields.exponential?.expected);
-        const match = expEq.match(/^(-?\d+)x([+-]\d+)=(-?\d+)$/);
+        const compactExpEq = expEq.replace(/\s+/g, '');
+        const match = compactExpEq.match(/^(-?\d+)x([+-]\d+)=(-?\d+)$/);
         assert.ok(match, `${doc.id} generated unexpected affine exponential form: ${expEq}`);
         const m = Number(match[1]);
         const c0 = Number(match[2]);
