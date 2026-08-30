@@ -312,6 +312,112 @@
           "inputProfile": "number",
           "expected": "{{k}}"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-reverse-quadratic-transformations-from-vertex-point",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "reverseReasoning",
+          "representation": "multipleRepresentation",
+          "prompt": "A transformed parabola has vertex $({{h}},{{k}})$ and passes through $({{x1}},{{y1}})$. Starting from the parent $y=x^2$, recover the vertical multiplier a from the point, determine whether an x-axis reflection occurred, identify the horizontal and vertical translations, and write the complete vertex-form equation.",
+          "responseFields": [
+            {
+              "id": "a",
+              "label": "Vertical multiplier a",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "reflection",
+              "label": "Was there a reflection across the x-axis?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "{{reflection}}"
+            },
+            {
+              "id": "horizontal-shift",
+              "label": "Horizontal translation h",
+              "inputProfile": "number",
+              "expected": "{{h}}"
+            },
+            {
+              "id": "vertical-shift",
+              "label": "Vertical translation k",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "equation",
+              "label": "Complete vertex-form equation",
+              "inputProfile": "equation",
+              "expected": "y={{a}}(x-({{h}}))^2+({{k}})"
+            },
+            {
+              "id": "verify-point",
+              "label": "Model value at x={{x1}}",
+              "inputProfile": "number",
+              "expected": "{{y1}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A vertex fixes h and k; one additional point determines the vertical scale and reflection.",
+            "reasoning": [
+              "The vertex gives h={{h}} and k={{k}}.",
+              "At x={{x1}}=h+1, the squared factor is 1, so y-k=a and therefore a={{a}}.",
+              "The sign of a determines reflection, and the complete model reproduces y={{y1}} at the supplied point."
+            ],
+            "answerSummary": "$y={{a}}(x-({{h}}))^2+({{k}})$"
+          },
+          "attemptFeedback": [
+            "Use the vertex first, then substitute the extra point to solve for a."
+          ],
+          "supportHints": [
+            "Choosing a point one unit from the vertex makes (x-h)^2=1."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "k": {
+                "type": "int",
+                "min": -9,
+                "max": 9
+              },
+              "a": {
+                "type": "choice",
+                "values": [
+                  -4,
+                  -3,
+                  -2,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            "derived": {
+              "x1": "h+1",
+              "y1": "a+k",
+              "reflection": "a<0?'yes':'no'"
+            }
+          }
+        }
       ]
     }
   ]
