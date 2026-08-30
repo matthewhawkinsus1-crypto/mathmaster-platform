@@ -1,0 +1,808 @@
+{
+  "standard": "A2.8A",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-data-diagnostic-model-selection-linear-quadratic-exponential-growth-decay-nonunit-spacing-error-repair",
+  "rationale": "The legacy bank contains all three required model families but often reveals the diagnostic before the student analyzes the data. Fidelity V2 requires explicit first-difference, second-difference, or ratio evidence before model selection and adds exponential decay plus non-unit input spacing.",
+  "documents": [
+    {
+      "id": "mm_A2_8A_v2_linear-first-differences",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.8A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.8A:v2-linear-first-differences",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.8A",
+      "taskType": "interpretation",
+      "representation": "table",
+      "dok": 2,
+      "difficultyBand": 2,
+      "prompt": "Analyze the raw data. Compute the first differences for the equal x-steps, then select the model family best supported by the evidence.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Observed data",
+        "table": {
+          "headers": [
+            "x",
+            "y"
+          ],
+          "rows": [
+            [
+              "0",
+              "{{y0}}"
+            ],
+            [
+              "1",
+              "{{y1}}"
+            ],
+            [
+              "2",
+              "{{y2}}"
+            ],
+            [
+              "3",
+              "{{y3}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "diff-1",
+          "label": "First difference y1-y0",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        },
+        {
+          "id": "diff-2",
+          "label": "First difference y2-y1",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        },
+        {
+          "id": "diff-3",
+          "label": "First difference y3-y2",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        },
+        {
+          "id": "model",
+          "label": "Best-supported model family",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "linear",
+              "label": "Linear"
+            },
+            {
+              "id": "quadratic",
+              "label": "Quadratic"
+            },
+            {
+              "id": "exponential",
+              "label": "Exponential"
+            }
+          ],
+          "expected": "linear"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Constant first differences over equal input steps identify linear data.",
+        "reasoning": [
+          "The three first differences are all {{m}}.",
+          "The x-values increase by 1 each time, so the differences are directly comparable.",
+          "A constant additive change supports a linear model."
+        ],
+        "answerSummary": "Linear, supported by constant first differences of {{m}}."
+      },
+      "attemptFeedback": [
+        "Compute how y changes before choosing a model from appearance alone."
+      ],
+      "supportHints": [
+        "For equally spaced x-values, compare consecutive y-differences."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -12,
+            "max": 12
+          }
+        },
+        "derived": {
+          "y0": "b",
+          "y1": "m+b",
+          "y2": "2*m+b",
+          "y3": "3*m+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_8A_v2_quadratic-second-differences",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.8A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.8A:v2-quadratic-second-differences",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.8A",
+      "taskType": "conceptual",
+      "representation": "table",
+      "dok": 2,
+      "difficultyBand": 3,
+      "prompt": "Analyze the raw data. Compute the first differences and then the second differences before selecting the best-supported model family.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Observed data",
+        "table": {
+          "headers": [
+            "x",
+            "y"
+          ],
+          "rows": [
+            [
+              "0",
+              "{{y0}}"
+            ],
+            [
+              "1",
+              "{{y1}}"
+            ],
+            [
+              "2",
+              "{{y2}}"
+            ],
+            [
+              "3",
+              "{{y3}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "first-1",
+          "label": "First difference 1",
+          "inputProfile": "number",
+          "expected": "{{d1}}"
+        },
+        {
+          "id": "first-2",
+          "label": "First difference 2",
+          "inputProfile": "number",
+          "expected": "{{d2}}"
+        },
+        {
+          "id": "first-3",
+          "label": "First difference 3",
+          "inputProfile": "number",
+          "expected": "{{d3}}"
+        },
+        {
+          "id": "second-1",
+          "label": "Second difference 1",
+          "inputProfile": "number",
+          "expected": "{{sd}}"
+        },
+        {
+          "id": "second-2",
+          "label": "Second difference 2",
+          "inputProfile": "number",
+          "expected": "{{sd}}"
+        },
+        {
+          "id": "model",
+          "label": "Best-supported model family",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "linear",
+              "label": "Linear"
+            },
+            {
+              "id": "quadratic",
+              "label": "Quadratic"
+            },
+            {
+              "id": "exponential",
+              "label": "Exponential"
+            }
+          ],
+          "expected": "quadratic"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Constant second differences over equal input steps identify quadratic data.",
+        "reasoning": [
+          "The first differences are {{d1}}, {{d2}}, and {{d3}}, so they are not constant.",
+          "The two second differences are both {{sd}}.",
+          "That repeated second difference supports a quadratic model."
+        ],
+        "answerSummary": "Quadratic, supported by constant second differences of {{sd}}."
+      },
+      "attemptFeedback": [
+        "If the first differences change, compare how those first differences change."
+      ],
+      "supportHints": [
+        "At one-unit x-steps, a quadratic has constant second differences."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "c": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y0": "c",
+          "y1": "a+b+c",
+          "y2": "4*a+2*b+c",
+          "y3": "9*a+3*b+c",
+          "d1": "a+b",
+          "d2": "3*a+b",
+          "d3": "5*a+b",
+          "sd": "2*a"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_8A_v2_exponential-growth-decay-ratios",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.8A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.8A:v2-exponential-growth-decay-ratios",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.8A",
+      "taskType": "interpretation",
+      "representation": "multipleRepresentation",
+      "dok": 2,
+      "difficultyBand": 3,
+      "prompt": "Analyze the raw data. Compute each consecutive output ratio, then select the model family best supported by the evidence.",
+      "attemptFeedback": [
+        "A decreasing data set can still be exponential; calculate the ratios rather than classifying from direction alone."
+      ],
+      "supportHints": [
+        "For equally spaced x-values, exponential data have a constant nonzero output ratio."
+      ],
+      "variants": [
+        {
+          "coverageKey": "exponential-growth",
+          "stimulus": {
+            "kind": "table",
+            "title": "Observed data",
+            "table": {
+              "headers": [
+                "x",
+                "y"
+              ],
+              "rows": [
+                [
+                  "0",
+                  "{{y0}}"
+                ],
+                [
+                  "1",
+                  "{{y1}}"
+                ],
+                [
+                  "2",
+                  "{{y2}}"
+                ],
+                [
+                  "3",
+                  "{{y3}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "ratio-1",
+              "label": "y1/y0",
+              "inputProfile": "number",
+              "expected": "{{r}}"
+            },
+            {
+              "id": "ratio-2",
+              "label": "y2/y1",
+              "inputProfile": "number",
+              "expected": "{{r}}"
+            },
+            {
+              "id": "ratio-3",
+              "label": "y3/y2",
+              "inputProfile": "number",
+              "expected": "{{r}}"
+            },
+            {
+              "id": "model",
+              "label": "Best-supported model family",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "linear",
+                  "label": "Linear"
+                },
+                {
+                  "id": "quadratic",
+                  "label": "Quadratic"
+                },
+                {
+                  "id": "exponential",
+                  "label": "Exponential"
+                }
+              ],
+              "expected": "exponential"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A constant output ratio over equal input steps identifies exponential change.",
+            "reasoning": [
+              "Each consecutive output ratio equals {{r}}.",
+              "The same multiplicative factor repeats at every one-unit x-step.",
+              "Because {{r}}>1, this is exponential growth."
+            ],
+            "answerSummary": "Exponential growth with common ratio {{r}}."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 8
+              },
+              "r": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "y0": "a",
+              "y1": "a*r",
+              "y2": "a*r*r",
+              "y3": "a*r*r*r"
+            }
+          }
+        },
+        {
+          "coverageKey": "exponential-decay",
+          "stimulus": {
+            "kind": "table",
+            "title": "Observed data",
+            "table": {
+              "headers": [
+                "x",
+                "y"
+              ],
+              "rows": [
+                [
+                  "0",
+                  "{{y0}}"
+                ],
+                [
+                  "1",
+                  "{{y1}}"
+                ],
+                [
+                  "2",
+                  "{{y2}}"
+                ],
+                [
+                  "3",
+                  "{{y3}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "ratio-1",
+              "label": "y1/y0",
+              "inputProfile": "number",
+              "expected": "1/{{r}}"
+            },
+            {
+              "id": "ratio-2",
+              "label": "y2/y1",
+              "inputProfile": "number",
+              "expected": "1/{{r}}"
+            },
+            {
+              "id": "ratio-3",
+              "label": "y3/y2",
+              "inputProfile": "number",
+              "expected": "1/{{r}}"
+            },
+            {
+              "id": "model",
+              "label": "Best-supported model family",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "linear",
+                  "label": "Linear"
+                },
+                {
+                  "id": "quadratic",
+                  "label": "Quadratic"
+                },
+                {
+                  "id": "exponential",
+                  "label": "Exponential"
+                }
+              ],
+              "expected": "exponential"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A constant output ratio below 1 identifies exponential decay.",
+            "reasoning": [
+              "Each consecutive output ratio equals 1/{{r}}.",
+              "The same multiplicative factor repeats at every one-unit x-step.",
+              "Because the ratio is between 0 and 1, this is exponential decay."
+            ],
+            "answerSummary": "Exponential decay with common ratio 1/{{r}}."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "r": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "y0": "a*r*r*r",
+              "y1": "a*r*r",
+              "y2": "a*r",
+              "y3": "a"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_8A_v2_linear-nonunit-input-spacing",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.8A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.8A:v2-linear-nonunit-input-spacing",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.8A",
+      "taskType": "application",
+      "representation": "table",
+      "dok": 2,
+      "difficultyBand": 4,
+      "prompt": "The x-values are equally spaced but not one unit apart. Analyze both the input and output changes, determine the per-unit rate of change, then select the model family.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Observed data",
+        "table": {
+          "headers": [
+            "x",
+            "y"
+          ],
+          "rows": [
+            [
+              "{{x0}}",
+              "{{y0}}"
+            ],
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ],
+            [
+              "{{x3}}",
+              "{{y3}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "x-step",
+          "label": "Common change in x",
+          "inputProfile": "number",
+          "expected": "{{step}}"
+        },
+        {
+          "id": "y-step",
+          "label": "Common change in y",
+          "inputProfile": "number",
+          "expected": "{{dy}}"
+        },
+        {
+          "id": "rate",
+          "label": "Change in y per 1 unit of x",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        },
+        {
+          "id": "model",
+          "label": "Best-supported model family",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "linear",
+              "label": "Linear"
+            },
+            {
+              "id": "quadratic",
+              "label": "Quadratic"
+            },
+            {
+              "id": "exponential",
+              "label": "Exponential"
+            }
+          ],
+          "expected": "linear"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A constant rate requires comparing output change to input change.",
+        "reasoning": [
+          "Each x-step is {{step}} and each matching y-step is {{dy}}.",
+          "The rate per x-unit is {{dy}}/{{step}}={{m}}.",
+          "A constant rate supports a linear model."
+        ],
+        "answerSummary": "Linear, with rate of change {{m}} per x-unit."
+      },
+      "attemptFeedback": [
+        "Do not call the raw y-step the slope when the x-step is not 1."
+      ],
+      "supportHints": [
+        "Compute Δy/Δx for each interval."
+      ],
+      "generator": {
+        "parameters": {
+          "x0": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "step": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          }
+        },
+        "derived": {
+          "x1": "x0+step",
+          "x2": "x0+2*step",
+          "x3": "x0+3*step",
+          "y0": "m*x0+b",
+          "y1": "m*(x0+step)+b",
+          "y2": "m*(x0+2*step)+b",
+          "y3": "m*(x0+3*step)+b",
+          "dy": "m*step"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_8A_v2_quadratic-choice-error-full-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.8A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.8A:v2-quadratic-choice-error-full-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.8A",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "dok": 3,
+      "difficultyBand": 4,
+      "prompt": "A student sees the data increasing and chooses a linear model without computing differences. Diagnose the error, calculate the first and second differences, and select the correct model family.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Observed data",
+        "table": {
+          "headers": [
+            "x",
+            "y"
+          ],
+          "rows": [
+            [
+              "0",
+              "{{y0}}"
+            ],
+            [
+              "1",
+              "{{y1}}"
+            ],
+            [
+              "2",
+              "{{y2}}"
+            ],
+            [
+              "3",
+              "{{y3}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What is wrong with the student's reasoning?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "direction-not-enough",
+              "label": "Increasing values alone do not imply linearity; the pattern of change must be analyzed."
+            },
+            {
+              "id": "increase-linear",
+              "label": "Any increasing data set must be linear."
+            },
+            {
+              "id": "second-exp",
+              "label": "Constant second differences imply an exponential model."
+            }
+          ],
+          "expected": "direction-not-enough"
+        },
+        {
+          "id": "first-1",
+          "label": "First difference 1",
+          "inputProfile": "number",
+          "expected": "{{d1}}"
+        },
+        {
+          "id": "first-2",
+          "label": "First difference 2",
+          "inputProfile": "number",
+          "expected": "{{d2}}"
+        },
+        {
+          "id": "first-3",
+          "label": "First difference 3",
+          "inputProfile": "number",
+          "expected": "{{d3}}"
+        },
+        {
+          "id": "second-1",
+          "label": "Second difference 1",
+          "inputProfile": "number",
+          "expected": "{{sd}}"
+        },
+        {
+          "id": "second-2",
+          "label": "Second difference 2",
+          "inputProfile": "number",
+          "expected": "{{sd}}"
+        },
+        {
+          "id": "model",
+          "label": "Correct model family",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "linear",
+              "label": "Linear"
+            },
+            {
+              "id": "quadratic",
+              "label": "Quadratic"
+            },
+            {
+              "id": "exponential",
+              "label": "Exponential"
+            }
+          ],
+          "expected": "quadratic"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Direction alone is not a model diagnostic.",
+        "reasoning": [
+          "The first differences {{d1}}, {{d2}}, and {{d3}} are positive but not equal.",
+          "The second differences are both {{sd}}.",
+          "Constant second differences identify a quadratic model."
+        ],
+        "answerSummary": "Quadratic, not linear."
+      },
+      "attemptFeedback": [
+        "Compute the change pattern rather than classifying from 'increasing' alone."
+      ],
+      "supportHints": [
+        "Linear data need constant first differences; quadratic data need constant second differences."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "c": {
+            "type": "int",
+            "min": 0,
+            "max": 10
+          }
+        },
+        "derived": {
+          "y0": "c",
+          "y1": "a+b+c",
+          "y2": "4*a+2*b+c",
+          "y3": "9*a+3*b+c",
+          "d1": "a+b",
+          "d2": "3*a+b",
+          "d3": "5*a+b",
+          "sd": "2*a"
+        }
+      }
+    }
+  ]
+}
