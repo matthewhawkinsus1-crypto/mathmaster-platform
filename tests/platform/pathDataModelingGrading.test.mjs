@@ -8,6 +8,7 @@ import {
   predictionKind as clientPredictionKind,
   quadraticRegression as clientQuadratic,
   exponentialRegression as clientExponential,
+  squareRootFit as clientSquareRootFit,
 } from '../../src/tools/dataModeling/dataModelingMath.js';
 import {
   buildDataModelingPrivateDefinition,
@@ -20,6 +21,7 @@ import {
   pathLinearRegression,
   pathPredictionKind,
   pathQuadraticRegression,
+  pathSquareRootFit,
   sanitizeDataModelingPublicQuestion,
 } from '../../functions/shared/pathDataModelingGrading.mjs';
 
@@ -82,6 +84,56 @@ test('server quadratic and exponential regressions remain in parity with client 
       nearly(se.base, ce.base);
     }
   }
+});
+
+test('server square-root fitting remains in parity with the client technology math', () => {
+  const points = [[2, 5], [3, 8], [6, 11], [11, 14]];
+  const server = pathSquareRootFit(points);
+  const client = clientSquareRootFit(points);
+  assert.ok(server);
+  assert.ok(client);
+  nearly(server.a, 3);
+  nearly(server.h, 2);
+  nearly(server.k, 5);
+  nearly(server.a, client.a);
+  nearly(server.h, client.h);
+  nearly(server.k, client.k);
+});
+
+test('A2.4E squareRootFit requires the full fitted equation without leaking coefficients', () => {
+  const question = {
+    type: 'dataModeling',
+    prompt: 'Fit a square-root model to the data.',
+    mode: 'squareRootFit',
+    points: [{ x: 2, y: 5 }, { x: 3, y: 8 }, { x: 6, y: 11 }, { x: 11, y: 14 }],
+    squareRootATolerance: 0.01,
+    squareRootHTolerance: 0.01,
+    squareRootKTolerance: 0.01,
+    answer: 'must-not-leak',
+  };
+  const definition = buildDataModelingPrivateDefinition(question);
+  assert.equal(definition.expectedModelId, 'squareRoot');
+  assert.deepEqual(definition.requiredParts, ['fit']);
+  nearly(definition.expectedModel.model.a, 3);
+  nearly(definition.expectedModel.model.h, 2);
+  nearly(definition.expectedModel.model.k, 5);
+
+  const correct = gradeDataModelingResponse(definition, { a: 3, h: 2, k: 5, isCorrect: false, score: 0 });
+  assert.equal(correct.isCorrect, true);
+  assert.equal(correct.score, 1);
+
+  const wrongShift = gradeDataModelingResponse(definition, { a: 3, h: 1, k: 5, isCorrect: true, score: 1 });
+  assert.equal(wrongShift.isCorrect, false);
+  assert.equal(wrongShift.score, 0);
+
+  const publicQuestion = sanitizeDataModelingPublicQuestion(question);
+  assert.equal(publicQuestion.mode, 'squareRootFit');
+  assert.deepEqual(publicQuestion.points, [[2, 5], [3, 8], [6, 11], [11, 14]]);
+  const serialized = JSON.stringify(publicQuestion);
+  assert.equal(serialized.includes('must-not-leak'), false);
+  assert.equal(serialized.includes('squareRootATolerance'), false);
+  assert.equal(serialized.includes('squareRootHTolerance'), false);
+  assert.equal(serialized.includes('squareRootKTolerance'), false);
 });
 
 test('server model-family comparison remains in parity with client best-model choice', () => {
@@ -318,6 +370,9 @@ test('public Data Modeling payload omits expected model, regression answers and 
     quadraticCTolerance: 13,
     exponentialATolerance: 14,
     exponentialBaseTolerance: 15,
+    squareRootATolerance: 16,
+    squareRootHTolerance: 17,
+    squareRootKTolerance: 18,
     startingModel: { m: 1, b: 2 },
     modelMetric: 'rmse',
     answer: 'must-not-leak',
@@ -338,5 +393,8 @@ test('public Data Modeling payload omits expected model, regression answers and 
   assert.equal('quadraticCTolerance' in publicQuestion, false);
   assert.equal('exponentialATolerance' in publicQuestion, false);
   assert.equal('exponentialBaseTolerance' in publicQuestion, false);
+  assert.equal('squareRootATolerance' in publicQuestion, false);
+  assert.equal('squareRootHTolerance' in publicQuestion, false);
+  assert.equal('squareRootKTolerance' in publicQuestion, false);
   assert.equal('answer' in publicQuestion, false);
 });
