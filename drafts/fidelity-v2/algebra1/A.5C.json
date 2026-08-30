@@ -208,6 +208,110 @@
           "inputProfile": "number",
           "expected": "{{x}}"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b3"
+        },
+        {
+          "coverageKey": "challenge-d3b4-swapped-system-solution-audit",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "context",
+          "prompt": "A purchase contains {{n}} items of two types costing {{a}} and {{b}} dollars each, for a total of {{total}} dollars. A student swaps the counts and proposes {{wrongX}} of the first type and {{wrongY}} of the second. Test the proposal against BOTH constraints, explain why the total-count check alone is insufficient, and give the actual counts.",
+          "responseFields": [
+            {
+              "id": "wrong-count-total",
+              "label": "Total items in the student's proposal",
+              "inputProfile": "number",
+              "expected": "{{n}}"
+            },
+            {
+              "id": "wrong-cost-total",
+              "label": "Cost of the student's proposal",
+              "inputProfile": "number",
+              "expected": "{{wrongTotal}}"
+            },
+            {
+              "id": "verdict",
+              "label": "Is the student's proposal a solution to the system?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "no",
+                  "label": "No; it satisfies the count equation but not the cost equation."
+                },
+                {
+                  "id": "yes",
+                  "label": "Yes; satisfying the count equation is enough."
+                }
+              ],
+              "expected": "no"
+            },
+            {
+              "id": "first-type",
+              "label": "Actual number of the first type",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            },
+            {
+              "id": "second-type",
+              "label": "Actual number of the second type",
+              "inputProfile": "number",
+              "expected": "{{y}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A system solution must satisfy every constraint simultaneously.",
+            "reasoning": [
+              "The swapped proposal still totals {{n}} items, so it passes the count equation.",
+              "Its cost is {{wrongTotal}}, not {{total}}, so it fails the second equation.",
+              "The actual counts {{x}} and {{y}} satisfy both the count and cost constraints."
+            ],
+            "answerSummary": "First type {{x}}; second type {{y}}."
+          },
+          "attemptFeedback": [
+            "Check a proposed ordered pair in both equations, not just the easier constraint."
+          ],
+          "supportHints": [
+            "Swapping x and y preserves x+y but usually changes ax+by when a and b differ."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              },
+              "b": {
+                "type": "int",
+                "min": 8,
+                "max": 15
+              },
+              "x": {
+                "type": "int",
+                "min": 2,
+                "max": 15
+              },
+              "y": {
+                "type": "int",
+                "min": 2,
+                "max": 15
+              }
+            },
+            "derived": {
+              "n": "x+y",
+              "total": "a*x+b*y",
+              "wrongX": "y",
+              "wrongY": "x",
+              "wrongTotal": "a*wrongX+b*wrongY"
+            },
+            "constraints": [
+              "x!=y"
+            ]
+          }
+        }
       ]
     },
     {
