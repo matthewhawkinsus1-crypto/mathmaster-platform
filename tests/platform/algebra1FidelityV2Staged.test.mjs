@@ -9,6 +9,8 @@ const staged = [
   read('drafts/fidelity-v2/algebra1/A.2C.json'),
   read('drafts/fidelity-v2/algebra1/A.2H.json'),
   read('drafts/fidelity-v2/algebra1/A.2I.json'),
+  read('drafts/fidelity-v2/algebra1/A.10A.json'),
+  read('drafts/fidelity-v2/algebra1/A.10B.json'),
   read('drafts/fidelity-v2/algebra1/A.12D.json'),
 ];
 
@@ -52,7 +54,7 @@ test('each staged Algebra I Fidelity V2 standard contains five new complete fami
         assert.ok(doc.stimulus?.table?.rows?.length >= 2, `${doc.id} declares table but supplies no real table`);
       }
       if (doc.taskType === 'errorAnalysis') {
-        assert.match(String(doc.prompt), /student|error|mistake|incorrect|correct/i, `${doc.id} must actually present an error to analyze`);
+        assert.match(String(doc.prompt), /student|error|mistake|incorrect|correct|claims?/i, `${doc.id} must actually present an error to analyze`);
       }
     }
   }
@@ -102,6 +104,22 @@ test('A.2I Fidelity V2 makes students write complete systems rather than solve a
   assert.ok(docs.some((doc) => doc.representation === 'table'));
   assert.ok(docs.some((doc) => doc.taskType === 'errorAnalysis'));
   assert.ok(docs.some((doc) => doc.dok === 3 && doc.taskType === 'reverseReasoning'));
+});
+
+test('A.10A and A.10B require complete polynomial expressions in all five families', () => {
+  for (const code of ['A.10A', 'A.10B']) {
+    const payload = staged.find((entry) => entry.standard === code);
+    assert.match(payload.certificationStatus, /expanded-expression-grader-integration/);
+    for (const doc of payload.documents) {
+      const fields = doc.responseFields || [];
+      assert.equal(fields.length, 1);
+      assert.equal(fields[0].inputProfile, 'expression', `${doc.id} must require the full expression`);
+      assert.match(String(fields[0].expected), /x/);
+      assert.doesNotMatch(String(doc.prompt), /what is the coefficient|what is the constant term/i);
+    }
+    assert.ok(payload.documents.some((doc) => doc.taskType === 'errorAnalysis'));
+    assert.ok(payload.documents.some((doc) => doc.dok === 3));
+  }
 });
 
 test('A.12D Fidelity V2 actually requires nth-term formulas rather than component answers', () => {
