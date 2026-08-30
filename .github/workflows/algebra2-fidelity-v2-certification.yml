@@ -32,6 +32,7 @@ on:
       - "tests/platform/modelEquationAnswerEquivalence.test.mjs"
       - "tests/platform/setBuilderAnswerEquivalence.test.mjs"
       - "tests/platform/rationalExpressionAnswerEquivalence.test.mjs"
+      - "tests/platform/algebra2A27FRationalOperations.test.mjs"
       - "tests/platform/a27fRationalOperations.test.mjs"
       - "tests/platform/systemsMatrix3Technology.test.mjs"
       - "tests/platform/pathDataModelingGrading.test.mjs"
@@ -63,6 +64,7 @@ on:
       - "tests/platform/modelEquationAnswerEquivalence.test.mjs"
       - "tests/platform/setBuilderAnswerEquivalence.test.mjs"
       - "tests/platform/rationalExpressionAnswerEquivalence.test.mjs"
+      - "tests/platform/algebra2A27FRationalOperations.test.mjs"
       - "tests/platform/a27fRationalOperations.test.mjs"
       - "tests/platform/systemsMatrix3Technology.test.mjs"
       - "tests/platform/pathDataModelingGrading.test.mjs"
@@ -94,6 +96,7 @@ jobs:
             tests/platform/modelEquationAnswerEquivalence.test.mjs \
             tests/platform/setBuilderAnswerEquivalence.test.mjs \
             tests/platform/rationalExpressionAnswerEquivalence.test.mjs \
+            tests/platform/algebra2A27FRationalOperations.test.mjs \
             tests/platform/a27fRationalOperations.test.mjs \
             tests/platform/systemsMatrix3Technology.test.mjs
       - name: Build student/runtime bundle
