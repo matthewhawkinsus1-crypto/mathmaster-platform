@@ -419,6 +419,85 @@
           "supportHints": [
             "Commutativity lets you reorder whole terms, but it does not let you swap which coefficient belongs to which variable."
           ]
+        },
+        {
+          "coverageKey": "adaptive-d3b3-context-system-candidate-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A school sells {{n}} tickets: adult tickets cost {{a}} dollars and student tickets cost {{s}} dollars. Let x be adult tickets and y be student tickets. Candidate System A uses $x+y={{n}}$ and ${{a}}x+{{s}}y={{total}}$. Candidate System B swaps the price-variable pairings. An audit shows {{x}} adult and {{y}} student tickets. Decide which system matches the variable meanings and verify the audited counts in both equations.",
+          "responseFields": [
+            {
+              "id": "choice",
+              "label": "Which system is valid?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "a",
+                  "label": "Candidate System A"
+                },
+                {
+                  "id": "b",
+                  "label": "Candidate System B"
+                }
+              ],
+              "expected": "a"
+            },
+            {
+              "id": "count-equation",
+              "label": "Correct count equation",
+              "inputProfile": "equation",
+              "expected": "x+y={{n}}"
+            },
+            {
+              "id": "revenue-equation",
+              "label": "Correct revenue equation",
+              "inputProfile": "equation",
+              "expected": "{{a}}x+{{s}}y={{total}}"
+            },
+            {
+              "id": "verify-count",
+              "label": "Verified ticket count",
+              "inputProfile": "number",
+              "expected": "{{n}}"
+            },
+            {
+              "id": "verify-revenue",
+              "label": "Verified revenue",
+              "inputProfile": "number",
+              "expected": "{{total}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "x": {
+                "type": "int",
+                "min": 3,
+                "max": 12
+              },
+              "y": {
+                "type": "int",
+                "min": 3,
+                "max": 12
+              },
+              "a": {
+                "type": "int",
+                "min": 8,
+                "max": 15
+              },
+              "s": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              }
+            },
+            "derived": {
+              "n": "x+y",
+              "total": "a*x+s*y"
+            },
+            "constraints": [
+              "a!=s"
+            ]
+          }
         }
       ]
     },
