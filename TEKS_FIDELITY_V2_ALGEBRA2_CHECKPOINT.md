@@ -721,7 +721,9 @@ Resume here. Do not reopen A2.2A–A2.7A unless a failing gate names them.
 - The off-standard degree/leading-coefficient family is removed.
 - Coverage includes sparse quartic addition, sparse quartic subtraction, quadratic-by-quadratic multiplication with like-term combining, sparse cubic-by-quadratic multiplication producing a degree-5 product, and complete subtraction-sign error repair.
 - Routine arithmetic remains DOK 2 even at higher computational difficulty; only the error-repair family is DOK 3.
-- Base Algebra II certification run `33330754534`: **RUNNING** at this checkpoint.
+- Base Algebra II certification run `33330754534`: **PASS**.
+- Added A2.7B-specific generated certification — commit `08eb995c0cbe00df7d7bf918b206579b6fdc9c56`.
+- Full A2.7B certification run `33330813766`: **RUNNING** at this checkpoint.
 - FIRST UNFINISHED STANDARD remains **A2.7B** until full generated certification is green.
 
 
