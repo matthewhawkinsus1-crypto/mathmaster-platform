@@ -95,7 +95,11 @@ const responseFieldUsesUnitGrader = (field = {}) => Boolean(
 );
 
 const acceptedListHasRuntimePrecedence = (collection, field = {}) => {
-  if (collection === 'answerFields') return true;
+  // MultiAnswerGrader uses answerCandidatesForField(), which UNIONs the
+  // canonical answer with acceptedAnswers. Secure response fields are
+  // different: gradeResponseField() reads accepted first and only falls back
+  // to expected when no accepted list exists.
+  if (collection === 'answerFields') return false;
   if (collection === 'responseFields' || collection === 'responses') {
     return !responseFieldUsesUnitGrader(field);
   }
@@ -225,7 +229,9 @@ const validateField = (field, {
   const options = optionsForField(field);
   const looksChoice = clean(field.type || field.inputProfile).toLowerCase() === 'choice' || options.length > 0;
   if (looksChoice && autoGraded && (isPresent(primary) || accepted.length)) {
-    const keys = accepted.length ? accepted : [primary];
+    const keys = collection === 'answerFields'
+      ? [primary, ...accepted].filter(isPresent)
+      : (accepted.length ? accepted : [primary]);
     const missing = keys.filter((key) => !options.some((option) => equivalent(field, key, option)));
     if (options.length && missing.length === keys.length) {
       errors.push(
