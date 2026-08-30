@@ -4993,6 +4993,772 @@ mkc('8.4A', 'triangle-that-cannot-sit-on-the-line', {
   feedback: 'A larger triangle is not a steeper one as long as the ratio matches.',
 });
 
+// ================================================================ 8.4B
+// Proportional relationships and graphs through the origin.
+
+mkc('8.4B', 'vertical-gap-between-two-proportional-graphs', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'orderedPairs', courseId: 'grade8',
+  prompt: 'Proportional graphs pass through $({{a}}, {{b}})$ and $({{c}}, {{d}})$. At $x = {{x}}$, how far apart are they?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 14 },
+      c: { type: 'int', min: 2, max: 14 },
+      m: { type: 'int', min: 3, max: 16 },
+      n: { type: 'int', min: 2, max: 15 },
+      x: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      b: 'a*m',
+      d: 'c*n',
+      answer: 'x*(m-n)',
+      // Added the two rates instead of comparing them.
+      d_operationInverted: 'x*(m+n)',
+      // Answered the gap in rates, not in height.
+      d_forgotFinalStep: 'm-n',
+      // Compared the two given heights instead.
+      d_partialTotal: 'a*m-c*n',
+    },
+    constraints: ['m>n', 'x*(m-n)>8', 'abs(a*m-c*n-x*(m-n))>4', 'abs(m-n-x*(m-n))>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The two graphs rise ${{m}}$ and ${{n}}$ per step, since each passes through the origin.', 'At $x = {{x}}$ they are ${{x}} \\times ({{m}} - {{n}})= {{answer}}$ apart.'],
+  answerSummary: { headline: 'A proportional graph is fixed by one point and the origin.', text: 'They are ${{answer}}$ apart.' },
+  hint: 'Work out each rate before going to $x = {{x}}$.',
+  feedback: 'The gap between the given points is measured at different inputs.',
+});
+
+mkc('8.4B', 'input-where-two-proportional-graphs-separate', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Proportional graphs pass through $({{a}}, {{b}})$ and $({{c}}, {{d}})$. At which $x$ are they ${{g}}$ apart?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 2, max: 12 },
+      m: { type: 'int', min: 3, max: 9 },
+      n: { type: 'int', min: 2, max: 7 },
+      u: { type: 'int', min: 3, max: 48 },
+    },
+    derived: {
+      b: 'a*m',
+      d: 'c*n',
+      g: '(m-n)*u',
+      answer: 'u',
+      // Answered the gap itself.
+      d_forgotFinalStep: 'g',
+      // Answered the product of the two rates.
+      d_usedGivenValue: 'm*n',
+      // Answered the gap between the rates.
+      d_partialTotal: 'm-n',
+    },
+    constraints: ['m>n', 'm-n>1', 'abs(m*n-u)>4', 'abs(m-n-u)>3', 'u>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The graphs separate at ${{m}} - {{n}}$ per step.', 'Reaching a gap of ${{g}}$ takes ${{answer}}$ steps.'],
+  answerSummary: { headline: 'The gap grows steadily at the difference of the two rates.', text: '$x = {{answer}}$.' },
+  hint: 'Find how fast the gap itself grows.',
+  feedback: 'The gap is a height, not the input that produces it.',
+});
+
+mkc('8.4B', 'positive-points-called-proportional', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal', courseId: 'grade8',
+  prompt: 'A student says a line through $({{a}}, {{b}})$ and $({{c}}, {{d}})$ is proportional because both points are positive. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 13, max: 26 },
+      m: { type: 'int', min: 2, max: 9 },
+      b0: { type: 'int', min: 3, max: 30 },
+    },
+    derived: { b: 'a*m+b0', d: 'c*m+b0' },
+    constraints: ['b0>2'],
+  },
+  choices: [
+    { label: 'Proportional means the line also passes through the origin.', correct: true },
+    { label: 'The two points would have to share a $y$ value.', error: 'usedGivenValue' },
+    { label: 'The coordinates would have to be whole numbers.', error: 'roundedWrong' },
+    { label: 'The second point would have to be further from the origin.', error: 'partialTotal' },
+  ],
+  reasoning: ['These two points give a line that meets the $y$-axis at ${{b0}}$, not at zero.', 'Positive coordinates say nothing about where a line crosses that axis.'],
+  answerSummary: { headline: 'Proportional lines pass through the origin.', text: 'The line misses the origin.' },
+  hint: 'Work back from either point to $x = 0$.',
+  feedback: 'Whole-number coordinates are neither required nor enough.',
+});
+
+// ================================================================ 8.4C
+// Rate of change and value at zero.
+
+mkc('8.4C', 'value-further-along-a-line-from-a-table', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'table', courseId: 'grade8',
+  prompt: 'Every row follows one linear rule. What is $y$ when $x$ is ${{xq}}$?',
+  stimulus: {
+    kind: 'table',
+    columns: ['x', 'y'],
+    rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{y3}}']],
+  },
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 16 },
+      b: { type: 'int', min: 3, max: 16 },
+      x1: { type: 'int', min: 1, max: 4 },
+      x2: { type: 'int', min: 5, max: 9 },
+      x3: { type: 'int', min: 10, max: 14 },
+      xq: { type: 'int', min: 15, max: 30 },
+    },
+    derived: {
+      y1: 'm*x1+b', y2: 'm*x2+b', y3: 'm*x3+b',
+      answer: 'm*xq+b',
+      // Left the value at zero out.
+      d_forgotFinalStep: 'm*xq',
+      // Swapped the rate and the starting value.
+      d_operationInverted: 'b*xq+m',
+      // Combined the two before multiplying.
+      d_orderOfOperations: '(m+b)*xq',
+    },
+    constraints: ['abs(b*xq+m-m*xq-b)>4', 'abs((m+b)*xq-m*xq-b)>4', 'b>2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_orderOfOperations}}'), error: 'orderOfOperations' },
+  ],
+  reasoning: ['Row to row $y$ climbs ${{m}}$ per step, and working back to $x = 0$ gives ${{b}}$.', 'So at $x = {{xq}}$ the value is ${{answer}}$.'],
+  answerSummary: { headline: 'A linear rule needs both its rate and its value at zero.', text: '$y = {{answer}}$.' },
+  hint: 'Find the rate first, then the value at zero.',
+  feedback: 'The starting value is added once, not multiplied by the input.',
+});
+
+mkc('8.4C', 'second-line-through-the-same-axis-point', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Two lines meet the $y$-axis at the same point; one rises ${{m}}$ a step through $({{x1}}, {{y1}})$ and the other rises ${{n}}$. What does the second reach at $x = {{x1}}$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 14 },
+      n: { type: 'int', min: 2, max: 14 },
+      x1: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 4, max: 40 },
+    },
+    derived: {
+      y1: 'm*x1+b',
+      answer: 'n*x1+b',
+      // Answered the first line's value.
+      d_usedGivenValue: 'y1',
+      // Left the shared axis point out.
+      d_forgotFinalStep: 'n*x1',
+      // Added the second rise on top of the first line.
+      d_orderOfOperations: 'y1+n*x1',
+    },
+    constraints: ['m!=n', 'abs(m-n)*x1>3', 'b>3', 'n*x1>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_orderOfOperations}}'), error: 'orderOfOperations' },
+  ],
+  reasoning: ['The first line puts the shared axis point at ${{y1}} - {{m}} \\times {{x1}} = {{b}}$.', 'The second reaches ${{b}} + {{n}} \\times {{x1}} = {{answer}}$.'],
+  answerSummary: { headline: 'Recover the shared starting value before using the second rate.', text: 'It reaches ${{answer}}$.' },
+  hint: 'Work the first line back to the axis.',
+  feedback: 'The second line starts from the same point, not from the first line.',
+});
+
+mkc('8.4C', 'claim-about-a-tank-that-starts-full', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade8',
+  prompt: 'A tank holds $y = {{m}}x + {{b}}$ litres after $x$ minutes of filling. Which statement is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 30 },
+      b: { type: 'int', min: 5, max: 90 },
+      x1: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { val: 'm*x1+b' },
+    constraints: ['b>4'],
+  },
+  choices: [
+    { label: 'The tank was empty when the filling started.', correct: true },
+    { label: 'It gains ${{m}}$ litres a minute.', error: 'partialTotal' },
+    { label: 'It already held ${{b}}$ litres before the filling began.', error: 'usedGivenValue' },
+    { label: 'After ${{x1}}$ minutes it holds ${{val}}$ litres.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Putting $x = 0$ into the rule gives ${{b}}$ litres, not zero.', 'The tank already held that much before any filling.'],
+  answerSummary: { headline: 'The constant term is what was there at the start.', text: 'The tank was not empty.' },
+  hint: 'Substitute $x = 0$ and read the result.',
+  feedback: 'The rate really is ${{m}}$ litres a minute; it is the starting point that is misread.',
+});
+
+// ================================================================ 8.5A
+// The constant of proportionality.
+
+mkc('8.5A', 'gap-between-two-constants', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'table', courseId: 'grade8',
+  prompt: 'Each row records one proportional relationship. By how much does the first constant exceed the second?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Relationship', 'x', 'y'],
+    rows: [['first', '${{x1}}$', '${{y1}}$'], ['second', '${{x2}}$', '${{y2}}$']],
+  },
+  generator: {
+    parameters: {
+      x1: { type: 'int', min: 2, max: 14 },
+      x2: { type: 'int', min: 2, max: 14 },
+      k1: { type: 'int', min: 24, max: 70 },
+      k2: { type: 'int', min: 2, max: 60 },
+    },
+    derived: {
+      y1: 'x1*k1',
+      y2: 'x2*k2',
+      answer: 'k1-k2',
+      // Added the two constants.
+      d_operationInverted: 'k1+k2',
+      // Compared them the other way round.
+      d_signError: 'k2-k1',
+      // Answered the second constant.
+      d_partialTotal: 'k2',
+    },
+    constraints: ['k1>k2', 'k1-k2>3', 'abs(k2-(k1-k2))>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Each constant is $y$ divided by $x$, giving ${{k1}}$ and ${{k2}}$.', 'The difference is ${{answer}}$.'],
+  answerSummary: { headline: 'Divide each pair before comparing anything.', text: 'It exceeds it by ${{answer}}$.' },
+  hint: 'One row on its own fixes a proportional constant.',
+  feedback: 'The two outputs are measured at different inputs, so they cannot be compared directly.',
+});
+
+mkc('8.5A', 'length-that-matches-another-cost', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Rope costs $\\${{k}}$ a metre and chain $\\${{other}}$ a metre. How many metres of rope cost as much as ${{n}}$ metres of chain?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 20 },
+      t: { type: 'int', min: 2, max: 9 },
+      n: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      other: 'k*t',
+      answer: 'n*t',
+      // Answered the length that was given.
+      d_usedGivenValue: 'n',
+      // Applied the ratio twice.
+      d_operationInverted: 'n*t*t',
+      // Answered the price of the chain.
+      d_forgotFinalStep: 'other',
+    },
+    constraints: ['n*t>8', 'abs(other-n*t)>3', 'abs(n*t-n)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['${{n}}$ metres of chain cost ${{n}} \\times {{other}}$ dollars.', 'Dividing by ${{k}}$ gives ${{answer}}$ metres of rope.'],
+  answerSummary: { headline: 'Convert to money, then back at the other rate.', text: 'It is ${{answer}}$ metres.' },
+  hint: 'Work out the cost of the chain first.',
+  feedback: 'Chain costs ${{t}}$ times as much a metre, so the rope length is ${{t}}$ times as long.',
+});
+
+mkc('8.5A', 'claim-about-combining-two-constants', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade8',
+  prompt: 'Two proportional relationships have constants ${{k}}$ and ${{other}}$. Which statement is wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 3, max: 20 },
+      other: { type: 'int', min: 2, max: 18 },
+    },
+    derived: { sum: 'k+other', prod: 'k*other' },
+    constraints: ['k>other'],
+  },
+  choices: [
+    { label: 'Adding the two outputs at each $x$ gives a constant of ${{prod}}$.', correct: true },
+    { label: 'Adding the two outputs at each $x$ gives a constant of ${{sum}}$.', error: 'partialTotal' },
+    { label: 'The first grows faster for every positive $x$.', error: 'usedGivenValue' },
+    { label: 'Both pass through the origin.', error: 'ratioReversed' },
+  ],
+  reasoning: ['At each $x$ the two outputs are ${{k}}x$ and ${{other}}x$, and their total is $({{k}} + {{other}})x$.', 'Multiplying the constants describes something else entirely.'],
+  answerSummary: { headline: 'Adding two proportional outputs adds their constants.', text: 'The constant is ${{sum}}$, not ${{prod}}$.' },
+  hint: 'Write both outputs at the same $x$ and add them.',
+  feedback: 'The larger constant does grow faster, and both do pass through the origin.',
+});
+
+// ================================================================ 8.5B
+// Linear relationships with a non-zero starting value.
+
+mkc('8.5B', 'month-where-two-plans-level', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Two plans charge $\\${{m1}}$ and $\\${{m2}}$ a month with joining fees of $\\${{b1}}$ and $\\${{b2}}$. When do they cost the same?',
+  generator: {
+    parameters: {
+      m1: { type: 'int', min: 8, max: 44 },
+      gap: { type: 'int', min: 2, max: 12 },
+      u: { type: 'int', min: 4, max: 40 },
+      b2: { type: 'int', min: 20, max: 200 },
+    },
+    derived: {
+      m2: 'm1+gap',
+      diff: 'gap*u',
+      b1: 'b2+gap*u',
+      answer: 'u',
+      // Answered the difference in fees.
+      d_forgotFinalStep: 'diff',
+      // Answered the gap between the monthly charges.
+      d_operationInverted: 'gap',
+      // Answered the cheaper monthly charge.
+      d_ratioReversed: 'm1',
+    },
+    constraints: ['u>4', 'abs(m1-u)>4', 'abs(gap-u)>3', 'gap*u>12'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The fees differ by ${{diff}}$ and the monthly charges differ by ${{gap}}$.', 'The cheaper monthly plan catches up after ${{answer}}$ months.'],
+  answerSummary: { headline: 'The fee gap is closed at the rate the monthly charges differ.', text: 'After ${{answer}}$ months.' },
+  hint: 'Divide the fee gap by the gap in monthly charges.',
+  feedback: 'The fee difference is money, not a number of months.',
+});
+
+mkc('8.5B', 'monthly-charge-behind-a-total', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A plan with a $\\${{b}}$ joining fee comes to $\\${{t}}$ after ${{x}}$ months. What does it charge a month?',
+  generator: {
+    parameters: {
+      x: { type: 'int', min: 3, max: 14 },
+      j: { type: 'int', min: 2, max: 7 },
+      m: { type: 'int', min: 10, max: 60 },
+    },
+    derived: {
+      b: 'x*j',
+      t: 'x*j+m*x',
+      answer: 'm',
+      // Divided the whole total by the months.
+      d_forgotFinalStep: 'm+j',
+      // Took the fee off twice.
+      d_operationInverted: 'm-j',
+      // Answered the joining fee.
+      d_usedGivenValue: 'b',
+    },
+    constraints: ['m-j>2', 'abs(b-m)>4', 'j>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Taking the ${{b}}$ fee off ${{t}}$ leaves ${{m}} \\times {{x}}$ dollars of monthly charges.', 'Dividing by ${{x}}$ gives ${{answer}}$ a month.'],
+  answerSummary: { headline: 'Remove the one-off charge before dividing.', text: 'It charges $\\${{answer}}$ a month.' },
+  hint: 'The fee is paid once, so it never divides by the months.',
+  feedback: 'Dividing the whole total spreads the fee across every month.',
+});
+
+mkc('8.5B', 'fee-folded-into-the-monthly-rate', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal', courseId: 'grade8',
+  prompt: 'For a $\\${{b}}$ joining fee at $\\${{m}}$ a month a student writes $y = ({{m}} + {{b}})x$. What is wrong?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 10, max: 120 },
+      m: { type: 'int', min: 5, max: 60 },
+    },
+    constraints: ['b!=m'],
+  },
+  choices: [
+    { label: 'The fee is charged once, not every month.', correct: true },
+    { label: 'The fee should be subtracted instead.', error: 'signError' },
+    { label: 'The monthly charge should be divided by the fee.', error: 'ratioReversed' },
+    { label: 'The rule needs no $x$ in it at all.', error: 'operationInverted' },
+  ],
+  reasoning: ['Multiplying $({{m}} + {{b}})$ by $x$ charges the ${{b}}$ every month.', 'It belongs outside the term that carries $x$, as $y = {{m}}x + {{b}}$.'],
+  answerSummary: { headline: 'A one-off charge stands outside the $x$ term.', text: 'The fee is being charged monthly.' },
+  hint: 'Work out what the rule gives for two months.',
+  feedback: 'The fee is added, not subtracted; it is where it sits that is wrong.',
+});
+
+// ================================================================ 8.5E
+// Direct variation.
+
+mkc('8.5E', 'extra-stretch-between-two-loads', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A spring stretches ${{s1}}$ cm under ${{L1}}$ kg. How much more does ${{L3}}$ kg stretch it than ${{L2}}$ kg?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      L1: { type: 'int', min: 2, max: 12 },
+      L2: { type: 'int', min: 2, max: 26 },
+      L3: { type: 'int', min: 3, max: 34 },
+    },
+    derived: {
+      s1: 'k*L1',
+      answer: 'k*(L3-L2)',
+      // Added the two loads instead of comparing them.
+      d_operationInverted: 'k*(L3+L2)',
+      // Compared the two the other way round.
+      d_signError: 'k*(L2-L3)',
+      // Answered the stretch under the smaller load.
+      d_partialTotal: 'k*L2',
+    },
+    constraints: ['L3>L2', 'k*(L3-L2)>7', 'abs(L2-(L3-L2))>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The spring stretches ${{s1}} \\div {{L1}} = {{k}}$ cm for each kilogram.', 'The extra ${{L3}} - {{L2}}$ kg adds ${{answer}}$ cm.'],
+  answerSummary: { headline: 'Find the stretch per kilogram before comparing loads.', text: 'It stretches ${{answer}}$ cm more.' },
+  hint: 'Only the difference in load matters here.',
+  feedback: 'Adding the loads measures the stretch under both at once.',
+});
+
+mkc('8.5E', 'output-from-a-recorded-rise', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Under direct variation $y$ rises by ${{d}}$ whenever $x$ rises by ${{g}}$. What is $y$ when $x = {{xt}}$?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 14 },
+      g: { type: 'int', min: 2, max: 16 },
+      xt: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      d: 'k*g',
+      answer: 'k*xt',
+      // Used the whole rise as the constant.
+      d_operationInverted: 'd*xt',
+      // Answered the constant on its own.
+      d_forgotFinalStep: 'k',
+      // Answered the recorded rise.
+      d_usedGivenValue: 'd',
+    },
+    constraints: ['g>1', 'k*xt>8', 'abs(d-k*xt)>3', 'abs(k-k*xt)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['A rise of ${{d}}$ over ${{g}}$ steps is ${{k}}$ per step.', 'Direct variation passes through the origin, so at $x = {{xt}}$ the value is ${{answer}}$.'],
+  answerSummary: { headline: 'The constant is the rise per single step.', text: '$y = {{answer}}$.' },
+  hint: 'Divide the rise by the number of steps it took.',
+  feedback: 'The recorded rise covers ${{g}}$ steps, not one.',
+});
+
+mkc('8.5E', 'claim-about-shifting-the-input', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade8',
+  prompt: 'In a direct variation with constant ${{k}}$, which statement is wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 15 },
+      a: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { ka: 'k*a' },
+    constraints: ['k>1'],
+  },
+  choices: [
+    { label: 'Adding ${{a}}$ to $x$ adds ${{a}}$ to $y$.', correct: true },
+    { label: 'Adding ${{a}}$ to $x$ adds ${{ka}}$ to $y$.', error: 'partialTotal' },
+    { label: 'Doubling $x$ doubles $y$.', error: 'operationInverted' },
+    { label: 'When $x$ is zero, $y$ is zero.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['Every step in $x$ is multiplied by ${{k}}$ before it reaches $y$.', 'So ${{a}}$ more in $x$ is ${{ka}}$ more in $y$.'],
+  answerSummary: { headline: 'A shift in $x$ is scaled by the constant.', text: 'It adds ${{ka}}$, not ${{a}}$.' },
+  hint: 'Compare $y$ at $x$ and at $x + {{a}}$.',
+  feedback: 'Doubling really does double, because the constant multiplies through.',
+});
+
+// ================================================================ 8.5F
+// Telling proportional apart from merely linear.
+
+mkc('8.5F', 'fall-in-cost-per-copy', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A printer charges $\\${{b}}$ setup plus $\\${{m}}$ a copy. By how much does the cost per copy fall between ${{n1}}$ and ${{n2}}$ copies?',
+  generator: {
+    parameters: {
+      t: { type: 'int', min: 2, max: 8 },
+      n1: { type: 'int', min: 2, max: 7 },
+      gap: { type: 'int', min: 2, max: 8 },
+      m: { type: 'int', min: 2, max: 40 },
+    },
+    derived: {
+      n2: 'n1+gap',
+      b: 'n1*(n1+gap)*t',
+      answer: 't*gap',
+      // Added the two counts instead of comparing them.
+      d_operationInverted: 't*(2*n1+gap)',
+      // Answered the fall for a single extra copy.
+      d_forgotFinalStep: 't',
+      // Answered the charge per copy.
+      d_usedGivenValue: 'm',
+    },
+    constraints: ['t*gap>5', 'abs(m-t*gap)>3', 'abs(t-t*gap)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The cost per copy is ${{m}}$ plus the setup shared out, or ${{m}} + \\frac{{{b}}}{n}$.', 'Between ${{n1}}$ and ${{n2}}$ copies that share falls by ${{answer}}$.'],
+  answerSummary: { headline: 'The setup fee is spread thinner as the run grows.', text: 'It falls by $\\${{answer}}$.' },
+  hint: 'Work out the setup share at each count.',
+  feedback: 'The per-copy charge itself never changes; only the shared setup does.',
+});
+
+mkc('8.5F', 'setup-fee-behind-a-unit-cost', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A setup fee plus $\\${{m}}$ a copy works out at $\\${{t}}$ a copy over ${{n}}$ copies. What is the setup fee?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 30 },
+      share: { type: 'int', min: 2, max: 30 },
+      n: { type: 'int', min: 3, max: 24 },
+    },
+    derived: {
+      t: 'm+share',
+      answer: 'share*n',
+      // Answered the share of the fee carried by one copy.
+      d_forgotFinalStep: 'share',
+      // Added the per-copy charge back before multiplying.
+      d_operationInverted: '(t+m)*n',
+      // Multiplied the count by the per-copy charge.
+      d_ratioReversed: 'n*m',
+    },
+    constraints: ['share*n>9', 'abs(n*m-share*n)>4', 'abs(share-share*n)>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Each copy carries $\\${{t}} - \\${{m}} = \\${{share}}$ of the setup.', 'Over ${{n}}$ copies that is $\\${{answer}}$.'],
+  answerSummary: { headline: 'The per-copy excess times the run gives the fee.', text: 'The fee is $\\${{answer}}$.' },
+  hint: 'Work out how much of each copy pays for setup.',
+  feedback: 'The share belongs to one copy; the fee covers all of them.',
+});
+
+mkc('8.5F', 'fact-that-settles-proportionality', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'grade8',
+  prompt: 'A cost rises by the same amount for every extra item. Which single fact settles whether it is proportional?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 30 },
+      n: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { one: 'm' },
+    constraints: ['m>1'],
+  },
+  choices: [
+    { label: 'What the cost is for zero items.', correct: true },
+    { label: 'What the cost is for one item.', error: 'partialTotal' },
+    { label: 'Whether the cost rises by the same amount each time.', error: 'usedGivenValue' },
+    { label: 'Whether every cost is a whole number of dollars.', error: 'roundedWrong' },
+  ],
+  reasoning: ['A steady rise already tells us the relationship is linear.', 'Only the cost at zero items decides whether it also passes through the origin.'],
+  answerSummary: { headline: 'Linear plus through the origin is what proportional means.', text: 'The cost for zero items.' },
+  hint: 'Ask what proportional adds to linear.',
+  feedback: 'A steady rise is already known and settles nothing further.',
+});
+
+// ================================================================ 8.5G
+// Functions.
+
+mkc('8.5G', 'pair-that-would-break-the-function', {
+  difficultyBand: 4, dok: 2, taskType: 'interpretation', representation: 'table', courseId: 'grade8',
+  prompt: 'The table lists a relation. Adding which pair would stop it being a function?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Input', 'Output'],
+    rows: [['${{x1}}$', '${{y1}}$'], ['${{x2}}$', '${{y2}}$'], ['${{x3}}$', '${{y3}}$']],
+  },
+  generator: {
+    parameters: {
+      x1: { type: 'int', min: 1, max: 9 },
+      x2: { type: 'int', min: 10, max: 19 },
+      x3: { type: 'int', min: 20, max: 29 },
+      x4: { type: 'int', min: 30, max: 39 },
+      x5: { type: 'int', min: 40, max: 49 },
+      y1: { type: 'int', min: 2, max: 30 },
+      y2: { type: 'int', min: 31, max: 60 },
+      y3: { type: 'int', min: 61, max: 90 },
+      y5: { type: 'int', min: 91, max: 120 },
+      off: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { yNew: 'y1+off' },
+    constraints: ['off>2'],
+  },
+  choices: [
+    { label: plain('({{x1}}, {{yNew}})'), correct: true },
+    { label: plain('({{x4}}, {{y1}})'), error: 'usedGivenValue' },
+    { label: plain('({{x5}}, {{y5}})'), error: 'partialTotal' },
+    { label: plain('({{x1}}, {{y1}})'), error: 'operationInverted' },
+  ],
+  reasoning: ['A function gives each input exactly one output.', 'Only $({{x1}}, {{yNew}})$ hands ${{x1}}$ a second, different output.'],
+  answerSummary: { headline: 'Repeating an input with a new output is what breaks a function.', text: 'It is $({{x1}}, {{yNew}})$.' },
+  hint: 'Look for a pair whose input already appears.',
+  feedback: 'Two inputs sharing one output is perfectly allowed.',
+});
+
+mkc('8.5G', 'output-that-keeps-a-relation-a-function', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'verbal', courseId: 'grade8',
+  prompt: 'A relation contains $({{a}}, {{p}})$, $({{b}}, {{q}})$ and $({{a}}, y)$. For which $y$ is it a function?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 15 },
+      b: { type: 'int', min: 16, max: 30 },
+      p: { type: 'int', min: 2, max: 40 },
+      q: { type: 'int', min: 2, max: 40 },
+      r: { type: 'int', min: 2, max: 40 },
+    },
+    constraints: ['p!=q', 'p!=r', 'q!=r'],
+  },
+  choices: [
+    { label: 'Only ${{p}}$.', correct: true },
+    { label: 'Only ${{q}}$.', error: 'usedGivenValue' },
+    { label: 'Only ${{r}}$.', error: 'partialTotal' },
+    { label: 'Any value at all.', error: 'operationInverted' },
+  ],
+  reasoning: ['The input ${{a}}$ already has the output ${{p}}$.', 'The third pair is allowed only if it repeats that output exactly.'],
+  answerSummary: { headline: 'A repeated input must repeat its output too.', text: 'Only ${{p}}$.' },
+  hint: 'Ask what output ${{a}}$ has already been given.',
+  feedback: 'Any other value would give ${{a}}$ two different outputs.',
+});
+
+mkc('8.5G', 'rule-that-functions-do-not-impose', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade8',
+  prompt: 'A mapping sends ${{a}}$ and ${{b}}$ to ${{p}}$, and ${{c}}$ to ${{q}}$. Which statement about functions is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 13, max: 24 },
+      c: { type: 'int', min: 25, max: 36 },
+      p: { type: 'int', min: 2, max: 40 },
+      q: { type: 'int', min: 41, max: 80 },
+    },
+    constraints: ['p!=q'],
+  },
+  choices: [
+    { label: 'Two different inputs may not share an output.', correct: true },
+    { label: 'One input may not have two different outputs.', error: 'operationInverted' },
+    { label: 'Every input has exactly one output.', error: 'usedGivenValue' },
+    { label: 'A vertical line crosses the graph at most once.', error: 'partialTotal' },
+  ],
+  reasoning: ['Nothing stops ${{a}}$ and ${{b}}$ from both landing on ${{p}}$.', 'The rule runs the other way: no input may have two outputs.'],
+  answerSummary: { headline: 'Functions restrict outputs per input, not inputs per output.', text: 'Sharing an output is allowed.' },
+  hint: 'Check the mapping described against each claim.',
+  feedback: 'The vertical line test is exactly the one-output-per-input rule drawn out.',
+});
+
+// ================================================================ 8.5H
+// Proportional situations in context.
+
+mkc('8.5H', 'length-where-two-suppliers-level', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Wire costs $\\${{k}}$ a metre outright, and rope costs $\\${{b}}$ hire plus $\\${{m}}$ a metre. At how many metres do they cost the same?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 4, max: 44 },
+      gap: { type: 'int', min: 2, max: 12 },
+      u: { type: 'int', min: 4, max: 40 },
+    },
+    derived: {
+      k: 'm+gap',
+      b: 'gap*u',
+      answer: 'u',
+      // Answered the hire charge.
+      d_forgotFinalStep: 'b',
+      // Answered the rope's rate.
+      d_usedGivenValue: 'm',
+      // Answered the gap between the two rates.
+      d_partialTotal: 'gap',
+    },
+    constraints: ['u>4', 'abs(m-u)>4', 'abs(gap-u)>3', 'gap*u>12'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Wire costs ${{gap}}$ more a metre, so it closes the ${{b}}$ hire charge at ${{gap}}$ a metre.', 'That takes ${{answer}}$ metres.'],
+  answerSummary: { headline: 'A one-off charge is closed at the difference in the rates.', text: 'At ${{answer}}$ metres.' },
+  hint: 'Compare the two rates before touching the hire charge.',
+  feedback: 'The hire charge is money, not a length.',
+});
+
+mkc('8.5H', 'fare-a-proportional-rule-would-give', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A fare is $\\${{t1}}$ for ${{d1}}$ km and $\\${{t2}}$ for ${{d2}}$ km. If it were proportional, what would the second fare be?',
+  generator: {
+    parameters: {
+      d1: { type: 'int', min: 2, max: 12 },
+      d2: { type: 'int', min: 3, max: 24 },
+      r: { type: 'int', min: 2, max: 14 },
+      t2: { type: 'int', min: 5, max: 200 },
+    },
+    derived: {
+      t1: 'd1*r',
+      answer: 'd2*r',
+      // Scaled by the distance rather than the rate.
+      d_forgotFinalStep: 't1*d2',
+      // Answered the first fare.
+      d_usedGivenValue: 't1',
+      // Answered the fare that was actually charged.
+      d_ratioReversed: 't2',
+    },
+    constraints: ['d2>d1', 'd2*r>9', 'abs(t2-d2*r)>4', 'abs(t1-d2*r)>3', 'abs(t1*d2-d2*r)>4', 't2>t1', 't2<5*t1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['A proportional fare would charge ${{t1}} \\div {{d1}} = {{r}}$ a kilometre throughout.', 'Over ${{d2}}$ km that comes to $\\${{answer}}$.'],
+  answerSummary: { headline: 'Proportional means one rate applies at every distance.', text: 'It would be $\\${{answer}}$.' },
+  hint: 'Work out the rate the first journey implies.',
+  feedback: 'Multiplying the first fare by the second distance scales it far too far.',
+});
+
+mkc('8.5H', 'change-that-would-make-a-charge-proportional', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'grade8',
+  prompt: 'A job is billed as a $\\${{b}}$ callout plus $\\${{k}}$ an hour. Which change would make the bill proportional to the hours?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 20, max: 150 },
+      k: { type: 'int', min: 15, max: 90 },
+    },
+    constraints: ['b!=k'],
+  },
+  choices: [
+    { label: 'Dropping the callout charge.', correct: true },
+    { label: 'Doubling the hourly rate.', error: 'operationInverted' },
+    { label: 'Charging the callout twice.', error: 'partialTotal' },
+    { label: 'Rounding every bill to the nearest dollar.', error: 'roundedWrong' },
+  ],
+  reasoning: ['Proportional means a bill of zero for zero hours.', 'The callout charge is the only thing standing in the way.'],
+  answerSummary: { headline: 'Only the fixed charge breaks proportionality.', text: 'Drop the callout charge.' },
+  hint: 'Work out what a zero-hour job would be billed.',
+  feedback: 'Changing the hourly rate leaves the fixed charge exactly where it is.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
