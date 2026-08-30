@@ -56,6 +56,7 @@ jobs:
 
       - name: Stress generated candidate instances
         run: |
+          set -o pipefail
           node scripts/audit-generator-health.mjs \
             --bank drafts/algebra1.fidelity-v2.candidate.json \
             --samples 36 \
@@ -63,10 +64,12 @@ jobs:
 
       - name: Verify secure Path tool readiness
         run: |
+          set -o pipefail
           node scripts/audit-algebra1-path-tool-readiness-v2.mjs | tee /tmp/algebra1-tool-readiness.txt
 
       - name: Run semantic fidelity audit
         run: |
+          set -o pipefail
           node scripts/audit-algebra1-semantic-fidelity-v2.mjs --bank drafts/algebra1.fidelity-v2.candidate.json | tee /tmp/algebra1-semantic.txt
 
       - name: Require zero semantic fidelity findings
@@ -75,6 +78,7 @@ jobs:
 
       - name: Run cognitive/DOK audit
         run: |
+          set -o pipefail
           node scripts/audit-algebra1-cognitive-fidelity-v2.mjs --bank drafts/algebra1.fidelity-v2.candidate.json | tee /tmp/algebra1-cognitive.txt
 
       - name: Require zero high-confidence cognitive contradictions
