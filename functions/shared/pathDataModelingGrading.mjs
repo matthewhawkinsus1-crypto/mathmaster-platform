@@ -204,11 +204,21 @@ export const pathPredictionKind = (points = [], x) => {
   return value >= Math.min(...xs) && value <= Math.max(...xs) ? 'interpolation' : 'extrapolation';
 };
 
+const FIT_ONLY_MODES = Object.freeze({
+  quadraticFit: 'quadratic',
+  exponentialFit: 'exponential',
+});
+
 const FIT_PREDICTION_MODES = Object.freeze({
   linearFitPrediction: 'linear',
   quadraticFitPrediction: 'quadratic',
   exponentialFitPrediction: 'exponential',
   squareRootFitPrediction: 'squareRoot',
+});
+
+const FORCED_FIT_MODES = Object.freeze({
+  ...FIT_ONLY_MODES,
+  ...FIT_PREDICTION_MODES,
 });
 
 const supportedDataModelingModes = new Set([
@@ -218,11 +228,12 @@ const supportedDataModelingModes = new Set([
   'correlation',
   'prediction',
   'modelCompare',
+  ...Object.keys(FIT_ONLY_MODES),
   ...Object.keys(FIT_PREDICTION_MODES),
 ]);
 
 const requiredPartsForMode = (mode) => {
-  if (mode === 'lineFit') return ['fit'];
+  if (mode === 'lineFit' || FIT_ONLY_MODES[mode]) return ['fit'];
   if (FIT_PREDICTION_MODES[mode]) return ['fit', 'prediction'];
   if (mode === 'association') return ['association'];
   if (mode === 'correlation') return ['correlation', 'correlationInterpretation'];
@@ -249,7 +260,7 @@ export const buildDataModelingPrivateDefinition = (question = {}) => {
   // A TEKS-specific fit mode names the family the student must write. That is
   // stronger than "pick the best model": A.4C, A.8B and A.9E each name the
   // model family in the standard itself.
-  const forcedModelId = FIT_PREDICTION_MODES[mode] || null;
+  const forcedModelId = FORCED_FIT_MODES[mode] || null;
   const expectedModelId = forcedModelId
     || (['linear', 'quadratic', 'exponential', 'squareRoot'].includes(String(question.expectedModel))
       ? String(question.expectedModel)
@@ -314,7 +325,7 @@ export const gradeDataModelingResponse = (definition = {}, raw = {}) => {
   const results = {};
   const m = Number(raw.m);
   const b = Number(raw.b);
-  if (definition.expectedModelId === 'quadratic' && FIT_PREDICTION_MODES[definition.mode]) {
+  if (definition.expectedModelId === 'quadratic' && FORCED_FIT_MODES[definition.mode]) {
     const a = Number(raw.a);
     const qb = Number(raw.b);
     const qc = Number(raw.c);
@@ -323,7 +334,7 @@ export const gradeDataModelingResponse = (definition = {}, raw = {}) => {
       && Math.abs(a - Number(expected.a)) <= definition.quadraticTolerance.a
       && Math.abs(qb - Number(expected.b)) <= definition.quadraticTolerance.b
       && Math.abs(qc - Number(expected.c)) <= definition.quadraticTolerance.c;
-  } else if (definition.expectedModelId === 'exponential' && FIT_PREDICTION_MODES[definition.mode]) {
+  } else if (definition.expectedModelId === 'exponential' && FORCED_FIT_MODES[definition.mode]) {
     const a = Number(raw.a);
     const base = Number(raw.base);
     const expected = definition.expectedModel?.model || {};
