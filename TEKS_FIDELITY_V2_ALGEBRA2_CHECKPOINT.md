@@ -72,7 +72,7 @@ Do **not** re-audit A2.2A unless its certification test fails.
 
 ## Active standard
 
-### A2.2B — ENHANCE — IN PROGRESS
+### A2.2B — ENHANCE — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Graph and write the inverse of a function using inverse-function notation.**
 
@@ -93,7 +93,7 @@ Immediate implementation target:
 
 ### A2.2B
 
-Resume here until its staged package and certification gate are committed.
+Resume here until the targeted Algebra II Fidelity V2 certification run is green. The staged package and certification gate are now committed.
 
 After A2.2B passes, advance immediately to **A2.2C** and update this file first.
 
@@ -132,3 +132,17 @@ For each standard:
 - Required fix before A2.2B certification: add a safe public table-stimulus projection to the secure function-investigation payload and render that stimulus inside the graph workspace.
 - Also replace the remaining UI copy that says “inverse line” with “inverse graph”; nonlinear inverse families make “line” mathematically false.
 - This is an A2.2B capability dependency, not a reason to reopen A2.2A.
+
+
+### 2026-08-30 — A2.2B staged and gated
+- Staged exactly five A2.2B Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.2B.json` — commit `30299481e52b5eac1774cf96d9a439b6e65baa1e`.
+- The five-family set now makes graph → reflect across `y=x` → inverse graph → inverse equation the recurring evidence across linear, table/linear, restricted quadratic, square-root, and rational cases.
+- Closed the secure table-stimulus gap in `functions/shared/pathToolContracts.mjs` — commit `39b491f201cceac4d49b4d58b2d15e795ab2000f`.
+- Rendered the sanitized table inside `InteractiveGraphWorkspace.jsx` and changed nonlinear-safe inverse guidance from “inverse line” to “inverse graph” / authored graph wording — commit `8bb3f824ab59ff8f83f4f87375ec92a99008fb36`.
+- Added leakage/rendering regression coverage in `tests/platform/inverseReflectionExperience.test.mjs` — commit `ccbd0f2828ce3a8cb57c53ca2b63fda5d1f66eff`.
+- Extended `tests/platform/algebra2FidelityV2Staged.test.mjs` with 200+ generated A2.2B instances, secure Path eligibility, private correct-answer self-grading, table preservation, nonlinear breadth, and inverse-key nonleakage checks — commit `7dd5b09ecc441706260e183f904a3616d2dedd2c`.
+- Added a dedicated per-standard `Algebra II Fidelity V2 Certification` workflow that runs the staged/generated inverse gates and builds the student/runtime bundle — commit `10f7c2273f37f761c9d95ab9e0c8d145e2bf98a9`.
+- Correct Answer Acceptance Audit was GREEN on the secure table-contract commit and the graph-workspace commit.
+- Current targeted Algebra II certification run: GitHub Actions run `33315642444` — **QUEUED/RUNNING when this checkpoint was written**.
+- Vercel remains red only for the known deployment build-rate-limit and is not being counted as a code failure.
+- Do **not** advance FIRST UNFINISHED STANDARD to A2.2C until run `33315642444` is green.
