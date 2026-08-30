@@ -431,7 +431,7 @@ Do **not** re-audit A2.4H unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.5A — PENDING AUDIT
+### A2.5A — REBUILD — AUDITED / AUTHORING
 
 Official construct: **Determine effects on key attributes of exponential and logarithmic graphs when they are vertically scaled/reflected or translated.**
 
@@ -440,6 +440,28 @@ Official construct: **Determine effects on key attributes of exponential and log
 ### A2.5A
 
 Resume here. Do not reopen A2.2A–A2.4H unless a failing gate names them.
+
+
+### 2026-08-30 — A2.5A audit finding
+- Official construct: **determine effects on key attributes of exponential and logarithmic graphs when they are vertically scaled/reflected or translated**.
+- Verdict: **REBUILD**.
+- Legacy coverage is too narrow:
+  - four of five families are logarithmic, while the exponential side is reduced to a single horizontal-asymptote question;
+  - most families identify one attribute or select a description instead of determining several graph effects together;
+  - vertical scaling is barely assessed and vertical reflection is effectively absent;
+  - horizontal and vertical translations are not systematically connected to domain/range/asymptotes/key points;
+  - error analysis corrects only a log-asymptote mix-up and does not repair a transformed graph interpretation.
+- Fidelity V2 requirements:
+  - exponential **and** logarithmic transformed graphs must both be represented repeatedly;
+  - include vertical stretches/compressions and reflections through the sign/magnitude of a;
+  - include horizontal and vertical translations through h and k;
+  - require key attributes, not vocabulary only:
+    - exponential: horizontal asymptote, domain, reflected/translated range, anchor point at x=h, and increasing/decreasing behavior;
+    - logarithmic: vertical asymptote, translated domain, range, anchor point at x=h+1, and increasing/decreasing behavior;
+  - include actual graph/point construction for at least one exponential and one logarithmic family;
+  - include combined transformations where several effects must be determined together;
+  - include genuine error analysis that repairs the reflection/translation/attribute reasoning and finishes the corrected attribute set.
+- Existing secure `functionInvestigation` supports transformed exponential/logarithmic specs with a/base/h/k, point tasks, and attribute requests. Use it where graph construction is valuable; secure generic multi-response fields are sufficient for the remaining analysis families.
 
 
 ### 2026-08-30 — A2.4H audit finding
