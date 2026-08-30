@@ -649,6 +649,7 @@ export const sameCommutativeModelEquation = (left, right) => {
 const canonicalSetBuilderNotation = (value) => {
   const text = normalizeAnswer(value)
     .replace(/\\mathbb\{r\}|ℝ/g, 'r')
+    .replace(/\\in|∈/g, 'in')
     .replace(/\\mid|∣|｜/g, '|')
     .replace(/\\colon/g, ':')
     .replace(/\\land|∧|&&/g, '&')
