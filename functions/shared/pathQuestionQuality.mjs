@@ -98,6 +98,15 @@ const hasExpectedAnswer = (question = {}) => {
   ) || (
     ['dataModeling', 'dataModelingLab'].includes(tool)
       && list(question.points).length >= 2
+  ) || (
+    tool === 'graphing2'
+      && (
+        (text(question.mode) === 'throughPoints' && list(question.givenPoints).length >= 2)
+        || (text(question.mode) === 'pointSlope' && Array.isArray(question.point) && question.slope !== undefined)
+        || (text(question.mode) === 'standardForm' && question.standard)
+        || (text(question.mode) === 'verticalHorizontal' && question.value !== undefined)
+        || (text(question.mode || 'slopeIntercept') === 'slopeIntercept' && question.line)
+      )
   );
 
   return (
