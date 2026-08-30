@@ -257,7 +257,84 @@
           "yLeft": "-2*m+b",
           "yRight": "2*m+b"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d2b4-boundary-from-points-and-shading",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "A DASHED boundary passes through $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. The point $({{tx}},{{ty}})$ is in the shaded solution region ABOVE the boundary. Determine the boundary equation and write the represented inequality.",
+          "responseFields": [
+            {
+              "id": "slope",
+              "label": "Boundary slope",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "intercept",
+              "label": "Boundary y-intercept",
+              "inputProfile": "number",
+              "expected": "{{b}}"
+            },
+            {
+              "id": "boundary",
+              "label": "Boundary equation",
+              "inputProfile": "equation",
+              "expected": "y={{m}}x{{b|signed}}"
+            },
+            {
+              "id": "inequality",
+              "label": "Represented inequality",
+              "inputProfile": "expression",
+              "expected": "y>{{m}}x{{b|signed}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -4,
+                "max": 4,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "x1": {
+                "type": "int",
+                "min": -4,
+                "max": -1
+              },
+              "span": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "tx": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "offset": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              }
+            },
+            "derived": {
+              "x2": "x1+span",
+              "y1": "m*x1+b",
+              "y2": "m*x2+b",
+              "ty": "m*tx+b+offset"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_2H_v2_error-analysis-symbol-and-boundary",
@@ -315,7 +392,92 @@
             "max": 9
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d3b3-test-point-boundary-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A graph has a SOLID boundary $y={{m}}x{{b|signed}}$ and includes the test point $({{tx}},{{ty}})$ above the line. Student A writes $y>{{m}}x{{b|signed}}$. Student B writes $y\\ge{{m}}x{{b|signed}}$. Use both the boundary style and the test point to decide which inequality matches the graph.",
+          "responseFields": [
+            {
+              "id": "boundary-value",
+              "label": "Boundary y-value when x={{tx}}",
+              "inputProfile": "number",
+              "expected": "{{boundaryY}}"
+            },
+            {
+              "id": "test-point",
+              "label": "Does the test point lie above the boundary?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "choice",
+              "label": "Which student's inequality is correct?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "student-b",
+                  "label": "Student B"
+                },
+                {
+                  "id": "student-a",
+                  "label": "Student A"
+                }
+              ],
+              "expected": "student-b"
+            },
+            {
+              "id": "inequality",
+              "label": "Correct inequality",
+              "inputProfile": "expression",
+              "expected": "y>={{m}}x{{b|signed}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -4,
+                "max": 4,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "tx": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "offset": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            },
+            "derived": {
+              "boundaryY": "m*tx+b",
+              "ty": "boundaryY+offset"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_2H_v2_two-constraints-model-choice",
