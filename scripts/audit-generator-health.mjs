@@ -71,7 +71,7 @@ const collectStrings = (node, out = []) => {
 // expression, not a leaked JavaScript value. Only the machine spellings count,
 // and `undefined`/`null` only when they appear where a NUMBER belongs — beside
 // an operator, a delimiter, or an equals sign.
-const BAD_NUMBER = /(?:^|[^A-Za-z])NaN(?:$|[^A-Za-z])|[-+*/=(\[,]\s*(?:undefined|null)|(?:undefined|null)\s*[-+*/=)\],]|(?:^|[^A-Za-z])-?Infinity(?:$|[^A-Za-z])/;
+const BAD_NUMBER = /(?:^|[^A-Za-z])NaN(?:$|[^A-Za-z])|[-+*/=(\[]\s*(?:undefined|null)|(?:undefined|null)\s*[-+*/=]|(?:^|[^A-Za-z])-?Infinity(?:$|[^A-Za-z])/;
 // `\sqrt{{{n}}}` is a LaTeX brace wrapping a placeholder, and `\frac{\sqrt{7}}{7}`
 // legitimately ends in `}}`. An UNSUBSTITUTED placeholder is what matters, and
 // generatePathInstance already reports those separately — so this looks only for
