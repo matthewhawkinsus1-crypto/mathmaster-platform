@@ -405,6 +405,100 @@
           "id": "opt-4",
           "label": "remove all low data values"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-observational-versus-experimental-causal-judgment",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "comparison",
+          "representation": "multipleRepresentation",
+          "prompt": "An observational study finds that students who use {{x}} have higher {{y}}. A second study randomly assigns comparable students either to use {{x}} or to use the usual method, then measures {{y}} under the same conditions. Evaluate what EACH study can support and decide which evidence is needed for a causal claim.",
+          "responseFields": [
+            {
+              "id": "observational",
+              "label": "What can the observational study establish by itself?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "association",
+                  "label": "An association, but not a causal conclusion by itself."
+                },
+                {
+                  "id": "causation",
+                  "label": "Definitive causation."
+                }
+              ],
+              "expected": "association"
+            },
+            {
+              "id": "randomized",
+              "label": "What does random assignment add?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "stronger-causal",
+                  "label": "It reduces systematic confounding and provides much stronger evidence for causation."
+                },
+                {
+                  "id": "nothing",
+                  "label": "It adds no information beyond the observational association."
+                }
+              ],
+              "expected": "stronger-causal"
+            },
+            {
+              "id": "best-design",
+              "label": "Which study should carry the causal claim when the experiment is ethical and well-run?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "randomized-study",
+                  "label": "The randomized comparison study."
+                },
+                {
+                  "id": "observational-study",
+                  "label": "The observational study alone."
+                }
+              ],
+              "expected": "randomized-study"
+            },
+            {
+              "id": "reason",
+              "label": "Why?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "confounding",
+                  "label": "Random assignment helps separate the treatment effect from pre-existing differences and confounders."
+                },
+                {
+                  "id": "larger-number",
+                  "label": "Causation follows simply because one study reports a larger numerical difference."
+                }
+              ],
+              "expected": "confounding"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Correlation and causation depend on study design, not merely on the size of an association.",
+            "reasoning": [
+              "The observational study can show that {{x}} and {{y}} vary together, but uncontrolled factors may explain the association.",
+              "Random assignment makes treatment groups comparable in expectation and reduces systematic confounding.",
+              "Therefore the randomized study provides the stronger basis for a causal claim when it is ethical and properly conducted."
+            ],
+            "answerSummary": "Observational evidence supports association; randomized experimental evidence supports the stronger causal inference."
+          },
+          "attemptFeedback": [
+            "Separate the numerical relationship from the design used to create the groups."
+          ],
+          "supportHints": [
+            "Ask whether participants chose their own exposure or were randomly assigned."
+          ]
+        }
       ]
     }
   ]
