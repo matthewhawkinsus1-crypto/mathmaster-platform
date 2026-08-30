@@ -147,5 +147,20 @@
       },
       "selections": {}
     }
+  },
+  "dataModelingLab": {
+    "pathToolId": "dataModelingLab",
+    "rawWork": {
+      "m": 1.5,
+      "b": 3,
+      "r": 1,
+      "direction": "positive",
+      "strength": "strong",
+      "causation": "association",
+      "modelChoice": "linear",
+      "predictionX": 5,
+      "predictionY": 0,
+      "predictionType": "interpolation"
+    }
   }
 }
