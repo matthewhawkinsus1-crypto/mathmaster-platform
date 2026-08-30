@@ -163,15 +163,36 @@ Certification result:
 
 Do **not** re-audit A2.3B unless a named regression/certification test fails.
 
+## Completed: A2.3C
+
+### A2.3C — REBUILD — CERTIFIED
+
+Official construct: **Solve algebraically systems of two equations in two variables consisting of one linear equation and one quadratic equation.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- every family algebraically reduces the system to a quadratic equation;
+- real solutions are completed as ordered pairs, not x-values only;
+- two-intersection, tangent/one-intersection, and zero-real-solution systems are all covered;
+- factoring, discriminant, and exact quadratic-formula pathways are represented;
+- error analysis repairs the algebra and finishes the complete system solutions;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- targeted Algebra II Fidelity V2 Certification run `33318173657`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.3C unless a named regression/certification test fails.
+
 ## Active standard
 
-### A2.3C — REBUILD — STAGED / CERTIFICATION RUNNING
+### A2.3D — PENDING AUDIT
+
+Official construct: **Determine the reasonableness of solutions to systems consisting of a linear equation and a quadratic equation in two variables.**
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.3C
+### A2.3D
 
-Resume here. Do not reopen A2.2A–A2.3B unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.3C unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.3C audit finding
@@ -205,7 +226,10 @@ Resume here. Do not reopen A2.2A–A2.3B unless a failing gate names them.
 - Added A2.3C-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `6c45e1bdd15972052cf099b92ed1e533226b64b0`.
 - The A2.3C gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public-key stripping, repeated complete ordered-pair solves, two/one/zero-real-solution coverage, factoring, quadratic formula, discriminant reasoning, and complete error-analysis repair.
 - Full A2.3C assertion run `33318173657`: **QUEUED/RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.3C** until that run is green.
+- Full A2.3C assertion run `33318173657`: **PASS**.
+- Generated content, production issue gate, secure self-grading, public-key stripping, complete ordered-pair solving, 0/1/2 real-solution breadth, algebraic-method breadth, error-analysis repair, and student/runtime build all passed.
+- A2.3C is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.3D**.
 
 
 ### 2026-08-30 — A2.3B audit finding
