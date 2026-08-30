@@ -92,15 +92,19 @@ const rowOperationsOf = (question = {}) => {
   return list.map(normalizeRowOperation).filter(Boolean);
 };
 
-const sameRow = (left, right, tolerance) => (
-  Array.isArray(left) && Array.isArray(right) && left.length === 4 && right.length === 4
-  && left.every((entry, index) => finite(entry) && Math.abs(Number(entry) - Number(right[index])) <= tolerance)
-);
+const sameRow = (left, right, tolerance) => {
+  const a = rowOf(left);
+  const b = rowOf(right);
+  return a.length === 4 && b.length === 4
+    && a.every((entry, index) => finite(entry) && finite(b[index]) && Math.abs(Number(entry) - Number(b[index])) <= tolerance);
+};
 
-const sameMatrix = (left, right, tolerance) => (
-  Array.isArray(left) && Array.isArray(right) && left.length === 3 && right.length === 3
-  && left.every((row, index) => sameRow(row, right[index], tolerance))
-);
+const sameMatrix = (left, right, tolerance) => {
+  const a = cleanMatrix3({ rows: left });
+  const b = cleanMatrix3({ rows: right });
+  return a.length === 3 && b.length === 3
+    && a.every((row, index) => sameRow(row, b[index], tolerance));
+};
 
 export const sanitizeSystemsMatrix3PublicQuestion = (question = {}) => ({
   prompt: String(question.prompt || ''),
