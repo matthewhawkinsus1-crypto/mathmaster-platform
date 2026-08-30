@@ -266,7 +266,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                       ? <>y = {exponentialA}({exponentialBase})^x</>
                       : mode === 'squareRootFitPrediction'
                         ? <>y = {squareRootA}√(x − {squareRootH}) {Number(squareRootK) >= 0 ? '+' : '−'} {Math.abs(Number(squareRootK))}</>
-                        : <>y = {m}x {Number(b) >= 0 ? '+' : '−'} {Math.abs(Number(b))}</>
+                        : <>y = {m}x {Number(b) >= 0 ? '+' : '−'} {Math.abs(Number(b))}</>}
                   <br/><span style={{ fontSize:13 }}>Current MAE: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'} · RMSE: {Number.isFinite(studentMetrics.rmse) ? round(studentMetrics.rmse, 2) : '—'}</span>
                 </div>
               ) : (
