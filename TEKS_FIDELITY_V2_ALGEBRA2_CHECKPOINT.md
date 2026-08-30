@@ -714,6 +714,41 @@ Resume here. Do not reopen A2.2A–A2.7F unless a failing gate names them.
   - keep routine rewriting DOK 2; reserve DOK 3 for complete error analysis.
 - Before staging, certify that the generic expression grader fairly accepts equivalent radical serialization (MathLive square-root/rational-exponent forms) without accepting mathematically different variable powers.
 
+### 2026-08-30 — A2.7G staged / certification
+- Added opt-in nonnegative monomial radical/rational-exponent equivalence and secure routing; dedicated capability run `33332862077`: **PASS**.
+- Staged five A2.7G Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7G.json`.
+- Coverage includes variable-power square-root rewriting, variable radical quotients, odd-index cube-root rewriting, rational-exponent → indexed-radical rewriting, and complete unrestricted even-root absolute-value error repair.
+- Removed the legacy variable-free rationalization drift.
+- Final requested rewrite fields remain **form-preserving** so the unchanged source does not receive credit merely because it is equivalent.
+- Tightened the rational-exponent family so the residual exponent and indexed-root degree are relatively prime; generated radical form is therefore actually simplified.
+- Current strengthened A2.7G generated certification run `33333076780`: **QUEUED/RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.7G** until that run is green.
+
+### 2026-08-30 — A2.7H pre-audit finding
+- Official construct: **solve equations involving rational exponents**.
+- TEA breakout has one direct action: solve rational-exponent equations.
+- Provisional verdict: **REBUILD** after A2.7G locks.
+- Legacy strengths:
+  - basic equations of the forms x^(1/n)=r and x^(p/q)=r are present;
+  - reciprocal-power language and one verification frame are present.
+- Legacy limitations:
+  - only two of five families directly require solving;
+  - one family only verifies a supplied solution, one only chooses an operation, and one reverse-engineers an equation;
+  - equations are almost always already isolated as x^(...) = constant;
+  - transformed/shifted rational-exponent equations are absent;
+  - even-denominator cases with two real solutions are absent;
+  - no-real-solution cases are absent;
+  - extraneous-candidate checking after applying reciprocal powers is absent;
+  - the DOK 3 legacy items do not complete a genuine solve/error-analysis chain.
+- Fidelity V2 direction:
+  - require complete solution sets rather than method recognition;
+  - include isolated and transformed rational-exponent equations;
+  - distinguish odd/even denominator behavior;
+  - include one/two/no-real-solution cases where mathematically appropriate;
+  - require checking candidates in the original equation when an inverse operation can introduce invalid candidates;
+  - include complete error analysis and repair;
+  - keep routine solving DOK 2; reserve DOK 3 for genuine error analysis/strategic solution-set reasoning.
+
 
 ### 2026-08-30 — A2.7F audit finding
 - Official construct: **determine the sum, difference, product, and quotient of rational expressions with integral exponents of degree one and of degree two**.
