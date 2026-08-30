@@ -2684,20 +2684,24 @@ mkc('7.4A', 'average-rate-across-two-stretches', {
   generator: {
     parameters: {
       a: { type: 'int', min: 4, max: 20 },
-      b: { type: 'int', min: 6, max: 34 },
-      t1: { type: 'int', min: 2, max: 9 },
-      t2: { type: 'int', min: 2, max: 9 },
+      k: { type: 'int', min: 1, max: 3 },
+      u1: { type: 'int', min: 1, max: 4 },
+      u2: { type: 'int', min: 1, max: 4 },
     },
     derived: {
-      answer: '(a*t1+b*t2)/(t1+t2)',
-      // Averaged the two rates without weighting them.
-      d_forgotFinalStep: '(a+b)/2',
+      t1: '2*u1',
+      t2: '2*u2',
+      m: 'a+2*k*u2',
+      b: 'a+2*k*(u1+u2)',
+      answer: 'a+2*k*u2',
+      // Averaged the two rates without weighting them by the hours.
+      d_forgotFinalStep: 'a+2*k*u2+k*(u1-u2)',
       // Answered the total number of crates.
-      d_partialTotal: 'a*t1+b*t2',
+      d_partialTotal: '2*(a+2*k*u2)*(u1+u2)',
       // Answered the first rate.
       d_usedGivenValue: 'a',
     },
-    constraints: ['a<b', '(a+b)%2==0', '(a*t1+b*t2)%(t1+t2)==0', 't1!=t2', 'abs((a+b)/2-(a*t1+b*t2)/(t1+t2))>2'],
+    constraints: ['u1!=u2', 'abs(k*(u1-u2))>2', 'abs(2*(a+2*k*u2)*(u1+u2)-a-2*k*u2-k*(u1-u2))>2', 'abs(2*(a+2*k*u2)*(u1+u2)-a)>2'],
   },
   choices: [
     { label: plain('{{answer}}'), correct: true },
@@ -9502,6 +9506,754 @@ mkc('A.12B', 'claim-about-function-notation', {
   answerSummary: { headline: 'The constant is added once per evaluation, not once per input.', text: 'The two are not equal.' },
   hint: 'Work out both sides for small values.',
   feedback: 'The difference of two outputs really does cancel the constant.',
+});
+
+// ================================================================ A.12E
+// Rearranging a formula.
+
+mkc('A.12E', 'hours-from-a-rearranged-bill', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A bill follows $T = {{a}}h + {{b}}$. Solve for $h$, and find $h$ when $T = {{t}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      j: { type: 'int', min: 2, max: 10 },
+      u: { type: 'int', min: 4, max: 66 },
+    },
+    derived: {
+      b: 'a*j',
+      t: 'a*u+a*j',
+      answer: 'u',
+      // Stopped after removing the fixed charge.
+      d_forgotFinalStep: 'a*u',
+      // Answered the fixed charge.
+      d_usedGivenValue: 'b',
+      // Took the fixed charge off twice.
+      d_operationInverted: 'u-j',
+    },
+    constraints: ['u-j>1', 'abs(b-u)>4', 'abs(a*u-u)>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Rearranging gives $h = \\frac{T - {{b}}}{{{a}}}$.', 'At $T = {{t}}$ that comes to ${{answer}}$.'],
+  answerSummary: { headline: 'Remove the fixed charge before dividing by the rate.', text: '$h = {{answer}}$.' },
+  hint: 'The fixed charge is paid once, whatever $h$ is.',
+  feedback: 'What is left after the fixed charge still has to be divided by the rate.',
+});
+
+mkc('A.12E', 'current-from-a-rearranged-resistance', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Solve $R = \\frac{{{a}}V}{I}$ for $I$, and find $I$ when $R = {{r}}$ and $V = {{v}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      r: { type: 'int', min: 2, max: 12 },
+      z: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      v: 'r*z',
+      answer: 'a*z',
+      // Stopped at the numerator.
+      d_forgotFinalStep: 'a*r*z',
+      // Divided by the coefficient as well.
+      d_ratioReversed: 'z',
+      // Answered the voltage that was given.
+      d_usedGivenValue: 'v',
+    },
+    constraints: ['abs(a-r)>1', 'a*z>7', 'abs(a*z-z)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Multiplying by $I$ and dividing by $R$ gives $I = \\frac{{{a}}V}{R}$.', 'At $R = {{r}}$ and $V = {{v}}$ that is ${{answer}}$.'],
+  answerSummary: { headline: 'A variable in a denominator swaps places with the subject.', text: '$I = {{answer}}$.' },
+  hint: 'Clear the fraction before isolating $I$.',
+  feedback: 'The coefficient ${{a}}$ stays on the top when $I$ moves.',
+});
+
+mkc('A.12E', 'rearrangement-that-keeps-the-constant-inside', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'table', courseId: 'algebra1',
+  prompt: 'Which of the listed rearrangements gives $A = {{a}}b + c$ solved for $b$?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Rearrangement'],
+    rows: [
+      ['$b = \\frac{A - c}{{{a}}}$'],
+      ['$b = \\frac{A}{{{a}}} - c$'],
+      ['$b = \\frac{A + c}{{{a}}}$'],
+      ['$b = A - {{a}}c$'],
+    ],
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 16 },
+      c: { type: 'int', min: 2, max: 40 },
+    },
+    constraints: ['a>1'],
+  },
+  choices: [
+    { label: plain('b = \\frac{A - c}{{{a}}}'), correct: true },
+    { label: plain('b = \\frac{A}{{{a}}} - c'), error: 'partialTotal' },
+    { label: plain('b = \\frac{A + c}{{{a}}}'), error: 'signError' },
+    { label: plain('b = A - {{a}}c'), error: 'operationInverted' },
+  ],
+  reasoning: ['The constant $c$ has to come off before anything is divided.', 'Dividing only $A$ leaves $c$ unscaled.'],
+  answerSummary: { headline: 'Undo the addition first, then the multiplication.', text: 'It is $b = \\frac{A - c}{{{a}}}$.' },
+  hint: 'Work backwards through the operations applied to $b$.',
+  feedback: 'Dividing after moving $c$ means $c$ is divided too.',
+});
+
+// ================================================================ A2.4D
+// Completing the square.
+
+mkc('A2.4D', 'how-far-above-the-least-cost', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'A cost follows $C = {{a}}x^2 - {{b}}x + {{c}}$. How far above its least value is the cost at $x = {{v}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 1, max: 6 },
+      h: { type: 'int', min: 2, max: 14 },
+      g: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 20, max: 400 },
+    },
+    derived: {
+      b: '2*a*h',
+      v: 'h+g',
+      answer: 'a*g*g',
+      // Squared the coefficient as well as the distance.
+      d_exponentError: 'a*a*g*g',
+      // Left the coefficient out.
+      d_forgotFinalStep: 'g*g',
+      // Answered the least value itself.
+      d_usedGivenValue: 'c-a*h*h',
+    },
+    constraints: ['c-a*h*h>0', 'a*g*g>7', 'abs(c-a*h*h-a*g*g)>5', 'a>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Completing the square puts the turning point at $x = {{h}}$.', 'At $x = {{v}}$ the cost sits ${{a}} \\times {{g}}^{2} = {{answer}}$ above it.'],
+  answerSummary: { headline: 'The rise above the minimum is the coefficient times a square.', text: 'It is ${{answer}}$ above.' },
+  hint: 'Find the turning point before evaluating anything.',
+  feedback: 'The coefficient multiplies the square once, not twice.',
+});
+
+mkc('A2.4D', 'coefficient-behind-a-known-least-value', {
+  difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'A cost $C = {{a}}x^2 - bx + {{c}}$ has least value ${{k}}$. What is $b$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 8 },
+      h: { type: 'int', min: 2, max: 16 },
+      k: { type: 'int', min: 5, max: 150 },
+    },
+    derived: {
+      c: 'k+a*h*h',
+      answer: '2*a*h',
+      // Answered the constant the prompt already gives.
+      d_usedGivenValue: 'k+a*h*h',
+      // Answered the least value rather than the coefficient behind it.
+      d_partialTotal: 'k',
+      // Left the turning point undoubled.
+      d_offByOneStep: 'a*h',
+    },
+    constraints: ['2*a*h>7', 'abs(2*a*h-k)>4', 'abs(a*h-k)>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Vertex form makes the least value ${{c}} - {{a}}h^{2} = {{k}}$, so $h = {{h}}$.', 'The turning point is $\\frac{b}{2 \\times {{a}}}$, giving $b = {{answer}}$.'],
+  answerSummary: { headline: 'The least value fixes the turning point, and the turning point fixes $b$.', text: '$b = {{answer}}$.' },
+  hint: 'Work out how far the least value sits below the constant.',
+  feedback: 'The turning point is half of $\\frac{b}{{{a}}}$, so $b$ is twice as large again.',
+});
+
+mkc('A2.4D', 'claim-about-a-completed-square', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra2',
+  prompt: 'Completing the square on ${{a}}x^2 - {{b}}x + {{c}}$ gives ${{a}}(x - {{h}})^2 + k$. Which statement is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 8 },
+      h: { type: 'int', min: 2, max: 14 },
+      c: { type: 'int', min: 20, max: 300 },
+    },
+    derived: { b: '2*a*h', k: 'c-a*h*h' },
+    constraints: ['c-a*h*h>0', 'c!=c-a*h*h'],
+  },
+  choices: [
+    { label: 'The value of $k$ is ${{c}}$.', correct: true },
+    { label: 'The value of ${{h}}$ is $\\frac{{{b}}}{2 \\times {{a}}}$.', error: 'partialTotal' },
+    { label: 'The least value of the expression is $k$.', error: 'usedGivenValue' },
+    { label: 'The two forms agree at every value of $x$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Expanding ${{a}}(x - {{h}})^2$ contributes ${{a}} \\times {{h}}^{2}$ to the constant.', 'So $k$ is ${{c}}$ less that amount, not ${{c}}$ itself.'],
+  answerSummary: { headline: 'Completing the square borrows from the constant.', text: '$k$ is ${{k}}$, not ${{c}}$.' },
+  hint: 'Expand the vertex form and compare constants.',
+  feedback: 'The two forms really are equal at every input; that is the point of the rewrite.',
+});
+
+// ================================================================ A2.4F
+// Radical and quadratic equations.
+
+mkc('A2.4F', 'solve-a-scaled-root-with-a-shift', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'Solve ${{k}}\\sqrt{x + {{a}}} = {{p}}$.',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      m: { type: 'int', min: 4, max: 12 },
+      a: { type: 'int', min: 2, max: 140 },
+    },
+    derived: {
+      p: 'k*m',
+      answer: 'm*m-a',
+      // Never took the shift off.
+      d_forgotFinalStep: 'm*m',
+      // Answered the shift that was given.
+      d_usedGivenValue: 'a',
+      // Never squared.
+      d_exponentError: 'm-a',
+    },
+    constraints: ['m*m-a>4', 'abs(2*a-m*m)>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+  ],
+  reasoning: ['Dividing by ${{k}}$ leaves $\\sqrt{x + {{a}}} = {{m}}$.', 'Squaring and subtracting ${{a}}$ gives $x = {{answer}}$.'],
+  answerSummary: { headline: 'Free the root before squaring, and undo the shift after.', text: '$x = {{answer}}$.' },
+  hint: 'The coefficient has to go before the squaring.',
+  feedback: 'Squaring gives what is under the root, which still has ${{a}}$ added.',
+});
+
+mkc('A2.4F', 'shift-behind-a-known-radical-solution', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'For which $a$ does $\\sqrt{x + a} = {{b}}$ have the solution $x = {{v}}$?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 4, max: 16 },
+      v: { type: 'int', min: 4, max: 260 },
+    },
+    derived: {
+      answer: 'b*b-v',
+      // Added the solution instead of taking it off.
+      d_operationInverted: 'b*b+v',
+      // Took the difference the other way round.
+      d_signError: 'v-b*b',
+      // Answered the solution that was given.
+      d_usedGivenValue: 'v',
+    },
+    constraints: ['b*b-v>3', 'abs(2*v-b*b)>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Squaring gives ${{v}} + a = {{b}}^{2}$.', 'So $a = {{b}}^{2} - {{v}} = {{answer}}$.'],
+  answerSummary: { headline: 'Square first, then solve for what is missing.', text: '$a = {{answer}}$.' },
+  hint: 'Substitute the solution and square both sides.',
+  feedback: 'The solution is subtracted from the square, not added to it.',
+});
+
+mkc('A2.4F', 'first-step-on-a-scaled-root', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'algebra2',
+  prompt: 'Which first step solves ${{k}}\\sqrt{x} = {{p}}$ correctly?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 12 },
+      p: { type: 'int', min: 10, max: 200 },
+    },
+    derived: { kSq: 'k*k' },
+    constraints: ['p>k'],
+  },
+  choices: [
+    { label: 'Divide both sides by ${{k}}$, then square.', correct: true },
+    { label: 'Square both sides straight away.', error: 'orderOfOperations' },
+    { label: 'Divide both sides by ${{kSq}}$, then square.', error: 'exponentError' },
+    { label: 'Square both sides, then divide by ${{k}}$.', error: 'operationInverted' },
+  ],
+  reasoning: ['Squaring while the coefficient is still there squares the coefficient too.', 'Freeing the root first keeps the arithmetic straight.'],
+  answerSummary: { headline: 'Isolate the radical before squaring.', text: 'Divide by ${{k}}$ first.' },
+  hint: 'Ask what happens to ${{k}}$ when both sides are squared.',
+  feedback: 'Squaring first leaves ${{kSq}}x$ on the left, which the later division does not clear.',
+});
+
+// ================================================================ A2.4G
+// Extraneous roots.
+
+mkc('A2.4G', 'which-candidate-survives-the-original', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'Squaring $\\sqrt{x + {{a}}} = x - {{b}}$ gives two candidates. Which one satisfies the original?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 3, max: 20 },
+      d: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      r: 'b+d',
+      s: 'b+1-d',
+      a: 'b*b-(b+d)*(b+1-d)',
+      answer: 'b+d',
+      // Answered the candidate the original rejects.
+      d_usedGivenValue: 'b+1-d',
+      // Answered the total of the two candidates.
+      d_operationInverted: '2*b+1',
+      // Answered the shift inside the root.
+      d_partialTotal: 'b*b-(b+d)*(b+1-d)',
+    },
+    constraints: ['b+1-d<b', 'b*b-(b+d)*(b+1-d)>2', 'abs(b*b-(b+d)*(b+1-d)-(b+d))>3', 'd>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['A square root is never negative, so $x - {{b}}$ has to be at least zero.', 'Only ${{answer}}$ clears that; ${{s}}$ makes the right side negative.'],
+  answerSummary: { headline: 'Squaring can create a root the original rejects.', text: 'It is ${{answer}}$.' },
+  hint: 'Check the sign of the right-hand side for each candidate.',
+  feedback: 'Both candidates satisfy the squared equation; only one satisfies the original.',
+});
+
+mkc('A2.4G', 'which-length-the-equation-allows', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'algebra2',
+  prompt: 'A length satisfies $\\sqrt{L + {{a}}} = L - {{b}}$, and squaring gives ${{r}}$ and ${{s}}$. Which is the length?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 3, max: 20 },
+      d: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      r: 'b+d',
+      s: 'b+1-d',
+      a: 'b*b-(b+d)*(b+1-d)',
+    },
+    constraints: ['b+1-d<b', 'b*b-(b+d)*(b+1-d)>2', 'd>1'],
+  },
+  choices: [
+    { label: '${{r}}$, because ${{s}}$ would make the right side negative.', correct: true },
+    { label: '${{s}}$, because it is the smaller of the two.', error: 'partialTotal' },
+    { label: 'Both, because both satisfy the squared equation.', error: 'operationInverted' },
+    { label: 'Neither, because a square root cannot equal a difference.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The left side is a square root, so it is never negative.', 'That rules out any candidate making $L - {{b}}$ negative.'],
+  answerSummary: { headline: 'The original equation, not the squared one, decides.', text: 'It is ${{r}}$.' },
+  hint: 'Put each candidate back into the equation as written.',
+  feedback: 'Satisfying the squared equation is exactly what an extraneous root does.',
+});
+
+mkc('A2.4G', 'check-that-settles-a-candidate', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra2',
+  prompt: 'After squaring $\\sqrt{x + {{a}}} = x - {{b}}$, which check settles whether a candidate is genuine?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 60 },
+      b: { type: 'int', min: 2, max: 20 },
+    },
+    constraints: ['a>1'],
+  },
+  choices: [
+    { label: 'Substituting it into the original equation.', correct: true },
+    { label: 'Substituting it into the squared equation.', error: 'partialTotal' },
+    { label: 'Checking that it is positive.', error: 'usedGivenValue' },
+    { label: 'Checking that it is the larger of the two candidates.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Squaring can turn a false statement into a true one, so the squared form accepts too much.', 'Only the original equation can reject an extraneous candidate.'],
+  answerSummary: { headline: 'Check against the equation you started with.', text: 'Substitute into the original.' },
+  hint: 'Ask which equation the extra root satisfies.',
+  feedback: 'Being positive is not enough; the right side has to be non-negative too.',
+});
+
+// ================================================================ A2.6B
+// Cube roots.
+
+mkc('A2.6B', 'solve-a-scaled-cube-root', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'Solve ${{k}}\\sqrt[3]{x + {{a}}} = {{p}}$.',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      m: { type: 'int', min: 3, max: 8 },
+      a: { type: 'int', min: 2, max: 520 },
+    },
+    derived: {
+      p: 'k*m',
+      answer: 'm*m*m-a',
+      // Never took the shift off.
+      d_forgotFinalStep: 'm*m*m',
+      // Answered the shift that was given.
+      d_usedGivenValue: 'a',
+      // Squared instead of cubing.
+      d_exponentError: 'm*m-a',
+    },
+    constraints: ['m*m*m-a>4', 'abs(2*a-m*m*m)>5', 'm*m-a!=m*m*m-a'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+  ],
+  reasoning: ['Dividing by ${{k}}$ leaves $\\sqrt[3]{x + {{a}}} = {{m}}$.', 'Cubing and subtracting ${{a}}$ gives $x = {{answer}}$.'],
+  answerSummary: { headline: 'Free the cube root, cube, then undo the shift.', text: '$x = {{answer}}$.' },
+  hint: 'A cube root is undone by cubing, not by squaring.',
+  feedback: 'Cubing gives what is under the root, which still has ${{a}}$ added.',
+});
+
+mkc('A2.6B', 'extra-capacity-of-a-larger-cubical-tank', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'One cubical tank holds ${{v}}$ cubic metres and another has side ${{s2}}$ metres. How much more does the second hold?',
+  generator: {
+    parameters: {
+      s: { type: 'int', min: 4, max: 12 },
+      inc: { type: 'int', min: 1, max: 4 },
+    },
+    derived: {
+      s2: 's+inc',
+      v: 's*s*s',
+      answer: 's2*s2*s2-s*s*s',
+      // Added the two capacities instead of comparing them.
+      d_operationInverted: 's2*s2*s2+s*s*s',
+      // Compared the two the other way round.
+      d_signError: 's*s*s-s2*s2*s2',
+      // Answered the first tank's capacity.
+      d_partialTotal: 's*s*s',
+    },
+    constraints: ['s2*s2*s2-s*s*s>9', 'abs(2*s*s*s-s2*s2*s2)>6'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The first tank has side $\\sqrt[3]{{{v}}} = {{s}}$ metres.', 'The second holds ${{s2}}^{3}$, which is ${{answer}}$ more.'],
+  answerSummary: { headline: 'A capacity gives the side through a cube root.', text: 'It holds ${{answer}}$ more.' },
+  hint: 'Find the first tank\'s side before comparing.',
+  feedback: 'The comparison runs from the larger tank down to the smaller one.',
+});
+
+mkc('A2.6B', 'claim-about-a-negative-cube-root', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra2',
+  prompt: 'Solving $\\sqrt[3]{x} = -{{b}}$, which statement is wrong?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 2, max: 14 },
+    },
+    derived: { cube: 'b*b*b' },
+    constraints: ['b>1'],
+  },
+  choices: [
+    { label: 'There is no solution, because a cube root cannot be negative.', correct: true },
+    { label: 'The solution is $-{{cube}}$.', error: 'partialTotal' },
+    { label: 'Cubing both sides undoes the cube root.', error: 'usedGivenValue' },
+    { label: 'No check for extraneous roots is needed here.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Every real number has exactly one real cube root, negative ones included.', 'Cubing gives $x = -{{cube}}$, which satisfies the equation.'],
+  answerSummary: { headline: 'Cube roots accept negatives; square roots do not.', text: 'There is a solution.' },
+  hint: 'Cube $-{{b}}$ and see what comes out.',
+  feedback: 'Cubing is a one-to-one operation, so it creates no extra roots.',
+});
+
+// ================================================================ A2.6E
+// Absolute value equations.
+
+mkc('A2.6E', 'gap-between-two-absolute-value-solutions', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'Solve ${{k}}\\left|x - {{p}}\\right| = {{r}}$. How far apart are the two solutions?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 3, max: 12 },
+      d: { type: 'int', min: 2, max: 30 },
+      p: { type: 'int', min: 2, max: 60 },
+    },
+    derived: {
+      r: 'k*d',
+      answer: '2*d',
+      // Answered the number on the right of the equation.
+      d_forgotFinalStep: 'r',
+      // Answered the distance to one solution only.
+      d_operationInverted: 'd',
+      // Answered the centre of the two solutions.
+      d_usedGivenValue: 'p',
+    },
+    constraints: ['abs(p-2*d)>4', '2*d>5'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Dividing by ${{k}}$ leaves $\\left|x - {{p}}\\right| = {{d}}$.', 'The two solutions sit ${{d}}$ either side of ${{p}}$, so they are ${{answer}}$ apart.'],
+  answerSummary: { headline: 'Free the bars before splitting into two cases.', text: 'They are ${{answer}}$ apart.' },
+  hint: 'The coefficient has to go before the bars are split.',
+  feedback: 'The distance to one solution is half the gap between them.',
+});
+
+mkc('A2.6E', 'other-solution-of-an-absolute-value-equation', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'The equation $\\left|x - p\\right| = {{d}}$ has ${{high}}$ as one solution. What is the other?',
+  generator: {
+    parameters: {
+      d: { type: 'int', min: 3, max: 40 },
+      gap: { type: 'int', min: 4, max: 44 },
+    },
+    derived: {
+      high: '2*d+gap',
+      answer: 'gap',
+      // Moved the same way instead of the opposite way.
+      d_operationInverted: 'high+2*d',
+      // Answered the distance itself.
+      d_usedGivenValue: 'd',
+      // Took the difference the other way round.
+      d_signError: '2*d-high',
+    },
+    constraints: ['gap>3', 'abs(d-gap)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The two solutions sit ${{d}}$ either side of $p$, so they are $2 \\times {{d}}$ apart.', 'The other is ${{high}} - 2 \\times {{d}} = {{answer}}$.'],
+  answerSummary: { headline: 'The two solutions straddle the centre by the same distance.', text: 'It is ${{answer}}$.' },
+  hint: 'The known solution is ${{d}}$ above the centre.',
+  feedback: 'The other solution lies on the far side of the centre, not beyond the one given.',
+});
+
+mkc('A2.6E', 'solutions-of-an-impossible-absolute-value', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'algebra2',
+  prompt: 'How many solutions does ${{k}}\\left|x - {{p}}\\right| + {{c}} = {{r}}$ have?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 12 },
+      p: { type: 'int', min: 2, max: 60 },
+      c: { type: 'int', min: 30, max: 200 },
+      gap: { type: 'int', min: 3, max: 40 },
+    },
+    derived: { r: 'c-gap' },
+    constraints: ['c-gap>0', 'gap>2'],
+  },
+  choices: [
+    { label: 'None.', correct: true },
+    { label: 'Exactly one.', error: 'partialTotal' },
+    { label: 'Exactly two.', error: 'operationInverted' },
+    { label: 'Every value of $x$.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['Isolating the bars gives ${{k}}\\left|x - {{p}}\\right| = {{r}} - {{c}}$, which is negative.', 'An absolute value is never negative, so nothing satisfies it.'],
+  answerSummary: { headline: 'A negative right-hand side rules everything out.', text: 'There are none.' },
+  hint: 'Isolate the bars before counting anything.',
+  feedback: 'Two solutions would need a positive value on the right.',
+});
+
+// ================================================================ A2.6I
+// Rational equations.
+
+mkc('A2.6I', 'value-where-two-rational-sides-agree', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'What value of $x$ makes $\\frac{{{n}}}{x} + {{p}} = \\frac{{{m}}}{x} + {{q}}$ true?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 30 },
+      gap: { type: 'int', min: 2, max: 14 },
+      w: { type: 'int', min: 2, max: 20 },
+      m: { type: 'int', min: 5, max: 200 },
+    },
+    derived: {
+      q: 'p+gap',
+      n: 'm+gap*w',
+      answer: 'w',
+      // Answered the gap between the two numerators.
+      d_forgotFinalStep: 'gap*w',
+      // Answered the gap between the two constants.
+      d_usedGivenValue: 'gap',
+      // Answered the constant on the left.
+      d_ratioReversed: 'p',
+    },
+    constraints: ['abs(p-w)>3', 'abs(gap-w)>3', 'gap*w>7'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Collecting gives $\\frac{{{n}} - {{m}}}{x} = {{q}} - {{p}}$.', 'That leaves $x = {{answer}}$.'],
+  answerSummary: { headline: 'Gather the fractions and the constants on opposite sides.', text: '$x = {{answer}}$.' },
+  hint: 'Both fractions share the same denominator.',
+  feedback: 'The difference of the numerators still has to be divided by the difference of the constants.',
+});
+
+mkc('A2.6I', 'numerator-behind-a-known-solution', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'For which $n$ does $\\frac{n}{x} + {{p}} = {{q}}$ have the solution $x = {{v}}$?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 24 },
+      gap: { type: 'int', min: 2, max: 24 },
+      v: { type: 'int', min: 2, max: 30 },
+    },
+    derived: {
+      q: 'p+gap',
+      answer: 'v*gap',
+      // Added the two constants instead of comparing them.
+      d_operationInverted: 'v*(2*p+gap)',
+      // Answered the gap between the constants.
+      d_usedGivenValue: 'gap',
+      // Scaled by the wrong constant.
+      d_partialTotal: 'p*v',
+    },
+    constraints: ['v*gap>7', 'abs(p-gap)>2', 'abs(p*v-v*gap)>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['At $x = {{v}}$ the fraction has to come to ${{q}} - {{p}} = {{gap}}$.', 'So $n = {{v}} \\times {{gap}} = {{answer}}$.'],
+  answerSummary: { headline: 'The fraction carries whatever the constants leave over.', text: '$n = {{answer}}$.' },
+  hint: 'Move the constant across before clearing the denominator.',
+  feedback: 'The whole left constant does not scale the numerator; only the shortfall does.',
+});
+
+mkc('A2.6I', 'claim-about-clearing-a-denominator', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra2',
+  prompt: 'For $\\frac{{{n}}}{x} + {{p}} = {{q}}$, which statement is wrong?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 10, max: 200 },
+      p: { type: 'int', min: 2, max: 30 },
+      q: { type: 'int', min: 32, max: 90 },
+    },
+    constraints: ['q>p'],
+  },
+  choices: [
+    { label: 'Multiplying by $x$ gives ${{n}} + {{p}} = {{q}}x$.', correct: true },
+    { label: 'Multiplying by $x$ gives ${{n}} + {{p}}x = {{q}}x$.', error: 'partialTotal' },
+    { label: 'The value $x$ cannot be zero.', error: 'usedGivenValue' },
+    { label: 'Subtracting ${{p}}$ first gives $\\frac{{{n}}}{x} = {{q}} - {{p}}$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Multiplying an equation by $x$ reaches every term, including the ${{p}}$.', 'Leaving ${{p}}$ unmultiplied breaks the equality.'],
+  answerSummary: { headline: 'Clearing a denominator multiplies every term.', text: 'The ${{p}}$ must be multiplied too.' },
+  hint: 'Apply the multiplication term by term.',
+  feedback: 'Zero really is excluded, since it would divide by zero.',
+});
+
+// ================================================================ A2.6L
+// Inverse variation.
+
+mkc('A2.6L', 'fall-in-y-across-two-inputs', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'With $y$ varying inversely with $x$ and $y = {{y1}}$ at $x = {{x1}}$, how much does $y$ fall as $x$ goes from ${{x2}}$ to ${{x3}}$?',
+  generator: {
+    parameters: {
+      u: { type: 'int', min: 2, max: 20 },
+      x1: { type: 'int', min: 2, max: 12 },
+      x2: { type: 'int', min: 2, max: 12 },
+      x3: { type: 'int', min: 3, max: 20 },
+    },
+    derived: {
+      k: 'u*x1*x2*x3',
+      y1: 'u*x2*x3',
+      answer: 'u*x1*x3-u*x1*x2',
+      // Added the two values instead of comparing them.
+      d_operationInverted: 'u*x1*x3+u*x1*x2',
+      // Answered the value at the second input.
+      d_partialTotal: 'u*x1*x2',
+      // Compared the two the other way round.
+      d_signError: 'u*x1*x2-u*x1*x3',
+    },
+    constraints: ['x3>x2', 'u*x1*x3-u*x1*x2>7', 'abs(2*u*x1*x2-u*x1*x3)>6'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The constant is ${{x1}} \\times {{y1}} = {{k}}$.', 'So $y$ moves from $\\frac{{{k}}}{{{x2}}}$ to $\\frac{{{k}}}{{{x3}}}$, a fall of ${{answer}}$.'],
+  answerSummary: { headline: 'Find the constant, then read $y$ at each input.', text: 'It falls by ${{answer}}$.' },
+  hint: 'Under inverse variation the product $xy$ never changes.',
+  feedback: 'Larger inputs give smaller outputs, so the fall runs that way.',
+});
+
+mkc('A2.6L', 'days-left-after-part-of-the-crew-goes', {
+  difficultyBand: 5, dok: 3, taskType: 'application', representation: 'context', courseId: 'algebra2',
+  prompt: 'A crew of ${{w1}}$ finishes a job in ${{d1}}$ days. After ${{a}}$ days ${{q}}$ workers leave, so how many more days does the job take?',
+  generator: {
+    parameters: {
+      c: { type: 'int', min: 1, max: 4 },
+      s: { type: 'int', min: 2, max: 5 },
+      e: { type: 'int', min: 1, max: 5 },
+      h: { type: 'int', min: 1, max: 3 },
+      a: { type: 'int', min: 2, max: 11 },
+    },
+    derived: {
+      w1: 'c*(s+e)',
+      w2: 'c*s',
+      q: 'c*e',
+      d1: 'a+s*h',
+      work: 'c*(s+e)*(a+s*h)',
+      left: 'c*(s+e)*s*h',
+      answer: '(s+e)*h',
+      // Read the days still on the schedule without rescaling for the smaller crew.
+      d_forgotFinalStep: 's*h',
+      // Answered the length of the original schedule.
+      d_usedGivenValue: 'a+s*h',
+      // Gave the job's whole run rather than the days still to come.
+      d_partialTotal: 'a+(s+e)*h',
+    },
+    constraints: ['c*e>1', '(s+e)*h>3', 'abs(a-e*h)>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The job is ${{w1}} \\times {{d1}} = {{work}}$ worker-days, of which ${{left}}$ are still undone.', 'Workers and days vary inversely, so ${{left}}$ worker-days shared by ${{w2}}$ workers take ${{answer}}$ days.'],
+  answerSummary: { headline: 'Price the job in worker-days, then divide by the crew that is left.', text: 'It takes ${{answer}}$ more days.' },
+  hint: 'Work already finished is gone; only the part still undone gets shared out again.',
+  feedback: 'The schedule the job started on no longer applies once the crew shrinks.',
+});
+
+mkc('A2.6L', 'claim-about-inverse-variation', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra2',
+  prompt: 'Under inverse variation with constant ${{k}}$, which statement is wrong?',
+  generator: {
+    parameters: { k: { type: 'int', min: 6, max: 200 } },
+    constraints: ['k>5'],
+  },
+  choices: [
+    { label: 'Doubling $x$ doubles $y$.', correct: true },
+    { label: 'Doubling $x$ halves $y$.', error: 'partialTotal' },
+    { label: 'The product of $x$ and $y$ is always ${{k}}$.', error: 'usedGivenValue' },
+    { label: 'The value $y$ is never zero.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Inverse variation keeps $xy$ fixed at ${{k}}$.', 'Doubling $x$ therefore halves $y$ rather than doubling it.'],
+  answerSummary: { headline: 'Inverse means the product stays put, not the ratio.', text: 'Doubling $x$ halves $y$.' },
+  hint: 'Write $y$ in terms of $x$ and the constant.',
+  feedback: 'A zero output would make the product zero, not ${{k}}$.',
 });
 
 // ---------------------------------------------------------------- emit
