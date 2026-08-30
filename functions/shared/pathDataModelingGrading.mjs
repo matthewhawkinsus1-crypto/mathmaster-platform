@@ -13,7 +13,9 @@ const mean = (values = []) => values.length
   : 0;
 
 export const cleanPathDataPoints = (points = []) => list(points)
-  .map((pair) => [Number(pair?.[0]), Number(pair?.[1])])
+  .map((pair) => (Array.isArray(pair)
+    ? [Number(pair?.[0]), Number(pair?.[1])]
+    : [Number(pair?.x), Number(pair?.y)]))
   .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
 
 export const pathCorrelation = (points = []) => {
