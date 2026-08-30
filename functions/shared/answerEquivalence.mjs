@@ -473,6 +473,83 @@ export const samePolynomialEquationRelation = (left, right, tolerance = 1e-6) =>
   return ratio !== null;
 };
 
+
+/**
+ * Compare absolute-value linear equations by the solution set they define.
+ *
+ * This is opt-in for modeling/formulation fields. It accepts harmless
+ * equivalents such as |x-5|=3, |-x+5|=3, or the same equation with its sides
+ * reversed, without changing the form-sensitive default equation grader.
+ */
+export const sameAbsoluteValueLinearEquation = (left, right, tolerance = 1e-6) => {
+  const parse = (value) => {
+    const sides = splitEquationSides(value);
+    if (!sides) return null;
+
+    const readAbsoluteSide = (side) => {
+      const normalized = normalizeStructuralMathLive(side)
+        .replace(/\\lvert|\\rvert|\\vert/g, '|')
+        .replace(/\\operatorname\{abs\}/g, 'abs')
+        .replace(/\\abs/g, 'abs')
+        .trim();
+
+      let inner = null;
+      const bars = normalized.match(/^\|(.+)\|$/);
+      const call = normalized.match(/^abs\((.+)\)$/i);
+      if (bars) inner = bars[1];
+      else if (call) inner = call[1];
+      if (!inner) return null;
+
+      const poly = parsePolynomial(inner);
+      if (!poly || polynomialDegree(poly) > 1) return null;
+      const variableTerms = [...poly.entries()].filter(([key]) => key !== '');
+      if (variableTerms.length !== 1) return null;
+      const [variable, coefficient] = variableTerms[0];
+      if (!/^[a-z]$/.test(variable) || Math.abs(coefficient) <= tolerance) return null;
+      return {
+        variable,
+        coefficient,
+        constant: poly.get('') || 0,
+      };
+    };
+
+    const leftAbs = readAbsoluteSide(sides.left);
+    const rightAbs = readAbsoluteSide(sides.right);
+    const leftConstant = asNumber(sides.left);
+    const rightConstant = asNumber(sides.right);
+
+    let absSide = null;
+    let distanceSide = null;
+    if (leftAbs && rightConstant !== null) {
+      absSide = leftAbs;
+      distanceSide = rightConstant;
+    } else if (rightAbs && leftConstant !== null) {
+      absSide = rightAbs;
+      distanceSide = leftConstant;
+    } else {
+      return null;
+    }
+
+    if (distanceSide < -tolerance) {
+      return { variable: absSide.variable, empty: true };
+    }
+
+    return {
+      variable: absSide.variable,
+      empty: false,
+      center: -absSide.constant / absSide.coefficient,
+      distance: Math.max(0, distanceSide) / Math.abs(absSide.coefficient),
+    };
+  };
+
+  const a = parse(left);
+  const b = parse(right);
+  if (!a || !b || a.variable !== b.variable || a.empty !== b.empty) return false;
+  if (a.empty) return true;
+  return Math.abs(a.center - b.center) <= tolerance
+    && Math.abs(a.distance - b.distance) <= tolerance;
+};
+
 const dedupeEquivalent = (values, tolerance) => {
   const unique = [];
   values.forEach((value) => {
