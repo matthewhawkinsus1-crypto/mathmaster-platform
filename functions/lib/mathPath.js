@@ -565,6 +565,9 @@ async function valuesEquivalent(actual, field) {
     if (field.equivalence === 'modelEquation') {
       return equivalence.sameCommutativeModelEquation(actual, expected);
     }
+    if (field.equivalence === 'setBuilder') {
+      return equivalence.sameSetBuilderNotation(actual, expected, tolerance);
+    }
     return equivalence.sameValue(actual, expected, tolerance);
   });
 }
