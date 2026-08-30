@@ -356,7 +356,11 @@ Resume here. Do not reopen A2.2A–A2.4B unless a failing gate names them.
 - Added A2.4C-specific generated certification — commit `abbb471f3184eb96814185f087da81b64e909fdf`.
 - The A2.4C gate samples 200+ generated instances, runs production issuability and secure self-grading, verifies public-key stripping, independently checks the horizontal-reflection point mapping and horizontal-stretch graph distances, requires vertical stretch/compression and horizontal stretch/compression, and requires reverse reasoning plus genuine error analysis.
 - Full A2.4C assertion run `33319791387`: **QUEUED/RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.4C** until that run is green.
+- Full A2.4C assertion run `33319791387` passed generation, production issuability, secure self-grading, public-key stripping, point-map arithmetic, graph-distance checks, horizontal-reflection/stretch/compression breadth, reverse reasoning, and error analysis. It failed only because the authored point-mapping family demonstrated a vertical factor of 1/2 without literally naming it “vertical compression,” while the certification intentionally requires that vocabulary to be explicit in more than one family.
+- Strengthened the point-mapping prompt/labels/solution review to explicitly name both **vertical compression** and **horizontal compression** — commit `039b86e86d29a2c332ec66d9a36adc51695b535a`.
+- No mathematical requirement was weakened; the content now makes the intended transformation language more visible to students.
+- Replacement certification is triggered from the strengthened package.
+- FIRST UNFINISHED STANDARD remains **A2.4C** until the replacement run is green.
 
 
 ### 2026-08-30 — A2.4B audit finding
