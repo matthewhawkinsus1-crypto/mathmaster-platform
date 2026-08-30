@@ -283,7 +283,154 @@
       ],
       "variants": [
         {
-          "coverageKey": "core-2b4"
+          "coverageKey": "core-2b4",
+          "dok": 2,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d2b2-initial-and-factor-from-context",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "interpretation",
+          "representation": "context",
+          "prompt": "A quantity starts at {{a}} and grows by {{pct}}% each period. Identify the initial value and the multiplicative growth factor that belong in $Q(t)=a(b)^t$.",
+          "responseFields": [
+            {
+              "id": "initial",
+              "label": "Initial value",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "factor",
+              "label": "Multiplicative growth factor b",
+              "inputProfile": "number",
+              "expected": "{{base}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Translate the verbal percent change into the two exponential parameters.",
+            "reasoning": [
+              "The starting amount is the initial value a={{a}}.",
+              "A {{pct}}% increase means multiply by $1+{{pct}}/100={{base}}$ each period."
+            ],
+            "answerSummary": "Initial value {{a}}; growth factor {{base}}."
+          },
+          "attemptFeedback": [
+            "Do not enter the percent itself as the base; convert it to a multiplier."
+          ],
+          "supportHints": [
+            "Growth factor = 1 + decimal growth rate."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 20,
+                "max": 500
+              },
+              "pct": {
+                "type": "choice",
+                "values": [
+                  5,
+                  10,
+                  20,
+                  25,
+                  50
+                ]
+              }
+            },
+            "derived": {
+              "base": "1+pct/100"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-decay-parameter-interpretation-check",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "context",
+          "prompt": "A value is modeled by $V(t)={{a}}({{base}})^t$. A student says the base {{base}} means the quantity DECREASES by {{basePct}}% each period. Test the claim by finding V(1), determine the actual percent decrease, and select the correct interpretation.",
+          "responseFields": [
+            {
+              "id": "factor",
+              "label": "Multiplicative factor",
+              "inputProfile": "number",
+              "expected": "{{base}}"
+            },
+            {
+              "id": "one-period",
+              "label": "V(1)",
+              "inputProfile": "number",
+              "expected": "{{v1}}"
+            },
+            {
+              "id": "decrease",
+              "label": "Actual percent decrease",
+              "inputProfile": "number",
+              "expected": "{{decPct}}"
+            },
+            {
+              "id": "diagnosis",
+              "label": "Correct interpretation",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "correct",
+                  "label": "The base is the retained fraction; the percent decrease is 100(1-b)."
+                },
+                {
+                  "id": "student",
+                  "label": "The base itself is the percent decrease."
+                }
+              ],
+              "expected": "correct"
+            }
+          ],
+          "solutionReview": {
+            "headline": "For decay, the base is the retained multiplier, not the percent lost.",
+            "reasoning": [
+              "One period gives $V(1)={{a}}({{base}})={{v1}}$.",
+              "The model retains {{basePct}}% and therefore loses {{decPct}}% each period.",
+              "So the student's interpretation confuses retained percent with percent decrease."
+            ],
+            "answerSummary": "Factor {{base}}; decrease {{decPct}}%."
+          },
+          "attemptFeedback": [
+            "Use one model step to see what fraction remains before naming the percent decrease."
+          ],
+          "supportHints": [
+            "Percent decrease = 100(1-b) when 0<b<1."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  40,
+                  80,
+                  120,
+                  200
+                ]
+              },
+              "base": {
+                "type": "choice",
+                "values": [
+                  0.5,
+                  0.6,
+                  0.75,
+                  0.8,
+                  0.9
+                ]
+              }
+            },
+            "derived": {
+              "basePct": "round(base*100)",
+              "decPct": "round((1-base)*100)",
+              "v1": "a*base"
+            }
+          }
         },
         {
           "coverageKey": "challenge-d3b4-exponential-parameter-interpretation-audit",
