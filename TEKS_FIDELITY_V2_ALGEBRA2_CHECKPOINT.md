@@ -709,6 +709,15 @@ Resume here. Do not reopen A2.2A–A2.6J unless a failing gate names them.
   - connect vertical asymptotes to domain restrictions and horizontal/one-sided asymptotic behavior to range restrictions without turning the task into A2.6G transformation analysis;
   - include complete notation error repair across domain and range.
 - Before staging, verify that secure generic grading can fairly accept set-builder notation; if it cannot, add the smallest explicit set-notation equivalence capability rather than lowering the TEKS action.
+- Set-builder grading capability completed before A2.6K staging:
+  - `functions/shared/answerEquivalence.mjs` now has opt-in `sameSetBuilderNotation` for simple rational domain/range restrictions;
+  - `functions/lib/mathPath.js` routes only fields marked `equivalence: "setBuilder"` through that comparator;
+  - common MathLive/textbook forms, real-set membership, "|" vs ":", reversed simple inequalities, and reordered exclusions are accepted;
+  - finite roster-set grading remains unchanged;
+  - dedicated regression file `tests/platform/setBuilderAnswerEquivalence.test.mjs` is included in the Algebra II certification workflow.
+- Correct Answer Acceptance Audit on the repaired comparator: **PASS** (`33329645172`).
+- Final Algebra II set-builder capability certification: **PASS** (`33329689327`).
+- The initial parser-insertion failures were isolated pre-staging capability regressions and were repaired before any A2.6K package was authored.
 
 
 ### 2026-08-30 — A2.6J audit finding
