@@ -2762,3 +2762,136 @@ test('A2.5D solves exponential and single-log equations through complete methods
   assert.ok(representations.has('verbal'));
 });
 
+test('A2.5D solves exponential and logarithmic equations through complete written work', async () => {
+  const entry = payload('A2.5D');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /complete-exponential-log-solving/);
+
+  let generatedCount = 0;
+  let sameBaseFamilies = 0;
+  let nonPowerExponentialFamilies = 0;
+  let affineLogFamilies = 0;
+  let commonLogFamilies = 0;
+  let contextFamilies = 0;
+  let errorFamilies = 0;
+  let wrongFinalRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const id = String(doc.id);
+    const text = stringValues(doc).join(' ').toLowerCase();
+
+    if (id.includes('same-base')) sameBaseFamilies += 1;
+    if (id.includes('nonpower-exponential') || id.includes('context-noninteger') || id.includes('exponential-error')) {
+      nonPowerExponentialFamilies += 1;
+    }
+    if (id.includes('common-log-affine')) affineLogFamilies += 1;
+    if (/common log|base 10|\\log\(/.test(text)) commonLogFamilies += 1;
+    if (doc.representation === 'context') contextFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let spoiledChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(correct.fieldResults)}`,
+      );
+
+      if (id.includes('same-base')) {
+        assert.ok(question.responseFields.some((field) => field.id === 'exponents'));
+        assert.ok(question.responseFields.some((field) => field.id === 'solution'));
+      }
+
+      if (id.includes('nonpower-exponential') || id.includes('exponential-error')) {
+        const ratioField = question.responseFields.find((field) => field.id === 'isolated')?.expected || '';
+        assert.match(String(ratioField), /2\^x=/);
+        const ratio = Number(String(ratioField).split('=')[1]);
+        assert.ok(Number.isFinite(ratio));
+        assert.ok(
+          Math.abs(Math.log2(ratio) - Math.round(Math.log2(ratio))) > 1e-9,
+          `${doc.id} generated a ratio that is an exact power of 2 and no longer requires logarithms`,
+        );
+        const exact = String(question.responseFields.find((field) => field.id === 'exact')?.expected || '');
+        assert.match(exact, /ln\(/);
+        const approx = Number(question.responseFields.find((field) => field.id === 'approx')?.expected);
+        assert.ok(Math.abs(approx - Math.log(ratio) / Math.log(2)) <= 0.0015);
+      }
+
+      if (id.includes('context-noninteger')) {
+        const exact = String(question.responseFields.find((field) => field.id === 'exact')?.expected || '');
+        assert.equal(exact, 'ln(3)/ln(2)');
+        const time = Number(question.responseFields.find((field) => field.id === 'time')?.expected);
+        assert.ok(Math.abs(time - Math.log(3) / Math.log(2)) <= 0.0015);
+        assert.ok(Math.abs(time - Math.round(time)) > 0.01, 'context solve drifted back to an integer exponent');
+      }
+
+      if (id.includes('common-log-affine')) {
+        const exp = String(question.responseFields.find((field) => field.id === 'exponential')?.expected || '');
+        assert.match(exp, /x/);
+        const solution = Number(question.responseFields.find((field) => field.id === 'solution')?.expected);
+        assert.ok(Number.isFinite(solution));
+        const prompt = String(question.prompt || '');
+        assert.match(prompt, /log/);
+      }
+
+      if (doc.taskType === 'errorAnalysis') {
+        assert.equal(question.responseFields.find((field) => field.id === 'diagnosis')?.expected, 'divide');
+        assert.ok(question.responseFields.some((field) => field.id === 'isolated'));
+        assert.ok(question.responseFields.some((field) => field.id === 'exact'));
+      }
+
+      if (!spoiledChecked) {
+        const finalField = grading.fields.find((field) => ['solution', 'approx', 'time'].includes(field.id));
+        assert.ok(finalField, `${doc.id} has no final solution field to spoil`);
+        const expected = finalField.expected ?? finalField.accepted?.[0];
+        const wrongValue = Number.isFinite(Number(expected)) ? Number(expected) + 1 : '0';
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, [finalField.id]: wrongValue },
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted an incorrect final solution`);
+        wrongFinalRejected += 1;
+        spoiledChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(sameBaseFamilies >= 1, 'A2.5D must preserve a same-base solving pathway');
+  assert.ok(nonPowerExponentialFamilies >= 3, 'A2.5D must repeatedly require logarithms for non-power exponential targets');
+  assert.ok(affineLogFamilies >= 1, 'A2.5D must solve a single logarithmic equation with an affine argument');
+  assert.ok(commonLogFamilies >= 1, 'A2.5D must include common-log notation');
+  assert.ok(contextFamilies >= 1);
+  assert.ok(errorFamilies >= 1, 'A2.5D must repair the isolation/log step and still finish x');
+  assert.equal(wrongFinalRejected, entry.documents.length);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('context'));
+  assert.ok(representations.has('verbal'));
+});
+
