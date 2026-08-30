@@ -194,7 +194,104 @@
           "c": "r3-m*x",
           "y": "a*r+k"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-negative-coefficient-noninteger-cube-root",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "multipleRepresentation",
+          "prompt": "Solve ${{a}}\\sqrt[3]{{{{m}}x{{c|signed}}}}{{k|signed}}={{y}}$. The linear radicand coefficient is negative and the isolated cube-root value is a noninteger real number. Isolate the radical, cube both sides exactly, then finish the linear solve.",
+          "responseFields": [
+            {
+              "id": "isolated",
+              "label": "Isolated cube-root equation",
+              "inputProfile": "equation",
+              "expected": "cbrt({{m}}x{{c|signed}})={{r}}"
+            },
+            {
+              "id": "cubed",
+              "label": "Equation after cubing",
+              "inputProfile": "equation",
+              "numericTolerance": 0.000001,
+              "expected": "{{m}}x{{c|signed}}={{r3}}"
+            },
+            {
+              "id": "solution",
+              "label": "x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A harder cube-root equation is still solved by isolation, cubing, then linear algebra.",
+            "reasoning": [
+              "Undo the outside shift and scale to isolate the cube root at {{r}}.",
+              "Cubing gives ${{m}}x{{c|signed}}={{r3}}$.",
+              "Solve the resulting linear equation to obtain x={{x}}."
+            ],
+            "answerSummary": "$x={{x}}$"
+          },
+          "attemptFeedback": [
+            "Keep the negative linear coefficient when solving after cubing."
+          ],
+          "supportHints": [
+            "Cube the exact isolated decimal value before solving the linear equation."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -4,
+                  -3,
+                  3,
+                  4
+                ]
+              },
+              "m": {
+                "type": "choice",
+                "values": [
+                  -5,
+                  -4,
+                  -3,
+                  -2
+                ]
+              },
+              "x": {
+                "type": "int",
+                "min": -6,
+                "max": 8
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "r": {
+                "type": "choice",
+                "values": [
+                  -1.5,
+                  -0.5,
+                  0.5,
+                  1.5
+                ]
+              }
+            },
+            "derived": {
+              "r3": "r*r*r",
+              "c": "r3-m*x",
+              "y": "a*r+k"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_6B_v2_noninteger-real-cube-root",
@@ -519,7 +616,89 @@
           "c": "r3-m*x",
           "y": "a*r+k"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-simple-inverse-operation-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student solves $2\\sqrt[3]{x-({{h}})}{{k|signed}}={{target}}$ by isolating the cube root correctly at 2, but then squares both sides. Diagnose the inverse-operation mistake, write the correct equation after cubing, and finish x.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Correct inverse operation",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "cube",
+                  "label": "Cube both sides."
+                },
+                {
+                  "id": "square",
+                  "label": "Square both sides."
+                },
+                {
+                  "id": "absolute",
+                  "label": "Take absolute values."
+                }
+              ],
+              "expected": "cube"
+            },
+            {
+              "id": "cubed",
+              "label": "Correct equation after cubing",
+              "inputProfile": "equation",
+              "expected": "x-({{h}})=8"
+            },
+            {
+              "id": "solution",
+              "label": "Correct x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Undo a cube root by cubing, not squaring.",
+            "reasoning": [
+              "After isolation the equation is $\\sqrt[3]{x-({{h}})}=2$.",
+              "Cubing both sides gives $x-({{h}})=8$.",
+              "Therefore x={{x}}."
+            ],
+            "answerSummary": "Cube both sides; $x={{x}}$."
+          },
+          "attemptFeedback": [
+            "Match the inverse operation to the radical index."
+          ],
+          "supportHints": [
+            "A cube root and a cube undo each other."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            },
+            "derived": {
+              "target": "4+k",
+              "x": "h+8"
+            }
+          }
+        }
+      ]
     }
   ]
 }
