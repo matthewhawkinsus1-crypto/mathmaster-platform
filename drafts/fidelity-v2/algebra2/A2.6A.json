@@ -120,7 +120,170 @@
           "verticalScale": "abs(a)",
           "horizontalScale": "1/abs(b)"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-basic-cubic-scale-translate",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "interpretation",
+          "representation": "symbolic",
+          "prompt": "Compared with $y=x^3$, analyze $g(x)=2(x-({{h}}))^3{{k|signed}}$. Identify the vertical scale, reflection status, and transformed center.",
+          "responseFields": [
+            {
+              "id": "vertical-scale",
+              "label": "Vertical scale factor",
+              "inputProfile": "number",
+              "expected": "2"
+            },
+            {
+              "id": "x-reflection",
+              "label": "Reflection across the x-axis?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "no"
+            },
+            {
+              "id": "center",
+              "label": "Transformed center/inflection point",
+              "inputProfile": "orderedPair",
+              "expected": "({{h}},{{k}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A positive outside factor changes vertical scale while h and k move the cubic center.",
+            "reasoning": [
+              "The outside factor 2 gives a vertical stretch by 2.",
+              "Because the outside factor is positive, there is no x-axis reflection.",
+              "The center moves from (0,0) to ({{h}},{{k}})."
+            ],
+            "answerSummary": "Vertical stretch 2; no reflection; center ({{h}},{{k}})."
+          },
+          "attemptFeedback": [
+            "Read the outside scale separately from the horizontal and vertical translations."
+          ],
+          "supportHints": [
+            "For $a(x-h)^3+k$, the center is $(h,k)$."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "k": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d2b4-fractional-inside-scale-and-reflection",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "interpretation",
+          "representation": "multipleRepresentation",
+          "prompt": "Compared with $y=x^3$, analyze $g(x)=-4[0.5(x-({{h}}))]^3{{k|signed}}$. Determine the vertical and horizontal scale factors, reflection, and center.",
+          "responseFields": [
+            {
+              "id": "vertical-scale",
+              "label": "Vertical scale factor",
+              "inputProfile": "number",
+              "expected": "4"
+            },
+            {
+              "id": "horizontal-scale",
+              "label": "Horizontal scale factor",
+              "inputProfile": "number",
+              "expected": "2"
+            },
+            {
+              "id": "x-reflection",
+              "label": "Reflection across the x-axis?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "horizontal-reflection",
+              "label": "Horizontal reflection?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "no"
+            },
+            {
+              "id": "center",
+              "label": "Transformed center/inflection point",
+              "inputProfile": "orderedPair",
+              "expected": "({{h}},{{k}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Outside and inside parameters control different scale directions.",
+            "reasoning": [
+              "The outside factor -4 gives an x-axis reflection and vertical stretch by 4.",
+              "The inside factor 0.5 gives horizontal scale $1/0.5=2$, so the graph stretches horizontally by 2.",
+              "The translated center is ({{h}},{{k}})."
+            ],
+            "answerSummary": "x-axis reflection; vertical stretch 4; horizontal stretch 2; center ({{h}},{{k}})."
+          },
+          "attemptFeedback": [
+            "Horizontal scale is the reciprocal of the magnitude of the inside multiplier."
+          ],
+          "supportHints": [
+            "For $a f(b(x-h))+k$, use vertical scale $|a|$ and horizontal scale $1/|b|$."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_6A_v2_cube-root-negative-b-point-map",
@@ -255,7 +418,93 @@
           "x8": "h-2",
           "y8": "k+2*a"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-single-reflection-point-map",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "representationTranslation",
+          "representation": "table",
+          "prompt": "A cube-root transformation is $g(x)=2\\sqrt[3]{-(x-({{h}}))}{{k|signed}}$. Map the parent points $(-1,-1)$, $(0,0)$, and $(1,1)$, then use the mapped order to explain the horizontal reflection.",
+          "responseFields": [
+            {
+              "id": "left-image",
+              "label": "Image of parent point (-1,-1)",
+              "inputProfile": "orderedPair",
+              "expected": "({{xp}},{{ym}})"
+            },
+            {
+              "id": "center",
+              "label": "Image of parent point (0,0)",
+              "inputProfile": "orderedPair",
+              "expected": "({{h}},{{k}})"
+            },
+            {
+              "id": "right-image",
+              "label": "Image of parent point (1,1)",
+              "inputProfile": "orderedPair",
+              "expected": "({{xm}},{{yp}})"
+            },
+            {
+              "id": "reflection",
+              "label": "What happens horizontally?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "reflect",
+                  "label": "The negative inside parameter reflects parent x-coordinates across the vertical line x=h before translation."
+                },
+                {
+                  "id": "none",
+                  "label": "The negative inside parameter has no horizontal effect."
+                }
+              ],
+              "expected": "reflect"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A negative inside multiplier reverses the horizontal order of parent points.",
+            "reasoning": [
+              "For b=-1, parent input u maps to x=h-u.",
+              "Thus u=-1 maps to x=h+1 and u=1 maps to x=h-1.",
+              "The y-values are scaled by 2 and shifted by k, confirming the horizontal reflection."
+            ],
+            "answerSummary": "The parent point order reverses horizontally about x=h."
+          },
+          "attemptFeedback": [
+            "Track the parent input u through x=h+u/b rather than changing only the y-value."
+          ],
+          "supportHints": [
+            "With b=-1, x=h-u."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "k": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            },
+            "derived": {
+              "xp": "h+1",
+              "xm": "h-1",
+              "ym": "k-2",
+              "yp": "k+2"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_6A_v2_cubic-graph-horizontal-stretch",
