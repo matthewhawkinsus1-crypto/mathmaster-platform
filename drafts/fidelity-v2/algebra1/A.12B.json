@@ -1,0 +1,346 @@
+{
+  "standard": "A.12B",
+  "verdict": "KEEP",
+  "certificationStatus": "candidate-keep-mathematics-certified-and-metadata-hardened",
+  "documents": [
+    {
+      "id": "mm_A_12B_v2_evaluate-linear",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12B:v2-evaluate-linear",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "If $f(x)={{m}}x {{b|signed}}$, find $f({{x}})$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Function notation tells which input to substitute.",
+          "Replace $x$ with {{x}} and simplify."
+        ],
+        "answerSummary": "$f({{x}})={{y}}$"
+      },
+      "attemptFeedback": [
+        "Treat everything inside the function's parentheses as the input and substitute it everywhere the variable appears."
+      ],
+      "supportHints": [
+        "Function notation is substitution: first identify the complete input, then evaluate the rule at that input."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "x": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        },
+        "derived": {
+          "y": "m*x+b"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{y}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12B_v2_evaluate-quadratic",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12B:v2-evaluate-quadratic",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "If $g(x)={{a}}x^2 {{b|signed}}x {{c|signed}}$, find $g({{x}})$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Substitute the requested input everywhere $x$ appears.",
+          "Evaluate the square before multiplying and combining terms."
+        ],
+        "answerSummary": "$g({{x}})={{y}}$"
+      },
+      "attemptFeedback": [
+        "Treat everything inside the function's parentheses as the input and substitute it everywhere the variable appears."
+      ],
+      "supportHints": [
+        "Function notation is substitution: first identify the complete input, then evaluate the rule at that input."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "c": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "y": "a*x*x+b*x+c"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{y}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12B_v2_fare-context",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12B:v2-fare-context",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12B",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A fare is $f(m)={{rate}}m+{{fee}}$. Find $f({{miles}})$ and interpret it as the fare for {{miles}} miles.",
+      "solutionReview": {
+        "headline": "Function evaluation substitutes the stated input into the model.",
+        "reasoning": [
+          "Replace $m$ with {{miles}} in $f(m)={{rate}}m+{{fee}}$.",
+          "The resulting fare is {{total}}."
+        ],
+        "answerSummary": "$f({{miles}})={{total}}$"
+      },
+      "attemptFeedback": [
+        "Treat everything inside the function's parentheses as the input and substitute it everywhere the variable appears."
+      ],
+      "supportHints": [
+        "Function notation is substitution: first identify the complete input, then evaluate the rule at that input."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "fee": {
+            "type": "int",
+            "min": 3,
+            "max": 15
+          },
+          "miles": {
+            "type": "int",
+            "min": 2,
+            "max": 20
+          }
+        },
+        "derived": {
+          "total": "rate*miles+fee"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Fare",
+          "inputProfile": "number",
+          "expected": "{{total}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12B_v2_composition-input-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12B:v2-composition-input-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12B",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student evaluates $f({{x}}+{{h}})$ for $f(x)={{m}}x{{b|signed}}$ by substituting only {{x}} and ignoring the +{{h}}. What is the correct value of $f({{x}}+{{h}})$?",
+      "solutionReview": {
+        "headline": "The complete expression inside the parentheses is the input.",
+        "reasoning": [
+          "First combine the input: {{x}}+{{h}}={{input}}.",
+          "Substitute {{input}} everywhere $x$ appears to obtain {{y}}."
+        ],
+        "answerSummary": "{{y}}"
+      },
+      "attemptFeedback": [
+        "Treat everything inside the function's parentheses as the input and substitute it everywhere the variable appears."
+      ],
+      "supportHints": [
+        "Function notation is substitution: first identify the complete input, then evaluate the rule at that input."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          },
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          }
+        },
+        "derived": {
+          "input": "x+h",
+          "y": "m*input+b"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{y}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12B_v2_evaluate-negative-input",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12B:v2-evaluate-negative-input",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12B",
+      "taskType": "transfer",
+      "representation": "symbolic",
+      "prompt": "If $g(x)={{m}}x{{b|signed}}$, evaluate $g(-{{x}})$.",
+      "solutionReview": {
+        "headline": "A negative input must be substituted with its sign intact.",
+        "reasoning": [
+          "The requested input is $-{{x}}$, not {{x}}.",
+          "Substitute $x=-{{x}}$ into the rule and simplify to get {{y}}."
+        ],
+        "answerSummary": "{{y}}"
+      },
+      "attemptFeedback": [
+        "Treat everything inside the function's parentheses as the input and substitute it everywhere the variable appears."
+      ],
+      "supportHints": [
+        "Function notation is substitution: first identify the complete input, then evaluate the rule at that input."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "negx": "-x",
+          "y": "m*negx+b"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Value",
+          "inputProfile": "number",
+          "expected": "{{y}}"
+        }
+      ]
+    }
+  ]
+}
