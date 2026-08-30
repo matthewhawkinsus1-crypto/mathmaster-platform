@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { REPRESENTATIONS, TASK_TYPES } from '../../functions/shared/pathQuestionQuality.mjs';
 
 const read = (path) => JSON.parse(readFileSync(path, 'utf8'));
-const codes = ['A.2C', 'A.2H', 'A.2I', 'A.8A', 'A.9C', 'A.10A', 'A.10B', 'A.10C', 'A.10D', 'A.10E', 'A.10F', 'A.11B', 'A.12A', 'A.12D'];
+const codes = ['A.2C', 'A.2H', 'A.2I', 'A.8A', 'A.9C', 'A.10A', 'A.10B', 'A.10C', 'A.10D', 'A.10E', 'A.10F', 'A.11B', 'A.12A', 'A.12C', 'A.12D'];
 const staged = codes.map((code) => read(`drafts/fidelity-v2/algebra1/${code}.json`));
 const codeOf = (doc) => String((doc.alignmentKeys || []).find((key) => String(key).startsWith('texas:')) || '').replace(/^texas:/, '');
 const allStrings = (node, out = []) => {
@@ -158,6 +158,24 @@ test('A.12A uses real mapping/table/ordered-pair evidence and does not certify a
   assert.ok(entry.documents.some((doc) => doc.representation === 'context'));
   assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /repeats/i.test(doc.prompt)));
   assert.equal(entry.documents.some((doc) => doc.representation === 'graph'), false);
+});
+
+test('A.12C connects recursive sequences to term-number domain, tables, and discrete graph points', () => {
+  const entry = payload('A.12C');
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /discrete-point-render-review/);
+  assert.ok(entry.documents.filter((doc) => doc.representation === 'table').length >= 2);
+  const graph = entry.documents.find((doc) => doc.representation === 'graph');
+  assert.equal(graph?.type, 'functionInvestigation');
+  assert.equal(graph?.pointTasks?.length, 4);
+  assert.ok(graph.pointTasks.every((task, index) => task.expected?.[0] === index + 1));
+  assert.match(String(graph.prompt), /term number as the x-coordinate/i);
+  assert.match(String(graph.prompt), /discrete/i);
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /domain/i.test(doc.prompt)));
+  const text = JSON.stringify(entry.documents).toLowerCase();
+  assert.match(text, /arithmetic/);
+  assert.match(text, /geometric/);
+  assert.match(text, /input\/domain|domain\/input/);
 });
 
 test('A.12D requires nth-term formulas and covers arithmetic plus geometric growth/decay', () => {
