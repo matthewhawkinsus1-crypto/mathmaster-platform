@@ -79,3 +79,43 @@ test('sanitizer also accepts a table already read back from Firestore', () => {
 
   assert.deepEqual(question.stimulus.table.rows, [{ cells: ['4', '9'] }, { cells: ['5', '11'] }]);
 });
+
+test('secure Path graph stimuli keep only visible graph information', () => {
+  const question = mathPath.buildSanitizedQuestion({
+    familyId: 'graph-family',
+    prompt: 'Write an equation from the graph.',
+    responseFields: [{ id: 'answer', expected: 'y=2x+1' }],
+    stimulus: {
+      kind: 'graph',
+      graph: {
+        xMin: -6,
+        xMax: 6,
+        yMin: -8,
+        yMax: 8,
+        ariaLabel: 'A line and shaded half-plane',
+        points: [{ x: 1, y: 3, label: 'P' }],
+        lines: [{
+          label: 'Boundary',
+          boundaryStyle: 'dashed',
+          points: [[0, 1], [2, 5]],
+          expectedEquation: 'y=2x+1',
+        }],
+        shading: [{ lineIndex: 0, side: 'above', correctRelation: '>' }],
+        hiddenAnswer: 'must-not-travel',
+      },
+    },
+  }, { questionInstanceId: 'qi-graph', attemptsAllowed: 3 });
+
+  assert.deepEqual(question.stimulus.graph.lines[0], {
+    label: 'Boundary',
+    boundaryStyle: 'dashed',
+    points: [{ x: 0, y: 1 }, { x: 2, y: 5 }],
+  });
+  assert.deepEqual(question.stimulus.graph.shading, [{ lineIndex: 0, side: 'above' }]);
+  assert.deepEqual(question.stimulus.graph.points, [{ x: 1, y: 3, label: 'P' }]);
+  const serialized = JSON.stringify(question.stimulus.graph);
+  assert.equal(serialized.includes('expectedEquation'), false);
+  assert.equal(serialized.includes('correctRelation'), false);
+  assert.equal(serialized.includes('must-not-travel'), false);
+  assert.equal(containsDirectNestedArray(question.stimulus), false);
+});
