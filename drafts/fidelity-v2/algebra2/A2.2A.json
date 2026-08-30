@@ -609,7 +609,166 @@
             "max": 4
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-reciprocal-fractional-inputs",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "interpretation",
+          "representation": "graph",
+          "prompt": "Construct the parent reciprocal graph $f(x)=1/x$ using EIGHT requested points, including fractional inputs near the vertical asymptote. Then state both asymptotes, the complete domain, and the complete range.",
+          "functionSpec": {
+            "type": "rational",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          },
+          "graph": {
+            "xMin": -5,
+            "xMax": 5,
+            "yMin": -5,
+            "yMax": 5,
+            "xStep": 1,
+            "yStep": 1,
+            "snapStep": 0.25
+          },
+          "pointTasks": [
+            {
+              "id": "pmn2",
+              "label": "Plot x = -2",
+              "x": -2,
+              "expected": [
+                -2,
+                -0.5
+              ]
+            },
+            {
+              "id": "pmn1",
+              "label": "Plot x = -1",
+              "x": -1,
+              "expected": [
+                -1,
+                -1
+              ]
+            },
+            {
+              "id": "pmhalf",
+              "label": "Plot x = -0.5",
+              "x": -0.5,
+              "expected": [
+                -0.5,
+                -2
+              ]
+            },
+            {
+              "id": "pmquarter",
+              "label": "Plot x = -0.25",
+              "x": -0.25,
+              "expected": [
+                -0.25,
+                -4
+              ]
+            },
+            {
+              "id": "pquarter",
+              "label": "Plot x = 0.25",
+              "x": 0.25,
+              "expected": [
+                0.25,
+                4
+              ]
+            },
+            {
+              "id": "phalf",
+              "label": "Plot x = 0.5",
+              "x": 0.5,
+              "expected": [
+                0.5,
+                2
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot x = 1",
+              "x": 1,
+              "expected": [
+                1,
+                1
+              ]
+            },
+            {
+              "id": "p2",
+              "label": "Plot x = 2",
+              "x": 2,
+              "expected": [
+                2,
+                0.5
+              ]
+            }
+          ],
+          "analysisRequests": [
+            {
+              "id": "vasym",
+              "label": "Vertical asymptote x-value",
+              "kind": "value",
+              "responseMode": "text",
+              "expected": [
+                "0"
+              ]
+            },
+            {
+              "id": "hasym",
+              "label": "Horizontal asymptote y-value",
+              "kind": "value",
+              "responseMode": "text",
+              "expected": [
+                "0"
+              ]
+            },
+            {
+              "id": "domain",
+              "label": "Domain",
+              "kind": "domain",
+              "notation": "interval",
+              "responseMode": "text",
+              "expected": [
+                "(-∞,0)∪(0,∞)"
+              ]
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "kind": "range",
+              "notation": "interval",
+              "responseMode": "text",
+              "expected": [
+                "(-∞,0)∪(0,∞)"
+              ]
+            }
+          ],
+          "solutionReview": {
+            "headline": "Fractional inputs near zero reveal the reciprocal's asymptotic behavior more strongly.",
+            "reasoning": [
+              "As x approaches 0 from either side, 1/x grows in magnitude, confirming the vertical asymptote x=0.",
+              "For large |x|, the outputs approach 0 without reaching it, confirming horizontal asymptote y=0.",
+              "Both domain and range exclude 0."
+            ],
+            "answerSummary": "Asymptotes x=0 and y=0; domain and range both exclude 0."
+          },
+          "attemptFeedback": [
+            "Use each fractional input exactly; the points near x=0 should move farther from the x-axis."
+          ],
+          "supportHints": [
+            "For x=1/4, the reciprocal is 4; for x=-1/4, it is -4."
+          ]
+        }
+      ]
     },
     {
       "id": "mm_A2_2A_v2_exponential-graph-attributes",
@@ -921,7 +1080,10 @@
                 "max": 4
               }
             }
-          }
+          },
+          "coverageKey": "core-d3b4-log-base2",
+          "dok": 3,
+          "difficultyBand": 4
         },
         {
           "prompt": "A student claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\log_{10}(x)$ to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
@@ -969,7 +1131,10 @@
                 "max": 4
               }
             }
-          }
+          },
+          "coverageKey": "core-d3b4-log-alt-1",
+          "dok": 3,
+          "difficultyBand": 4
         },
         {
           "prompt": "A student claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\ln(x)$ (log base $e$) to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
@@ -1017,6 +1182,69 @@
                 "max": 4
               }
             }
+          },
+          "coverageKey": "core-d3b4-log-alt-2",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "prompt": "A student says the parent logarithm $f(x)=\\log_2(x)$ has domain all real numbers because its inverse exponential has domain all real numbers. Construct the base-2 log graph, use the vertical asymptote and plotted points to test the claim, then state the correct domain and range.",
+          "functionSpec": {
+            "type": "logarithmic",
+            "a": 1,
+            "h": 0,
+            "k": 0,
+            "base": 2
+          },
+          "pointTasks": [
+            {
+              "id": "pinv",
+              "label": "Plot x = 1/2",
+              "x": 0.5,
+              "expected": [
+                0.5,
+                -1
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot the x-intercept",
+              "x": 1,
+              "expected": [
+                1,
+                0
+              ]
+            },
+            {
+              "id": "pbase",
+              "label": "Plot x = 2",
+              "x": 2,
+              "expected": [
+                2,
+                1
+              ]
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            }
+          },
+          "coverageKey": "adaptive-d3b3-log-domain-claim-fixed-base2",
+          "dok": 3,
+          "difficultyBand": 3,
+          "solutionReview": {
+            "headline": "Inverse functions exchange domain and range; they do not necessarily keep the same domain.",
+            "reasoning": [
+              "The logarithm exists only for x>0 and approaches the vertical asymptote x=0.",
+              "Its range is all real numbers.",
+              "This matches the inverse relationship: the exponential's range (0,∞) becomes the logarithm's domain."
+            ],
+            "answerSummary": "The claim is false: domain (0,∞), range all real numbers."
           }
         }
       ]
