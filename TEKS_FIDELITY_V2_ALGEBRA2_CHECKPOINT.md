@@ -145,4 +145,10 @@ For each standard:
 - Correct Answer Acceptance Audit was GREEN on the secure table-contract commit and the graph-workspace commit.
 - Current targeted Algebra II certification run: GitHub Actions run `33315642444` — **QUEUED/RUNNING when this checkpoint was written**.
 - Vercel remains red only for the known deployment build-rate-limit and is not being counted as a code failure.
-- Do **not** advance FIRST UNFINISHED STANDARD to A2.2C until run `33315642444` is green.
+- Initial targeted run `33315642444` failed for two concrete test-harness issues, not a waived content failure:
+  - the newly inserted secure-table regression test was syntactically corrupted by its authoring insertion;
+  - the A2.2B self-grade helper read `privateGrading.points` instead of `privateGrading.definition.points`, so it submitted empty “correct” work.
+- Repaired the secure-table regression test — commit `ed752fb9f8c412992911181645c66e266697dbee`.
+- Repaired the private grading fixture shape and added detailed part output on any future self-acceptance failure — commit `88745d34479fb7ef4147815713b41e0372c9f6c6`.
+- Replacement Algebra II certification run for head `88745d34479fb7ef4147815713b41e0372c9f6c6`: GitHub Actions run `33315723037` — **PENDING/RUNNING when this checkpoint was written**.
+- Do **not** advance FIRST UNFINISHED STANDARD to A2.2C until the replacement run is green.
