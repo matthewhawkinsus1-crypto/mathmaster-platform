@@ -707,6 +707,11 @@ Resume here. Do not reopen A2.2A–A2.6F unless a failing gate names them.
 - Strengthened that family by adding graded vertical- and horizontal-asymptote fields — commit `4291bd7e4ff51ea605bbbd39c7e240a759972cd5`.
 - No gate was weakened; the content was improved to meet the gate.
 - Replacement certification is triggered.
+- Replacement run `33326702004` passed the strengthened asymptote requirement but then failed the repeated-negative-b breadth assertion: only two families explicitly carried negative b.
+- Strengthened the combined symbolic family so both a and b are negative, producing an authentic double-reflection case and positive effective ratio a/b — commit `7e0d8379b96a12883e7acde7f7e6be0b535135ef`.
+- Updated the certification to require the corresponding horizontal reflection and positive effective coefficient — commit `bea36f527b3805475d87098e53064f1588b462d4`.
+- Again, the gate was not weakened; content breadth was increased to meet it.
+- Replacement certification is triggered.
 - FIRST UNFINISHED STANDARD remains **A2.6G** until the replacement run is green.
 
 
