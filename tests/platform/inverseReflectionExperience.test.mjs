@@ -49,6 +49,341 @@ test('legacy live inverse-point question upgrades at issue time', () => {
   assert.equal(publicText.includes('(x-(-5))/4'), false);
 });
 
+test('secure inverse graph payload carries only the allowlisted table stimulus', () => {
+  const payload = buildPublicToolPayload({
+    ...legacyLiveQuestion,
+    id: 'a2-2b-table-secure-stimulus',
+    stimulus: {
+      kind: 'table',
+      title: 'Values of f',
+      note: 'Use the table to plot the original function.',
+      table: {
+        headers: ['$x
+  const privateGrading = buildPrivateToolGrading(legacyLiveQuestion);
+  const result = gradePathResponse({
+    privateGrading,
+    raw: {
+      placements: { p0: [0, -5], px: [3, 7] },
+      markerPlacements: {},
+      selections: {
+        'inverse-reflect-p0': [[-5, 0]],
+        'inverse-reflect-px': [[7, 3]],
+      },
+      answers: {
+        'inverse-equation': 'f^{-1}(x)=(x+5)/4',
+      },
+    },
+  });
+
+  assert.equal(result.rejected, false);
+  assert.equal(result.isCorrect, true);
+  assert.equal(result.parts.find((part) => part.id === 'inverse-reflect-p0')?.isCorrect, true);
+  assert.equal(result.parts.find((part) => part.id === 'inverse-reflect-px')?.isCorrect, true);
+  assert.equal(result.parts.find((part) => part.id === 'inverse-equation')?.isCorrect, true);
+});
+
+test('one wrong reflected point is still wrong', () => {
+  const privateGrading = buildPrivateToolGrading(legacyLiveQuestion);
+  const result = gradePathResponse({
+    privateGrading,
+    raw: {
+      placements: { p0: [0, -5], px: [3, 7] },
+      markerPlacements: {},
+      selections: {
+        'inverse-reflect-p0': [[-5, 0]],
+        'inverse-reflect-px': [[3, 7]],
+      },
+      answers: {
+        'inverse-equation': 'f^{-1}(x)=(x+5)/4',
+      },
+    },
+  });
+  assert.equal(result.isCorrect, false);
+});
+
+test('inverse equation part receives the equation keypad', () => {
+  assert.equal(analysisKeypadProfile({ kind: 'value', notation: 'equation' }), 'equation');
+});
+
+test('workspace contains the full reflection interaction', () => {
+  const source = readFileSync('src/InteractiveGraphWorkspace.jsx', 'utf8');
+  assert.match(source, /request\.kind === 'inversePoint'/);
+  assert.match(source, /Check Reflected Points/);
+  assert.match(source, /PathQuestionStimulus/);
+  assert.match(source, /stimulus=\{question\.stimulus\}/);
+  assert.match(source, /inverseReflection\?\.inverseLineLabel/);
+  assert.doesNotMatch(source, /Draw the inverse line through both points/);
+  assert.match(source, />y = x</);
+  assert.match(source, /inverseIdealPaths/);
+  assert.match(source, /inverseSnapped/);
+  assert.match(source, /Clear Inverse Sketch/);
+  assert.match(source, /Reset Inverse/);
+});
+
+test('canonical Algebra II seed declares inverseReflection in both mirrors', () => {
+  for (const seedPath of [
+    'functions/seeds/pathQuestionBank/algebra2_pathQuestionBank_seed.json',
+    'seed/pathQuestionBank/algebra2_pathQuestionBank_seed.json',
+  ]) {
+    const parsed = JSON.parse(readFileSync(seedPath, 'utf8'));
+    const docs = Array.isArray(parsed) ? parsed : (parsed.documents || parsed.items || parsed.questions || []);
+    const item = docs.find((entry) => entry.id === 'mm_A2_2B_gen2_inverse-point-graph');
+    assert.equal(item.inverseReflection.enabled, true);
+    assert.equal(item.inverseReflection.requireInverseSketch, true);
+    assert.equal(item.inverseReflection.requireInverseEquation, true);
+    assert.match(item.prompt, /reflect both plotted points/i);
+  }
+});
+, '$f(x)
+  const privateGrading = buildPrivateToolGrading(legacyLiveQuestion);
+  const result = gradePathResponse({
+    privateGrading,
+    raw: {
+      placements: { p0: [0, -5], px: [3, 7] },
+      markerPlacements: {},
+      selections: {
+        'inverse-reflect-p0': [[-5, 0]],
+        'inverse-reflect-px': [[7, 3]],
+      },
+      answers: {
+        'inverse-equation': 'f^{-1}(x)=(x+5)/4',
+      },
+    },
+  });
+
+  assert.equal(result.rejected, false);
+  assert.equal(result.isCorrect, true);
+  assert.equal(result.parts.find((part) => part.id === 'inverse-reflect-p0')?.isCorrect, true);
+  assert.equal(result.parts.find((part) => part.id === 'inverse-reflect-px')?.isCorrect, true);
+  assert.equal(result.parts.find((part) => part.id === 'inverse-equation')?.isCorrect, true);
+});
+
+test('one wrong reflected point is still wrong', () => {
+  const privateGrading = buildPrivateToolGrading(legacyLiveQuestion);
+  const result = gradePathResponse({
+    privateGrading,
+    raw: {
+      placements: { p0: [0, -5], px: [3, 7] },
+      markerPlacements: {},
+      selections: {
+        'inverse-reflect-p0': [[-5, 0]],
+        'inverse-reflect-px': [[3, 7]],
+      },
+      answers: {
+        'inverse-equation': 'f^{-1}(x)=(x+5)/4',
+      },
+    },
+  });
+  assert.equal(result.isCorrect, false);
+});
+
+test('inverse equation part receives the equation keypad', () => {
+  assert.equal(analysisKeypadProfile({ kind: 'value', notation: 'equation' }), 'equation');
+});
+
+test('workspace contains the full reflection interaction', () => {
+  const source = readFileSync('src/InteractiveGraphWorkspace.jsx', 'utf8');
+  assert.match(source, /request\.kind === 'inversePoint'/);
+  assert.match(source, /Check Reflected Points/);
+  assert.match(source, /Draw the inverse line through both points/);
+  assert.match(source, />y = x</);
+  assert.match(source, /inverseIdealPaths/);
+  assert.match(source, /inverseSnapped/);
+  assert.match(source, /Clear Inverse Sketch/);
+  assert.match(source, /Reset Inverse/);
+});
+
+test('canonical Algebra II seed declares inverseReflection in both mirrors', () => {
+  for (const seedPath of [
+    'functions/seeds/pathQuestionBank/algebra2_pathQuestionBank_seed.json',
+    'seed/pathQuestionBank/algebra2_pathQuestionBank_seed.json',
+  ]) {
+    const parsed = JSON.parse(readFileSync(seedPath, 'utf8'));
+    const docs = Array.isArray(parsed) ? parsed : (parsed.documents || parsed.items || parsed.questions || []);
+    const item = docs.find((entry) => entry.id === 'mm_A2_2B_gen2_inverse-point-graph');
+    assert.equal(item.inverseReflection.enabled, true);
+    assert.equal(item.inverseReflection.requireInverseSketch, true);
+    assert.equal(item.inverseReflection.requireInverseEquation, true);
+    assert.match(item.prompt, /reflect both plotted points/i);
+  }
+});
+],
+        rows: [
+          [-1, -9],
+          { cells: [0, -5] },
+          [3, 7],
+        ],
+      },
+      expected: 'DO-NOT-LEAK',
+      answer: 'DO-NOT-LEAK',
+      privateSolution: { reflected: [[-9, -1]] },
+    },
+  });
+
+  assert.deepEqual(payload.tool.stimulus, {
+    kind: 'table',
+    title: 'Values of f',
+    note: 'Use the table to plot the original function.',
+    table: {
+      headers: ['$x
+  const privateGrading = buildPrivateToolGrading(legacyLiveQuestion);
+  const result = gradePathResponse({
+    privateGrading,
+    raw: {
+      placements: { p0: [0, -5], px: [3, 7] },
+      markerPlacements: {},
+      selections: {
+        'inverse-reflect-p0': [[-5, 0]],
+        'inverse-reflect-px': [[7, 3]],
+      },
+      answers: {
+        'inverse-equation': 'f^{-1}(x)=(x+5)/4',
+      },
+    },
+  });
+
+  assert.equal(result.rejected, false);
+  assert.equal(result.isCorrect, true);
+  assert.equal(result.parts.find((part) => part.id === 'inverse-reflect-p0')?.isCorrect, true);
+  assert.equal(result.parts.find((part) => part.id === 'inverse-reflect-px')?.isCorrect, true);
+  assert.equal(result.parts.find((part) => part.id === 'inverse-equation')?.isCorrect, true);
+});
+
+test('one wrong reflected point is still wrong', () => {
+  const privateGrading = buildPrivateToolGrading(legacyLiveQuestion);
+  const result = gradePathResponse({
+    privateGrading,
+    raw: {
+      placements: { p0: [0, -5], px: [3, 7] },
+      markerPlacements: {},
+      selections: {
+        'inverse-reflect-p0': [[-5, 0]],
+        'inverse-reflect-px': [[3, 7]],
+      },
+      answers: {
+        'inverse-equation': 'f^{-1}(x)=(x+5)/4',
+      },
+    },
+  });
+  assert.equal(result.isCorrect, false);
+});
+
+test('inverse equation part receives the equation keypad', () => {
+  assert.equal(analysisKeypadProfile({ kind: 'value', notation: 'equation' }), 'equation');
+});
+
+test('workspace contains the full reflection interaction', () => {
+  const source = readFileSync('src/InteractiveGraphWorkspace.jsx', 'utf8');
+  assert.match(source, /request\.kind === 'inversePoint'/);
+  assert.match(source, /Check Reflected Points/);
+  assert.match(source, /Draw the inverse line through both points/);
+  assert.match(source, />y = x</);
+  assert.match(source, /inverseIdealPaths/);
+  assert.match(source, /inverseSnapped/);
+  assert.match(source, /Clear Inverse Sketch/);
+  assert.match(source, /Reset Inverse/);
+});
+
+test('canonical Algebra II seed declares inverseReflection in both mirrors', () => {
+  for (const seedPath of [
+    'functions/seeds/pathQuestionBank/algebra2_pathQuestionBank_seed.json',
+    'seed/pathQuestionBank/algebra2_pathQuestionBank_seed.json',
+  ]) {
+    const parsed = JSON.parse(readFileSync(seedPath, 'utf8'));
+    const docs = Array.isArray(parsed) ? parsed : (parsed.documents || parsed.items || parsed.questions || []);
+    const item = docs.find((entry) => entry.id === 'mm_A2_2B_gen2_inverse-point-graph');
+    assert.equal(item.inverseReflection.enabled, true);
+    assert.equal(item.inverseReflection.requireInverseSketch, true);
+    assert.equal(item.inverseReflection.requireInverseEquation, true);
+    assert.match(item.prompt, /reflect both plotted points/i);
+  }
+});
+, '$f(x)
+  const privateGrading = buildPrivateToolGrading(legacyLiveQuestion);
+  const result = gradePathResponse({
+    privateGrading,
+    raw: {
+      placements: { p0: [0, -5], px: [3, 7] },
+      markerPlacements: {},
+      selections: {
+        'inverse-reflect-p0': [[-5, 0]],
+        'inverse-reflect-px': [[7, 3]],
+      },
+      answers: {
+        'inverse-equation': 'f^{-1}(x)=(x+5)/4',
+      },
+    },
+  });
+
+  assert.equal(result.rejected, false);
+  assert.equal(result.isCorrect, true);
+  assert.equal(result.parts.find((part) => part.id === 'inverse-reflect-p0')?.isCorrect, true);
+  assert.equal(result.parts.find((part) => part.id === 'inverse-reflect-px')?.isCorrect, true);
+  assert.equal(result.parts.find((part) => part.id === 'inverse-equation')?.isCorrect, true);
+});
+
+test('one wrong reflected point is still wrong', () => {
+  const privateGrading = buildPrivateToolGrading(legacyLiveQuestion);
+  const result = gradePathResponse({
+    privateGrading,
+    raw: {
+      placements: { p0: [0, -5], px: [3, 7] },
+      markerPlacements: {},
+      selections: {
+        'inverse-reflect-p0': [[-5, 0]],
+        'inverse-reflect-px': [[3, 7]],
+      },
+      answers: {
+        'inverse-equation': 'f^{-1}(x)=(x+5)/4',
+      },
+    },
+  });
+  assert.equal(result.isCorrect, false);
+});
+
+test('inverse equation part receives the equation keypad', () => {
+  assert.equal(analysisKeypadProfile({ kind: 'value', notation: 'equation' }), 'equation');
+});
+
+test('workspace contains the full reflection interaction', () => {
+  const source = readFileSync('src/InteractiveGraphWorkspace.jsx', 'utf8');
+  assert.match(source, /request\.kind === 'inversePoint'/);
+  assert.match(source, /Check Reflected Points/);
+  assert.match(source, /Draw the inverse line through both points/);
+  assert.match(source, />y = x</);
+  assert.match(source, /inverseIdealPaths/);
+  assert.match(source, /inverseSnapped/);
+  assert.match(source, /Clear Inverse Sketch/);
+  assert.match(source, /Reset Inverse/);
+});
+
+test('canonical Algebra II seed declares inverseReflection in both mirrors', () => {
+  for (const seedPath of [
+    'functions/seeds/pathQuestionBank/algebra2_pathQuestionBank_seed.json',
+    'seed/pathQuestionBank/algebra2_pathQuestionBank_seed.json',
+  ]) {
+    const parsed = JSON.parse(readFileSync(seedPath, 'utf8'));
+    const docs = Array.isArray(parsed) ? parsed : (parsed.documents || parsed.items || parsed.questions || []);
+    const item = docs.find((entry) => entry.id === 'mm_A2_2B_gen2_inverse-point-graph');
+    assert.equal(item.inverseReflection.enabled, true);
+    assert.equal(item.inverseReflection.requireInverseSketch, true);
+    assert.equal(item.inverseReflection.requireInverseEquation, true);
+    assert.match(item.prompt, /reflect both plotted points/i);
+  }
+});
+],
+      rows: [
+        { cells: ['-1', '-9'] },
+        { cells: ['0', '-5'] },
+        { cells: ['3', '7'] },
+      ],
+    },
+  });
+  const publicText = JSON.stringify(payload.tool);
+  assert.equal(publicText.includes('DO-NOT-LEAK'), false);
+  assert.equal(publicText.includes('privateSolution'), false);
+});
+
 test('secure grader requires both reflected points and inverse equation', () => {
   const privateGrading = buildPrivateToolGrading(legacyLiveQuestion);
   const result = gradePathResponse({
