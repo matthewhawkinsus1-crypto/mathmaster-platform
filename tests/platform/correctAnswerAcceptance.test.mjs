@@ -71,6 +71,24 @@ test('secure My Math Path server grader accepts the A2.4A live screenshot answer
   assert.deepEqual(result.fieldResults, [{ id: 'answer', isCorrect: true }]);
 });
 
+test('A.12D accepts conventional implicit multiplication in geometric sequence formulas', async () => {
+  assert.equal(sameValue('96(0.5)^(n-1)', '96*(0.5)^(n-1)'), true);
+  assert.equal(sameValue('96(0.5)^(n−1)', '96*(0.5)^(n-1)'), true);
+  assert.equal(sameValue('5(4)^(n-1)', '5*(4)^(n-1)'), true);
+
+  const grading = mathPath.privateGradingDefinition({
+    responseFields: [{
+      id: 'formula',
+      inputProfile: 'expression',
+      expected: '96*(0.5)^(n-1)',
+    }],
+  });
+  const result = await mathPath.gradeResponse(grading, {
+    responses: { formula: '96(0.5)^(n−1)' },
+  });
+  assert.equal(result.isCorrect, true);
+});
+
 test('secure My Math Path accepts reordered expanded polynomial expressions', async () => {
   const grading = mathPath.privateGradingDefinition({
     responseFields: [{
