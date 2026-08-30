@@ -353,3 +353,16 @@ test('earned free-choice Challenge is a one-way DOK3 Band4 intent and not a numb
     /coursePassLevel: session\.assessmentFramework \|\| session\.weeklySlotKey \|\| session\.coursePracticeIntent === "challenge"[\s\S]*?\? null/,
   );
 });
+
+
+test('server requires earned mastery before honoring free-choice Challenge intent', () => {
+  const server = readFileSync('functions/index.js', 'utf8');
+  assert.match(server, /function courseChallengeEarned\(profile = \{\}\)/);
+  assert.match(server, /\["mastered", "masters"\]\.includes\(status\)/);
+  assert.match(server, /estimate >= 90/);
+  assert.match(
+    server,
+    /if \(!courseChallengeEarned\(masteryProfile\)\) \{[\s\S]*?course-challenge-not-earned/,
+    'a forged Challenge intent must not unlock Challenge without server mastery evidence',
+  );
+});
