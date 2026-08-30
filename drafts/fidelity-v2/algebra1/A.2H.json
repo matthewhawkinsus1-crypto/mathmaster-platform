@@ -332,7 +332,50 @@
               "y2": "m*x2+b",
               "ty": "m*tx+b+offset"
             }
-          }
+          },
+          "stimulus": {
+            "kind": "table",
+            "title": "Boundary and shaded test point",
+            "table": {
+              "headers": [
+                "Point type",
+                "x",
+                "y"
+              ],
+              "rows": [
+                [
+                  "Boundary",
+                  "{{x1}}",
+                  "{{y1}}"
+                ],
+                [
+                  "Boundary",
+                  "{{x2}}",
+                  "{{y2}}"
+                ],
+                [
+                  "Shaded-region test point",
+                  "{{tx}}",
+                  "{{ty}}"
+                ]
+              ]
+            }
+          },
+          "solutionReview": {
+            "headline": "Recover the boundary first, then use line style and shading to choose the inequality.",
+            "reasoning": [
+              "The two boundary points give slope {{m}} and intercept {{b}}.",
+              "A dashed boundary means equality is excluded.",
+              "The test point is above the boundary, so the inequality is y>{{m}}x{{b|signed}}."
+            ],
+            "answerSummary": "$y>{{m}}x{{b|signed}}$"
+          },
+          "attemptFeedback": [
+            "Separate the work into boundary equation, boundary style, and shaded side."
+          ],
+          "supportHints": [
+            "Dashed means strict; a shaded point above the line makes y greater than the boundary expression."
+          ]
         }
       ]
     },
