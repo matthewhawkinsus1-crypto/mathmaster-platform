@@ -205,7 +205,72 @@
             "max": 5
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d2b4-fractional-boundary-construction",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Construct the complete graph of $y\\le {{m}}x{{b|signed}}$. The boundary has a non-integer slope, so use the exact rise/run implied by {{rise}}/{{run}}, draw the correct boundary style, and shade the correct half-plane.",
+          "inequalities": [
+            {
+              "m": "{{m}}",
+              "b": "{{b}}",
+              "relation": "<="
+            }
+          ],
+          "solutionReview": {
+            "headline": "A fractional slope changes the boundary construction, not the logic of the inequality.",
+            "reasoning": [
+              "Use rise {{rise}} over run {{run}} to build two accurate boundary points.",
+              "Because ≤ includes equality, the boundary is solid.",
+              "Because y is less than or equal to the boundary expression, shade below."
+            ],
+            "answerSummary": "Solid fractional-slope boundary with the region below shaded."
+          },
+          "attemptFeedback": [
+            "Keep the rise/run exact while plotting the boundary; then apply the ≤ symbol."
+          ],
+          "supportHints": [
+            "For y≤mx+b, use a solid line and shade below."
+          ],
+          "generator": {
+            "parameters": {
+              "rise": {
+                "type": "choice",
+                "values": [
+                  -5,
+                  -3,
+                  -2,
+                  2,
+                  3,
+                  5
+                ]
+              },
+              "run": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            },
+            "derived": {
+              "m": "rise/run"
+            },
+            "constraints": [
+              "abs(rise)!=run"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_3D_v2_graph-dashed-above",
@@ -344,7 +409,76 @@
             "max": 6
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d3b3-feasibility-test-plus-construction",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A feasible plan must satisfy $y\\le {{m}}x{{b|signed}}$. The proposed point $({{tx}},{{ty}})$ is being considered. Decide whether that point satisfies the constraint, then construct the complete two-variable solution graph showing every feasible ordered pair.",
+          "ask": [
+            "construction",
+            "testPoint"
+          ],
+          "testPoint": {
+            "x": "{{tx}}",
+            "y": "{{ty}}"
+          },
+          "context": {
+            "title": "Feasibility check and graph",
+            "note": "Use the same inequality both to test the proposed plan and to construct the full feasible region."
+          },
+          "solutionReview": {
+            "headline": "A test point and a graph are two views of the same inequality.",
+            "reasoning": [
+              "At x={{tx}}, the boundary value is {{boundaryY}}.",
+              "The proposed y-value {{ty}} is {{offset}} units above that boundary, so it does not satisfy y≤mx+b.",
+              "The full graph uses a solid boundary and shades below."
+            ],
+            "answerSummary": "The proposed point is not feasible; construct the solid boundary and shade below."
+          },
+          "attemptFeedback": [
+            "Evaluate the proposed point first, then make sure the graph represents every point satisfying the same condition."
+          ],
+          "supportHints": [
+            "Compare ty with m·tx+b; for ≤, values above the line are not solutions."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -4,
+                "max": 6
+              },
+              "tx": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "offset": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            },
+            "derived": {
+              "boundaryY": "m*tx+b",
+              "ty": "boundaryY+offset"
+            }
+          }
+        }
+      ]
     }
   ]
 }
