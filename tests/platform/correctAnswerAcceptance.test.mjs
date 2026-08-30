@@ -70,3 +70,37 @@ test('secure My Math Path server grader accepts the A2.4A live screenshot answer
   assert.equal(result.isCorrect, true);
   assert.deepEqual(result.fieldResults, [{ id: 'answer', isCorrect: true }]);
 });
+
+test('secure My Math Path accepts reordered expanded polynomial expressions', async () => {
+  const grading = mathPath.privateGradingDefinition({
+    responseFields: [{
+      id: 'answer',
+      inputProfile: 'expression',
+      expected: '3x^2-2x+5',
+    }],
+  });
+
+  const result = await mathPath.gradeResponse(grading, {
+    responses: { answer: '5+3x^{2}-2x' },
+  });
+
+  assert.equal(result.isCorrect, true);
+  assert.deepEqual(result.fieldResults, [{ id: 'answer', isCorrect: true }]);
+});
+
+test('expanded-expression equivalence does not erase a required factored form', async () => {
+  const grading = mathPath.privateGradingDefinition({
+    responseFields: [{
+      id: 'answer',
+      inputProfile: 'expression',
+      expected: '(x+2)(x+3)',
+    }],
+  });
+
+  const result = await mathPath.gradeResponse(grading, {
+    responses: { answer: 'x^2+5x+6' },
+  });
+
+  assert.equal(result.isCorrect, false);
+  assert.deepEqual(result.fieldResults, [{ id: 'answer', isCorrect: false }]);
+});
