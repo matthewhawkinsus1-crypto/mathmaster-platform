@@ -92,6 +92,23 @@ export const PATH_TOOL_QUESTIONS = {
     system: { m1: 2, b1: 1, m2: -1, b2: 7 },
   },
 
+  dataModelingLab: {
+    type: 'dataModelingLab',
+    prompt: 'Calculate and interpret the correlation coefficient.',
+    mode: 'correlation',
+    points: [[1, 3], [2, 5], [3, 7], [4, 9]],
+    correlationTolerance: 0.02,
+  },
+
+  graphing2: {
+    type: 'graphing2',
+    prompt: 'Graph y = 2x + 1 using two points.',
+    mode: 'slopeIntercept',
+    line: { m: 2, b: 1 },
+    graphBounds: { xMin: -6, xMax: 6, yMin: -8, yMax: 10 },
+    tolerance: 0.12,
+  },
+
   stepAlgebra: {
     type: 'stepAlgebra',
     prompt: 'Solve on the balance workspace.',
