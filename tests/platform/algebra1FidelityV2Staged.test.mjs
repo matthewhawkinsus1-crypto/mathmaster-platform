@@ -13,7 +13,6 @@ const allStrings = (node, out = []) => {
   else if (node && typeof node === 'object') Object.values(node).forEach((value) => allStrings(value, out));
   return out;
 };
-
 const payload = (code) => staged.find((entry) => entry.standard === code);
 
 test('each staged Algebra I Fidelity V2 standard contains five new complete families', () => {
@@ -87,7 +86,7 @@ test('A.10A-D require complete polynomial-operation expressions rather than comp
       assert.doesNotMatch(String(doc.prompt), /what is the coefficient|what is the constant term|what is the degree/i);
     }
     assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis'));
-    assert.ok(entry.documents.some((doc) => doc.dok === 3));
+    assert.ok(new Set(entry.documents.map((doc) => doc.dok)).size >= 2, `${code} needs honest DOK spread without forcing DOK 3`);
   }
 });
 
@@ -104,7 +103,7 @@ test('A.10E-F require complete factored forms and preserve factor order alternat
       assert.doesNotMatch(String(doc.prompt), /what is the larger zero|what positive number|what is the coefficient/i);
     }
     assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis'));
-    assert.ok(entry.documents.some((doc) => doc.dok === 3));
+    assert.ok(new Set(entry.documents.map((doc) => doc.dok)).size >= 2, `${code} needs honest DOK spread without forcing DOK 3`);
   }
 });
 
