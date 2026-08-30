@@ -193,4 +193,8 @@ For each standard:
 - Replaced the formatting-dependent assertion with the actual mathematical counterexample: every sampled error-analysis item must generate a concrete input left of the vertex whose computed `r(q(x))` differs from that input — commit `bd9a4cd29170cf143e919375aa8ba266b7bbccde`.
 - This is a stronger certification because it checks the contradiction numerically rather than checking how the explanation happened to be typeset.
 - Replacement certification is triggered from the corrected test.
-- FIRST UNFINISHED STANDARD remains **A2.2C** until the replacement run is green.
+- Replacement run `33316062716` passed the generated content, production issue gate, secure self-grading, key stripping, breadth, and identity checks, then failed only because its final test required the rendered shifted absolute value to contain the literal characters `|x-`. Generated sign normalization correctly changes `|x-(-3)|` to `|x+3|`, so that string-shape assertion was mathematically too narrow.
+- Replaced the string-shape assertion with a concrete generated counterexample check: each unrestricted-quadratic error family must produce a test input for which the composition value is not the original input — commit `bd9a4cd29170cf143e919375aa8ba266b7bbccde`.
+- This strengthens the gate by testing the actual mathematical failure rather than a particular printed sign.
+- Current replacement run `33316108442`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.2C** until that run is green.
