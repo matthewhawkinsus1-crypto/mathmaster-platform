@@ -72,6 +72,10 @@ test('A2.7G rewrites variable radical expressions without accepting unchanged so
 
       if (doc.id.includes('rational-exponent-to-indexed-radical')) {
         assert.ok(Number(p.r) < Number(p.q));
+        let left = Math.abs(Number(p.r));
+        let right = Math.abs(Number(p.q));
+        while (right) [left, right] = [right, left % right];
+        assert.equal(left, 1, 'the remaining indexed-radical exponent must be relatively prime to its root index');
         assert.equal(Number(p.p), Number(p.q) * Number(p.m) + Number(p.r));
         assert.equal(Number(fields['root-index'].expected), Number(p.q));
         assert.equal(Number(fields['whole-power'].expected), Number(p.m));
@@ -97,6 +101,7 @@ test('A2.7G rewrites variable radical expressions without accepting unchanged so
       let unchanged = null;
       if (doc.id.includes('square-root-variable-power')) unchanged = 'sqrt(' + p.k2 + '*x^' + p.exp + ')';
       if (doc.id.includes('radical-quotient')) unchanged = 'sqrt(' + p.k2 + '*x^' + p.topExp + ')/sqrt(x^' + p.bottomExp + ')';
+      if (doc.id.includes('cube-root-variable-power')) unchanged = '\\sqrt[3]{' + p.k3 + '*x^' + p.exp + '}';
       if (doc.id.includes('rational-exponent-to-indexed-radical')) unchanged = 'x^(' + p.p + '/' + p.q + ')';
       if (unchanged) {
         const result = await gradeResponse(grading, { responses: { ...responses, answer: unchanged } });
@@ -117,5 +122,5 @@ test('A2.7G rewrites variable radical expressions without accepting unchanged so
   assert.ok(generatedCount >= 225);
   assert.ok(cubeRootInstances >= 45);
   assert.ok(absoluteInstances >= 45);
-  assert.ok(unchangedRejected >= 135);
+  assert.ok(unchangedRejected >= 180);
 });
