@@ -325,15 +325,38 @@ Certification result:
 
 Do **not** re-audit A2.4C unless a named regression/certification test fails.
 
+## Completed: A2.4D
+
+### A2.4D — REBUILD — CERTIFIED
+
+Official construct: **Transform a quadratic function from standard form to vertex form to identify its attributes.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- every family explicitly starts from standard form and requires complete vertex form;
+- completing-square evidence is collected repeatedly;
+- repeated |a|>1 cases require factoring before completing the square;
+- positive- and negative-leading-coefficient cases cover minimum/maximum, opening, axis, vertex, and range;
+- contextual projectile interpretation and complete factoring-error repair are included;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- independent probe-value checks confirm standard and vertex forms are equivalent;
+- the original standard form is deliberately rejected when submitted as the requested vertex-form answer;
+- targeted Algebra II Fidelity V2 Certification run `33320130829`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4D unless a named regression/certification test fails.
+
 ## Active standard
 
-### A2.4D — REBUILD — STAGED / CERTIFICATION RUNNING
+### A2.4E — PENDING AUDIT
+
+Official construct: **Formulate quadratic and square root equations using technology from a table of data.**
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.4D
+### A2.4E
 
-Resume here. Do not reopen A2.2A–A2.4C unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.4D unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.4D audit finding
@@ -373,7 +396,10 @@ Resume here. Do not reopen A2.2A–A2.4C unless a failing gate names them.
 - Strengthened all affected A2.4D prompts to explicitly say they are starting from standard form — commit `d1ccfb9ea261cff0130433c983cb48d1f9fa4760`.
 - No mathematical requirement was weakened; the student-facing wording now makes the standard→vertex transition clearer.
 - Replacement certification is triggered from the strengthened package.
-- FIRST UNFINISHED STANDARD remains **A2.4D** until the replacement run is green.
+- Replacement certification run `33320130829`: **PASS**.
+- Generated standard→vertex equivalence, completing-square breadth, positive/negative leading-coefficient coverage, strict form rejection, secure self-grading, public-key stripping, and student/runtime build all passed.
+- A2.4D is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4E**.
 
 
 ### 2026-08-30 — A2.4C audit finding
