@@ -1,1 +1,541 @@
-{"standard":"A.2F","verdict":"ENHANCE","certificationStatus":"candidate-full-perpendicular-line-writing","documents":[{"id":"mm_A_2F_v2_perpendicular-through-point","active":true,"alignmentKeys":["texas:A.2F"],"courseId":"algebra1","familyId":"mathmaster:A.2F:v2-perpendicular-through-point","familyVersion":3,"questionType":"response","activityRole":"practice","difficultyBand":2,"dok":1,"calculatorPolicy":"inherit","assessedConstruct":"A.2F","taskType":"procedural","representation":"symbolic","prompt":"Write the equation of the line perpendicular to $y={{m}}x{{b|signed}}$ that passes through $({{x}},{{y}})$. The perpendicular slope is ${{pm}}$.","responseFields":[{"id":"equation","label":"Perpendicular-line equation","inputProfile":"equation","expected":"y={{pm}}x{{newb|signed}}"}],"solutionReview":{"headline":"Perpendicular slopes are negative reciprocals.","reasoning":["The required slope is {{pm}}.","Use the given point with that slope to obtain intercept {{newb}}."],"answerSummary":"$y={{pm}}x{{newb|signed}}$"},"attemptFeedback":["Use the perpendicular slope with the point; do not keep the original slope."],"supportHints":["After choosing the new slope, substitute the point to solve for the intercept."],"generator":{"parameters":{"m":{"type":"choice","values":[1,-1,2,-2,0.5,-0.5]},"b":{"type":"int","min":-8,"max":8},"x":{"type":"int","min":-4,"max":4},"newb":{"type":"int","min":-8,"max":8}},"derived":{"pm":"-1/m","y":"pm*x+newb"}}},{"id":"mm_A_2F_v2_table-reference-perpendicular","active":true,"alignmentKeys":["texas:A.2F"],"courseId":"algebra1","familyId":"mathmaster:A.2F:v2-table-reference-perpendicular","familyVersion":3,"questionType":"response","activityRole":"practice","difficultyBand":3,"dok":2,"calculatorPolicy":"inherit","assessedConstruct":"A.2F","taskType":"representationTranslation","representation":"table","prompt":"The table lies on a line. Write the equation of a perpendicular line through $({{px}},{{py}})$.","stimulus":{"kind":"table","table":{"headers":["$x$","$y$"],"rows":[["0","{{b}}"],["1","{{y1}}"],["2","{{y2}}"]]}},"responseFields":[{"id":"equation","label":"Perpendicular-line equation","inputProfile":"equation","expected":"y={{pm}}x{{newb|signed}}"}],"solutionReview":{"headline":"Read the reference slope, then take its negative reciprocal.","reasoning":["The table changes by {{m}} in y for each increase of 1 in x, so its slope is {{m}}.","The perpendicular slope is {{pm}}; the target point gives intercept {{newb}}."],"answerSummary":"$y={{pm}}x{{newb|signed}}$"},"attemptFeedback":["Find the table's slope first, then transform it to the perpendicular slope."],"supportHints":["Perpendicular slopes multiply to -1 when both are finite and nonzero."],"generator":{"parameters":{"m":{"type":"choice","values":[1,-1,2,-2,0.5,-0.5]},"b":{"type":"int","min":-8,"max":8},"px":{"type":"int","min":-4,"max":4},"newb":{"type":"int","min":-8,"max":8}},"derived":{"pm":"-1/m","y1":"m+b","y2":"2*m+b","py":"pm*px+newb"}}},{"id":"mm_A_2F_v2_standard-form-reference","active":true,"alignmentKeys":["texas:A.2F"],"courseId":"algebra1","familyId":"mathmaster:A.2F:v2-standard-form-reference","familyVersion":3,"questionType":"response","activityRole":"practice","difficultyBand":3,"dok":2,"calculatorPolicy":"inherit","assessedConstruct":"A.2F","taskType":"representationTranslation","representation":"symbolic","prompt":"The line ${{A}}x+{{B}}y={{C}}$ has slope ${{m}}$. Write the equation of the perpendicular line through $({{x}},{{y}})$ in slope-intercept form.","responseFields":[{"id":"equation","label":"Perpendicular-line equation","inputProfile":"equation","expected":"y={{pm}}x{{newb|signed}}"}],"solutionReview":{"headline":"Perpendicularity is determined by slope, even when the reference line is in standard form.","reasoning":["The reference slope is {{m}}, so the perpendicular slope is {{pm}}.","Substitute the target point to get intercept {{newb}}."],"answerSummary":"$y={{pm}}x{{newb|signed}}$"},"attemptFeedback":["Transform the reference slope before using the target point."],"supportHints":["Use the negative reciprocal, then solve for the new intercept."],"generator":{"parameters":{"m":{"type":"choice","values":[1,-1,2,-2]},"B":{"type":"int","min":1,"max":5},"refb":{"type":"int","min":-8,"max":8},"x":{"type":"int","min":-4,"max":4},"newb":{"type":"int","min":-8,"max":8}},"derived":{"pm":"-1/m","A":"-m*B","C":"refb*B","y":"pm*x+newb"}}},{"id":"mm_A_2F_v2_error-keeps-same-slope","active":true,"alignmentKeys":["texas:A.2F"],"courseId":"algebra1","familyId":"mathmaster:A.2F:v2-error-keeps-same-slope","familyVersion":3,"questionType":"response","activityRole":"practice","difficultyBand":3,"dok":2,"calculatorPolicy":"inherit","assessedConstruct":"A.2F","taskType":"errorAnalysis","representation":"verbal","prompt":"A student needs a line perpendicular to $y={{m}}x{{b|signed}}$ through $({{x}},{{y}})$ but uses slope {{m}} again. Correct the student's work by writing the perpendicular line.","responseFields":[{"id":"equation","label":"Correct perpendicular line","inputProfile":"equation","expected":"y={{pm}}x{{newb|signed}}"}],"solutionReview":{"headline":"Keeping the same slope creates a parallel line, not a perpendicular one.","reasoning":["Replace {{m}} with its negative reciprocal {{pm}}.","Using the required point with slope {{pm}} gives intercept {{newb}}."],"answerSummary":"$y={{pm}}x{{newb|signed}}$"},"attemptFeedback":["Check the product of the two slopes."],"supportHints":["For perpendicular nonvertical lines, the slope product is -1."],"generator":{"parameters":{"m":{"type":"choice","values":[1,-1,2,-2,0.5,-0.5]},"b":{"type":"int","min":-8,"max":8},"x":{"type":"int","min":-4,"max":4},"newb":{"type":"int","min":-8,"max":8}},"derived":{"pm":"-1/m","y":"pm*x+newb"}}},{"id":"mm_A_2F_v2_two-point-reference","active":true,"alignmentKeys":["texas:A.2F"],"courseId":"algebra1","familyId":"mathmaster:A.2F:v2-two-point-reference","familyVersion":3,"questionType":"response","activityRole":"practice","difficultyBand":4,"dok":2,"calculatorPolicy":"inherit","assessedConstruct":"A.2F","taskType":"reverseReasoning","representation":"orderedPairs","prompt":"A reference line passes through $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. Write the equation of the line perpendicular to it that passes through $({{px}},{{py}})$.","responseFields":[{"id":"equation","label":"Perpendicular-line equation","inputProfile":"equation","expected":"y={{pm}}x{{newb|signed}}"}],"solutionReview":{"headline":"Recover a slope, transform it, then construct the new line.","reasoning":["The reference points give slope {{m}}.","Its negative reciprocal is {{pm}}, and the target point determines intercept {{newb}}."],"answerSummary":"$y={{pm}}x{{newb|signed}}$"},"attemptFeedback":["This task has two slope steps: find the reference slope, then take the negative reciprocal."],"supportHints":["Do not use the reference line's intercept; the target point determines the new one."],"generator":{"parameters":{"x1":{"type":"int","min":-4,"max":1},"span":{"type":"choice","values":[1,2]},"m":{"type":"choice","values":[1,-1,2,-2]},"refb":{"type":"int","min":-8,"max":8},"px":{"type":"int","min":-4,"max":4},"newb":{"type":"int","min":-8,"max":8}},"derived":{"pm":"-1/m","x2":"x1+span","y1":"m*x1+refb","y2":"m*x2+refb","py":"pm*px+newb"}}}]}
+{
+  "standard": "A.2F",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-full-perpendicular-line-writing",
+  "documents": [
+    {
+      "id": "mm_A_2F_v2_perpendicular-through-point",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2F:v2-perpendicular-through-point",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2F",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Write the equation of the line perpendicular to $y={{m}}x{{b|signed}}$ that passes through $({{x}},{{y}})$. The perpendicular slope is ${{pm}}$.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Perpendicular-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{pm}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Perpendicular slopes are negative reciprocals.",
+        "reasoning": [
+          "The required slope is {{pm}}.",
+          "Use the given point with that slope to obtain intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{pm}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Use the perpendicular slope with the point; do not keep the original slope."
+      ],
+      "supportHints": [
+        "After choosing the new slope, substitute the point to solve for the intercept."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "choice",
+            "values": [
+              1,
+              -1,
+              2,
+              -2,
+              0.5,
+              -0.5
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "pm": "-1/m",
+          "y": "pm*x+newb"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2F_v2_table-reference-perpendicular",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2F:v2-table-reference-perpendicular",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2F",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table lies on a line. Write the equation of a perpendicular line through $({{px}},{{py}})$.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "0",
+              "{{b}}"
+            ],
+            [
+              "1",
+              "{{y1}}"
+            ],
+            [
+              "2",
+              "{{y2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Perpendicular-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{pm}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Read the reference slope, then take its negative reciprocal.",
+        "reasoning": [
+          "The table changes by {{m}} in y for each increase of 1 in x, so its slope is {{m}}.",
+          "The perpendicular slope is {{pm}}; the target point gives intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{pm}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Find the table's slope first, then transform it to the perpendicular slope."
+      ],
+      "supportHints": [
+        "Perpendicular slopes multiply to -1 when both are finite and nonzero."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "choice",
+            "values": [
+              1,
+              -1,
+              2,
+              -2,
+              0.5,
+              -0.5
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "px": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "pm": "-1/m",
+          "y1": "m+b",
+          "y2": "2*m+b",
+          "py": "pm*px+newb"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2F_v2_standard-form-reference",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2F:v2-standard-form-reference",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2F",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "The line ${{A}}x+{{B}}y={{C}}$ has slope ${{m}}$. Write the equation of the perpendicular line through $({{x}},{{y}})$ in slope-intercept form.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Perpendicular-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{pm}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Perpendicularity is determined by slope, even when the reference line is in standard form.",
+        "reasoning": [
+          "The reference slope is {{m}}, so the perpendicular slope is {{pm}}.",
+          "Substitute the target point to get intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{pm}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Transform the reference slope before using the target point."
+      ],
+      "supportHints": [
+        "Use the negative reciprocal, then solve for the new intercept."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "choice",
+            "values": [
+              1,
+              -1,
+              2,
+              -2
+            ]
+          },
+          "B": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "refb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "pm": "-1/m",
+          "A": "-m*B",
+          "C": "refb*B",
+          "y": "pm*x+newb"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2F_v2_error-keeps-same-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2F:v2-error-keeps-same-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2F",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student needs a line perpendicular to $y={{m}}x{{b|signed}}$ through $({{x}},{{y}})$ but uses slope {{m}} again. Correct the student's work by writing the perpendicular line.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Correct perpendicular line",
+          "inputProfile": "equation",
+          "expected": "y={{pm}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Keeping the same slope creates a parallel line, not a perpendicular one.",
+        "reasoning": [
+          "Replace {{m}} with its negative reciprocal {{pm}}.",
+          "Using the required point with slope {{pm}} gives intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{pm}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Check the product of the two slopes."
+      ],
+      "supportHints": [
+        "For perpendicular nonvertical lines, the slope product is -1."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "choice",
+            "values": [
+              1,
+              -1,
+              2,
+              -2,
+              0.5,
+              -0.5
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "pm": "-1/m",
+          "y": "pm*x+newb"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2F_v2_two-point-reference",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2F:v2-two-point-reference",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2F",
+      "taskType": "reverseReasoning",
+      "representation": "orderedPairs",
+      "prompt": "A reference line passes through $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. Write the equation of the line perpendicular to it that passes through $({{px}},{{py}})$.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Perpendicular-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{pm}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Recover a slope, transform it, then construct the new line.",
+        "reasoning": [
+          "The reference points give slope {{m}}.",
+          "Its negative reciprocal is {{pm}}, and the target point determines intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{pm}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "This task has two slope steps: find the reference slope, then take the negative reciprocal."
+      ],
+      "supportHints": [
+        "Do not use the reference line's intercept; the target point determines the new one."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "span": {
+            "type": "choice",
+            "values": [
+              1,
+              2
+            ]
+          },
+          "m": {
+            "type": "choice",
+            "values": [
+              1,
+              -1,
+              2,
+              -2
+            ]
+          },
+          "refb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "px": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "pm": "-1/m",
+          "x2": "x1+span",
+          "y1": "m*x1+refb",
+          "y2": "m*x2+refb",
+          "py": "pm*px+newb"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-perpendicular-negative-reciprocal-audit",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "A reference line passes through $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. A student says a perpendicular line through $({{px}},{{py}})$ should use slope $-{{m}}$ because 'perpendicular just changes the sign.' Determine the reference slope, test the student's claim using the slope-product condition, find the correct perpendicular slope, and write the required line.",
+          "responseFields": [
+            {
+              "id": "reference-slope",
+              "label": "Reference-line slope",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "student-product",
+              "label": "Product of the reference slope and the student's proposed slope",
+              "inputProfile": "number",
+              "expected": "{{wrongProduct}}"
+            },
+            {
+              "id": "diagnosis",
+              "label": "Why is the student's rule wrong?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "negative-reciprocal",
+                  "label": "Perpendicular nonvertical slopes are negative reciprocals, so their product must be -1."
+                },
+                {
+                  "id": "negative-only",
+                  "label": "Changing only the sign is always enough."
+                }
+              ],
+              "expected": "negative-reciprocal"
+            },
+            {
+              "id": "perpendicular-slope",
+              "label": "Correct perpendicular slope",
+              "inputProfile": "number",
+              "expected": "{{pm}}"
+            },
+            {
+              "id": "equation",
+              "label": "Correct perpendicular-line equation",
+              "inputProfile": "equation",
+              "expected": "y={{pm}}x{{newb|signed}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Perpendicularity is checked by the negative-reciprocal relationship.",
+            "reasoning": [
+              "The reference slope is {{m}}.",
+              "The student's proposed slope is -{{m}}, whose product with {{m}} is {{wrongProduct}}, not -1 in the generated case.",
+              "The correct slope is {{pm}}=-1/{{m}}, giving $y={{pm}}x{{newb|signed}}$ through the required point."
+            ],
+            "answerSummary": "$y={{pm}}x{{newb|signed}}$"
+          },
+          "attemptFeedback": [
+            "Verify perpendicularity by multiplying the two slopes."
+          ],
+          "supportHints": [
+            "For nonvertical lines, perpendicular slopes have product -1."
+          ],
+          "generator": {
+            "parameters": {
+              "x1": {
+                "type": "int",
+                "min": -4,
+                "max": 1
+              },
+              "span": {
+                "type": "choice",
+                "values": [
+                  1,
+                  2
+                ]
+              },
+              "m": {
+                "type": "choice",
+                "values": [
+                  2,
+                  -2
+                ]
+              },
+              "refb": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "px": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "newb": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "pm": "-1/m",
+              "x2": "x1+span",
+              "y1": "m*x1+refb",
+              "y2": "m*x2+refb",
+              "py": "pm*px+newb",
+              "wrongProduct": "m*(-m)"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
