@@ -683,9 +683,9 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.7I
+### A2.8A
 
-Resume here. Do not reopen A2.2A–A2.7H unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.7I unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.7H audit finding
@@ -2610,3 +2610,41 @@ For each standard:
   - include complete notation error analysis that repairs interval, inequality, and set-builder forms;
   - keep routine representation work DOK 2; reserve DOK 3 for complete error analysis.
 - Existing interval, inequality, finite-set/set-builder, and number-line grading capabilities are sufficient; no new Path tool is required.
+
+### 2026-08-30 — A2.7I staged / certified
+- Staged five A2.7I Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7I.json`.
+- Coverage explicitly grades all six TEA targets: domain interval, domain inequality, domain set-builder, range interval, range inequality, and range set-builder notation.
+- Function breadth includes lower-bounded square root, reflected upper-bounded square root, quadratic range, and reciprocal domain/range exclusions, plus full notation error repair.
+- First dedicated run `33333404963`: **FAIL** because authored set-builder keys used parenthesized bounds such as `x>=(-3)`, which the deliberately narrow set-builder parser refuses; interval and inequality grading passed.
+- Removed only the unnecessary parentheses from set-builder bounds.
+- Replacement run `33333458486`: **PASS**.
+- Six-breakout coverage, equivalent inequality/set-builder handling, secure self-grading, wrong-notation rejection, public key stripping, and student/runtime build all passed.
+- A2.7I is now locked as certified. The full A2.7 strand is locked unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.8A**.
+
+### 2026-08-30 — A2.8A audit finding
+- Official construct: **analyze data to select the appropriate model from among linear, quadratic, and exponential models**.
+- TEA breakout requires analysis supporting selection of:
+  - a linear model;
+  - a quadratic model;
+  - an exponential model.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - all three required model families are present;
+  - constant first differences, constant second differences, and constant ratios are recognized;
+  - one misconception about choosing linear merely because data increase is present.
+- Legacy limitations:
+  - several prompts announce the diagnostic pattern before students analyze the data;
+  - evidence is often only selected, not calculated;
+  - exponential coverage is almost entirely growth, with little/no decay analysis;
+  - context family covers only linear change;
+  - error analysis stops at identifying the misconception rather than reconstructing the diagnostic evidence.
+- Fidelity V2 requirements:
+  - show raw data first and require students to calculate/identify the decisive diagnostic;
+  - retain all three required model families;
+  - include both exponential growth and decay;
+  - include non-unit x-spacing or another case where students must verify equal input spacing before using differences/ratios;
+  - require model choice plus evidence, not model-name recognition alone;
+  - include complete error analysis that repairs the diagnostic and final model selection;
+  - keep routine model analysis DOK 2; reserve DOK 3 for full error analysis.
+- No new Path tool is required; secure table + multi-response grading is sufficient.
