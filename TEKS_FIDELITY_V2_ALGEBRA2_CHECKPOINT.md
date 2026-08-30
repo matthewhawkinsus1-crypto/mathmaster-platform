@@ -677,7 +677,7 @@ Do **not** re-audit A2.6G unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.6H — REBUILD — AUDITED / AUTHORING
+### A2.6H — REBUILD — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Formulate rational equations that model real-world situations.**
 
@@ -703,6 +703,18 @@ Resume here. Do not reopen A2.2A–A2.6G unless a failing gate names them.
   - keep the task formulation-focused: A2.6I will own solving the resulting rational equations;
   - avoid using pure inverse variation as a substitute because A2.6L owns that construct.
 - Generic secure equation grading is sufficient for the deliberately structured formulation frames; no new Path tool is required.
+
+
+### 2026-08-30 — A2.6H staged and gated
+- Added opt-in commutative model-equation grading so top-level rate terms may be reordered and equation sides reversed without changing the default form-sensitive grader — commits `4fb671aa45787bc5f32da0a13ff73ff3add2374a` and `c28fe1783445735873860e441aa1e2a69344e68b`.
+- Added regression tests and dedicated workflow coverage — commits `3dacfba89ad66c83893b122c641636502bfda861` and `fe0baeca99ae10b6dd67a53f490d321dd3824836`.
+- Model-equation capability run `33326952603`: **PASS**.
+- Staged five A2.6H Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6H.json` — commit `08b8141dc1551712d5b9126a44bb58e79aa32a6e`.
+- Coverage includes combined work, overall average speed, round-trip current, dilution/concentration, and opposing-rate error repair. Every family requires an authored rational equation and none substitutes pure inverse variation for A2.6L.
+- Added A2.6H generated certification — commit `acb7ce856b0257779479fbf61e91be9bd7faf84a`.
+- The gate samples 200+ generated instances, checks production issuability and secure self-grading, requires all four modeling structures plus error repair, verifies side-reversed equivalent equations are accepted, rejects unrelated models, prevents drift into A2.6I solving, and checks public key stripping.
+- Full A2.6H certification is triggered.
+- FIRST UNFINISHED STANDARD remains **A2.6H** until the full run is green.
 
 
 ### 2026-08-30 — A2.6G audit finding
