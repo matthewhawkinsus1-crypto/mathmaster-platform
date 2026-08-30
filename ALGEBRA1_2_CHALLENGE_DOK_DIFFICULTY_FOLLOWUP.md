@@ -177,3 +177,29 @@ Current Algebra I adaptive counts after the A.2 batch:
 - Standards still failing strict preferred-cell readiness: **40/49**
 
 Next batch: **A.3A–A.3H**.
+
+
+## Progress — Algebra I A.3 adaptive batch green
+
+- Completed the independent-axis pass for **A.3A–A.3H**.
+- Added authentic missing DOK2/Band2, DOK2/Band4, and DOK3/Band3 variants while retaining DOK3/Band4 Challenge content.
+- Added secure combined graph-construction + test-point reasoning for A.3D.
+- Preserved graphical-system solving in A.3G; harder arithmetic stayed DOK 2 while equation cross-check reasoning received DOK 3.
+- Added accessible horizontal-strip and harder fractional mixed-boundary system constructions in A.3H.
+- Merged-variant placeholder audit: **0 unbound placeholders** across A.3A–A.3H.
+- A runtime-selection regression was discovered: once a family has a variants array, the base is not issued automatically. Every modified A.2/A.3 family now has an explicit `core-*` variant preserving its original DOK/difficulty cell.
+- Full Algebra I Fidelity V2 Certification — run `33336455813`: **PASS**.
+- Cross-course Challenge/DOK Difficulty Audit — run `33336455790`: **PASS**.
+
+Current Algebra I adaptive counts after the A.3 batch:
+- Challenge-ready: **49/49**
+- Complete DOK2 axis: **22/49**
+- Complete DOK3 axis: **25/49**
+- Missing 2/2: **18**
+- Missing 2/3: **0**
+- Missing 2/4: **12**
+- Missing 3/3: **24**
+- Missing 3/4: **0**
+- Standards still failing strict preferred-cell readiness: **32/49**
+
+Next batch: **A.4A–A.4C**.
