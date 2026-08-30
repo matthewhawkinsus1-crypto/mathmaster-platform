@@ -1,0 +1,75 @@
+name: Promote certified Algebra Fidelity V2 seeds
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - audit/teks-fidelity-v2-algebra2-current
+    paths:
+      - scripts/build-algebra-fidelity-v2-production-seeds.mjs
+      - .github/workflows/promote-algebra-fidelity-v2-seeds.yml
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/teks-fidelity-v2-algebra2-current
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build certified Algebra I and II shipping seeds
+        run: node scripts/build-algebra-fidelity-v2-production-seeds.mjs
+
+      - name: Rebuild Path coverage manifest
+        run: node scripts/rebuild-path-manifest.mjs
+
+      - name: Verify generated seed parity
+        run: node scripts/build-algebra-fidelity-v2-production-seeds.mjs --check
+
+      - name: Re-run strict adaptive metadata audit
+        run: node scripts/audit-challenge-dok-difficulty-v2.mjs --strict
+
+      - name: Re-run strict Challenge quality audit
+        run: node scripts/audit-challenge-quality-v2.mjs --strict
+
+      - name: Re-run runtime adaptive targeting tests
+        run: |
+          node --test \
+            tests/platform/pathAdaptiveVariantTargeting.test.mjs \
+            tests/platform/challengeDokDifficultyV2Audit.test.mjs \
+            tests/platform/challengeQualityV2Audit.test.mjs
+
+      - name: Commit promoted shipping seeds
+        shell: bash
+        run: |
+          if git diff --quiet -- \
+            seed/pathQuestionBank/algebra1_pathQuestionBank_seed.json \
+            seed/pathQuestionBank/algebra2_pathQuestionBank_seed.json \
+            functions/seeds/pathQuestionBank/algebra1_pathQuestionBank_seed.json \
+            functions/seeds/pathQuestionBank/algebra2_pathQuestionBank_seed.json \
+            seed/pathQuestionBank/PATH_BANK_COVERAGE_MANIFEST.json; then
+            echo "Certified shipping seeds already match Fidelity V2."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            seed/pathQuestionBank/algebra1_pathQuestionBank_seed.json \
+            seed/pathQuestionBank/algebra2_pathQuestionBank_seed.json \
+            functions/seeds/pathQuestionBank/algebra1_pathQuestionBank_seed.json \
+            functions/seeds/pathQuestionBank/algebra2_pathQuestionBank_seed.json \
+            seed/pathQuestionBank/PATH_BANK_COVERAGE_MANIFEST.json
+          git commit -m "Promote certified Algebra I II Fidelity V2 Path seeds"
+          git push origin HEAD:audit/teks-fidelity-v2-algebra2-current
