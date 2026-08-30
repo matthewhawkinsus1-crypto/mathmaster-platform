@@ -36520,6 +36520,3382 @@
     "sourceFamilyId": "mathmaster:asvab:mk:A.5A:sound-first-step-on-two-brackets",
     "sourcePrompt": "For ${{a}}(x + {{p}}) = {{b}}(x - {{q}})$, which first step is sound?"
    }
+  },
+  {
+   "id": "mm_asvab_mk_A_5B_greatest_whole_number_under_a_grouped_ceiling",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.5B:greatest-whole-number-under-a-grouped-ceiling",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the greatest whole number $x$ with $\\frac{{{a}}x + {{p}}}{{{d}}} \\le {{q}}$?",
+   "solutionReview": {
+    "headline": "Clear the denominator, then the constant, then the coefficient.",
+    "reasoning": [
+     "Multiplying by ${{d}}$ gives ${{a}}x + {{p}} \\le {{d}} \\times {{q}}$.",
+     "Taking ${{p}}$ off and dividing by ${{a}}$ leaves $x \\le {{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The numerator still has ${{a}}$ multiplying $x$."
+   ],
+   "supportHints": [
+    "The fraction bar groups both terms above it."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "j": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "k": {
+      "type": "int",
+      "min": 6,
+      "max": 120
+     }
+    },
+    "derived": {
+     "p": "a*j",
+     "q": "a*(k+j)/d",
+     "answer": "k",
+     "d_forgotFinalStep": "a*k",
+     "d_usedGivenValue": "q",
+     "d_operationInverted": "k-2*j"
+    },
+    "constraints": [
+     "a*(k+j)%d==0",
+     "k-2*j>1",
+     "abs(q-k)>4",
+     "abs(a*k-k)>4",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_usedGivenValue!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.5B:greatest-whole-number-under-a-grouped-ceiling",
+    "sourcePrompt": "What is the greatest whole number $x$ with $\\frac{{{a}}x + {{p}}}{{{d}}} \\le {{q}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_5B_largest_daily_rate_a_budget_allows",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.5B:largest-daily-rate-a-budget-allows",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5B",
+   "taskType": "reverseReasoning",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A budget of $\\${{q}}$ covers a $\\${{p}}$ fee plus a daily rate for ${{n}}$ days. What is the largest whole daily rate it allows?",
+   "solutionReview": {
+    "headline": "Remove the one-off charge before dividing by the days.",
+    "reasoning": [
+     "The fee leaves $\\${{q}} - \\${{p}}$ for the ${{n}}$ days.",
+     "Dividing gives a rate of $\\${{answer}}$ a day."
+    ],
+    "answerSummary": "It is $\\${{answer}}$ a day."
+   },
+   "attemptFeedback": [
+    "What is left of the budget still has to be spread over ${{n}}$ days."
+   ],
+   "supportHints": [
+    "The fee is paid once, so it never divides by the days."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 90
+     },
+     "n": {
+      "type": "int",
+      "min": 3,
+      "max": 24
+     },
+     "r": {
+      "type": "int",
+      "min": 4,
+      "max": 90
+     }
+    },
+    "derived": {
+     "q": "p+n*r",
+     "answer": "r",
+     "d_forgotFinalStep": "n*r",
+     "d_usedGivenValue": "n",
+     "d_ratioReversed": "p"
+    },
+    "constraints": [
+     "abs(n-r)>3",
+     "abs(p-r)>4",
+     "n*r>12",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_ratioReversed",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_ratioReversed",
+     "d_usedGivenValue!=d_ratioReversed"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.5B:largest-daily-rate-a-budget-allows",
+    "sourcePrompt": "A budget of $\\${{q}}$ covers a $\\${{p}}$ fee plus a daily rate for ${{n}}$ days. What is the largest whole daily rate it allows?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_5B_inequality_with_the_same_solutions",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.5B:inequality-with-the-same-solutions",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5B",
+   "taskType": "interpretation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which inequality has the same solutions as $-{{a}}x + {{p}} > {{q}}$?",
+   "solutionReview": {
+    "headline": "Dividing by a negative turns the inequality round.",
+    "reasoning": [
+     "Moving ${{p}}$ across gives $-{{a}}x > {{q}} - {{p}}$.",
+     "Dividing by $-{{a}}$ reverses the sign, leaving $x < \\frac{{{p}} - {{q}}}{{{a}}}$."
+    ],
+    "answerSummary": "It is $x < \\frac{{{p}} - {{q}}}{{{a}}}$."
+   },
+   "attemptFeedback": [
+    "Keeping the direction after a negative divide reverses which values work."
+   ],
+   "supportHints": [
+    "Isolate the $x$ term before dividing."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "p": {
+      "type": "int",
+      "min": 20,
+      "max": 200
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 100
+     }
+    },
+    "constraints": [
+     "p>q"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x < \\frac{{{q}} - {{p}}}{{{a}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x < \\frac{{{p}} + {{q}}}{{{a}}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x > \\frac{{{p}} - {{q}}}{{{a}}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x < \\frac{{{p}} - {{q}}}{{{a}}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.5B:inequality-with-the-same-solutions",
+    "sourcePrompt": "Which inequality has the same solutions as $-{{a}}x + {{p}} > {{q}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_5C_total_of_the_two_solutions",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.5C:total-of-the-two-solutions",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5C",
+   "taskType": "procedural",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve the system in the table. What is $x + y$?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Equation"
+    ],
+    "rows": [
+     [
+      "${{a}}x + {{b}}y = {{c1}}$"
+     ],
+     [
+      "${{a2}}x - {{d}}y = {{c2}}$"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "Solve for both unknowns before combining them.",
+    "reasoning": [
+     "The system is satisfied by $x = {{x0}}$ and $y = {{y0}}$.",
+     "Their total is ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The coefficients are not the solutions; they only weight them."
+   ],
+   "supportHints": [
+    "Eliminate one unknown, then substitute back."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "a2": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "x0": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "y0": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "c1": "a*x0+b*y0",
+     "c2": "a2*x0-d*y0",
+     "answer": "x0+y0",
+     "d_operationInverted": "c1+c2",
+     "d_forgotFinalStep": "x0",
+     "d_ratioReversed": "a+b"
+    },
+    "constraints": [
+     "a*b!=a2*d",
+     "a*x0-d*y0!=0",
+     "x0!=y0",
+     "abs(a+b-x0-y0)>3",
+     "a2*x0-d*y0>0",
+     "answer!=d_operationInverted",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_ratioReversed",
+     "d_operationInverted!=d_forgotFinalStep",
+     "d_operationInverted!=d_ratioReversed",
+     "d_forgotFinalStep!=d_ratioReversed"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.5C:total-of-the-two-solutions",
+    "sourcePrompt": "Solve the system in the table. What is $x + y$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_5C_multiplier_that_clears_the_first_unknown",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.5C:multiplier-that-clears-the-first-unknown",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5C",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "To eliminate $x$ by subtraction, by what must ${{a}}x + {{b}}y = {{c1}}$ be multiplied before subtracting ${{a2}}x + {{d}}y = {{c2}}$?",
+   "solutionReview": {
+    "headline": "Match the coefficients before subtracting.",
+    "reasoning": [
+     "Subtraction clears $x$ only once both $x$ coefficients match.",
+     "${{a}}$ reaches ${{a2}}$ when it is multiplied by ${{answer}}$."
+    ],
+    "answerSummary": "Multiply by ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The coefficient to be matched is the target, not the multiplier."
+   ],
+   "supportHints": [
+    "Divide the coefficient you want by the one you have."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "c1": {
+      "type": "int",
+      "min": 10,
+      "max": 200
+     },
+     "c2": {
+      "type": "int",
+      "min": 10,
+      "max": 200
+     }
+    },
+    "derived": {
+     "a2": "a*k",
+     "answer": "k",
+     "d_forgotFinalStep": "a*k",
+     "d_usedGivenValue": "a",
+     "d_operationInverted": "b"
+    },
+    "constraints": [
+     "b!=d",
+     "abs(a-k)>2",
+     "abs(b-k)>2",
+     "a*k>7",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_usedGivenValue!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.5C:multiplier-that-clears-the-first-unknown",
+    "sourcePrompt": "To eliminate $x$ by subtraction, by what must ${{a}}x + {{b}}y = {{c1}}$ be multiplied before subtracting ${{a2}}x + {{d}}y = {{c2}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_5C_equation_substitution_leaves_behind",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.5C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.5C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.5C:equation-substitution-leaves-behind",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.5C",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Substituting $y = {{m}}x + {{p}}$ into ${{a}}x + {{b}}y = {{c}}$ leaves which equation?",
+   "solutionReview": {
+    "headline": "Distribute the coefficient across the whole substitution.",
+    "reasoning": [
+     "The ${{b}}$ multiplies both terms of $y$, giving ${{b}}{{m}}x + {{b}}{{p}}$.",
+     "Collecting with ${{a}}x$ leaves ${{ab}}x + {{bp}} = {{c}}$."
+    ],
+    "answerSummary": "It is ${{ab}}x + {{bp}} = {{c}}$."
+   },
+   "attemptFeedback": [
+    "Leaving the constant undistributed drops a factor of ${{b}}$."
+   ],
+   "supportHints": [
+    "Both terms of $y$ pass through the ${{b}}$."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "c": {
+      "type": "int",
+      "min": 20,
+      "max": 300
+     }
+    },
+    "derived": {
+     "ab": "a+b*m",
+     "abBad": "a+m",
+     "bp": "b*p"
+    },
+    "constraints": [
+     "a+b*m!=a+m",
+     "b*p!=p"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{ab}}x + {{bp}} = {{c}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{ab}}x - {{bp}} = {{c}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{ab}}x + {{p}} = {{c}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{abBad}}x + {{bp}} = {{c}}$",
+     "error": "incompleteFactoring"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.5C:equation-substitution-leaves-behind",
+    "sourcePrompt": "Substituting $y = {{m}}x + {{p}}$ into ${{a}}x + {{b}}y = {{c}}$ leaves which equation?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_6A_range_over_a_domain_past_the_vertex",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.6A:range-over-a-domain-past-the-vertex",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.6A",
+   "taskType": "interpretation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For $y = {{a}}(x - {{h}})^2 + {{k}}$ on ${{lo}} \\le x \\le {{hi}}$, with ${{lo}}$ above ${{h}}$, what is the range?",
+   "solutionReview": {
+    "headline": "A domain clear of the vertex gives a range between the two endpoints.",
+    "reasoning": [
+     "The domain lies entirely to the right of the turning point, so the curve only rises across it.",
+     "That puts the range between $f({{lo}})$ and $f({{hi}})$."
+    ],
+    "answerSummary": "It is ${{flo}} \\le y \\le {{fhi}}$."
+   },
+   "attemptFeedback": [
+    "The least value ${{k}}$ is only reached at $x = {{h}}$, which is outside the domain."
+   ],
+   "supportHints": [
+    "Check whether the turning point lies inside the domain."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "h": {
+      "type": "int",
+      "min": 1,
+      "max": 12
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "d1": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "d2": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "lo": "h+d1",
+     "hi": "h+d1+d2",
+     "flo": "a*d1*d1+k",
+     "fhi": "a*(d1+d2)*(d1+d2)+k"
+    },
+    "constraints": [
+     "d2>1",
+     "a*d1*d1+k!=a*(d1+d2)*(d1+d2)+k"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{flo}} \\le y \\le {{fhi}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{fhi}} \\le y \\le {{flo}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{k}} \\le y \\le {{fhi}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{lo}} \\le y \\le {{hi}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.6A:range-over-a-domain-past-the-vertex",
+    "sourcePrompt": "For $y = {{a}}(x - {{h}})^2 + {{k}}$ on ${{lo}} \\le x \\le {{hi}}$, with ${{lo}}$ above ${{h}}$, what is the range?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_6A_distance_from_the_axis_of_symmetry",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.6A:distance-from-the-axis-of-symmetry",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.6A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "An upward parabola with $a = {{a}}$ has least value ${{k}}$ and reaches ${{y1}}$ at one input. How far is that input from the axis of symmetry?",
+   "solutionReview": {
+    "headline": "Strip the least value, divide by the coefficient, then take the root.",
+    "reasoning": [
+     "The height above the least value is ${{y1}} - {{k}}$, which equals ${{a}}$ times the distance squared.",
+     "Dividing and taking the root gives ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Stopping before the square root leaves the squared distance."
+   ],
+   "supportHints": [
+    "The rise above the vertex is $a$ times a square."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "z": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     }
+    },
+    "derived": {
+     "d": "a*z",
+     "y1": "k+a*a*a*z*z",
+     "answer": "a*z",
+     "d_exponentError": "a*a*z*z",
+     "d_operationInverted": "z",
+     "d_ratioReversed": "a*a"
+    },
+    "constraints": [
+     "abs(a-z)>1",
+     "a*z>7",
+     "abs(a*a-a*z)>3",
+     "answer!=d_exponentError",
+     "answer!=d_operationInverted",
+     "answer!=d_ratioReversed",
+     "d_exponentError!=d_operationInverted",
+     "d_exponentError!=d_ratioReversed",
+     "d_operationInverted!=d_ratioReversed"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_exponentError}}$",
+     "error": "exponentError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.6A:distance-from-the-axis-of-symmetry",
+    "sourcePrompt": "An upward parabola with $a = {{a}}$ has least value ${{k}}$ and reaches ${{y1}}$ at one input. How far is that input from the axis of symmetry?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_6A_claim_about_a_parabola_with_a_least_value",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.6A:claim-about-a-parabola-with-a-least-value",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.6A",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "An upward parabola has least value ${{k}}$ at $x = {{h}}$. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "Domain is inputs; range is outputs.",
+    "reasoning": [
+     "The domain lists the inputs a rule accepts, and a quadratic accepts every real number.",
+     "The restriction to $y \\ge {{k}}$ describes the outputs, so it is the range."
+    ],
+    "answerSummary": "The restriction belongs to the range."
+   },
+   "attemptFeedback": [
+    "A value above the least one really is reached on both sides of the vertex."
+   ],
+   "supportHints": [
+    "Ask which of the two lists inputs."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     },
+     "h": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "constraints": [
+     "k>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Its range is $y \\ge {{k}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Its domain is every real number.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "Every value above ${{k}}$ is reached at two inputs.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "Its domain is $y \\ge {{k}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.6A:claim-about-a-parabola-with-a-least-value",
+    "sourcePrompt": "An upward parabola has least value ${{k}}$ at $x = {{h}}$. Which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_7A_vertex_from_standard_form",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.7A:vertex-from-standard-form",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.7A",
+   "taskType": "procedural",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is the vertex of $y = {{a}}x^2 - {{b}}x + {{c}}$?",
+   "solutionReview": {
+    "headline": "Find the axis first, then evaluate there.",
+    "reasoning": [
+     "The axis of symmetry sits at $x = \\frac{{{b}}}{2 \\times {{a}}} = {{h}}$.",
+     "Substituting gives $y = {{k}}$, so the vertex is $({{h}}, {{k}})$."
+    ],
+    "answerSummary": "It is $({{h}}, {{k}})$."
+   },
+   "attemptFeedback": [
+    "The constant term is the height at $x = 0$, not at the vertex."
+   ],
+   "supportHints": [
+    "The vertex sits on the axis of symmetry."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "h": {
+      "type": "int",
+      "min": 1,
+      "max": 12
+     },
+     "c": {
+      "type": "int",
+      "min": 5,
+      "max": 120
+     }
+    },
+    "derived": {
+     "b": "2*a*h",
+     "k": "c-a*h*h",
+     "negH": "h"
+    },
+    "constraints": [
+     "c-a*h*h!=h",
+     "c-a*h*h!=c",
+     "h!=c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{h}}, {{k}})$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{k}}, {{h}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{h}}, {{c}})$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(-{{h}}, {{k}})$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.7A:vertex-from-standard-form",
+    "sourcePrompt": "What is the vertex of $y = {{a}}x^2 - {{b}}x + {{c}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_7A_coefficient_behind_a_known_axis",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.7A:coefficient-behind-a-known-axis",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.7A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The parabola $y = {{a}}x^2 + bx + {{c}}$ has axis of symmetry $x = -{{h}}$. What is $b$?",
+   "solutionReview": {
+    "headline": "The axis divides the linear coefficient by twice the leading one.",
+    "reasoning": [
+     "The axis sits at $x = -\\frac{b}{2a}$, so $-{{h}} = -\\frac{b}{2 \\times {{a}}}$.",
+     "That gives $b = {{answer}}$."
+    ],
+    "answerSummary": "$b = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The factor of two belongs on the denominator, so it multiplies when moved."
+   ],
+   "supportHints": [
+    "Rearrange the formula for the axis of symmetry."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "c": {
+      "type": "int",
+      "min": 5,
+      "max": 200
+     }
+    },
+    "derived": {
+     "answer": "2*a*h",
+     "d_exponentError": "4*a*h",
+     "d_forgotFinalStep": "a*h",
+     "d_usedGivenValue": "c"
+    },
+    "constraints": [
+     "2*a*h>9",
+     "abs(c-2*a*h)>5",
+     "abs(a*h-2*a*h)>4",
+     "answer!=d_exponentError",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_exponentError!=d_forgotFinalStep",
+     "d_exponentError!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_exponentError}}$",
+     "error": "exponentError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.7A:coefficient-behind-a-known-axis",
+    "sourcePrompt": "The parabola $y = {{a}}x^2 + bx + {{c}}$ has axis of symmetry $x = -{{h}}$. What is $b$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_7A_claim_about_a_parabola_in_vertex_form",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.7A:claim-about-a-parabola-in-vertex-form",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.7A",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For $y = {{a}}(x - {{h}})^2 + {{k}}$ with ${{a}}$ positive, which statement is wrong?",
+   "solutionReview": {
+    "headline": "Vertex form shows the axis directly, sign included.",
+    "reasoning": [
+     "The squared term vanishes at $x = {{h}}$, which is where the axis of symmetry sits.",
+     "The minus sign inside the bracket does not move the axis to the other side."
+    ],
+    "answerSummary": "The axis is $x = {{h}}$."
+   },
+   "attemptFeedback": [
+    "The least value really is ${{k}}$, reached at that same input."
+   ],
+   "supportHints": [
+    "Ask which input makes the bracket zero."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     }
+    },
+    "derived": {
+     "v": "a*h*h+k"
+    },
+    "constraints": [
+     "h>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Its vertex is $({{h}}, {{k}})$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Its axis of symmetry is $x = -{{h}}$."
+    },
+    {
+     "id": "choice-c",
+     "label": "It crosses the vertical axis at ${{v}}$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "Its least value is ${{k}}$.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.7A:claim-about-a-parabola-in-vertex-form",
+    "sourcePrompt": "For $y = {{a}}(x - {{h}})^2 + {{k}}$ with ${{a}}$ positive, which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_7B_axis_of_symmetry_from_two_zeros",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.7B:axis-of-symmetry-from-two-zeros",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.7B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A parabola has zeros at ${{r}}$ and $-{{s}}$. Where is its axis of symmetry?",
+   "solutionReview": {
+    "headline": "The axis is the average of the two zeros.",
+    "reasoning": [
+     "The axis of symmetry sits midway between the two zeros.",
+     "The average of ${{r}}$ and $-{{s}}$ is ${{answer}}$."
+    ],
+    "answerSummary": "It is $x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The distance between the zeros is twice the distance from either to the axis."
+   ],
+   "supportHints": [
+    "Average the two zeros, signs included."
+   ],
+   "generator": {
+    "parameters": {
+     "u": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     },
+     "w": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "r": "2*u",
+     "s": "2*w",
+     "answer": "u-w",
+     "d_forgotFinalStep": "2*u+2*w",
+     "d_usedGivenValue": "2*u",
+     "d_signError": "w-u"
+    },
+    "constraints": [
+     "u-w>2",
+     "abs(2*u-(u-w))>4",
+     "u!=w"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$x = {{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$x = {{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$x = {{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x = {{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.7B:axis-of-symmetry-from-two-zeros",
+    "sourcePrompt": "A parabola has zeros at ${{r}}$ and $-{{s}}$. Where is its axis of symmetry?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_7B_coefficient_total_from_two_zeros",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.7B:coefficient-total-from-two-zeros",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.7B",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The quadratic $y = x^2 + bx + c$ has zeros ${{r}}$ and $-{{s}}$. What is $b + c$?",
+   "solutionReview": {
+    "headline": "Expand the factored form and read the coefficients.",
+    "reasoning": [
+     "With zeros ${{r}}$ and $-{{s}}$ the quadratic is $(x - {{r}})(x + {{s}})$.",
+     "Expanding gives $b = {{s}} - {{r}}$ and $c = -{{r}}{{s}}$, so the total is ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "One zero is negative, so the constant term comes out negative too."
+   ],
+   "supportHints": [
+    "Write the two factors before multiplying them out."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "answer": "s-r-r*s",
+     "d_operationInverted": "s-r+r*s",
+     "d_signError": "r-s-r*s",
+     "d_partialTotal": "r*s"
+    },
+    "constraints": [
+     "r!=s",
+     "abs(r-s)>1",
+     "r*s>7",
+     "answer!=d_operationInverted",
+     "answer!=d_signError",
+     "answer!=d_partialTotal",
+     "d_operationInverted!=d_signError",
+     "d_operationInverted!=d_partialTotal",
+     "d_signError!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.7B:coefficient-total-from-two-zeros",
+    "sourcePrompt": "The quadratic $y = x^2 + bx + c$ has zeros ${{r}}$ and $-{{s}}$. What is $b + c$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_7B_claim_about_a_single_zero",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.7B:claim-about-a-single-zero",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.7B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A quadratic has exactly one zero, at $x = {{r}}$. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "One zero means one repeated factor.",
+    "reasoning": [
+     "$(x - {{r}})(x + {{r}})$ has two zeros, at ${{r}}$ and $-{{r}}$.",
+     "A single zero needs the same factor twice over."
+    ],
+    "answerSummary": "That form has two zeros, not one."
+   },
+   "attemptFeedback": [
+    "A repeated factor really does put the turning point on the axis."
+   ],
+   "supportHints": [
+    "Set each factor to zero in turn."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     },
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "constraints": [
+     "r>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Its axis of symmetry is $x = {{r}}$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "It can be written as $(x - {{r}})(x + {{r}})$."
+    },
+    {
+     "id": "choice-c",
+     "label": "It can be written as ${{a}}(x - {{r}})^{2}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Its turning point sits on the horizontal axis.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.7B:claim-about-a-single-zero",
+    "sourcePrompt": "A quadratic has exactly one zero, at $x = {{r}}$. Which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_8A_gap_between_the_two_roots",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.8A:gap-between-the-two-roots",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.8A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $x^2 - {{sum}}x + {{product}} = 0$. How far apart are the two roots?",
+   "solutionReview": {
+    "headline": "Factor first, then compare the roots.",
+    "reasoning": [
+     "The two numbers that add to ${{sum}}$ and multiply to ${{product}}$ are ${{r}}$ and ${{s}}$.",
+     "They sit ${{answer}}$ apart."
+    ],
+    "answerSummary": "They are ${{answer}}$ apart."
+   },
+   "attemptFeedback": [
+    "The sum of the roots is the coefficient, not the gap between them."
+   ],
+   "supportHints": [
+    "Look for two numbers with the given sum and product."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 6,
+      "max": 40
+     },
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     }
+    },
+    "derived": {
+     "sum": "r+s",
+     "product": "r*s",
+     "answer": "r-s",
+     "d_operationInverted": "r+s",
+     "d_partialTotal": "s",
+     "d_signError": "s-r"
+    },
+    "constraints": [
+     "r>s",
+     "r-s>3",
+     "abs(s-(r-s))>3",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "answer!=d_signError",
+     "d_operationInverted!=d_partialTotal",
+     "d_operationInverted!=d_signError",
+     "d_partialTotal!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.8A:gap-between-the-two-roots",
+    "sourcePrompt": "Solve $x^2 - {{sum}}x + {{product}} = 0$. How far apart are the two roots?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_8A_other_zero_from_one_of_them",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.8A:other-zero-from-one-of-them",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.8A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The quadratic $x^2 + bx + {{c}}$ has ${{r}}$ as one zero. What is the other?",
+   "solutionReview": {
+    "headline": "The zeros multiply to the constant term.",
+    "reasoning": [
+     "With a leading coefficient of one, the two zeros multiply to the constant ${{c}}$.",
+     "So the other zero is ${{c}} \\div {{r}} = {{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Both zeros are positive here, since the constant is positive and the sum is negative."
+   ],
+   "supportHints": [
+    "Write the quadratic in factored form."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "derived": {
+     "c": "r*s",
+     "answer": "s",
+     "d_forgotFinalStep": "c",
+     "d_usedGivenValue": "r",
+     "d_signError": "0-s"
+    },
+    "constraints": [
+     "r!=s",
+     "abs(r-s)>3",
+     "r*s>9",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_signError",
+     "d_usedGivenValue!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.8A:other-zero-from-one-of-them",
+    "sourcePrompt": "The quadratic $x^2 + bx + {{c}}$ has ${{r}}$ as one zero. What is the other?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_8A_claim_about_two_distinct_solutions",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.8A:claim-about-two-distinct-solutions",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.8A",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The equation $x^2 + {{b}}x + {{c}} = 0$ has two different real solutions. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "Two solutions means two crossings, not one touch.",
+    "reasoning": [
+     "Two different real solutions put two separate crossings on the horizontal axis.",
+     "Touching at one point belongs to a repeated solution."
+    ],
+    "answerSummary": "It crosses twice."
+   },
+   "attemptFeedback": [
+    "The turning point does sit off the axis, between the two crossings."
+   ],
+   "supportHints": [
+    "Sketch a parabola with two zeros."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     }
+    },
+    "constraints": [
+     "b*b>4*c"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Its graph touches the horizontal axis at exactly one point."
+    },
+    {
+     "id": "choice-b",
+     "label": "It factors into two different linear factors.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "Its turning point lies off the horizontal axis.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "Its graph crosses the horizontal axis twice.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.8A:claim-about-two-distinct-solutions",
+    "sourcePrompt": "The equation $x^2 + {{b}}x + {{c}} = 0$ has two different real solutions. Which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10A_subtract_from_a_doubled_polynomial",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10A:subtract-from-a-doubled-polynomial",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Subtract $({{d}}x^2 + {{e}}x + {{f}})$ from twice $({{a}}x^2 + {{b}}x + {{c}})$.",
+   "solutionReview": {
+    "headline": "Double every term, then subtract every term.",
+    "reasoning": [
+     "Doubling the first gives $2{{a}}x^2 + 2{{b}}x + 2{{c}}$.",
+     "Subtracting the second takes each term away, leaving ${{qa}}x^2 + {{qb}}x + {{qc}}$."
+    ],
+    "answerSummary": "It is ${{qa}}x^2 + {{qb}}x + {{qc}}$."
+   },
+   "attemptFeedback": [
+    "The minus sign in front of the bracket changes every sign inside it."
+   ],
+   "supportHints": [
+    "The doubling reaches all three terms."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "e": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "f": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "qa": "2*a-d",
+     "qb": "2*b-e",
+     "qc": "2*c-f",
+     "wc": "2*c+f",
+     "pa": "2*a+d",
+     "pb": "2*b+e",
+     "ha": "a-d",
+     "hb": "b-e",
+     "hc": "c-f"
+    },
+    "constraints": [
+     "2*a-d>0",
+     "2*b-e>0",
+     "2*c-f>0",
+     "a-d>0",
+     "b-e>0",
+     "c-f>0",
+     "2*c-f!=2*c+f"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{qa}}x^2 + {{qb}}x + {{qc}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{qa}}x^2 + {{qb}}x + {{wc}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{pa}}x^2 + {{pb}}x + {{wc}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{ha}}x^2 + {{hb}}x + {{hc}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10A:subtract-from-a-doubled-polynomial",
+    "sourcePrompt": "Subtract $({{d}}x^2 + {{e}}x + {{f}})$ from twice $({{a}}x^2 + {{b}}x + {{c}})$."
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10A_width_from_an_algebraic_perimeter",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10A:width-from-an-algebraic-perimeter",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A rectangle is ${{a}}x + {{b}}$ long and has perimeter ${{pa}}x + {{pb}}$. How wide is it?",
+   "solutionReview": {
+    "headline": "Halve the perimeter before removing the length.",
+    "reasoning": [
+     "Half the perimeter is one length plus one width, or ${{ha}}x + {{hb}}$.",
+     "Taking the length off leaves ${{c}}x + {{d}}$."
+    ],
+    "answerSummary": "It is ${{c}}x + {{d}}$ wide."
+   },
+   "attemptFeedback": [
+    "Taking two lengths off the whole perimeter leaves two widths, not one."
+   ],
+   "supportHints": [
+    "A perimeter counts each side twice."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "pa": "2*a+2*c",
+     "pb": "2*b+2*d",
+     "ua": "pa-2*a",
+     "ub": "pb-2*b",
+     "va": "c",
+     "vb": "0-d",
+     "ha": "pa/2",
+     "hb": "pb/2"
+    },
+    "constraints": [
+     "a!=c",
+     "b!=d",
+     "c>1",
+     "d>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{c}}x + {{d}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{c}}x - {{d}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{ha}}x + {{hb}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{ua}}x + {{ub}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10A:width-from-an-algebraic-perimeter",
+    "sourcePrompt": "A rectangle is ${{a}}x + {{b}}$ long and has perimeter ${{pa}}x + {{pb}}$. How wide is it?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10A_what_cancels_a_squared_term",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10A:what-cancels-a-squared-term",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10A",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Adding ${{a}}x^2 + {{b}}x + {{c}}$ to a second quadratic leaves no $x^2$ term. What must be true of the second?",
+   "solutionReview": {
+    "headline": "Each power settles its own coefficient.",
+    "reasoning": [
+     "Like terms add independently, so only the $x^2$ coefficients decide the $x^2$ term.",
+     "They cancel when the second is $-{{a}}$."
+    ],
+    "answerSummary": "Its $x^2$ coefficient is $-{{a}}$."
+   },
+   "attemptFeedback": [
+    "A zero coefficient would leave ${{a}}x^2$ standing."
+   ],
+   "supportHints": [
+    "Add the two $x^2$ coefficients and set the total to zero."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     }
+    },
+    "constraints": [
+     "a>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Its $x^2$ coefficient is zero.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Its $x^2$ coefficient is $-{{a}}$."
+    },
+    {
+     "id": "choice-c",
+     "label": "Its constant is $-{{c}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "Its $x$ coefficient is $-{{b}}$.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10A:what-cancels-a-squared-term",
+    "sourcePrompt": "Adding ${{a}}x^2 + {{b}}x + {{c}}$ to a second quadratic leaves no $x^2$ term. What must be true of the second?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10B_expand_two_binomials_with_coefficients",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10B:expand-two-binomials-with-coefficients",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Expand $({{a}}x + {{p}})({{b}}x + {{q}})$.",
+   "solutionReview": {
+    "headline": "Four products, with two of them combining.",
+    "reasoning": [
+     "The outer and inner products give ${{a}} \\times {{q}}$ and ${{b}} \\times {{p}}$.",
+     "Adding them gives the middle term ${{mid}}x$."
+    ],
+    "answerSummary": "It is ${{ab}}x^2 + {{mid}}x + {{pq}}$."
+   },
+   "attemptFeedback": [
+    "The middle term comes from two cross products, not from the outer coefficients alone."
+   ],
+   "supportHints": [
+    "Multiply every term of the first bracket by every term of the second."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "ab": "a*b",
+     "mid": "a*q+b*p",
+     "pq": "p*q",
+     "midBad": "a*b+p*q",
+     "midDiff": "a*q-b*p"
+    },
+    "constraints": [
+     "a*q!=b*p",
+     "a*b+p*q!=a*q+b*p",
+     "a*q-b*p!=a*q+b*p",
+     "a*q-b*p!=a*b+p*q"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{ab}}x^2 + {{pq}}$",
+     "error": "incompleteFactoring"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{ab}}x^2 + {{mid}}x + {{pq}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{ab}}x^2 + {{midDiff}}x + {{pq}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{ab}}x^2 + {{midBad}}x + {{pq}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10B:expand-two-binomials-with-coefficients",
+    "sourcePrompt": "Expand $({{a}}x + {{p}})({{b}}x + {{q}})$."
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10B_other_side_of_an_algebraic_rectangle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10B:other-side-of-an-algebraic-rectangle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10B",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A rectangle covers ${{ab}}x^2 + {{mid}}x + {{pq}}$ and one side is ${{a}}x + {{p}}$. What is the other side?",
+   "solutionReview": {
+    "headline": "Match the leading terms and the constants.",
+    "reasoning": [
+     "The leading terms multiply to ${{ab}}x^2$, so the other side starts ${{b}}x$.",
+     "The constants multiply to ${{pq}}$, so it ends $+ {{q}}$."
+    ],
+    "answerSummary": "It is ${{b}}x + {{q}}$."
+   },
+   "attemptFeedback": [
+    "The whole leading coefficient belongs to both sides together, not to one."
+   ],
+   "supportHints": [
+    "Divide the leading coefficient and the constant separately."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "ab": "a*b",
+     "mid": "a*q+b*p",
+     "pq": "p*q"
+    },
+    "constraints": [
+     "a!=b",
+     "p!=q",
+     "b!=q",
+     "a*b!=p*q"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{q}}x + {{b}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{ab}}x + {{pq}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{b}}x + {{q}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{b}}x - {{q}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10B:other-side-of-an-algebraic-rectangle",
+    "sourcePrompt": "A rectangle covers ${{ab}}x^2 + {{mid}}x + {{pq}}$ and one side is ${{a}}x + {{p}}$. What is the other side?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_10B_what_a_difference_of_brackets_gives",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.10B:what-a-difference-of-brackets-gives",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.10B",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What does $(x + {{p}})(x - {{p}})$ come to?",
+   "solutionReview": {
+    "headline": "Opposite constants cancel the middle term.",
+    "reasoning": [
+     "The outer product is $-{{p}}x$ and the inner product is $+{{p}}x$, so they cancel.",
+     "What is left is $x^2 - {{p2}}$."
+    ],
+    "answerSummary": "It is $x^2 - {{p2}}$."
+   },
+   "attemptFeedback": [
+    "The constants multiply to $-{{p2}}$, not to $+{{p2}}$."
+   ],
+   "supportHints": [
+    "Write out all four products."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "p2": "p*p",
+     "twoP": "2*p"
+    },
+    "constraints": [
+     "p>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "It comes to $x^2 - {{twoP}}x - {{p2}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "It comes to $x^2 - {{p2}}x$.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The two $x$ terms cancel, leaving $x^2 - {{p2}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "It comes to $x^2 + {{p2}}$.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.10B:what-a-difference-of-brackets-gives",
+    "sourcePrompt": "What does $(x + {{p}})(x - {{p}})$ come to?"
+   }
   }
  ]
 }

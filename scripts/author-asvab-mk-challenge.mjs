@@ -8014,6 +8014,739 @@ mkc('A.5A', 'sound-first-step-on-two-brackets', {
   feedback: 'Dividing the two sides by different numbers breaks the equality.',
 });
 
+// ================================================================ A.5B
+// Solving linear inequalities.
+
+mkc('A.5B', 'greatest-whole-number-under-a-grouped-ceiling', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'What is the greatest whole number $x$ with $\\frac{{{a}}x + {{p}}}{{{d}}} \\le {{q}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 5 },
+      d: { type: 'int', min: 2, max: 9 },
+      j: { type: 'int', min: 1, max: 9 },
+      k: { type: 'int', min: 6, max: 120 },
+    },
+    derived: {
+      p: 'a*j',
+      q: 'a*(k+j)/d',
+      answer: 'k',
+      // Stopped at the numerator.
+      d_forgotFinalStep: 'a*k',
+      // Answered the ceiling that was given.
+      d_usedGivenValue: 'q',
+      // Took the constant off twice.
+      d_operationInverted: 'k-2*j',
+    },
+    constraints: ['a*(k+j)%d==0', 'k-2*j>1', 'abs(q-k)>4', 'abs(a*k-k)>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Multiplying by ${{d}}$ gives ${{a}}x + {{p}} \\le {{d}} \\times {{q}}$.', 'Taking ${{p}}$ off and dividing by ${{a}}$ leaves $x \\le {{answer}}$.'],
+  answerSummary: { headline: 'Clear the denominator, then the constant, then the coefficient.', text: 'It is ${{answer}}$.' },
+  hint: 'The fraction bar groups both terms above it.',
+  feedback: 'The numerator still has ${{a}}$ multiplying $x$.',
+});
+
+mkc('A.5B', 'largest-daily-rate-a-budget-allows', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'A budget of $\\${{q}}$ covers a $\\${{p}}$ fee plus a daily rate for ${{n}}$ days. What is the largest whole daily rate it allows?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 10, max: 90 },
+      n: { type: 'int', min: 3, max: 24 },
+      r: { type: 'int', min: 4, max: 90 },
+    },
+    derived: {
+      q: 'p+n*r',
+      answer: 'r',
+      // Answered what is left of the budget, not the rate.
+      d_forgotFinalStep: 'n*r',
+      // Answered the number of days.
+      d_usedGivenValue: 'n',
+      // Answered the fee.
+      d_ratioReversed: 'p',
+    },
+    constraints: ['abs(n-r)>3', 'abs(p-r)>4', 'n*r>12'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The fee leaves $\\${{q}} - \\${{p}}$ for the ${{n}}$ days.', 'Dividing gives a rate of $\\${{answer}}$ a day.'],
+  answerSummary: { headline: 'Remove the one-off charge before dividing by the days.', text: 'It is $\\${{answer}}$ a day.' },
+  hint: 'The fee is paid once, so it never divides by the days.',
+  feedback: 'What is left of the budget still has to be spread over ${{n}}$ days.',
+});
+
+mkc('A.5B', 'inequality-with-the-same-solutions', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Which inequality has the same solutions as $-{{a}}x + {{p}} > {{q}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 14 },
+      p: { type: 'int', min: 20, max: 200 },
+      q: { type: 'int', min: 2, max: 100 },
+    },
+    constraints: ['p>q'],
+  },
+  choices: [
+    { label: plain('x < \\frac{{{p}} - {{q}}}{{{a}}}'), correct: true },
+    { label: plain('x > \\frac{{{p}} - {{q}}}{{{a}}}'), error: 'signError' },
+    { label: plain('x < \\frac{{{q}} - {{p}}}{{{a}}}'), error: 'operationInverted' },
+    { label: plain('x < \\frac{{{p}} + {{q}}}{{{a}}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Moving ${{p}}$ across gives $-{{a}}x > {{q}} - {{p}}$.', 'Dividing by $-{{a}}$ reverses the sign, leaving $x < \\frac{{{p}} - {{q}}}{{{a}}}$.'],
+  answerSummary: { headline: 'Dividing by a negative turns the inequality round.', text: 'It is $x < \\frac{{{p}} - {{q}}}{{{a}}}$.' },
+  hint: 'Isolate the $x$ term before dividing.',
+  feedback: 'Keeping the direction after a negative divide reverses which values work.',
+});
+
+// ================================================================ A.5C
+// Solving a system.
+
+mkc('A.5C', 'total-of-the-two-solutions', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'table', courseId: 'algebra1',
+  prompt: 'Solve the system in the table. What is $x + y$?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Equation'],
+    rows: [['${{a}}x + {{b}}y = {{c1}}$'], ['${{a2}}x - {{d}}y = {{c2}}$']],
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      a2: { type: 'int', min: 2, max: 9 },
+      d: { type: 'int', min: 2, max: 9 },
+      x0: { type: 'int', min: 2, max: 9 },
+      y0: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      c1: 'a*x0+b*y0',
+      c2: 'a2*x0-d*y0',
+      answer: 'x0+y0',
+      // Added the two right-hand sides.
+      d_operationInverted: 'c1+c2',
+      // Answered one solution only.
+      d_forgotFinalStep: 'x0',
+      // Answered the total of the two leading coefficients.
+      d_ratioReversed: 'a+b',
+    },
+    constraints: ['a*b!=a2*d', 'a*x0-d*y0!=0', 'x0!=y0', 'abs(a+b-x0-y0)>3', 'a2*x0-d*y0>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The system is satisfied by $x = {{x0}}$ and $y = {{y0}}$.', 'Their total is ${{answer}}$.'],
+  answerSummary: { headline: 'Solve for both unknowns before combining them.', text: 'It is ${{answer}}$.' },
+  hint: 'Eliminate one unknown, then substitute back.',
+  feedback: 'The coefficients are not the solutions; they only weight them.',
+});
+
+mkc('A.5C', 'multiplier-that-clears-the-first-unknown', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'To eliminate $x$ by subtraction, by what must ${{a}}x + {{b}}y = {{c1}}$ be multiplied before subtracting ${{a2}}x + {{d}}y = {{c2}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      k: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 2, max: 14 },
+      d: { type: 'int', min: 2, max: 16 },
+      c1: { type: 'int', min: 10, max: 200 },
+      c2: { type: 'int', min: 10, max: 200 },
+    },
+    derived: {
+      a2: 'a*k',
+      answer: 'k',
+      // Answered the coefficient to be matched.
+      d_forgotFinalStep: 'a*k',
+      // Answered the coefficient already in place.
+      d_usedGivenValue: 'a',
+      // Answered the other coefficient in the same equation.
+      d_operationInverted: 'b',
+    },
+    constraints: ['b!=d', 'abs(a-k)>2', 'abs(b-k)>2', 'a*k>7'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Subtraction clears $x$ only once both $x$ coefficients match.', '${{a}}$ reaches ${{a2}}$ when it is multiplied by ${{answer}}$.'],
+  answerSummary: { headline: 'Match the coefficients before subtracting.', text: 'Multiply by ${{answer}}$.' },
+  hint: 'Divide the coefficient you want by the one you have.',
+  feedback: 'The coefficient to be matched is the target, not the multiplier.',
+});
+
+mkc('A.5C', 'equation-substitution-leaves-behind', {
+  difficultyBand: 4, dok: 3, taskType: 'representationTranslation', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Substituting $y = {{m}}x + {{p}}$ into ${{a}}x + {{b}}y = {{c}}$ leaves which equation?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 2, max: 12 },
+      m: { type: 'int', min: 2, max: 10 },
+      p: { type: 'int', min: 2, max: 30 },
+      c: { type: 'int', min: 20, max: 300 },
+    },
+    derived: {
+      ab: 'a+b*m',
+      abBad: 'a+m',
+      bp: 'b*p',
+    },
+    constraints: ['a+b*m!=a+m', 'b*p!=p'],
+  },
+  choices: [
+    { label: plain('{{ab}}x + {{bp}} = {{c}}'), correct: true },
+    { label: plain('{{abBad}}x + {{bp}} = {{c}}'), error: 'incompleteFactoring' },
+    { label: plain('{{ab}}x + {{p}} = {{c}}'), error: 'partialTotal' },
+    { label: plain('{{ab}}x - {{bp}} = {{c}}'), error: 'signError' },
+  ],
+  reasoning: ['The ${{b}}$ multiplies both terms of $y$, giving ${{b}}{{m}}x + {{b}}{{p}}$.', 'Collecting with ${{a}}x$ leaves ${{ab}}x + {{bp}} = {{c}}$.'],
+  answerSummary: { headline: 'Distribute the coefficient across the whole substitution.', text: 'It is ${{ab}}x + {{bp}} = {{c}}$.' },
+  hint: 'Both terms of $y$ pass through the ${{b}}$.',
+  feedback: 'Leaving the constant undistributed drops a factor of ${{b}}$.',
+});
+
+// ================================================================ A.6A
+// Domain and range of a quadratic.
+
+mkc('A.6A', 'range-over-a-domain-past-the-vertex', {
+  difficultyBand: 4, dok: 2, taskType: 'interpretation', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'For $y = {{a}}(x - {{h}})^2 + {{k}}$ on ${{lo}} \\le x \\le {{hi}}$, with ${{lo}}$ above ${{h}}$, what is the range?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 1, max: 6 },
+      h: { type: 'int', min: 1, max: 12 },
+      k: { type: 'int', min: 2, max: 40 },
+      d1: { type: 'int', min: 1, max: 8 },
+      d2: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      lo: 'h+d1',
+      hi: 'h+d1+d2',
+      flo: 'a*d1*d1+k',
+      fhi: 'a*(d1+d2)*(d1+d2)+k',
+    },
+    constraints: ['d2>1', 'a*d1*d1+k!=a*(d1+d2)*(d1+d2)+k'],
+  },
+  choices: [
+    { label: plain('{{flo}} \\le y \\le {{fhi}}'), correct: true },
+    { label: plain('{{fhi}} \\le y \\le {{flo}}'), error: 'ratioReversed' },
+    { label: plain('{{k}} \\le y \\le {{fhi}}'), error: 'usedGivenValue' },
+    { label: plain('{{lo}} \\le y \\le {{hi}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The domain lies entirely to the right of the turning point, so the curve only rises across it.', 'That puts the range between $f({{lo}})$ and $f({{hi}})$.'],
+  answerSummary: { headline: 'A domain clear of the vertex gives a range between the two endpoints.', text: 'It is ${{flo}} \\le y \\le {{fhi}}$.' },
+  hint: 'Check whether the turning point lies inside the domain.',
+  feedback: 'The least value ${{k}}$ is only reached at $x = {{h}}$, which is outside the domain.',
+});
+
+mkc('A.6A', 'distance-from-the-axis-of-symmetry', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'An upward parabola with $a = {{a}}$ has least value ${{k}}$ and reaches ${{y1}}$ at one input. How far is that input from the axis of symmetry?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      z: { type: 'int', min: 2, max: 9 },
+      k: { type: 'int', min: 2, max: 60 },
+    },
+    derived: {
+      d: 'a*z',
+      y1: 'k+a*a*a*z*z',
+      answer: 'a*z',
+      // Answered the square of the distance.
+      d_exponentError: 'a*a*z*z',
+      // Divided by the coefficient twice.
+      d_operationInverted: 'z',
+      // Answered the square of the coefficient.
+      d_ratioReversed: 'a*a',
+    },
+    constraints: ['abs(a-z)>1', 'a*z>7', 'abs(a*a-a*z)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The height above the least value is ${{y1}} - {{k}}$, which equals ${{a}}$ times the distance squared.', 'Dividing and taking the root gives ${{answer}}$.'],
+  answerSummary: { headline: 'Strip the least value, divide by the coefficient, then take the root.', text: 'It is ${{answer}}$.' },
+  hint: 'The rise above the vertex is $a$ times a square.',
+  feedback: 'Stopping before the square root leaves the squared distance.',
+});
+
+mkc('A.6A', 'claim-about-a-parabola-with-a-least-value', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'An upward parabola has least value ${{k}}$ at $x = {{h}}$. Which statement is wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 60 },
+      h: { type: 'int', min: 1, max: 20 },
+    },
+    constraints: ['k>1'],
+  },
+  choices: [
+    { label: 'Its domain is $y \\ge {{k}}$.', correct: true },
+    { label: 'Its range is $y \\ge {{k}}$.', error: 'partialTotal' },
+    { label: 'Its domain is every real number.', error: 'usedGivenValue' },
+    { label: 'Every value above ${{k}}$ is reached at two inputs.', error: 'ratioReversed' },
+  ],
+  reasoning: ['The domain lists the inputs a rule accepts, and a quadratic accepts every real number.', 'The restriction to $y \\ge {{k}}$ describes the outputs, so it is the range.'],
+  answerSummary: { headline: 'Domain is inputs; range is outputs.', text: 'The restriction belongs to the range.' },
+  hint: 'Ask which of the two lists inputs.',
+  feedback: 'A value above the least one really is reached on both sides of the vertex.',
+});
+
+// ================================================================ A.7A
+// Vertex and axis of symmetry.
+
+mkc('A.7A', 'vertex-from-standard-form', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'orderedPairs', courseId: 'algebra1',
+  prompt: 'What is the vertex of $y = {{a}}x^2 - {{b}}x + {{c}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 1, max: 8 },
+      h: { type: 'int', min: 1, max: 12 },
+      c: { type: 'int', min: 5, max: 120 },
+    },
+    derived: {
+      b: '2*a*h',
+      k: 'c-a*h*h',
+      negH: 'h',
+    },
+    constraints: ['c-a*h*h!=h', 'c-a*h*h!=c', 'h!=c'],
+  },
+  choices: [
+    { label: plain('({{h}}, {{k}})'), correct: true },
+    { label: plain('(-{{h}}, {{k}})'), error: 'signError' },
+    { label: plain('({{k}}, {{h}})'), error: 'ratioReversed' },
+    { label: plain('({{h}}, {{c}})'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['The axis of symmetry sits at $x = \\frac{{{b}}}{2 \\times {{a}}} = {{h}}$.', 'Substituting gives $y = {{k}}$, so the vertex is $({{h}}, {{k}})$.'],
+  answerSummary: { headline: 'Find the axis first, then evaluate there.', text: 'It is $({{h}}, {{k}})$.' },
+  hint: 'The vertex sits on the axis of symmetry.',
+  feedback: 'The constant term is the height at $x = 0$, not at the vertex.',
+});
+
+mkc('A.7A', 'coefficient-behind-a-known-axis', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'The parabola $y = {{a}}x^2 + bx + {{c}}$ has axis of symmetry $x = -{{h}}$. What is $b$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      h: { type: 'int', min: 2, max: 14 },
+      c: { type: 'int', min: 5, max: 200 },
+    },
+    derived: {
+      answer: '2*a*h',
+      // Doubled the coefficient a second time.
+      d_exponentError: '4*a*h',
+      // Left the doubling out.
+      d_forgotFinalStep: 'a*h',
+      // Answered the constant term.
+      d_usedGivenValue: 'c',
+    },
+    constraints: ['2*a*h>9', 'abs(c-2*a*h)>5', 'abs(a*h-2*a*h)>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The axis sits at $x = -\\frac{b}{2a}$, so $-{{h}} = -\\frac{b}{2 \\times {{a}}}$.', 'That gives $b = {{answer}}$.'],
+  answerSummary: { headline: 'The axis divides the linear coefficient by twice the leading one.', text: '$b = {{answer}}$.' },
+  hint: 'Rearrange the formula for the axis of symmetry.',
+  feedback: 'The factor of two belongs on the denominator, so it multiplies when moved.',
+});
+
+mkc('A.7A', 'claim-about-a-parabola-in-vertex-form', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'For $y = {{a}}(x - {{h}})^2 + {{k}}$ with ${{a}}$ positive, which statement is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 1, max: 8 },
+      h: { type: 'int', min: 2, max: 14 },
+      k: { type: 'int', min: 2, max: 60 },
+    },
+    derived: { v: 'a*h*h+k' },
+    constraints: ['h>1'],
+  },
+  choices: [
+    { label: 'Its axis of symmetry is $x = -{{h}}$.', correct: true },
+    { label: 'Its vertex is $({{h}}, {{k}})$.', error: 'partialTotal' },
+    { label: 'Its least value is ${{k}}$.', error: 'usedGivenValue' },
+    { label: 'It crosses the vertical axis at ${{v}}$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['The squared term vanishes at $x = {{h}}$, which is where the axis of symmetry sits.', 'The minus sign inside the bracket does not move the axis to the other side.'],
+  answerSummary: { headline: 'Vertex form shows the axis directly, sign included.', text: 'The axis is $x = {{h}}$.' },
+  hint: 'Ask which input makes the bracket zero.',
+  feedback: 'The least value really is ${{k}}$, reached at that same input.',
+});
+
+// ================================================================ A.7B
+// Zeros and factors.
+
+mkc('A.7B', 'axis-of-symmetry-from-two-zeros', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A parabola has zeros at ${{r}}$ and $-{{s}}$. Where is its axis of symmetry?',
+  generator: {
+    parameters: {
+      u: { type: 'int', min: 2, max: 24 },
+      w: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {
+      r: '2*u',
+      s: '2*w',
+      answer: 'u-w',
+      // Answered the gap between the two zeros.
+      d_forgotFinalStep: '2*u+2*w',
+      // Answered one zero.
+      d_usedGivenValue: '2*u',
+      // Averaged them the other way round.
+      d_signError: 'w-u',
+    },
+    constraints: ['u-w>2', 'abs(2*u-(u-w))>4', 'u!=w'],
+  },
+  choices: [
+    { label: plain('x = {{answer}}'), correct: true },
+    { label: plain('x = {{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('x = {{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('x = {{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The axis of symmetry sits midway between the two zeros.', 'The average of ${{r}}$ and $-{{s}}$ is ${{answer}}$.'],
+  answerSummary: { headline: 'The axis is the average of the two zeros.', text: 'It is $x = {{answer}}$.' },
+  hint: 'Average the two zeros, signs included.',
+  feedback: 'The distance between the zeros is twice the distance from either to the axis.',
+});
+
+mkc('A.7B', 'coefficient-total-from-two-zeros', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'The quadratic $y = x^2 + bx + c$ has zeros ${{r}}$ and $-{{s}}$. What is $b + c$?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 20 },
+      s: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      answer: 's-r-r*s',
+      // Added the product instead of subtracting it.
+      d_operationInverted: 's-r+r*s',
+      // Took the two zeros the other way round.
+      d_signError: 'r-s-r*s',
+      // Answered the product of the zeros.
+      d_partialTotal: 'r*s',
+    },
+    constraints: ['r!=s', 'abs(r-s)>1', 'r*s>7'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['With zeros ${{r}}$ and $-{{s}}$ the quadratic is $(x - {{r}})(x + {{s}})$.', 'Expanding gives $b = {{s}} - {{r}}$ and $c = -{{r}}{{s}}$, so the total is ${{answer}}$.'],
+  answerSummary: { headline: 'Expand the factored form and read the coefficients.', text: 'It is ${{answer}}$.' },
+  hint: 'Write the two factors before multiplying them out.',
+  feedback: 'One zero is negative, so the constant term comes out negative too.',
+});
+
+mkc('A.7B', 'claim-about-a-single-zero', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'A quadratic has exactly one zero, at $x = {{r}}$. Which statement is wrong?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 24 },
+      a: { type: 'int', min: 2, max: 8 },
+    },
+    constraints: ['r>1'],
+  },
+  choices: [
+    { label: 'It can be written as $(x - {{r}})(x + {{r}})$.', correct: true },
+    { label: 'It can be written as ${{a}}(x - {{r}})^{2}$.', error: 'partialTotal' },
+    { label: 'Its turning point sits on the horizontal axis.', error: 'usedGivenValue' },
+    { label: 'Its axis of symmetry is $x = {{r}}$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['$(x - {{r}})(x + {{r}})$ has two zeros, at ${{r}}$ and $-{{r}}$.', 'A single zero needs the same factor twice over.'],
+  answerSummary: { headline: 'One zero means one repeated factor.', text: 'That form has two zeros, not one.' },
+  hint: 'Set each factor to zero in turn.',
+  feedback: 'A repeated factor really does put the turning point on the axis.',
+});
+
+// ================================================================ A.8A
+// Solving quadratic equations.
+
+mkc('A.8A', 'gap-between-the-two-roots', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Solve $x^2 - {{sum}}x + {{product}} = 0$. How far apart are the two roots?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 6, max: 40 },
+      s: { type: 'int', min: 2, max: 30 },
+    },
+    derived: {
+      sum: 'r+s',
+      product: 'r*s',
+      answer: 'r-s',
+      // Added the two roots instead of comparing them.
+      d_operationInverted: 'r+s',
+      // Answered the smaller root.
+      d_partialTotal: 's',
+      // Compared the two the other way round.
+      d_signError: 's-r',
+    },
+    constraints: ['r>s', 'r-s>3', 'abs(s-(r-s))>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The two numbers that add to ${{sum}}$ and multiply to ${{product}}$ are ${{r}}$ and ${{s}}$.', 'They sit ${{answer}}$ apart.'],
+  answerSummary: { headline: 'Factor first, then compare the roots.', text: 'They are ${{answer}}$ apart.' },
+  hint: 'Look for two numbers with the given sum and product.',
+  feedback: 'The sum of the roots is the coefficient, not the gap between them.',
+});
+
+mkc('A.8A', 'other-zero-from-one-of-them', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'The quadratic $x^2 + bx + {{c}}$ has ${{r}}$ as one zero. What is the other?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 40 },
+      s: { type: 'int', min: 2, max: 40 },
+    },
+    derived: {
+      c: 'r*s',
+      answer: 's',
+      // Answered the constant term.
+      d_forgotFinalStep: 'c',
+      // Answered the zero that was given.
+      d_usedGivenValue: 'r',
+      // Made the second zero negative.
+      d_signError: '0-s',
+    },
+    constraints: ['r!=s', 'abs(r-s)>3', 'r*s>9'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['With a leading coefficient of one, the two zeros multiply to the constant ${{c}}$.', 'So the other zero is ${{c}} \\div {{r}} = {{answer}}$.'],
+  answerSummary: { headline: 'The zeros multiply to the constant term.', text: 'It is ${{answer}}$.' },
+  hint: 'Write the quadratic in factored form.',
+  feedback: 'Both zeros are positive here, since the constant is positive and the sum is negative.',
+});
+
+mkc('A.8A', 'claim-about-two-distinct-solutions', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'The equation $x^2 + {{b}}x + {{c}} = 0$ has two different real solutions. Which statement is wrong?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 2, max: 30 },
+      c: { type: 'int', min: 2, max: 60 },
+    },
+    constraints: ['b*b>4*c'],
+  },
+  choices: [
+    { label: 'Its graph touches the horizontal axis at exactly one point.', correct: true },
+    { label: 'Its graph crosses the horizontal axis twice.', error: 'partialTotal' },
+    { label: 'It factors into two different linear factors.', error: 'usedGivenValue' },
+    { label: 'Its turning point lies off the horizontal axis.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Two different real solutions put two separate crossings on the horizontal axis.', 'Touching at one point belongs to a repeated solution.'],
+  answerSummary: { headline: 'Two solutions means two crossings, not one touch.', text: 'It crosses twice.' },
+  hint: 'Sketch a parabola with two zeros.',
+  feedback: 'The turning point does sit off the axis, between the two crossings.',
+});
+
+// ================================================================ A.10A
+// Adding and subtracting polynomials.
+
+mkc('A.10A', 'subtract-from-a-doubled-polynomial', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Subtract $({{d}}x^2 + {{e}}x + {{f}})$ from twice $({{a}}x^2 + {{b}}x + {{c}})$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 14 },
+      c: { type: 'int', min: 2, max: 20 },
+      d: { type: 'int', min: 2, max: 12 },
+      e: { type: 'int', min: 2, max: 14 },
+      f: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      qa: '2*a-d', qb: '2*b-e', qc: '2*c-f',
+      wc: '2*c+f',
+      pa: '2*a+d', pb: '2*b+e',
+      ha: 'a-d', hb: 'b-e', hc: 'c-f',
+    },
+    constraints: ['2*a-d>0', '2*b-e>0', '2*c-f>0', 'a-d>0', 'b-e>0', 'c-f>0', '2*c-f!=2*c+f'],
+  },
+  choices: [
+    { label: plain('{{qa}}x^2 + {{qb}}x + {{qc}}'), correct: true },
+    { label: plain('{{qa}}x^2 + {{qb}}x + {{wc}}'), error: 'signError' },
+    { label: plain('{{pa}}x^2 + {{pb}}x + {{wc}}'), error: 'operationInverted' },
+    { label: plain('{{ha}}x^2 + {{hb}}x + {{hc}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Doubling the first gives $2{{a}}x^2 + 2{{b}}x + 2{{c}}$.', 'Subtracting the second takes each term away, leaving ${{qa}}x^2 + {{qb}}x + {{qc}}$.'],
+  answerSummary: { headline: 'Double every term, then subtract every term.', text: 'It is ${{qa}}x^2 + {{qb}}x + {{qc}}$.' },
+  hint: 'The doubling reaches all three terms.',
+  feedback: 'The minus sign in front of the bracket changes every sign inside it.',
+});
+
+mkc('A.10A', 'width-from-an-algebraic-perimeter', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A rectangle is ${{a}}x + {{b}}$ long and has perimeter ${{pa}}x + {{pb}}$. How wide is it?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 20 },
+      c: { type: 'int', min: 2, max: 12 },
+      d: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      pa: '2*a+2*c',
+      pb: '2*b+2*d',
+      ua: 'pa-2*a', ub: 'pb-2*b',
+      va: 'c', vb: '0-d',
+      ha: 'pa/2', hb: 'pb/2',
+    },
+    constraints: ['a!=c', 'b!=d', 'c>1', 'd>1'],
+  },
+  choices: [
+    { label: plain('{{c}}x + {{d}}'), correct: true },
+    { label: plain('{{ua}}x + {{ub}}'), error: 'forgotFinalStep' },
+    { label: plain('{{c}}x - {{d}}'), error: 'signError' },
+    { label: plain('{{ha}}x + {{hb}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Half the perimeter is one length plus one width, or ${{ha}}x + {{hb}}$.', 'Taking the length off leaves ${{c}}x + {{d}}$.'],
+  answerSummary: { headline: 'Halve the perimeter before removing the length.', text: 'It is ${{c}}x + {{d}}$ wide.' },
+  hint: 'A perimeter counts each side twice.',
+  feedback: 'Taking two lengths off the whole perimeter leaves two widths, not one.',
+});
+
+mkc('A.10A', 'what-cancels-a-squared-term', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'Adding ${{a}}x^2 + {{b}}x + {{c}}$ to a second quadratic leaves no $x^2$ term. What must be true of the second?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 2, max: 16 },
+      c: { type: 'int', min: 2, max: 30 },
+    },
+    constraints: ['a>1'],
+  },
+  choices: [
+    { label: 'Its $x^2$ coefficient is $-{{a}}$.', correct: true },
+    { label: 'Its $x^2$ coefficient is zero.', error: 'partialTotal' },
+    { label: 'Its $x$ coefficient is $-{{b}}$.', error: 'ratioReversed' },
+    { label: 'Its constant is $-{{c}}$.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['Like terms add independently, so only the $x^2$ coefficients decide the $x^2$ term.', 'They cancel when the second is $-{{a}}$.'],
+  answerSummary: { headline: 'Each power settles its own coefficient.', text: 'Its $x^2$ coefficient is $-{{a}}$.' },
+  hint: 'Add the two $x^2$ coefficients and set the total to zero.',
+  feedback: 'A zero coefficient would leave ${{a}}x^2$ standing.',
+});
+
+// ================================================================ A.10B
+// Multiplying polynomials.
+
+mkc('A.10B', 'expand-two-binomials-with-coefficients', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Expand $({{a}}x + {{p}})({{b}}x + {{q}})$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 2, max: 14 },
+      q: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      ab: 'a*b',
+      mid: 'a*q+b*p',
+      pq: 'p*q',
+      midBad: 'a*b+p*q',
+      midDiff: 'a*q-b*p',
+    },
+    constraints: ['a*q!=b*p', 'a*b+p*q!=a*q+b*p', 'a*q-b*p!=a*q+b*p', 'a*q-b*p!=a*b+p*q'],
+  },
+  choices: [
+    { label: plain('{{ab}}x^2 + {{mid}}x + {{pq}}'), correct: true },
+    { label: plain('{{ab}}x^2 + {{pq}}'), error: 'incompleteFactoring' },
+    { label: plain('{{ab}}x^2 + {{midBad}}x + {{pq}}'), error: 'operationInverted' },
+    { label: plain('{{ab}}x^2 + {{midDiff}}x + {{pq}}'), error: 'signError' },
+  ],
+  reasoning: ['The outer and inner products give ${{a}} \\times {{q}}$ and ${{b}} \\times {{p}}$.', 'Adding them gives the middle term ${{mid}}x$.'],
+  answerSummary: { headline: 'Four products, with two of them combining.', text: 'It is ${{ab}}x^2 + {{mid}}x + {{pq}}$.' },
+  hint: 'Multiply every term of the first bracket by every term of the second.',
+  feedback: 'The middle term comes from two cross products, not from the outer coefficients alone.',
+});
+
+mkc('A.10B', 'other-side-of-an-algebraic-rectangle', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A rectangle covers ${{ab}}x^2 + {{mid}}x + {{pq}}$ and one side is ${{a}}x + {{p}}$. What is the other side?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 2, max: 14 },
+      q: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      ab: 'a*b',
+      mid: 'a*q+b*p',
+      pq: 'p*q',
+    },
+    constraints: ['a!=b', 'p!=q', 'b!=q', 'a*b!=p*q'],
+  },
+  choices: [
+    { label: plain('{{b}}x + {{q}}'), correct: true },
+    { label: plain('{{b}}x - {{q}}'), error: 'signError' },
+    { label: plain('{{q}}x + {{b}}'), error: 'ratioReversed' },
+    { label: plain('{{ab}}x + {{pq}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The leading terms multiply to ${{ab}}x^2$, so the other side starts ${{b}}x$.', 'The constants multiply to ${{pq}}$, so it ends $+ {{q}}$.'],
+  answerSummary: { headline: 'Match the leading terms and the constants.', text: 'It is ${{b}}x + {{q}}$.' },
+  hint: 'Divide the leading coefficient and the constant separately.',
+  feedback: 'The whole leading coefficient belongs to both sides together, not to one.',
+});
+
+mkc('A.10B', 'what-a-difference-of-brackets-gives', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'What does $(x + {{p}})(x - {{p}})$ come to?',
+  generator: {
+    parameters: { p: { type: 'int', min: 2, max: 20 } },
+    derived: { p2: 'p*p', twoP: '2*p' },
+    constraints: ['p>1'],
+  },
+  choices: [
+    { label: 'The two $x$ terms cancel, leaving $x^2 - {{p2}}$.', correct: true },
+    { label: 'It comes to $x^2 + {{p2}}$.', error: 'signError' },
+    { label: 'It comes to $x^2 - {{twoP}}x - {{p2}}$.', error: 'partialTotal' },
+    { label: 'It comes to $x^2 - {{p2}}x$.', error: 'operationInverted' },
+  ],
+  reasoning: ['The outer product is $-{{p}}x$ and the inner product is $+{{p}}x$, so they cancel.', 'What is left is $x^2 - {{p2}}$.'],
+  answerSummary: { headline: 'Opposite constants cancel the middle term.', text: 'It is $x^2 - {{p2}}$.' },
+  hint: 'Write out all four products.',
+  feedback: 'The constants multiply to $-{{p2}}$, not to $+{{p2}}$.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
