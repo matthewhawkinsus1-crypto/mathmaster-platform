@@ -1,0 +1,514 @@
+{
+  "standard": "A2.3E",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-student-authored-systems-of-linear-inequalities",
+  "rationale": "A2.3E requires students to formulate systems of inequalities. Fidelity V2 replaces recognition of prewritten systems with student-authored inequality fields across contextual, tabular, half-plane, strict-boundary, and error-analysis representations.",
+  "documents": [
+    {
+      "id": "mm_A2_3E_v2_budget-minimum-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3E:v2-budget-minimum-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3E",
+      "representation": "context",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "modeling",
+      "prompt": "A club buys $x$ items costing {{cx}} dollars each and $y$ items costing {{cy}} dollars each. It may spend at most {{budget}} dollars, must buy at least {{minx}} of item x, and at least {{miny}} of item y. FORMULATE the complete system of inequalities.",
+      "responseFields": [
+        {
+          "id": "budget",
+          "label": "Budget inequality",
+          "inputProfile": "equation",
+          "expected": "{{cx}}x+{{cy}}y<={{budget}}"
+        },
+        {
+          "id": "min-x",
+          "label": "Minimum-x inequality",
+          "inputProfile": "equation",
+          "expected": "x>={{minx}}"
+        },
+        {
+          "id": "min-y",
+          "label": "Minimum-y inequality",
+          "inputProfile": "equation",
+          "expected": "y>={{miny}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Each verbal restriction becomes its own inequality.",
+        "reasoning": [
+          "At most {{budget}} means the spending expression cannot exceed {{budget}}.",
+          "At least {{minx}} and at least {{miny}} create lower bounds on x and y."
+        ],
+        "answerSummary": "${{cx}}x+{{cy}}y\\le {{budget}},\\;x\\ge {{minx}},\\;y\\ge {{miny}}$"
+      },
+      "attemptFeedback": [
+        "Write all three constraints; choosing or stating only the budget restriction is not a complete system."
+      ],
+      "supportHints": [
+        "Translate “at most” as ≤ and “at least” as ≥."
+      ],
+      "generator": {
+        "parameters": {
+          "cx": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "cy": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "minx": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "miny": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "budget": {
+            "type": "int",
+            "min": 40,
+            "max": 120
+          }
+        },
+        "constraints": [
+          "cx*minx+cy*miny <= budget"
+        ]
+      }
+    },
+    {
+      "id": "mm_A2_3E_v2_two-resource-capacities",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3E:v2-two-resource-capacities",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3E",
+      "representation": "context",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "modeling",
+      "prompt": "A shop makes products x and y. One x uses 2 labor units and 1 material unit; one y uses 1 labor unit and 3 material units. The shop has at most {{labor}} labor units and {{material}} material units. Production quantities cannot be negative. Formulate the full system.",
+      "responseFields": [
+        {
+          "id": "labor",
+          "label": "Labor inequality",
+          "inputProfile": "equation",
+          "expected": "2x+y<={{labor}}"
+        },
+        {
+          "id": "material",
+          "label": "Material inequality",
+          "inputProfile": "equation",
+          "expected": "x+3y<={{material}}"
+        },
+        {
+          "id": "nonnegative-x",
+          "label": "Nonnegativity for x",
+          "inputProfile": "equation",
+          "expected": "x>=0"
+        },
+        {
+          "id": "nonnegative-y",
+          "label": "Nonnegativity for y",
+          "inputProfile": "equation",
+          "expected": "y>=0"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Resource limits create coupled inequalities.",
+        "reasoning": [
+          "Labor usage is $2x+y$ and cannot exceed {{labor}}.",
+          "Material usage is $x+3y$ and cannot exceed {{material}}.",
+          "Production counts are nonnegative."
+        ],
+        "answerSummary": "$2x+y\\le {{labor}},\\;x+3y\\le {{material}},\\;x\\ge0,\\;y\\ge0$"
+      },
+      "attemptFeedback": [
+        "Do not replace the two resource constraints with separate caps on x and y; both resources depend on both products."
+      ],
+      "supportHints": [
+        "Multiply each product count by its per-product resource use, then compare the total with the available amount."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "y": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "slack1": {
+            "type": "int",
+            "min": 2,
+            "max": 10
+          },
+          "slack2": {
+            "type": "int",
+            "min": 2,
+            "max": 10
+          }
+        },
+        "derived": {
+          "labor": "2*x+y+slack1",
+          "material": "x+3*y+slack2"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3E_v2_table-half-plane-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3E:v2-table-half-plane-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3E",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "Each row gives a boundary line, a feasible test point, and whether the boundary itself is included. Use the evidence to formulate BOTH inequalities.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Feasible-side evidence",
+        "table": {
+          "headers": [
+            "Boundary",
+            "Test x",
+            "Boundary y",
+            "Feasible y",
+            "Boundary included?"
+          ],
+          "rows": [
+            [
+              "$y={{m1}}x{{b1|signed}}$",
+              "{{x1}}",
+              "{{bound1}}",
+              "{{feas1}}",
+              "Yes"
+            ],
+            [
+              "$y={{m2}}x{{b2|signed}}$",
+              "{{x2}}",
+              "{{bound2}}",
+              "{{feas2}}",
+              "No"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "ineq1",
+          "label": "Inequality from row 1",
+          "inputProfile": "equation",
+          "expected": "y>={{m1}}x{{b1|signed}}"
+        },
+        {
+          "id": "ineq2",
+          "label": "Inequality from row 2",
+          "inputProfile": "equation",
+          "expected": "y<{{m2}}x{{b2|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A test point identifies the half-plane; inclusion decides whether equality is allowed.",
+        "reasoning": [
+          "Row 1's feasible y is above the boundary and the boundary is included, so use ≥.",
+          "Row 2's feasible y is below the boundary and the boundary is excluded, so use <."
+        ],
+        "answerSummary": "$y\\ge {{m1}}x{{b1|signed}},\\;y<{{m2}}x{{b2|signed}}$"
+      },
+      "attemptFeedback": [
+        "Use both the feasible point and the boundary-inclusion column; direction alone does not determine strict versus inclusive."
+      ],
+      "supportHints": [
+        "Above means > or ≥; below means < or ≤. Then use the inclusion column to choose the final symbol."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b1": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "x1": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b2": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "x2": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          }
+        },
+        "derived": {
+          "bound1": "m1*x1+b1",
+          "feas1": "bound1+2",
+          "bound2": "m2*x2+b2",
+          "feas2": "bound2-2"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3E_v2_region-description-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3E:v2-region-description-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3E",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "reverseReasoning",
+      "prompt": "A feasible region is described by ALL of these graph features: on or to the right of the vertical line $x={{a}}$, on or below $y={{m}}x{{b|signed}}$, and strictly above the horizontal line $y={{c}}$. Formulate the three-inequality system.",
+      "stimulus": {
+        "kind": "diagram",
+        "title": "Region description",
+        "note": "Solid boundaries: x={{a}} and y={{m}}x{{b|signed}}. Dashed boundary: y={{c}}. The feasible region is right of the vertical boundary, below the slanted boundary, and above the dashed horizontal boundary."
+      },
+      "responseFields": [
+        {
+          "id": "vertical",
+          "label": "Vertical-boundary inequality",
+          "inputProfile": "equation",
+          "expected": "x>={{a}}"
+        },
+        {
+          "id": "slanted",
+          "label": "Slanted-boundary inequality",
+          "inputProfile": "equation",
+          "expected": "y<={{m}}x{{b|signed}}"
+        },
+        {
+          "id": "horizontal",
+          "label": "Horizontal-boundary inequality",
+          "inputProfile": "equation",
+          "expected": "y>{{c}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Boundary direction and boundary style both belong in the formulation.",
+        "reasoning": [
+          "Right of x={{a}} with a solid boundary gives x≥{{a}}.",
+          "Below the solid slanted line gives y≤{{m}}x{{b|signed}}.",
+          "Above the dashed horizontal boundary gives y>{{c}}."
+        ],
+        "answerSummary": "$x\\ge{{a}},\\;y\\le{{m}}x{{b|signed}},\\;y>{{c}}$"
+      },
+      "attemptFeedback": [
+        "A complete system must encode all three half-plane descriptions."
+      ],
+      "supportHints": [
+        "Solid means equality is included; dashed means it is excluded."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -4,
+            "max": 3
+          },
+          "m": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "c": {
+            "type": "int",
+            "min": -5,
+            "max": 3
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3E_v2_strict-boundary-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3E:v2-strict-boundary-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3E",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A feasible region must be on or above $y={{m1}}x{{b1|signed}}$, strictly below $y={{m2}}x{{b2|signed}}$, and have $x\\ge0$. A student writes the proposed system below. Diagnose the error and then write the COMPLETE corrected system.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's proposed system",
+        "steps": [
+          {
+            "id": "i1",
+            "label": "Constraint 1",
+            "work": "$y\\ge {{m1}}x{{b1|signed}}$"
+          },
+          {
+            "id": "i2",
+            "label": "Constraint 2",
+            "work": "$y\\le {{m2}}x{{b2|signed}}$"
+          },
+          {
+            "id": "i3",
+            "label": "Constraint 3",
+            "work": "$x\\ge0$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "Diagnosis",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "strict",
+              "label": "Constraint 2 must use < because “strictly below” excludes its boundary."
+            },
+            {
+              "id": "reverse1",
+              "label": "Constraint 1 should use ≤."
+            },
+            {
+              "id": "negative",
+              "label": "The x constraint should be x<0."
+            }
+          ],
+          "expected": "strict"
+        },
+        {
+          "id": "ineq1",
+          "label": "Correct constraint 1",
+          "inputProfile": "equation",
+          "expected": "y>={{m1}}x{{b1|signed}}"
+        },
+        {
+          "id": "ineq2",
+          "label": "Correct constraint 2",
+          "inputProfile": "equation",
+          "expected": "y<{{m2}}x{{b2|signed}}"
+        },
+        {
+          "id": "ineq3",
+          "label": "Correct constraint 3",
+          "inputProfile": "equation",
+          "expected": "x>=0"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Repair the strictness without dropping the rest of the system.",
+        "reasoning": [
+          "On or above includes the first boundary, so ≥ is correct.",
+          "Strictly below excludes the second boundary, so the correct symbol is <.",
+          "The nonnegativity restriction x≥0 remains part of the system."
+        ],
+        "answerSummary": "$y\\ge {{m1}}x{{b1|signed}},\\;y<{{m2}}x{{b2|signed}},\\;x\\ge0$"
+      },
+      "attemptFeedback": [
+        "After finding the one bad symbol, still submit every inequality in the corrected system."
+      ],
+      "supportHints": [
+        "The word “strictly” is the clue that equality must not be included."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b1": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "m2": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b2": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    }
+  ]
+}
