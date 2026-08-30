@@ -345,6 +345,11 @@
       },
       "variants": [
         {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
           "coverageKey": "adaptive-d3b3-table-model-cross-check",
           "dok": 3,
           "difficultyBand": 3,
