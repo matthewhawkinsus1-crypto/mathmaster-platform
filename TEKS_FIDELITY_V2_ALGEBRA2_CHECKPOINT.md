@@ -719,6 +719,14 @@ Resume here. Do not reopen A2.2A–A2.7D unless a failing gate names them.
   - keep routine factoring DOK 2 even when algebraically longer; reserve DOK 3 for full error analysis.
 - Generic secure expression grading is sufficient for the factor fields; no new Path tool is required.
 
+### 2026-08-30 — A2.7E staged
+- Staged five A2.7E Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7E.json` — commit `def1ae8c90153bdc0ed84b056c70452594f897a8`.
+- Coverage includes difference of cubes, sum of cubes, cubic factoring by grouping, quartic grouping followed by difference-of-cubes factoring, and complete quartic grouping sign-error repair followed by sum-of-cubes factoring.
+- The required linear and quadratic factors are graded separately rather than inferred from one combined product.
+- Routine factoring remains DOK 2; only complete error repair is DOK 3.
+- Base Algebra II certification run `33331272626`: **PASS**.
+- FIRST UNFINISHED STANDARD remains **A2.7E** until full generated certification is green.
+
 
 ### 2026-08-30 — A2.7D audit finding
 - Official construct: **determine the linear factors of a polynomial function of degree three and of degree four using algebraic methods**.
