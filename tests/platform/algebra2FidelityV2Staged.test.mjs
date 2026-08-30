@@ -4571,3 +4571,123 @@ test('A2.6L requires inverse-variation formulation and solving in every family',
   assert.ok(representations.has('multipleRepresentation'));
   assert.ok(representations.has('verbal'));
 });
+test('A2.7A securely adds subtracts and multiplies complex numbers with standard-form edge cases', async () => {
+  const entry = payload('A2.7A');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /complex-add-subtract-multiply/);
+
+  let generatedCount = 0;
+  let multiplicationFamilies = 0;
+  let errorFamilies = 0;
+  let pureRealFamilies = 0;
+  let pureImagFamilies = 0;
+  let reorderedAnswersAccepted = 0;
+  let wrongAnswersRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    if (doc.id.includes('multiply') || doc.id.includes('conjugate') || doc.taskType === 'errorAnalysis') multiplicationFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+    if (doc.id.includes('pure-real')) pureRealFamilies += 1;
+    if (doc.id.includes('pure-imaginary')) pureImagFamilies += 1;
+
+    const fields = Object.fromEntries((doc.responseFields || []).map((field) => [field.id, field]));
+    assert.ok(fields['real-part'], doc.id + ' must grade the real component');
+    assert.ok(fields['imag-coefficient'], doc.id + ' must grade the imaginary coefficient');
+    assert.ok(fields.answer, doc.id + ' must require a final simplified complex number');
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, doc.id + ' is not production-issuable: ' + issuePlan.reason);
+
+    let reorderChecked = false;
+    let wrongChecked = false;
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, doc.id + ' failed generation: ' + generated.reason);
+      const question = generated.question;
+      const params = generated.parameters || {};
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const qFields = Object.fromEntries((question.responseFields || []).map((field) => [field.id, field]));
+      const re = Number(qFields['real-part']?.expected);
+      const im = Number(qFields['imag-coefficient']?.expected);
+      assert.ok(Number.isFinite(re));
+      assert.ok(Number.isFinite(im));
+
+      if (doc.id.includes('add-components')) {
+        assert.equal(re, Number(params.a) + Number(params.c));
+        assert.equal(im, Number(params.b) + Number(params.d));
+      }
+      if (doc.id.includes('subtract-pure-imaginary')) {
+        assert.equal(re, 0);
+        assert.equal(im, Number(params.b) - Number(params.d));
+        assert.notEqual(im, 0);
+      }
+      if (doc.id.includes('multiply-general')) {
+        assert.equal(re, Number(params.a) * Number(params.c) - Number(params.b) * Number(params.d));
+        assert.equal(im, Number(params.a) * Number(params.d) + Number(params.b) * Number(params.c));
+      }
+      if (doc.id.includes('conjugate-product')) {
+        const product = Number(params.a) * Number(params.a) + Number(params.b) * Number(params.b);
+        assert.equal(Number(qFields['conjugate-product']?.expected), product);
+        assert.equal(re, product - Number(params.c));
+        assert.equal(im, 0);
+      }
+      if (doc.taskType === 'errorAnalysis') {
+        assert.equal(qFields.diagnosis?.expected, 'i-square');
+        assert.equal(Number(params.wrongRe), Number(params.a) * Number(params.c) + Number(params.b) * Number(params.d));
+        assert.equal(re, Number(params.a) * Number(params.c) - Number(params.b) * Number(params.d));
+        assert.equal(im, Number(params.a) * Number(params.d) + Number(params.b) * Number(params.c));
+        assert.notEqual(Number(params.wrongRe), re);
+        assert.equal(doc.dok, 3);
+      } else {
+        assert.equal(doc.dok, 2, doc.id + ' should remain DOK 2 even when computational difficulty is high');
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(correct.isCorrect, true, doc.id + ' failed secure self-acceptance: ' + JSON.stringify(correct.fieldResults));
+
+      if (!reorderChecked) {
+        const reordered = im + '*i+' + re;
+        const result = await gradeResponse(grading, { responses: { ...responses, answer: reordered } });
+        assert.equal(result.isCorrect, true, doc.id + ' rejected equivalent complex term order: ' + reordered);
+        reorderedAnswersAccepted += 1;
+        reorderChecked = true;
+      }
+
+      if (!wrongChecked) {
+        const wrong = (re + 1) + '+(' + im + ')*i';
+        const result = await gradeResponse(grading, { responses: { ...responses, answer: wrong } });
+        assert.equal(result.isCorrect, false, doc.id + ' accepted a changed complex-number component');
+        wrongAnswersRejected += 1;
+        wrongChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: 'qa-' + doc.id + '-' + generatedCount,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(multiplicationFamilies >= 3, 'A2.7A must repeatedly simplify multiplication through i^2=-1');
+  assert.equal(errorFamilies, 1);
+  assert.equal(pureRealFamilies, 1);
+  assert.equal(pureImagFamilies, 1);
+  assert.equal(reorderedAnswersAccepted, entry.documents.length);
+  assert.equal(wrongAnswersRejected, entry.documents.length);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('verbal'));
+});
