@@ -51,12 +51,13 @@ test('A.2C makes students write a complete linear equation in every family', () 
     assert.match(String(doc.responseFields[0].expected), /=/);
   }
   assert.ok(payload('A.2C').documents.some((doc) => doc.representation === 'table'));
+  assert.ok(payload('A.2C').documents.some((doc) => doc.representation === 'graph' && doc.stimulus?.graph?.lines?.length === 1));
   assert.ok(payload('A.2C').documents.some((doc) => doc.taskType === 'errorAnalysis'));
 });
 
 test('A.2H makes students write a two-variable inequality in every family', () => {
   const entry = payload('A.2H');
-  assert.match(entry.certificationStatus, /needs-real-two-variable-graph-family/);
+  assert.match(entry.certificationStatus, /table-graph-verbal-two-variable-inequality-writing/);
   for (const doc of entry.documents) {
     assert.equal(doc.responseFields?.length, 1);
     assert.equal(doc.responseFields[0].inputProfile, 'inequality');
@@ -64,15 +65,20 @@ test('A.2H makes students write a two-variable inequality in every family', () =
     assert.match(expected, /x|y/);
     assert.match(expected, /<=|>=|<|>/);
   }
+  const graphFamily = entry.documents.find((doc) => doc.representation === 'graph');
+  assert.equal(graphFamily?.stimulus?.graph?.lines?.length, 1);
+  assert.equal(graphFamily?.stimulus?.graph?.shading?.length, 1);
 });
 
 test('A.2I requires both equations of the system in every family', () => {
   const entry = payload('A.2I');
-  assert.match(entry.certificationStatus, /needs-real-graph-family/);
+  assert.match(entry.certificationStatus, /table-graph-verbal-system-writing/);
   for (const doc of entry.documents) {
     assert.equal(doc.responseFields?.length, 2);
     assert.ok(doc.responseFields.every((field) => field.inputProfile === 'equation' && String(field.expected).includes('=')));
   }
+  const graphFamily = entry.documents.find((doc) => doc.representation === 'graph');
+  assert.equal(graphFamily?.stimulus?.graph?.lines?.length, 2);
 });
 
 test('A.3D uses real two-variable graph construction in every replacement family', () => {
@@ -204,7 +210,7 @@ test('A.9C makes students write complete exponential equations for growth and de
 test('A.10A-D require complete polynomial-operation expressions rather than component answers', () => {
   for (const code of ['A.10A', 'A.10B', 'A.10C', 'A.10D']) {
     const entry = payload(code);
-    assert.match(entry.certificationStatus, /expanded-expression-grader-integration/);
+    assert.match(entry.certificationStatus, /expanded-polynomial-expression-grading/);
     for (const doc of entry.documents) {
       assert.equal(doc.responseFields?.length, 1);
       assert.equal(doc.responseFields[0].inputProfile, 'expression');
@@ -242,15 +248,17 @@ test('A.11B includes integral and rational exponent laws with complete simplific
   assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /adding the exponents/i.test(doc.prompt)));
 });
 
-test('A.12A uses real mapping/table/ordered-pair evidence and does not certify a missing graph', () => {
+test('A.12A classifies functions across mapping, table, graph, ordered-pair and verbal/context forms', () => {
   const entry = payload('A.12A');
-  assert.match(entry.certificationStatus, /needs-real-graph-family/);
+  assert.match(entry.certificationStatus, /verbal-table-graph-symbolic-function-classification/);
   assert.ok(entry.documents.some((doc) => doc.type === 'relationMapping'));
   assert.ok(entry.documents.some((doc) => doc.representation === 'table' && doc.stimulus?.table?.rows?.length >= 2));
   assert.ok(entry.documents.some((doc) => doc.representation === 'orderedPairs'));
   assert.ok(entry.documents.some((doc) => doc.representation === 'context'));
-  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /repeats/i.test(doc.prompt)));
-  assert.equal(entry.documents.some((doc) => doc.representation === 'graph'), false);
+  const graphFamily = entry.documents.find((doc) => doc.representation === 'graph');
+  assert.ok(graphFamily?.stimulus?.graph?.points?.length >= 3);
+  assert.match(String(graphFamily.prompt), /vertical-line test/i);
+  assert.ok(entry.documents.some((doc) => doc.type === 'relationMapping' && /function/i.test(doc.prompt)));
 });
 
 test('A.12C connects recursive sequences to term-number domain, tables, and discrete graph points', () => {
