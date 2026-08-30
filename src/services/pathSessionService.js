@@ -136,7 +136,7 @@ export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind
   const canonicalKey = toCanonicalKey(targetAlignmentKey);
   if (!canonicalKey) throw new Error('Choose a TEKS standard before starting My Math Path.');
   if (usingMockRuntime()) {
-    const existing = [...mockSessions.values()].find((item) => item.status === 'active' && item.target.alignmentKey === canonicalKey && item.sessionKind === sessionKind && (item.assessmentFramework || null) === (assessmentFramework || null) && (item.weeklySlotKey || null) === (weeklySlotKey || null));
+    const existing = [...mockSessions.values()].find((item) => item.status === 'active' && item.target.alignmentKey === canonicalKey && item.sessionKind === sessionKind && (item.assessmentFramework || null) === (assessmentFramework || null) && (item.coursePracticeIntent || null) === (coursePracticeIntent === 'challenge' ? 'challenge' : null) && (item.weeklySlotKey || null) === (weeklySlotKey || null));
     if (existing) return { success: true, session: clone(existing) };
     const session = {
       sessionId: `path_mock_${generateRuntimeUUID()}`,
