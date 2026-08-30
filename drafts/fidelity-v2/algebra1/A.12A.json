@@ -417,7 +417,7 @@
         "Apply the vertical-line test to the x-values. Sharing a y-value does not violate the function rule."
       ],
       "supportHints": [
-        "A function may send different inputs to the same output. Look for one x-value paired with two different y-values."
+        "Different x-values may share the same y-value. Look only for whether one x-value is paired with two different y-values."
       ],
       "generator": {
         "parameters": {
