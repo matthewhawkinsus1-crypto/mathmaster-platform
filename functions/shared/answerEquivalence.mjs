@@ -422,6 +422,57 @@ export const sameExpandedPolynomialEquation = (left, right, tolerance = 1e-6) =>
   return samePolynomial(one, two, tolerance);
 };
 
+/**
+ * Compare polynomial EQUATIONS as relations rather than as a requested form.
+ *
+ * This is deliberately NOT called by sameValue. It is opt-in from private
+ * grading metadata for constructs such as a parabola equation, where
+ *
+ *   (x-h)^2 = 4p(y-k)
+ *   4p(y-k) = (x-h)^2
+ *   y = (x-h)^2/(4p) + k
+ *
+ * are the same mathematical equation and should all grade the same. Algebra
+ * questions that ask for a specific form keep the existing strict comparators.
+ */
+export const samePolynomialEquationRelation = (left, right, tolerance = 1e-6) => {
+  const relationPolynomial = (value) => {
+    const sides = splitEquationSides(value);
+    if (!sides) return null;
+    const lhs = parsePolynomial(sides.left);
+    const rhs = parsePolynomial(sides.right);
+    if (!lhs || !rhs) return null;
+    if (polynomialDegree(lhs) > 8 || polynomialDegree(rhs) > 8) return null;
+
+    const delta = new Map(lhs);
+    for (const [key, coefficient] of rhs) {
+      delta.set(key, (delta.get(key) || 0) - coefficient);
+    }
+    for (const [key, coefficient] of [...delta.entries()]) {
+      if (Math.abs(coefficient) <= tolerance) delta.delete(key);
+    }
+    return delta.size ? delta : null;
+  };
+
+  const a = relationPolynomial(left);
+  const b = relationPolynomial(right);
+  if (!a || !b) return false;
+
+  const keys = new Set([...a.keys(), ...b.keys()]);
+  let ratio = null;
+  for (const key of keys) {
+    const av = a.get(key) || 0;
+    const bv = b.get(key) || 0;
+    if (Math.abs(av) <= tolerance && Math.abs(bv) <= tolerance) continue;
+    if (Math.abs(av) <= tolerance || Math.abs(bv) <= tolerance) return false;
+    const current = bv / av;
+    if (!Number.isFinite(current) || Math.abs(current) <= tolerance) return false;
+    if (ratio === null) ratio = current;
+    else if (Math.abs(current - ratio) > tolerance * Math.max(1, Math.abs(ratio))) return false;
+  }
+  return ratio !== null;
+};
+
 const dedupeEquivalent = (values, tolerance) => {
   const unique = [];
   values.forEach((value) => {
