@@ -1470,6 +1470,3212 @@
       }
     },
     {
+      "id": "mm_A_10E_v2_area-side-from-trinomial",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10E:v2-area-side-from-trinomial",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10E",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A rectangle has area $x^2{{sum|signed}}x{{prod|signed}}$. Factor the area polynomial to write the two side-length expressions.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "(x{{p|signed}})(x{{q|signed}})",
+          "accepted": [
+            "(x{{q|signed}})(x{{p|signed}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Factoring an area polynomial recovers possible side lengths.",
+        "reasoning": [
+          "Find constants that add to {{sum}} and multiply to {{prod}}.",
+          "The resulting side factors are $x{{p|signed}}$ and $x{{q|signed}}$."
+        ],
+        "answerSummary": "$(x{{p|signed}})(x{{q|signed}})$"
+      },
+      "attemptFeedback": [
+        "Use the area coefficients to recover the two binomial side lengths."
+      ],
+      "supportHints": [
+        "Multiply your two side expressions to check the area."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": 1,
+            "max": 10
+          },
+          "q": {
+            "type": "int",
+            "min": 1,
+            "max": 10
+          }
+        },
+        "derived": {
+          "sum": "p+q",
+          "prod": "p*q"
+        },
+        "constraints": [
+          "p != q"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10E_v2_error-sign-pair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10E:v2-error-sign-pair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10E",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student factors $x^2{{sum|signed}}x{{prod|signed}}$ as $(x{{wrongp|signed}})(x{{wrongq|signed}})$. The product of the constants is correct, but their sum has the wrong sign. Correct the factorization.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "(x{{p|signed}})(x{{q|signed}})",
+          "accepted": [
+            "(x{{q|signed}})(x{{p|signed}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The constant product alone is not enough; the middle-term sum must also match.",
+        "reasoning": [
+          "Positive {{prod}} allows two positive or two negative constants.",
+          "Because the middle coefficient {{sum}} is negative, both factor constants must be negative."
+        ],
+        "answerSummary": "$(x{{p|signed}})(x{{q|signed}})$"
+      },
+      "attemptFeedback": [
+        "Check both the product and the sum of the factor constants."
+      ],
+      "supportHints": [
+        "The sign of the middle term tells which same-sign pair to use."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "p": "-a",
+          "q": "-b",
+          "wrongp": "a",
+          "wrongq": "b",
+          "sum": "p+q",
+          "prod": "p*q"
+        },
+        "constraints": [
+          "a != b"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10E_v2_factor-monic-trinomial",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10E:v2-factor-monic-trinomial",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10E",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Factor $x^2{{sum|signed}}x{{prod|signed}}$ completely.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "(x{{p|signed}})(x{{q|signed}})",
+          "accepted": [
+            "(x{{q|signed}})(x{{p|signed}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Find two numbers whose sum is the middle coefficient and whose product is the constant.",
+        "reasoning": [
+          "The needed numbers are {{p}} and {{q}} because they add to {{sum}} and multiply to {{prod}}.",
+          "Those numbers become the constants in the two binomial factors."
+        ],
+        "answerSummary": "$(x{{p|signed}})(x{{q|signed}})$"
+      },
+      "attemptFeedback": [
+        "Use the sum-and-product conditions together."
+      ],
+      "supportHints": [
+        "Check your factors by multiplying them."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          },
+          "q": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "sum": "p+q",
+          "prod": "p*q"
+        },
+        "constraints": [
+          "p != q",
+          "p+q != 0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10E_v2_factor-perfect-square",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10E:v2-factor-perfect-square",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10E",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "Factor the perfect-square trinomial $x^2{{mid|signed}}x+{{sq}}$ completely.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "(x{{p|signed}})^2"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Recognize the perfect-square structure.",
+        "reasoning": [
+          "The constant {{sq}} is ${{p}}^2$.",
+          "The middle coefficient {{mid}} is twice {{p}}, so the same binomial factor appears twice."
+        ],
+        "answerSummary": "$(x{{p|signed}})^2$"
+      },
+      "attemptFeedback": [
+        "Check whether the middle term is twice the square-root contribution."
+      ],
+      "supportHints": [
+        "A perfect-square trinomial has the pattern $x^2+2px+p^2$."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "mid": "2*p",
+          "sq": "p*p"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10E_v2_reverse-factor-from-root-structure",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10E:v2-reverse-factor-from-root-structure",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10E",
+      "taskType": "representationTranslation",
+      "representation": "verbal",
+      "prompt": "A monic quadratic has zeros ${{r1}}$ and ${{r2}}$. Write its complete factored expression in $x$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "(x{{p|signed}})(x{{q|signed}})",
+          "accepted": [
+            "(x{{q|signed}})(x{{p|signed}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A zero becomes the opposite constant in its linear factor.",
+        "reasoning": [
+          "A zero {{r1}} corresponds to factor $x{{p|signed}}$.",
+          "A zero {{r2}} corresponds to factor $x{{q|signed}}$; multiply the factors only if you want to check."
+        ],
+        "answerSummary": "$(x{{p|signed}})(x{{q|signed}})$"
+      },
+      "attemptFeedback": [
+        "Translate each zero into a factor before combining them."
+      ],
+      "supportHints": [
+        "If $x=r$ makes a factor zero, that factor is $x-r$."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "r2": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "p": "-r1",
+          "q": "-r2"
+        },
+        "constraints": [
+          "r1 != r2"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10F_v2_area-difference-squares",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10F:v2-area-difference-squares",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10F",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A square courtyard has side length $x$ and a square fountain has side length {{a}}. The remaining area is $x^2-{{sq}}$. Factor this area expression completely.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "(x-{{a}})(x+{{a}})",
+          "accepted": [
+            "(x+{{a}})(x-{{a}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The area difference is literally a difference of two square areas.",
+        "reasoning": [
+          "The courtyard area is $x^2$ and the fountain area is ${{a}}^2={{sq}}$.",
+          "Their difference factors using the difference-of-squares identity."
+        ],
+        "answerSummary": "$(x-{{a}})(x+{{a}})$"
+      },
+      "attemptFeedback": [
+        "Recognize both area terms as perfect squares."
+      ],
+      "supportHints": [
+        "Use $u^2-v^2=(u-v)(u+v)$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          }
+        },
+        "derived": {
+          "sq": "a*a"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10F_v2_error-repeated-binomial",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10F:v2-error-repeated-binomial",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10F",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student factors $x^2-{{sq}}$ as $(x-{{a}})^2$. Correct the student's factorization.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "(x-{{a}})(x+{{a}})",
+          "accepted": [
+            "(x+{{a}})(x-{{a}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A difference of squares uses conjugates, not a repeated binomial.",
+        "reasoning": [
+          "$(x-{{a}})^2$ would create a middle term, so it cannot equal $x^2-{{sq}}$.",
+          "Opposite signs cancel the middle terms in $(x-{{a}})(x+{{a}})$."
+        ],
+        "answerSummary": "$(x-{{a}})(x+{{a}})$"
+      },
+      "attemptFeedback": [
+        "Multiply the student's factors and look for the unwanted middle term."
+      ],
+      "supportHints": [
+        "Conjugates cancel their middle terms."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 14
+          }
+        },
+        "derived": {
+          "sq": "a*a"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10F_v2_factor-basic-difference-squares",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10F:v2-factor-basic-difference-squares",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10F",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Factor the difference of squares $x^2-{{sq}}$ completely.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "(x-{{a}})(x+{{a}})",
+          "accepted": [
+            "(x+{{a}})(x-{{a}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A difference of squares factors into conjugates.",
+        "reasoning": [
+          "${{sq}}={{a}}^2$, so the expression is $x^2-{{a}}^2$.",
+          "Apply $u^2-v^2=(u-v)(u+v)$."
+        ],
+        "answerSummary": "$(x-{{a}})(x+{{a}})$"
+      },
+      "attemptFeedback": [
+        "Identify the square root of each squared term."
+      ],
+      "supportHints": [
+        "The two factors have the same terms with opposite signs."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          }
+        },
+        "derived": {
+          "sq": "a*a"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10F_v2_factor-coefficient-difference-squares",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10F:v2-factor-coefficient-difference-squares",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10F",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "Factor ${{Asq}}x^2-{{Bsq}}$ completely as a difference of squares.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "({{A}}x-{{B}})({{A}}x+{{B}})",
+          "accepted": [
+            "({{A}}x+{{B}})({{A}}x-{{B}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Take the square root of each term before forming conjugates.",
+        "reasoning": [
+          "${{Asq}}x^2=({{A}}x)^2$ and ${{Bsq}}={{B}}^2$.",
+          "Because {{A}} and {{B}} are consecutive integers, they share no common factor greater than 1, so the conjugates are completely factored.",
+          "Use $({{A}}x-{{B}})({{A}}x+{{B}})$."
+        ],
+        "answerSummary": "$({{A}}x-{{B}})({{A}}x+{{B}})$"
+      },
+      "attemptFeedback": [
+        "Rewrite each term as a square first."
+      ],
+      "supportHints": [
+        "The factors must be conjugates, and no extra numerical GCF remains."
+      ],
+      "generator": {
+        "parameters": {
+          "A": {
+            "type": "int",
+            "min": 2,
+            "max": 11
+          }
+        },
+        "derived": {
+          "B": "A+1",
+          "Asq": "A*A",
+          "Bsq": "B*B"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10F_v2_reverse-conjugates-to-factor",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10F:v2-reverse-conjugates-to-factor",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10F",
+      "taskType": "representationTranslation",
+      "representation": "verbal",
+      "prompt": "An expression has the form $u^2-v^2$ with $u={{A}}x$ and $v={{B}}$, where {{A}} and {{B}} are consecutive positive integers. Write the complete factorization in $x$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "({{A}}x-{{B}})({{A}}x+{{B}})",
+          "accepted": [
+            "({{A}}x+{{B}})({{A}}x-{{B}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Translate the abstract identity into the supplied algebraic quantities.",
+        "reasoning": [
+          "Substitute $u={{A}}x$ and $v={{B}}$ into $(u-v)(u+v)$.",
+          "Consecutive integers are coprime, so no numerical GCF remains to factor from both conjugates."
+        ],
+        "answerSummary": "$({{A}}x-{{B}})({{A}}x+{{B}})$"
+      },
+      "attemptFeedback": [
+        "Substitute the entire expressions for $u$ and $v$ into the identity."
+      ],
+      "supportHints": [
+        "One factor subtracts $v$ and the other adds it."
+      ],
+      "generator": {
+        "parameters": {
+          "A": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          }
+        },
+        "derived": {
+          "B": "A+1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_11A_v2_add-like-radicals",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.11A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.11A:v2-add-like-radicals",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.11A",
+      "taskType": "application",
+      "representation": "symbolic",
+      "prompt": "Simplify $\\sqrt{{{n1}}}+\\sqrt{{{n2}}}$ completely.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified expression",
+          "inputProfile": "expression",
+          "expected": "{{sum}}sqrt({{r}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Simplify each radical before combining like radicals.",
+        "reasoning": [
+          "The first radical becomes ${{a}}\\sqrt{{{r}}}$ and the second becomes ${{b}}\\sqrt{{{r}}}$.",
+          "Because the remaining radicals match, add the coefficients: {{a}}+{{b}}={{sum}}."
+        ],
+        "answerSummary": "${{sum}}\\sqrt{{{r}}}$"
+      },
+      "attemptFeedback": [
+        "Simplify both square roots first; only then decide whether they are like radicals."
+      ],
+      "supportHints": [
+        "Like radicals have the same simplified radicand."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 7,
+            "exclude": [
+              4
+            ]
+          }
+        },
+        "derived": {
+          "n1": "a*a*r",
+          "n2": "b*b*r",
+          "sum": "a+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_11A_v2_coefficient-times-radical",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.11A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.11A:v2-coefficient-times-radical",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.11A",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "The coefficient {{c}} is already outside the radical. Simplify ${{c}}\\sqrt{{{n}}}$ completely.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified radical",
+          "inputProfile": "expression",
+          "expected": "{{ck}}sqrt({{r}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Simplify the radical, then multiply outside coefficients.",
+        "reasoning": [
+          "$\\sqrt{{{n}}}={{k}}\\sqrt{{{r}}}$ because {{n}}={{k2}}\\cdot{{r}}.",
+          "Multiply the outside coefficient {{c}} by {{k}} to get {{ck}}."
+        ],
+        "answerSummary": "${{ck}}\\sqrt{{{r}}}$"
+      },
+      "attemptFeedback": [
+        "Do not forget to multiply the extracted square root by the coefficient already outside."
+      ],
+      "supportHints": [
+        "Simplify the square root first, then combine outside factors."
+      ],
+      "generator": {
+        "parameters": {
+          "c": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 7,
+            "exclude": [
+              4
+            ]
+          }
+        },
+        "derived": {
+          "k2": "k*k",
+          "n": "k2*r",
+          "ck": "c*k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_11A_v2_difference-like-radicals",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.11A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.11A:v2-difference-like-radicals",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.11A",
+      "taskType": "reverseReasoning",
+      "representation": "symbolic",
+      "prompt": "Simplify $\\sqrt{{{n1}}}-\\sqrt{{{n2}}}$ completely. The two radicals do not look alike at first.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified expression",
+          "inputProfile": "expression",
+          "expected": "{{diff}}sqrt({{r}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Hidden like radicals appear after simplification.",
+        "reasoning": [
+          "The radicals simplify to ${{a}}\\sqrt{{{r}}}$ and ${{b}}\\sqrt{{{r}}}$.",
+          "Subtract the coefficients to get {{diff}} while keeping the common radical factor."
+        ],
+        "answerSummary": "${{diff}}\\sqrt{{{r}}}$"
+      },
+      "attemptFeedback": [
+        "Simplify each radical separately before subtracting."
+      ],
+      "supportHints": [
+        "Different original radicands can reduce to the same square-free radicand."
+      ],
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "gap": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 7,
+            "exclude": [
+              4
+            ]
+          }
+        },
+        "derived": {
+          "a": "b+gap",
+          "n1": "a*a*r",
+          "n2": "b*b*r",
+          "diff": "gap"
+        }
+      }
+    },
+    {
+      "id": "mm_A_11A_v2_error-partial-extraction",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.11A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.11A:v2-error-partial-extraction",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.11A",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student simplifies $\\sqrt{{{n}}}$ as ${{wrong}}\\sqrt{{{inside}}}$ by extracting only part of the available perfect-square factor. Write the expression in completely simplified radical form.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct simplified radical",
+          "inputProfile": "expression",
+          "expected": "{{k}}sqrt({{r}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A radical is not fully simplified while another square factor remains inside.",
+        "reasoning": [
+          "The student's radicand {{inside}} still contains the square factor {{leftSquare}}.",
+          "Extracting that factor gives the complete simplification ${{k}}\\sqrt{{{r}}}$."
+        ],
+        "answerSummary": "${{k}}\\sqrt{{{r}}}$"
+      },
+      "attemptFeedback": [
+        "Check whether the number left inside the radical still has a perfect-square factor greater than 1."
+      ],
+      "supportHints": [
+        "Continue extracting square factors until the remaining radicand is square-free."
+      ],
+      "generator": {
+        "parameters": {
+          "u": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "v": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 7,
+            "exclude": [
+              4
+            ]
+          }
+        },
+        "derived": {
+          "wrong": "u",
+          "leftSquare": "v*v",
+          "inside": "leftSquare*r",
+          "k": "u*v",
+          "n": "u*u*inside"
+        }
+      }
+    },
+    {
+      "id": "mm_A_11A_v2_extract-square-factor",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.11A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.11A:v2-extract-square-factor",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.11A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Simplify $\\sqrt{{{n}}}$ completely.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified radical",
+          "inputProfile": "expression",
+          "expected": "{{k}}sqrt({{r}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Extract the greatest perfect-square factor.",
+        "reasoning": [
+          "Write {{n}} as ${{k2}}\\cdot{{r}}$, where {{k2}} is a perfect square.",
+          "$\\sqrt{{{k2}}}={{k}}$, leaving $\\sqrt{{{r}}}$ inside the radical."
+        ],
+        "answerSummary": "${{k}}\\sqrt{{{r}}}$"
+      },
+      "attemptFeedback": [
+        "Look for the largest perfect-square factor of the radicand."
+      ],
+      "supportHints": [
+        "A square factor can leave the radical as its positive square root."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 7,
+            "exclude": [
+              4
+            ]
+          }
+        },
+        "derived": {
+          "k2": "k*k",
+          "n": "k2*r"
+        }
+      }
+    },
+    {
+      "id": "mm_A_11B_v2_add-rational-exponents",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.11B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.11B:v2-add-rational-exponents",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.11B",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "Simplify $x^({{p}}/{{q}})\\cdot x^({{r}}/{{q}})$ completely.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified expression",
+          "inputProfile": "expression",
+          "expected": "x^{{k}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The product rule applies to rational exponents too.",
+        "reasoning": [
+          "Add the exponents because the bases match: ${{p}}/{{q}}+{{r}}/{{q}}=({{p}}+{{r}})/{{q}}$.",
+          "The numerator sum is {{total}}, which is {{k}} groups of {{q}}, so the exponent simplifies to {{k}}."
+        ],
+        "answerSummary": "$x^{{k}}$"
+      },
+      "attemptFeedback": [
+        "Add the rational exponents before simplifying the resulting fraction."
+      ],
+      "supportHints": [
+        "The common denominator stays {{q}} when the numerators are added."
+      ],
+      "generator": {
+        "parameters": {
+          "q": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "p": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "total": "q*k",
+          "r": "total-p"
+        },
+        "constraints": [
+          "p < total",
+          "r > 0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_11B_v2_error-power-of-power-rational",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.11B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.11B:v2-error-power-of-power-rational",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.11B",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student simplifies $(x^({{p}}/{{q}}))^{{q}}$ by ADDING the exponents and writes $x^({{p}}/{{q}}+{{q}})$. Correct the student's work with the simplified expression.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified expression",
+          "inputProfile": "expression",
+          "expected": "x^{{p}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "For a power raised to a power, multiply the exponents.",
+        "reasoning": [
+          "The outer exponent {{q}} multiplies the inner exponent {{p}}/{{q}}.",
+          "$({{p}}/{{q}})\\cdot{{q}}={{p}}$, so the simplified expression is $x^{{p}}$."
+        ],
+        "answerSummary": "$x^{{p}}$"
+      },
+      "attemptFeedback": [
+        "Identify which exponent law applies to a power raised to another power."
+      ],
+      "supportHints": [
+        "$(x^m)^n=x^{mn}$, not $x^{m+n}$."
+      ],
+      "generator": {
+        "parameters": {
+          "q": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "p": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          }
+        },
+        "constraints": [
+          "p != q"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_11B_v2_numeric-rational-exponent",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.11B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.11B:v2-numeric-rational-exponent",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.11B",
+      "taskType": "application",
+      "representation": "symbolic",
+      "prompt": "Evaluate ${{base}}^({{p}}/{{q}})$ exactly.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Exact value",
+          "inputProfile": "number",
+          "expected": "{{value}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A rational exponent combines a root and a power.",
+        "reasoning": [
+          "Because ${{base}}={{root}}^{{q}}$, the ${{q}}$th root of {{base}} is {{root}}.",
+          "Raise that root to the {{p}} power to get {{value}}."
+        ],
+        "answerSummary": "${{value}}$"
+      },
+      "attemptFeedback": [
+        "Interpret the denominator of the exponent as the root and the numerator as the power."
+      ],
+      "supportHints": [
+        "$a^{m/n}=(\\sqrt[n]{a})^m$."
+      ],
+      "generator": {
+        "parameters": {
+          "root": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "q": {
+            "type": "int",
+            "min": 2,
+            "max": 3
+          },
+          "p": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "base": "pow(root,q)",
+          "value": "pow(root,p)"
+        }
+      }
+    },
+    {
+      "id": "mm_A_11B_v2_product-integral-powers",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.11B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.11B:v2-product-integral-powers",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.11B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Simplify $x^{{a}}\\cdot x^{{b}}$ completely.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified expression",
+          "inputProfile": "expression",
+          "expected": "x^{{e}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Multiply like bases by adding exponents.",
+        "reasoning": [
+          "The base is the same in both factors, so add the exponents.",
+          "${{a}}+{{b}}={{e}}$, giving $x^{{e}}$."
+        ],
+        "answerSummary": "$x^{{e}}$"
+      },
+      "attemptFeedback": [
+        "Keep the base and combine the exponents using the product rule."
+      ],
+      "supportHints": [
+        "For the same nonzero base, $x^m x^n=x^{m+n}$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "e": "a+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_11B_v2_quotient-negative-to-positive",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.11B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.11B:v2-quotient-negative-to-positive",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.11B",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "Simplify $x^{{a}}/x^{{b}}$ and write the answer using POSITIVE exponents only.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified expression",
+          "inputProfile": "expression",
+          "expected": "1/x^{{k}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A negative exponent can be rewritten as a reciprocal with a positive exponent.",
+        "reasoning": [
+          "The quotient rule gives exponent ${{a}}-{{b}}=-{{k}}$.",
+          "Rewrite $x^{-{{k}}}$ as $1/x^{{k}}$."
+        ],
+        "answerSummary": "$1/x^{{k}}$"
+      },
+      "attemptFeedback": [
+        "Subtract the denominator exponent from the numerator exponent, then remove any negative exponent."
+      ],
+      "supportHints": [
+        "$x^{-n}=1/x^n$ for nonzero $x$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "gap": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          }
+        },
+        "derived": {
+          "b": "a+gap",
+          "k": "gap"
+        }
+      }
+    },
+    {
+      "id": "mm_A_12A_v2_context-one-input-two-outputs",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12A:v2-context-one-input-two-outputs",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12A",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A school relation uses student ID as the input and assigned locker number as the output. ID {{id}} is recorded with locker {{locker1}} and also locker {{locker2}}. Under this rule, is the recorded relation a function? Enter FUNCTION or NOT A FUNCTION.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Classification",
+          "inputProfile": "text",
+          "expected": "not a function"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The meaning of input and output matters in context too.",
+        "reasoning": [
+          "The same student ID {{id}} is one input.",
+          "It is paired with two different locker outputs, so this recorded relation fails the definition of a function."
+        ],
+        "answerSummary": "NOT A FUNCTION"
+      },
+      "attemptFeedback": [
+        "Identify exactly what quantity is serving as the input."
+      ],
+      "supportHints": [
+        "Ask whether one student ID receives more than one output in the relation."
+      ],
+      "generator": {
+        "parameters": {
+          "id": {
+            "type": "int",
+            "min": 100,
+            "max": 999
+          },
+          "locker1": {
+            "type": "int",
+            "min": 10,
+            "max": 80
+          },
+          "locker2": {
+            "type": "int",
+            "min": 10,
+            "max": 80
+          }
+        },
+        "constraints": [
+          "locker1 != locker2"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_12A_v2_error-repeated-output",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12A:v2-error-repeated-output",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Use the displayed graph and the vertical-line test to classify the relation. Enter FUNCTION or NOT A FUNCTION.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Classification",
+          "inputProfile": "text",
+          "expected": "function"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A repeated output does not make a relation fail the vertical-line test.",
+        "reasoning": [
+          "The plotted inputs {{x1}}, {{x2}}, and {{x3}} are all different, even though two points share output {{y}}.",
+          "No vertical line hits more than one plotted point, so each input has exactly one output."
+        ],
+        "answerSummary": "FUNCTION"
+      },
+      "attemptFeedback": [
+        "Move an imaginary vertical line from left to right and check whether it ever hits two points at the same $x$-value."
+      ],
+      "supportHints": [
+        "Functions may repeat outputs; the problem is one input paired with two different outputs."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -8,
+            "max": -3
+          },
+          "x2": {
+            "type": "int",
+            "min": -2,
+            "max": 2
+          },
+          "x3": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          },
+          "y": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "z": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        },
+        "constraints": [
+          "z != y"
+        ]
+      },
+      "stimulus": {
+        "kind": "graph",
+        "title": "Relation on a coordinate plane",
+        "graph": {
+          "xMin": -9,
+          "xMax": 9,
+          "yMin": -8,
+          "yMax": 8,
+          "ariaLabel": "Discrete relation shown as plotted points",
+          "points": [
+            {
+              "x": "{{x1}}",
+              "y": "{{y}}"
+            },
+            {
+              "x": "{{x2}}",
+              "y": "{{y}}"
+            },
+            {
+              "x": "{{x3}}",
+              "y": "{{z}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "mm_A_12A_v2_mapping-nonfunction",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12A:v2-mapping-nonfunction",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12A",
+      "taskType": "conceptual",
+      "representation": "orderedPairs",
+      "type": "relationMapping",
+      "prompt": "Use the mapping to decide whether the relation is a function.",
+      "pairs": [
+        {
+          "x": "{{x}}",
+          "y": "{{y1}}"
+        },
+        {
+          "x": "{{x}}",
+          "y": "{{y2}}"
+        },
+        {
+          "x": "{{x2}}",
+          "y": "{{y3}}"
+        }
+      ],
+      "ask": [
+        "isFunction"
+      ],
+      "solutionReview": {
+        "headline": "A function cannot send one input to two different outputs.",
+        "reasoning": [
+          "The input {{x}} is paired with both {{y1}} and {{y2}}.",
+          "Because those outputs are different, the relation is not a function."
+        ],
+        "answerSummary": "The relation is not a function."
+      },
+      "attemptFeedback": [
+        "Trace each input and count how many different outputs it reaches."
+      ],
+      "supportHints": [
+        "Repeated outputs are allowed; one repeated INPUT with different outputs is the problem."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "x2": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "y1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "y2": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "y3": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "constraints": [
+          "x2 != x",
+          "y2 != y1"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_12A_v2_ordered-pairs-nonfunction",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12A:v2-ordered-pairs-nonfunction",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12A",
+      "taskType": "representationTranslation",
+      "representation": "orderedPairs",
+      "prompt": "The relation is shown as ordered pairs. Enter FUNCTION or NOT A FUNCTION.",
+      "stimulus": {
+        "kind": "orderedPairs",
+        "orderedPairs": [
+          {
+            "x": "{{x1}}",
+            "y": "{{y1}}"
+          },
+          {
+            "x": "{{x2}}",
+            "y": "{{y2}}"
+          },
+          {
+            "x": "{{x1}}",
+            "y": "{{y3}}"
+          },
+          {
+            "x": "{{x4}}",
+            "y": "{{y4}}"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Classification",
+          "inputProfile": "text",
+          "expected": "not a function"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The same first coordinate cannot have two different second coordinates in a function.",
+        "reasoning": [
+          "The input {{x1}} appears in two ordered pairs.",
+          "Its outputs {{y1}} and {{y3}} are different, so the relation is not a function."
+        ],
+        "answerSummary": "NOT A FUNCTION"
+      },
+      "attemptFeedback": [
+        "Compare first coordinates before comparing outputs."
+      ],
+      "supportHints": [
+        "Find any input that occurs more than once with different outputs."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "x2": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "x4": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "y1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "y2": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "y3": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "y4": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "constraints": [
+          "x2 != x1",
+          "x4 != x1",
+          "x4 != x2",
+          "y3 != y1"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_12A_v2_table-function",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12A:v2-table-function",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12A",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table represents a relation. Enter FUNCTION or NOT A FUNCTION.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Input $x$",
+            "Output $y$"
+          ],
+          "rows": [
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ],
+            [
+              "{{x3}}",
+              "{{y3}}"
+            ],
+            [
+              "{{x4}}",
+              "{{y4}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Classification",
+          "inputProfile": "text",
+          "expected": "function"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Check inputs, not whether outputs repeat.",
+        "reasoning": [
+          "The four input values are all distinct.",
+          "Each input therefore has exactly one listed output, so the relation is a function even if some outputs repeat."
+        ],
+        "answerSummary": "FUNCTION"
+      },
+      "attemptFeedback": [
+        "Look down the input column for an input paired with two different outputs."
+      ],
+      "supportHints": [
+        "Different inputs are allowed to share the same output."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -8,
+            "max": -5
+          },
+          "x2": {
+            "type": "int",
+            "min": -4,
+            "max": -1
+          },
+          "x3": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "x4": {
+            "type": "int",
+            "min": 5,
+            "max": 8
+          },
+          "y1": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "y2": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "y3": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "y4": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_12B_v2_composition-input-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12B:v2-composition-input-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12B",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student evaluates $f({{x}}+{{h}})$ for $f(x)={{m}}x{{b|signed}}$ by substituting only {{x}} and ignoring the +{{h}}. What is the correct value of $f({{x}}+{{h}})$?",
+      "solutionReview": {
+        "headline": "The complete expression inside the parentheses is the input.",
+        "reasoning": [
+          "First combine the input: {{x}}+{{h}}={{input}}.",
+          "Substitute {{input}} everywhere $x$ appears to obtain {{y}}."
+        ],
+        "answerSummary": "{{y}}"
+      },
+      "attemptFeedback": [
+        "Treat everything inside the function's parentheses as the input and substitute it everywhere the variable appears."
+      ],
+      "supportHints": [
+        "Function notation is substitution: first identify the complete input, then evaluate the rule at that input."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          },
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          }
+        },
+        "derived": {
+          "input": "x+h",
+          "y": "m*input+b"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{y}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12B_v2_evaluate-linear",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12B:v2-evaluate-linear",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "If $f(x)={{m}}x {{b|signed}}$, find $f({{x}})$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Function notation tells which input to substitute.",
+          "Replace $x$ with {{x}} and simplify."
+        ],
+        "answerSummary": "$f({{x}})={{y}}$"
+      },
+      "attemptFeedback": [
+        "Treat everything inside the function's parentheses as the input and substitute it everywhere the variable appears."
+      ],
+      "supportHints": [
+        "Function notation is substitution: first identify the complete input, then evaluate the rule at that input."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "x": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        },
+        "derived": {
+          "y": "m*x+b"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{y}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12B_v2_evaluate-negative-input",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12B:v2-evaluate-negative-input",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12B",
+      "taskType": "transfer",
+      "representation": "symbolic",
+      "prompt": "If $g(x)={{m}}x{{b|signed}}$, evaluate $g(-{{x}})$.",
+      "solutionReview": {
+        "headline": "A negative input must be substituted with its sign intact.",
+        "reasoning": [
+          "The requested input is $-{{x}}$, not {{x}}.",
+          "Substitute $x=-{{x}}$ into the rule and simplify to get {{y}}."
+        ],
+        "answerSummary": "{{y}}"
+      },
+      "attemptFeedback": [
+        "Treat everything inside the function's parentheses as the input and substitute it everywhere the variable appears."
+      ],
+      "supportHints": [
+        "Function notation is substitution: first identify the complete input, then evaluate the rule at that input."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "negx": "-x",
+          "y": "m*negx+b"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Value",
+          "inputProfile": "number",
+          "expected": "{{y}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12B_v2_evaluate-quadratic",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12B:v2-evaluate-quadratic",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "If $g(x)={{a}}x^2 {{b|signed}}x {{c|signed}}$, find $g({{x}})$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Substitute the requested input everywhere $x$ appears.",
+          "Evaluate the square before multiplying and combining terms."
+        ],
+        "answerSummary": "$g({{x}})={{y}}$"
+      },
+      "attemptFeedback": [
+        "Treat everything inside the function's parentheses as the input and substitute it everywhere the variable appears."
+      ],
+      "supportHints": [
+        "Function notation is substitution: first identify the complete input, then evaluate the rule at that input."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "c": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "y": "a*x*x+b*x+c"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{y}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12B_v2_fare-context",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12B:v2-fare-context",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12B",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A fare is $f(m)={{rate}}m+{{fee}}$. Find $f({{miles}})$ and interpret it as the fare for {{miles}} miles.",
+      "solutionReview": {
+        "headline": "Function evaluation substitutes the stated input into the model.",
+        "reasoning": [
+          "Replace $m$ with {{miles}} in $f(m)={{rate}}m+{{fee}}$.",
+          "The resulting fare is {{total}}."
+        ],
+        "answerSummary": "$f({{miles}})={{total}}$"
+      },
+      "attemptFeedback": [
+        "Treat everything inside the function's parentheses as the input and substitute it everywhere the variable appears."
+      ],
+      "supportHints": [
+        "Function notation is substitution: first identify the complete input, then evaluate the rule at that input."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "fee": {
+            "type": "int",
+            "min": 3,
+            "max": 15
+          },
+          "miles": {
+            "type": "int",
+            "min": 2,
+            "max": 20
+          }
+        },
+        "derived": {
+          "total": "rate*miles+fee"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Fare",
+          "inputProfile": "number",
+          "expected": "{{total}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12C_v2_arithmetic-recursive-terms",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12C:v2-arithmetic-recursive-terms",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12C",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "An arithmetic sequence begins ${{a1}}, {{a2}}, {{a3}}, ...$. The recursive rule adds the same amount each time. Write the next two terms.",
+      "responseFields": [
+        {
+          "id": "term4",
+          "label": "4th term",
+          "inputProfile": "number",
+          "expected": "{{a4}}"
+        },
+        {
+          "id": "term5",
+          "label": "5th term",
+          "inputProfile": "number",
+          "expected": "{{a5}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A recursive arithmetic sequence repeats one common difference.",
+        "reasoning": [
+          "The difference between consecutive terms is {{d}}.",
+          "Add {{d}} to each term to obtain {{a4}} and then {{a5}}."
+        ],
+        "answerSummary": "The next two terms are {{a4}} and {{a5}}."
+      },
+      "attemptFeedback": [
+        "Compare consecutive terms before extending the sequence."
+      ],
+      "supportHints": [
+        "Arithmetic means add the same common difference each time."
+      ],
+      "generator": {
+        "parameters": {
+          "a1": {
+            "type": "int",
+            "min": -12,
+            "max": 20
+          },
+          "d": {
+            "type": "int",
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "a2": "a1+d",
+          "a3": "a1+2*d",
+          "a4": "a1+3*d",
+          "a5": "a1+4*d"
+        }
+      }
+    },
+    {
+      "id": "mm_A_12C_v2_error-term-number-as-value",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12C:v2-error-term-number-as-value",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12C",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A sequence begins ${{a1}}, {{a2}}, {{a3}}, ...$. A student says, 'The domain values are {{a1}}, {{a2}}, {{a3}} because those are the numbers in the sequence.' Correct the student's idea: what are the first three domain/input values, and what is the next term $a_4$?",
+      "responseFields": [
+        {
+          "id": "domain",
+          "label": "First three domain/input values",
+          "inputProfile": "set",
+          "expected": "{1,2,3}"
+        },
+        {
+          "id": "term4",
+          "label": "$a_4$",
+          "inputProfile": "number",
+          "expected": "{{a4}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Term number and term value play different roles.",
+        "reasoning": [
+          "The sequence is a function whose inputs are term numbers, so the first three domain values are 1, 2, and 3.",
+          "The displayed outputs change by {{d}}, so the recursive next term is $a_4={{a4}}$."
+        ],
+        "answerSummary": "Domain inputs: $\\{1,2,3\\}$; next term: $a_4={{a4}}$."
+      },
+      "attemptFeedback": [
+        "Separate the position of a term from the value stored at that position."
+      ],
+      "supportHints": [
+        "Think of each sequence term as the ordered pair $(n,a_n)$."
+      ],
+      "generator": {
+        "parameters": {
+          "a1": {
+            "type": "int",
+            "min": -10,
+            "max": 15
+          },
+          "d": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "a2": "a1+d",
+          "a3": "a1+2*d",
+          "a4": "a1+3*d"
+        }
+      }
+    },
+    {
+      "id": "mm_A_12C_v2_geometric-recursive-table",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12C:v2-geometric-recursive-table",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12C",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table represents a geometric sequence. Term number $n$ is the input/domain. Identify the common ratio and use the recursive pattern to find $a_5$.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Term number $n$ (input/domain)",
+            "Term value $a_n$"
+          ],
+          "rows": [
+            [
+              "1",
+              "{{a1}}"
+            ],
+            [
+              "2",
+              "{{a2}}"
+            ],
+            [
+              "3",
+              "{{a3}}"
+            ],
+            [
+              "4",
+              "{{a4}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "ratio",
+          "label": "Common ratio",
+          "inputProfile": "number",
+          "expected": "{{r}}"
+        },
+        {
+          "id": "term5",
+          "label": "$a_5$",
+          "inputProfile": "number",
+          "expected": "{{a5}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A geometric recursion multiplies by the same ratio.",
+        "reasoning": [
+          "Divide each term value by the preceding term value to see the constant ratio {{r}}.",
+          "Multiply $a_4={{a4}}$ by {{r}} to obtain $a_5={{a5}}$."
+        ],
+        "answerSummary": "The common ratio is {{r}} and $a_5={{a5}}$."
+      },
+      "attemptFeedback": [
+        "For a geometric sequence, compare consecutive outputs by division rather than subtraction."
+      ],
+      "supportHints": [
+        "The term-number column is the domain; the output column changes by repeated multiplication."
+      ],
+      "generator": {
+        "parameters": {
+          "a1": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          }
+        },
+        "derived": {
+          "a2": "a1*r",
+          "a3": "a1*r*r",
+          "a4": "a1*r*r*r",
+          "a5": "a1*r*r*r*r"
+        }
+      }
+    },
+    {
+      "id": "mm_A_12C_v2_plot-discrete-arithmetic",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12C:v2-plot-discrete-arithmetic",
+      "familyVersion": 3,
+      "questionType": "tool",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "A sequence has first term {{a1}} and common difference {{d}}. Plot the first four sequence points using term number as the x-coordinate and term value as the y-coordinate: $(n,a_n)$. A sequence is discrete, so plot points only; do not connect them as a continuous graph.",
+      "type": "functionInvestigation",
+      "functionSpec": {
+        "type": "linear",
+        "m": "{{d}}",
+        "b": "{{b}}"
+      },
+      "graph": {
+        "xMin": 0,
+        "xMax": 6,
+        "yMin": -20,
+        "yMax": 30,
+        "showGrid": true
+      },
+      "showCoordinates": true,
+      "pointTasks": [
+        {
+          "id": "seq-1",
+          "label": "Term 1",
+          "prompt": "Plot $(1,a_1)$.",
+          "x": 1,
+          "role": "sequence-term",
+          "expected": [
+            1,
+            "{{a1}}"
+          ]
+        },
+        {
+          "id": "seq-2",
+          "label": "Term 2",
+          "prompt": "Plot $(2,a_2)$.",
+          "x": 2,
+          "role": "sequence-term",
+          "expected": [
+            2,
+            "{{a2}}"
+          ]
+        },
+        {
+          "id": "seq-3",
+          "label": "Term 3",
+          "prompt": "Plot $(3,a_3)$.",
+          "x": 3,
+          "role": "sequence-term",
+          "expected": [
+            3,
+            "{{a3}}"
+          ]
+        },
+        {
+          "id": "seq-4",
+          "label": "Term 4",
+          "prompt": "Plot $(4,a_4)$.",
+          "x": 4,
+          "role": "sequence-term",
+          "expected": [
+            4,
+            "{{a4}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Sequence graphs use term number as the discrete domain.",
+        "reasoning": [
+          "The x-coordinates are the term numbers 1, 2, 3, and 4.",
+          "The y-coordinates are the corresponding term values. Because only whole-number term numbers belong to the sequence, the graph is four separate points rather than a connected line."
+        ],
+        "answerSummary": "Plot $(1,{{a1}})$, $(2,{{a2}})$, $(3,{{a3}})$, and $(4,{{a4}})$ as discrete points."
+      },
+      "attemptFeedback": [
+        "Check that each x-coordinate is a term number and each y-coordinate is that term's value."
+      ],
+      "supportHints": [
+        "Start at $(1,{{a1}})$ and add {{d}} to the y-value each time x increases by 1."
+      ],
+      "generator": {
+        "parameters": {
+          "a1": {
+            "type": "int",
+            "min": -6,
+            "max": 12
+          },
+          "d": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "a2": "a1+d",
+          "a3": "a1+2*d",
+          "a4": "a1+3*d",
+          "b": "a1-d"
+        }
+      }
+    },
+    {
+      "id": "mm_A_12C_v2_table-domain-recursion",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12C:v2-table-domain-recursion",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12C",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table represents a sequence. The term number $n$ is the input, so the sequence domain is the positive whole-number term numbers. Identify the common difference and use the recursive pattern to find $a_5$.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Term number $n$ (input/domain)",
+            "Term value $a_n$"
+          ],
+          "rows": [
+            [
+              "1",
+              "{{a1}}"
+            ],
+            [
+              "2",
+              "{{a2}}"
+            ],
+            [
+              "3",
+              "{{a3}}"
+            ],
+            [
+              "4",
+              "{{a4}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "difference",
+          "label": "Common difference",
+          "inputProfile": "number",
+          "expected": "{{d}}"
+        },
+        {
+          "id": "term5",
+          "label": "$a_5$",
+          "inputProfile": "number",
+          "expected": "{{a5}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The input is the term number; the output is the term value.",
+        "reasoning": [
+          "Moving from one row to the next increases the input $n$ by 1 and changes the output by {{d}}.",
+          "Continue that recursive change once more to get $a_5={{a5}}$."
+        ],
+        "answerSummary": "The common difference is {{d}} and $a_5={{a5}}$."
+      },
+      "attemptFeedback": [
+        "Read the left column as the domain/input and compare the right-column outputs."
+      ],
+      "supportHints": [
+        "Subtract consecutive term values to find the recursive change."
+      ],
+      "generator": {
+        "parameters": {
+          "a1": {
+            "type": "int",
+            "min": -10,
+            "max": 18
+          },
+          "d": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "a2": "a1+d",
+          "a3": "a1+2*d",
+          "a4": "a1+3*d",
+          "a5": "a1+4*d"
+        }
+      }
+    },
+    {
+      "id": "mm_A_12D_v2_arithmetic-table-to-formula",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12D:v2-arithmetic-table-to-formula",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12D",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table shows an arithmetic sequence. The term number $n$ is the input (domain). Write an explicit formula for the $n$th term. Enter the right-hand side of $f(n)$ only.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Term number $n$",
+            "$f(n)$"
+          ],
+          "rows": [
+            [
+              "1",
+              "{{t1}}"
+            ],
+            [
+              "2",
+              "{{t2}}"
+            ],
+            [
+              "3",
+              "{{t3}}"
+            ],
+            [
+              "4",
+              "{{t4}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "formula",
+          "label": "Explicit formula: $f(n)=$",
+          "inputProfile": "expression",
+          "expected": "{{a}} {{d|signed}}(n-1)",
+          "accepted": [
+            "{{d}}n {{b|signed}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Use the term number as the input.",
+        "reasoning": [
+          "The first output is ${{a}}$, and each new term changes by ${{d}}$.",
+          "From term 1 to term $n$ there are $n-1$ equal changes, so $f(n)={{a}} {{d|signed}}(n-1)$.",
+          "An equivalent simplified rule is $f(n)={{d}}n {{b|signed}}$."
+        ],
+        "answerSummary": "$f(n)={{a}} {{d|signed}}(n-1)$"
+      },
+      "attemptFeedback": [
+        "Find the common difference, then count how many differences occur between term 1 and term $n$."
+      ],
+      "supportHints": [
+        "The domain input is the term number $n$. Start with term 1, then add $(n-1)$ copies of the common difference."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -12,
+            "max": 18
+          },
+          "d": {
+            "type": "int",
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "t1": "a",
+          "t2": "a+d",
+          "t3": "a+2*d",
+          "t4": "a+3*d",
+          "b": "a-d"
+        },
+        "constraints": [
+          "abs(t4) <= 40"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_12D_v2_error-analysis-n-minus-one",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12D:v2-error-analysis-n-minus-one",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12D",
+      "taskType": "errorAnalysis",
+      "representation": "table",
+      "prompt": "The table shows an arithmetic sequence. A student writes $f(n)={{a}} {{d|signed}}n$. The rule does not reproduce term 1. Correct the student's formula. Enter the right-hand side of $f(n)$ only.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Term number $n$",
+            "$f(n)$"
+          ],
+          "rows": [
+            [
+              "1",
+              "{{a}}"
+            ],
+            [
+              "2",
+              "{{t2}}"
+            ],
+            [
+              "3",
+              "{{t3}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "formula",
+          "label": "Correct formula: $f(n)=$",
+          "inputProfile": "expression",
+          "expected": "{{a}} {{d|signed}}(n-1)",
+          "accepted": [
+            "{{d}}n {{b|signed}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The first term occurs before any common-difference steps.",
+        "reasoning": [
+          "Substituting $n=1$ into the student's rule applies one extra common difference, so it misses the first table value.",
+          "There are only $n-1$ changes from term 1 to term $n$, so the correct rule is $f(n)={{a}} {{d|signed}}(n-1)$."
+        ],
+        "answerSummary": "$f(n)={{a}} {{d|signed}}(n-1)$"
+      },
+      "attemptFeedback": [
+        "Test the proposed formula at $n=1$. A correct explicit rule must return the first term."
+      ],
+      "supportHints": [
+        "How many common-difference jumps have happened when you are still at term 1?"
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -10,
+            "max": 18
+          },
+          "d": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "t2": "a+d",
+          "t3": "a+2*d",
+          "b": "a-d"
+        },
+        "constraints": [
+          "abs(t3) <= 40"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_12D_v2_geometric-decay-terms-to-formula",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12D:v2-geometric-decay-terms-to-formula",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12D",
+      "taskType": "representationTranslation",
+      "representation": "verbal",
+      "prompt": "A geometric sequence begins ${{a}}, {{t2}}, {{t3}}, {{t4}}, \\ldots$. Write an explicit formula for the $n$th term. Enter the right-hand side only.",
+      "responseFields": [
+        {
+          "id": "formula",
+          "label": "$f(n)=$",
+          "inputProfile": "expression",
+          "expected": "{{a}}*(0.5)^(n-1)",
+          "accepted": [
+            "{{a}}*(1/2)^(n-1)"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The common ratio can be between 0 and 1.",
+        "reasoning": [
+          "Each term is half of the term before it, so the common ratio is $1/2$.",
+          "The explicit form starts with {{a}} and applies the ratio $n-1$ times."
+        ],
+        "answerSummary": "$f(n)={{a}}(1/2)^{n-1}$"
+      },
+      "attemptFeedback": [
+        "Compare each term with the term before it by division, not subtraction."
+      ],
+      "supportHints": [
+        "If every term is half the previous term, the common ratio is $1/2$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              32,
+              48,
+              64,
+              80,
+              96,
+              128
+            ]
+          }
+        },
+        "derived": {
+          "t2": "a/2",
+          "t3": "a/4",
+          "t4": "a/8"
+        }
+      }
+    },
+    {
+      "id": "mm_A_12D_v2_geometric-table-to-formula",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12D:v2-geometric-table-to-formula",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12D",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table shows a geometric sequence. The term number $n$ is the input (domain). Write an explicit formula for the $n$th term. Enter the right-hand side of $g(n)$ only.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Term number $n$",
+            "$g(n)$"
+          ],
+          "rows": [
+            [
+              "1",
+              "{{t1}}"
+            ],
+            [
+              "2",
+              "{{t2}}"
+            ],
+            [
+              "3",
+              "{{t3}}"
+            ],
+            [
+              "4",
+              "{{t4}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "formula",
+          "label": "Explicit formula: $g(n)=$",
+          "inputProfile": "expression",
+          "expected": "{{a}}*({{r}})^(n-1)"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A geometric sequence repeats multiplication.",
+        "reasoning": [
+          "The first term is ${{a}}$ and each output is multiplied by {{r}} to get the next output.",
+          "From term 1 to term $n$ there are $n-1$ multiplications, so $g(n)={{a}}({{r}})^{n-1}$."
+        ],
+        "answerSummary": "$g(n)={{a}}({{r}})^{n-1}$"
+      },
+      "attemptFeedback": [
+        "Divide consecutive terms to find the common ratio, then use exponent $n-1$."
+      ],
+      "supportHints": [
+        "Term 1 should make the exponent zero so the formula returns the first term."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          }
+        },
+        "derived": {
+          "t1": "a",
+          "t2": "a*r",
+          "t3": "a*r^2",
+          "t4": "a*r^3"
+        },
+        "constraints": [
+          "t4 <= 400"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_12D_v2_nonconsecutive-terms-to-formula",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12D:v2-nonconsecutive-terms-to-formula",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12D",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "An arithmetic sequence has $f(4)={{t4}}$ and $f(9)={{t9}}$. Determine an explicit formula for $f(n)$. Enter the right-hand side only.",
+      "responseFields": [
+        {
+          "id": "formula",
+          "label": "$f(n)=$",
+          "inputProfile": "expression",
+          "expected": "{{a}} {{d|signed}}(n-1)",
+          "accepted": [
+            "{{d}}n {{b|signed}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Use the distance between term numbers as well as the distance between term values.",
+        "reasoning": [
+          "From term 4 to term 9 there are 5 equal steps. The output changes by ${{change}}$, so the common difference is ${{change}}/5={{d}}$.",
+          "Move back three differences from term 4 to term 1: ${{t4}}-3({{d}})={{a}}$.",
+          "Therefore $f(n)={{a}} {{d|signed}}(n-1)$."
+        ],
+        "answerSummary": "$f(n)={{a}} {{d|signed}}(n-1)$"
+      },
+      "attemptFeedback": [
+        "There are five sequence steps between term 4 and term 9. Use that to find the common difference first."
+      ],
+      "supportHints": [
+        "After finding the common difference, work backward from term 4 to term 1 before writing the formula."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -12,
+            "max": 20
+          },
+          "d": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "t4": "a+3*d",
+          "t9": "a+8*d",
+          "change": "t9-t4",
+          "b": "a-d"
+        },
+        "constraints": [
+          "abs(t4) <= 50",
+          "abs(t9) <= 70"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_12E_v2_factor-target-variable",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12E:v2-factor-target-variable",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12E",
+      "taskType": "reverseReasoning",
+      "representation": "symbolic",
+      "prompt": "Solve $Y={{a}}X+{{b}}X$ for $X$. The target variable appears in BOTH terms.",
+      "solutionReview": {
+        "headline": "When the target variable appears in multiple terms, factor it first.",
+        "reasoning": [
+          "Factor $X$: $Y=({{a}}+{{b}})X={{sum}}X$.",
+          "Divide by {{sum}} to isolate the target: $X=Y/{{sum}}$."
+        ],
+        "answerSummary": "$X=Y/{{sum}}$"
+      },
+      "attemptFeedback": [
+        "Isolate the requested variable symbolically while treating every other letter as a known quantity."
+      ],
+      "supportHints": [
+        "If the target variable appears in more than one term, factor it first; divide by the entire coefficient or factor multiplying it."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          }
+        },
+        "derived": {
+          "sum": "a+b"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "X =",
+          "inputProfile": "expression",
+          "expected": "Y/{{sum}}",
+          "accepted": [
+            "Y/({{a}}+{{b}})"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12E_v2_solve-area-height",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12E:v2-solve-area-height",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12E",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student solves $A={{k}}bh$ for $h$ by dividing by {{k}} but forgets that $h$ is also multiplied by $b$. Correct the error and solve for $h$.",
+      "solutionReview": {
+        "headline": "Divide by the complete factor multiplying the target variable.",
+        "reasoning": [
+          "In $A={{k}}bh$, the target $h$ is multiplied by both {{k}} and $b$.",
+          "Divide by the entire product ${{k}}b$ to obtain $h=A/({{k}}b)$."
+        ],
+        "answerSummary": "$h=A/({{k}}b)$"
+      },
+      "attemptFeedback": [
+        "Isolate the requested variable symbolically while treating every other letter as a known quantity."
+      ],
+      "supportHints": [
+        "If the target variable appears in more than one term, factor it first; divide by the entire coefficient or factor multiplying it."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "expression",
+          "expected": "A/({{k}}b)",
+          "accepted": [
+            "A/{{k}}/b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12E_v2_solve-linear-literal",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12E:v2-solve-linear-literal",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12E",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve $P={{a}}l+{{a}}w$ for $l$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Subtract ${{a}}w$ from both sides to isolate the term containing $l$.",
+          "Divide every remaining term by {{a}}."
+        ],
+        "answerSummary": "$l=P/{{a}}-w$"
+      },
+      "attemptFeedback": [
+        "Isolate the requested variable symbolically while treating every other letter as a known quantity."
+      ],
+      "supportHints": [
+        "If the target variable appears in more than one term, factor it first; divide by the entire coefficient or factor multiplying it."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "expression",
+          "expected": "P/{{a}}-w",
+          "accepted": [
+            "(P-{{a}}w)/{{a}}"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12E_v2_solve-product-literal",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12E:v2-solve-product-literal",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12E",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "Solve $d={{a}}rt$ for $t$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The variable $t$ is multiplied by both {{a}} and $r$.",
+          "Divide both sides by the full factor ${{a}}r$."
+        ],
+        "answerSummary": "$t=d/({{a}}r)$"
+      },
+      "attemptFeedback": [
+        "Isolate the requested variable symbolically while treating every other letter as a known quantity."
+      ],
+      "supportHints": [
+        "If the target variable appears in more than one term, factor it first; divide by the entire coefficient or factor multiplying it."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "expression",
+          "expected": "d/({{a}}r)",
+          "accepted": [
+            "d/{{a}}/r"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12E_v2_temperature-style",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12E:v2-temperature-style",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12E",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "The conversion-style formula is $C=(F-{{b}})/{{a}}$. Solve the formula for $F$ in terms of $C$.",
+      "solutionReview": {
+        "headline": "Rearrange the formula before substituting any numbers.",
+        "reasoning": [
+          "Multiply both sides by {{a}} to get ${{a}}C=F-{{b}}$.",
+          "Add {{b}} to both sides, giving $F={{a}}C+{{b}}$."
+        ],
+        "answerSummary": "$F={{a}}C+{{b}}$"
+      },
+      "attemptFeedback": [
+        "Isolate the requested variable symbolically while treating every other letter as a known quantity."
+      ],
+      "supportHints": [
+        "If the target variable appears in more than one term, factor it first; divide by the entire coefficient or factor multiplying it."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "b": {
+            "type": "int",
+            "min": 10,
+            "max": 50
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "F =",
+          "inputProfile": "expression",
+          "expected": "{{a}}C+{{b}}",
+          "accepted": [
+            "{{b}}+{{a}}C"
+          ]
+        }
+      ]
+    },
+    {
       "id": "mm_A_2A_v2_bounded-range",
       "active": true,
       "alignmentKeys": [
