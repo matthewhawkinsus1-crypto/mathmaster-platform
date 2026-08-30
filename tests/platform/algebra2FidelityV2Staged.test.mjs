@@ -2532,8 +2532,11 @@ test('A2.5C rewrites exponential and logarithmic equations in both directions as
     assert.ok(equationFields.length >= 1, `${doc.id} must require the student to WRITE an equivalent equation`);
     assert.equal((doc.responseFields || []).some((field) => field.id === 'answer' && field.inputProfile === 'choice'), false);
 
-    if (/exp-to-log|logarithmic equation/.test(doc.id + ' ' + doc.prompt)) expToLogFamilies += 1;
-    if (/log-to-exp|exponential equation/.test(doc.id + ' ' + doc.prompt)) logToExpFamilies += 1;
+    const authoredRewriteKeys = (doc.responseFields || [])
+      .filter((field) => field.inputProfile === 'equation')
+      .map((field) => String(field.expected || ''));
+    if (authoredRewriteKeys.some((value) => /log_|ln\(/.test(value))) expToLogFamilies += 1;
+    if (authoredRewriteKeys.some((value) => /\^/.test(value))) logToExpFamilies += 1;
     if (doc.id.includes('symbolic-expression')) symbolicFamilies += 1;
     if (doc.id.includes('common-natural')) commonNaturalFamilies += 1;
     if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
