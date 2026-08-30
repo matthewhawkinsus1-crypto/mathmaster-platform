@@ -1389,3 +1389,134 @@ test('A2.4B writes complete parabola equations from defining attributes in all f
   assert.ok(representations.has('multipleRepresentation'));
 });
 
+test('A2.4C determines the full effect of square-root transformations including horizontal scaling and reflection', async () => {
+  const entry = payload('A2.4C');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /full-square-root-transform-effects/);
+
+  const authoredText = stringValues(entry.documents).join(' ').toLowerCase();
+  for (const required of [
+    'vertical scale',
+    'horizontal scale',
+    'horizontal reflection',
+    'x-axis',
+    'endpoint',
+    'horizontal stretch',
+    'horizontal compression',
+  ]) {
+    assert.ok(authoredText.includes(required), `A2.4C package is missing required effect coverage: ${required}`);
+  }
+
+  const representations = new Set();
+  const taskTypes = new Set();
+  let generatedCount = 0;
+  let combinedEffectFamilies = 0;
+  let horizontalReflectionFamilies = 0;
+  let horizontalStretchFamilies = 0;
+  let horizontalCompressionFamilies = 0;
+  let verticalCompressionFamilies = 0;
+  let verticalStretchFamilies = 0;
+  let reverseFamilies = 0;
+  let errorFamilies = 0;
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    taskTypes.add(doc.taskType);
+    const text = stringValues(doc).join(' ').toLowerCase();
+
+    if ((doc.responseFields || []).length >= 5) combinedEffectFamilies += 1;
+    if (/horizontal reflection|ray extends left|inside negative/.test(text)) horizontalReflectionFamilies += 1;
+    if (/horizontal stretch/.test(text)) horizontalStretchFamilies += 1;
+    if (/horizontal compression/.test(text)) horizontalCompressionFamilies += 1;
+    if (/vertical compression/.test(text)) verticalCompressionFamilies += 1;
+    if (/vertical stretch|vertical scale factor.*2|vertical scale factor.*3/.test(text)) verticalStretchFamilies += 1;
+    if (doc.taskType === 'reverseReasoning') reverseFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const result = await gradeResponse(grading, { responses });
+      assert.equal(
+        result.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(result.fieldResults)}`,
+      );
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+
+      if (doc.id.includes('point-map-horizontal-reflection')) {
+        const fields = Object.fromEntries(question.responseFields.map((field) => [field.id, field.expected]));
+        const p0 = String(fields.p0).match(/^\((-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\)$/);
+        const p4 = String(fields.p4).match(/^\((-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\)$/);
+        const p16 = String(fields.p16).match(/^\((-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\)$/);
+        assert.ok(p0 && p4 && p16);
+        const [x0,y0] = [Number(p0[1]),Number(p0[2])];
+        const [x4,y4] = [Number(p4[1]),Number(p4[2])];
+        const [x16,y16] = [Number(p16[1]),Number(p16[2])];
+        assert.equal(x4, x0 - 1);
+        assert.equal(x16, x0 - 4);
+        assert.equal(y4, y0 + 1);
+        assert.equal(y16, y0 + 2);
+        assert.equal(Number(fields['vertical-scale']), 0.5);
+        assert.equal(Number(fields['horizontal-scale']), 0.25);
+      }
+
+      if (doc.id.includes('graph-horizontal-stretch')) {
+        const transformed = question.stimulus?.graph?.curves?.find((curve) => curve.label === 'Transformed')?.points || [];
+        assert.equal(transformed.length, 3);
+        const [endpoint, oneUnitParent, fourUnitParent] = transformed;
+        assert.equal(Number(oneUnitParent.x) - Number(endpoint.x), 4);
+        assert.equal(Number(fourUnitParent.x) - Number(endpoint.x), 16);
+        assert.equal(Number(oneUnitParent.y) - Number(endpoint.y), 2);
+        assert.equal(Number(fourUnitParent.y) - Number(endpoint.y), 4);
+      }
+
+      if (doc.id.includes('reverse-build-from-effects')) {
+        const equation = question.responseFields.find((field) => field.id === 'equation')?.expected;
+        assert.ok(equation);
+        assert.match(String(equation), /-0\.5/);
+        assert.match(String(equation), /-4/);
+        assert.equal(question.responseFields.find((field) => field.id === 'ray')?.expected, 'left');
+        assert.equal(question.responseFields.find((field) => field.id === 'range-direction')?.expected, 'down');
+      }
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(combinedEffectFamilies >= 3, 'A2.4C must repeatedly determine several transformation effects together');
+  assert.ok(horizontalReflectionFamilies >= 3, 'A2.4C must repeatedly include the missing horizontal reflection effect');
+  assert.ok(horizontalStretchFamilies >= 1, 'A2.4C must include a true horizontal stretch');
+  assert.ok(horizontalCompressionFamilies >= 3, 'A2.4C must repeatedly distinguish horizontal compression from using |b| directly');
+  assert.ok(verticalCompressionFamilies >= 2, 'A2.4C must include vertical compression as well as stretch');
+  assert.ok(verticalStretchFamilies >= 2, 'A2.4C must include vertical stretch');
+  assert.ok(reverseFamilies >= 1);
+  assert.ok(errorFamilies >= 1);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('graph'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('verbal'));
+  assert.ok(taskTypes.has('interpretation'));
+  assert.ok(taskTypes.has('representationTranslation'));
+  assert.ok(taskTypes.has('reverseReasoning'));
+  assert.ok(taskTypes.has('errorAnalysis'));
+});
+
