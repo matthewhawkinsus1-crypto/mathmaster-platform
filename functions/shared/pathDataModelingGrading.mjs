@@ -190,7 +190,7 @@ const requiredPartsForMode = (mode) => {
   if (mode === 'lineFit') return ['fit'];
   if (FIT_PREDICTION_MODES[mode]) return ['fit', 'prediction'];
   if (mode === 'association') return ['association'];
-  if (mode === 'correlation') return ['correlation', 'association'];
+  if (mode === 'correlation') return ['correlation', 'correlationInterpretation'];
   if (mode === 'prediction') return ['prediction'];
   if (mode === 'modelCompare') return ['modelChoice'];
   return ['fit', 'association', 'modelChoice', 'prediction'];
