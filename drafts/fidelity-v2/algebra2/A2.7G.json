@@ -1,0 +1,486 @@
+{
+  "standard": "A2.7G",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-variable-radical-equivalent-forms-square-cube-rational-exponent-absolute-value-error-repair",
+  "rationale": "A2.7G specifically requires rewriting radical expressions that contain variables. Fidelity V2 removes constant-only drift, adds variable-power and indexed-root breadth, handles even-root absolute-value semantics explicitly, and keeps equation solving out of this standard.",
+  "documents": [
+    {
+      "id": "mm_A2_7G_v2_square-root-variable-power",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7G:v2-square-root-variable-power",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7G",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "dok": 2,
+      "difficultyBand": 2,
+      "prompt": "Assume x≥0. Rewrite $\\sqrt{{{k2}}x^{{exp}}}$ in simplified radical form by extracting every perfect-square factor.",
+      "responseFields": [
+        {
+          "id": "outside-coefficient",
+          "label": "Coefficient outside the radical",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "outside-x-power",
+          "label": "Power of x outside the radical",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        },
+        {
+          "id": "inside-x-power",
+          "label": "Power of x remaining inside the square root",
+          "inputProfile": "number",
+          "expected": "1"
+        },
+        {
+          "id": "answer",
+          "label": "Equivalent simplified radical expression",
+          "inputProfile": "expression",
+          "equivalence": "nonnegativeRadicalExpression",
+          "expected": "{{k}}*x^{{m}}*sqrt(x)"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Extract even powers from a square root.",
+        "reasoning": [
+          "${{k2}}={{k}}^2 and x^{{exp}}=x^{{twoM}}x.",
+          "Because x≥0, $\\sqrt{x^{{twoM}}}=x^{{m}}$.",
+          "The equivalent form is ${{k}}x^{{m}}\\sqrt{x}$."
+        ],
+        "answerSummary": "${{k}}x^{{m}}\\sqrt{x}$"
+      },
+      "attemptFeedback": [
+        "Separate the largest even power of x from the one x that remains under the radical."
+      ],
+      "supportHints": [
+        "Write the variable exponent as 2m+1 before taking the square root."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "k2": "k*k",
+          "twoM": "2*m",
+          "exp": "2*m+1"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7G_v2_radical-quotient-variable-powers",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7G:v2-radical-quotient-variable-powers",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7G",
+      "taskType": "application",
+      "representation": "multipleRepresentation",
+      "dok": 2,
+      "difficultyBand": 4,
+      "prompt": "Assume x>0. Rewrite and simplify $\\frac{\\sqrt{{{k2}}x^{{topExp}}}}{\\sqrt{x^{{bottomExp}}}}$ to an equivalent form with no radical remaining.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Equivalent-form route",
+        "steps": [
+          {
+            "id": "combine",
+            "label": "Combine the quotient of square roots",
+            "work": "$\\sqrt{\\frac{{{k2}}x^{{topExp}}}{x^{{bottomExp}}}}$"
+          },
+          {
+            "id": "subtract",
+            "label": "Subtract variable exponents inside",
+            "work": "$\\sqrt{{{k2}}x^{{difference}}}$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "inside-power-after-division",
+          "label": "Power of x after simplifying inside the radical",
+          "inputProfile": "number",
+          "expected": "{{difference}}"
+        },
+        {
+          "id": "final-x-power",
+          "label": "Power of x in the final expression",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        },
+        {
+          "id": "answer",
+          "label": "Equivalent simplified expression",
+          "inputProfile": "expression",
+          "equivalence": "nonnegativeRadicalExpression",
+          "expected": "{{k}}*x^{{m}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A quotient of radicals can be rewritten by simplifying the quotient inside.",
+        "reasoning": [
+          "Subtract the variable exponents: {{topExp}}-{{bottomExp}}={{difference}}.",
+          "The result inside the square root is ${{k2}}x^{{difference}}=({{k}}x^{{m}})^2$.",
+          "Since x>0, the simplified equivalent form is ${{k}}x^{{m}}$."
+        ],
+        "answerSummary": "${{k}}x^{{m}}$"
+      },
+      "attemptFeedback": [
+        "After combining the radicals, simplify the variable quotient before taking the square root."
+      ],
+      "supportHints": [
+        "The generated exponent difference is even, so the radical should disappear completely."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "bottomExp": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          }
+        },
+        "derived": {
+          "k2": "k*k",
+          "difference": "2*m",
+          "topExp": "bottomExp+difference"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7G_v2_cube-root-variable-power",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7G:v2-cube-root-variable-power",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7G",
+      "taskType": "procedural",
+      "representation": "table",
+      "dok": 2,
+      "difficultyBand": 3,
+      "prompt": "Rewrite $\\sqrt[3]{{{k3}}x^{{exp}}}$ in simplified cube-root form. No sign restriction on x is needed for an odd-index root.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Exponent decomposition",
+        "table": {
+          "headers": [
+            "Part",
+            "Rewrite"
+          ],
+          "rows": [
+            [
+              "Coefficient",
+              "{{k3}}={{k}}^3"
+            ],
+            [
+              "Variable power",
+              "x^{{exp}}=x^{{threeM}}·x^{{r}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "outside-coefficient",
+          "label": "Coefficient outside the cube root",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "outside-x-power",
+          "label": "Power of x outside the cube root",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        },
+        {
+          "id": "inside-x-power",
+          "label": "Power of x remaining inside the cube root",
+          "inputProfile": "number",
+          "expected": "{{r}}"
+        },
+        {
+          "id": "answer",
+          "label": "Equivalent simplified cube-root expression",
+          "inputProfile": "expression",
+          "expected": "{{k}}*x^{{m}}*\\sqrt[3]{x^{{r}}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Odd roots extract complete groups of three without an absolute-value restriction.",
+        "reasoning": [
+          "${{k3}} is the perfect cube {{k}}^3.",
+          "x^{{exp}} contains x^{{threeM}}=(x^{{m}})^3 with x^{{r}} left inside.",
+          "The equivalent form is ${{k}}x^{{m}}\\sqrt[3]{x^{{r}}}$."
+        ],
+        "answerSummary": "${{k}}x^{{m}}\\sqrt[3]{x^{{r}}}$"
+      },
+      "attemptFeedback": [
+        "For a cube root, extract variable powers in complete groups of three."
+      ],
+      "supportHints": [
+        "Divide the exponent by 3: the quotient goes outside and the remainder stays inside."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "r": {
+            "type": "choice",
+            "values": [
+              1,
+              2
+            ]
+          }
+        },
+        "derived": {
+          "k3": "k*k*k",
+          "threeM": "3*m",
+          "exp": "3*m+r"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7G_v2_rational-exponent-to-indexed-radical",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7G:v2-rational-exponent-to-indexed-radical",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7G",
+      "taskType": "representationTranslation",
+      "representation": "multipleRepresentation",
+      "dok": 2,
+      "difficultyBand": 3,
+      "prompt": "Assume x≥0. Rewrite $x^({{p}}/{{q}})$ as an equivalent simplified radical expression. Separate the whole-number power from the fractional part.",
+      "responseFields": [
+        {
+          "id": "whole-power",
+          "label": "Whole-number power of x outside the radical",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        },
+        {
+          "id": "root-index",
+          "label": "Root index",
+          "inputProfile": "number",
+          "expected": "{{q}}"
+        },
+        {
+          "id": "inside-power",
+          "label": "Power of x inside the radical",
+          "inputProfile": "number",
+          "expected": "{{r}}"
+        },
+        {
+          "id": "answer",
+          "label": "Equivalent simplified radical expression",
+          "inputProfile": "expression",
+          "equivalence": "nonnegativeRadicalExpression",
+          "expected": "x^{{m}}*\\sqrt[{{q}}]{x^{{r}}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A rational exponent separates into a whole power and a root.",
+        "reasoning": [
+          "{{p}}/{{q}}={{m}}+{{r}}/{{q}}.",
+          "The denominator {{q}} becomes the root index and the remainder {{r}} stays as the inside exponent.",
+          "So the expression becomes $x^{{m}}\\sqrt[{{q}}]{x^{{r}}}$."
+        ],
+        "answerSummary": "$x^{{m}}\\sqrt[{{q}}]{x^{{r}}}$"
+      },
+      "attemptFeedback": [
+        "Divide the numerator of the exponent by the denominator before writing the radical."
+      ],
+      "supportHints": [
+        "The quotient becomes the outside exponent; the remainder stays in the fractional exponent."
+      ],
+      "generator": {
+        "parameters": {
+          "q": {
+            "type": "choice",
+            "values": [
+              2,
+              3,
+              4,
+              5
+            ]
+          },
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "r": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "p": "q*m+r"
+        },
+        "constraints": [
+          "r<q"
+        ]
+      }
+    },
+    {
+      "id": "mm_A2_7G_v2_absolute-value-error-full-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7G:v2-absolute-value-error-full-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7G",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "dok": 3,
+      "difficultyBand": 4,
+      "prompt": "No sign restrictions are given for x or y. A student rewrites $\\sqrt{{{k2}}x^2y^4}$ as ${{k}}xy^2$. Diagnose the error and give the correct equivalent form.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student rewrite",
+        "steps": [
+          {
+            "id": "square",
+            "label": "Coefficient",
+            "work": "$\\sqrt{{{k2}}}={{k}}$"
+          },
+          {
+            "id": "variables",
+            "label": "Variables",
+            "work": "Claims $\\sqrt{x^2}=x$ and $\\sqrt{y^4}=y^2$"
+          },
+          {
+            "id": "answer",
+            "label": "Student answer",
+            "work": "${{k}}xy^2$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What must be repaired?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "absolute-x",
+              "label": "Because x may be negative, √(x²)=|x|; y² is already nonnegative, so √(y⁴)=y²."
+            },
+            {
+              "id": "absolute-y",
+              "label": "Only y needs absolute value, not x."
+            },
+            {
+              "id": "no-absolute",
+              "label": "The student's rewrite is correct for all real x and y."
+            }
+          ],
+          "expected": "absolute-x"
+        },
+        {
+          "id": "x-factor",
+          "label": "Correct factor produced by √(x²)",
+          "inputProfile": "expression",
+          "expected": "|x|"
+        },
+        {
+          "id": "y-factor",
+          "label": "Correct factor produced by √(y⁴)",
+          "inputProfile": "expression",
+          "expected": "y^2"
+        },
+        {
+          "id": "answer",
+          "label": "Correct equivalent expression",
+          "inputProfile": "expression",
+          "expected": "{{k}}*|x|*y^2"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Even roots return the nonnegative magnitude of an unrestricted squared quantity.",
+        "reasoning": [
+          "The coefficient contributes {{k}}.",
+          "Without x≥0, $\\sqrt{x^2}=|x|$, not x.",
+          "$y^2$ is already nonnegative, so $\\sqrt{y^4}=y^2$. The correct rewrite is ${{k}}|x|y^2$."
+        ],
+        "answerSummary": "${{k}}|x|y^2$"
+      },
+      "attemptFeedback": [
+        "Check whether each quantity pulled from an even root is guaranteed nonnegative."
+      ],
+      "supportHints": [
+        "A square root cannot return a negative value; that is why |x| is required when x has no sign restriction."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        },
+        "derived": {
+          "k2": "k*k"
+        }
+      }
+    }
+  ]
+}
