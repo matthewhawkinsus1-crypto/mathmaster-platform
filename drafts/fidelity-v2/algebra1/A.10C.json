@@ -348,7 +348,110 @@
           "B": "d*b",
           "C": "d*c"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-division-error-verification",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student divides ${{A}}x^3{{B|signed}}x^2{{C|signed}}x$ by ${{d}}x$ and claims the quotient is ${{a}}x^2{{b|signed}}x^2{{c|signed}}$, forgetting to reduce the power of x in the middle term. Diagnose the error, write the correct quotient, and verify the recovered middle-term coefficient after multiplying by ${{d}}x$.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What is the structural error?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "middle-power",
+                  "label": "The middle term should have x¹ because x²÷x=x."
+                },
+                {
+                  "id": "coefficient-only",
+                  "label": "Only coefficients change during monomial division; exponents stay the same."
+                },
+                {
+                  "id": "constant-power",
+                  "label": "The constant quotient term should still contain x."
+                }
+              ],
+              "expected": "middle-power"
+            },
+            {
+              "id": "middle-power",
+              "label": "Correct exponent on x in the middle quotient term",
+              "inputProfile": "number",
+              "expected": "1"
+            },
+            {
+              "id": "recovered-middle-coefficient",
+              "label": "Coefficient of x² after multiplying the corrected middle term by {{d}}x",
+              "inputProfile": "number",
+              "expected": "{{B}}"
+            },
+            {
+              "id": "answer",
+              "label": "Correct complete quotient",
+              "inputProfile": "expression",
+              "expected": "{{a}}x^2{{b|signed}}x{{c|signed}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Polynomial division by a monomial divides coefficients and subtracts exponents term by term.",
+            "reasoning": [
+              "$x^3/x=x^2$, $x^2/x=x$, and $x/x=1$.",
+              "The middle quotient term is {{b}}x, not {{b}}x².",
+              "Multiplying {{b}}x by {{d}}x recovers {{B}}x², verifying the repair."
+            ],
+            "answerSummary": "${{a}}x^2{{b|signed}}x{{c|signed}}$."
+          },
+          "attemptFeedback": [
+            "Verify a disputed quotient by multiplying every corrected term back by the divisor."
+          ],
+          "supportHints": [
+            "For like bases, division subtracts exponents."
+          ],
+          "generator": {
+            "parameters": {
+              "d": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              },
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "b": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "A": "d*a",
+              "B": "d*b",
+              "C": "d*c"
+            }
+          }
+        }
+      ]
     }
   ]
 }
