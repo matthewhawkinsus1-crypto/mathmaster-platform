@@ -9,7 +9,7 @@
 // shaded region and only asking the student to read it.
 
 const list = (value) => (Array.isArray(value) ? value : []);
-const finite = (value) => Number.isFinite(Number(value));
+const finite = (value) => value !== null && value !== undefined && String(value).trim() !== '' && Number.isFinite(Number(value));
 
 export const normalizePathLinearInequality = (raw = {}) => ({
   m: Number(raw.m ?? 0),
