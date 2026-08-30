@@ -597,17 +597,56 @@ Certification result:
 
 Do **not** re-audit A2.6C unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.6D
 
-### A2.6D — ENHANCE — STAGED / CERTIFICATION RUNNING
+### A2.6D — ENHANCE — CERTIFIED
 
 Official construct: **Formulate absolute value linear equations.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- every family requires the student to author the equation rather than select one;
+- canonical distance form, paired-solution reverse formulation, nontrivial linear-inside models, scaled table formulation, and complete error repair are included;
+- opt-in absolute-value relation grading accepts mathematically equivalent modeled equations without weakening default form-sensitive grading;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- equivalent side-reversed models are accepted and wrong-distance models are rejected;
+- public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33326321807`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.6D unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.6E — ENHANCE — AUDITED / AUTHORING
+
+Official construct: **Solve absolute value linear equations.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.6D
+### A2.6E
 
-Resume here. Do not reopen A2.2A–A2.6C unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.6D unless a failing gate names them.
+
+
+### 2026-08-30 — A2.6E audit finding
+- Official construct: **solve absolute value linear equations**.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - two-case solving, scaled equations, a no-solution negative-distance case, context, and error analysis are all directionally aligned.
+- Legacy limitations:
+  - most equations reduce to the easiest $|x-h|=d$ pattern;
+  - nontrivial linear expressions inside the absolute value are absent;
+  - intermediate evidence is thin: students usually return only final numbers rather than isolate → split into two linear cases → solve;
+  - the no-solution case is recognition-only and the error-analysis family identifies the missing case without repairing a more demanding equation through completion;
+  - one-solution behavior at absolute value = 0 is not explicitly represented.
+- Fidelity V2 requirements:
+  - repeatedly collect isolation of the absolute-value expression, both linear cases when the isolated right side is positive, and the complete solution set;
+  - include nontrivial $|mx+b|=d$ equations and an outside-scaled/shifted equation that must be isolated first;
+  - explicitly cover all three real-solution counts: two solutions for positive isolated distance, one solution for zero, and no real solution for a negative isolated value;
+  - include contextual interpretation and complete error repair;
+  - remain solve-focused: A2.6D owns formulation and A2.6F owns inequalities.
+- Generic secure response grading is sufficient; no new Path capability is required.
 
 
 ### 2026-08-30 — A2.6D audit finding
@@ -640,8 +679,10 @@ Resume here. Do not reopen A2.2A–A2.6C unless a failing gate names them.
 - Every family requires an authored equation and opts into `absoluteLinearRelation`; A2.6D does not drift into solving.
 - Added A2.6D generated certification — commit `3212f8c7200ff2154174787aa2e15ef7f50a5a74`.
 - The gate samples 200+ generated instances, checks production issuability and secure self-grading, requires repeated $|mx+b|=d$ formulation, accepts equivalent side-reversed models, rejects wrong-distance models, requires context/reverse/error breadth, and checks public key stripping.
-- Full A2.6D assertion run `33326321807`: **QUEUED/RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.6D** until that run is green.
+- Full A2.6D assertion run `33326321807`: **PASS**.
+- Authored-formulation breadth, relation-safe grading, equivalent-model acceptance, wrong-model rejection, public-key stripping, and student/runtime build all passed.
+- A2.6D is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.6E**.
 
 
 ### 2026-08-30 — A2.6C audit finding
