@@ -49,21 +49,24 @@ jobs:
             tests/platform/algebra1FidelityV2A5BEnhancement.test.mjs \
             tests/platform/algebra1FidelityV2ExponentialEnhancements.test.mjs \
             tests/platform/algebra1FidelityV2KeepCertification.test.mjs \
-            tests/platform/algebra1FidelityV2LinearWritingEnhancements.test.mjs
+            tests/platform/algebra1FidelityV2LinearWritingEnhancements.test.mjs \
+            tests/platform/algebra1FidelityV2FinalCertification.test.mjs
 
       - name: Run semantic fidelity audit
         run: |
           node scripts/audit-algebra1-semantic-fidelity-v2.mjs --bank drafts/algebra1.fidelity-v2.candidate.json | tee /tmp/algebra1-semantic.txt
 
       - name: Require zero semantic fidelity findings
-        run: grep -Fx "Findings: 0" /tmp/algebra1-semantic.txt
+        run: |
+          grep -Fx "Findings: 0" /tmp/algebra1-semantic.txt
 
       - name: Run cognitive/DOK audit
         run: |
           node scripts/audit-algebra1-cognitive-fidelity-v2.mjs --bank drafts/algebra1.fidelity-v2.candidate.json | tee /tmp/algebra1-cognitive.txt
 
       - name: Require zero high-confidence cognitive contradictions
-        run: grep -Fx "High-confidence label contradictions: 0" /tmp/algebra1-cognitive.txt
+        run: |
+          grep -Fx "High-confidence label contradictions: 0" /tmp/algebra1-cognitive.txt
 
       - name: Preserve audit evidence
         if: always()
