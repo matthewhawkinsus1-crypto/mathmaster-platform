@@ -417,12 +417,28 @@
               "y1": "m*x1+b",
               "y2": "m*x2+b",
               "y3": "m*x3+b",
-              "wrongm": "m*step"
+              "wrongm": "m*step",
+              "dy": "m*step"
             },
             "constraints": [
               "wrongm!=m"
             ]
-          }
+          },
+          "solutionReview": {
+            "headline": "Slope is change in output per unit change in input.",
+            "reasoning": [
+              "Across each interval, Δx={{step}} and Δy={{dy}}.",
+              "Therefore m=Δy/Δx={{m}}, not the raw change {{wrongm}}.",
+              "The equation y={{m}}x{{b|signed}} also predicts the third-row value {{y3}}."
+            ],
+            "answerSummary": "Student B's model is consistent with every row."
+          },
+          "attemptFeedback": [
+            "Use at least two table intervals and then verify the resulting equation on a third row."
+          ],
+          "supportHints": [
+            "Compute Δy/Δx, not Δy alone."
+          ]
         }
       ]
     },
