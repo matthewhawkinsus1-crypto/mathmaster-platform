@@ -285,7 +285,12 @@ test('A2.2C centers quadratic/root and exponential/log inverse relationships wit
     errorSamples.every((question) => stringValues(question.solutionReview).some((value) => value.includes('principal square root'))),
   );
   assert.ok(
-    errorSamples.every((question) => stringValues(question.solutionReview).some((value) => value.includes('|x-'))),
+    errorSamples.every((question) => {
+      const counterexample = question.responseFields?.find((field) => field.id === 'counterexample');
+      const match = String(counterexample?.label || '').match(/x=(-?\d+)/);
+      return match && Number(counterexample.expected) !== Number(match[1]);
+    }),
+    'Every generated unrestricted-quadratic error item must include a concrete composition counterexample',
   );
 });
 
