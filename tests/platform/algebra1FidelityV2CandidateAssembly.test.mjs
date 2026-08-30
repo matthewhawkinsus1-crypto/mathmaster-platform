@@ -24,13 +24,13 @@ const candidate = [
 const EXPECTED_STAGED = [
   'A.5B', 'A.8A', 'A.9C',
   'A.10A', 'A.10B', 'A.10C', 'A.10D', 'A.10E', 'A.10F',
-  'A.11B', 'A.12A', 'A.12C', 'A.12D',
+  'A.11A', 'A.11B', 'A.12A', 'A.12C', 'A.12D',
   'A.2B', 'A.2C', 'A.2D', 'A.2E', 'A.2F', 'A.2H', 'A.2I',
 ];
 
-test('current staged Fidelity V2 candidate replaces twenty complete standards only', () => {
+test('current staged Fidelity V2 candidate replaces twenty-one complete standards only', () => {
   assert.deepEqual([...overrideCodes].sort(), [...EXPECTED_STAGED].sort());
-  assert.equal(replacements.length, 100);
+  assert.equal(replacements.length, 105);
   assert.equal(candidate.length, 245);
 
   const counts = new Map();
@@ -49,8 +49,8 @@ test('unstaged Algebra I families are carried forward without mutation', () => {
   const baseUnstaged = base.filter((doc) => !overrideCodes.has(codeOf(doc)));
   const candidateUnstaged = candidate.filter((doc) => !overrideCodes.has(codeOf(doc)));
   const byId = new Map(candidateUnstaged.map((doc) => [doc.id, doc]));
-  assert.equal(baseUnstaged.length, 145);
-  assert.equal(candidateUnstaged.length, 145);
+  assert.equal(baseUnstaged.length, 140);
+  assert.equal(candidateUnstaged.length, 140);
   for (const doc of baseUnstaged) {
     assert.ok(byId.has(doc.id), `candidate dropped unstaged family ${doc.id}`);
     assert.deepEqual(byId.get(doc.id), doc, `candidate mutated unstaged family ${doc.id}`);
