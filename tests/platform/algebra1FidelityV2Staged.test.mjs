@@ -1,17 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { REPRESENTATIONS, TASK_TYPES } from '../../functions/shared/pathQuestionQuality.mjs';
 
 const read = (path) => JSON.parse(readFileSync(path, 'utf8'));
-const codes = [
-  'A.2A', 'A.2B', 'A.2C', 'A.2D', 'A.2E', 'A.2F', 'A.2G', 'A.2H', 'A.2I',
-  'A.3A', 'A.3C', 'A.3D', 'A.3G', 'A.3H',
-  'A.4A', 'A.4C', 'A.5B', 'A.8A', 'A.8B', 'A.9C', 'A.9E',
-  'A.10A', 'A.10B', 'A.10C', 'A.10D', 'A.10E', 'A.10F',
-  'A.11A', 'A.11B', 'A.12A', 'A.12C', 'A.12D',
-];
-const staged = codes.map((code) => read(`drafts/fidelity-v2/algebra1/${code}.json`));
+const stagedDir = 'drafts/fidelity-v2/algebra1';
+const codes = readdirSync(stagedDir)
+  .filter((name) => name.endsWith('.json'))
+  .map((name) => name.replace(/\.json$/, ''))
+  .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+const staged = codes.map((code) => read(`${stagedDir}/${code}.json`));
 const codeOf = (doc) => String((doc.alignmentKeys || []).find((key) => String(key).startsWith('texas:')) || '').replace(/^texas:/, '');
 const allStrings = (node, out = []) => {
   if (typeof node === 'string') out.push(node);
@@ -212,6 +210,27 @@ test('A.4C makes students write the fitted linear function before prediction', (
   }
   assert.ok(entry.documents.some((doc) => Number(doc.predictionX) > 4));
   assert.ok(entry.documents.some((doc) => Number(doc.predictionX) > 0 && Number(doc.predictionX) < 4));
+});
+
+test('A.7A makes students construct a quadratic graph before full attribute analysis', () => {
+  const entry = payload('A.7A');
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /quadratic-graph-construction-and-full-attribute-analysis/);
+  assert.equal(entry.documents.length, 5);
+  for (const doc of entry.documents) {
+    assert.equal(doc.type, 'functionInvestigation');
+    assert.equal(doc.representation === 'graph' || doc.representation === 'verbal' || doc.representation === 'context', true);
+    assert.ok(doc.pointTasks?.length >= 3, `${doc.id} needs enough validated points to determine a parabola`);
+    assert.ok(doc.analysisRequests?.length >= 2, `${doc.id} needs connected feature analysis after construction`);
+    assert.equal(doc.responseFields, undefined, `${doc.id} must not downgrade the graphing act to answer boxes`);
+  }
+  const allPrompts = entry.documents.map((doc) => String(doc.prompt).toLowerCase()).join(' ');
+  assert.match(allPrompts, /vertex/);
+  assert.match(allPrompts, /axis of symmetry/);
+  assert.match(allPrompts, /zero|intercept/);
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis'));
+  assert.ok(entry.documents.some((doc) => doc.representation === 'context'));
+  assert.ok(entry.documents.some((doc) => Number(doc.functionSpec?.a) < 0 || String(doc.functionSpec?.a).includes('{{')));
 });
 
 test('A.8B requires a quadratic regression equation and a model-based prediction', () => {
