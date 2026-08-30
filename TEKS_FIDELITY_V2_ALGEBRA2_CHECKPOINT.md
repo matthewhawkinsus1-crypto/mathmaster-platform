@@ -761,8 +761,10 @@ Resume here. Do not reopen A2.2A–A2.7G unless a failing gate names them.
 - Removed the legacy variable-free rationalization drift.
 - Final requested rewrite fields remain **form-preserving** so the unchanged source does not receive credit merely because it is equivalent.
 - Tightened the rational-exponent family so the residual exponent and indexed-root degree are relatively prime; generated radical form is therefore actually simplified.
-- Current strengthened A2.7G generated certification run `33333076780`: **QUEUED/RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.7G** until that run is green.
+- Strengthened A2.7G generated certification run `33333076780`: **PASS**.
+- Variable-only construct fidelity, square/cube-root exponent decomposition, coprime indexed-radical simplification, unrestricted absolute-value semantics, unchanged-source rejection, production issuability, secure self-grading, public key stripping, and student/runtime build all passed.
+- A2.7G is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7H**.
 
 ### 2026-08-30 — A2.7H pre-audit finding
 - Official construct: **solve equations involving rational exponents**.
