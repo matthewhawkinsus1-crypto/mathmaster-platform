@@ -10256,6 +10256,653 @@ mkc('A2.6L', 'claim-about-inverse-variation', {
   feedback: 'A zero output would make the product zero, not ${{k}}$.',
 });
 
+// ================================================================ A2.7B
+// Adding, subtracting and multiplying polynomials.
+
+mkc('A2.7B', 'how-much-a-box-beats-a-cube', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context', courseId: 'algebra2',
+  prompt: 'A box is $x$ by $x + {{p}}$ by $x + {{q}}$ cm. At $x = {{v}}$, how much more does it hold than a cube of side $x$?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 6 },
+      q: { type: 'int', min: 2, max: 6 },
+      v: { type: 'int', min: 2, max: 15 },
+    },
+    derived: {
+      answer: 'v*(v+p)*(v+q)-v*v*v',
+      // Answered the whole box rather than the room it gains.
+      d_forgotFinalStep: 'v*(v+p)*(v+q)',
+      // Answered the cube it is being measured against.
+      d_usedGivenValue: 'v*v*v',
+      // Compared the two the other way round.
+      d_signError: 'v*v*v-v*(v+p)*(v+q)',
+    },
+    constraints: ['p!=q', 'abs(2*v*v*v-v*(v+p)*(v+q))>6'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The box holds ${{v}} \\times {{v}}+{{p}} \\times {{v}}+{{q}}$, and the cube holds ${{v}}^{3}$.', 'The difference is ${{answer}}$ cubic cm.'],
+  answerSummary: { headline: 'Expand both volumes at the given value, then compare.', text: 'It holds ${{answer}}$ more.' },
+  hint: 'The two solids share one edge; only the other two differ.',
+  feedback: 'The box on its own is not what the question asks for.',
+});
+
+mkc('A2.7B', 'a-sum-with-a-cubic-taken-off', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'From the sum of $({{a}}x^3 + {{b}}x^2)$ and $({{d}}x^2 + {{e}}x)$, subtract $({{f}}x^3 + {{g}}x)$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 5, max: 16 },
+      b: { type: 'int', min: 2, max: 12 },
+      d: { type: 'int', min: 2, max: 12 },
+      e: { type: 'int', min: 6, max: 20 },
+      f: { type: 'int', min: 2, max: 9 },
+      g: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      c3: 'a-f',
+      c2: 'b+d',
+      c1: 'e-g',
+      s3: 'a+f',
+      s1: 'e+g',
+    },
+    constraints: ['a-f>1', 'e-g>1', 'b+d!=a-f', 'b+d!=e-g', 'a-f!=e-g', 'a!=a-f', 'e!=e-g'],
+  },
+  choices: [
+    { label: plain('{{c3}}x^3 + {{c2}}x^2 + {{c1}}x'), correct: true },
+    { label: plain('{{s3}}x^3 + {{c2}}x^2 + {{s1}}x'), error: 'signError' },
+    { label: plain('{{c3}}x^3 + {{c2}}x^2 + {{s1}}x'), error: 'partialTotal' },
+    { label: plain('{{a}}x^3 + {{c2}}x^2 + {{e}}x'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Adding the first two gives ${{a}}x^3 + {{c2}}x^2 + {{e}}x$.', 'Taking off ${{f}}x^3 + {{g}}x$ leaves ${{c3}}x^3 + {{c2}}x^2 + {{c1}}x$.'],
+  answerSummary: { headline: 'Collect like degrees once, then subtract degree by degree.', text: 'It is ${{c3}}x^3 + {{c2}}x^2 + {{c1}}x$.', },
+  hint: 'The middle degree appears in only two of the three polynomials.',
+  feedback: 'Subtracting changes the sign of every term inside the bracket.',
+});
+
+mkc('A2.7B', 'claim-about-a-binomial-times-a-trinomial', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra2',
+  prompt: 'Which statement about $(x + {{p}})(x^2 + bx + c)$ fails for some $b$ and $c$?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 12 },
+    },
+    constraints: ['p>1'],
+  },
+  choices: [
+    { label: 'It has four terms.', correct: true },
+    { label: 'Its constant term is ${{p}}c$.', error: 'usedGivenValue' },
+    { label: 'Its degree is three.', error: 'exponentError' },
+    { label: 'Its leading coefficient is one.', error: 'partialTotal' },
+  ],
+  reasoning: ['Multiplying degree one by degree two always gives degree three with leading coefficient one, and only the constants reach the constant term.', 'But like terms can cancel, so the product need not keep four terms: at $b = -{{p}}$ the squared term disappears.'],
+  answerSummary: { headline: 'Degree and leading coefficient are fixed; the term count is not.', text: 'The four-term claim is the one that fails.' },
+  hint: 'Ask what happens to the middle degrees when the coefficients are chosen badly.',
+  feedback: 'Only the two constants multiply into the constant term, so that claim is safe.',
+});
+
+// ================================================================ A2.7C
+// Dividing polynomials.
+
+mkc('A2.7C', 'quotient-read-at-a-value', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'Dividing $x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}$ by $x + {{p}}$ gives a quadratic. What is its value at $x = {{v}}$?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 20 },
+      v: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      t2: 'b+p',
+      t1: 'c+p*b',
+      t0: 'p*c',
+      answer: 'v*v+b*v+c',
+      // Answered the value of the cubic itself.
+      d_forgotFinalStep: '(v+p)*(v*v+b*v+c)',
+      // Answered the constant the cubic ends on.
+      d_usedGivenValue: 'p*c',
+      // Read the middle term of the quotient as negative.
+      d_signError: 'v*v-b*v+c',
+    },
+    constraints: ['abs(p*c-v*v-b*v-c)>4', 'v*v-b*v+c>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The division is exact and gives $x^2 + {{b}}x + {{c}}$.', 'At $x = {{v}}$ that quadratic is worth ${{answer}}$.'],
+  answerSummary: { headline: 'Divide first; the quotient is what gets evaluated.', text: 'It is worth ${{answer}}$.' },
+  hint: 'The cubic factors as $(x + {{p}})$ times the quotient.',
+  feedback: 'The cubic and its quotient differ by a factor of $x + {{p}}$.',
+});
+
+mkc('A2.7C', 'constant-that-makes-the-division-exact', {
+  difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'For which constant does $x + {{p}}$ divide $x^3 + {{t2}}x^2 + {{t1}}x + c$ exactly?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 14 },
+      c: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      t2: 'b+p',
+      t1: 'c+p*b',
+      answer: 'p*c',
+      // Answered the constant of the quotient, not of the cubic.
+      d_forgotFinalStep: 'c',
+      // Multiplied the wrong one of the pair by the root.
+      d_operationInverted: 'p*b',
+      // Scaled both parts of the quotient's tail.
+      d_partialTotal: 'p*c+p*b',
+    },
+    constraints: ['abs(b-c)>1', 'abs(p*c-p*b)>4', 'p*c>7'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The quotient must be $x^2 + {{b}}x + {{c}}$, since ${{t2}} - {{p}} = {{b}}$ and ${{t1}} - {{p}} \\times {{b}} = {{c}}$.', 'The constant is then ${{p}} \\times {{c}} = {{answer}}$.'],
+  answerSummary: { headline: 'Rebuild the quotient from the top down, then multiply out the tail.', text: 'The constant is ${{answer}}$.' },
+  hint: 'Only the two constants can produce the constant term.',
+  feedback: 'The quotient\'s constant still has to be multiplied by ${{p}}$.',
+});
+
+mkc('A2.7C', 'claim-about-a-remainder', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra2',
+  prompt: 'A cubic divided by $x + {{p}}$ leaves remainder ${{r}}$. Which statement is wrong?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 14 },
+      r: { type: 'int', min: 2, max: 60 },
+    },
+    constraints: ['r>1'],
+  },
+  choices: [
+    { label: 'The cubic is worth ${{r}}$ at $x = {{p}}$.', correct: true },
+    { label: 'The cubic is worth ${{r}}$ at $x = -{{p}}$.', error: 'signError' },
+    { label: 'The quotient is a quadratic.', error: 'exponentError' },
+    { label: 'Since the remainder is not zero, $x + {{p}}$ is not a factor.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The remainder theorem reads the divisor $x + {{p}}$ at its root, which is $-{{p}}$.', 'Reading the cubic at ${{p}}$ answers a different division altogether.'],
+  answerSummary: { headline: 'The divisor\'s root is where the remainder shows up.', text: 'The claim about $x = {{p}}$ is the wrong one.' },
+  hint: 'Solve $x + {{p}} = 0$ before substituting.',
+  feedback: 'Dividing a cubic by a linear factor always leaves a quadratic behind.',
+});
+
+// ================================================================ A2.7D
+// Factoring cubics and the factor theorem.
+
+mkc('A2.7D', 'largest-root-of-a-factored-cubic', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'The cubic $x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}$ splits into three binomials. What is its largest root?',
+  rankAnalysisNotApplicable: true,
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 12 },
+      q: { type: 'int', min: 2, max: 12 },
+      r: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      t2: 'p+q+r',
+      t1: 'p*q+p*r+q*r',
+      t0: 'p*q*r',
+      answer: '0-min(p,min(q,r))',
+      // Read the largest of the three numbers instead of the largest root.
+      d_signError: '0-max(p,max(q,r))',
+      // Left the roots positive.
+      d_operationInverted: 'min(p,min(q,r))',
+      // Answered the sum the middle coefficient records.
+      d_usedGivenValue: '0-p-q-r',
+    },
+    constraints: ['p!=q', 'q!=r', 'p!=r', 'min(p,min(q,r))!=max(p,max(q,r))'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The cubic is $(x + {{p}})(x + {{q}})(x + {{r}})$, so its roots are $-{{p}}$, $-{{q}}$ and $-{{r}}$.', 'The largest of three negatives is the one closest to zero, which is ${{answer}}$.'],
+  answerSummary: { headline: 'Among negative roots, the smallest number gives the largest root.', text: 'The largest root is ${{answer}}$.' },
+  hint: 'Each factor $x + k$ contributes the root $-k$.',
+  feedback: 'The largest of several negatives is the one nearest zero, not the one furthest from it.',
+});
+
+mkc('A2.7D', 'middle-coefficient-that-admits-a-factor', {
+  difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'For which middle coefficient does $x + {{p}}$ divide $x^3 + {{t2}}x^2 + kx + {{t0}}$ exactly?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 14 },
+      c: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      t2: 'b+p',
+      t0: 'p*c',
+      answer: 'c+p*b',
+      // Stopped at the quotient's constant.
+      d_forgotFinalStep: 'c',
+      // Multiplied the wrong one of the pair by the root.
+      d_operationInverted: 'p*c+b',
+      // Scaled both parts of the quotient's tail.
+      d_partialTotal: 'p*c+p*b',
+    },
+    constraints: ['abs(b-c)>1', 'abs(p*c+b-c-p*b)>4', 'c+p*b>9'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The quotient starts $x^2 + {{b}}x$ and ends in ${{c}}$, since ${{t0}} \\div {{p}} = {{c}}$.', 'Multiplying out, the middle coefficient is ${{c}} + {{p}} \\times {{b}} = {{answer}}$.'],
+  answerSummary: { headline: 'Both ends of the quotient feed the middle coefficient.', text: 'It is ${{answer}}$.' },
+  hint: 'Work the quotient out from its first and last terms.',
+  feedback: 'Two different products land on the middle degree, and both count.',
+});
+
+mkc('A2.7D', 'claim-about-testing-a-factor', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra2',
+  prompt: 'A cubic is worth zero at $x = {{r}}$ and nowhere else. Which statement is wrong?',
+  generator: {
+    parameters: { r: { type: 'int', min: 2, max: 16 } },
+    constraints: ['r>1'],
+  },
+  choices: [
+    { label: 'It factors into three different binomials.', correct: true },
+    { label: 'The expression $x - {{r}}$ divides it exactly.', error: 'usedGivenValue' },
+    { label: 'Dividing by $x - {{r}}$ leaves a quadratic with no real root.', error: 'incompleteFactoring' },
+    { label: 'It crosses the horizontal axis once.', error: 'partialTotal' },
+  ],
+  reasoning: ['A single root means one linear factor and a quadratic that never reaches zero.', 'Three different binomial factors would give three roots, not one.'],
+  answerSummary: { headline: 'One root does not mean three linear factors.', text: 'The three-binomial claim is the wrong one.' },
+  hint: 'Count how many roots each factored shape would produce.',
+  feedback: 'A quadratic with no real root still divides in; it just does not factor further.',
+});
+
+// ================================================================ A2.7E
+// Sums and differences of cubes, and grouping.
+
+mkc('A2.7E', 'what-the-cube-difference-divides-to', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context', courseId: 'algebra2',
+  prompt: 'A cube of side ${{a}}$ cm has a cube of side ${{b}}$ cm cut out. Divide the volume left by ${{gap}}$; what is the result?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 1, max: 11 },
+      gap: { type: 'int', min: 2, max: 7 },
+    },
+    derived: {
+      a: 'b+gap',
+      answer: '(b+gap)*(b+gap)+(b+gap)*b+b*b',
+      // Never carried out the division.
+      d_forgotFinalStep: '(b+gap)*(b+gap)*(b+gap)-b*b*b',
+      // Answered the cube that was taken away.
+      d_usedGivenValue: 'b*b*b',
+      // Used the sum-of-cubes factor, with its middle sign flipped.
+      d_signError: '(b+gap)*(b+gap)-(b+gap)*b+b*b',
+    },
+    constraints: ['abs(b*b*b-(b+gap)*(b+gap)-(b+gap)*b-b*b)>5'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The volume left is ${{a}}^{3} - {{b}}^{3}$, which factors as $({{a}} - {{b}})({{a}}^{2} + {{a}}{{b}} + {{b}}^{2})$.', 'Dividing by ${{gap}}$ leaves ${{answer}}$.'],
+  answerSummary: { headline: 'A difference of cubes hands back its second factor on division.', text: 'The result is ${{answer}}$.' },
+  hint: 'The gap between the sides is exactly the first factor.',
+  feedback: 'The middle term of the second factor is added, not subtracted.',
+});
+
+mkc('A2.7E', 'grouping-with-a-leading-coefficient', {
+  difficultyBand: 5, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'Factor ${{a3}}x^3 + {{a2}}x^2 + {{a1}}x + {{a0}}$ by grouping.',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 7 },
+      q: { type: 'int', min: 2, max: 9 },
+      r: { type: 'int', min: 2, max: 7 },
+      s: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      a3: 'p*r',
+      a2: 'q*r',
+      a1: 'p*s',
+      a0: 'q*s',
+    },
+    constraints: ['p!=q', 'r!=s', 'p*s!=q*r', 'p!=r', 'q!=s', 'gcd(p,q)==1', 'gcd(r,s)==1'],
+  },
+  choices: [
+    { label: plain('({{p}}x + {{q}})({{r}}x^2 + {{s}})'), correct: true },
+    { label: plain('({{q}}x + {{p}})({{r}}x^2 + {{s}})'), error: 'ratioReversed' },
+    { label: plain('({{p}}x + {{q}})({{s}}x^2 + {{r}})'), error: 'operationInverted' },
+    { label: plain('({{p}}x + {{s}})({{r}}x^2 + {{q}})'), error: 'incompleteFactoring' },
+  ],
+  reasoning: ['The first pair gives ${{r}}x^2({{p}}x + {{q}})$ and the second gives ${{s}}({{p}}x + {{q}})$.', 'The shared bracket lifts out, leaving $({{p}}x + {{q}})({{r}}x^2 + {{s}})$.'],
+  answerSummary: { headline: 'Grouping works when both pairs leave the same bracket behind.', text: 'It is $({{p}}x + {{q}})({{r}}x^2 + {{s}})$.' },
+  hint: 'Take the common factor out of each pair before comparing them.',
+  feedback: 'The bracket left by each pair has to match exactly, order included.',
+});
+
+mkc('A2.7E', 'claim-about-a-sum-of-cubes', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra2',
+  prompt: 'Which statement about the factoring of $x^3 + {{cube}}$ is wrong?',
+  generator: {
+    parameters: { m: { type: 'int', min: 2, max: 9 } },
+    derived: { cube: 'm*m*m', msq: 'm*m' },
+    constraints: ['m>1'],
+  },
+  choices: [
+    { label: 'Its second factor breaks down further over the real numbers.', correct: true },
+    { label: 'One factor is $x + {{m}}$.', error: 'usedGivenValue' },
+    { label: 'The other factor is $x^2 - {{m}}x + {{msq}}$.', error: 'signError' },
+    { label: 'It is zero at $x = -{{m}}$ and nowhere else.', error: 'incompleteFactoring' },
+  ],
+  reasoning: ['A sum of cubes gives $(x + {{m}})(x^2 - {{m}}x + {{msq}})$, and that quadratic never reaches zero.', 'So the second factor does not break down any further over the real numbers.'],
+  answerSummary: { headline: 'The quadratic factor of a cube sum has no real root.', text: 'The claim that it breaks down further is wrong.' },
+  hint: 'Check the discriminant of the quadratic factor.',
+  feedback: 'The middle sign of the quadratic factor is the opposite of the sign in the cube sum.',
+});
+
+// ================================================================ A2.7F
+// Rational expressions.
+
+mkc('A2.7F', 'simplified-fraction-read-at-a-value', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'Simplify $\\frac{x^2 + {{sum}}x + {{product}}}{x + {{p}}}$ and read the result at $x = {{v}}$.',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 3 },
+      q: { type: 'int', min: 2, max: 12 },
+      v: { type: 'int', min: 2, max: 24 },
+    },
+    derived: {
+      sum: 'p+q',
+      product: 'p*q',
+      answer: 'v+q',
+      // Read the numerator instead of the simplified fraction.
+      d_forgotFinalStep: '(v+p)*(v+q)',
+      // Answered the constant on the top.
+      d_usedGivenValue: 'p*q',
+      // Cancelled to $x - q$ instead of $x + q$.
+      d_signError: 'v-q',
+    },
+    constraints: ['p!=q', 'abs(p*q-v-q)>4', 'abs(p-q)>1', 'v!=q', 'abs(v-q-p*q)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The top factors as $(x + {{p}})(x + {{q}})$, so the fraction is $x + {{q}}$.', 'At $x = {{v}}$ that comes to ${{answer}}$.'],
+  answerSummary: { headline: 'Cancel first; only then substitute.', text: 'It reads ${{answer}}$.' },
+  hint: 'Two numbers adding to ${{sum}}$ and multiplying to ${{product}}$ split the top.',
+  feedback: 'The factor that survives is the one the bottom does not match.',
+});
+
+mkc('A2.7F', 'lowest-terms-over-a-difference-of-squares', {
+  difficultyBand: 5, dok: 2, taskType: 'representationTranslation', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'Write $\\frac{x^2 + {{sum}}x + {{product}}}{x^2 - {{sq}}}$ in lowest terms.',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 12 },
+      q: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      sum: 'p+q',
+      product: 'p*q',
+      sq: 'p*p',
+    },
+    constraints: ['p!=q'],
+  },
+  choices: [
+    { label: plain('\\frac{x + {{q}}}{x - {{p}}}'), correct: true },
+    { label: plain('\\frac{x + {{q}}}{x + {{p}}}'), error: 'signError' },
+    { label: plain('\\frac{x + {{p}}}{x - {{p}}}'), error: 'incompleteFactoring' },
+    { label: plain('\\frac{x + {{sum}}}{x - {{sq}}}'), error: 'orderOfOperations' },
+  ],
+  reasoning: ['The top is $(x + {{p}})(x + {{q}})$ and the bottom is $(x + {{p}})(x - {{p}})$.', 'The shared factor cancels, leaving $\\frac{x + {{q}}}{x - {{p}}}$.'],
+  answerSummary: { headline: 'Factor both halves before cancelling anything.', text: 'It is $\\frac{x + {{q}}}{x - {{p}}}$.' },
+  hint: 'The bottom is a difference of two squares.',
+  feedback: 'Only whole factors cancel, never single terms.',
+});
+
+mkc('A2.7F', 'claim-about-a-cancelled-fraction', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra2',
+  prompt: 'The fraction $\\frac{x^2 + {{sum}}x + {{product}}}{x + {{p}}}$ cancels to $x + {{q}}$. Which statement is wrong?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 14 },
+      q: { type: 'int', min: 2, max: 14 },
+    },
+    derived: { sum: 'p+q', product: 'p*q' },
+    constraints: ['p!=q'],
+  },
+  choices: [
+    { label: 'The two expressions agree at every value of $x$.', correct: true },
+    { label: 'The fraction is undefined at $x = -{{p}}$.', error: 'usedGivenValue' },
+    { label: 'The top factors as $(x + {{p}})(x + {{q}})$.', error: 'incompleteFactoring' },
+    { label: 'They agree everywhere except at one value.', error: 'partialTotal' },
+  ],
+  reasoning: ['Cancelling removes a factor that was zero at $x = -{{p}}$, where the fraction has no value at all.', 'So the two expressions part company at exactly that one place.'],
+  answerSummary: { headline: 'Cancelling a factor quietly drops a value from the domain.', text: 'The claim that they always agree is wrong.' },
+  hint: 'Ask what the fraction is worth where the bottom is zero.',
+  feedback: 'The simplified form is defined at $-{{p}}$; the fraction it came from is not.',
+});
+
+// ================================================================ A2.7G
+// Radicals carrying variables.
+
+mkc('A2.7G', 'square-against-a-rectangle-on-the-same-side', {
+  difficultyBand: 5, dok: 3, taskType: 'application', representation: 'context', courseId: 'algebra2',
+  prompt: 'A square of side $\\sqrt{{{a}}x^{{{e}}}}$ metres and a rectangle ${{L}}$ metres wide share that side. At $x = {{v}}$, how much more does the square cover?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 6 },
+      h: { type: 'int', min: 1, max: 2 },
+      v: { type: 'int', min: 2, max: 5 },
+      lu: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      a: 'm*m',
+      e: '2*h',
+      side: 'm*v^h',
+      L: 'round(m*v^h*lu/10)',
+      answer: 'm*v^h*(m*v^h-round(m*v^h*lu/10))',
+      // Answered the square on its own.
+      d_partialTotal: 'm*v^h*m*v^h',
+      // Answered the rectangle rather than the gap between the two.
+      d_usedGivenValue: 'round(m*v^h*lu/10)*m*v^h',
+      // Compared the two the other way round.
+      d_signError: 'round(m*v^h*lu/10)*m*v^h-m*v^h*m*v^h',
+    },
+    constraints: ['m*v^h>12', 'round(m*v^h*lu/10)>1', '2*round(m*v^h*lu/10)!=m*v^h', 'm*v^h-round(m*v^h*lu/10)>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The side simplifies to ${{m}}x^{{{h}}}$, which is ${{side}}$ at $x = {{v}}$.', 'The square covers ${{side}}^{2}$ and the rectangle ${{L}} \\times {{side}}$, a gap of ${{answer}}$.'],
+  answerSummary: { headline: 'Simplify the radical once; both areas then share that side.', text: 'The square covers ${{answer}}$ more.' },
+  hint: 'A square root halves an even exponent and takes the root of the coefficient.',
+  feedback: 'Both rectangles stand on the same side, so only their widths differ.',
+});
+
+mkc('A2.7G', 'coefficient-behind-a-simplified-radical', {
+  difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'For which $b$ does $\\sqrt{{{a}}x^{{{e}}}} \\times \\sqrt{b x}$ simplify to ${{k}}x^{{{h}}}$, for $x \\ge 0$?',
+  generator: {
+    parameters: {
+      g: { type: 'int', min: 1, max: 6 },
+      st: { type: 'int', min: 2, max: 6 },
+      tt: { type: 'int', min: 2, max: 6 },
+      u: { type: 'int', min: 1, max: 4 },
+    },
+    derived: {
+      e: '2*u+1',
+      ep: '2*u+2',
+      h: 'u+1',
+      a: 'g*st*st',
+      k: 'g*st*tt',
+      answer: 'g*tt*tt',
+      // Answered the coefficient the question already supplies.
+      d_usedGivenValue: 'g*st*st',
+      // Squared the target coefficient without dividing it back.
+      d_exponentError: 'g*st*tt*g*st*tt',
+      // Never squared the target coefficient at all.
+      d_forgotFinalStep: 'g*tt',
+    },
+    constraints: ['st!=tt', 'abs(g*tt*tt-g*st*st)>3', 'abs(g*tt*tt-g*tt)>3', 'g*tt*tt>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['The two roots combine into $\\sqrt{{{a}}b\\,x^{{{ep}}}}$, whose square root is ${{k}}x^{{{h}}}$.', 'So ${{a}}b = {{k}}^{2}$, which gives $b = {{answer}}$.'],
+  answerSummary: { headline: 'Combine under one root, square the target back, then divide.', text: '$b = {{answer}}$.' },
+  hint: 'Two square roots multiplied become one root of the product.',
+  feedback: 'The square of the outside coefficient still has to be divided by ${{a}}$.',
+});
+
+mkc('A2.7G', 'claim-about-an-odd-exponent-under-a-root', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra2',
+  prompt: 'For $\\sqrt{{{sq}}x^{{{e}}}}$ with $x \\ge 0$, which statement is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      u: { type: 'int', min: 1, max: 4 },
+    },
+    derived: { sq: 'm*m', e: '2*u+1', h: 'u' },
+    constraints: ['m>1'],
+  },
+  choices: [
+    { label: 'The exponent halves to a whole power outside the root.', correct: true },
+    { label: 'The coefficient comes out as ${{m}}$.', error: 'usedGivenValue' },
+    { label: 'One factor of $x$ has to stay under the root.', error: 'incompleteFactoring' },
+    { label: 'The result is ${{m}}x^{{{h}}}\\sqrt{x}$.', error: 'exponentError' },
+  ],
+  reasoning: ['An odd exponent splits as an even part plus one leftover $x$.', 'Only the even part leaves the root, so the exponent never comes out whole.'],
+  answerSummary: { headline: 'Odd exponents always leave one factor behind.', text: 'The claim about a whole halved exponent is wrong.' },
+  hint: 'Write $x^{{{e}}}$ as an even power times $x$.',
+  feedback: 'Halving an odd number does not give a whole exponent.',
+});
+
+// ================================================================ A2.7H
+// Rational exponents.
+
+mkc('A2.7H', 'two-rational-powers-multiplied', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'What is ${{b1}}^{\\frac{{{m}}}{{{n}}}} \\times {{b2}}^{\\frac{{{q}}}{{{r}}}}$?',
+  generator: {
+    parameters: {
+      u: { type: 'int', min: 2, max: 5 },
+      w: { type: 'int', min: 2, max: 5 },
+      n: { type: 'int', min: 2, max: 5 },
+      r: { type: 'int', min: 2, max: 5 },
+      m: { type: 'int', min: 1, max: 4 },
+      q: { type: 'int', min: 1, max: 4 },
+    },
+    derived: {
+      b1: 'u^n',
+      b2: 'w^r',
+      answer: 'u^m*w^q',
+      // Answered the bases multiplied, with the exponents ignored.
+      d_usedGivenValue: 'u^n*w^r',
+      // Swapped which base carries which exponent.
+      d_ratioReversed: 'u^q*w^m',
+      // Added the two powers instead of multiplying them.
+      d_operationInverted: 'u^m+w^q',
+    },
+    constraints: ['m<n', 'q<r', 'gcd(m,n)==1', 'gcd(q,r)==1', 'u!=w', 'm!=q', 'abs(u^m*w^q-u^q*w^m)>2', 'abs(u^m*w^q-u^m-w^q)>2', 'u^m*w^q>5'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The first is the ${{n}}th root of ${{b1}}$ raised to ${{m}}$, which is ${{u}}^{{{m}}}$.', 'The second gives ${{w}}^{{{q}}}$, and the product is ${{answer}}$.'],
+  answerSummary: { headline: 'Take each root down to its base before multiplying.', text: 'It is ${{answer}}$.' },
+  hint: 'The denominator names the root and the numerator the power.',
+  feedback: 'Each base keeps its own exponent; they do not trade.',
+});
+
+mkc('A2.7H', 'root-behind-a-known-rational-power', {
+  difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra2',
+  prompt: 'For which $n$ does ${{base}}^{\\frac{{{m}}}{n}}$ equal ${{value}}$?',
+  generator: {
+    parameters: {
+      u: { type: 'int', min: 2, max: 5 },
+      n: { type: 'int', min: 2, max: 7 },
+      m: { type: 'int', min: 2, max: 7 },
+    },
+    derived: {
+      base: 'u^n',
+      value: 'u^m',
+      answer: 'n',
+      // Answered the numerator that was already given.
+      d_usedGivenValue: 'm',
+      // Multiplied the two exponents together.
+      d_operationInverted: 'm*n',
+      // Subtracted one exponent from the other.
+      d_offByOneStep: 'abs(n-m)',
+    },
+    constraints: ['m!=n', 'abs(n-m)>1', 'abs(n-m)!=n', 'm*n!=n', 'u^n<3000', 'u^m<3000'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+  ],
+  reasoning: ['Both ${{base}}$ and ${{value}}$ are powers of ${{u}}$: ${{base}} = {{u}}^{{{n}}}$ and ${{value}} = {{u}}^{{{m}}}$.', 'So $\\frac{{{m}}}{n}$ must give ${{u}}^{{{m}}}$ from ${{u}}^{{{n}}}$, which needs $n = {{answer}}$.'],
+  answerSummary: { headline: 'Write both numbers over one base and match the exponents.', text: '$n = {{answer}}$.' },
+  hint: 'A rational exponent multiplies whatever exponent the base already carries.',
+  feedback: 'The root has to undo the base\'s own exponent, not the numerator.',
+});
+
+mkc('A2.7H', 'claim-about-a-rational-exponent', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra2',
+  prompt: 'Which statement about ${{base}}^{-\\frac{{{m}}}{{{n}}}}$ is wrong?',
+  generator: {
+    parameters: {
+      u: { type: 'int', min: 2, max: 5 },
+      n: { type: 'int', min: 2, max: 4 },
+      m: { type: 'int', min: 1, max: 3 },
+    },
+    derived: { base: 'u^n', pos: 'u^m' },
+    constraints: ['m<n', 'gcd(m,n)==1', 'u^n<700'],
+  },
+  choices: [
+    { label: 'The minus sign makes the value negative.', correct: true },
+    { label: 'It equals $\\frac{1}{{{pos}}}$.', error: 'usedGivenValue' },
+    { label: 'It is the reciprocal of ${{base}}^{\\frac{{{m}}}{{{n}}}}$.', error: 'ratioReversed' },
+    { label: 'Its value lies between zero and one.', error: 'partialTotal' },
+  ],
+  reasoning: ['A negative exponent turns the power over rather than changing its sign.', 'Since ${{base}}$ is positive, every power of it stays positive.'],
+  answerSummary: { headline: 'A negative exponent flips a power, it does not negate it.', text: 'The claim about a negative value is wrong.' },
+  hint: 'Rewrite the negative exponent as one over the positive one.',
+  feedback: 'A positive base can never give a negative power.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

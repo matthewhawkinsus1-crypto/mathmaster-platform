@@ -46670,6 +46670,2950 @@
     "sourceFamilyId": "mathmaster:asvab:mk:A2.6L:claim-about-inverse-variation",
     "sourcePrompt": "Under inverse variation with constant ${{k}}$, which statement is wrong?"
    }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7B_how_much_a_box_beats_a_cube",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7B:how-much-a-box-beats-a-cube",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A box is $x$ by $x + {{p}}$ by $x + {{q}}$ cm. At $x = {{v}}$, how much more does it hold than a cube of side $x$?",
+   "solutionReview": {
+    "headline": "Expand both volumes at the given value, then compare.",
+    "reasoning": [
+     "The box holds ${{v}} \\times {{v}}+{{p}} \\times {{v}}+{{q}}$, and the cube holds ${{v}}^{3}$.",
+     "The difference is ${{answer}}$ cubic cm."
+    ],
+    "answerSummary": "It holds ${{answer}}$ more."
+   },
+   "attemptFeedback": [
+    "The box on its own is not what the question asks for."
+   ],
+   "supportHints": [
+    "The two solids share one edge; only the other two differ."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 15
+     }
+    },
+    "derived": {
+     "answer": "v*(v+p)*(v+q)-v*v*v",
+     "d_forgotFinalStep": "v*(v+p)*(v+q)",
+     "d_usedGivenValue": "v*v*v",
+     "d_signError": "v*v*v-v*(v+p)*(v+q)"
+    },
+    "constraints": [
+     "p!=q",
+     "abs(2*v*v*v-v*(v+p)*(v+q))>6",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_signError",
+     "d_usedGivenValue!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7B:how-much-a-box-beats-a-cube",
+    "sourcePrompt": "A box is $x$ by $x + {{p}}$ by $x + {{q}}$ cm. At $x = {{v}}$, how much more does it hold than a cube of side $x$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7B_a_sum_with_a_cubic_taken_off",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7B:a-sum-with-a-cubic-taken-off",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "From the sum of $({{a}}x^3 + {{b}}x^2)$ and $({{d}}x^2 + {{e}}x)$, subtract $({{f}}x^3 + {{g}}x)$.",
+   "solutionReview": {
+    "headline": "Collect like degrees once, then subtract degree by degree.",
+    "reasoning": [
+     "Adding the first two gives ${{a}}x^3 + {{c2}}x^2 + {{e}}x$.",
+     "Taking off ${{f}}x^3 + {{g}}x$ leaves ${{c3}}x^3 + {{c2}}x^2 + {{c1}}x$."
+    ],
+    "answerSummary": "It is ${{c3}}x^3 + {{c2}}x^2 + {{c1}}x$."
+   },
+   "attemptFeedback": [
+    "Subtracting changes the sign of every term inside the bracket."
+   ],
+   "supportHints": [
+    "The middle degree appears in only two of the three polynomials."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 5,
+      "max": 16
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "e": {
+      "type": "int",
+      "min": 6,
+      "max": 20
+     },
+     "f": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "g": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "c3": "a-f",
+     "c2": "b+d",
+     "c1": "e-g",
+     "s3": "a+f",
+     "s1": "e+g"
+    },
+    "constraints": [
+     "a-f>1",
+     "e-g>1",
+     "b+d!=a-f",
+     "b+d!=e-g",
+     "a-f!=e-g",
+     "a!=a-f",
+     "e!=e-g"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{c3}}x^3 + {{c2}}x^2 + {{c1}}x$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}x^3 + {{c2}}x^2 + {{e}}x$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{c3}}x^3 + {{c2}}x^2 + {{s1}}x$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{s3}}x^3 + {{c2}}x^2 + {{s1}}x$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7B:a-sum-with-a-cubic-taken-off",
+    "sourcePrompt": "From the sum of $({{a}}x^3 + {{b}}x^2)$ and $({{d}}x^2 + {{e}}x)$, subtract $({{f}}x^3 + {{g}}x)$."
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7B_claim_about_a_binomial_times_a_trinomial",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7B:claim-about-a-binomial-times-a-trinomial",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which statement about $(x + {{p}})(x^2 + bx + c)$ fails for some $b$ and $c$?",
+   "solutionReview": {
+    "headline": "Degree and leading coefficient are fixed; the term count is not.",
+    "reasoning": [
+     "Multiplying degree one by degree two always gives degree three with leading coefficient one, and only the constants reach the constant term.",
+     "But like terms can cancel, so the product need not keep four terms: at $b = -{{p}}$ the squared term disappears."
+    ],
+    "answerSummary": "The four-term claim is the one that fails."
+   },
+   "attemptFeedback": [
+    "Only the two constants multiply into the constant term, so that claim is safe."
+   ],
+   "supportHints": [
+    "Ask what happens to the middle degrees when the coefficients are chosen badly."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "constraints": [
+     "p>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "It has four terms."
+    },
+    {
+     "id": "choice-b",
+     "label": "Its constant term is ${{p}}c$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "Its degree is three.",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-d",
+     "label": "Its leading coefficient is one.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7B:claim-about-a-binomial-times-a-trinomial",
+    "sourcePrompt": "Which statement about $(x + {{p}})(x^2 + bx + c)$ fails for some $b$ and $c$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7C_quotient_read_at_a_value",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7C:quotient-read-at-a-value",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7C",
+   "taskType": "application",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Dividing $x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}$ by $x + {{p}}$ gives a quadratic. What is its value at $x = {{v}}$?",
+   "solutionReview": {
+    "headline": "Divide first; the quotient is what gets evaluated.",
+    "reasoning": [
+     "The division is exact and gives $x^2 + {{b}}x + {{c}}$.",
+     "At $x = {{v}}$ that quadratic is worth ${{answer}}$."
+    ],
+    "answerSummary": "It is worth ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The cubic and its quotient differ by a factor of $x + {{p}}$."
+   ],
+   "supportHints": [
+    "The cubic factors as $(x + {{p}})$ times the quotient."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "t2": "b+p",
+     "t1": "c+p*b",
+     "t0": "p*c",
+     "answer": "v*v+b*v+c",
+     "d_forgotFinalStep": "(v+p)*(v*v+b*v+c)",
+     "d_usedGivenValue": "p*c",
+     "d_signError": "v*v-b*v+c"
+    },
+    "constraints": [
+     "abs(p*c-v*v-b*v-c)>4",
+     "v*v-b*v+c>1",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_signError",
+     "d_usedGivenValue!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7C:quotient-read-at-a-value",
+    "sourcePrompt": "Dividing $x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}$ by $x + {{p}}$ gives a quadratic. What is its value at $x = {{v}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7C_constant_that_makes_the_division_exact",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7C:constant-that-makes-the-division-exact",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7C",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For which constant does $x + {{p}}$ divide $x^3 + {{t2}}x^2 + {{t1}}x + c$ exactly?",
+   "solutionReview": {
+    "headline": "Rebuild the quotient from the top down, then multiply out the tail.",
+    "reasoning": [
+     "The quotient must be $x^2 + {{b}}x + {{c}}$, since ${{t2}} - {{p}} = {{b}}$ and ${{t1}} - {{p}} \\times {{b}} = {{c}}$.",
+     "The constant is then ${{p}} \\times {{c}} = {{answer}}$."
+    ],
+    "answerSummary": "The constant is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The quotient's constant still has to be multiplied by ${{p}}$."
+   ],
+   "supportHints": [
+    "Only the two constants can produce the constant term."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "t2": "b+p",
+     "t1": "c+p*b",
+     "answer": "p*c",
+     "d_forgotFinalStep": "c",
+     "d_operationInverted": "p*b",
+     "d_partialTotal": "p*c+p*b"
+    },
+    "constraints": [
+     "abs(b-c)>1",
+     "abs(p*c-p*b)>4",
+     "p*c>7",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_operationInverted!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7C:constant-that-makes-the-division-exact",
+    "sourcePrompt": "For which constant does $x + {{p}}$ divide $x^3 + {{t2}}x^2 + {{t1}}x + c$ exactly?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7C_claim_about_a_remainder",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7C:claim-about-a-remainder",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7C",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cubic divided by $x + {{p}}$ leaves remainder ${{r}}$. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "The divisor's root is where the remainder shows up.",
+    "reasoning": [
+     "The remainder theorem reads the divisor $x + {{p}}$ at its root, which is $-{{p}}$.",
+     "Reading the cubic at ${{p}}$ answers a different division altogether."
+    ],
+    "answerSummary": "The claim about $x = {{p}}$ is the wrong one."
+   },
+   "attemptFeedback": [
+    "Dividing a cubic by a linear factor always leaves a quadratic behind."
+   ],
+   "supportHints": [
+    "Solve $x + {{p}} = 0$ before substituting."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     }
+    },
+    "constraints": [
+     "r>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The quotient is a quadratic.",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-b",
+     "label": "The cubic is worth ${{r}}$ at $x = -{{p}}$.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "The cubic is worth ${{r}}$ at $x = {{p}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "Since the remainder is not zero, $x + {{p}}$ is not a factor.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7C:claim-about-a-remainder",
+    "sourcePrompt": "A cubic divided by $x + {{p}}$ leaves remainder ${{r}}$. Which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7D_largest_root_of_a_factored_cubic",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7D:largest-root-of-a-factored-cubic",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7D",
+   "taskType": "interpretation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The cubic $x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}$ splits into three binomials. What is its largest root?",
+   "rankAnalysisNotApplicable": true,
+   "solutionReview": {
+    "headline": "Among negative roots, the smallest number gives the largest root.",
+    "reasoning": [
+     "The cubic is $(x + {{p}})(x + {{q}})(x + {{r}})$, so its roots are $-{{p}}$, $-{{q}}$ and $-{{r}}$.",
+     "The largest of three negatives is the one closest to zero, which is ${{answer}}$."
+    ],
+    "answerSummary": "The largest root is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The largest of several negatives is the one nearest zero, not the one furthest from it."
+   ],
+   "supportHints": [
+    "Each factor $x + k$ contributes the root $-k$."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "t2": "p+q+r",
+     "t1": "p*q+p*r+q*r",
+     "t0": "p*q*r",
+     "answer": "0-min(p,min(q,r))",
+     "d_signError": "0-max(p,max(q,r))",
+     "d_operationInverted": "min(p,min(q,r))",
+     "d_usedGivenValue": "0-p-q-r"
+    },
+    "constraints": [
+     "p!=q",
+     "q!=r",
+     "p!=r",
+     "min(p,min(q,r))!=max(p,max(q,r))",
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_signError!=d_operationInverted",
+     "d_signError!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7D:largest-root-of-a-factored-cubic",
+    "sourcePrompt": "The cubic $x^3 + {{t2}}x^2 + {{t1}}x + {{t0}}$ splits into three binomials. What is its largest root?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7D_middle_coefficient_that_admits_a_factor",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7D:middle-coefficient-that-admits-a-factor",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7D",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For which middle coefficient does $x + {{p}}$ divide $x^3 + {{t2}}x^2 + kx + {{t0}}$ exactly?",
+   "solutionReview": {
+    "headline": "Both ends of the quotient feed the middle coefficient.",
+    "reasoning": [
+     "The quotient starts $x^2 + {{b}}x$ and ends in ${{c}}$, since ${{t0}} \\div {{p}} = {{c}}$.",
+     "Multiplying out, the middle coefficient is ${{c}} + {{p}} \\times {{b}} = {{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Two different products land on the middle degree, and both count."
+   ],
+   "supportHints": [
+    "Work the quotient out from its first and last terms."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "t2": "b+p",
+     "t0": "p*c",
+     "answer": "c+p*b",
+     "d_forgotFinalStep": "c",
+     "d_operationInverted": "p*c+b",
+     "d_partialTotal": "p*c+p*b"
+    },
+    "constraints": [
+     "abs(b-c)>1",
+     "abs(p*c+b-c-p*b)>4",
+     "c+p*b>9",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_operationInverted!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7D:middle-coefficient-that-admits-a-factor",
+    "sourcePrompt": "For which middle coefficient does $x + {{p}}$ divide $x^3 + {{t2}}x^2 + kx + {{t0}}$ exactly?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7D_claim_about_testing_a_factor",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7D:claim-about-testing-a-factor",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7D",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cubic is worth zero at $x = {{r}}$ and nowhere else. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "One root does not mean three linear factors.",
+    "reasoning": [
+     "A single root means one linear factor and a quadratic that never reaches zero.",
+     "Three different binomial factors would give three roots, not one."
+    ],
+    "answerSummary": "The three-binomial claim is the wrong one."
+   },
+   "attemptFeedback": [
+    "A quadratic with no real root still divides in; it just does not factor further."
+   ],
+   "supportHints": [
+    "Count how many roots each factored shape would produce."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     }
+    },
+    "constraints": [
+     "r>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Dividing by $x - {{r}}$ leaves a quadratic with no real root.",
+     "error": "incompleteFactoring"
+    },
+    {
+     "id": "choice-b",
+     "label": "It crosses the horizontal axis once.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "It factors into three different binomials."
+    },
+    {
+     "id": "choice-d",
+     "label": "The expression $x - {{r}}$ divides it exactly.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7D:claim-about-testing-a-factor",
+    "sourcePrompt": "A cubic is worth zero at $x = {{r}}$ and nowhere else. Which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7E_what_the_cube_difference_divides_to",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7E:what-the-cube-difference-divides-to",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7E",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cube of side ${{a}}$ cm has a cube of side ${{b}}$ cm cut out. Divide the volume left by ${{gap}}$; what is the result?",
+   "solutionReview": {
+    "headline": "A difference of cubes hands back its second factor on division.",
+    "reasoning": [
+     "The volume left is ${{a}}^{3} - {{b}}^{3}$, which factors as $({{a}} - {{b}})({{a}}^{2} + {{a}}{{b}} + {{b}}^{2})$.",
+     "Dividing by ${{gap}}$ leaves ${{answer}}$."
+    ],
+    "answerSummary": "The result is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The middle term of the second factor is added, not subtracted."
+   ],
+   "supportHints": [
+    "The gap between the sides is exactly the first factor."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 1,
+      "max": 11
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     }
+    },
+    "derived": {
+     "a": "b+gap",
+     "answer": "(b+gap)*(b+gap)+(b+gap)*b+b*b",
+     "d_forgotFinalStep": "(b+gap)*(b+gap)*(b+gap)-b*b*b",
+     "d_usedGivenValue": "b*b*b",
+     "d_signError": "(b+gap)*(b+gap)-(b+gap)*b+b*b"
+    },
+    "constraints": [
+     "abs(b*b*b-(b+gap)*(b+gap)-(b+gap)*b-b*b)>5",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_signError",
+     "d_usedGivenValue!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7E:what-the-cube-difference-divides-to",
+    "sourcePrompt": "A cube of side ${{a}}$ cm has a cube of side ${{b}}$ cm cut out. Divide the volume left by ${{gap}}$; what is the result?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7E_grouping_with_a_leading_coefficient",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7E:grouping-with-a-leading-coefficient",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7E",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Factor ${{a3}}x^3 + {{a2}}x^2 + {{a1}}x + {{a0}}$ by grouping.",
+   "solutionReview": {
+    "headline": "Grouping works when both pairs leave the same bracket behind.",
+    "reasoning": [
+     "The first pair gives ${{r}}x^2({{p}}x + {{q}})$ and the second gives ${{s}}({{p}}x + {{q}})$.",
+     "The shared bracket lifts out, leaving $({{p}}x + {{q}})({{r}}x^2 + {{s}})$."
+    ],
+    "answerSummary": "It is $({{p}}x + {{q}})({{r}}x^2 + {{s}})$."
+   },
+   "attemptFeedback": [
+    "The bracket left by each pair has to match exactly, order included."
+   ],
+   "supportHints": [
+    "Take the common factor out of each pair before comparing them."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "a3": "p*r",
+     "a2": "q*r",
+     "a1": "p*s",
+     "a0": "q*s"
+    },
+    "constraints": [
+     "p!=q",
+     "r!=s",
+     "p*s!=q*r",
+     "p!=r",
+     "q!=s",
+     "gcd(p,q)==1",
+     "gcd(r,s)==1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{p}}x + {{s}})({{r}}x^2 + {{q}})$",
+     "error": "incompleteFactoring"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{p}}x + {{q}})({{r}}x^2 + {{s}})$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{q}}x + {{p}})({{r}}x^2 + {{s}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{p}}x + {{q}})({{s}}x^2 + {{r}})$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7E:grouping-with-a-leading-coefficient",
+    "sourcePrompt": "Factor ${{a3}}x^3 + {{a2}}x^2 + {{a1}}x + {{a0}}$ by grouping."
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7E_claim_about_a_sum_of_cubes",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7E:claim-about-a-sum-of-cubes",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7E",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which statement about the factoring of $x^3 + {{cube}}$ is wrong?",
+   "solutionReview": {
+    "headline": "The quadratic factor of a cube sum has no real root.",
+    "reasoning": [
+     "A sum of cubes gives $(x + {{m}})(x^2 - {{m}}x + {{msq}})$, and that quadratic never reaches zero.",
+     "So the second factor does not break down any further over the real numbers."
+    ],
+    "answerSummary": "The claim that it breaks down further is wrong."
+   },
+   "attemptFeedback": [
+    "The middle sign of the quadratic factor is the opposite of the sign in the cube sum."
+   ],
+   "supportHints": [
+    "Check the discriminant of the quadratic factor."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "cube": "m*m*m",
+     "msq": "m*m"
+    },
+    "constraints": [
+     "m>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "One factor is $x + {{m}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "It is zero at $x = -{{m}}$ and nowhere else.",
+     "error": "incompleteFactoring"
+    },
+    {
+     "id": "choice-c",
+     "label": "Its second factor breaks down further over the real numbers."
+    },
+    {
+     "id": "choice-d",
+     "label": "The other factor is $x^2 - {{m}}x + {{msq}}$.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7E:claim-about-a-sum-of-cubes",
+    "sourcePrompt": "Which statement about the factoring of $x^3 + {{cube}}$ is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7F_simplified_fraction_read_at_a_value",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7F:simplified-fraction-read-at-a-value",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7F",
+   "taskType": "application",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Simplify $\\frac{x^2 + {{sum}}x + {{product}}}{x + {{p}}}$ and read the result at $x = {{v}}$.",
+   "solutionReview": {
+    "headline": "Cancel first; only then substitute.",
+    "reasoning": [
+     "The top factors as $(x + {{p}})(x + {{q}})$, so the fraction is $x + {{q}}$.",
+     "At $x = {{v}}$ that comes to ${{answer}}$."
+    ],
+    "answerSummary": "It reads ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The factor that survives is the one the bottom does not match."
+   ],
+   "supportHints": [
+    "Two numbers adding to ${{sum}}$ and multiplying to ${{product}}$ split the top."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 3
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     }
+    },
+    "derived": {
+     "sum": "p+q",
+     "product": "p*q",
+     "answer": "v+q",
+     "d_forgotFinalStep": "(v+p)*(v+q)",
+     "d_usedGivenValue": "p*q",
+     "d_signError": "v-q"
+    },
+    "constraints": [
+     "p!=q",
+     "abs(p*q-v-q)>4",
+     "abs(p-q)>1",
+     "v!=q",
+     "abs(v-q-p*q)>3",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_signError",
+     "d_usedGivenValue!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7F:simplified-fraction-read-at-a-value",
+    "sourcePrompt": "Simplify $\\frac{x^2 + {{sum}}x + {{product}}}{x + {{p}}}$ and read the result at $x = {{v}}$."
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7F_lowest_terms_over_a_difference_of_squares",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7F:lowest-terms-over-a-difference-of-squares",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7F",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Write $\\frac{x^2 + {{sum}}x + {{product}}}{x^2 - {{sq}}}$ in lowest terms.",
+   "solutionReview": {
+    "headline": "Factor both halves before cancelling anything.",
+    "reasoning": [
+     "The top is $(x + {{p}})(x + {{q}})$ and the bottom is $(x + {{p}})(x - {{p}})$.",
+     "The shared factor cancels, leaving $\\frac{x + {{q}}}{x - {{p}}}$."
+    ],
+    "answerSummary": "It is $\\frac{x + {{q}}}{x - {{p}}}$."
+   },
+   "attemptFeedback": [
+    "Only whole factors cancel, never single terms."
+   ],
+   "supportHints": [
+    "The bottom is a difference of two squares."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "sum": "p+q",
+     "product": "p*q",
+     "sq": "p*p"
+    },
+    "constraints": [
+     "p!=q"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\frac{x + {{q}}}{x + {{p}}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\frac{x + {{q}}}{x - {{p}}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\frac{x + {{sum}}}{x - {{sq}}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\frac{x + {{p}}}{x - {{p}}}$",
+     "error": "incompleteFactoring"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7F:lowest-terms-over-a-difference-of-squares",
+    "sourcePrompt": "Write $\\frac{x^2 + {{sum}}x + {{product}}}{x^2 - {{sq}}}$ in lowest terms."
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7F_claim_about_a_cancelled_fraction",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7F:claim-about-a-cancelled-fraction",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7F",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The fraction $\\frac{x^2 + {{sum}}x + {{product}}}{x + {{p}}}$ cancels to $x + {{q}}$. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "Cancelling a factor quietly drops a value from the domain.",
+    "reasoning": [
+     "Cancelling removes a factor that was zero at $x = -{{p}}$, where the fraction has no value at all.",
+     "So the two expressions part company at exactly that one place."
+    ],
+    "answerSummary": "The claim that they always agree is wrong."
+   },
+   "attemptFeedback": [
+    "The simplified form is defined at $-{{p}}$; the fraction it came from is not."
+   ],
+   "supportHints": [
+    "Ask what the fraction is worth where the bottom is zero."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "sum": "p+q",
+     "product": "p*q"
+    },
+    "constraints": [
+     "p!=q"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The top factors as $(x + {{p}})(x + {{q}})$.",
+     "error": "incompleteFactoring"
+    },
+    {
+     "id": "choice-b",
+     "label": "The fraction is undefined at $x = -{{p}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The two expressions agree at every value of $x$."
+    },
+    {
+     "id": "choice-d",
+     "label": "They agree everywhere except at one value.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7F:claim-about-a-cancelled-fraction",
+    "sourcePrompt": "The fraction $\\frac{x^2 + {{sum}}x + {{product}}}{x + {{p}}}$ cancels to $x + {{q}}$. Which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7G_square_against_a_rectangle_on_the_same_side",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7G:square-against-a-rectangle-on-the-same-side",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7G",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A square of side $\\sqrt{{{a}}x^{{{e}}}}$ metres and a rectangle ${{L}}$ metres wide share that side. At $x = {{v}}$, how much more does the square cover?",
+   "solutionReview": {
+    "headline": "Simplify the radical once; both areas then share that side.",
+    "reasoning": [
+     "The side simplifies to ${{m}}x^{{{h}}}$, which is ${{side}}$ at $x = {{v}}$.",
+     "The square covers ${{side}}^{2}$ and the rectangle ${{L}} \\times {{side}}$, a gap of ${{answer}}$."
+    ],
+    "answerSummary": "The square covers ${{answer}}$ more."
+   },
+   "attemptFeedback": [
+    "Both rectangles stand on the same side, so only their widths differ."
+   ],
+   "supportHints": [
+    "A square root halves an even exponent and takes the root of the coefficient."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "h": {
+      "type": "int",
+      "min": 1,
+      "max": 2
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "lu": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "a": "m*m",
+     "e": "2*h",
+     "side": "m*v^h",
+     "L": "round(m*v^h*lu/10)",
+     "answer": "m*v^h*(m*v^h-round(m*v^h*lu/10))",
+     "d_partialTotal": "m*v^h*m*v^h",
+     "d_usedGivenValue": "round(m*v^h*lu/10)*m*v^h",
+     "d_signError": "round(m*v^h*lu/10)*m*v^h-m*v^h*m*v^h"
+    },
+    "constraints": [
+     "m*v^h>12",
+     "round(m*v^h*lu/10)>1",
+     "2*round(m*v^h*lu/10)!=m*v^h",
+     "m*v^h-round(m*v^h*lu/10)>1",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_partialTotal!=d_signError",
+     "d_usedGivenValue!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7G:square-against-a-rectangle-on-the-same-side",
+    "sourcePrompt": "A square of side $\\sqrt{{{a}}x^{{{e}}}}$ metres and a rectangle ${{L}}$ metres wide share that side. At $x = {{v}}$, how much more does the square cover?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7G_coefficient_behind_a_simplified_radical",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7G:coefficient-behind-a-simplified-radical",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7G",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For which $b$ does $\\sqrt{{{a}}x^{{{e}}}} \\times \\sqrt{b x}$ simplify to ${{k}}x^{{{h}}}$, for $x \\ge 0$?",
+   "solutionReview": {
+    "headline": "Combine under one root, square the target back, then divide.",
+    "reasoning": [
+     "The two roots combine into $\\sqrt{{{a}}b\\,x^{{{ep}}}}$, whose square root is ${{k}}x^{{{h}}}$.",
+     "So ${{a}}b = {{k}}^{2}$, which gives $b = {{answer}}$."
+    ],
+    "answerSummary": "$b = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The square of the outside coefficient still has to be divided by ${{a}}$."
+   ],
+   "supportHints": [
+    "Two square roots multiplied become one root of the product."
+   ],
+   "generator": {
+    "parameters": {
+     "g": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "st": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "tt": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "u": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "e": "2*u+1",
+     "ep": "2*u+2",
+     "h": "u+1",
+     "a": "g*st*st",
+     "k": "g*st*tt",
+     "answer": "g*tt*tt",
+     "d_usedGivenValue": "g*st*st",
+     "d_exponentError": "g*st*tt*g*st*tt",
+     "d_forgotFinalStep": "g*tt"
+    },
+    "constraints": [
+     "st!=tt",
+     "abs(g*tt*tt-g*st*st)>3",
+     "abs(g*tt*tt-g*tt)>3",
+     "g*tt*tt>3",
+     "answer!=d_usedGivenValue",
+     "answer!=d_exponentError",
+     "answer!=d_forgotFinalStep",
+     "d_usedGivenValue!=d_exponentError",
+     "d_usedGivenValue!=d_forgotFinalStep",
+     "d_exponentError!=d_forgotFinalStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_exponentError}}$",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7G:coefficient-behind-a-simplified-radical",
+    "sourcePrompt": "For which $b$ does $\\sqrt{{{a}}x^{{{e}}}} \\times \\sqrt{b x}$ simplify to ${{k}}x^{{{h}}}$, for $x \\ge 0$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7G_claim_about_an_odd_exponent_under_a_root",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7G"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7G",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7G:claim-about-an-odd-exponent-under-a-root",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7G",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For $\\sqrt{{{sq}}x^{{{e}}}}$ with $x \\ge 0$, which statement is wrong?",
+   "solutionReview": {
+    "headline": "Odd exponents always leave one factor behind.",
+    "reasoning": [
+     "An odd exponent splits as an even part plus one leftover $x$.",
+     "Only the even part leaves the root, so the exponent never comes out whole."
+    ],
+    "answerSummary": "The claim about a whole halved exponent is wrong."
+   },
+   "attemptFeedback": [
+    "Halving an odd number does not give a whole exponent."
+   ],
+   "supportHints": [
+    "Write $x^{{{e}}}$ as an even power times $x$."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "u": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "sq": "m*m",
+     "e": "2*u+1",
+     "h": "u"
+    },
+    "constraints": [
+     "m>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The exponent halves to a whole power outside the root."
+    },
+    {
+     "id": "choice-b",
+     "label": "One factor of $x$ has to stay under the root.",
+     "error": "incompleteFactoring"
+    },
+    {
+     "id": "choice-c",
+     "label": "The coefficient comes out as ${{m}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "The result is ${{m}}x^{{{h}}}\\sqrt{x}$.",
+     "error": "exponentError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7G:claim-about-an-odd-exponent-under-a-root",
+    "sourcePrompt": "For $\\sqrt{{{sq}}x^{{{e}}}}$ with $x \\ge 0$, which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7H_two_rational_powers_multiplied",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7H:two-rational-powers-multiplied",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7H",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is ${{b1}}^{\\frac{{{m}}}{{{n}}}} \\times {{b2}}^{\\frac{{{q}}}{{{r}}}}$?",
+   "solutionReview": {
+    "headline": "Take each root down to its base before multiplying.",
+    "reasoning": [
+     "The first is the ${{n}}th root of ${{b1}}$ raised to ${{m}}$, which is ${{u}}^{{{m}}}$.",
+     "The second gives ${{w}}^{{{q}}}$, and the product is ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Each base keeps its own exponent; they do not trade."
+   ],
+   "supportHints": [
+    "The denominator names the root and the numerator the power."
+   ],
+   "generator": {
+    "parameters": {
+     "u": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "w": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "m": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "q": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "b1": "u^n",
+     "b2": "w^r",
+     "answer": "u^m*w^q",
+     "d_usedGivenValue": "u^n*w^r",
+     "d_ratioReversed": "u^q*w^m",
+     "d_operationInverted": "u^m+w^q"
+    },
+    "constraints": [
+     "m<n",
+     "q<r",
+     "gcd(m,n)==1",
+     "gcd(q,r)==1",
+     "u!=w",
+     "m!=q",
+     "abs(u^m*w^q-u^q*w^m)>2",
+     "abs(u^m*w^q-u^m-w^q)>2",
+     "u^m*w^q>5",
+     "answer!=d_usedGivenValue",
+     "answer!=d_ratioReversed",
+     "answer!=d_operationInverted",
+     "d_usedGivenValue!=d_ratioReversed",
+     "d_usedGivenValue!=d_operationInverted",
+     "d_ratioReversed!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7H:two-rational-powers-multiplied",
+    "sourcePrompt": "What is ${{b1}}^{\\frac{{{m}}}{{{n}}}} \\times {{b2}}^{\\frac{{{q}}}{{{r}}}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7H_root_behind_a_known_rational_power",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7H:root-behind-a-known-rational-power",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7H",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For which $n$ does ${{base}}^{\\frac{{{m}}}{n}}$ equal ${{value}}$?",
+   "solutionReview": {
+    "headline": "Write both numbers over one base and match the exponents.",
+    "reasoning": [
+     "Both ${{base}}$ and ${{value}}$ are powers of ${{u}}$: ${{base}} = {{u}}^{{{n}}}$ and ${{value}} = {{u}}^{{{m}}}$.",
+     "So $\\frac{{{m}}}{n}$ must give ${{u}}^{{{m}}}$ from ${{u}}^{{{n}}}$, which needs $n = {{answer}}$."
+    ],
+    "answerSummary": "$n = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The root has to undo the base's own exponent, not the numerator."
+   ],
+   "supportHints": [
+    "A rational exponent multiplies whatever exponent the base already carries."
+   ],
+   "generator": {
+    "parameters": {
+     "u": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     }
+    },
+    "derived": {
+     "base": "u^n",
+     "value": "u^m",
+     "answer": "n",
+     "d_usedGivenValue": "m",
+     "d_operationInverted": "m*n",
+     "d_offByOneStep": "abs(n-m)"
+    },
+    "constraints": [
+     "m!=n",
+     "abs(n-m)>1",
+     "abs(n-m)!=n",
+     "m*n!=n",
+     "u^n<3000",
+     "u^m<3000",
+     "answer!=d_usedGivenValue",
+     "answer!=d_operationInverted",
+     "answer!=d_offByOneStep",
+     "d_usedGivenValue!=d_operationInverted",
+     "d_usedGivenValue!=d_offByOneStep",
+     "d_operationInverted!=d_offByOneStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7H:root-behind-a-known-rational-power",
+    "sourcePrompt": "For which $n$ does ${{base}}^{\\frac{{{m}}}{n}}$ equal ${{value}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A2_7H_claim_about_a_rational_exponent",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A2.7H"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A2.7H",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra2",
+   "familyId": "mathmaster:asvab:mk:A2.7H:claim-about-a-rational-exponent",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A2.7H",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which statement about ${{base}}^{-\\frac{{{m}}}{{{n}}}}$ is wrong?",
+   "solutionReview": {
+    "headline": "A negative exponent flips a power, it does not negate it.",
+    "reasoning": [
+     "A negative exponent turns the power over rather than changing its sign.",
+     "Since ${{base}}$ is positive, every power of it stays positive."
+    ],
+    "answerSummary": "The claim about a negative value is wrong."
+   },
+   "attemptFeedback": [
+    "A positive base can never give a negative power."
+   ],
+   "supportHints": [
+    "Rewrite the negative exponent as one over the positive one."
+   ],
+   "generator": {
+    "parameters": {
+     "u": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     },
+     "m": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     }
+    },
+    "derived": {
+     "base": "u^n",
+     "pos": "u^m"
+    },
+    "constraints": [
+     "m<n",
+     "gcd(m,n)==1",
+     "u^n<700"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "It is the reciprocal of ${{base}}^{\\frac{{{m}}}{{{n}}}}$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "It equals $\\frac{1}{{{pos}}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The minus sign makes the value negative."
+    },
+    {
+     "id": "choice-d",
+     "label": "Its value lies between zero and one.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A2.7H:claim-about-a-rational-exponent",
+    "sourcePrompt": "Which statement about ${{base}}^{-\\frac{{{m}}}{{{n}}}}$ is wrong?"
+   }
   }
  ]
 }
