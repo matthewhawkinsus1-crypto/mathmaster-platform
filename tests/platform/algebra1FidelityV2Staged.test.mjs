@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { REPRESENTATIONS, TASK_TYPES } from '../../functions/shared/pathQuestionQuality.mjs';
 
 const read = (path) => JSON.parse(readFileSync(path, 'utf8'));
-const codes = ['A.2C', 'A.2H', 'A.2I', 'A.10A', 'A.10B', 'A.10C', 'A.10D', 'A.10E', 'A.10F', 'A.12D'];
+const codes = ['A.2C', 'A.2H', 'A.2I', 'A.8A', 'A.10A', 'A.10B', 'A.10C', 'A.10D', 'A.10E', 'A.10F', 'A.12D'];
 const staged = codes.map((code) => read(`drafts/fidelity-v2/algebra1/${code}.json`));
 const codeOf = (doc) => String((doc.alignmentKeys || []).find((key) => String(key).startsWith('texas:')) || '').replace(/^texas:/, '');
 const allStrings = (node, out = []) => {
@@ -73,6 +73,24 @@ test('A.2I requires both equations of the system in every family', () => {
     assert.equal(doc.responseFields?.length, 2);
     assert.ok(doc.responseFields.every((field) => field.inputProfile === 'equation' && String(field.expected).includes('=')));
   }
+});
+
+test('A.8A covers all four required quadratic solution methods and complete solution sets', () => {
+  const entry = payload('A.8A');
+  assert.match(entry.certificationStatus, /four-required-methods/);
+  assert.equal(entry.documents.length, 5);
+  for (const doc of entry.documents) {
+    assert.equal(doc.responseFields?.length, 1);
+    assert.equal(doc.responseFields[0].inputProfile, 'set');
+    assert.match(String(doc.responseFields[0].expected), /\{.*\}/);
+  }
+  const prompts = entry.documents.map((doc) => String(doc.prompt).toLowerCase()).join(' ');
+  assert.match(prompts, /factor/);
+  assert.match(prompts, /square-root property/);
+  assert.match(prompts, /completing the square/);
+  assert.match(prompts, /quadratic formula/);
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /complete solution set/i.test(doc.prompt)));
+  assert.ok(new Set(entry.documents.map((doc) => doc.dok)).size >= 2);
 });
 
 test('A.10A-D require complete polynomial-operation expressions rather than component answers', () => {
