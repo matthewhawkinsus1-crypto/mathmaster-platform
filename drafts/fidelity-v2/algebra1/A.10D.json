@@ -366,7 +366,110 @@
           "B": "g*b",
           "C": "g*c"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-factor-distribution-error",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student factors ${{A}}x^3{{B|signed}}x^2{{C|signed}}x$ by ${{g}}x$ but writes ${{g}}x({{a}}x^2{{b|signed}}x{{C|signed}})$, leaving the original x-term coefficient inside instead of dividing it by the GCF. Diagnose the error, repair the inside constant, and verify the x-term coefficient after redistributing.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What did the student fail to do?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "divide-every-term",
+                  "label": "Divide every original term, including the x-term, by the common factor {{g}}x."
+                },
+                {
+                  "id": "keep-last",
+                  "label": "The last coefficient should stay {{C}} because it was already attached to x."
+                },
+                {
+                  "id": "remove-x",
+                  "label": "The common factor should be {{g}} with no x."
+                }
+              ],
+              "expected": "divide-every-term"
+            },
+            {
+              "id": "inside-constant",
+              "label": "Correct constant inside the parentheses",
+              "inputProfile": "number",
+              "expected": "{{c}}"
+            },
+            {
+              "id": "redistributed-x-coefficient",
+              "label": "x-term coefficient after redistributing {{g}}x",
+              "inputProfile": "number",
+              "expected": "{{C}}"
+            },
+            {
+              "id": "answer",
+              "label": "Correct complete factored expression",
+              "inputProfile": "expression",
+              "expected": "{{g}}x({{a}}x^2{{b|signed}}x{{c|signed}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Factoring reverses distribution for every term, not only the leading terms.",
+            "reasoning": [
+              "Divide {{A}}x³, {{B}}x², and {{C}}x by the same factor {{g}}x.",
+              "The final inside constant is {{C}}/{{g}}={{c}}.",
+              "Redistributing {{g}}x·{{c}} gives {{C}}x, so the repaired factorization recovers the original polynomial."
+            ],
+            "answerSummary": "${{g}}x({{a}}x^2{{b|signed}}x{{c|signed}})$."
+          },
+          "attemptFeedback": [
+            "A proposed GCF factorization is valid only if distributing it reproduces every original term."
+          ],
+          "supportHints": [
+            "Divide each coefficient and subtract one x-power from each term."
+          ],
+          "generator": {
+            "parameters": {
+              "g": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              },
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "A": "g*a",
+              "B": "g*b",
+              "C": "g*c"
+            }
+          }
+        }
+      ]
     }
   ]
 }
