@@ -222,6 +222,7 @@ export const createTeacherPathRuntime = ({
     status: session.status,
     sessionKind: session.sessionKind,
     assessmentFramework: session.assessmentFramework || null,
+    coursePracticeIntent: session.coursePracticeIntent || null,
     weekKey: session.weekKey || null,
     weeklySlotKey: session.weeklySlotKey || null,
     weeklySlot: session.weeklySlot || null,
@@ -400,6 +401,7 @@ export const createTeacherPathRuntime = ({
     sessionKind = 'practice',
     requiredQuestions: required = requiredQuestions,
     assessmentFramework = null,
+    coursePracticeIntent = null,
     weekKey = null,
     weeklySlotKey = null,
     weeklySlot = null,
@@ -422,6 +424,7 @@ export const createTeacherPathRuntime = ({
       && candidate.targetAlignmentKey === toCanonicalKey(code)
       && candidate.sessionKind === sessionKind
       && (candidate.assessmentFramework || null) === (assessmentFramework || null)
+      && (candidate.coursePracticeIntent || null) === (coursePracticeIntent === 'challenge' ? 'challenge' : null)
       && (candidate.weeklySlotKey || null) === (weeklySlotKey || null)
     ));
     if (existing) {
@@ -434,6 +437,7 @@ export const createTeacherPathRuntime = ({
       status: 'active',
       sessionKind,
       assessmentFramework: assessmentFramework || null,
+      coursePracticeIntent: coursePracticeIntent === 'challenge' ? 'challenge' : null,
       weekKey: weekKey || null,
       weeklySlotKey: weeklySlotKey || null,
       weeklySlot: weeklySlot || null,
@@ -452,8 +456,12 @@ export const createTeacherPathRuntime = ({
       // server resolved from its weekly snapshot. Open-practice simulation
       // keeps the current baseline until its separate pass/readiness parity
       // audit supplies a stronger target.
-      preferredBand: Number.isFinite(Number(intendedDifficultyBand)) ? Number(intendedDifficultyBand) : 3,
-      preferredDok: Number.isFinite(Number(intendedDok)) ? Number(intendedDok) : 2,
+      preferredBand: coursePracticeIntent === 'challenge' && !weeklySlotKey
+        ? 4
+        : (Number.isFinite(Number(intendedDifficultyBand)) ? Number(intendedDifficultyBand) : 3),
+      preferredDok: coursePracticeIntent === 'challenge' && !weeklySlotKey
+        ? 3
+        : (Number.isFinite(Number(intendedDok)) ? Number(intendedDok) : 2),
       familyUsage: {},
       usedRepresentations: [],
       usedTaskTypes: [],
