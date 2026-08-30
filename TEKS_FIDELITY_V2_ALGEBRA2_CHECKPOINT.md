@@ -716,6 +716,14 @@ Resume here. Do not reopen A2.2A–A2.7A unless a failing gate names them.
   - keep routine polynomial arithmetic DOK 2 even when computationally difficult; reserve DOK 3 for genuine error analysis.
 - Existing secure expanded-polynomial expression equivalence should be sufficient; certify harmless term reordering/coefficient arithmetic and reject factored or mathematically changed answers as appropriate.
 
+### 2026-08-30 — A2.7B staged
+- Staged five A2.7B Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7B.json` — commit `760e3119f9f47134b47a4b18e33bfd791833b9d1`.
+- The off-standard degree/leading-coefficient family is removed.
+- Coverage includes sparse quartic addition, sparse quartic subtraction, quadratic-by-quadratic multiplication with like-term combining, sparse cubic-by-quadratic multiplication producing a degree-5 product, and complete subtraction-sign error repair.
+- Routine arithmetic remains DOK 2 even at higher computational difficulty; only the error-repair family is DOK 3.
+- Base Algebra II certification run `33330754534`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.7B** until full generated certification is green.
+
 
 ### 2026-08-30 — A2.7A audit finding
 - Official construct: **add, subtract, and multiply complex numbers**.
