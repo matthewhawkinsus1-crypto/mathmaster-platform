@@ -56,6 +56,13 @@ const QUESTIONS = {
     // server does it again for itself.
     system: { m1: 2, b1: 1, m2: -1, b2: 7 },
   },
+  graphing2: {
+    type: 'graphing2',
+    prompt: 'Graph the line in standard form.',
+    mode: 'standardForm',
+    standard: { A: 2, B: 1, C: 4 },
+    graphBounds: { xMin: -5, xMax: 5, yMin: -5, yMax: 6 },
+  },
   dataModelingLab: {
     // Exercise the authoring alias as well as the registry's canonical id.
     type: 'dataModeling',
@@ -95,6 +102,7 @@ const SECRETS = {
   intervalNumberLine: ['[-4, 2)'],
   multiAnswer: ['"3"', '"-2"'],
   systemsWorkspace: [],
+  graphing2: [],
   dataModelingLab: ['must-not-leak', 'correlationTolerance'],
   stepAlgebra: ['"5"'],
   // The y-values of the plotted points, and the end-behaviour symbol.
@@ -269,6 +277,11 @@ test('systems: the intersection is checked, from either shape the grader sends',
   assert.equal(grade('system', { x: 1, y: 3 }).isCorrect, true);
   assert.equal(grade('system', { value: '(1,3)' }).isCorrect, true);
   assert.equal(grade('system', { x: 2, y: 3 }).isCorrect, false);
+});
+
+test('graphing2: the server rebuilds the line from the two plotted points', () => {
+  assert.equal(grade('graphing2', { points: [[0, 4], [2, 0]], studentLine: { kind: 'wrong' } }).isCorrect, true);
+  assert.equal(grade('graphing2', { points: [[0, 3], [2, -1]], isCorrect: true, score: 1 }).isCorrect, false);
 });
 
 test('data modeling: correlation and interpretation are both server-graded', () => {
