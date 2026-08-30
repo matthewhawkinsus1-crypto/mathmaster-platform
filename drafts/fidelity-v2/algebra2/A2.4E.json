@@ -199,7 +199,7 @@
       }
     },
     {
-      "id": "mm_A2_4E_v2-square-root-regression-extrapolation",
+      "id": "mm_A2_4E_v2_square-root-regression-extrapolation",
       "active": true,
       "alignmentKeys": [
         "texas:A2.4E"
@@ -297,7 +297,7 @@
       }
     },
     {
-      "id": "mm_A2_4E_v2-square-root-context-interpolation",
+      "id": "mm_A2_4E_v2_square-root-context-interpolation",
       "active": true,
       "alignmentKeys": [
         "texas:A2.4E"
@@ -397,7 +397,7 @@
       }
     },
     {
-      "id": "mm_A2_4E_v2-technology-entry-error-repair",
+      "id": "mm_A2_4E_v2_technology-entry-error-repair",
       "active": true,
       "alignmentKeys": [
         "texas:A2.4E"
