@@ -138,7 +138,78 @@
           "x2": "h+offset",
           "y2": "a*offset*offset+k"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-unit-offset-vertex-equation",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "A quadratic has vertex $({{h}},{{k}})$ and passes through the point one unit to the right, $({{x2}},{{y2}})$. Determine a and write the complete equation in vertex form.",
+          "responseFields": [
+            {
+              "id": "a",
+              "label": "Vertical coefficient a",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "answer",
+              "label": "Complete vertex-form equation",
+              "inputProfile": "equation",
+              "expected": "y={{a}}(x{{nh|signed}})^2{{k|signed}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A point one unit from the vertex makes the scale coefficient especially accessible.",
+            "reasoning": [
+              "Since x-h=1, the point satisfies {{y2}}=a(1)^2{{k|signed}}.",
+              "Subtracting {{k}} gives a={{a}}.",
+              "The complete equation is y={{a}}(x{{nh|signed}})^2{{k|signed}}."
+            ],
+            "answerSummary": "a={{a}} and the complete vertex-form equation."
+          },
+          "attemptFeedback": [
+            "Use the vertex-form structure first; the one-unit offset makes the squared factor equal 1."
+          ],
+          "supportHints": [
+            "At x=h+1, (x-h)^2=1."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -2,
+                  -1,
+                  1,
+                  2
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            },
+            "derived": {
+              "offset": "1",
+              "nh": "-h",
+              "x2": "h+1",
+              "y2": "a+k"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_6B_v2_vertex-to-standard-full",
@@ -389,7 +460,105 @@
           "y2": "a*offset*offset+k",
           "wrongA": "y2-k"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-square-offset-error-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A quadratic has vertex $({{h}},{{k}})$ and passes through $({{x2}},{{y2}})$. A student subtracts k and says $a={{wrongA}}$, forgetting that the horizontal offset {{offset}} must be squared. Diagnose the error, compute the correct a, write the vertex-form equation, and verify the extra point.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What factor was omitted?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "square",
+                  "label": "The student forgot to divide by (x-h)^2={{offset2}}."
+                },
+                {
+                  "id": "linear",
+                  "label": "The student should divide only by x-h={{offset}}."
+                }
+              ],
+              "expected": "square"
+            },
+            {
+              "id": "a",
+              "label": "Correct a",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "equation",
+              "label": "Correct vertex-form equation",
+              "inputProfile": "equation",
+              "expected": "y={{a}}(x{{nh|signed}})^2{{k|signed}}"
+            },
+            {
+              "id": "verify",
+              "label": "Equation output at x={{x2}}",
+              "inputProfile": "number",
+              "expected": "{{y2}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The vertex-form distance is squared, so the scale must account for the square.",
+            "reasoning": [
+              "After subtracting k, the remaining value equals a·{{offset2}}.",
+              "Dividing by {{offset2}} gives a={{a}}, not {{wrongA}}.",
+              "Substitution of x={{x2}} returns y={{y2}}, verifying the corrected model."
+            ],
+            "answerSummary": "Correct a={{a}} and verified vertex-form equation."
+          },
+          "attemptFeedback": [
+            "Use the entire squared horizontal distance when isolating a."
+          ],
+          "supportHints": [
+            "Compute (x2-h)^2 before dividing."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  1
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "k": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "offset": {
+                "type": "choice",
+                "values": [
+                  2
+                ]
+              }
+            },
+            "derived": {
+              "offset2": "offset*offset",
+              "nh": "-h",
+              "x2": "h+offset",
+              "y2": "a*offset2+k",
+              "wrongA": "y2-k"
+            }
+          }
+        }
+      ]
     }
   ]
 }
