@@ -117,6 +117,70 @@
           "inputProfile": "number",
           "expected": "{{c}}"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-simple-zero-factor-constant",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "A monic quadratic has zeros {{r1}} and {{r2}}. Write the two linear factors, then determine the constant term of the expanded quadratic.",
+          "responseFields": [
+            {
+              "id": "factor1",
+              "label": "Factor from zero {{r1}}",
+              "inputProfile": "expression",
+              "expected": "x-({{r1}})"
+            },
+            {
+              "id": "factor2",
+              "label": "Factor from zero {{r2}}",
+              "inputProfile": "expression",
+              "expected": "x-({{r2}})"
+            },
+            {
+              "id": "constant",
+              "label": "Constant term",
+              "inputProfile": "number",
+              "expected": "{{c}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Zeros translate to factors, and the constant comes from multiplying the factor constants.",
+            "reasoning": [
+              "The zeros give factors x-({{r1}}) and x-({{r2}}).",
+              "The constant term is (-{{r1}})(-{{r2}})={{c}}, equal to the product of the zeros."
+            ],
+            "answerSummary": "Constant term {{c}}."
+          },
+          "attemptFeedback": [
+            "Use x-r for each zero before multiplying the constant parts."
+          ],
+          "supportHints": [
+            "The constant of a monic factored quadratic (x-r1)(x-r2) is r1·r2."
+          ],
+          "generator": {
+            "parameters": {
+              "r1": {
+                "type": "int",
+                "min": -3,
+                "max": -1
+              },
+              "r2": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              }
+            },
+            "derived": {
+              "c": "r1*r2"
+            }
+          }
+        }
       ]
     },
     {
