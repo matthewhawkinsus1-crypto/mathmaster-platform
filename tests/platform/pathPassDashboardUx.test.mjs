@@ -97,11 +97,17 @@ test('assigned weekly sessions show their frozen purpose instead of a free-choic
   assert.ok(player.includes('weeklyPurposeLabel'));
   assert.ok(player.includes('PURPOSE_LABEL[session?.weeklyPurpose]'));
   assert.ok(player.includes("WEEKLY PATH · {weeklyPurposeLabel || 'Assigned practice'}"));
-  assert.ok(player.includes('const coursePassLevel = !weeklyPurposeLabel'));
+  assert.match(
+    player,
+    /const coursePassLevel = !courseChallengeIntent && !weeklyPurposeLabel && !directFramework && !bridgeFramework && !isRetention/,
+  );
 
   assert.ok(productionContainer.includes('weeklyPurposeLabel'));
   assert.ok(productionContainer.includes('PURPOSE_LABEL[session?.weeklyPurpose]'));
-  assert.ok(productionContainer.includes('const coursePassLevel = !weeklyPurposeLabel'));
+  assert.match(
+    productionContainer,
+    /const coursePassLevel = !courseChallengeIntent && !weeklyPurposeLabel && !directAssessment && session\?\.sessionKind !== 'retentionProbe'/,
+  );
   assert.ok(productionContainer.includes('weeklyPurposeLabel} complete'));
 });
 
