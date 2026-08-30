@@ -371,6 +371,9 @@ export const MyMathPathExperience = ({
       weekKey: options.weekKey || null,
       weeklySlotKey: options.weeklySlotKey || null,
       weeklySlot: options.weeklySlot || null,
+      intendedDok: options.intendedDok ?? null,
+      intendedDifficultyBand: options.intendedDifficultyBand ?? null,
+      weeklyPurpose: options.weeklyPurpose || null,
       weeklyGoalRequired: options.weeklySlotKey
         ? (weeklyProgress?.required ?? weeklyGoal?.goalSessions ?? null)
         : null,
@@ -403,6 +406,9 @@ export const MyMathPathExperience = ({
       weekKey: weeklyGoal?.weekKey || null,
       weeklySlotKey: session?.weeklySlotKey || null,
       weeklySlot: session?.slot || null,
+      intendedDok: session?.dok ?? null,
+      intendedDifficultyBand: session?.difficultyBand ?? null,
+      weeklyPurpose: session?.purpose || null,
       framework: session?.context && session.context !== 'course' ? session.context : null,
     });
   };
