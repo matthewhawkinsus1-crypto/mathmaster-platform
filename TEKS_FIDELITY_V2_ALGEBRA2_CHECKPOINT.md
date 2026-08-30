@@ -725,7 +725,11 @@ Resume here. Do not reopen A2.2A–A2.7D unless a failing gate names them.
 - The required linear and quadratic factors are graded separately rather than inferred from one combined product.
 - Routine factoring remains DOK 2; only complete error repair is DOK 3.
 - Base Algebra II certification run `33331272626`: **PASS**.
-- FIRST UNFINISHED STANDARD remains **A2.7E** until full generated certification is green.
+- Added A2.7E-specific generated certification — commit `c9c00b538270140d3a806436fc8fd43fa1b535cd`.
+- First dedicated run `33331366261`: **FAIL** due only to a certification counter that counted both the dedicated degree-3 difference-of-cubes family and the quartic-grouping family whose second factoring step also uses difference of cubes. No generated factoring or grading assertion failed.
+- Narrowed the dedicated-family counter — commit `a1262349f2b063e2cdc952e46b19ea31a3cda90e`.
+- Replacement full certification run `33331430930`: **QUEUED/RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.7E** until the replacement run is green.
 
 
 ### 2026-08-30 — A2.7D audit finding
