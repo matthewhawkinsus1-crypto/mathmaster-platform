@@ -1,0 +1,319 @@
+{
+  "standard": "A.3E",
+  "verdict": "KEEP",
+  "certificationStatus": "candidate-keep-math-linear-transformations-metadata-certified",
+  "documents": [
+    {
+      "id": "mm_A_3E_v2_vertical-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3E:v2-vertical-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3E",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "The graph of $f(x)={{m}}x {{b|signed}}$ is shifted up {{k}} units. What is the new $y$-intercept?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "A vertical shift adds the same amount to every output.",
+          "The intercept therefore increases by {{k}}."
+        ],
+        "answerSummary": "The new intercept is ${{newb}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "newb": "b+k"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{newb}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3E_v2_vertical-stretch",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3E:v2-vertical-stretch",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3E",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "If $g(x)={{a}}f(x)$ and the linear function $f$ has slope {{m}}, determine the slope of $g$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Multiplying a function by {{a}} multiplies every output difference by the same factor.",
+          "Therefore the slope is also multiplied by {{a}}."
+        ],
+        "answerSummary": "The new slope is ${{newm}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "newm": "a*m"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{newm}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3E_v2_context-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3E:v2-context-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3E",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A linear model starts at {{b}} units and grows by {{m}} units per period. A revised model adds {{k}} units to every output. What is the revised initial value?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Adding a constant to every output is a vertical translation.",
+          "The starting value is one of those outputs, so it also increases by {{k}}."
+        ],
+        "answerSummary": "The revised initial value is ${{newb}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "int",
+            "min": 5,
+            "max": 40
+          },
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 10
+          },
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          }
+        },
+        "derived": {
+          "newb": "b+k"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{newb}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3E_v2_reflection-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3E:v2-reflection-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3E",
+      "taskType": "conceptual",
+      "representation": "symbolic",
+      "prompt": "The graph of $f(x)={{m}}x{{b|signed}}$ is reflected across the $x$-axis. Determine the slope of the reflected line.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Reflecting across the $x$-axis multiplies every output by $-1$.",
+          "That reverses the sign of the rate of change."
+        ],
+        "answerSummary": "The new slope is ${{newm}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "newm": "-m"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{newm}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3E_v2_recover-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3E:v2-recover-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3E",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "A vertical shift changes the intercept from {{old}} to {{new}}. By how many units was the graph shifted?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "A vertical shift changes the intercept by exactly the shift amount.",
+          "Subtract the original intercept from the new intercept."
+        ],
+        "answerSummary": "The shift is ${{shift}}$ units."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "old": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "shift": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "new": "old+shift"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{shift}}"
+        }
+      ]
+    }
+  ]
+}
