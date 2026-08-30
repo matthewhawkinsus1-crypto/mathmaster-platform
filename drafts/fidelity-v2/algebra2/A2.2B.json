@@ -247,7 +247,143 @@
           "ym1": "b-m",
           "y1": "b+m"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-four-row-fractional-linear-inverse",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "representationTranslation",
+          "representation": "table",
+          "prompt": "Use all four table rows to construct the graph of $f(x)=\\frac12x+{{b}}$. Reflect the graph across $y=x$, draw $f^{-1}$, and write the inverse equation in inverse-function notation.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Values of f",
+            "table": {
+              "headers": [
+                "$x$",
+                "$f(x)$"
+              ],
+              "rows": [
+                [
+                  "-4",
+                  "{{ym4}}"
+                ],
+                [
+                  "-2",
+                  "{{ym2}}"
+                ],
+                [
+                  "2",
+                  "{{y2}}"
+                ],
+                [
+                  "4",
+                  "{{y4}}"
+                ]
+              ]
+            }
+          },
+          "functionSpec": {
+            "type": "linear",
+            "m": 0.5,
+            "b": "{{b}}"
+          },
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -10,
+            "yMax": 10,
+            "xStep": 1,
+            "yStep": 1,
+            "snapStep": 0.25
+          },
+          "pointTasks": [
+            {
+              "id": "r1",
+              "label": "Plot x=-4",
+              "x": -4,
+              "expected": [
+                -4,
+                "{{ym4}}"
+              ]
+            },
+            {
+              "id": "r2",
+              "label": "Plot x=-2",
+              "x": -2,
+              "expected": [
+                -2,
+                "{{ym2}}"
+              ]
+            },
+            {
+              "id": "r3",
+              "label": "Plot x=2",
+              "x": 2,
+              "expected": [
+                2,
+                "{{y2}}"
+              ]
+            },
+            {
+              "id": "r4",
+              "label": "Plot x=4",
+              "x": 4,
+              "expected": [
+                4,
+                "{{y4}}"
+              ]
+            }
+          ],
+          "inverseReflection": {
+            "enabled": true,
+            "sourceTaskIds": [
+              "r1",
+              "r4"
+            ],
+            "requireInverseSketch": true,
+            "requireInverseEquation": true,
+            "expectedEquation": "f^-1(x)=2*(x-({{b}}))",
+            "equationLabel": "Write the inverse equation in $f^{-1}(x)$ notation.",
+            "inverseLineLabel": "Draw the inverse graph through the reflected points."
+          },
+          "solutionReview": {
+            "headline": "A fractional slope makes the reflected inverse steeper but the coordinate-swap rule is unchanged.",
+            "reasoning": [
+              "Each point $(x,y)$ on f becomes $(y,x)$ on the inverse.",
+              "Solving $y=\\frac12x+{{b}}$ for x gives $f^{-1}(x)=2(x-{{b}})$."
+            ],
+            "answerSummary": "$f^{-1}(x)=2(x-{{b}})$"
+          },
+          "attemptFeedback": [
+            "Reflect ordered pairs before using algebra to check the inverse equation."
+          ],
+          "supportHints": [
+            "Undo the +b shift, then undo multiplication by 1/2."
+          ],
+          "generator": {
+            "parameters": {
+              "b": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              }
+            },
+            "derived": {
+              "ym4": "b-2",
+              "ym2": "b-1",
+              "y2": "b+1",
+              "y4": "b+2"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_2B_v2_restricted-quadratic-inverse",
@@ -361,7 +497,96 @@
           "k1": "k+1",
           "k4": "k+4"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-parent-quadratic-branch-inverse",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "reverseReasoning",
+          "representation": "graph",
+          "prompt": "The parent quadratic $f(x)=x^2$ is restricted to $x\\ge0$. Construct only that branch, reflect it across $y=x$, and write the inverse. Use the restriction to explain why the reflected relation is a function.",
+          "functionSpec": {
+            "type": "quadratic",
+            "a": 1,
+            "h": 0,
+            "k": 0,
+            "domain": {
+              "min": 0,
+              "minInclusive": true
+            }
+          },
+          "graph": {
+            "xMin": -2,
+            "xMax": 7,
+            "yMin": -2,
+            "yMax": 10,
+            "xStep": 1,
+            "yStep": 1,
+            "snapStep": 0.5
+          },
+          "pointTasks": [
+            {
+              "id": "v",
+              "label": "Plot the endpoint",
+              "x": 0,
+              "expected": [
+                0,
+                0
+              ]
+            },
+            {
+              "id": "q1",
+              "label": "Plot x=1",
+              "x": 1,
+              "expected": [
+                1,
+                1
+              ]
+            },
+            {
+              "id": "q2",
+              "label": "Plot x=2",
+              "x": 2,
+              "expected": [
+                2,
+                4
+              ]
+            }
+          ],
+          "inverseReflection": {
+            "enabled": true,
+            "sourceTaskIds": [
+              "v",
+              "q2"
+            ],
+            "requireInverseSketch": true,
+            "requireInverseEquation": true,
+            "expectedEquation": "f^-1(x)=sqrt(x)",
+            "equationLabel": "Write the inverse equation.",
+            "inverseLineLabel": "Draw the square-root inverse through the reflected points."
+          },
+          "solutionReview": {
+            "headline": "The branch restriction is what makes the quadratic invertible as a function.",
+            "reasoning": [
+              "Keeping x≥0 removes the duplicate outputs from the left branch.",
+              "Reflection across y=x then produces the principal square-root function."
+            ],
+            "answerSummary": "$f^{-1}(x)=\\sqrt{x}$ with the original quadratic restricted to x≥0."
+          },
+          "attemptFeedback": [
+            "Do not graph or reflect the left half of the parabola."
+          ],
+          "supportHints": [
+            "Without a branch restriction, x² is not one-to-one."
+          ]
+        }
+      ]
     },
     {
       "id": "mm_A2_2B_v2_square-root-to-quadratic",
