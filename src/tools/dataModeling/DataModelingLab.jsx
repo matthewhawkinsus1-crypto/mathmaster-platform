@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import ToolShell, { Panel, ResultPill, ToolGrid, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
-import { correlation, linearRegression, parseNumericAnswer, residualsForLine, round } from '../shared/toolMath';
+import { correlation, linearRegression, parseNumericAnswer, round } from '../shared/toolMath';
 import {
   buildCandidateModels,
   chooseBestModel,
