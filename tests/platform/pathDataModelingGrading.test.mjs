@@ -152,6 +152,108 @@ test('mode-specific grading awards partial credit only for required parts', () =
   assert.equal(wrongChoice.score, 0);
 });
 
+test('A.4C linear fit mode requires the written regression function and the fixed prediction', () => {
+  const points = [[0, 2], [1, 5], [2, 8], [3, 11]];
+  const definition = buildDataModelingPrivateDefinition({
+    points,
+    mode: 'linearFitPrediction',
+    predictionX: 5,
+    predictionTolerance: 0.01,
+  });
+  assert.equal(definition.expectedModelId, 'linear');
+  nearly(definition.expectedModel.model.m, 3);
+  nearly(definition.expectedModel.model.b, 2);
+
+  const right = gradeDataModelingResponse(definition, {
+    m: 3,
+    b: 2,
+    predictionX: 5,
+    predictionY: 17,
+    predictionType: 'extrapolation',
+  });
+  assert.equal(right.isCorrect, true);
+  assert.equal(right.score, 1);
+
+  const changedTarget = gradeDataModelingResponse(definition, {
+    m: 3,
+    b: 2,
+    predictionX: 3,
+    predictionY: 11,
+    predictionType: 'interpolation',
+  });
+  assert.equal(changedTarget.isCorrect, false, 'the browser cannot replace the authored prediction x');
+  assert.equal(changedTarget.score, 0.5);
+});
+
+test('A.8B quadratic fit mode grades all three written coefficients plus prediction', () => {
+  const points = [-2, -1, 0, 1, 2].map((x) => [x, 2 * x * x - 3 * x + 4]);
+  const definition = buildDataModelingPrivateDefinition({
+    points,
+    mode: 'quadraticFitPrediction',
+    predictionX: 3,
+    predictionTolerance: 0.01,
+  });
+  assert.equal(definition.expectedModelId, 'quadratic');
+  nearly(definition.expectedModel.model.a, 2);
+  nearly(definition.expectedModel.model.b, -3);
+  nearly(definition.expectedModel.model.c, 4);
+
+  const right = gradeDataModelingResponse(definition, {
+    a: 2,
+    b: -3,
+    c: 4,
+    predictionX: 3,
+    predictionY: 13,
+    predictionType: 'extrapolation',
+  });
+  assert.equal(right.isCorrect, true);
+  assert.equal(right.score, 1);
+
+  const suppliedOnlyPrediction = gradeDataModelingResponse(definition, {
+    a: 1,
+    b: 0,
+    c: 0,
+    predictionX: 3,
+    predictionY: 13,
+    predictionType: 'extrapolation',
+  });
+  assert.equal(suppliedOnlyPrediction.isCorrect, false);
+  assert.equal(suppliedOnlyPrediction.score, 0.5);
+});
+
+test('A.9E exponential fit mode supports decay as well as growth', () => {
+  const points = [[0, 3], [1, 1.5], [2, 0.75], [3, 0.375], [4, 0.1875]];
+  const definition = buildDataModelingPrivateDefinition({
+    points,
+    mode: 'exponentialFitPrediction',
+    predictionX: 5,
+    predictionTolerance: 0.001,
+  });
+  assert.equal(definition.expectedModelId, 'exponential');
+  nearly(definition.expectedModel.model.a, 3);
+  nearly(definition.expectedModel.model.base, 0.5);
+
+  const right = gradeDataModelingResponse(definition, {
+    a: 3,
+    base: 0.5,
+    predictionX: 5,
+    predictionY: 0.09375,
+    predictionType: 'extrapolation',
+  });
+  assert.equal(right.isCorrect, true);
+  assert.equal(right.score, 1);
+
+  const growthBase = gradeDataModelingResponse(definition, {
+    a: 3,
+    base: 1.5,
+    predictionX: 5,
+    predictionY: 0.09375,
+    predictionType: 'extrapolation',
+  });
+  assert.equal(growthBase.isCorrect, false);
+  assert.equal(growthBase.score, 0.5);
+});
+
 test('public Data Modeling payload omits expected model, regression answers and private tolerances', () => {
   const question = {
     prompt: 'Fit the data.',
@@ -164,6 +266,11 @@ test('public Data Modeling payload omits expected model, regression answers and 
     correlationTolerance: 99,
     causationSupported: true,
     predictionX: 8,
+    quadraticATolerance: 11,
+    quadraticBTolerance: 12,
+    quadraticCTolerance: 13,
+    exponentialATolerance: 14,
+    exponentialBaseTolerance: 15,
     startingModel: { m: 1, b: 2 },
     modelMetric: 'rmse',
     answer: 'must-not-leak',
@@ -179,5 +286,10 @@ test('public Data Modeling payload omits expected model, regression answers and 
   assert.equal('predictionTolerance' in publicQuestion, false);
   assert.equal('correlationTolerance' in publicQuestion, false);
   assert.equal('causationSupported' in publicQuestion, false);
+  assert.equal('quadraticATolerance' in publicQuestion, false);
+  assert.equal('quadraticBTolerance' in publicQuestion, false);
+  assert.equal('quadraticCTolerance' in publicQuestion, false);
+  assert.equal('exponentialATolerance' in publicQuestion, false);
+  assert.equal('exponentialBaseTolerance' in publicQuestion, false);
   assert.equal('answer' in publicQuestion, false);
 });
