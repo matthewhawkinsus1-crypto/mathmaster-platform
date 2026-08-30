@@ -331,6 +331,119 @@
           "inputProfile": "number",
           "expected": "{{b}}"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-distribution-error-solve-and-verify",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "Solve ${{a}}(x{{b|signed}})={{c}}x{{d|signed}}$. A student distributes only to x and rewrites the left side as ${{a}}x{{b|signed}}$. Diagnose the first error, solve the ORIGINAL equation, and verify the solution in both sides of the original equation.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "First error",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "distribute-both",
+                  "label": "The factor {{a}} must multiply both x and the constant inside the parentheses."
+                },
+                {
+                  "id": "move-first",
+                  "label": "Distribution is unnecessary because the equation should be divided by x first."
+                }
+              ],
+              "expected": "distribute-both"
+            },
+            {
+              "id": "distributed-constant",
+              "label": "Correct constant term after distributing {{a}}",
+              "inputProfile": "number",
+              "expected": "{{ab}}"
+            },
+            {
+              "id": "solution",
+              "label": "Solution x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            },
+            {
+              "id": "left-check",
+              "label": "Original left side at the solution",
+              "inputProfile": "number",
+              "expected": "{{value}}"
+            },
+            {
+              "id": "right-check",
+              "label": "Original right side at the solution",
+              "inputProfile": "number",
+              "expected": "{{value}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A correct solution chain preserves equivalence at every step and can be checked in the original equation.",
+            "reasoning": [
+              "Distribution gives ${{a}}x+({{ab}})={{c}}x+({{d}})$.",
+              "Solving that equation gives x={{x}}.",
+              "Substitution into both original sides gives {{value}}, confirming the repaired solution."
+            ],
+            "answerSummary": "x={{x}}"
+          },
+          "attemptFeedback": [
+            "Fix the earliest invalid transformation before continuing the solve."
+          ],
+          "supportHints": [
+            "The outside factor multiplies every term inside the parentheses."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "x": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "ab": "a*b",
+              "value": "a*(x+b)",
+              "d": "value-c*x"
+            },
+            "constraints": [
+              "a!=c"
+            ]
+          }
+        }
       ]
     }
   ]
