@@ -2761,3 +2761,156 @@ test('A2.5D solves exponential and single-log equations through complete methods
   assert.ok(representations.has('context'));
   assert.ok(representations.has('verbal'));
 });
+
+test('A2.5E judges logarithmic candidates from original-equation and context evidence', async () => {
+  const entry = payload('A2.5E');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /reasonableness-from-original-log-equation-domain-value-context-evidence/);
+
+  let generatedCount = 0;
+  let validFamilies = 0;
+  let rejectedFamilies = 0;
+  let domainInvalidFamilies = 0;
+  let positiveButWrongFamilies = 0;
+  let multiLogFamilies = 0;
+  let contextFamilies = 0;
+  let errorFamilies = 0;
+  let wrongVerdictRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const ids = new Set((doc.responseFields || []).map((field) => String(field.id)));
+    assert.ok(ids.has('verdict'), `${doc.id} must require an explicit reasonableness verdict`);
+    assert.ok(
+      ids.has('argument') || (ids.has('arg1') && ids.has('arg2')),
+      `${doc.id} must collect original logarithm-argument evidence`,
+    );
+    if (doc.id.includes('domain-invalid')) domainInvalidFamilies += 1;
+    if (doc.id.includes('positive-domain-but-wrong')) positiveButWrongFamilies += 1;
+    if (doc.id.includes('two-log')) multiLogFamilies += 1;
+    if (doc.representation === 'context') contextFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const expectedVerdict = (doc.responseFields || []).find((field) => field.id === 'verdict')?.expected;
+    if (expectedVerdict === 'keep') validFamilies += 1;
+    if (expectedVerdict === 'reject') rejectedFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let spoiledChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const fields = Object.fromEntries(
+        (question.responseFields || []).map((field) => [field.id, field]),
+      );
+
+      if (doc.id.includes('domain-invalid')) {
+        assert.ok(Number(fields.argument?.expected) <= 0);
+        assert.equal(fields.domain?.expected, 'no');
+        assert.equal(fields.verdict?.expected, 'reject');
+      }
+
+      if (doc.id.includes('common-log-valid')) {
+        const argument = Number(fields.argument?.expected);
+        const logValue = Number(fields['log-value']?.expected);
+        assert.ok(argument > 0);
+        assert.ok([10,100,1000].includes(argument));
+        assert.equal(Math.log10(argument), logValue);
+        assert.equal(fields.verdict?.expected, 'keep');
+      }
+
+      if (doc.id.includes('positive-domain-but-wrong')) {
+        const argument = Number(fields.argument?.expected);
+        const lhs = Number(fields.lhs?.expected);
+        const rhs = Number(fields.rhs?.expected);
+        assert.ok(argument > 0);
+        assert.equal(fields.domain?.expected, 'valid');
+        assert.equal(lhs, Math.log2(argument));
+        assert.equal(lhs, rhs + 1);
+        assert.equal(fields.verdict?.expected, 'reject');
+      }
+
+      if (doc.id.includes('two-log')) {
+        const arg1 = Number(fields.arg1?.expected);
+        const arg2 = Number(fields.arg2?.expected);
+        const log1 = Number(fields.log1?.expected);
+        const log2 = Number(fields.log2?.expected);
+        const lhs = Number(fields.lhs?.expected);
+        assert.ok(arg1 > 0 && arg2 > 0);
+        assert.equal(Math.log2(arg1), log1);
+        assert.equal(Math.log2(arg2), log2);
+        assert.equal(lhs, log1 + log2);
+        assert.equal(fields.verdict?.expected, 'keep');
+      }
+
+      if (doc.id.includes('context-error')) {
+        const argument = Number(fields.argument?.expected);
+        const lhs = Number(fields.lhs?.expected);
+        const promptMatch = String(question.prompt).match(/t=(-?\d+)/);
+        assert.ok(promptMatch, `${doc.id} lost its proposed time candidate`);
+        const candidate = Number(promptMatch[1]);
+        assert.ok(argument > 0);
+        assert.ok(candidate < 0);
+        assert.equal(fields.algebra?.expected, 'valid');
+        assert.equal(fields.context?.expected, 'invalid');
+        assert.equal(fields.verdict?.expected, 'reject');
+        assert.ok(Number.isFinite(lhs));
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(correct.fieldResults)}`,
+      );
+
+      if (!spoiledChecked) {
+        const verdict = grading.fields.find((field) => field.id === 'verdict');
+        assert.ok(verdict);
+        const expected = String(verdict.expected ?? verdict.accepted?.[0]);
+        const wrongValue = expected === 'keep' ? 'reject' : 'keep';
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, verdict:wrongValue },
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted an incorrect reasonableness verdict`);
+        wrongVerdictRejected += 1;
+        spoiledChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(validFamilies >= 2, 'A2.5E must include reasonable candidates, not only rejection cases');
+  assert.ok(rejectedFamilies >= 3, 'A2.5E must repeatedly reject candidates for concrete reasons');
+  assert.ok(domainInvalidFamilies >= 1);
+  assert.ok(positiveButWrongFamilies >= 1, 'A2.5E must prove that domain validity alone is insufficient');
+  assert.ok(multiLogFamilies >= 1, 'A2.5E must check every argument in a multi-log original equation');
+  assert.ok(contextFamilies >= 1);
+  assert.ok(errorFamilies >= 1, 'A2.5E must repair a reasonableness conclusion rather than recite a domain rule');
+  assert.equal(wrongVerdictRejected, entry.documents.length);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('context'));
+});
+
