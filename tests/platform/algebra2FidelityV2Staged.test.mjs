@@ -4841,7 +4841,7 @@ test('A2.7C directly certifies all four polynomial quotient degree combinations'
         assert.equal(Number(p.A0),-Number(p.d)*Number(p.q0)+Number(p.rem));
         assert.equal(Number(fields.remainder.expected),Number(p.rem));
       }
-      if(doc.id.includes('linear-remainder')){
+      if(doc.id.includes('quartic-quadratic-linear-remainder')){
         linearRemainders+=1;
         assert.notEqual(Number(p.s),0);
         assert.equal(Number(p.A4),Number(p.m));
