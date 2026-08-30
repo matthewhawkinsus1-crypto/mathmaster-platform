@@ -5346,6 +5346,7 @@ async function loadCoursePathPassProgress(db, studentId, { limit = 400 } = {}) {
     if (session.status !== "completed") return;
     if (session.sessionKind === "retentionProbe") return;
     if (session.assessmentFramework) return;
+    if (session.coursePracticeIntent === "challenge") return;
     // Weekly Path is a separate commitment. Its sessions still contribute
     // mastery evidence and weekly completion, but they may be frozen at
     // Current learning, Retention, Challenge, or CCMR-transfer rigor. Counting
@@ -5612,6 +5613,9 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   const sessionKind = request.data?.sessionKind === "retentionProbe" ? "retentionProbe" : "practice";
   let requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
   let assessmentFramework = normalizePathAssessmentFramework(request.data?.assessmentFramework);
+  const requestedCoursePracticeIntent = String(request.data?.coursePracticeIntent || "").trim() === "challenge"
+    ? "challenge"
+    : null;
   const db = getFirestore();
 
   const studentSnapshot = await db.collection("grades").doc(studentId).get();
@@ -5672,12 +5676,19 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
     if (ccmrChallengeTier >= 2 && sessionKind !== "retentionProbe") requiredQuestions = 3;
   }
 
+  const coursePracticeIntent = requestedCoursePracticeIntent
+    && !assessmentFramework
+    && sessionKind !== "retentionProbe"
+    && !requestedWeeklySlotKey
+    ? requestedCoursePracticeIntent
+    : null;
+
   // Ordinary course practice has visible passes too. Pass 1 is the foundation
   // session; later passes deliberately ask the selector for more demanding
   // work. This is NOT mastery — mastery remains evidence-driven.
   let priorCoursePasses = 0;
   let coursePassLevel = null;
-  if (!assessmentFramework && sessionKind !== "retentionProbe" && !requestedWeeklySlotKey) {
+  if (!assessmentFramework && sessionKind !== "retentionProbe" && !requestedWeeklySlotKey && coursePracticeIntent !== "challenge") {
     const passProgress = await loadCoursePathPassProgress(db, studentId);
     const targetCode = mathPath.displayAlignmentKey(targetAlignmentKey);
     priorCoursePasses = Number(passProgress.byTeksCode?.[targetCode]?.passesCompleted || 0);
@@ -5772,6 +5783,9 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
         if ((existing.data()?.assessmentFramework || null) !== assessmentFramework) {
           throw new HttpsError("failed-precondition", "Finish the active session before changing assessment format.");
         }
+        if ((existing.data()?.coursePracticeIntent || null) !== coursePracticeIntent) {
+          throw new HttpsError("failed-precondition", "Finish the active session before changing between regular practice and Challenge.");
+        }
         const releaseAction = pathContentRelease.planSessionContentReleaseAction(existing.data(), assessmentReleaseState);
         if (releaseAction.action === "continue" || releaseAction.action === "finish-open-question") return existing.data();
         if (releaseAction.action === "hold-release-update") throw assessmentReleaseUpdateError(assessmentFramework);
@@ -5796,6 +5810,7 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       status: "active",
       sessionKind,
       assessmentFramework,
+      coursePracticeIntent,
       assessmentContentRelease: assessmentReleaseState.tracked ? assessmentReleaseState.release : null,
       ccmrChallengeTier: assessmentFramework ? ccmrChallengeTier : null,
       coursePassLevel: assessmentFramework || sessionKind === "retentionProbe" ? null : coursePassLevel,
@@ -6074,6 +6089,21 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
       preferredDok = Math.max(3, Number(preferredDok || 2));
     }
   }
+  // A student may opt into an EARNED Challenge card, but the browser never
+  // names a DOK or difficulty. The only accepted course intent is a one-way
+  // escalation to the certified authored ceiling. It applies only on the
+  // session target, never to a remediation/diagnostic excursion.
+  if (
+    session.coursePracticeIntent === "challenge"
+    && !session.assessmentFramework
+    && !session.weeklySlotKey
+    && activeDisplayCode === targetDisplayCode
+    && !session.diagnosing
+  ) {
+    preferredDifficultyBand = 4;
+    preferredDok = 3;
+  }
+
   // Routing can recognize mastery from fresh in-session evidence before the
   // asynchronous mastery-profile trigger catches up. When it explicitly says
   // ENRICHMENT, honor that server-owned decision immediately so the student
@@ -6220,9 +6250,10 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     generatorParameters: instantiated.parameters,
     skillCode: activeDisplayCode,
     pathRole,
-    coursePassLevel: session.assessmentFramework || session.weeklySlotKey
+    coursePassLevel: session.assessmentFramework || session.weeklySlotKey || session.coursePracticeIntent === "challenge"
       ? null
       : Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1))),
+    coursePracticeIntent: session.coursePracticeIntent || null,
     assessmentBridgeFramework: usingCourseBridge ? session.assessmentFramework : null,
     ccmrChallengeTier: session.assessmentFramework ? Math.max(1, Math.min(3, Number(session.ccmrChallengeTier || 1))) : null,
     ccmrFamilyRole: authored.ccmrFamilyRole || (Number(authored.ccmrChallengeTier || 1) >= 2 ? "challenge" : "direct"),
