@@ -340,6 +340,101 @@
           "inputProfile": "number",
           "expected": "{{y}}"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-compare-g-negative-x-and-negative-gx",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "For $g(t)={{m}}t+({{b}})$ and x={{x}}, a student claims $g(-x)=-g(x)$. Evaluate BOTH expressions at the given x, compare them, and determine whether the claim is true for this function.",
+          "responseFields": [
+            {
+              "id": "g-negative-x",
+              "label": "$g(-x)$",
+              "inputProfile": "number",
+              "expected": "{{gNeg}}"
+            },
+            {
+              "id": "negative-g-x",
+              "label": "$-g(x)$",
+              "inputProfile": "number",
+              "expected": "{{negG}}"
+            },
+            {
+              "id": "difference",
+              "label": "$g(-x)-[-g(x)]$",
+              "inputProfile": "number",
+              "expected": "{{difference}}"
+            },
+            {
+              "id": "verdict",
+              "label": "Student claim",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "false",
+                  "label": "FALSE for this function; substituting -x is not the same as negating the entire output."
+                },
+                {
+                  "id": "true",
+                  "label": "TRUE; function notation always makes g(-x) equal -g(x)."
+                }
+              ],
+              "expected": "false"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A negative input and a negative output are different operations.",
+            "reasoning": [
+              "$g(-x)={{m}}(-{{x}})+({{b}})={{gNeg}}$.",
+              "$-g(x)=-[{{m}}({{x}})+({{b}})]={{negG}}$.",
+              "Their difference is {{difference}}=2({{b}}), which is nonzero because the generated intercept is nonzero."
+            ],
+            "answerSummary": "$g(-x)={{gNeg}}$ and $-g(x)={{negG}}$; the claim is false."
+          },
+          "attemptFeedback": [
+            "Substitute the negative input first; separately evaluate g(x) before negating that output."
+          ],
+          "supportHints": [
+            "The intercept term is affected differently by the two operations."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -10,
+                "max": 10,
+                "exclude": [
+                  0
+                ]
+              },
+              "x": {
+                "type": "int",
+                "min": 1,
+                "max": 8
+              }
+            },
+            "derived": {
+              "gNeg": "m*(-x)+b",
+              "gX": "m*x+b",
+              "negG": "-gX",
+              "difference": "gNeg-negG"
+            }
+          }
+        }
       ]
     }
   ]
