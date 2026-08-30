@@ -1,7 +1,7 @@
 {
   "standard": "A.2A",
   "verdict": "ENHANCE",
-  "certificationStatus": "candidate-connected-domain-range-representations",
+  "certificationStatus": "candidate-connected-table-graph-domain-range-representations",
   "documents": [
     {
       "id": "mm_A_2A_v2_bounded-range",
@@ -241,10 +241,36 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A.2A",
       "taskType": "representationTranslation",
-      "representation": "table",
-      "prompt": "The table defines a discrete linear function. Write its domain and range as sets.",
+      "representation": "multipleRepresentation",
+      "prompt": "The table and coordinate graph show the SAME discrete linear function. Write its domain and range as sets.",
       "stimulus": {
-        "kind": "table",
+        "kind": "multipleRepresentation",
+        "title": "Discrete linear function",
+        "graph": {
+          "xMin": -6,
+          "xMax": 6,
+          "yMin": -12,
+          "yMax": 12,
+          "ariaLabel": "Four discrete points from the same linear function shown in the table",
+          "points": [
+            {
+              "x": "{{x0}}",
+              "y": "{{y0}}"
+            },
+            {
+              "x": "{{x1}}",
+              "y": "{{y1}}"
+            },
+            {
+              "x": "{{x2}}",
+              "y": "{{y2}}"
+            },
+            {
+              "x": "{{x3}}",
+              "y": "{{y3}}"
+            }
+          ]
+        },
         "table": {
           "headers": [
             "Input $x$",
@@ -268,7 +294,8 @@
               "{{y3}}"
             ]
           ]
-        }
+        },
+        "note": "Because the function is discrete, only the four plotted/table inputs and outputs belong to this relation."
       },
       "responseFields": [
         {
@@ -285,17 +312,18 @@
         }
       ],
       "solutionReview": {
-        "headline": "The table columns name the two sets directly.",
+        "headline": "The table and graph encode the same finite input-output set.",
         "reasoning": [
-          "The domain is the set of all inputs in the x-column.",
-          "The range is the set of all outputs in the f(x)-column."
-        ]
+          "The domain is the set of x-values shown in the input column and as horizontal coordinates: {{x0}}, {{x1}}, {{x2}}, and {{x3}}.",
+          "The range is the set of corresponding y-values shown in the output column and as vertical coordinates: {{y0}}, {{y1}}, {{y2}}, and {{y3}}."
+        ],
+        "answerSummary": "Domain $=\\{ {{x0}}, {{x1}}, {{x2}}, {{x3}} \\}$; range $=\\{ {{y0}}, {{y1}}, {{y2}}, {{y3}} \\}$."
       },
       "attemptFeedback": [
-        "Use every row once; do not turn the discrete table into an interval."
+        "Use x-coordinates for the domain and y-coordinates for the range; do not fill in values between the discrete points."
       ],
       "supportHints": [
-        "A finite table has a finite set domain unless the problem says it is only a sample of a larger rule."
+        "A discrete graph contains only its plotted points, so read the domain horizontally and the range vertically."
       ],
       "generator": {
         "parameters": {
