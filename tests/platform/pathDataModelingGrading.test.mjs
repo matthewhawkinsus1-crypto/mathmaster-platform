@@ -431,3 +431,72 @@ test('square-root fit uses the whole table for a rather than one hand-picked poi
   assert.equal('squareRootKTolerance' in publicQuestion, false);
 });
 
+test('A2.8B fit-only modes grade regression coefficients without requiring prediction', () => {
+  const quadraticPoints = [-2, -1, 0, 1, 2].map((x, index) => {
+    const residuals = [1, -2, 0, 2, -1];
+    return [x, 2 * x * x - 3 * x + 4 + residuals[index]];
+  });
+  const quadratic = buildDataModelingPrivateDefinition({
+    points: quadraticPoints,
+    mode: 'quadraticFit',
+    quadraticATolerance: 0.001,
+    quadraticBTolerance: 0.001,
+    quadraticCTolerance: 0.001,
+  });
+  assert.equal(quadratic.mode, 'quadraticFit');
+  assert.equal(quadratic.expectedModelId, 'quadratic');
+  assert.deepEqual(quadratic.requiredParts, ['fit']);
+  nearly(quadratic.expectedModel.model.a, 2);
+  nearly(quadratic.expectedModel.model.b, -3);
+  nearly(quadratic.expectedModel.model.c, 4);
+
+  const quadraticRight = gradeDataModelingResponse(quadratic, { a: 2, b: -3, c: 4 });
+  assert.equal(quadraticRight.isCorrect, true);
+  assert.equal(quadraticRight.score, 1);
+  assert.equal(quadraticRight.parts.prediction, false, 'prediction is computed but must not be required');
+
+  const quadraticWrong = gradeDataModelingResponse(quadratic, { a: 2, b: 3, c: 4 });
+  assert.equal(quadraticWrong.isCorrect, false);
+  assert.equal(quadraticWrong.score, 0);
+
+  const exponentialPoints = [
+    [0, 8.16],
+    [1, 11.76],
+    [2, 18.36],
+    [3, 26.46],
+    [4, 41.31],
+  ];
+  const exponential = buildDataModelingPrivateDefinition({
+    points: exponentialPoints,
+    mode: 'exponentialFit',
+  });
+  assert.equal(exponential.mode, 'exponentialFit');
+  assert.equal(exponential.expectedModelId, 'exponential');
+  assert.deepEqual(exponential.requiredParts, ['fit']);
+  assert.ok(exponential.expectedModel.model.a > 0);
+  assert.ok(exponential.expectedModel.model.base > 1);
+
+  const exponentialRight = gradeDataModelingResponse(exponential, {
+    a: exponential.expectedModel.model.a,
+    base: exponential.expectedModel.model.base,
+  });
+  assert.equal(exponentialRight.isCorrect, true);
+  assert.equal(exponentialRight.score, 1);
+
+  const exponentialWrong = gradeDataModelingResponse(exponential, {
+    a: exponential.expectedModel.model.a,
+    base: exponential.expectedModel.model.base + 0.5,
+  });
+  assert.equal(exponentialWrong.isCorrect, false);
+  assert.equal(exponentialWrong.score, 0);
+
+  const quadraticPublic = sanitizeDataModelingPublicQuestion({
+    points: quadraticPoints,
+    mode: 'quadraticFit',
+    expectedModel: 'quadratic',
+    predictionX: null,
+  });
+  assert.equal(quadraticPublic.mode, 'quadraticFit');
+  assert.equal('expectedModel' in quadraticPublic, false);
+  assert.equal('predictionX' in quadraticPublic, false);
+});
