@@ -2061,3 +2061,137 @@ test('A2.4G identifies extraneous square-root candidates by checking the origina
   assert.ok(representations.has('verbal'));
 });
 
+test('A2.4H solves quadratic inequalities through complete sign-set reasoning', async () => {
+  const entry = payload('A2.4H');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /complete-quadratic-inequality-solution-sets/);
+
+  let generatedCount = 0;
+  let standardFormFamilies = 0;
+  let negativeLeadingFamilies = 0;
+  let strictFamilies = 0;
+  let inclusiveFamilies = 0;
+  let numberLineFamilies = 0;
+  let noRealZeroFamilies = 0;
+  let errorFamilies = 0;
+  let spoiledRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const text = stringValues(doc).join(' ');
+    if (/x\^2|x\^2/.test(text) && !String(doc.id).includes('number-line')) standardFormFamilies += 1;
+    if (/downward|negative leading|-\{\{a\}\}/i.test(text)) negativeLeadingFamilies += 1;
+    if (/>0|<0/.test(String(doc.prompt))) strictFamilies += 1;
+    if (/>=0|<=0|\\ge0|\\le0|≤|≥/.test(String(doc.prompt))) inclusiveFamilies += 1;
+    if (doc.type === 'intervalNumberLine') numberLineFamilies += 1;
+    if (doc.id.includes('no-real-zeros')) noRealZeroFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let spoiledChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      if (doc.type === 'intervalNumberLine') {
+        assert.equal(isPathEligible(question), true, `${doc.id} produced a Path-ineligible number-line question`);
+        const publicPayload = buildPublicToolPayload(question);
+        assert.equal(publicPayload.pathToolId, 'intervalNumberLine');
+        assert.deepEqual(publicPayload.tool.ask, ['graph', 'interval']);
+        assert.equal(JSON.stringify(publicPayload.tool).includes('expectedIntervals'), false);
+
+        const privateGrading = buildPrivateToolGrading(question);
+        const intervals = privateGrading.definition.intervals;
+        assert.ok(intervals.length >= 2, `${doc.id} must construct both exterior solution rays`);
+        const notation = `(-inf,${intervals[0].max}]U[${intervals[1].min},inf)`;
+        const correct = gradePathResponse({
+          privateGrading,
+          raw: { intervals, notation },
+        });
+        assert.equal(correct.rejected, false);
+        assert.equal(correct.isCorrect, true, `${doc.id} rejected its correct number-line solution`);
+
+        if (!spoiledChecked) {
+          const wrongIntervals = intervals.map((interval,index) => (
+            index === 0 ? { ...interval, maxClosed:false } : interval
+          ));
+          const wrong = gradePathResponse({
+            privateGrading,
+            raw: { intervals:wrongIntervals, notation },
+          });
+          assert.equal(wrong.isCorrect, false, `${doc.id} accepted an incorrect endpoint style`);
+          spoiledRejected += 1;
+          spoiledChecked = true;
+        }
+        continue;
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(correct.fieldResults)}`,
+      );
+
+      if (doc.id.includes('standard-form-critical-zeros')) {
+        const zero1 = Number(question.responseFields.find((field) => field.id === 'zero1')?.expected);
+        const zero2 = Number(question.responseFields.find((field) => field.id === 'zero2')?.expected);
+        assert.ok(Number.isFinite(zero1) && Number.isFinite(zero2) && zero1 < zero2);
+        assert.equal(question.responseFields.find((field) => field.id === 'interval')?.expected, `[${zero1},${zero2}]`);
+      }
+
+      if (doc.id.includes('no-real-zeros')) {
+        const discriminant = Number(question.responseFields.find((field) => field.id === 'discriminant')?.expected);
+        assert.ok(discriminant < 0, `${doc.id} promised no real zeros but generated discriminant ${discriminant}`);
+        assert.equal(question.responseFields.find((field) => field.id === 'real-zeros')?.expected, 'zero');
+        assert.equal(question.responseFields.find((field) => field.id === 'interval')?.expected, '(-inf,inf)');
+      }
+
+      if (!spoiledChecked) {
+        const intervalField = grading.fields.find((field) => field.id === 'interval');
+        assert.ok(intervalField, `${doc.id} must finish with a complete interval solution set`);
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, interval:'(0,0)' },
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted a wrong quadratic-inequality solution set`);
+        spoiledRejected += 1;
+        spoiledChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(standardFormFamilies >= 1, 'A2.4H must solve at least one standard-form quadratic inequality');
+  assert.ok(negativeLeadingFamilies >= 1, 'A2.4H must include a negative-leading-coefficient sign pattern');
+  assert.ok(strictFamilies >= 2, 'A2.4H must include strict inequalities');
+  assert.ok(inclusiveFamilies >= 2, 'A2.4H must include inclusive inequalities');
+  assert.ok(numberLineFamilies >= 1, 'A2.4H must preserve an authentic number-line construction solve');
+  assert.ok(noRealZeroFamilies >= 1, 'A2.4H must include a no-real-zero all-or-none sign case');
+  assert.ok(errorFamilies >= 1, 'A2.4H must repair endpoint/sign reasoning and still give the full solution set');
+  assert.equal(spoiledRejected, entry.documents.length);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('numberLine'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('verbal'));
+});
+
