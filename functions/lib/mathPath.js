@@ -205,6 +205,43 @@ function sanitizeStimulus(stimulus) {
     title: stimulus.title ? String(stimulus.title).slice(0, 140) : null,
     note: stimulus.note ? String(stimulus.note).slice(0, 300) : null,
   };
+  if (stimulus.graph && typeof stimulus.graph === 'object') {
+    const graph = stimulus.graph;
+    const finiteNumber = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+    const visiblePoint = (point) => {
+      const x = Number(Array.isArray(point) ? point[0] : point?.x);
+      const y = Number(Array.isArray(point) ? point[1] : point?.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+      return {
+        x,
+        y,
+        ...(point && !Array.isArray(point) && point.label ? { label:String(point.label).slice(0, 40) } : {}),
+      };
+    };
+    clean.graph = {
+      xMin: finiteNumber(graph.xMin, -6),
+      xMax: finiteNumber(graph.xMax, 6),
+      yMin: finiteNumber(graph.yMin, -6),
+      yMax: finiteNumber(graph.yMax, 6),
+      ariaLabel: graph.ariaLabel ? String(graph.ariaLabel).slice(0, 160) : null,
+      points: (Array.isArray(graph.points) ? graph.points : []).slice(0, 24)
+        .map(visiblePoint).filter(Boolean),
+      lines: (Array.isArray(graph.lines) ? graph.lines : []).slice(0, 4)
+        .map((line, index) => ({
+          label: String(line?.label || `Line ${index + 1}`).slice(0, 60),
+          boundaryStyle: String(line?.boundaryStyle || 'solid') === 'dashed' ? 'dashed' : 'solid',
+          points: (Array.isArray(line?.points) ? line.points : []).slice(0, 2)
+            .map(visiblePoint).filter(Boolean),
+        }))
+        .filter((line) => line.points.length === 2),
+      shading: (Array.isArray(graph.shading) ? graph.shading : []).slice(0, 4)
+        .map((shade) => ({
+          lineIndex: Math.max(0, Math.trunc(Number(shade?.lineIndex) || 0)),
+          side: String(shade?.side || '') === 'above' ? 'above' : String(shade?.side || '') === 'below' ? 'below' : null,
+        }))
+        .filter((shade) => shade.side),
+    };
+  }
   if (stimulus.table && typeof stimulus.table === 'object') {
     clean.table = {
       headers: (Array.isArray(stimulus.table.headers) ? stimulus.table.headers : []).slice(0, 8).map((value) => String(value)),
