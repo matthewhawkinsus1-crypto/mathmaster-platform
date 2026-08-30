@@ -14,11 +14,14 @@ on:
       - "functions/shared/pathToolContracts.mjs"
       - "src/InteractiveGraphWorkspace.jsx"
       - "src/components/student/PathQuestionStimulus.jsx"
+      - "src/tools/systemsWorkspace/SystemsWorkspace.jsx"
+      - "src/tools/systemsWorkspace/systemsMath.js"
       - "tests/platform/algebra2FidelityV2Staged.test.mjs"
       - "tests/platform/inverseReflectionExperience.test.mjs"
       - "tests/platform/inverseRadicalAnswerEquivalence.test.mjs"
       - "tests/platform/inverseFunctionEquationAnswer.test.mjs"
       - "tests/platform/pathQuestionGeneration.test.mjs"
+      - "tests/platform/systemsMatrix3Technology.test.mjs"
       - ".github/workflows/algebra2-fidelity-v2-certification.yml"
   pull_request:
     branches:
@@ -29,11 +32,14 @@ on:
       - "functions/shared/pathToolContracts.mjs"
       - "src/InteractiveGraphWorkspace.jsx"
       - "src/components/student/PathQuestionStimulus.jsx"
+      - "src/tools/systemsWorkspace/SystemsWorkspace.jsx"
+      - "src/tools/systemsWorkspace/systemsMath.js"
       - "tests/platform/algebra2FidelityV2Staged.test.mjs"
       - "tests/platform/inverseReflectionExperience.test.mjs"
       - "tests/platform/inverseRadicalAnswerEquivalence.test.mjs"
       - "tests/platform/inverseFunctionEquationAnswer.test.mjs"
       - "tests/platform/pathQuestionGeneration.test.mjs"
+      - "tests/platform/systemsMatrix3Technology.test.mjs"
       - ".github/workflows/algebra2-fidelity-v2-certification.yml"
   workflow_dispatch:
 
@@ -55,6 +61,7 @@ jobs:
             tests/platform/inverseReflectionExperience.test.mjs \
             tests/platform/inverseRadicalAnswerEquivalence.test.mjs \
             tests/platform/inverseFunctionEquationAnswer.test.mjs \
-            tests/platform/pathQuestionGeneration.test.mjs
+            tests/platform/pathQuestionGeneration.test.mjs \
+            tests/platform/systemsMatrix3Technology.test.mjs
       - name: Build student/runtime bundle
         run: npm run build
