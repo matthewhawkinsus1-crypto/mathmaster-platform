@@ -152,7 +152,64 @@
           "yanchor": "k+a",
           "yright": "k+a*base"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-unit-reflection-basic-attributes",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "representationTranslation",
+          "representation": "graph",
+          "prompt": "Construct $f(x)=-2^{x-({{h}})}{{k|signed}}$. Plot the three required reference points, then identify the horizontal asymptote, domain, range, and overall behavior.",
+          "generator": {
+            "parameters": {
+              "scale": {
+                "type": "choice",
+                "values": [
+                  1
+                ]
+              },
+              "base": {
+                "type": "choice",
+                "values": [
+                  2
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": -2,
+                "max": 2
+              },
+              "k": {
+                "type": "int",
+                "min": -2,
+                "max": 2
+              }
+            },
+            "derived": {
+              "a": "-scale",
+              "hm1": "h-1",
+              "hp1": "h+1",
+              "yleft": "k+a/base",
+              "yanchor": "k+a",
+              "yright": "k+a*base"
+            }
+          },
+          "solutionReview": {
+            "headline": "A unit vertical reflection keeps the arithmetic accessible while preserving all transformed attributes.",
+            "reasoning": [
+              "The negative outside factor reflects the base-2 exponential across the x-axis.",
+              "The horizontal asymptote is y={{k}}, the domain is all real numbers, and the range is below the asymptote.",
+              "For base 2, the reflected graph is decreasing."
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_5A_v2_logarithmic-scaled-graph-attributes",
@@ -301,7 +358,69 @@
           "ylow": "k-a",
           "yhigh": "k+a"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-fractional-log-reference-points",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "representationTranslation",
+          "representation": "graph",
+          "prompt": "Construct $g(x)={{a}}\\log_5(x-({{h}})){{k|signed}}$. Plot the exact transformed points corresponding to log inputs 1/5, 1, and 5, then determine asymptote, domain, range, and behavior.",
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  2.5,
+                  3.5
+                ]
+              },
+              "base": {
+                "type": "choice",
+                "values": [
+                  5
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  -2.5,
+                  -1.5,
+                  0.5,
+                  1.5,
+                  2.5
+                ]
+              }
+            },
+            "derived": {
+              "xlow": "h+1/base",
+              "xanchor": "h+1",
+              "xhigh": "h+base",
+              "ylow": "k-a",
+              "yhigh": "k+a"
+            }
+          },
+          "solutionReview": {
+            "headline": "Fractional coordinates increase graph precision without changing the transformation reasoning.",
+            "reasoning": [
+              "The asymptote remains x={{h}} and the domain is x>{{h}}.",
+              "The positive outside scale keeps the base-5 logarithm increasing.",
+              "Exact reference inputs 1/5, 1, and 5 produce outputs -1, 0, and 1 before the outside scale and shift."
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_5A_v2_exponential-compression-translation-analysis",
@@ -710,7 +829,119 @@
         "derived": {
           "hp1": "h+1"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b5",
+          "dok": 3,
+          "difficultyBand": 5
+        },
+        {
+          "coverageKey": "adaptive-d3b3-single-role-error-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student analyzes $g(x)=-2\\log_3(x-1)+1$ and says the outside -2 moves the vertical asymptote to x=-2. Diagnose that parameter-role error and give the correct asymptote, domain, range, behavior, and reference point.",
+          "stimulus": {
+            "kind": "steps",
+            "title": "Student claim",
+            "steps": [
+              {
+                "id": "claim",
+                "label": "Claim",
+                "work": "\"The -2 outside the logarithm moves the vertical asymptote to x=-2.\""
+              }
+            ]
+          },
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Core correction",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "roles",
+                  "label": "The inside shift controls the asymptote/domain; the outside -2 controls vertical scale and x-axis reflection."
+                },
+                {
+                  "id": "outside",
+                  "label": "The outside coefficient sets the vertical asymptote."
+                }
+              ],
+              "expected": "roles"
+            },
+            {
+              "id": "asymptote",
+              "label": "Correct vertical asymptote",
+              "inputProfile": "equation",
+              "expected": "x=1"
+            },
+            {
+              "id": "domain",
+              "label": "Correct domain",
+              "inputProfile": "interval",
+              "expected": "(1,inf)"
+            },
+            {
+              "id": "range",
+              "label": "Correct range",
+              "inputProfile": "interval",
+              "expected": "(-inf,inf)"
+            },
+            {
+              "id": "behavior",
+              "label": "Correct behavior",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "decreasing",
+                  "label": "Decreasing"
+                },
+                {
+                  "id": "increasing",
+                  "label": "Increasing"
+                }
+              ],
+              "expected": "decreasing"
+            },
+            {
+              "id": "anchor",
+              "label": "Translated reference point",
+              "inputProfile": "orderedPair",
+              "expected": "(2,1)"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Parameter roles must be separated before graph attributes are interpreted.",
+            "reasoning": [
+              "The input x-1 gives asymptote x=1 and domain x>1.",
+              "The outside -2 reflects and vertically stretches the logarithm, making it decreasing.",
+              "The +1 shifts outputs upward, while the range remains all real numbers."
+            ],
+            "answerSummary": "Asymptote x=1, domain (1,∞), all-real range, decreasing, reference point (2,1)."
+          },
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "choice",
+                "values": [
+                  1
+                ]
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  1
+                ]
+              }
+            },
+            "derived": {
+              "hp1": "h+1"
+            }
+          }
+        }
+      ]
     }
   ]
 }
