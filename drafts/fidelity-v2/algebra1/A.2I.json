@@ -497,6 +497,25 @@
             "constraints": [
               "a!=s"
             ]
+          },
+          "solutionReview": {
+            "headline": "Coefficients must stay attached to the variable meanings defined in the context.",
+            "reasoning": [
+              "x counts adult tickets, so the adult price {{a}} multiplies x; y counts student tickets, so {{s}} multiplies y.",
+              "The correct system is x+y={{n}} and {{a}}x+{{s}}y={{total}}.",
+              "The audited counts satisfy both the total-count and total-revenue equations."
+            ],
+            "answerSummary": "Candidate System A is valid and the audited counts verify both equations."
+          },
+          "attemptFeedback": [
+            "Translate each variable definition before attaching prices to variables."
+          ],
+          "supportHints": [
+            "Ask what one x-unit costs and what one y-unit costs."
+          ],
+          "context": {
+            "title": "Ticket-system audit",
+            "note": "Use the audited counts only to verify the model after deciding which coefficient-variable pairing matches the context."
           }
         }
       ]
