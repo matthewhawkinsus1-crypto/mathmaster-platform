@@ -722,8 +722,12 @@ Resume here. Do not reopen A2.2A–A2.7B unless a failing gate names them.
 - Coverage directly includes all four TEA combinations: cubic÷linear, cubic÷quadratic, quartic÷linear, and quartic÷quadratic.
 - Both exact and nonzero-remainder cases are present; the quartic÷quadratic nonexact case requires a valid linear remainder.
 - The fifth family is complete premature-stopping error analysis on quartic÷quadratic long division.
-- Base Algebra II certification run `33330906469`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.7C** until full generated certification is green.
+- Base Algebra II certification run `33330906469`: **PASS**.
+- Added A2.7C-specific generated certification — commit `f009bb00bf85b0100e1b659749a92c6756a2896a`.
+- First dedicated run `33330956049`: **FAIL** due only to a certification selector: `quartic-linear-remainder` unintentionally matched the broader `linear-remainder` condition and the test tried to read quadratic-family parameters that do not exist. No generated division mathematics failed.
+- Narrowed the selector to `quartic-quadratic-linear-remainder` — commit `879f45acf8447883bb700088e284d2e398528c1c`.
+- Replacement full certification run `33330999085`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.7C** until the replacement run is green.
 
 
 ### 2026-08-30 — A2.7B audit finding
