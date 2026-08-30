@@ -6,7 +6,7 @@
 // server recomputes all regression/correlation/model-choice answers.
 
 const EPS = 1e-9;
-const finite = (value) => Number.isFinite(Number(value));
+const finite = (value) => value !== null && value !== undefined && String(value).trim() !== '' && Number.isFinite(Number(value));
 const list = (value) => (Array.isArray(value) ? value : []);
 const mean = (values = []) => values.length
   ? values.reduce((sum, value) => sum + Number(value), 0) / values.length
