@@ -947,7 +947,7 @@
      },
      "k": {
       "type": "int",
-      "min": 1,
+      "min": 2,
       "max": 6
      }
     },
@@ -1303,6 +1303,2175 @@
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:mk:6.2C:which-ordering-of-signed-values-holds",
     "sourcePrompt": "Which ordering runs from least to greatest?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_2D_gap_between_a_fraction_and_a_percent",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.2D:gap-between-a-fraction-and-a-percent",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2D",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "By how much does ${{r}}\\%$ of ${{n}}$ fall short of $\\frac{{{p}}}{{{q}}}$ of ${{n}}$?",
+   "solutionReview": {
+    "headline": "Put both forms into the same units before comparing.",
+    "reasoning": [
+     "$\\frac{{{p}}}{{{q}}}$ of ${{n}}$ is ${{frac}}$ and ${{r}}\\%$ of ${{n}}$ is ${{pct}}$.",
+     "The shortfall is ${{frac}}-{{pct}}={{answer}}$."
+    ],
+    "answerSummary": "It falls short by ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "A percent is hundredths of the whole, not a count of units."
+   ],
+   "supportHints": [
+    "Work out each share of ${{n}}$ separately, then subtract."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "p": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "r": {
+      "type": "int",
+      "min": 5,
+      "max": 95,
+      "step": 5
+     }
+    },
+    "derived": {
+     "n": "100*k",
+     "frac": "100*k*p/q",
+     "pct": "k*r",
+     "answer": "frac-pct",
+     "d_percentNotApplied": "frac-r",
+     "d_forgotFinalStep": "pct",
+     "d_operationInverted": "pct-frac"
+    },
+    "constraints": [
+     "p<q",
+     "gcd(p,q)==1",
+     "100*k%q==0",
+     "100*p>r*q",
+     "frac-pct>8",
+     "k>1",
+     "abs(pct-answer)>3",
+     "answer!=d_percentNotApplied",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "d_percentNotApplied!=d_forgotFinalStep",
+     "d_percentNotApplied!=d_operationInverted",
+     "d_forgotFinalStep!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.2D:gap-between-a-fraction-and-a-percent",
+    "sourcePrompt": "By how much does ${{r}}\\%$ of ${{n}}$ fall short of $\\frac{{{p}}}{{{q}}}$ of ${{n}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_2D_endpoint_behind_a_fractional_position",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.2D:endpoint-behind-a-fractional-position",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2D",
+   "taskType": "reverseReasoning",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A point at ${{x}}$ lies $\\frac{{{p}}}{{{q}}}$ of the way from $-{{a}}$ to a larger value. What is that value?",
+   "solutionReview": {
+    "headline": "A fractional position measures from the left endpoint, not from zero.",
+    "reasoning": [
+     "From $-{{a}}$ to ${{x}}$ is ${{u}}\\times{{p}}$, which is $\\frac{{{p}}}{{{q}}}$ of the span.",
+     "The whole span is ${{q}}\\times{{u}}$, so the far end is ${{answer}}$."
+    ],
+    "answerSummary": "The value is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The span is a length; the endpoint is that length counted from $-{{a}}$."
+   ],
+   "supportHints": [
+    "Find the length of one ${{q}}$th of the span first."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 4,
+      "max": 40
+     },
+     "q": {
+      "type": "int",
+      "min": 3,
+      "max": 8
+     },
+     "p": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "u": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "x": "u*p-a",
+     "answer": "q*u-a",
+     "d_forgotFinalStep": "q*u",
+     "d_usedGivenValue": "x",
+     "d_orderOfOperations": "q*u-u*p"
+    },
+    "constraints": [
+     "p<q",
+     "gcd(p,q)==1",
+     "q*u-a>3",
+     "abs(a-u*p)>3",
+     "u*(q-p)>3",
+     "x<q*u-a",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_orderOfOperations",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_orderOfOperations",
+     "d_usedGivenValue!=d_orderOfOperations"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_orderOfOperations}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.2D:endpoint-behind-a-fractional-position",
+    "sourcePrompt": "A point at ${{x}}$ lies $\\frac{{{p}}}{{{q}}}$ of the way from $-{{a}}$ to a larger value. What is that value?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_2D_claim_that_sign_reverses",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.2D:claim-that-sign-reverses",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2D",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which claim about ${{a}}$, $-\\frac{{{p}}}{{{q}}}$ and ${{r}}\\%$ is wrong?",
+   "solutionReview": {
+    "headline": "Order reverses under negation.",
+    "reasoning": [
+     "Negating two values reverses the order they sit in.",
+     "Since ${{a}}>\\frac{{{p}}}{{{q}}}$, it follows that $-{{a}}<-\\frac{{{p}}}{{{q}}}$."
+    ],
+    "answerSummary": "The claim that $-{{a}}$ is the greater one is wrong."
+   },
+   "attemptFeedback": [
+    "Comparing magnitudes settles nothing until the signs are the same."
+   ],
+   "supportHints": [
+    "Place both negatives on a number line before deciding."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "q": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "r": {
+      "type": "int",
+      "min": 10,
+      "max": 90,
+      "step": 5
+     }
+    },
+    "derived": {
+     "hundredths": "r"
+    },
+    "constraints": [
+     "p<q",
+     "gcd(p,q)==1",
+     "r*q!=100*p"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$-\\frac{{{p}}}{{{q}}}$ is less than ${{r}}\\%$.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "Because ${{a}}$ is greater than $\\frac{{{p}}}{{{q}}}$, $-{{a}}$ is greater than $-\\frac{{{p}}}{{{q}}}$."
+    },
+    {
+     "id": "choice-c",
+     "label": "$-\\frac{{{p}}}{{{q}}}$ is greater than $-{{a}}$.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}$ is greater than ${{r}}\\%$.",
+     "error": "wrongPercentBase"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.2D:claim-that-sign-reverses",
+    "sourcePrompt": "Which claim about ${{a}}$, $-\\frac{{{p}}}{{{q}}}$ and ${{r}}\\%$ is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_2E_doubling_a_quotient_into_mixed_form",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.2E:doubling-a-quotient-into-mixed-form",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2E",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Write ${{n}} \\div {{b}}$ as a mixed number, then double it.",
+   "solutionReview": {
+    "headline": "Double the numerator, not the denominator.",
+    "reasoning": [
+     "${{n}} \\div {{b}}$ is $\\frac{{{n}}}{{{b}}}$, so doubling gives $\\frac{2 \\times {{n}}}{{{b}}}$.",
+     "That is ${{whole}}\\frac{{{rem}}}{{{b}}}$."
+    ],
+    "answerSummary": "It is ${{whole}}\\frac{{{rem}}}{{{b}}}$."
+   },
+   "attemptFeedback": [
+    "Doubling the whole part alone leaves the fractional part undoubled."
+   ],
+   "supportHints": [
+    "A quotient can be doubled before it is rewritten."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     },
+     "n": {
+      "type": "int",
+      "min": 11,
+      "max": 95
+     }
+    },
+    "derived": {
+     "whole": "floor(2*n/b)",
+     "rem": "2*n-b*floor(2*n/b)",
+     "w_single": "floor(n/b)",
+     "r_single": "n-b*floor(n/b)",
+     "w_den": "floor(n/(2*b))",
+     "r_den": "n-2*b*floor(n/(2*b))",
+     "w_part": "2*floor(n/b)",
+     "r_part": "n-b*floor(n/b)"
+    },
+    "constraints": [
+     "n%b!=0",
+     "2*n%b!=0",
+     "floor(2*n/b)>1",
+     "floor(n/(2*b))>0",
+     "n%(2*b)!=0"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{w_den}}\\frac{{{r_den}}}{2 \\times {{b}}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{w_single}}\\frac{{{r_single}}}{{{b}}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{whole}}\\frac{{{rem}}}{{{b}}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{w_part}}\\frac{{{r_part}}}{{{b}}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.2E:doubling-a-quotient-into-mixed-form",
+    "sourcePrompt": "Write ${{n}} \\div {{b}}$ as a mixed number, then double it."
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_2E_dividend_behind_a_mixed_number",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.2E:dividend-behind-a-mixed-number",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2E",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A whole number divided by ${{b}}$ gives ${{w}}\\frac{{{r}}}{{{b}}}$. What is the whole number?",
+   "solutionReview": {
+    "headline": "Rebuild the improper fraction, then read its numerator.",
+    "reasoning": [
+     "${{w}}\\frac{{{r}}}{{{b}}}$ is $\\frac{{{w}} \\times {{b}} + {{r}}}{{{b}}}$.",
+     "So the dividend is ${{answer}}$."
+    ],
+    "answerSummary": "The number is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The remainder is part of the dividend, not something left outside it."
+   ],
+   "supportHints": [
+    "The whole part accounts for ${{w}} \\times {{b}}$ of the dividend."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 5,
+      "max": 9
+     },
+     "w": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "r": {
+      "type": "int",
+      "min": 3,
+      "max": 8
+     }
+    },
+    "derived": {
+     "answer": "w*b+r",
+     "d_forgotFinalStep": "w*b",
+     "d_ratioReversed": "r*b+w",
+     "d_partialTotal": "(w+r)*b"
+    },
+    "constraints": [
+     "r<b",
+     "r!=w",
+     "abs((r-w)*(b-1))>3",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_ratioReversed",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_ratioReversed",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_ratioReversed!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.2E:dividend-behind-a-mixed-number",
+    "sourcePrompt": "A whole number divided by ${{b}}$ gives ${{w}}\\frac{{{r}}}{{{b}}}$. What is the whole number?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_2E_statement_that_breaks_the_fraction_bar",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.2E:statement-that-breaks-the-fraction-bar",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2E",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which statement about $\\frac{{{a}}}{{{b}}}$ is wrong?",
+   "solutionReview": {
+    "headline": "The fraction bar is not symmetric.",
+    "reasoning": [
+     "A fraction bar means numerator divided by denominator, in that order.",
+     "${{b}} \\div {{a}}$ is the reciprocal of $\\frac{{{a}}}{{{b}}}$, not the same number."
+    ],
+    "answerSummary": "The claim about ${{b}} \\div {{a}}$ is wrong."
+   },
+   "attemptFeedback": [
+    "Scaling both parts by the same factor does preserve the value."
+   ],
+   "supportHints": [
+    "Test each claim on a fraction you can evaluate in your head."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 29
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "constraints": [
+     "a!=b",
+     "a%b!=0"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "It has the same value as ${{a}}$ divided by ${{b}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "It equals ${{a}}$ multiplied by $\\frac{1}{{{b}}}$.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Multiplying both ${{a}}$ and ${{b}}$ by ${{k}}$ leaves its value unchanged.",
+     "error": "incompleteFactoring"
+    },
+    {
+     "id": "choice-d",
+     "label": "It has the same value as ${{b}}$ divided by ${{a}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.2E:statement-that-breaks-the-fraction-bar",
+    "sourcePrompt": "Which statement about $\\frac{{{a}}}{{{b}}}$ is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_3A_two_divisions_in_sequence",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.3A:two-divisions-in-sequence",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Dividing ${{n}}$ by $\\frac{{{p}}}{{{q}}}$ and then by ${{m}}$ gives what result?",
+   "solutionReview": {
+    "headline": "Turn the division into a multiplication by the reciprocal first.",
+    "reasoning": [
+     "${{n}} \\div \\frac{{{p}}}{{{q}}}$ is ${{n}} \\times \\frac{{{q}}}{{{p}}}$, which is ${{m}} \\times {{s}} \\times {{q}}$.",
+     "Dividing that by ${{m}}$ leaves ${{answer}}$."
+    ],
+    "answerSummary": "The result is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The two divisions pull in the same direction only if the fraction is greater than one."
+   ],
+   "supportHints": [
+    "Dividing by $\\frac{{{p}}}{{{q}}}$ makes the amount larger, not smaller."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 3
+     },
+     "q": {
+      "type": "int",
+      "min": 5,
+      "max": 12
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     },
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "n": "p*m*s",
+     "answer": "s*q",
+     "d_operationInverted": "m*s*q",
+     "d_partialTotal": "p*s",
+     "d_usedGivenValue": "n"
+    },
+    "constraints": [
+     "q>p",
+     "gcd(p,q)==1",
+     "n>12",
+     "abs(n-s*q)>3",
+     "abs(p*s-s*q)>3",
+     "s*q>9",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_partialTotal",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.3A:two-divisions-in-sequence",
+    "sourcePrompt": "Dividing ${{n}}$ by $\\frac{{{p}}}{{{q}}}$ and then by ${{m}}$ gives what result?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_3A_denominator_behind_a_known_quotient",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.3A:denominator-behind-a-known-quotient",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Dividing ${{n}}$ by a fraction gives ${{v}}$. If the fraction has numerator ${{p}}$, what is its denominator?",
+   "solutionReview": {
+    "headline": "The denominator is the factor the reciprocal multiplies by.",
+    "reasoning": [
+     "${{n}} \\div \\frac{{{p}}}{d}$ is ${{n}} \\times \\frac{d}{{{p}}}$, and that equals ${{v}}$.",
+     "So $d = {{v}} \\times {{p}} \\div {{n}} = {{answer}}$."
+    ],
+    "answerSummary": "The denominator is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The quotient itself is not the denominator; it already has ${{n}}$ folded into it."
+   ],
+   "supportHints": [
+    "Write the division as a multiplication by the reciprocal, then solve for the missing part."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "u": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "n": "p*u",
+     "v": "u*d",
+     "answer": "d",
+     "d_forgotFinalStep": "v",
+     "d_usedGivenValue": "u",
+     "d_operationInverted": "p"
+    },
+    "constraints": [
+     "u!=d",
+     "p!=d",
+     "p!=u",
+     "v!=d",
+     "n>5",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_usedGivenValue!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.3A:denominator-behind-a-known-quotient",
+    "sourcePrompt": "Dividing ${{n}}$ by a fraction gives ${{v}}$. If the fraction has numerator ${{p}}$, what is its denominator?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_3A_diagnosing_a_multiplied_fraction",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.3A:diagnosing-a-multiplied-fraction",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student found ${{n}} \\div \\frac{{{p}}}{{{q}}}$ and answered ${{wrong}}$. What did they do?",
+   "solutionReview": {
+    "headline": "Dividing by a fraction below one makes a number bigger.",
+    "reasoning": [
+     "${{n}} \\times \\frac{{{p}}}{{{q}}}$ is exactly ${{wrong}}$.",
+     "Dividing calls for $\\frac{{{q}}}{{{p}}}$, which would have made the result larger."
+    ],
+    "answerSummary": "They multiplied by the fraction itself."
+   },
+   "attemptFeedback": [
+    "Cancelling would not have produced a value below ${{n}}$ in this pattern."
+   ],
+   "supportHints": [
+    "Check what ${{n}} \\times \\frac{{{p}}}{{{q}}}$ comes to."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "q": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     },
+     "t": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "n": "q*t",
+     "wrong": "p*t",
+     "right": "q*q*t/p"
+    },
+    "constraints": [
+     "q>p",
+     "gcd(p,q)==1",
+     "p*t>5"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "They multiplied by ${{q}}$ and forgot to divide by ${{p}}$.",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "They added $\\frac{{{p}}}{{{q}}}$ to ${{n}}$ instead of dividing.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "They multiplied by $\\frac{{{p}}}{{{q}}}$ instead of by its reciprocal."
+    },
+    {
+     "id": "choice-d",
+     "label": "They cancelled ${{q}}$ from ${{n}}$ and from the numerator.",
+     "error": "incompleteFactoring"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.3A:diagnosing-a-multiplied-fraction",
+    "sourcePrompt": "A student found ${{n}} \\div \\frac{{{p}}}{{{q}}}$ and answered ${{wrong}}$. What did they do?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_3C_repeated_moves_in_both_directions",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.3C:repeated-moves-in-both-directions",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3C",
+   "taskType": "procedural",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A marker at $-{{a}}$ makes ${{n}}$ moves of ${{b}}$ right, then ${{m}}$ moves of ${{c}}$ left. Where does it stop?",
+   "solutionReview": {
+    "headline": "Total each direction before combining them.",
+    "reasoning": [
+     "The rightward moves add ${{n}} \\times {{b}}$ and the leftward moves take off ${{m}} \\times {{c}}$.",
+     "From $-{{a}}$ that lands on ${{answer}}$."
+    ],
+    "answerSummary": "It stops at ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Each count belongs to the move size it was given with."
+   ],
+   "supportHints": [
+    "Repeated moves of the same size can be totalled first."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 18
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "answer": "n*b-m*c-a",
+     "d_forgotFinalStep": "n*b-a",
+     "d_operationInverted": "m*c-n*b-a",
+     "d_ratioReversed": "m*b-n*c-a"
+    },
+    "constraints": [
+     "m!=n",
+     "b!=c",
+     "abs((m-n)*(b+c))>3",
+     "abs(m*c)>3",
+     "abs(n*b-m*c-a)>2",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_ratioReversed",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_ratioReversed",
+     "d_operationInverted!=d_ratioReversed"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.3C:repeated-moves-in-both-directions",
+    "sourcePrompt": "A marker at $-{{a}}$ makes ${{n}}$ moves of ${{b}}$ right, then ${{m}}$ moves of ${{c}}$ left. Where does it stop?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_3C_size_of_the_return_move",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.3C:size-of-the-return-move",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3C",
+   "taskType": "reverseReasoning",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A marker at $-{{a}}$ moved ${{b}}$ right ${{n}}$ times, then once to the left and stopped at ${{end}}$. How long was the left move?",
+   "solutionReview": {
+    "headline": "Find where the marker stood before the last move.",
+    "reasoning": [
+     "After the rightward moves the marker sat at ${{n}} \\times {{b}} - {{a}}$.",
+     "Dropping from there to ${{end}}$ takes ${{answer}}$."
+    ],
+    "answerSummary": "The left move was ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The left move is measured from that position, not from zero."
+   ],
+   "supportHints": [
+    "Rebuild the position reached after the rightward moves."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 4,
+      "max": 18
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "left": {
+      "type": "int",
+      "min": 6,
+      "max": 48
+     }
+    },
+    "derived": {
+     "end": "n*b-a-left",
+     "answer": "left",
+     "d_forgotFinalStep": "n*b-end",
+     "d_partialTotal": "b-end-a",
+     "d_usedGivenValue": "n*b"
+    },
+    "constraints": [
+     "left>4",
+     "abs(n*b)>4",
+     "abs(b-end-a-left)>3",
+     "abs(n*b-left)>3",
+     "abs(end)>1",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.3C:size-of-the-return-move",
+    "sourcePrompt": "A marker at $-{{a}}$ moved ${{b}}$ right ${{n}}$ times, then once to the left and stopped at ${{end}}$. How long was the left move?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_3C_which_sequence_lands_on_the_target",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.3C:which-sequence-lands-on-the-target",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3C",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Starting at $-{{a}}$, which sequence of moves ends at ${{target}}$?",
+   "solutionReview": {
+    "headline": "Test each sequence by its net movement.",
+    "reasoning": [
+     "Only ${{n}} \\times {{b}} - {{m}} \\times {{c}}$ carries $-{{a}}$ to ${{target}}$.",
+     "Every other pairing changes the net distance travelled."
+    ],
+    "answerSummary": "Right ${{b}}$ ${{n}}$ times, then left ${{c}}$ ${{m}}$ times."
+   },
+   "attemptFeedback": [
+    "Swapping the counts between the two move sizes changes the total."
+   ],
+   "supportHints": [
+    "Work out the net movement each sequence produces."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 15
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     }
+    },
+    "derived": {
+     "target": "n*b-m*c-a"
+    },
+    "constraints": [
+     "n!=m",
+     "b!=c",
+     "n*b-m*c!=m*b-n*c",
+     "n*b-m*c!=m*c-n*b",
+     "n*b-m*c!=n*c-m*b",
+     "abs(n*b-m*c-a)>2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Right ${{b}}$ taken ${{m}}$ times, then left ${{c}}$ taken ${{n}}$ times.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "Right ${{b}}$ taken ${{n}}$ times, then left ${{c}}$ taken ${{m}}$ times."
+    },
+    {
+     "id": "choice-c",
+     "label": "Left ${{b}}$ taken ${{n}}$ times, then right ${{c}}$ taken ${{m}}$ times.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "Right ${{c}}$ taken ${{m}}$ times, then left ${{b}}$ taken ${{n}}$ times.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.3C:which-sequence-lands-on-the-target",
+    "sourcePrompt": "Starting at $-{{a}}$, which sequence of moves ends at ${{target}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_3D_subtracting_a_negative_inside_a_product",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.3D:subtracting-a-negative-inside-a-product",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3D",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is $-{{a}} - \\left(-{{b}}\\right) + {{c}} \\times \\left(-{{d}}\\right)$?",
+   "solutionReview": {
+    "headline": "Subtracting a negative adds; multiplying by a negative subtracts.",
+    "reasoning": [
+     "$-{{a}} - \\left(-{{b}}\\right)$ is ${{b}}-{{a}}$, and ${{c}} \\times \\left(-{{d}}\\right)$ is $-{{c}}\\times{{d}}$.",
+     "Together that is ${{answer}}$."
+    ],
+    "answerSummary": "The value is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The multiplication binds tighter than the addition in front of it."
+   ],
+   "supportHints": [
+    "Deal with the product before combining anything."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 4,
+      "max": 24
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 22
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "d": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "answer": "b-a-c*d",
+     "d_signError": "0-a-b-c*d",
+     "d_operationInverted": "b-a+c*d",
+     "d_orderOfOperations": "(b-a+c)*(0-d)"
+    },
+    "constraints": [
+     "a!=b",
+     "abs(b-a-c*d)>2",
+     "abs((b-a+c)*d)>3",
+     "abs(b-a-c*d-(b-a+c)*(0-d))>3",
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "answer!=d_orderOfOperations",
+     "d_signError!=d_operationInverted",
+     "d_signError!=d_orderOfOperations",
+     "d_operationInverted!=d_orderOfOperations"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_orderOfOperations}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.3D:subtracting-a-negative-inside-a-product",
+    "sourcePrompt": "What is $-{{a}} - \\left(-{{b}}\\right) + {{c}} \\times \\left(-{{d}}\\right)$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_3D_starting_value_behind_two_changes",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.3D:starting-value-behind-two-changes",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3D",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Subtracting ${{n}}$ from a number and then adding $-{{m}}$ gives $-{{r}}$. What was the number?",
+   "solutionReview": {
+    "headline": "Reverse each change in turn, signs included.",
+    "reasoning": [
+     "Undoing the changes means adding ${{n}}$ back and adding ${{m}}$ back.",
+     "$-{{r}}+{{n}}+{{m}}={{answer}}$."
+    ],
+    "answerSummary": "The number was ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The result is negative, and its sign has to travel through the whole calculation."
+   ],
+   "supportHints": [
+    "Adding $-{{m}}$ is a subtraction, so undoing it is an addition."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     },
+     "m": {
+      "type": "int",
+      "min": 3,
+      "max": 24
+     },
+     "r": {
+      "type": "int",
+      "min": 3,
+      "max": 28
+     }
+    },
+    "derived": {
+     "answer": "n+m-r",
+     "d_signError": "r+n+m",
+     "d_forgotFinalStep": "n-r",
+     "d_operationInverted": "r+n-m"
+    },
+    "constraints": [
+     "abs(n+m-r)>3",
+     "abs(r-m)>3",
+     "abs(m)>2",
+     "n+m-r>0",
+     "answer!=d_signError",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "d_signError!=d_forgotFinalStep",
+     "d_signError!=d_operationInverted",
+     "d_forgotFinalStep!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.3D:starting-value-behind-two-changes",
+    "sourcePrompt": "Subtracting ${{n}}$ from a number and then adding $-{{m}}$ gives $-{{r}}$. What was the number?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_3D_diagnosing_a_double_negative",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.3D:diagnosing-a-double-negative",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3D",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student wrote $-{{a}} - \\left(-{{b}}\\right) = -{{wrong}}$. What went wrong?",
+   "solutionReview": {
+    "headline": "Two minus signs in a row cancel.",
+    "reasoning": [
+     "$-{{a}} - \\left(-{{b}}\\right)$ is $-{{a}}+{{b}}$, which is ${{right}}$.",
+     "Answering $-{{wrong}}$ means the second minus sign never cancelled the negative."
+    ],
+    "answerSummary": "The double negative was not resolved."
+   },
+   "attemptFeedback": [
+    "The arithmetic itself is sound; it is the sign on ${{b}}$ that was mishandled."
+   ],
+   "supportHints": [
+    "Rewrite the subtraction of a negative as an addition first."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 5,
+      "max": 28
+     },
+     "b": {
+      "type": "int",
+      "min": 4,
+      "max": 26
+     }
+    },
+    "derived": {
+     "wrong": "a+b",
+     "right": "b-a"
+    },
+    "constraints": [
+     "a!=b",
+     "abs(b-a)>2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The two values were added when they should have been subtracted.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "Subtracting a negative was carried out as subtracting a positive."
+    },
+    {
+     "id": "choice-c",
+     "label": "A digit was carried wrongly in the arithmetic.",
+     "error": "arithmeticSlip"
+    },
+    {
+     "id": "choice-d",
+     "label": "The larger value was written first.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.3D:diagnosing-a-double-negative",
+    "sourcePrompt": "A student wrote $-{{a}} - \\left(-{{b}}\\right) = -{{wrong}}$. What went wrong?"
    }
   }
  ]
