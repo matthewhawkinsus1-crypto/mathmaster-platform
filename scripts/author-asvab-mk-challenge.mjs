@@ -1098,7 +1098,7 @@ mkc('6.7A', 'diagnosing-a-squared-product', {
 
 mkc('6.6A', 'column-that-a-rate-change-moves', {
   difficultyBand: 4, dok: 2, taskType: 'interpretation', representation: 'table',
-  prompt: 'A shift of ${{h}}$ hours makes ${{parts}}$ parts and pays $\\${{pay}}$. Which column changes if only the pay rate changes?',
+  prompt: 'The table records two shifts. Which column changes if the pay rate changes but the hours do not?',
   stimulus: {
     kind: 'table',
     columns: ['Hours', 'Parts made', 'Pay'],
