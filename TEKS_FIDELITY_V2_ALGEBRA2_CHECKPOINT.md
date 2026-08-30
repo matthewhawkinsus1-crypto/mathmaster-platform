@@ -201,17 +201,36 @@ Certification result:
 
 Do **not** re-audit A2.3D unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.3E
 
-### A2.3E — REBUILD — STAGED / CERTIFICATION RUNNING
+### A2.3E — REBUILD — CERTIFIED
 
 Official construct: **Formulate systems of at least two linear inequalities in two variables.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- every family makes the student write at least two inequalities;
+- coupled budget/resource constraints, nonnegativity, strict/inclusive boundaries, and region descriptions are represented;
+- equivalent algebraic forms of linear inequalities are accepted securely rather than requiring one printed arrangement;
+- error analysis diagnoses the bad boundary symbol and still writes the complete corrected system;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- Correct Answer Acceptance Audit after inequality-equivalence wiring: **PASS**;
+- targeted Algebra II Fidelity V2 Certification run `33318552461`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.3E unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.3F — PENDING AUDIT
+
+Official construct: **Solve systems of two or more linear inequalities in two variables.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.3E
+### A2.3F
 
-Resume here. Do not reopen A2.2A–A2.3D unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.3E unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.3E audit finding
@@ -253,8 +272,14 @@ Resume here. Do not reopen A2.2A–A2.3D unless a failing gate names them.
 - Package-only Algebra II certification run `33318488825`: **PASS**, including student/runtime build.
 - Added A2.3E-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `0ea64bbbf6308251a59ee9efc4fc01cbd73d66ae`.
 - The A2.3E gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public-key stripping, at least two student-authored inequality fields in every family, repeated 3+ constraint systems, coupled x/y resource constraints, strict/inclusive boundary evidence, nonnegativity, and complete error-analysis repair.
-- Full A2.3E assertion run `33318512713`: **QUEUED/RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.3E** until that run is green.
+- Full A2.3E assertion run `33318512713` passed generated/issuability/self-grading and failed only on the certification test's coupled-constraint detector: it looked for literal numeric coefficients and therefore missed the generator-backed budget inequality even though that inequality contains both x and y.
+- Replaced the detector with the actual structural requirement — a constraint is coupled when its expected inequality contains both x and y — commit `b74e688eef84213128aa26f0eac033e4d37ea294`.
+- No content requirement was weakened.
+- Replacement Algebra II certification run `33318552461`: **PASS**.
+- Correct Answer Acceptance Audit for the shared linear-inequality equivalence wiring: **PASS**.
+- Generated content, production issuability, secure self-grading, public-key stripping, coupled constraints, strict/inclusive boundaries, nonnegativity, full error repair, and student/runtime build all passed.
+- A2.3E is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.3F**.
 
 
 ### 2026-08-30 — A2.3D audit finding
