@@ -151,17 +151,23 @@ test('workspace contains the full reflection interaction', () => {
   assert.match(source, /Reset Inverse/);
 });
 
-test('canonical Algebra II seed declares inverseReflection in both mirrors', () => {
+test('canonical Algebra II seed declares inverseReflection across the promoted A2.2B families in both mirrors', () => {
   for (const seedPath of [
     'functions/seeds/pathQuestionBank/algebra2_pathQuestionBank_seed.json',
     'seed/pathQuestionBank/algebra2_pathQuestionBank_seed.json',
   ]) {
     const parsed = JSON.parse(readFileSync(seedPath, 'utf8'));
     const docs = Array.isArray(parsed) ? parsed : (parsed.documents || parsed.items || parsed.questions || []);
-    const item = docs.find((entry) => entry.id === 'mm_A2_2B_gen2_inverse-point-graph');
-    assert.equal(item.inverseReflection.enabled, true);
-    assert.equal(item.inverseReflection.requireInverseSketch, true);
-    assert.equal(item.inverseReflection.requireInverseEquation, true);
-    assert.match(item.prompt, /reflect both plotted points/i);
+    const families = docs.filter((entry) => (
+      entry.assessedConstruct === 'A2.2B'
+      && entry.type === 'functionInvestigation'
+    ));
+    assert.equal(families.length, 5, `${seedPath} must retain all five certified A2.2B inverse families`);
+    for (const item of families) {
+      assert.equal(item.inverseReflection?.enabled, true, item.id);
+      assert.equal(item.inverseReflection?.requireInverseSketch, true, item.id);
+      assert.equal(item.inverseReflection?.requireInverseEquation, true, item.id);
+      assert.match(item.prompt, /reflect/i, item.id);
+    }
   }
 });
