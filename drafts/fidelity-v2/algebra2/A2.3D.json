@@ -302,7 +302,7 @@
               "expected": "0"
             },
             {
-              "id": "B-quad",
+              "id": "quad-residual",
               "label": "Candidate B quadratic residual",
               "inputProfile": "number",
               "expected": "{{residual2}}"
