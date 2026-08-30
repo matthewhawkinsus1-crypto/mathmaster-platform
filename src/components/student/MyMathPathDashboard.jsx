@@ -120,7 +120,7 @@ export const MyMathPathDashboard = ({
             {/* The legend used the same green glyph for two different states
                 and named a fourth state ("Needs work") that never appears —
                 the wheel says "Needs Attention". */}
-            <strong>What the colours mean</strong><br />🟢 Mastered · 🔵 Secure · 🟡 Developing · 🔴 Needs Attention · ⚪ Not practised yet
+            <strong>What the colours mean</strong><br />🟢 Mastered · 🔵 Secure · 🟡 Developing · 🔴 Needs Attention · ⚪ Not practised yet<br /><span style={{ color: '#137333', fontWeight: 900 }}>●</span> completed Path pass · <span style={{ color: '#5b21b6', fontWeight: 900 }}>●</span> Mastery-challenge pass
           </div>
         </div>
       </div>
