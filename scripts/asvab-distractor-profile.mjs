@@ -24,6 +24,7 @@ for (const question of documents) {
   // it too, since stripping happens at the server boundary, not here.
   const above = new Map();
   const total = new Map();
+  const keys = [];
   let counted = 0;
   for (const { question: instance } of samplePathInstances(question, draws)) {
     if (!instance) continue;
@@ -31,6 +32,7 @@ for (const question of documents) {
     const key = numericLabel(instance.choices.find((c) => c.id === keyId)?.label);
     if (key === null) continue;
     counted += 1;
+    keys.push(key);
     for (const choice of instance.choices) {
       if (choice.id === keyId) continue;
       const code = choice.error || '(unnamed)';
@@ -40,5 +42,8 @@ for (const question of documents) {
   }
   if (!counted) { console.log(`${question.id}: non-numeric`); continue; }
   const parts = [...total.entries()].map(([code, n]) => `${code}=${Math.round(100 * (above.get(code) || 0) / n)}%`);
-  console.log(`${String(question.id).padEnd(48)} above-key: ${parts.join('  ')}`);
+  keys.sort((a, b) => a - b);
+  const at = (fraction) => keys[Math.min(keys.length - 1, Math.floor(fraction * keys.length))];
+  const span = `key ${at(0.05)}..${at(0.95)} mid ${at(0.5)}`;
+  console.log(`${String(question.id).padEnd(48)} above-key: ${parts.join('  ')}   [${span}]`);
 }
