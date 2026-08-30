@@ -519,7 +519,59 @@
             "max": 0
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-two-halfplane-union-error",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "type": "systemsWorkspace",
+          "mode": "inequalities",
+          "interaction": "construct",
+          "ask": [
+            "construction"
+          ],
+          "prompt": "A student shades the UNION of the two half-planes $y>x-2$ and $y\\le -x+4$. Diagnose the logical error and repair the graph by constructing both boundaries and shading ONLY their intersection.",
+          "inequalities": [
+            {
+              "m": 1,
+              "b": -2,
+              "relation": ">"
+            },
+            {
+              "m": -1,
+              "b": 4,
+              "relation": "<="
+            }
+          ],
+          "graph": {
+            "xMin": -6,
+            "xMax": 6,
+            "yMin": -8,
+            "yMax": 10
+          },
+          "solutionReview": {
+            "headline": "A system of inequalities uses logical AND, not OR.",
+            "reasoning": [
+              "The first boundary is dashed and shades above; the second is solid and shades below.",
+              "Only the overlap satisfies both inequalities simultaneously."
+            ]
+          },
+          "attemptFeedback": [
+            "The repair is complete only when the graph shows the common region, not both half-planes separately."
+          ],
+          "supportHints": [
+            "Think intersection: points must satisfy inequality 1 AND inequality 2."
+          ]
+        }
+      ]
     }
   ]
 }
