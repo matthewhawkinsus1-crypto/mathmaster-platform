@@ -6,6 +6,7 @@ import { statusForSkill } from '../../platform/path/pathMap.js';
 import { STATUS } from '../../platform/path/recommendationEngine.js';
 import PracticeAsMenu from './PracticeAsMenu.jsx';
 import { describeCoursePathPass } from '../../platform/path/pathPassPresentation.js';
+import StandardBadge from '../common/StandardBadge.jsx';
 
 export const SkillDetailCardModal = ({
   teksCode,
@@ -38,7 +39,11 @@ export const SkillDetailCardModal = ({
     <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }} style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'grid', placeItems: 'center', padding: '16px', background: 'rgba(0,0,0,.5)' }}>
       <section role="dialog" aria-modal="true" aria-labelledby="skill-detail-title" style={{ width: 'min(480px, 100%)', padding: '24px', borderRadius: '13px', background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,.28)', textAlign: 'left' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '14px', alignItems: 'flex-start' }}>
-          <div><div style={{ color: strand.color, fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>{strand.title}</div><h2 id="skill-detail-title" style={{ margin: '4px 0 0', fontSize: '20px' }}>{studentLabelForTeks(teksCode)}</h2></div>
+          <div>
+            <div style={{ color: strand.color, fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>{strand.title}</div>
+            <h2 id="skill-detail-title" style={{ margin: '4px 0 0', fontSize: '20px' }}>{studentLabelForTeks(teksCode)}</h2>
+            <StandardBadge code={teksCode} showName={false} style={{ marginTop: 8 }} />
+          </div>
           <button type="button" onClick={onClose} aria-label="Close skill details" style={{ border: 0, background: 'transparent', fontSize: '20px', cursor: 'pointer' }}>✕</button>
         </div>
         {signals.retention === 'concern' && <div style={{ marginTop: '16px', padding: '11px 13px', borderRadius: '7px', background: '#fce8e6', color: '#a50e0e' }}><strong>Retention check recommended.</strong> Recent evidence suggests this skill should be verified again.</div>}
