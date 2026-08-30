@@ -95,6 +95,7 @@ test('A2.8A selects linear quadratic and exponential models from calculated data
 
       if (doc.id.includes('nonunit-input-spacing')) {
         nonunit += 1;
+        linear += 1;
         assert.ok(Number(p.step) >= 2);
         assert.equal(Number(p.x1) - Number(p.x0), Number(p.step));
         assert.equal(Number(p.x2) - Number(p.x1), Number(p.step));
