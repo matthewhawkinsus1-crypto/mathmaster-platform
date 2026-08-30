@@ -20,6 +20,7 @@ import { getAssessmentStandardReferences, referenceLabel } from '../../platform/
 import { assessmentItemTypeLabel, describeChallengeTier, frameworkExperience } from '../../platform/ccmr/assessmentFidelity.js';
 import { ENTER_TO_CONTINUE_HINT, shouldAdvanceOnEnter } from '../../platform/interaction/answerEntryUx.js';
 import { gradingClosesQuestion, latestAttemptCount } from '../../platform/path/pathProgression.js';
+import { coursePathLevelName } from '../../platform/path/pathPassPresentation.js';
 
 // Three ways a path question can arrive, in order of preference.
 //
@@ -122,6 +123,10 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
   const challengeTier = Number(questionInstance?.ccmrChallengeTier || session?.ccmrChallengeTier || 1);
   const challenge = describeChallengeTier(challengeTier, directFramework);
   const experience = directFramework ? frameworkExperience(directFramework) : null;
+  const rawCoursePassLevel = Number(questionInstance?.coursePassLevel || session?.coursePassLevel || 0);
+  const coursePassLevel = !directFramework && !bridgeFramework && !isRetention && Number.isFinite(rawCoursePassLevel) && rawCoursePassLevel > 0
+    ? Math.max(1, Math.min(3, Math.floor(rawCoursePassLevel)))
+    : 0;
   const assessmentReferences = directFramework && questionCode
     ? getAssessmentStandardReferences(teksSkillId(questionCode), directFramework)
     : [];
@@ -166,6 +171,26 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
       {session?.weeklySlotKey && (
         <div role="status" style={{ marginTop: 8, padding: '9px 11px', borderRadius: 9, background: '#e6f4ea', border: '1px solid #b7e0c4', color: '#12633a', fontSize: 12.5, fontWeight: 850, lineHeight: 1.45 }}>
           WEEKLY PATH · Session {session?.weeklySlot || '?'}{weeklyGoalRequired ? ` of ${weeklyGoalRequired}` : ''} · Completing this session counts toward your weekly target.
+        </div>
+      )}
+      {coursePassLevel > 0 && (
+        <div
+          role="status"
+          style={{
+            margin: '9px 0 0',
+            padding: '9px 11px',
+            width: 'fit-content',
+            maxWidth: '100%',
+            borderRadius: 9,
+            background: coursePassLevel >= 3 ? '#f3ecfd' : '#eef3fb',
+            border: `1px solid ${coursePassLevel >= 3 ? '#d9c9f7' : '#c9daf8'}`,
+            color: coursePassLevel >= 3 ? '#5b21b6' : '#174ea6',
+            fontSize: 12.5,
+            fontWeight: 900,
+            lineHeight: 1.45,
+          }}
+        >
+          MY MATH PATH · Level {coursePassLevel} · {coursePathLevelName(coursePassLevel)}
         </div>
       )}
       {directFramework && !bridgeFramework && (
