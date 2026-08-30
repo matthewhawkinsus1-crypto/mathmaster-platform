@@ -327,7 +327,7 @@ Do **not** re-audit A2.4C unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4D — REBUILD — AUDITED / AUTHORING
+### A2.4D — REBUILD — STAGED / CERTIFICATION RUNNING
 
 ## FIRST UNFINISHED STANDARD
 
@@ -354,6 +354,22 @@ Resume here. Do not reopen A2.2A–A2.4C unless a failing gate names them.
   - at least two families must collect completing-square evidence before the final vertex form;
   - one genuine error-analysis family must repair a completing-square/factoring mistake, finish vertex form, and identify the corrected attributes.
 - The standard is algebraic transformation first; no new graph tool is required. Secure generic equation/number/choice fields are sufficient, and the existing form-preserving equation grader should remain strict enough that simply re-entering the original standard form does not satisfy a vertex-form response.
+
+
+### 2026-08-30 — A2.4D staged and gated
+- Staged five A2.4D Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4D.json` — commit `37fd995d35410853fe03e41a4f79d5a545a7485b`.
+- Corrected one coefficient-table family so its minimum/maximum choice key is deterministic instead of relying on a generated conditional string — commit `e0b91b44b91fd43735e91883ebf0f81ba24fb30d`.
+- Package/build run `33319993800`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - positive-leading-coefficient completing-square work with explicit factoring and square-add evidence;
+  - negative-leading-coefficient transformation tied to downward opening, maximum, and range;
+  - coefficient-table translation from standard form to vertex form and axis/vertex attributes;
+  - contextual projectile transformation to maximum time/height;
+  - genuine factoring/completing-square error repair that still finishes vertex form and attributes.
+- Added A2.4D-specific generated certification — commit `9fe89706c5460b74656a96d35d3268b709dc3881`.
+- The A2.4D gate samples 200+ generated instances, independently checks standard-form and vertex-form equivalence at multiple probe values, requires repeated completing-square evidence and repeated |a|>1 factoring, covers positive/negative a, confirms public-key stripping and secure self-grading, and deliberately submits the original standard form into the vertex-form field to require rejection.
+- Full A2.4D assertion run `33320051645`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.4D** until that run is green.
 
 
 ### 2026-08-30 — A2.4C audit finding
