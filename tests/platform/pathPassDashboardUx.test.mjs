@@ -104,3 +104,16 @@ test('assigned weekly sessions show their frozen purpose instead of a free-choic
   assert.ok(productionContainer.includes('const coursePassLevel = !weeklyPurposeLabel'));
   assert.ok(productionContainer.includes('weeklyPurposeLabel} complete'));
 });
+
+
+test('weekly assigned sessions show their frozen purpose instead of a numbered course pass', () => {
+  const container = readFileSync('src/components/student/MyMathPathProductionContainer.jsx', 'utf8');
+
+  assert.match(player, /weeklyPurposeLabel = session\?\.weeklySlotKey/);
+  assert.match(player, /!weeklyPurposeLabel && !directFramework/);
+  assert.match(player, /WEEKLY PATH · \{weeklyPurposeLabel \|\| 'Assigned practice'\}/);
+
+  assert.match(container, /weeklyPurposeLabel = session\?\.weeklySlotKey/);
+  assert.match(container, /!weeklyPurposeLabel && !directAssessment/);
+  assert.match(container, /weeklyPurposeLabel[\s\S]*complete/);
+});
