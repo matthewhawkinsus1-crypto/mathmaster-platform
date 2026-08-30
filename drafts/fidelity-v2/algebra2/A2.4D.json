@@ -116,7 +116,7 @@
       "difficultyBand": 3,
       "dok": 3,
       "taskType": "interpretation",
-      "prompt": "Transform $f(x)={{a}}x^2{{b|signed}}x{{c|signed}}$ to vertex form. Use the transformed form to identify the vertex, opening direction, maximum value, and range.",
+      "prompt": "Starting from standard form, transform $f(x)={{a}}x^2{{b|signed}}x{{c|signed}}$ to vertex form. Use the transformed form to identify the vertex, opening direction, maximum value, and range.",
       "stimulus": {
         "kind": "table",
         "title": "Standard-form coefficients",
@@ -464,7 +464,7 @@
       "difficultyBand": 5,
       "dok": 3,
       "taskType": "errorAnalysis",
-      "prompt": "A student transforms $f(x)={{a}}x^2{{b|signed}}x{{c|signed}}$ by completing the square, but makes the factoring mistake shown below. Diagnose it, repair the completing-square setup, finish vertex form, and identify the corrected vertex and extreme value.",
+      "prompt": "Starting from standard form: A student transforms $f(x)={{a}}x^2{{b|signed}}x{{c|signed}}$ by completing the square, but makes the factoring mistake shown below. Diagnose it, repair the completing-square setup, finish vertex form, and identify the corrected vertex and extreme value.",
       "stimulus": {
         "kind": "steps",
         "title": "Student's completing-square work",
