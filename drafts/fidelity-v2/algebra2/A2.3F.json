@@ -257,13 +257,13 @@
       }
     },
     {
-      "id": "mm_A2_3F_v2_context-three-constraint-feasible",
+      "id": "mm_A2_3F_v2_context-no-solution-policy",
       "active": true,
       "alignmentKeys": [
         "texas:A2.3F"
       ],
       "courseId": "algebra2",
-      "familyId": "mathmaster:A2.3F:v2-context-three-constraint-feasible",
+      "familyId": "mathmaster:A2.3F:v2-context-no-solution-policy",
       "familyVersion": 3,
       "questionType": "response",
       "activityRole": "practice",
@@ -279,61 +279,59 @@
       "ask": [
         "construction"
       ],
-      "prompt": "A planning model has three constraints: $y\\ge0$, $y\\ge x-{{shift}}$, and $y\\le -x+{{cap}}$. Solve the system by constructing the complete feasible region.",
+      "prompt": "A planning model requires $y\\ge x+{{upper}}$ but also $y\\le x+{{lower}}$, where the second cap is always below the first requirement. Solve the system by constructing both half-planes and determine the solution region from their overlap.",
       "inequalities": [
         {
-          "m": 0,
-          "b": 0,
+          "m": 1,
+          "b": "{{upper}}",
           "relation": ">="
         },
         {
           "m": 1,
-          "b": "-{{shift}}",
-          "relation": ">="
-        },
-        {
-          "m": -1,
-          "b": "{{cap}}",
+          "b": "{{lower}}",
           "relation": "<="
         }
       ],
       "graph": {
-        "xMin": -6,
-        "xMax": 10,
-        "yMin": -4,
-        "yMax": 12
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -10,
+        "yMax": 14
       },
       "context": {
-        "kind": "planning",
-        "xLabel": "Plan x",
-        "yLabel": "Plan y"
+        "title": "Conflicting planning constraints",
+        "note": "If correctly constructed half-planes have no common overlap, the system has no solution."
       },
       "solutionReview": {
-        "headline": "A feasible plan must satisfy every constraint.",
+        "headline": "Parallel constraints can make a system infeasible.",
         "reasoning": [
-          "Nonnegativity y≥0 shades above the x-axis.",
-          "The second lower bound shades above y=x-{{shift}}.",
-          "The capacity bound shades below y=-x+{{cap}}; the feasible region is the common overlap."
-        ]
+          "Both boundaries have slope 1, so they are parallel.",
+          "The ≥ requirement is above the line with the larger intercept {{upper}}.",
+          "The ≤ cap is below the line with the smaller intercept {{lower}}, so the two half-planes never overlap."
+        ],
+        "answerSummary": "No solution region."
       },
       "attemptFeedback": [
-        "In a feasible-region model, a point that misses even one constraint is outside the solution set."
+        "Do not invent an overlap. Correctly graphing contradictory constraints should leave no shared region."
       ],
       "supportHints": [
-        "Build each constraint separately, then look for the region that survives all three."
+        "Parallel boundaries have the same slope. Compare the intercepts and required shading sides."
       ],
       "generator": {
         "parameters": {
-          "shift": {
+          "lower": {
             "type": "int",
-            "min": 2,
-            "max": 6
+            "min": -4,
+            "max": 1
           },
-          "cap": {
+          "gap": {
             "type": "int",
-            "min": 5,
-            "max": 10
+            "min": 3,
+            "max": 7
           }
+        },
+        "derived": {
+          "upper": "lower+gap"
         }
       }
     },
