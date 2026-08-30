@@ -313,6 +313,12 @@ const normalizeFormPreservingSide = (value) => {
   //   x-(-5) -> x+5
   //   x+(-5) -> x-5
   let radicalReady = String(value ?? '')
+    // A student naturally writes a geometric sequence as 5(4)^(n-1), while
+    // generated keys often store 5*(4)^(n-1). Preserve that multiplication
+    // BEFORE removing numeric bookkeeping parentheses. Restrict this to a
+    // numeric coefficient immediately followed by a powered numeric base, so
+    // named calls such as sqrt(4) and structural groups are untouched.
+    .replace(/(\d)\((-?\d+(?:\.\d+)?)\)(?=\s*\^)/g, '$1*$2')
     .replace(/\((-?\d+(?:\.\d+)?)\)/g, '$1');
 
   for (let guard = 0; guard < 4; guard += 1) {
