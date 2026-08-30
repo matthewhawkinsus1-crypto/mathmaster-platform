@@ -285,7 +285,7 @@ Do **not** re-audit A2.4A unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4B — PENDING AUDIT
+### A2.4B — REBUILD — AUDITED / AUTHORING
 
 Official construct: **Write the equation of a parabola using given attributes, including vertex, focus, directrix, axis of symmetry, and direction of opening.**
 
@@ -294,6 +294,27 @@ Official construct: **Write the equation of a parabola using given attributes, i
 ### A2.4B
 
 Resume here. Do not reopen A2.2A–A2.4A unless a failing gate names them.
+
+
+### 2026-08-30 — A2.4B audit finding
+- Official construct: **write the equation of a parabola using given attributes, including vertex, focus, directrix, axis of symmetry, and direction of opening**.
+- Verdict: **REBUILD**.
+- The legacy bank contains correct attribute facts but almost never reaches the TEKS verb:
+  - family 1 gives vertex/focus but asks students to choose a prewritten equation;
+  - family 2 asks only for focal distance p;
+  - family 3 asks only for opening direction;
+  - family 4 corrects a directrix but never writes the parabola;
+  - family 5 chooses a consistent attribute set instead of writing an equation.
+- The legacy bank is also almost entirely **vertical-parabola** work, so horizontal parabolas opening left/right are effectively absent.
+- Fidelity V2 requirements:
+  - every family must require the student to **write the complete parabola equation** in standard focus/directrix conic form;
+  - repeatedly use vertex, focus, directrix, axis, and opening direction as the given evidence rather than as multiple-choice facts;
+  - cover both vertical form $(x-h)^2=4p(y-k)$ and horizontal form $(y-k)^2=4p(x-h)$;
+  - explicitly cover upward, downward, right-opening, and left-opening parabolas;
+  - include at least one family where the vertex must be inferred as the midpoint between focus and directrix;
+  - include a table/attribute representation and a genuine error-analysis family;
+  - error analysis must diagnose the orientation/sign mistake and still write the corrected complete equation.
+- Generic secure equation fields are sufficient. Prompts will explicitly request **standard conic form**, so form-sensitive grading is appropriate rather than silently accepting an expanded polynomial that bypasses the attribute-to-conic-form skill.
 
 
 ### 2026-08-30 — A2.4A audit finding
