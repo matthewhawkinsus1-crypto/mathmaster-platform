@@ -30,10 +30,16 @@
           "expected": "abs({{m}}x{{b|signed}})<={{D}}"
         },
         {
-          "id": "compound",
-          "label": "Equivalent compound inequality",
+          "id": "lower",
+          "label": "Lower linear inequality",
           "inputProfile": "inequality",
-          "expected": "-{{D}}<={{m}}x{{b|signed}}<={{D}}"
+          "expected": "{{m}}x{{b|signed}}>=-{{D}}"
+        },
+        {
+          "id": "upper",
+          "label": "Upper linear inequality",
+          "inputProfile": "inequality",
+          "expected": "{{m}}x{{b|signed}}<={{D}}"
         },
         {
           "id": "interval",
@@ -283,10 +289,16 @@
           "expected": "abs({{m}}t{{inside|signed}})<={{tol}}"
         },
         {
-          "id": "compound",
-          "label": "Compound linear inequality",
+          "id": "lower",
+          "label": "Lower linear inequality",
           "inputProfile": "inequality",
-          "expected": "-{{tol}}<={{m}}t{{inside|signed}}<={{tol}}"
+          "expected": "{{m}}t{{inside|signed}}>=-{{tol}}"
+        },
+        {
+          "id": "upper",
+          "label": "Upper linear inequality",
+          "inputProfile": "inequality",
+          "expected": "{{m}}t{{inside|signed}}<={{tol}}"
         },
         {
           "id": "interval",
