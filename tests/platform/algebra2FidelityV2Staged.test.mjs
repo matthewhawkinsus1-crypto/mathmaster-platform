@@ -737,8 +737,8 @@ test('A2.3D judges proposed linear-quadratic solutions from concrete algebraic a
         assert.ok(residual > 0 && residual <= 0.05, `rounded candidate residual ${residual} is outside the promised tolerance`);
       }
       if (doc.id.includes('table-invalid') || doc.id.includes('error-perform')) {
-        const residual = Number(question.responseFields.find((field) => /residual/.test(field.id))?.expected);
-        assert.ok(residual > 0, `${doc.id} generated an allegedly invalid candidate with zero residual`);
+        const residual = Number(question.responseFields.find((field) => field.id === 'quad-residual')?.expected);
+        assert.ok(residual > 0, `${doc.id} generated an allegedly invalid candidate with zero quadratic residual`);
       }
     }
   }
