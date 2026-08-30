@@ -1,6 +1,21 @@
 name: Algebra I Fidelity V2 Certification
 
 on:
+  push:
+    paths:
+      - "drafts/fidelity-v2/algebra1/**"
+      - "scripts/build-algebra1-fidelity-v2-candidate.mjs"
+      - "scripts/verify-path-drafts.mjs"
+      - "scripts/audit-algebra1-semantic-fidelity-v2.mjs"
+      - "scripts/audit-algebra1-cognitive-fidelity-v2.mjs"
+      - "scripts/audit-generator-health.mjs"
+      - "scripts/audit-algebra1-path-tool-readiness-v2.mjs"
+      - "functions/lib/mathPath.js"
+      - "functions/shared/pathToolContracts.mjs"
+      - "functions/shared/pathDataModelingGrading.mjs"
+      - "functions/shared/pathSystemsInequalityGrading.mjs"
+      - "tests/platform/algebra1FidelityV2*.test.mjs"
+      - ".github/workflows/algebra1-fidelity-v2-certification.yml"
   pull_request:
     paths:
       - "drafts/fidelity-v2/algebra1/**"
