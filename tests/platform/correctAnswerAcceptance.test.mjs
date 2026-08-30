@@ -207,3 +207,43 @@ test('field-level choices use the same opaque id mapping as private grading', as
   });
   assert.equal(result.isCorrect, true);
 });
+
+
+test('secure My Math Path accepts both primary expected and alternate accepted factoring forms', async () => {
+  const grading = mathPath.privateGradingDefinition({
+    responseFields: [{
+      id: 'answer',
+      inputProfile: 'expression',
+      expected: '(x+2)(x+3)',
+      accepted: ['(x+3)(x+2)'],
+    }],
+  });
+
+  const primary = await mathPath.gradeResponse(grading, {
+    responses: { answer: '(x+2)(x+3)' },
+  });
+  const alternate = await mathPath.gradeResponse(grading, {
+    responses: { answer: '(x+3)(x+2)' },
+  });
+  const wrongForm = await mathPath.gradeResponse(grading, {
+    responses: { answer: 'x^2+5x+6' },
+  });
+
+  assert.equal(primary.isCorrect, true, 'the primary expected answer must remain correct when alternates exist');
+  assert.equal(alternate.isCorrect, true, 'an authored alternate form must also be correct');
+  assert.equal(wrongForm.isCorrect, false, 'accepted alternatives must not erase a required factored form');
+});
+
+test('secure My Math Path also honors legacy acceptedAnswers alongside the primary answer', async () => {
+  const grading = mathPath.privateGradingDefinition({
+    responseFields: [{
+      id: 'answer',
+      inputProfile: 'number',
+      answer: '0.5',
+      acceptedAnswers: ['1/2'],
+    }],
+  });
+
+  assert.equal((await mathPath.gradeResponse(grading, { responses: { answer: '0.5' } })).isCorrect, true);
+  assert.equal((await mathPath.gradeResponse(grading, { responses: { answer: '1/2' } })).isCorrect, true);
+});
