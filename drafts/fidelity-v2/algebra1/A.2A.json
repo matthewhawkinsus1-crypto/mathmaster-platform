@@ -1,0 +1,401 @@
+{
+  "standard": "A.2A",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-connected-domain-range-representations",
+  "documents": [
+    {
+      "id": "mm_A_2A_v2_bounded-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:v2-bounded-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "For $f(x)={{m}}x{{b|signed}}$ on the domain $[{{lo}},{{hi}}]$, write the range in interval notation.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Range",
+          "inputProfile": "interval",
+          "expected": "[{{ylo}},{{yhi}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A positive-slope line preserves the endpoint order.",
+        "reasoning": [
+          "Evaluate the function at both domain endpoints.",
+          "Because $m={{m}}>0$, the smaller input gives the smaller output, so the range runs from {{ylo}} to {{yhi}}."
+        ],
+        "answerSummary": "$[{{ylo}},{{yhi}}]$"
+      },
+      "attemptFeedback": [
+        "Evaluate both ends of the stated domain before writing the output interval."
+      ],
+      "supportHints": [
+        "For an increasing line, the minimum and maximum outputs occur at the left and right domain endpoints."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "lo": {
+            "type": "int",
+            "min": -5,
+            "max": 0
+          },
+          "span": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          }
+        },
+        "derived": {
+          "hi": "lo+span",
+          "ylo": "m*lo+b",
+          "yhi": "m*hi+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2A_v2_context-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:v2-context-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A service charges ${{fee}} dollars plus ${{rate}} dollars per hour and can be booked from 0 through {{maxh}} hours. Write BOTH the reasonable domain of $h$ and the corresponding range of the cost $C$ in interval notation.",
+      "responseFields": [
+        {
+          "id": "domain",
+          "label": "Reasonable domain of h",
+          "inputProfile": "interval",
+          "expected": "[0,{{maxh}}]"
+        },
+        {
+          "id": "range",
+          "label": "Corresponding range of C",
+          "inputProfile": "interval",
+          "expected": "[{{fee}},{{maxcost}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The context restricts the inputs, and the linear model carries those restrictions to the outputs.",
+        "reasoning": [
+          "Hours can range from 0 through {{maxh}}, so the reasonable domain is $[0,{{maxh}}]$.",
+          "The cost starts at the fixed fee {{fee}} and reaches {{maxcost}} at {{maxh}} hours, giving range $[{{fee}},{{maxcost}}]$."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after finding the input interval; use the endpoints to find the output interval too."
+      ],
+      "supportHints": [
+        "The fixed fee is the cost when $h=0$."
+      ],
+      "generator": {
+        "parameters": {
+          "fee": {
+            "type": "int",
+            "min": 5,
+            "max": 30
+          },
+          "rate": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "maxh": {
+            "type": "int",
+            "min": 3,
+            "max": 12
+          }
+        },
+        "derived": {
+          "maxcost": "fee+rate*maxh"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2A_v2_discrete-mapping-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:v2-discrete-mapping-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "representationTranslation",
+      "representation": "orderedPairs",
+      "type": "relationMapping",
+      "prompt": "This DISCRETE linear function is defined only by the displayed ordered pairs. Use the mapping to identify its domain and range.",
+      "pairs": [
+        {
+          "x": "{{x0}}",
+          "y": "{{y0}}"
+        },
+        {
+          "x": "{{x1}}",
+          "y": "{{y1}}"
+        },
+        {
+          "x": "{{x2}}",
+          "y": "{{y2}}"
+        },
+        {
+          "x": "{{x3}}",
+          "y": "{{y3}}"
+        }
+      ],
+      "ask": [
+        "domain",
+        "range",
+        "isFunction"
+      ],
+      "solutionReview": {
+        "headline": "For a discrete function, the listed input values are the domain and the listed outputs are the range.",
+        "reasoning": [
+          "Read the first coordinate of each ordered pair to build the domain.",
+          "Read the second coordinates for the range; each listed input has exactly one output, so this relation is a function."
+        ]
+      },
+      "attemptFeedback": [
+        "Keep inputs and outputs separate: domain comes from x-values, range from y-values."
+      ],
+      "supportHints": [
+        "A discrete relation has only the listed points; do not fill in values between them."
+      ],
+      "generator": {
+        "parameters": {
+          "x0": {
+            "type": "int",
+            "min": -4,
+            "max": -1
+          },
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        },
+        "derived": {
+          "x1": "x0+1",
+          "x2": "x0+2",
+          "x3": "x0+3",
+          "y0": "m*x0+b",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b",
+          "y3": "m*x3+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2A_v2_table-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:v2-table-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table defines a discrete linear function. Write its domain and range as sets.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Input $x$",
+            "Output $f(x)$"
+          ],
+          "rows": [
+            [
+              "{{x0}}",
+              "{{y0}}"
+            ],
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ],
+            [
+              "{{x3}}",
+              "{{y3}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "domain",
+          "label": "Domain",
+          "inputProfile": "set",
+          "expected": "{ {{x0}}, {{x1}}, {{x2}}, {{x3}} }"
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "inputProfile": "set",
+          "expected": "{ {{y0}}, {{y1}}, {{y2}}, {{y3}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The table columns name the two sets directly.",
+        "reasoning": [
+          "The domain is the set of all inputs in the x-column.",
+          "The range is the set of all outputs in the f(x)-column."
+        ]
+      },
+      "attemptFeedback": [
+        "Use every row once; do not turn the discrete table into an interval."
+      ],
+      "supportHints": [
+        "A finite table has a finite set domain unless the problem says it is only a sample of a larger rule."
+      ],
+      "generator": {
+        "parameters": {
+          "x0": {
+            "type": "int",
+            "min": -3,
+            "max": 0
+          },
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "x1": "x0+1",
+          "x2": "x0+2",
+          "x3": "x0+3",
+          "y0": "m*x0+b",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b",
+          "y3": "m*x3+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2A_v2_decreasing-range-error",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:v2-decreasing-range-error",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "For $p(x)=-{{mag}}x{{b|signed}}$ on $[{{lo}},{{hi}}]$, a student writes the range as $[{{yleft}},{{yright}}]$ in that same left-to-right order. Correct the range in interval notation.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct range",
+          "inputProfile": "interval",
+          "expected": "[{{rlo}},{{rhi}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A decreasing function reverses which endpoint produces the minimum and maximum output.",
+        "reasoning": [
+          "Evaluate both endpoints: $p({{lo}})={{yleft}}$ and $p({{hi}})={{yright}}$.",
+          "Interval notation must list the smaller output first, so the range is $[{{rlo}},{{rhi}}]$."
+        ]
+      },
+      "attemptFeedback": [
+        "The domain order does not automatically become the range order for a decreasing function."
+      ],
+      "supportHints": [
+        "Compare the two endpoint outputs numerically before writing the interval."
+      ],
+      "generator": {
+        "parameters": {
+          "mag": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "lo": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "span": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "hi": "lo+span",
+          "yleft": "-mag*lo+b",
+          "yright": "-mag*hi+b",
+          "rlo": "min(yleft,yright)",
+          "rhi": "max(yleft,yright)"
+        }
+      }
+    }
+  ]
+}
