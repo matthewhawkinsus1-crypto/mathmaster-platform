@@ -153,6 +153,17 @@ export const applyMatrix3RowOperation = (matrix = {}, operation = {}) => {
   return rows[target].map((entry, index) => entry - factor * rows[source][index]);
 };
 
+export const applyMatrix3RowOperationToMatrix = (matrix = {}, operation = {}) => {
+  const rows = normalizeMatrix3(matrix);
+  if (!rows.length) return null;
+  const target = Number(operation.targetRow);
+  const nextRow = applyMatrix3RowOperation({ rows }, operation);
+  if (!nextRow || !Number.isInteger(target) || target < 0 || target > 2) return null;
+  const next = rows.map((row) => [...row]);
+  next[target] = nextRow;
+  return next;
+};
+
 export const samePointSet = (studentPoints = [], expectedPoints = [], tolerance = 0.08) => {
   if (studentPoints.length !== expectedPoints.length) return false;
   const remaining = expectedPoints.map((point) => ({ ...point }));
