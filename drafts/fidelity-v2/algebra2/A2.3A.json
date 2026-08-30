@@ -639,7 +639,96 @@
             "max": 5
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-simple-vertex-sign-model-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A line has slope 2 and y-intercept {{b}}. A unit parabola has vertex $(2,{{k}})$. A student models the parabola as $y=(x+2)^2{{k|signed}}$. Diagnose the horizontal-shift error and write the corrected two-equation system.",
+          "stimulus": {
+            "kind": "steps",
+            "title": "Student model",
+            "steps": [
+              {
+                "id": "line",
+                "label": "Line",
+                "work": "$y=2x{{b|signed}}$"
+              },
+              {
+                "id": "quad",
+                "label": "Parabola",
+                "work": "$y=(x+2)^2{{k|signed}}$"
+              }
+            ]
+          },
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Diagnosis",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "sign",
+                  "label": "Vertex form uses x-h, so a vertex x-coordinate of 2 requires (x-2)²."
+                },
+                {
+                  "id": "line",
+                  "label": "The line must be quadratic too."
+                }
+              ],
+              "expected": "sign"
+            },
+            {
+              "id": "line",
+              "label": "Correct linear equation",
+              "inputProfile": "equation",
+              "expected": "y=2x{{b|signed}}"
+            },
+            {
+              "id": "quadratic",
+              "label": "Correct quadratic equation",
+              "inputProfile": "equation",
+              "expected": "y=(x-2)^2{{k|signed}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The sign inside vertex form is opposite the vertex x-coordinate.",
+            "reasoning": [
+              "The line is already correct.",
+              "For vertex (2,{{k}}), use $(x-2)^2+{{k}}$."
+            ],
+            "answerSummary": "Correct line plus corrected vertex-form parabola."
+          },
+          "attemptFeedback": [
+            "Use the stated vertex to check the inside sign."
+          ],
+          "supportHints": [
+            "At x=2 the squared term should become zero."
+          ],
+          "generator": {
+            "parameters": {
+              "b": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "k": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }
