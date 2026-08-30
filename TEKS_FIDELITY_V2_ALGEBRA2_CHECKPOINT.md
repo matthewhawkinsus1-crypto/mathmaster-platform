@@ -124,17 +124,36 @@ Certification result:
 
 Do **not** re-audit A2.2D unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.3A
 
-### A2.3A — REBUILD — STAGED / CERTIFICATION RUNNING
+### A2.3A — REBUILD — CERTIFIED
 
 Official construct: **Formulate systems of equations, including three linear equations in three variables and systems with one linear and one quadratic equation.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- students author the systems rather than select prewritten models;
+- 3×3 linear-system formulation appears repeatedly from context and tables;
+- linear/quadratic formulation appears repeatedly from graph/verbal information;
+- error analysis requires the corrected system, not only the diagnosis;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- public Path payloads strip private answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33316415151`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.3A unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.3B — PENDING AUDIT
+
+Official construct: **Solve systems of three linear equations in three variables using Gaussian elimination, technology with matrices, and substitution.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.3A
+### A2.3B
 
-Resume here. Do not reopen A2.2A–A2.2D unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.3A unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.3A audit finding
@@ -166,7 +185,10 @@ Resume here. Do not reopen A2.2A–A2.2D unless a failing gate names them.
 - Added A2.3A generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `e3f778df433dacb522273902c90914b29c1b9c89`.
 - The A2.3A gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public-key stripping, at least two 3-equation families, at least two linear/quadratic formulation families, a corrected-system error-analysis family, and four or more representations.
 - Full A2.3A assertion run `33316415151`: **QUEUED/RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.3A** until that run is green.
+- Full A2.3A assertion run `33316415151`: **PASS**.
+- Generated content, production issue gate, secure self-grading, public-key stripping, 3×3 formulation breadth, linear/quadratic formulation breadth, corrected-system error analysis, and student/runtime build all passed.
+- A2.3A is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.3B**.
 
 
 ### 2026-08-30 — A2.2D audit finding
