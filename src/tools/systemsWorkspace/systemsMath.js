@@ -99,6 +99,64 @@ export const solve2x2System = (matrix = {}) => {
   return { type: consistent1 && consistent2 ? 'infinite' : 'none', determinant: det };
 };
 
+export const matrix3x4Rows = (matrix = {}) => {
+  if (Array.isArray(matrix.rows) && matrix.rows.length === 3) {
+    const rows = matrix.rows.map((row) => (Array.isArray(row) ? row.slice(0, 4).map(Number) : []));
+    return rows.every((row) => row.length === 4 && row.every(Number.isFinite)) ? rows : null;
+  }
+  const rows = [
+    [matrix.a11, matrix.a12, matrix.a13, matrix.b1],
+    [matrix.a21, matrix.a22, matrix.a23, matrix.b2],
+    [matrix.a31, matrix.a32, matrix.a33, matrix.b3],
+  ].map((row) => row.map(Number));
+  return rows.every((row) => row.every(Number.isFinite)) ? rows : null;
+};
+
+const rref3x4 = (sourceRows) => {
+  const rows = sourceRows.map((row) => [...row]);
+  let pivotRow = 0;
+  for (let col = 0; col < 3 && pivotRow < 3; col += 1) {
+    let best = pivotRow;
+    for (let row = pivotRow + 1; row < 3; row += 1) {
+      if (Math.abs(rows[row][col]) > Math.abs(rows[best][col])) best = row;
+    }
+    if (Math.abs(rows[best][col]) <= EPS) continue;
+    if (best !== pivotRow) [rows[pivotRow], rows[best]] = [rows[best], rows[pivotRow]];
+
+    const pivot = rows[pivotRow][col];
+    rows[pivotRow] = rows[pivotRow].map((value) => value / pivot);
+
+    for (let row = 0; row < 3; row += 1) {
+      if (row === pivotRow) continue;
+      const factor = rows[row][col];
+      if (Math.abs(factor) <= EPS) continue;
+      rows[row] = rows[row].map((value, index) => value - factor * rows[pivotRow][index]);
+    }
+    pivotRow += 1;
+  }
+  return rows.map((row) => row.map((value) => (Math.abs(value) <= EPS ? 0 : value)));
+};
+
+export const solve3x3System = (matrix = {}) => {
+  const sourceRows = matrix3x4Rows(matrix);
+  if (!sourceRows) return { type: null, rref: [] };
+
+  const rref = rref3x4(sourceRows);
+  const coefficientRank = rref.filter((row) => row.slice(0, 3).some((value) => Math.abs(value) > EPS)).length;
+  const augmentedRank = rref.filter((row) => row.some((value) => Math.abs(value) > EPS)).length;
+
+  if (augmentedRank > coefficientRank) return { type: 'none', rref };
+  if (coefficientRank < 3) return { type: 'infinite', rref };
+
+  return {
+    type: 'one',
+    x: rref[0][3],
+    y: rref[1][3],
+    z: rref[2][3],
+    rref,
+  };
+};
+
 export const samePointSet = (studentPoints = [], expectedPoints = [], tolerance = 0.08) => {
   if (studentPoints.length !== expectedPoints.length) return false;
   const remaining = expectedPoints.map((point) => ({ ...point }));
