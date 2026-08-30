@@ -281,3 +281,28 @@ test('server wiring passes target preferences and honors fresh enrichment', () =
     'course Pass 3 must not request nonexistent Band 5 course content',
   );
 });
+
+
+test('weekly sessions are not promoted into numbered course Path passes', () => {
+  const source = readFileSync('functions/index.js', 'utf8');
+
+  const progressBlock = /async function loadCoursePathPassProgress[\s\S]*?return \{[\s\S]*?totalCompletedPasses:[\s\S]*?\n  \};\n\}/.exec(source);
+  assert.ok(progressBlock, 'course Path pass progress loader is missing');
+  assert.match(
+    progressBlock[0],
+    /if \(session\.weeklySlotKey\) return;/,
+    'weekly goal sessions must not increment Foundation/Deeper/Mastery pass counts',
+  );
+
+  assert.match(
+    source,
+    /if \(!assessmentFramework && sessionKind !== "retentionProbe" && !requestedWeeklySlotKey\)/,
+    'weekly session startup must not assign an open-practice coursePassLevel',
+  );
+
+  assert.match(
+    source,
+    /coursePassLevel: session\.assessmentFramework \|\| session\.weeklySlotKey\s*\? null/,
+    'issued weekly questions must not carry a numbered course Path level',
+  );
+});
