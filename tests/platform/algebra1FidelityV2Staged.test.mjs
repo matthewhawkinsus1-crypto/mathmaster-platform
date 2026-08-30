@@ -95,7 +95,13 @@ test('A.2A connects symbolic, context, mapping and real-table domain/range evide
   assert.ok(table.responseFields.every((field) => field.inputProfile === 'set'));
   const context = entry.documents.find((doc) => doc.representation === 'context');
   assert.equal(context?.responseFields?.length, 2);
-  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /decreasing/i.test(doc.prompt)));
+  const decreasingError = entry.documents.find((doc) => doc.taskType === 'errorAnalysis');
+  assert.ok(decreasingError, 'A.2A needs a genuine endpoint-order misconception task');
+  assert.match(
+    JSON.stringify({ prompt: decreasingError.prompt, review: decreasingError.solutionReview || {} }),
+    /-\{\{mag\}\}|decreasing|smaller output|endpoint/i,
+    'A.2A error analysis must actually depend on decreasing-function endpoint order',
+  );
 });
 
 test('A.2G gives vertical and horizontal lines authentic graph construction plus slope meaning', () => {
@@ -328,7 +334,10 @@ test('A.9C makes students write complete exponential equations for growth and de
   assert.ok(decay?.generator?.parameters?.base?.values?.every((value) => value > 0 && value < 1));
   assert.ok(entry.documents.some((doc) => doc.representation === 'table' && doc.stimulus?.table?.rows?.length >= 3));
   assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /linear model/i.test(doc.prompt)));
-  assert.ok(entry.documents.some((doc) => doc.dok === 3 && doc.taskType === 'reverseReasoning' && /y\(2\)/i.test(doc.prompt)));
+  const reverse = entry.documents.find((doc) => doc.taskType === 'reverseReasoning' && /y\(2\)/i.test(doc.prompt));
+  assert.ok(reverse, 'A.9C needs nonconsecutive-data reverse reasoning');
+  assert.equal(reverse.dok, 2, 'recovering one exponential model from two stated values is DOK 2, not inflated DOK 3');
+  assert.equal(reverse.difficultyBand, 4, 'the harder arithmetic/structure belongs in difficulty, separate from DOK');
 });
 
 test('A.10A-D require complete polynomial-operation expressions rather than component answers', () => {
@@ -417,5 +426,8 @@ test('A.12D requires nth-term formulas and covers arithmetic plus geometric grow
   assert.match(text, /0\.5|1\/2/);
   assert.ok(entry.documents.filter((doc) => doc.representation === 'table').length >= 2);
   assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis'));
-  assert.ok(entry.documents.some((doc) => doc.dok === 3 && doc.taskType === 'reverseReasoning'));
+  const reverse = entry.documents.find((doc) => doc.taskType === 'reverseReasoning');
+  assert.ok(reverse, 'A.12D needs nonconsecutive-term reverse reasoning');
+  assert.equal(reverse.dok, 2, 'recovering an explicit rule from two nonconsecutive terms is multi-step DOK 2 here');
+  assert.equal(reverse.difficultyBand, 4, 'nonconsecutive-term complexity is represented by difficulty rather than false DOK inflation');
 });
