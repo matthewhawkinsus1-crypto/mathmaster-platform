@@ -3355,3 +3355,114 @@ test('A2.6C analyzes absolute-value transformations with full a-b-h-k reasoning 
   assert.ok(representations.has('verbal'));
 });
 
+test('A2.6D formulates absolute-value linear equations instead of selecting or solving them', async () => {
+  const entry = payload('A2.6D');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /student-authored-absolute-value-linear-equations/);
+
+  let generatedCount = 0;
+  let linearInsideFamilies = 0;
+  let contextFamilies = 0;
+  let reverseFamilies = 0;
+  let errorFamilies = 0;
+  let equivalentReversalsAccepted = 0;
+  let wrongModelsRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const equationFields = (doc.responseFields || []).filter((field) => field.id === 'equation');
+    assert.equal(equationFields.length, 1, `${doc.id} must require one authored absolute-value equation`);
+    assert.equal(equationFields[0].inputProfile, 'equation');
+    assert.equal(equationFields[0].equivalence, 'absoluteLinearRelation');
+    assert.equal(
+      (doc.responseFields || []).some((field) => /solution|root|answer-x/.test(String(field.id))),
+      false,
+      `${doc.id} drifted into A2.6E solving instead of A2.6D formulation`,
+    );
+
+    if (/\{\{m\}\}/.test(String(equationFields[0].expected))) linearInsideFamilies += 1;
+    if (doc.representation === 'context' || doc.taskType === 'modeling') contextFamilies += 1;
+    if (doc.taskType === 'reverseReasoning') reverseFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let equivalentChecked = false;
+    let wrongChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const grading = privateGradingDefinition(question);
+      const equationField = grading.fields.find((field) => field.id === 'equation');
+      assert.ok(equationField?.expected);
+      assert.equal(equationField.equivalence, 'absoluteLinearRelation');
+
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(correct.fieldResults)}`,
+      );
+
+      if (!equivalentChecked) {
+        const sides = splitEquationSides(equationField.expected);
+        assert.ok(sides);
+        const reversed = `${sides.right}=${sides.left}`;
+        const equivalent = await gradeResponse(grading, {
+          responses: { ...responses, equation:reversed },
+        });
+        assert.equal(
+          equivalent.isCorrect,
+          true,
+          `${doc.id} rejected the same absolute-value model with equation sides reversed`,
+        );
+        equivalentReversalsAccepted += 1;
+        equivalentChecked = true;
+      }
+
+      if (!wrongChecked) {
+        const sides = splitEquationSides(equationField.expected);
+        const rhs = Number(sides?.right);
+        assert.ok(Number.isFinite(rhs), `${doc.id} expected model needs a numeric distance side`);
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, equation:`${sides.left}=${rhs + 1}` },
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted a model with the wrong distance`);
+        wrongModelsRejected += 1;
+        wrongChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(linearInsideFamilies >= 3, 'A2.6D must repeatedly formulate |mx+b|=d, not only |x-h|=d');
+  assert.ok(contextFamilies >= 2, 'A2.6D must repeatedly formulate from contextual modeling evidence');
+  assert.ok(reverseFamilies >= 1, 'A2.6D must reverse paired solutions into an absolute-value equation');
+  assert.ok(errorFamilies >= 1, 'A2.6D must repair a one-sided linear model by authoring the complete absolute-value equation');
+  assert.equal(equivalentReversalsAccepted, entry.documents.length);
+  assert.equal(wrongModelsRejected, entry.documents.length);
+  assert.ok(representations.has('context'));
+  assert.ok(representations.has('numberLine'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('verbal'));
+});
+
