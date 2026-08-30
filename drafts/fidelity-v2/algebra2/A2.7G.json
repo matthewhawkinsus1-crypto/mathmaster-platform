@@ -45,7 +45,8 @@
           "id": "answer",
           "label": "Equivalent simplified radical expression",
           "inputProfile": "expression",
-          "expected": "{{k}}*x^{{m}}*sqrt(x)"
+          "expected": "{{k}}*x^{{m}}*sqrt(x)",
+          "equivalence": "nonnegativeRadicalExpression"
         }
       ],
       "solutionReview": {
@@ -238,7 +239,8 @@
           "id": "answer",
           "label": "Equivalent simplified cube-root expression",
           "inputProfile": "expression",
-          "expected": "{{k}}*x^{{m}}*\\sqrt[3]{x^{{r}}}"
+          "expected": "{{k}}*x^{{m}}*\\sqrt[3]{x^{{r}}}",
+          "equivalence": "nonnegativeRadicalExpression"
         }
       ],
       "solutionReview": {
@@ -324,7 +326,8 @@
           "id": "answer",
           "label": "Equivalent simplified radical expression",
           "inputProfile": "expression",
-          "expected": "x^{{m}}*\\sqrt[{{q}}]{x^{{r}}}"
+          "expected": "x^{{m}}*\\sqrt[{{q}}]{x^{{r}}}",
+          "equivalence": "nonnegativeRadicalExpression"
         }
       ],
       "solutionReview": {
@@ -340,7 +343,8 @@
         "Divide the numerator of the exponent by the denominator before writing the radical."
       ],
       "supportHints": [
-        "The quotient becomes the outside exponent; the remainder stays in the fractional exponent."
+        "Divide the numerator of the exponent by the denominator before writing the radical.",
+        "The generator keeps the remaining exponent and root index relatively prime, so the final indexed radical is fully simplified."
       ],
       "generator": {
         "parameters": {
@@ -368,7 +372,8 @@
           "p": "q*m+r"
         },
         "constraints": [
-          "r<q"
+          "r<q",
+          "gcd(r,q)==1"
         ]
       }
     },
