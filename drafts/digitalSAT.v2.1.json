@@ -57614,12 +57614,12 @@
           "k": {
             "type": "int",
             "min": 2,
-            "max": 10
+            "max": 8
           },
           "h": {
             "type": "int",
             "min": 3,
-            "max": 15
+            "max": 11
           }
         },
         "derived": {
@@ -57826,16 +57826,16 @@
           "l": {
             "type": "int",
             "min": 4,
-            "max": 12
+            "max": 11
           },
           "w": {
             "type": "int",
-            "min": 2,
-            "max": 9
+            "min": 3,
+            "max": 10
           },
           "h": {
             "type": "int",
-            "min": 2,
+            "min": 3,
             "max": 10
           }
         },
@@ -58382,23 +58382,23 @@
           "n": {
             "type": "int",
             "min": 3,
-            "max": 8
+            "max": 16
           }
         },
         "derived": {
           "arc": "20*n",
           "answer": "10*n",
-          "satDistractor1": "(10+n)",
-          "satDistractor2": "10",
-          "satDistractor3": "n"
+          "dArc": "20*n",
+          "dSupp": "180-10*n",
+          "dHalfOnly": "n"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dArc",
+          "answer!=dSupp",
+          "answer!=dHalfOnly",
+          "dArc!=dSupp",
+          "dArc!=dHalfOnly",
+          "dSupp!=dHalfOnly"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -58425,20 +58425,20 @@
       },
       "choices": [
         {
-          "id": "choice-d",
-          "label": "{{answer}}"
-        },
-        {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSupp}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dHalfOnly}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dArc}}"
+        },
+        {
+          "id": "choice-d",
+          "label": "{{answer}}"
         }
       ]
     },
@@ -58553,29 +58553,35 @@
         "stemProfile": "arc-length-pi-coefficient",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "A circle has radius {{r}} units. A central angle of $120^\\circ$ intercepts an arc whose length is $n\\pi$ units. What is the value of $n$?",
+      "prompt": "A circle has radius {{r}} units. A central angle of ${{ang}}^\\circ$ intercepts an arc whose length is $n\\pi$ units. What is the value of $n$?",
       "generator": {
         "parameters": {
           "k": {
             "type": "int",
             "min": 2,
-            "max": 12
+            "max": 10
+          },
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 5
           }
         },
         "derived": {
-          "r": "3*k",
-          "answer": "2*k",
-          "satDistractor1": "(2+k)",
-          "satDistractor2": "2",
-          "satDistractor3": "k"
+          "r": "6*k",
+          "ang": "60*m",
+          "answer": "2*m*k",
+          "dCircumference": "12*k",
+          "dRadius": "6*k",
+          "dHalf": "m*k"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dCircumference",
+          "answer!=dRadius",
+          "answer!=dHalf",
+          "dCircumference!=dRadius",
+          "dCircumference!=dHalf",
+          "dRadius!=dHalf"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -58607,15 +58613,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dCircumference}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dRadius}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dHalf}}"
         }
       ]
     },
@@ -58766,28 +58772,36 @@
         "stemProfile": "radians-to-degrees",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "An angle measures $\\dfrac{{{n}}\\pi}{6}$ radians. What is the measure of the angle in degrees?",
+      "prompt": "An angle measures $\\dfrac{{{n}}\\pi}{{{den}}}$ radians. What is the measure of the angle in degrees?",
       "generator": {
         "parameters": {
           "n": {
             "type": "int",
-            "min": 1,
+            "min": 2,
             "max": 11
+          },
+          "i": {
+            "type": "int",
+            "min": 0,
+            "max": 3
           }
         },
         "derived": {
-          "answer": "30*n",
-          "satDistractor1": "(30+n)",
-          "satDistractor2": "30",
-          "satDistractor3": "n"
+          "den": "3*(i==0)+4*(i==1)+6*(i==2)+12*(i==3)",
+          "answer": "180*n/den",
+          "dNoDivide": "180*n",
+          "dReflex": "360-180*n/den",
+          "dTimesDen": "den*n"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "gcd(n,den)==1",
+          "180*n<=360*den",
+          "answer!=dNoDivide",
+          "answer!=dReflex",
+          "answer!=dTimesDen",
+          "dNoDivide!=dReflex",
+          "dNoDivide!=dTimesDen",
+          "dReflex!=dTimesDen"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -58819,15 +58833,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dNoDivide}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dReflex}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dTimesDen}}"
         }
       ]
     },
@@ -58956,29 +58970,36 @@
         "stemProfile": "sector-area-pi-coefficient",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "A sector has central angle $90^\\circ$ in a circle with radius {{r}} units. The area of the sector is $n\\pi$ square units. What is the value of $n$?",
+      "prompt": "A sector has central angle ${{ang}}^\\circ$ in a circle with radius {{r}} units. The area of the sector is $n\\pi$ square units. What is the value of $n$?",
       "generator": {
         "parameters": {
           "k": {
             "type": "int",
             "min": 2,
             "max": 12
+          },
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 3
           }
         },
         "derived": {
           "r": "2*k",
-          "answer": "k*k",
-          "satDistractor1": "(k+k)",
-          "satDistractor2": "k",
-          "satDistractor3": "r*r"
+          "ang": "90*m",
+          "answer": "m*k*k",
+          "dWhole": "4*k*k",
+          "dRest": "(4-m)*k*k",
+          "dArc": "2*m*k"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "m!=2",
+          "answer!=dWhole",
+          "answer!=dRest",
+          "answer!=dArc",
+          "dWhole!=dRest",
+          "dWhole!=dArc",
+          "dRest!=dArc"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -59005,20 +59026,20 @@
       },
       "choices": [
         {
+          "id": "choice-a",
+          "label": "{{dArc}}"
+        },
+        {
+          "id": "choice-b",
+          "label": "{{dRest}}"
+        },
+        {
           "id": "choice-c",
           "label": "{{answer}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
-        },
-        {
-          "id": "choice-a",
-          "label": "{{satDistractor2}}"
-        },
-        {
-          "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dWhole}}"
         }
       ]
     },
@@ -59156,29 +59177,29 @@
         "parameters": {
           "a": {
             "type": "int",
-            "min": 25,
-            "max": 75
+            "min": 20,
+            "max": 70
           },
           "b": {
             "type": "int",
-            "min": 25,
-            "max": 75
+            "min": 20,
+            "max": 70
           }
         },
         "derived": {
           "answer": "180-a-b",
-          "satDistractor1": "180+a-b",
-          "satDistractor2": "180-a",
-          "satDistractor3": "180"
+          "dOne": "180-a",
+          "dSum": "a+b",
+          "dDiff": "abs(a-b)"
         },
         "constraints": [
           "a+b<155",
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dOne",
+          "answer!=dSum",
+          "answer!=dDiff",
+          "dOne!=dSum",
+          "dOne!=dDiff",
+          "dSum!=dDiff"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -59205,20 +59226,20 @@
       },
       "choices": [
         {
+          "id": "choice-a",
+          "label": "{{dOne}}"
+        },
+        {
+          "id": "choice-b",
+          "label": "{{dDiff}}"
+        },
+        {
           "id": "choice-c",
           "label": "{{answer}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
-        },
-        {
-          "id": "choice-a",
-          "label": "{{satDistractor2}}"
-        },
-        {
-          "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSum}}"
         }
       ]
     },
@@ -59459,18 +59480,18 @@
         },
         "derived": {
           "answer": "a+b",
-          "satDistractor1": "a-b",
-          "satDistractor2": "a",
-          "satDistractor3": "180-answer"
+          "dOne": "a",
+          "dAdjacent": "180-a-b",
+          "dMinusOne": "180-a"
         },
         "constraints": [
           "a+b<170",
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dOne",
+          "answer!=dAdjacent",
+          "answer!=dMinusOne",
+          "dOne!=dAdjacent",
+          "dOne!=dMinusOne",
+          "dAdjacent!=dMinusOne"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -59497,20 +59518,20 @@
       },
       "choices": [
         {
+          "id": "choice-a",
+          "label": "{{dOne}}"
+        },
+        {
+          "id": "choice-b",
+          "label": "{{dAdjacent}}"
+        },
+        {
           "id": "choice-c",
           "label": "{{answer}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
-        },
-        {
-          "id": "choice-a",
-          "label": "{{satDistractor2}}"
-        },
-        {
-          "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dMinusOne}}"
         }
       ]
     },
@@ -59752,7 +59773,7 @@
           "s": {
             "type": "int",
             "min": 3,
-            "max": 10
+            "max": 14
           },
           "k": {
             "type": "int",
@@ -59761,17 +59782,26 @@
           },
           "t": {
             "type": "int",
-            "min": 4,
-            "max": 15
+            "min": 3,
+            "max": 14
           }
         },
         "derived": {
           "scaled": "s*k",
           "answer": "t*k",
-          "d1": "t+k",
+          "d1": "s*k",
           "d2": "t*k*k",
           "d3": "t"
-        }
+        },
+        "constraints": [
+          "answer!=d1",
+          "answer!=d2",
+          "answer!=d3",
+          "d1!=d2",
+          "d1!=d3",
+          "d2!=d3",
+          "s!=t"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -59867,25 +59897,25 @@
           },
           "s": {
             "type": "int",
-            "min": 3,
-            "max": 15
+            "min": 4,
+            "max": 18
           }
         },
         "derived": {
           "largeP": "P*k",
           "answer": "s*k",
-          "satDistractor1": "(s+k)",
-          "satDistractor2": "s",
-          "satDistractor3": "k"
+          "dPerimeter": "P",
+          "dTwice": "s*k*k",
+          "dNoScale": "s"
         },
         "constraints": [
           "s<P",
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dPerimeter",
+          "answer!=dTwice",
+          "answer!=dNoScale",
+          "dPerimeter!=dTwice",
+          "dPerimeter!=dNoScale",
+          "dTwice!=dNoScale"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -59917,15 +59947,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dPerimeter}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dTwice}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dNoScale}}"
         }
       ]
     },
@@ -60186,6 +60216,16 @@
       "prompt": "A right triangle has side lengths {{opp}}, {{adj}}, and {{hyp}}, where {{hyp}} is the hypotenuse. For an acute angle $\\theta$, the side of length {{opp}} is opposite $\\theta$. What is $\\sin\\theta$?",
       "generator": {
         "parameters": {
+          "t": {
+            "type": "int",
+            "min": 0,
+            "max": 3
+          },
+          "s": {
+            "type": "int",
+            "min": 0,
+            "max": 1
+          },
           "k": {
             "type": "int",
             "min": 1,
@@ -60193,9 +60233,15 @@
           }
         },
         "derived": {
-          "opp": "5*k",
-          "adj": "12*k",
-          "hyp": "13*k"
+          "a": "3*(t==0)+5*(t==1)+8*(t==2)+7*(t==3)",
+          "b": "4*(t==0)+12*(t==1)+15*(t==2)+24*(t==3)",
+          "c": "5*(t==0)+13*(t==1)+17*(t==2)+25*(t==3)",
+          "opp0": "a*(1-s)+b*s",
+          "adj0": "b*(1-s)+a*s",
+          "sum": "opp0+adj0",
+          "opp": "opp0*k",
+          "adj": "adj0*k",
+          "hyp": "c*k"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -60204,7 +60250,7 @@
           "id": "answer",
           "label": "Choose the correct answer",
           "inputProfile": "choice",
-          "expected": "choice-a"
+          "expected": "choice-b"
         }
       ],
       "attemptFeedback": [
@@ -60223,19 +60269,19 @@
       "choices": [
         {
           "id": "choice-a",
-          "label": "$\\dfrac{5}{13}$"
+          "label": "$\\dfrac{{{adj0}}}{{{c}}}$"
         },
         {
           "id": "choice-b",
-          "label": "$\\dfrac{12}{13}$"
+          "label": "$\\dfrac{{{opp0}}}{{{c}}}$"
         },
         {
           "id": "choice-c",
-          "label": "$\\dfrac{5}{12}$"
+          "label": "$\\dfrac{{{opp0}}}{{{adj0}}}$"
         },
         {
           "id": "choice-d",
-          "label": "$\\dfrac{13}{5}$"
+          "label": "$\\dfrac{{{opp0}}}{{{sum}}}$"
         }
       ]
     },
@@ -60275,19 +60321,27 @@
         "nativeSkillId": "rightTrianglesTrigonometry",
         "stemProfile": "complementary-sine-cosine"
       },
-      "prompt": "In a right triangle, acute angles $A$ and $B$ are complementary. If $\\sin A=\\dfrac{{{p}}}{{{r}}}$, what is $\\cos B$?",
+      "prompt": "In a right triangle, acute angles $A$ and $B$ are complementary. If $\\sin A=\\dfrac{{{opp0}}}{{{c}}}$, what is $\\cos B$?",
       "generator": {
         "parameters": {
-          "k": {
+          "t": {
             "type": "int",
-            "min": 1,
-            "max": 9
+            "min": 0,
+            "max": 3
+          },
+          "s": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
-          "p": "8*k",
-          "q": "15*k",
-          "r": "17*k"
+          "a": "3*(t==0)+5*(t==1)+8*(t==2)+7*(t==3)",
+          "b": "4*(t==0)+12*(t==1)+15*(t==2)+24*(t==3)",
+          "c": "5*(t==0)+13*(t==1)+17*(t==2)+25*(t==3)",
+          "opp0": "a*(1-s)+b*s",
+          "adj0": "b*(1-s)+a*s",
+          "sum": "opp0+adj0"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -60296,7 +60350,7 @@
           "id": "answer",
           "label": "Choose the correct answer",
           "inputProfile": "choice",
-          "expected": "choice-a"
+          "expected": "choice-c"
         }
       ],
       "attemptFeedback": [
@@ -60315,19 +60369,19 @@
       "choices": [
         {
           "id": "choice-a",
-          "label": "$\\dfrac{8}{17}$"
+          "label": "$\\dfrac{{{opp0}}}{{{adj0}}}$"
         },
         {
           "id": "choice-b",
-          "label": "$\\dfrac{15}{17}$"
+          "label": "$\\dfrac{{{adj0}}}{{{c}}}$"
         },
         {
           "id": "choice-c",
-          "label": "$\\dfrac{8}{15}$"
+          "label": "$\\dfrac{{{opp0}}}{{{c}}}$"
         },
         {
           "id": "choice-d",
-          "label": "$\\dfrac{17}{8}$"
+          "label": "$\\dfrac{{{opp0}}}{{{sum}}}$"
         }
       ]
     },
@@ -60369,29 +60423,44 @@
         "stemProfile": "tangent-height-application",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "From a point on level ground, the angle of elevation to the top of a vertical structure is $\\theta$. The horizontal distance to the structure is {{run}} meters, and $\\tan\\theta=\\dfrac{3}{4}$. What is the height, in meters, of the structure?",
+      "prompt": "From a point on level ground, the angle of elevation to the top of a vertical structure is $\\theta$. The horizontal distance to the structure is {{run}} meters, and $\\tan\\theta=\\dfrac{{{opp0}}}{{{adj0}}}$. What is the height, in meters, of the structure?",
       "generator": {
         "parameters": {
+          "t": {
+            "type": "int",
+            "min": 0,
+            "max": 3
+          },
+          "s": {
+            "type": "int",
+            "min": 0,
+            "max": 1
+          },
           "k": {
             "type": "int",
             "min": 2,
-            "max": 15
+            "max": 12
           }
         },
         "derived": {
-          "run": "4*k",
-          "answer": "3*k",
-          "satDistractor1": "(3+k)",
-          "satDistractor2": "3",
-          "satDistractor3": "k"
+          "a": "3*(t==0)+5*(t==1)+8*(t==2)+7*(t==3)",
+          "b": "4*(t==0)+12*(t==1)+15*(t==2)+24*(t==3)",
+          "c": "5*(t==0)+13*(t==1)+17*(t==2)+25*(t==3)",
+          "opp0": "a*(1-s)+b*s",
+          "adj0": "b*(1-s)+a*s",
+          "run": "adj0*k",
+          "answer": "opp0*k",
+          "dRun": "adj0*k",
+          "dSum": "(opp0+adj0)*k",
+          "dNoScale": "opp0"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dRun",
+          "answer!=dSum",
+          "answer!=dNoScale",
+          "dRun!=dSum",
+          "dRun!=dNoScale",
+          "dSum!=dNoScale"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -60423,15 +60492,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dRun}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dSum}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dNoScale}}"
         }
       ]
     },
@@ -60473,9 +60542,19 @@
         "stemProfile": "cosine-to-opposite-side",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For an acute angle $\\theta$ in a right triangle, $\\cos\\theta=\\dfrac{12}{13}$. The hypotenuse has length {{hyp}}. What is the length of the side opposite $\\theta$?",
+      "prompt": "For an acute angle $\\theta$ in a right triangle, $\\cos\\theta=\\dfrac{{{adj0}}}{{{c}}}$. The hypotenuse has length {{hyp}}. What is the length of the side opposite $\\theta$?",
       "generator": {
         "parameters": {
+          "t": {
+            "type": "int",
+            "min": 0,
+            "max": 3
+          },
+          "s": {
+            "type": "int",
+            "min": 0,
+            "max": 1
+          },
           "k": {
             "type": "int",
             "min": 2,
@@ -60483,19 +60562,24 @@
           }
         },
         "derived": {
-          "hyp": "13*k",
-          "answer": "5*k",
-          "satDistractor1": "(5+k)",
-          "satDistractor2": "5",
-          "satDistractor3": "k"
+          "a": "3*(t==0)+5*(t==1)+8*(t==2)+7*(t==3)",
+          "b": "4*(t==0)+12*(t==1)+15*(t==2)+24*(t==3)",
+          "c": "5*(t==0)+13*(t==1)+17*(t==2)+25*(t==3)",
+          "opp0": "a*(1-s)+b*s",
+          "adj0": "b*(1-s)+a*s",
+          "hyp": "c*k",
+          "answer": "opp0*k",
+          "dAdj": "adj0*k",
+          "dHyp": "c*k",
+          "dNoScale": "opp0"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dAdj",
+          "answer!=dHyp",
+          "answer!=dNoScale",
+          "dAdj!=dHyp",
+          "dAdj!=dNoScale",
+          "dHyp!=dNoScale"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -60522,20 +60606,20 @@
       },
       "choices": [
         {
+          "id": "choice-a",
+          "label": "{{dNoScale}}"
+        },
+        {
           "id": "choice-b",
           "label": "{{answer}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dAdj}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
-        },
-        {
-          "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dHyp}}"
         }
       ]
     },
@@ -60580,10 +60664,20 @@
       "prompt": "Two right triangles are similar and share the same acute-angle measure $\\theta$. In the smaller triangle, the side opposite $\\theta$ is {{opp1}} and the adjacent leg is {{adj1}}. In the larger triangle, the adjacent leg is {{adj2}}. What is the length of the side opposite $\\theta$ in the larger triangle?",
       "generator": {
         "parameters": {
+          "t": {
+            "type": "int",
+            "min": 0,
+            "max": 3
+          },
+          "s": {
+            "type": "int",
+            "min": 0,
+            "max": 1
+          },
           "k": {
             "type": "int",
             "min": 1,
-            "max": 8
+            "max": 6
           },
           "scale": {
             "type": "int",
@@ -60592,21 +60686,26 @@
           }
         },
         "derived": {
-          "opp1": "7*k",
-          "adj1": "24*k",
-          "adj2": "24*k*scale",
-          "answer": "7*k*scale",
-          "satDistractor1": "7*k",
-          "satDistractor2": "7*scale",
-          "satDistractor3": "(7+k+scale)"
+          "a": "3*(t==0)+5*(t==1)+8*(t==2)+7*(t==3)",
+          "b": "4*(t==0)+12*(t==1)+15*(t==2)+24*(t==3)",
+          "c": "5*(t==0)+13*(t==1)+17*(t==2)+25*(t==3)",
+          "opp0": "a*(1-s)+b*s",
+          "adj0": "b*(1-s)+a*s",
+          "opp1": "opp0*k",
+          "adj1": "adj0*k",
+          "adj2": "adj0*k*scale",
+          "answer": "opp0*k*scale",
+          "dNoScale": "opp0*k",
+          "dTwice": "opp0*k*scale*scale",
+          "dGrowth": "adj0*k*(scale-1)"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dNoScale",
+          "answer!=dTwice",
+          "answer!=dGrowth",
+          "dNoScale!=dTwice",
+          "dNoScale!=dGrowth",
+          "dTwice!=dGrowth"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -60638,15 +60737,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dNoScale}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dTwice}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dGrowth}}"
         }
       ]
     },
