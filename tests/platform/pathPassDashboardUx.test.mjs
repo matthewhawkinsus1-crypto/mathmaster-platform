@@ -14,6 +14,7 @@ const modal = readFileSync('src/components/student/SkillDetailCardModal.jsx', 'u
 const player = readFileSync('src/components/student/PathSessionPlayer.jsx', 'utf8');
 const badge = readFileSync('src/components/common/StandardBadge.jsx', 'utf8');
 const weeklyPanel = readFileSync('src/components/student/WeeklyPathGoalPanel.jsx', 'utf8');
+const productionContainer = readFileSync('src/components/student/MyMathPathProductionContainer.jsx', 'utf8');
 
 test('dashboard receives the same server-owned Path pass progress as the full Path tab', () => {
   assert.match(
@@ -89,4 +90,17 @@ test('weekly CCMR slots name the actual assessment framework while course Challe
   assert.match(weeklyPanel, /weeklyPurposeLabel\(session\)/);
   assert.match(weeklyPanel, /weeklyPurposeLabel\(next\)/);
   assert.match(weeklyPanel, /PURPOSE\.EXTENSION/);
+});
+
+
+test('assigned weekly sessions show their frozen purpose instead of a free-choice pass label', () => {
+  assert.ok(player.includes('weeklyPurposeLabel'));
+  assert.ok(player.includes('PURPOSE_LABEL[session?.weeklyPurpose]'));
+  assert.ok(player.includes("WEEKLY PATH · {weeklyPurposeLabel || 'Assigned practice'}"));
+  assert.ok(player.includes('const coursePassLevel = !weeklyPurposeLabel'));
+
+  assert.ok(productionContainer.includes('weeklyPurposeLabel'));
+  assert.ok(productionContainer.includes('PURPOSE_LABEL[session?.weeklyPurpose]'));
+  assert.ok(productionContainer.includes('const coursePassLevel = !weeklyPurposeLabel'));
+  assert.ok(productionContainer.includes('weeklyPurposeLabel} complete'));
 });
