@@ -1,0 +1,535 @@
+{
+  "standard": "A2.7I",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-all-six-domain-range-notations-square-root-reflection-quadratic-reciprocal-error-repair",
+  "rationale": "The legacy bank contains correct interval and inequality examples but misses three TEA notation breakouts. Fidelity V2 explicitly grades domain and range in interval, inequality, and set-builder notation, retaining function-family breadth and adding complete notation repair.",
+  "documents": [
+    {
+      "id": "mm_A2_7I_v2_square-root-lower-bounded-all-notations",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7I"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7I:v2-square-root-lower-bounded-all-notations",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7I",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "For $f(x)={{a}}\\sqrt{x-({{h}})}+({{k}})$ with {{a}}>0, write the **domain and range** in interval notation, inequality notation, and set-builder notation.",
+      "responseFields": [
+        {
+          "id": "domain-interval",
+          "label": "Domain — interval notation",
+          "inputProfile": "interval",
+          "expected": "[{{h}},inf)"
+        },
+        {
+          "id": "domain-inequality",
+          "label": "Domain — inequality",
+          "inputProfile": "inequality",
+          "expected": "x>=({{h}})"
+        },
+        {
+          "id": "domain-set",
+          "label": "Domain — set-builder notation",
+          "inputProfile": "expression",
+          "equivalence": "setBuilder",
+          "expected": "{x|x>=({{h}})}"
+        },
+        {
+          "id": "range-interval",
+          "label": "Range — interval notation",
+          "inputProfile": "interval",
+          "expected": "[{{k}},inf)"
+        },
+        {
+          "id": "range-inequality",
+          "label": "Range — inequality",
+          "inputProfile": "inequality",
+          "expected": "y>=({{k}})"
+        },
+        {
+          "id": "range-set",
+          "label": "Range — set-builder notation",
+          "inputProfile": "expression",
+          "equivalence": "setBuilder",
+          "expected": "{y|y>=({{k}})}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The radicand controls the domain; the vertical shift and orientation control the range.",
+        "reasoning": [
+          "$x-({{h}})\\ge0$, so x≥{{h}}.",
+          "Because {{a}}>0, the square-root graph starts at y={{k}} and rises.",
+          "The same sets can be written with intervals, inequalities, or set-builder notation."
+        ],
+        "answerSummary": "Domain x≥{{h}}; range y≥{{k}}, represented three ways each."
+      },
+      "attemptFeedback": [
+        "Determine the mathematical set first, then translate it into each requested notation."
+      ],
+      "supportHints": [
+        "The square-root endpoint is included because a zero radicand is allowed."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7I_v2_reflected-square-root-upper-bounded-all-notations",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7I"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7I:v2-reflected-square-root-upper-bounded-all-notations",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7I",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "application",
+      "prompt": "For $g(x)=-{{a}}\\sqrt{x-({{h}})}+({{k}})$, write its domain and range in all three required forms: interval, inequality, and set-builder notation.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Feature check",
+        "steps": [
+          {
+            "id": "endpoint",
+            "label": "Starting point",
+            "work": "The graph begins at ({{h}},{{k}})."
+          },
+          {
+            "id": "reflection",
+            "label": "Orientation",
+            "work": "The negative coefficient reflects the square-root outputs downward."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "domain-interval",
+          "label": "Domain — interval notation",
+          "inputProfile": "interval",
+          "expected": "[{{h}},inf)"
+        },
+        {
+          "id": "domain-inequality",
+          "label": "Domain — inequality",
+          "inputProfile": "inequality",
+          "expected": "x>=({{h}})"
+        },
+        {
+          "id": "domain-set",
+          "label": "Domain — set-builder notation",
+          "inputProfile": "expression",
+          "equivalence": "setBuilder",
+          "expected": "{x|x>=({{h}})}"
+        },
+        {
+          "id": "range-interval",
+          "label": "Range — interval notation",
+          "inputProfile": "interval",
+          "expected": "(-inf,{{k}}]"
+        },
+        {
+          "id": "range-inequality",
+          "label": "Range — inequality",
+          "inputProfile": "inequality",
+          "expected": "y<=({{k}})"
+        },
+        {
+          "id": "range-set",
+          "label": "Range — set-builder notation",
+          "inputProfile": "expression",
+          "equivalence": "setBuilder",
+          "expected": "{y|y<=({{k}})}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A vertical reflection changes the range direction, not the square-root domain.",
+        "reasoning": [
+          "The radicand still requires x≥{{h}}.",
+          "The reflected graph has maximum output {{k}}, so y≤{{k}}.",
+          "Closed endpoints appear in both interval and inequality/set-builder forms."
+        ],
+        "answerSummary": "Domain x≥{{h}}; range y≤{{k}}."
+      },
+      "attemptFeedback": [
+        "Do not let the vertical reflection change the x-values allowed by the radicand."
+      ],
+      "supportHints": [
+        "The endpoint y={{k}} is included because the function actually reaches it."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7I_v2_quadratic-range-three-notations",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7I"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7I:v2-quadratic-range-three-notations",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7I",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "The quadratic $q(x)={{a}}(x-({{h}}))^2+({{k}})$ opens upward. Write its range in interval notation, inequality notation, and set-builder notation.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Vertex information",
+        "table": {
+          "headers": [
+            "Feature",
+            "Value"
+          ],
+          "rows": [
+            [
+              "Vertex",
+              "({{h}}, {{k}})"
+            ],
+            [
+              "Opening",
+              "Upward"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "range-interval",
+          "label": "Range — interval notation",
+          "inputProfile": "interval",
+          "expected": "[{{k}},inf)"
+        },
+        {
+          "id": "range-inequality",
+          "label": "Range — inequality",
+          "inputProfile": "inequality",
+          "expected": "y>=({{k}})"
+        },
+        {
+          "id": "range-set",
+          "label": "Range — set-builder notation",
+          "inputProfile": "expression",
+          "equivalence": "setBuilder",
+          "expected": "{y|y>=({{k}})}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "An upward-opening parabola has a minimum at its vertex.",
+        "reasoning": [
+          "The minimum y-value is {{k}}.",
+          "Therefore all outputs satisfy y≥{{k}}.",
+          "The endpoint is included in every correct notation."
+        ],
+        "answerSummary": "Range: [{{k}},∞), y≥{{k}}, or {y|y≥{{k}}}."
+      },
+      "attemptFeedback": [
+        "Use the vertex y-coordinate and the opening direction to determine the output set."
+      ],
+      "supportHints": [
+        "A minimum means the range starts at that y-value and extends upward."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7I_v2_reciprocal-domain-range-exclusions-all-notations",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7I"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7I:v2-reciprocal-domain-range-exclusions-all-notations",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7I",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "For $r(x)=\\frac{{{a}}}{x-({{h}})}+({{k}})$, write the domain and range in interval notation, inequality/restriction notation, and set-builder notation.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Asymptotes",
+        "table": {
+          "headers": [
+            "Type",
+            "Equation"
+          ],
+          "rows": [
+            [
+              "Vertical",
+              "x={{h}}"
+            ],
+            [
+              "Horizontal",
+              "y={{k}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "domain-interval",
+          "label": "Domain — interval notation",
+          "inputProfile": "interval",
+          "expected": "(-inf,{{h}})u({{h}},inf)"
+        },
+        {
+          "id": "domain-inequality",
+          "label": "Domain — inequality",
+          "inputProfile": "inequality",
+          "expected": "x!=({{h}})"
+        },
+        {
+          "id": "domain-set",
+          "label": "Domain — set-builder notation",
+          "inputProfile": "expression",
+          "equivalence": "setBuilder",
+          "expected": "{x|x!=({{h}})}"
+        },
+        {
+          "id": "range-interval",
+          "label": "Range — interval notation",
+          "inputProfile": "interval",
+          "expected": "(-inf,{{k}})u({{k}},inf)"
+        },
+        {
+          "id": "range-inequality",
+          "label": "Range — inequality",
+          "inputProfile": "inequality",
+          "expected": "y!=({{k}})"
+        },
+        {
+          "id": "range-set",
+          "label": "Range — set-builder notation",
+          "inputProfile": "expression",
+          "equivalence": "setBuilder",
+          "expected": "{y|y!=({{k}})}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Reciprocal transformations exclude the vertical-asymptote x-value and horizontal-asymptote y-value.",
+        "reasoning": [
+          "x={{h}} makes the denominator zero, so it is excluded from the domain.",
+          "A nonzero reciprocal term can never equal 0, so r(x) can never equal {{k}}.",
+          "Each exclusion can be written as a union of intervals, a not-equal restriction, or set-builder notation."
+        ],
+        "answerSummary": "Domain excludes {{h}}; range excludes {{k}}, each in all three forms."
+      },
+      "attemptFeedback": [
+        "Keep domain and range variables distinct: x restrictions describe inputs; y restrictions describe outputs."
+      ],
+      "supportHints": [
+        "The two asymptotes identify the two excluded values."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7I_v2_notation-error-full-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7I"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7I:v2-notation-error-full-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7I",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student analyzes $f(x)=-{{a}}\\sqrt{x-({{h}})}+({{k}})$ and writes the range as $({{k}},\\infty)$, $y>{{k}}$, and ${y|y>{{k}}}$. Diagnose the errors and repair the range in interval, inequality, and set-builder notation.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student range",
+        "steps": [
+          {
+            "id": "interval",
+            "label": "Interval",
+            "work": "$({{k}},\\infty)$"
+          },
+          {
+            "id": "inequality",
+            "label": "Inequality",
+            "work": "$y>{{k}}$"
+          },
+          {
+            "id": "set",
+            "label": "Set-builder",
+            "work": "${y|y>{{k}}}$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What is wrong?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "direction-and-endpoint",
+              "label": "The reflected square-root graph has a maximum at y={{k}}; the direction should be downward and {{k}} must be included."
+            },
+            {
+              "id": "endpoint-only",
+              "label": "Only the interval endpoint symbol is wrong; y>{{k}} is correct."
+            },
+            {
+              "id": "nothing",
+              "label": "All three forms are correct."
+            }
+          ],
+          "expected": "direction-and-endpoint"
+        },
+        {
+          "id": "range-interval",
+          "label": "Correct range — interval notation",
+          "inputProfile": "interval",
+          "expected": "(-inf,{{k}}]"
+        },
+        {
+          "id": "range-inequality",
+          "label": "Correct range — inequality",
+          "inputProfile": "inequality",
+          "expected": "y<=({{k}})"
+        },
+        {
+          "id": "range-set",
+          "label": "Correct range — set-builder notation",
+          "inputProfile": "expression",
+          "equivalence": "setBuilder",
+          "expected": "{y|y<=({{k}})}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Notation must encode both the correct direction and whether the endpoint is included.",
+        "reasoning": [
+          "The negative coefficient reflects the square-root graph downward.",
+          "The graph reaches y={{k}} at x={{h}}, so {{k}} is included.",
+          "Thus the range is (-∞,{{k}}], y≤{{k}}, or {y|y≤{{k}}}."
+        ],
+        "answerSummary": "Repair all three forms to the upper-bounded, inclusive range."
+      },
+      "attemptFeedback": [
+        "First determine the actual output set; then inspect each notation for direction and endpoint inclusion."
+      ],
+      "supportHints": [
+        "At x={{h}}, the square-root term is zero, so the function equals {{k}} exactly."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        }
+      }
+    }
+  ]
+}
