@@ -120,9 +120,9 @@ test('ATTACK asking for a hint early does not release one', () => {
 
 test('ATTACK an unknown or swapped tool id fails closed', () => {
   assert.equal(resolvePathToolId({ type: 'notATool' }), null);
-  assert.equal(resolvePathToolId({ type: 'dataModelingLab' }), null,
-    'a tool with no server contract must not be issuable on the Path');
-  assert.equal(buildPublicToolPayload({ type: 'dataModelingLab', prompt: 'x' }), null,
+  assert.equal(resolvePathToolId({ type: 'parabolaGeometryLab' }), null,
+    'a registry tool with no server contract must not be issuable on the Path');
+  assert.equal(buildPublicToolPayload({ type: 'parabolaGeometryLab', prompt: 'x' }), null,
     'and must produce no payload rather than a downgraded text box');
 });
 
