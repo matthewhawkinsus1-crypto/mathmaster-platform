@@ -18,6 +18,9 @@ on:
       - "src/components/student/PathQuestionStimulus.jsx"
       - "src/tools/systemsWorkspace/SystemsWorkspace.jsx"
       - "src/tools/systemsWorkspace/systemsMath.js"
+      - "functions/shared/pathDataModelingGrading.mjs"
+      - "src/tools/dataModeling/dataModelingMath.js"
+      - "src/tools/dataModeling/DataModelingLab.jsx"
       - "tests/platform/algebra2FidelityV2Staged.test.mjs"
       - "tests/platform/inverseReflectionExperience.test.mjs"
       - "tests/platform/inverseRadicalAnswerEquivalence.test.mjs"
@@ -25,6 +28,7 @@ on:
       - "tests/platform/pathQuestionGeneration.test.mjs"
       - "tests/platform/polynomialRelationAnswerEquivalence.test.mjs"
       - "tests/platform/systemsMatrix3Technology.test.mjs"
+      - "tests/platform/pathDataModelingGrading.test.mjs"
       - ".github/workflows/algebra2-fidelity-v2-certification.yml"
   pull_request:
     branches:
@@ -39,6 +43,9 @@ on:
       - "src/components/student/PathQuestionStimulus.jsx"
       - "src/tools/systemsWorkspace/SystemsWorkspace.jsx"
       - "src/tools/systemsWorkspace/systemsMath.js"
+      - "functions/shared/pathDataModelingGrading.mjs"
+      - "src/tools/dataModeling/dataModelingMath.js"
+      - "src/tools/dataModeling/DataModelingLab.jsx"
       - "tests/platform/algebra2FidelityV2Staged.test.mjs"
       - "tests/platform/inverseReflectionExperience.test.mjs"
       - "tests/platform/inverseRadicalAnswerEquivalence.test.mjs"
@@ -46,6 +53,7 @@ on:
       - "tests/platform/pathQuestionGeneration.test.mjs"
       - "tests/platform/polynomialRelationAnswerEquivalence.test.mjs"
       - "tests/platform/systemsMatrix3Technology.test.mjs"
+      - "tests/platform/pathDataModelingGrading.test.mjs"
       - ".github/workflows/algebra2-fidelity-v2-certification.yml"
   workflow_dispatch:
 
@@ -68,6 +76,7 @@ jobs:
             tests/platform/inverseRadicalAnswerEquivalence.test.mjs \
             tests/platform/inverseFunctionEquationAnswer.test.mjs \
             tests/platform/pathQuestionGeneration.test.mjs \
+            tests/platform/pathDataModelingGrading.test.mjs \
             tests/platform/polynomialRelationAnswerEquivalence.test.mjs \
             tests/platform/systemsMatrix3Technology.test.mjs
       - name: Build student/runtime bundle
