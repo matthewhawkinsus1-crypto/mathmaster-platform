@@ -3869,3 +3869,137 @@ test('A2.6G analyzes reciprocal transformations through full a-b-h-k effects and
   assert.ok(representations.has('verbal'));
 });
 
+test('A2.6H formulates real-world rational equations through student-authored models', async () => {
+  const entry = payload('A2.6H');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /student-authored-rational-equations/);
+
+  const authoredText = stringValues(entry.documents).join(' ').toLowerCase();
+  assert.equal(authoredText.includes('varies inversely'), false, 'A2.6H must not substitute A2.6L inverse-variation work for rational modeling');
+
+  let generatedCount = 0;
+  let workFamilies = 0;
+  let speedFamilies = 0;
+  let currentFamilies = 0;
+  let concentrationFamilies = 0;
+  let errorFamilies = 0;
+  let reversedModelsAccepted = 0;
+  let wrongModelsRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const equationFields = (doc.responseFields || []).filter((field) => field.id === 'equation');
+    assert.equal(equationFields.length, 1, `${doc.id} must require one authored rational equation`);
+    assert.equal(equationFields[0].inputProfile, 'equation');
+    assert.equal(equationFields[0].equivalence, 'modelEquation');
+    assert.equal(
+      (doc.responseFields || []).some((field) => /solution|root/.test(String(field.id))),
+      false,
+      `${doc.id} drifted into A2.6I solving instead of A2.6H formulation`,
+    );
+
+    if (doc.id.includes('work')) workFamilies += 1;
+    if (doc.id.includes('average-speed')) speedFamilies += 1;
+    if (doc.id.includes('current')) currentFamilies += 1;
+    if (doc.id.includes('dilution')) concentrationFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let reversedChecked = false;
+    let wrongChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const fields = Object.fromEntries(
+        (question.responseFields || []).map((field) => [field.id, field]),
+      );
+      const equation = fields.equation;
+      assert.ok(equation?.expected);
+      assert.equal(equation.equivalence, 'modelEquation');
+
+      if (doc.id.includes('combined-work-equation')) {
+        assert.ok(fields['rate-a'] && fields['rate-b']);
+        assert.match(String(equation.expected), /1\/t/);
+      }
+      if (doc.id.includes('average-speed-equation')) {
+        assert.ok(fields.time1 && fields.time2);
+        assert.match(String(equation.expected), /\/v/);
+      }
+      if (doc.id.includes('round-trip-current-equation')) {
+        assert.match(String(equation.expected), /v-/);
+        assert.match(String(equation.expected), /v\+/);
+        assert.match(String(fields.restriction?.expected), /v>/);
+      }
+      if (doc.id.includes('dilution-equation')) {
+        assert.ok(fields['new-volume']);
+        assert.match(String(equation.expected), /=0\.2$/);
+      }
+      if (doc.taskType === 'errorAnalysis') {
+        assert.equal(fields.diagnosis?.expected, 'subtract');
+        assert.match(String(equation.expected), /-/);
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(correct.fieldResults)}`,
+      );
+
+      if (!reversedChecked) {
+        const sides = splitEquationSides(equation.expected);
+        assert.ok(sides);
+        const reversed = `${sides.right}=${sides.left}`;
+        const result = await gradeResponse(grading, {
+          responses:{...responses,equation:reversed},
+        });
+        assert.equal(result.isCorrect, true, `${doc.id} rejected the same rational model with equation sides reversed`);
+        reversedModelsAccepted += 1;
+        reversedChecked = true;
+      }
+
+      if (!wrongChecked) {
+        const wrong = await gradeResponse(grading, {
+          responses:{...responses,equation:'1=1'},
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted a structurally unrelated rational model`);
+        wrongModelsRejected += 1;
+        wrongChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(workFamilies >= 2, 'A2.6H must include both constructive and error-repair rate modeling');
+  assert.ok(speedFamilies >= 1);
+  assert.ok(currentFamilies >= 1);
+  assert.ok(concentrationFamilies >= 1);
+  assert.ok(errorFamilies >= 1);
+  assert.equal(reversedModelsAccepted, entry.documents.length);
+  assert.equal(wrongModelsRejected, entry.documents.length);
+  assert.ok(representations.has('context'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('verbal'));
+});
+
