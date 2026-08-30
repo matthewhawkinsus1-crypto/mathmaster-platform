@@ -109,9 +109,38 @@ export const pathExponentialRegression = (points = []) => {
   return { a: Math.exp(ml - logBase * mx), base: Math.exp(logBase) };
 };
 
+export const pathSquareRootRegression = (points = []) => {
+  const clean = cleanPathDataPoints(points).sort((left, right) => left[0] - right[0]);
+  if (clean.length < 3) return null;
+  const h = clean[0][0];
+  const endpointRows = clean.filter(([x]) => Math.abs(x - h) <= EPS);
+  if (endpointRows.length !== 1) return null;
+  const k = endpointRows[0][1];
+
+  let numerator = 0;
+  let denominator = 0;
+  let usable = 0;
+  clean.forEach(([x, y]) => {
+    if (x <= h + EPS) return;
+    const root = Math.sqrt(x - h);
+    numerator += root * (y - k);
+    denominator += root * root;
+    usable += 1;
+  });
+  if (usable < 2 || Math.abs(denominator) < EPS) return null;
+  const a = numerator / denominator;
+  return Number.isFinite(a) ? { a, h, k } : null;
+};
+
 const predictLinear = (model, x) => Number(model.m) * Number(x) + Number(model.b);
 const predictQuadratic = (model, x) => Number(model.a) * Number(x) ** 2 + Number(model.b) * Number(x) + Number(model.c);
 const predictExponential = (model, x) => Number(model.a) * Number(model.base) ** Number(x);
+const predictSquareRoot = (model, x) => {
+  const value = Number(x);
+  const h = Number(model.h);
+  if (!Number.isFinite(value) || !Number.isFinite(h) || value < h) return Number.NaN;
+  return Number(model.a) * Math.sqrt(value - h) + Number(model.k);
+};
 
 export const pathModelMetrics = (points = [], predict) => {
   const clean = cleanPathDataPoints(points);
@@ -142,6 +171,11 @@ export const buildPathCandidateModels = (points = []) => {
   if (exponential && finite(exponential.a) && finite(exponential.base)) {
     const predict = (x) => predictExponential(exponential, x);
     models.push({ id: 'exponential', model: exponential, predict, metrics: pathModelMetrics(clean, predict) });
+  }
+  const squareRoot = pathSquareRootRegression(clean);
+  if (squareRoot && finite(squareRoot.a) && finite(squareRoot.h) && finite(squareRoot.k)) {
+    const predict = (x) => predictSquareRoot(squareRoot, x);
+    models.push({ id: 'squareRoot', model: squareRoot, predict, metrics: pathModelMetrics(clean, predict) });
   }
   return models;
 };
@@ -174,6 +208,7 @@ const FIT_PREDICTION_MODES = Object.freeze({
   linearFitPrediction: 'linear',
   quadraticFitPrediction: 'quadratic',
   exponentialFitPrediction: 'exponential',
+  squareRootFitPrediction: 'squareRoot',
 });
 
 const supportedDataModelingModes = new Set([
@@ -216,7 +251,7 @@ export const buildDataModelingPrivateDefinition = (question = {}) => {
   // model family in the standard itself.
   const forcedModelId = FIT_PREDICTION_MODES[mode] || null;
   const expectedModelId = forcedModelId
-    || (['linear', 'quadratic', 'exponential'].includes(String(question.expectedModel))
+    || (['linear', 'quadratic', 'exponential', 'squareRoot'].includes(String(question.expectedModel))
       ? String(question.expectedModel)
       : bestModel?.id || 'linear');
   const expectedModel = candidateModels.find((entry) => entry.id === expectedModelId) || null;
@@ -246,6 +281,11 @@ export const buildDataModelingPrivateDefinition = (question = {}) => {
       a: coefficientTolerance(model.a, question.exponentialATolerance, 0.08),
       base: coefficientTolerance(model.base, question.exponentialBaseTolerance, 0.02, 0.03),
     },
+    squareRootTolerance: {
+      a: coefficientTolerance(model.a, question.squareRootATolerance, 0.05),
+      h: coefficientTolerance(model.h, question.squareRootHTolerance, 0.05, 0.02),
+      k: coefficientTolerance(model.k, question.squareRootKTolerance, 0.08, 0.03),
+    },
     correlationTolerance: finite(question.correlationTolerance) ? Math.abs(Number(question.correlationTolerance)) : 0.03,
     predictionTolerance: finite(question.predictionTolerance) ? Math.abs(Number(question.predictionTolerance)) : null,
   };
@@ -263,6 +303,7 @@ const predictFromStoredModel = (entry, x) => {
   if (entry.id === 'linear') return predictLinear(entry.model, x);
   if (entry.id === 'quadratic') return predictQuadratic(entry.model, x);
   if (entry.id === 'exponential') return predictExponential(entry.model, x);
+  if (entry.id === 'squareRoot') return predictSquareRoot(entry.model, x);
   return Number.NaN;
 };
 
@@ -289,6 +330,15 @@ export const gradeDataModelingResponse = (definition = {}, raw = {}) => {
     results.fit = Number.isFinite(a) && Number.isFinite(base)
       && Math.abs(a - Number(expected.a)) <= definition.exponentialTolerance.a
       && Math.abs(base - Number(expected.base)) <= definition.exponentialTolerance.base;
+  } else if (definition.expectedModelId === 'squareRoot' && FIT_PREDICTION_MODES[definition.mode]) {
+    const a = Number(raw.a);
+    const h = Number(raw.h);
+    const k = Number(raw.k);
+    const expected = definition.expectedModel?.model || {};
+    results.fit = [a, h, k].every(Number.isFinite)
+      && Math.abs(a - Number(expected.a)) <= definition.squareRootTolerance.a
+      && Math.abs(h - Number(expected.h)) <= definition.squareRootTolerance.h
+      && Math.abs(k - Number(expected.k)) <= definition.squareRootTolerance.k;
   } else {
     results.fit = Number.isFinite(m) && Number.isFinite(b)
       && Math.abs(m - definition.regression.m) <= definition.slopeTolerance
