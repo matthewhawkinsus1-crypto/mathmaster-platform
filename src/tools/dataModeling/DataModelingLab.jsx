@@ -24,8 +24,8 @@ const inputStyle = { width:'100%', boxSizing:'border-box', padding:'9px 10px', b
 
 const modelFunction = (entry) => entry?.predict || (() => Number.NaN);
 
-const MODE_TASKS = {'full': 'Fit a line to the data, describe the association, choose the best model family, and make a prediction you can defend.', 'lineFit': 'Find the slope and intercept of a line that fits this data well.', 'linearFitPrediction': 'Use regression technology to write a linear function that fits the data, then use your model to make the requested prediction.', 'quadraticFitPrediction': 'Use quadratic regression technology to write a quadratic function that fits the data, then use your model to make the requested prediction.', 'exponentialFitPrediction': 'Use exponential regression technology to write an exponential function that fits the data, then use your model to make the requested prediction.', 'association': 'Describe the direction and strength of the association, and say what this data can justify.', 'correlation': 'Use statistical technology to calculate the correlation coefficient r, then interpret its direction and strength and state what the data can justify.', 'prediction': 'Use the model to predict a value, and say whether that prediction is interpolation or extrapolation.', 'modelCompare': 'Decide which model family fits this data best.'};
-const MODE_STEPS = {'full': ['Adjust the slope and intercept until the residuals are small and evenly scattered.', 'Read the correlation to describe direction and strength.', 'Compare the model families, then predict and classify.'], 'lineFit': ['Move the slope until the line matches the overall trend.', 'Move the intercept until the line sits through the middle of the points.', 'Watch the residual plot — you want it scattered around zero with no pattern.'], 'linearFitPrediction': ['Run a linear regression on the data.', 'Enter the regression coefficients to write y = mx + b.', 'Use that model at the requested x-value and classify the prediction as interpolation or extrapolation.'], 'quadraticFitPrediction': ['Run a quadratic regression on the data.', 'Enter the regression coefficients to write y = ax² + bx + c.', 'Use that model at the requested x-value and classify the prediction.'], 'exponentialFitPrediction': ['Run an exponential regression on the data.', 'Enter the regression coefficients to write y = a(b)^x.', 'Use that model at the requested x-value and classify the prediction.'], 'association': ['Look at whether the points rise or fall from left to right.', 'Look at how tightly they cluster around a line.', 'Decide whether this data could show cause and effect, or only a relationship.'], 'correlation': ['Run a correlation calculation on the x- and y-data using statistical technology.', 'Record r to at least the thousandths place.', 'Use the sign and magnitude of r to interpret direction and strength, then distinguish association from causation.'], 'prediction': ['Enter the x-value you are predicting at.', 'Use the model to compute the predicted y.', 'Decide whether that x is inside or outside the observed data.'], 'modelCompare': ['Compare the residual error of each candidate.', 'Check that the shape is reasonable for what the data describes.', 'Select the best model and check.']};
+const MODE_TASKS = {'full': 'Fit a line to the data, describe the association, choose the best model family, and make a prediction you can defend.', 'lineFit': 'Find the slope and intercept of a line that fits this data well.', 'linearFitPrediction': 'Use regression technology to write a linear function that fits the data, then use your model to make the requested prediction.', 'quadraticFitPrediction': 'Use quadratic regression technology to write a quadratic function that fits the data, then use your model to make the requested prediction.', 'exponentialFitPrediction': 'Use exponential regression technology to write an exponential function that fits the data, then use your model to make the requested prediction.', 'association': 'Describe the direction and strength of the association, and say what this data can justify.', 'correlation': 'Use statistical technology to calculate the correlation coefficient r, then interpret its direction and strength.', 'prediction': 'Use the model to predict a value, and say whether that prediction is interpolation or extrapolation.', 'modelCompare': 'Decide which model family fits this data best.'};
+const MODE_STEPS = {'full': ['Adjust the slope and intercept until the residuals are small and evenly scattered.', 'Read the correlation to describe direction and strength.', 'Compare the model families, then predict and classify.'], 'lineFit': ['Move the slope until the line matches the overall trend.', 'Move the intercept until the line sits through the middle of the points.', 'Watch the residual plot — you want it scattered around zero with no pattern.'], 'linearFitPrediction': ['Run a linear regression on the data.', 'Enter the regression coefficients to write y = mx + b.', 'Use that model at the requested x-value and classify the prediction as interpolation or extrapolation.'], 'quadraticFitPrediction': ['Run a quadratic regression on the data.', 'Enter the regression coefficients to write y = ax² + bx + c.', 'Use that model at the requested x-value and classify the prediction.'], 'exponentialFitPrediction': ['Run an exponential regression on the data.', 'Enter the regression coefficients to write y = a(b)^x.', 'Use that model at the requested x-value and classify the prediction.'], 'association': ['Look at whether the points rise or fall from left to right.', 'Look at how tightly they cluster around a line.', 'Decide whether this data could show cause and effect, or only a relationship.'], 'correlation': ['Run a correlation calculation on the x- and y-data using statistical technology.', 'Record r to at least the thousandths place.', 'Use the sign and magnitude of r to interpret direction and strength.'], 'prediction': ['Enter the x-value you are predicting at.', 'Use the model to compute the predicted y.', 'Decide whether that x is inside or outside the observed data.'], 'modelCompare': ['Compare the residual error of each candidate.', 'Check that the shape is reasonable for what the data describes.', 'Select the best model and check.']};
 const HINTS = {'full': ['Work through the panels in order — each one builds on the last.', 'A good fit has residuals scattered above and below zero with no curve or pattern in them.', 'Correlation describes how tightly the points follow a line. It never proves that one variable causes the other.'], 'lineFit': ['Get the slope roughly right first, then slide the intercept to centre the line.', 'Slope is rise over run: pick two points far apart on the trend and compare how much y changes to how much x changes.', 'If the residual plot curves, a straight line is the wrong shape for this data — that is information, not failure.'], 'linearFitPrediction': ['Use the linear-regression feature of your approved technology; the model coefficients should come from the full data set, not two hand-picked points.', 'Write the complete function before predicting.', 'Use the x-value named in the task; changing the prediction target changes the question.'], 'quadraticFitPrediction': ['Use quadratic regression and record all three coefficients a, b and c.', 'A quadratic model needs the x² term, x term and constant even when a coefficient is near zero.', 'Substitute the requested x into the fitted quadratic, then decide whether that x lies inside or outside the observed range.'], 'exponentialFitPrediction': ['Use exponential regression and record both the initial factor a and multiplicative base b.', 'For decay, the fitted base should be between 0 and 1; for growth it should be greater than 1.', 'Use the requested x-value rather than choosing one of the observed data points.'], 'association': ['Direction is about which way the cloud of points tilts.', 'Strength is about how close the points sit to a single line, not how steep that line is.', 'Observational data can only establish an association. Only a controlled experiment can establish cause and effect.'], 'correlation': ['Use the statistical correlation or linear-regression feature of your approved technology; do not estimate r from the picture.', 'The sign of r gives direction. The size of |r| describes how tightly the points follow a line.', 'Correlation can support an association claim, but correlation alone cannot establish cause and effect.'], 'prediction': ['Substitute your x into the model and compute the y it gives.', 'Interpolation means predicting inside the range of x-values you actually observed.', 'Extrapolation goes beyond the data, where the pattern may not hold — treat those predictions cautiously.'], 'modelCompare': ['Smaller residual error means the model is closer to the points on average.', 'RMSE punishes large misses more than MAE does, so a model with one big error will look worse under RMSE.', 'Also ask whether the shape makes sense: a model that fits well but predicts a negative quantity is still wrong.']};
 
 const FIT_PREDICTION_MODELS = {
@@ -78,26 +78,34 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const [modelChoice, setModelChoice] = useState('linear');
   const [predictionX, setPredictionX] = useState(questionData.predictionX ?? xMax - 1);
   const [predictionY, setPredictionY] = useState('');
-  const [predictionType, setPredictionType] = useState('interpolation');
+  const [predictionType, setPredictionType] = useState(FIT_PREDICTION_MODELS[mode] ? '' : 'interpolation');
   const [correlationEntry, setCorrelationEntry] = useState('');
   // Neutral defaults are deliberate. Initialising these fields from the
   // regression result would put most of the answer in the boxes before the
   // student used technology to calculate it.
-  const [quadraticA, setQuadraticA] = useState(startingModel.a ?? 1);
-  const [quadraticB, setQuadraticB] = useState(startingModel.b ?? 0);
-  const [quadraticC, setQuadraticC] = useState(startingModel.c ?? 0);
-  const [exponentialA, setExponentialA] = useState(startingModel.a ?? 1);
-  const [exponentialBase, setExponentialBase] = useState(startingModel.base ?? 1.1);
+  const [quadraticA, setQuadraticA] = useState(startingModel.a ?? '');
+  const [quadraticB, setQuadraticB] = useState(startingModel.b ?? '');
+  const [quadraticC, setQuadraticC] = useState(startingModel.c ?? '');
+  const [exponentialA, setExponentialA] = useState(startingModel.a ?? '');
+  const [exponentialBase, setExponentialBase] = useState(startingModel.base ?? '');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
   const studentPredict = useMemo(() => {
     if (mode === 'quadraticFitPrediction') {
-      return (x) => Number(quadraticA) * Number(x) ** 2 + Number(quadraticB) * Number(x) + Number(quadraticC);
+      const values = [quadraticA, quadraticB, quadraticC].map(parseNumericAnswer);
+      if (values.some((value) => value == null)) return () => Number.NaN;
+      return (x) => values[0] * Number(x) ** 2 + values[1] * Number(x) + values[2];
     }
     if (mode === 'exponentialFitPrediction') {
-      return (x) => Number(exponentialA) * Number(exponentialBase) ** Number(x);
+      const a = parseNumericAnswer(exponentialA);
+      const base = parseNumericAnswer(exponentialBase);
+      if (a == null || base == null) return () => Number.NaN;
+      return (x) => a * base ** Number(x);
     }
-    return (x) => Number(m) * Number(x) + Number(b);
+    const slope = parseNumericAnswer(m);
+    const intercept = parseNumericAnswer(b);
+    if (slope == null || intercept == null) return () => Number.NaN;
+    return (x) => slope * Number(x) + intercept;
   }, [mode, m, b, quadraticA, quadraticB, quadraticC, exponentialA, exponentialBase]);
   const studentResiduals = useMemo(() => points.map(([x, y]) => {
     const predicted = Number(studentPredict(x));
@@ -117,6 +125,17 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
             : mode === 'modelCompare' ? ['modelChoice']
               : ['fit', 'association', 'modelChoice', 'prediction'];
   const fixedPredictionTarget = Boolean(FIT_PREDICTION_MODELS[mode] && questionData.predictionX !== undefined && questionData.predictionX !== null);
+  const showModelEntry = mode === 'full' || mode === 'lineFit' || Boolean(FIT_PREDICTION_MODELS[mode]);
+  const showAssociationPanel = mode === 'full' || mode === 'association' || mode === 'correlation';
+  const showResidualPanel = mode === 'full' || mode === 'lineFit' || Boolean(FIT_PREDICTION_MODELS[mode]);
+  const showModelComparePanel = mode === 'full' || mode === 'modelCompare';
+  const showPredictionPanel = mode === 'full' || mode === 'prediction' || Boolean(FIT_PREDICTION_MODELS[mode]);
+  const linearModelReady = parseNumericAnswer(m) != null && parseNumericAnswer(b) != null;
+  const nonlinearModelReady = mode === 'quadraticFitPrediction'
+    ? [quadraticA, quadraticB, quadraticC].every((value) => parseNumericAnswer(value) != null)
+    : mode === 'exponentialFitPrediction'
+      ? [exponentialA, exponentialBase].every((value) => parseNumericAnswer(value) != null)
+      : false;
 
   const check = () => {
     const results = {};
@@ -186,10 +205,10 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
           <CoordinatePlane
             xMin={xMin} xMax={xMax} yMin={yMin} yMax={yMax}
             points={points.map(([x,y]) => ({ 0:x, 1:y }))}
-            lines={mode === 'quadraticFitPrediction' || mode === 'exponentialFitPrediction' ? [] : [{ m:Number(m), b:Number(b) }]}
-            functions={mode === 'quadraticFitPrediction' || mode === 'exponentialFitPrediction' ? [studentPredict] : []}
+            lines={showModelEntry && mode !== 'quadraticFitPrediction' && mode !== 'exponentialFitPrediction' && linearModelReady ? [{ m:Number(m), b:Number(b) }] : []}
+            functions={(mode === 'quadraticFitPrediction' || mode === 'exponentialFitPrediction') && nonlinearModelReady ? [studentPredict] : []}
           />
-          {mode === 'quadraticFitPrediction' ? (
+          {showModelEntry ? (mode === 'quadraticFitPrediction' ? (
             <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:10, marginTop:12 }}>
               <Field label="a in y = ax² + bx + c"><input type="number" step="0.01" value={quadraticA} onChange={(e)=>{setQuadraticA(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
               <Field label="b"><input type="number" step="0.01" value={quadraticB} onChange={(e)=>{setQuadraticB(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
@@ -213,11 +232,13 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
               : mode === 'exponentialFitPrediction'
                 ? <>y = {exponentialA}({exponentialBase})^x</>
                 : <>y = {m}x {Number(b) >= 0 ? '+' : '−'} {Math.abs(Number(b))}</>}
-            <br/><span style={{ fontSize:13 }}>Current MAE: {round(studentMetrics.mae, 2)} · RMSE: {round(studentMetrics.rmse, 2)}</span>
-          </div>
+            <br/><span style={{ fontSize:13 }}>Current MAE: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'} · RMSE: {Number.isFinite(studentMetrics.rmse) ? round(studentMetrics.rmse, 2) : '—'}</span>
+          </div>) : (
+            <p style={{margin:'12px 0 0',fontSize:13,color:'#5f6b7a'}}>Use the scatter plot and data values for the task. No fitted model is preloaded.</p>
+          )}
         </Panel>
 
-        <Panel title="2 · Association and causation">
+        {showAssociationPanel ? <Panel title={mode === 'correlation' ? '2 · Correlation interpretation' : '2 · Association and causation'}>
           {mode === 'correlation' ? (
             <div style={{ marginBottom:12 }}>
               <Field label="Correlation coefficient r">
@@ -239,8 +260,8 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
             <p style={{ marginTop:0, color:'#4b5563' }}>Correlation coefficient: <strong>r ≈ {round(r, 3)}</strong></p>
           )}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-            <Field label="Direction"><select value={direction} onChange={(e)=>setDirection(e.target.value)} style={inputStyle}><option value="positive">Positive</option><option value="negative">Negative</option><option value="none">No clear direction</option></select></Field>
-            <Field label="Strength"><select value={strength} onChange={(e)=>setStrength(e.target.value)} style={inputStyle}><option value="strong">Strong</option><option value="moderate">Moderate</option><option value="weak">Weak</option><option value="none">None</option></select></Field>
+            <Field label="Direction"><select value={direction} onChange={(e)=>setDirection(e.target.value)} style={inputStyle}>{mode === 'correlation' ? <option value="">Choose…</option> : null}<option value="positive">Positive</option><option value="negative">Negative</option><option value="none">No clear direction</option></select></Field>
+            <Field label="Strength"><select value={strength} onChange={(e)=>setStrength(e.target.value)} style={inputStyle}>{mode === 'correlation' ? <option value="">Choose…</option> : null}<option value="strong">Strong</option><option value="moderate">Moderate</option><option value="weak">Weak</option><option value="none">None</option></select></Field>
           </div>
           {mode !== 'correlation' ? (
             <Field label="What can this observational data justify?">
@@ -255,9 +276,9 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
               ? 'Interpret r by its sign (direction) and magnitude (strength).'
               : 'A large |r| describes strength of linear association. It does not, by itself, prove causation.'}
           </div>
-        </Panel>
+        </Panel> : null}
 
-        <Panel title="3 · Residual evidence">
+        {showResidualPanel ? <Panel title="3 · Residual evidence">
           <ResidualPlot rows={studentResiduals} xMin={xMin} xMax={xMax} />
           <div style={{ maxHeight:185, overflow:'auto', border:'1px solid #e5e7eb', borderRadius:8, marginTop:10 }}>
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
@@ -266,9 +287,9 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
             </table>
           </div>
           <p style={{ color:'#5f6b7a', fontSize:13, marginBottom:0 }}>A good residual plot should look randomly scattered around 0 rather than forming a clear curve or pattern.</p>
-        </Panel>
+        </Panel> : null}
 
-        <Panel title="4 · Compare model families">
+        {showModelComparePanel ? <Panel title="4 · Compare model families">
           <div style={{ display:'grid', gap:8 }}>
             {candidateModels.map((entry) => (
               <label key={entry.id} style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:10, alignItems:'center', padding:10, border:'1px solid #dde5f0', borderRadius:10, background:modelChoice===entry.id?'#eef4ff':'#fff' }}>
@@ -278,18 +299,18 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
             ))}
           </div>
           <p style={{ color:'#5f6b7a', fontSize:13 }}>Pick the model with the smaller residual error <em>and</em> a shape that makes sense for what the data describes. A model that fits these points slightly better but predicts something impossible is the wrong choice.</p>
-        </Panel>
+        </Panel> : null}
 
-        <Panel title="5 · Prediction and reasonableness">
+        {showPredictionPanel ? <Panel title="5 · Prediction and reasonableness">
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
             <Field label="Predict at x ="><input type="number" value={predictionX} readOnly={fixedPredictionTarget} aria-readonly={fixedPredictionTarget} onChange={(e)=>{if (!fixedPredictionTarget) setPredictionX(e.target.value);}} style={{...inputStyle, background:fixedPredictionTarget?'#f1f3f4':'#fff'}}/></Field>
             <Field label="Predicted y"><input type="number" step="0.1" value={predictionY} onChange={(e)=>setPredictionY(e.target.value)} style={inputStyle}/></Field>
           </div>
-          <Field label="This prediction is..."><select value={predictionType} onChange={(e)=>setPredictionType(e.target.value)} style={inputStyle}><option value="interpolation">Interpolation</option><option value="extrapolation">Extrapolation</option></select></Field>
+          <Field label="This prediction is..."><select value={predictionType} onChange={(e)=>setPredictionType(e.target.value)} style={inputStyle}>{FIT_PREDICTION_MODELS[mode] ? <option value="">Choose…</option> : null}<option value="interpolation">Interpolation</option><option value="extrapolation">Extrapolation</option></select></Field>
           <div style={{ marginTop:12, padding:11, borderRadius:10, background:'#f8fbff', color:'#4b5563', fontSize:13 }}>
             Interpolation predicts inside the observed x-range. Extrapolation goes beyond the data and should be treated more cautiously.
           </div>
-        </Panel>
+        </Panel> : null}
 
         <Panel title="Submit model reasoning">
           <p style={{ marginTop:0, color:'#5f6b7a' }}>Each part of your reasoning is graded separately, so getting some of it right still earns credit.</p>
