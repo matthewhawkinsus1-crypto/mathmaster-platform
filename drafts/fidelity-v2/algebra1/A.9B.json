@@ -280,6 +280,99 @@
           "inputProfile": "number",
           "expected": "{{a}}"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-exponential-parameter-interpretation-audit",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "context",
+          "prompt": "A quantity is modeled by $Q(t)={{a}}({{base}})^t$. A student says {{a}} is the amount added each period and {{base}} is the percent growth rate. Correct the interpretation by identifying the initial value, multiplicative growth factor, percent growth rate, and the model's one-period value Q(1).",
+          "responseFields": [
+            {
+              "id": "initial",
+              "label": "Initial value Q(0)",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "factor",
+              "label": "Multiplicative growth factor",
+              "inputProfile": "number",
+              "expected": "{{base}}"
+            },
+            {
+              "id": "percent",
+              "label": "Percent growth rate",
+              "inputProfile": "number",
+              "expected": "{{pct}}"
+            },
+            {
+              "id": "one-period",
+              "label": "Q(1)",
+              "inputProfile": "number",
+              "expected": "{{q1}}"
+            },
+            {
+              "id": "diagnosis",
+              "label": "Correct parameter interpretation",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "correct",
+                  "label": "a is the initial value; b is a multiplicative factor; the percent rate is (b-1)×100%."
+                },
+                {
+                  "id": "student",
+                  "label": "a is the amount added each period and b itself is the percent."
+                }
+              ],
+              "expected": "correct"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Exponential parameters describe a starting amount and a multiplicative change, not an additive step.",
+            "reasoning": [
+              "At t=0, $Q(0)={{a}}$, so {{a}} is the initial value.",
+              "Each period multiplies by {{base}}.",
+              "The percent growth rate is ({{base}}-1)×100={{pct}}%, and $Q(1)={{q1}}$."
+            ],
+            "answerSummary": "Initial {{a}}; factor {{base}}; growth rate {{pct}}%."
+          },
+          "attemptFeedback": [
+            "Separate the multiplicative factor from the percent change derived from that factor."
+          ],
+          "supportHints": [
+            "For growth factor b>1, percent growth is 100(b-1)."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 20,
+                "max": 500
+              },
+              "base": {
+                "type": "choice",
+                "values": [
+                  1.05,
+                  1.1,
+                  1.2,
+                  1.25,
+                  1.5
+                ]
+              }
+            },
+            "derived": {
+              "pct": "round((base-1)*100)",
+              "q1": "a*base"
+            }
+          }
+        }
       ]
     }
   ]
