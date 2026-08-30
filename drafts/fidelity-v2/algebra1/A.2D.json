@@ -285,6 +285,25 @@
               "x3!=x1",
               "x3!=x2"
             ]
+          },
+          "solutionReview": {
+            "headline": "Direct variation requires one constant ratio y/x across all nonzero observations.",
+            "reasoning": [
+              "The first point gives k={{k}} and the second point also gives k={{k}}.",
+              "That consistency supports y={{k}}x.",
+              "Using the same model at x={{x3}} gives y={{y3}}."
+            ],
+            "answerSummary": "Both observations support y={{k}}x; prediction {{y3}}."
+          },
+          "attemptFeedback": [
+            "Compare y/x for both observations before accepting a direct-variation model."
+          ],
+          "supportHints": [
+            "Direct variation must have the same k for every nonzero x."
+          ],
+          "context": {
+            "title": "Consistency check for direct variation",
+            "note": "Use two observations to validate the same constant before predicting."
           }
         }
       ]
