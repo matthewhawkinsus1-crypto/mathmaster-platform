@@ -54,6 +54,24 @@ const CASES = {
       ['no classification', { x: 2, y: 3 }, 'reject'],
     ],
   },
+  dataModelingLab: {
+    question: {
+      type: 'dataModeling',
+      prompt: 'Calculate and interpret r.',
+      mode: 'correlation',
+      points: [[1, 3], [2, 5], [3, 7], [4, 9]],
+      correlationTolerance: 0.02,
+      answer: 'must-not-leak',
+    },
+    correct: { r: 1, direction: 'positive', strength: 'strong', causation: 'association' },
+    variants: [
+      ['r within tolerance', { r: 0.99, direction: 'positive', strength: 'strong', causation: 'association' }, true],
+      ['interpretation only', { direction: 'positive', strength: 'strong', causation: 'association' }, false],
+      ['wrong coefficient', { r: 0.5, direction: 'positive', strength: 'strong', causation: 'association' }, false],
+      ['wrong strength', { r: 1, direction: 'positive', strength: 'moderate', causation: 'association' }, false],
+      ['empty work', {}, false],
+    ],
+  },
   relationMapping: {
     question: { type: 'relationMapping', prompt: 'Map', pairs: [{ x: 1, y: 2 }, { x: 2, y: 4 }], ask: ['domain', 'range', 'isFunction'] },
     correct: { domain: [1, 2], range: [2, 4], isFunction: true },
