@@ -264,7 +264,7 @@ Do **not** re-audit A2.3G unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4A — REBUILD — AUDITED / AUTHORING
+### A2.4A — REBUILD — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Write a quadratic function given three specified points in the plane.**
 
@@ -294,6 +294,26 @@ Resume here. Do not reopen A2.2A–A2.3G unless a failing gate names them.
   - include at least one family that collects the three substitution equations for $a,b,c$ before the final quadratic;
   - error analysis must repair the coefficient setup and finish the complete function.
 - Generic secure equation fields are sufficient; no new Path tool contract is required. The existing expanded/form-preserving equation equivalence keeps harmless coefficient/term formatting from marking correct standard-form answers wrong.
+
+
+### 2026-08-30 — A2.4A staged and gated
+- Staged five A2.4A Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4A.json` — commit `7daff81cf857e6b6e015de5391c20debb69466e7`.
+- Package/build run `33319203889`: **PASS**.
+- Before certification, caught two student-facing representation issues:
+  - the ordered-pair family used the wrong stimulus key (`pairs`) even though the renderer reads `orderedPairs`;
+  - the graph family's generated symmetric points could fall outside the authored y-viewport.
+- Corrected the ordered-pair stimulus to the renderer's real shape, added a visible three-point table to the error-analysis family, and expanded the graph viewport to contain every generated source point — commit `eb9bff6cbb73b4f8da5339309e4c0b2978ff3556`.
+- Post-fix package/build run `33319234997`: **PASS**.
+- Coverage now includes:
+  - a three-row table with no leading coefficient supplied;
+  - a nonzero-x ordered-pair family that requires all three coefficient equations before the function;
+  - a graph with exactly three visible labeled points;
+  - a contextual three-measurement quadratic model;
+  - error analysis that repairs the three-equation coefficient setup and still writes the complete quadratic.
+- Added A2.4A-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `55008332f7b5837fc72f24ec957c271a8fc687e2`.
+- The A2.4A gate samples 200+ generated instances, requires exactly three visible source points per family, forbids leaking the generated leading coefficient into the givens, verifies the generated final quadratic numerically passes all three points, self-grades the exact generated response through the secure field grader, checks public answer-key stripping, requires repeated no-x=0 families, repeated coefficient-system setup, and complete error repair.
+- Full A2.4A assertion run `33319277754`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.4A** until that run is green.
 
 
 ### 2026-08-30 — A2.3G audit finding
