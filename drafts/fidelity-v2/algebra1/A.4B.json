@@ -324,6 +324,102 @@
           "id": "opt-4",
           "label": "the sample must have exactly 100 people"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-competing-causal-explanations",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "An observational study finds that students who {{behavior}} report {{pct}}% better outcomes. The headline says {{behavior}} CAUSED the improvement. Two explanations are proposed: (A) the behavior itself causes the improvement; (B) a third variable such as prior motivation affects both the behavior and the outcome. Evaluate what the observational study can establish, identify why both explanations remain possible, and choose the evidence that would most strengthen a causal claim.",
+          "responseFields": [
+            {
+              "id": "establish",
+              "label": "What can the observational study establish by itself?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "association",
+                  "label": "An association between the behavior and the outcome"
+                },
+                {
+                  "id": "causation",
+                  "label": "That the behavior definitely caused the outcome"
+                }
+              ],
+              "expected": "association"
+            },
+            {
+              "id": "explanations",
+              "label": "Why can't Explanation A be selected over B from this study alone?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "confounding",
+                  "label": "The design does not rule out confounding or pre-existing differences."
+                },
+                {
+                  "id": "percent",
+                  "label": "Because percentages cannot be used in observational studies."
+                }
+              ],
+              "expected": "confounding"
+            },
+            {
+              "id": "evidence",
+              "label": "Which follow-up would most strengthen causation if ethical?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "random",
+                  "label": "Randomly assign comparable participants to the behavior or a control condition and compare outcomes."
+                },
+                {
+                  "id": "bigger-observe",
+                  "label": "Repeat the same observational survey with more people but no design change."
+                }
+              ],
+              "expected": "random"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Critical causal reasoning compares alternative explanations and asks what design evidence separates them.",
+            "reasoning": [
+              "The observational result supports association, not a unique causal mechanism.",
+              "Prior motivation could influence both {{behavior}} and the measured outcome, so the causal and confounding explanations are both compatible with the observation.",
+              "Random assignment, when ethical, helps balance pre-existing differences and strengthens causal inference."
+            ],
+            "answerSummary": "Association is supported; causal certainty requires stronger design evidence."
+          },
+          "attemptFeedback": [
+            "Ask what alternative explanation could produce the same observed association."
+          ],
+          "supportHints": [
+            "A causal claim is strongest when the treatment/exposure is assigned rather than merely observed."
+          ],
+          "generator": {
+            "parameters": {
+              "behavior": {
+                "type": "choice",
+                "values": [
+                  "walk daily",
+                  "eat breakfast",
+                  "read nightly",
+                  "use planners"
+                ]
+              },
+              "pct": {
+                "type": "int",
+                "min": 8,
+                "max": 30
+              }
+            }
+          }
+        }
       ]
     },
     {
