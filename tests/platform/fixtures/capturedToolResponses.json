@@ -162,5 +162,25 @@
       "predictionY": 0,
       "predictionType": "interpolation"
     }
+  },
+  "graphing2": {
+    "pathToolId": "graphing2",
+    "rawWork": {
+      "points": [
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          5
+        ]
+      ],
+      "studentLine": {
+        "kind": "slopeIntercept",
+        "m": 2,
+        "b": 1
+      }
+    }
   }
 }
