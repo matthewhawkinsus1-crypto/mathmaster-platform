@@ -645,6 +645,143 @@ export const sameCommutativeModelEquation = (left, right) => {
   return (al === bl && ar === br) || (al === br && ar === bl);
 };
 
+
+const canonicalSetBuilderNotation = (value) => {
+  const text = normalizeAnswer(value)
+    .replace(/\\mathbb\{r\}|ℝ/g, 'r')
+    .replace(/\\mid|∣|｜/g, '|')
+    .replace(/\\colon/g, ':')
+    .replace(/\\land|∧|&&/g, '&')
+    .replace(/\band\b/g, '&')
+    .replace(/;/g, '&');
+
+  const match = /^\{([xy])(?:inr)?[|:]([^{}]+)\}$/.exec(text);
+  if (!match) return null;
+
+  const variable = match[1];
+  const conditionText = match[2]
+    .replace(/,+/g, '&')
+    .replace(/&+/g, '&')
+    .replace(/^&|&$/g, '');
+  if (!conditionText) return null;
+
+  const invert = (operator) => ({
+    '<': '>',
+    '<=': '>=',
+    '>': '<',
+    '>=': '<=',
+  }[operator] || operator);
+
+  const atoms = conditionText.split('&').filter(Boolean).map((condition) => {
+    const direct = new RegExp('^' + variable + '(!=|<=|>=|<|>)(-?\\d+(?:\\.\\d+)?)
+  const leftSet = parseFiniteSetNotation(left);
+  const rightSet = parseFiniteSetNotation(right);
+  if (leftSet !== null || rightSet !== null) {
+    return leftSet !== null && rightSet !== null && sameFiniteSetNotation(left, right, tolerance);
+  }
+  if (sameAtomicValue(left, right, tolerance)) return true;
+  if (sameSimpleInequality(left, right, tolerance)) return true;
+  if (sameLinearInequality(left, right, tolerance)) return true;
+  if (sameFormPreservingEquation(left, right)) return true;
+  if (sameFormPreservingExpression(left, right)) return true;
+  // Expanded polynomial answers are mathematical expressions, so harmless
+  // term order and coefficient arithmetic must not make a correct student
+  // response wrong. The comparator is deliberately form-specific: if either
+  // side contains a grouped variable expression such as (x+2)(x+3), it
+  // refuses rather than silently turning a factoring task into expansion.
+  if (sameExpandedPolynomialExpression(left, right, tolerance)) return true;
+  if (sameInverseFunctionEquation(left, right, tolerance)) return true;
+  if (sameExpandedPolynomialEquation(left, right, tolerance)) return true;
+  // LAST RESORT, and only for equations. Text equality already handled every
+  // spelling the author thought to list; this catches the ones they did not —
+  // an unreduced slope, a decimal for a fraction, a `\frac` from the keypad.
+  // It compares side against side, so it cannot accept a different FORM of the
+  // same line, and it refuses above degree one so it cannot silently grade a
+  // "simplify" or "vertex form" question. See functions/shared/algebraicForm.mjs.
+  return sameLinearEquation(left, right, tolerance);
+};
+).exec(condition);
+    if (direct) return {
+      variable,
+      operator: direct[1],
+      bound: Number(direct[2]),
+    };
+
+    const reversed = new RegExp('^(-?\\d+(?:\\.\\d+)?)(<=|>=|<|>)' + variable + '
+  const leftSet = parseFiniteSetNotation(left);
+  const rightSet = parseFiniteSetNotation(right);
+  if (leftSet !== null || rightSet !== null) {
+    return leftSet !== null && rightSet !== null && sameFiniteSetNotation(left, right, tolerance);
+  }
+  if (sameAtomicValue(left, right, tolerance)) return true;
+  if (sameSimpleInequality(left, right, tolerance)) return true;
+  if (sameLinearInequality(left, right, tolerance)) return true;
+  if (sameFormPreservingEquation(left, right)) return true;
+  if (sameFormPreservingExpression(left, right)) return true;
+  // Expanded polynomial answers are mathematical expressions, so harmless
+  // term order and coefficient arithmetic must not make a correct student
+  // response wrong. The comparator is deliberately form-specific: if either
+  // side contains a grouped variable expression such as (x+2)(x+3), it
+  // refuses rather than silently turning a factoring task into expansion.
+  if (sameExpandedPolynomialExpression(left, right, tolerance)) return true;
+  if (sameInverseFunctionEquation(left, right, tolerance)) return true;
+  if (sameExpandedPolynomialEquation(left, right, tolerance)) return true;
+  // LAST RESORT, and only for equations. Text equality already handled every
+  // spelling the author thought to list; this catches the ones they did not —
+  // an unreduced slope, a decimal for a fraction, a `\frac` from the keypad.
+  // It compares side against side, so it cannot accept a different FORM of the
+  // same line, and it refuses above degree one so it cannot silently grade a
+  // "simplify" or "vertex form" question. See functions/shared/algebraicForm.mjs.
+  return sameLinearEquation(left, right, tolerance);
+};
+).exec(condition);
+    if (reversed) return {
+      variable,
+      operator: invert(reversed[2]),
+      bound: Number(reversed[1]),
+    };
+
+    return null;
+  });
+
+  if (atoms.some((atom) => !atom || !Number.isFinite(atom.bound))) return null;
+
+  const deduped = [];
+  for (const atom of atoms) {
+    if (!deduped.some((entry) => entry.operator === atom.operator && entry.bound === atom.bound)) {
+      deduped.push(atom);
+    }
+  }
+
+  deduped.sort((a, b) => (
+    a.operator.localeCompare(b.operator) || a.bound - b.bound
+  ));
+  return { variable, atoms: deduped };
+};
+
+/**
+ * Compare the simple set-builder forms used for rational-function domain/range
+ * restrictions. This is opt-in so a finite roster set such as {2,5} keeps its
+ * existing semantics.
+ *
+ * Accepted harmless notation differences include:
+ *   {x | x != 3}
+ *   {x ∈ R : x ≠ 3}
+ *   \{x\in\mathbb{R}\mid x\ne 3\}
+ *
+ * Multiple restrictions may be reordered. The comparator deliberately refuses
+ * compound algebra, unions, or predicates it cannot parse rather than guessing.
+ */
+export const sameSetBuilderNotation = (left, right, tolerance = 1e-6) => {
+  const a = canonicalSetBuilderNotation(left);
+  const b = canonicalSetBuilderNotation(right);
+  if (!a || !b || a.variable !== b.variable || a.atoms.length !== b.atoms.length) return false;
+  return a.atoms.every((atom, index) => (
+    atom.operator === b.atoms[index].operator
+    && Math.abs(atom.bound - b.atoms[index].bound) <= tolerance
+  ));
+};
+
 export const sameValue = (left, right, tolerance = 1e-6) => {
   const leftSet = parseFiniteSetNotation(left);
   const rightSet = parseFiniteSetNotation(right);
