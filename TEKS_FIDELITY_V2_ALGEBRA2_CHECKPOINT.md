@@ -222,7 +222,7 @@ Do **not** re-audit A2.3E unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.3F — REBUILD — AUDITED / AUTHORING
+### A2.3F — REBUILD — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Solve systems of two or more linear inequalities in two variables.**
 
@@ -267,6 +267,23 @@ Resume here. Do not reopen A2.2A–A2.3E unless a failing gate names them.
   - include contextual feasible-region solving;
   - include error analysis where a union/incorrect half-plane is repaired by constructing the correct intersection;
   - at least one family should require three inequalities so “two or more” is real rather than nominal.
+
+
+### 2026-08-30 — A2.3F staged and gated
+- Staged five A2.3F Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.3F.json` — commit `4f993bfc02b143ee44fa53f9eeaf436dec68067b`.
+- Package-only Algebra II certification run `33318706257`: **PASS**, including student/runtime build.
+- All five families use the already-secure `systemsWorkspace` inequality construction contract, so the student must place two points on every boundary, choose solid/dashed, choose the correct half-plane, and produce the actual overlap.
+- Coverage includes:
+  - two inclusive boundaries;
+  - mixed strict/inclusive boundaries;
+  - a three-constraint solution region;
+  - a contextual three-constraint feasible region;
+  - error analysis that repairs an incorrect union by constructing the actual intersection.
+- Upgraded the inequality workspace so third/fourth/fifth boundaries receive distinct visual colors instead of every boundary after the first sharing one color — commit `6f87bd36aaa0d570e4bbe407e22af64cd74d5bf7`.
+- Added A2.3F-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `cc1c0468b5e659d7fbb4ff1d4aac26fe7c27fa15`.
+- The A2.3F gate samples 200+ generated instances, runs the production issue gate, requires secure Path eligibility, checks public-payload nonleakage, self-grades a mathematically correct graph construction through the server contract, deliberately spoils one half-plane per family and requires rejection, requires repeated three-constraint systems, and certifies strict/inclusive/mixed/context/error-analysis breadth.
+- Full A2.3F assertion run `33318812867`: **QUEUED/RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.3F** until that run is green.
 
 
 ### 2026-08-30 — A2.3E audit finding
