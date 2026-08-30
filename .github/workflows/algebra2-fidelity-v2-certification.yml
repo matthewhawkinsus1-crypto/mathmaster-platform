@@ -41,6 +41,7 @@ on:
       - "tests/platform/a27fRationalOperations.test.mjs"
       - "tests/platform/systemsMatrix3Technology.test.mjs"
       - "tests/platform/pathDataModelingGrading.test.mjs"
+      - "tests/platform/a28bRegressionTechnology.test.mjs"
       - ".github/workflows/algebra2-fidelity-v2-certification.yml"
   pull_request:
     branches:
@@ -78,6 +79,7 @@ on:
       - "tests/platform/a27fRationalOperations.test.mjs"
       - "tests/platform/systemsMatrix3Technology.test.mjs"
       - "tests/platform/pathDataModelingGrading.test.mjs"
+      - "tests/platform/a28bRegressionTechnology.test.mjs"
       - ".github/workflows/algebra2-fidelity-v2-certification.yml"
   workflow_dispatch:
 
@@ -101,6 +103,7 @@ jobs:
             tests/platform/inverseFunctionEquationAnswer.test.mjs \
             tests/platform/pathQuestionGeneration.test.mjs \
             tests/platform/pathDataModelingGrading.test.mjs \
+            tests/platform/a28bRegressionTechnology.test.mjs \
             tests/platform/polynomialRelationAnswerEquivalence.test.mjs \
             tests/platform/absoluteValueLinearRelationAnswerEquivalence.test.mjs \
             tests/platform/modelEquationAnswerEquivalence.test.mjs \
