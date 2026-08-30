@@ -131,6 +131,11 @@
       ],
       "variants": [
         {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
           "coverageKey": "adaptive-d2b2-simple-vertical-stretch-effect",
           "dok": 2,
           "difficultyBand": 2,
@@ -313,6 +318,11 @@
         }
       ],
       "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
         {
           "coverageKey": "adaptive-d3b3-reflection-plus-shift-feature-analysis",
           "dok": 3,
