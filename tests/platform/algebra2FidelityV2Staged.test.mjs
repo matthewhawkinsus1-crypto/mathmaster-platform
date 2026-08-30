@@ -10,7 +10,10 @@ import {
   isPathEligible,
 } from '../../functions/shared/pathToolContracts.mjs';
 import { REPRESENTATIONS, TASK_TYPES } from '../../functions/shared/pathQuestionQuality.mjs';
-import { sameValue } from '../../functions/shared/answerEquivalence.mjs';
+import {
+  samePolynomialEquationRelation,
+  sameValue,
+} from '../../functions/shared/answerEquivalence.mjs';
 import { parsePolynomial, splitEquationSides } from '../../functions/shared/algebraicForm.mjs';
 import {
   feasibleRegionPolygon,
@@ -1264,3 +1267,122 @@ test('A2.4A requires a complete quadratic authored from exactly three specified 
   assert.ok(taskTypes.has('modeling'));
   assert.ok(taskTypes.has('errorAnalysis'));
 });
+
+test('A2.4B writes complete parabola equations from defining attributes in all four orientations', async () => {
+  const entry = payload('A2.4B');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /parabola.*attribute|attribute.*parabola/i);
+
+  const authoredText = stringValues(entry.documents).join(' ').toLowerCase();
+  for (const required of ['vertex', 'focus', 'directrix', 'axis', 'opens upward', 'opens downward', 'opens right', 'opens left']) {
+    assert.ok(authoredText.includes(required), `A2.4B package is missing required attribute/orientation coverage: ${required}`);
+  }
+
+  const representations = new Set();
+  let generatedCount = 0;
+  let verticalFamilies = 0;
+  let horizontalFamilies = 0;
+  let inferredVertexFamilies = 0;
+  let errorRepairFamilies = 0;
+  let reversedSideAccepted = 0;
+  let wrongEquationRejected = 0;
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const equationField = (doc.responseFields || []).find((field) => field.id === 'equation');
+    assert.ok(equationField, `${doc.id} must require the complete parabola equation`);
+    assert.equal(equationField.inputProfile, 'equation');
+    assert.equal(
+      equationField.equivalence,
+      'polynomialRelation',
+      `${doc.id} must opt in to relation-aware grading rather than padding answer variants`,
+    );
+
+    const expectedTemplate = String(equationField.expected || '');
+    if (/^\(x-/.test(expectedTemplate)) verticalFamilies += 1;
+    if (/^\(y-/.test(expectedTemplate)) horizontalFamilies += 1;
+    if ((doc.responseFields || []).some((field) => field.id === 'vertex')) inferredVertexFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') {
+      errorRepairFamilies += 1;
+      assert.ok((doc.responseFields || []).some((field) => field.id === 'diagnosis'));
+    }
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let reversedChecked = false;
+    let wrongChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const generatedEquation = (question.responseFields || []).find((field) => field.id === 'equation');
+      assert.ok(generatedEquation?.expected);
+      assert.equal(generatedEquation.equivalence, 'polynomialRelation');
+
+      const grading = privateGradingDefinition(question);
+      const exactResponses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const exact = await gradeResponse(grading, { responses: exactResponses });
+      assert.equal(
+        exact.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(exact.fieldResults)}`,
+      );
+
+      if (!reversedChecked) {
+        const sides = splitEquationSides(generatedEquation.expected);
+        assert.ok(sides);
+        const reversed = `${sides.right}=${sides.left}`;
+        assert.equal(
+          samePolynomialEquationRelation(generatedEquation.expected, reversed),
+          true,
+          `${doc.id} relation comparator failed a side reversal`,
+        );
+        const reversedResponses = { ...exactResponses, equation:reversed };
+        const reversedResult = await gradeResponse(grading, { responses: reversedResponses });
+        assert.equal(
+          reversedResult.isCorrect,
+          true,
+          `${doc.id} secure field grader rejected an algebraically identical reversed parabola equation`,
+        );
+        reversedSideAccepted += 1;
+        reversedChecked = true;
+      }
+
+      if (!wrongChecked) {
+        const wrongResponses = { ...exactResponses, equation:'x=y' };
+        const wrong = await gradeResponse(grading, { responses: wrongResponses });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted a different relation as the parabola`);
+        wrongEquationRejected += 1;
+        wrongChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(verticalFamilies >= 2, 'A2.4B must repeatedly write vertical parabola equations');
+  assert.ok(horizontalFamilies >= 2, 'A2.4B must repeatedly write horizontal parabola equations');
+  assert.ok(inferredVertexFamilies >= 1, 'A2.4B must infer a vertex from focus/directrix geometry in at least one family');
+  assert.ok(errorRepairFamilies >= 1, 'A2.4B must repair an attribute/orientation error and still write the equation');
+  assert.equal(reversedSideAccepted, entry.documents.length);
+  assert.equal(wrongEquationRejected, entry.documents.length);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('graph'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('multipleRepresentation'));
+});
+
