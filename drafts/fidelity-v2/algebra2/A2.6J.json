@@ -475,7 +475,8 @@
         "constraints": [
           "a%r!=0",
           "denom!=0",
-          "residual<=0.01"
+          "residual<=0.01",
+          "residual>0"
         ],
         "attempts": 300
       }
