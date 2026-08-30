@@ -8,6 +8,10 @@
 // Read-only. Pass --strict to exit 1 when any red-flag category is present.
 
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const mathPath = require('../functions/lib/mathPath.js');
 
 const BANK = 'seed/pathQuestionBank/algebra1_pathQuestionBank_seed.json';
 const SOURCE_MODULES = [
@@ -69,9 +73,24 @@ const choiceDocs = docs.filter((doc) => (
   (doc.responseFields || []).some((field) => field.inputProfile === 'choice')
 ));
 const correctChoiceIds = new Map();
-choiceDocs.forEach((doc) => {
-  const expected = (doc.responseFields || []).find((field) => field.inputProfile === 'choice')?.expected;
-  correctChoiceIds.set(expected, (correctChoiceIds.get(expected) || 0) + 1);
+const publicChoiceIdLeaks = [];
+choiceDocs.forEach((doc, index) => {
+  const choiceFields = (doc.responseFields || []).filter((field) => field.inputProfile === 'choice');
+  choiceFields.forEach((field) => {
+    correctChoiceIds.set(field.expected, (correctChoiceIds.get(field.expected) || 0) + 1);
+  });
+  const issued = mathPath.buildSanitizedQuestion(doc, {
+    questionInstanceId: `teks-choice-audit-${index}`,
+    attemptsAllowed: 3,
+  });
+  const publicIds = [
+    ...(issued.choices || []).map((choice) => String(choice.id)),
+    ...(issued.responseFields || []).flatMap((field) => (field.choices || []).map((choice) => String(choice.id))),
+  ];
+  const privateIds = choiceFields.flatMap((field) => [field.expected, ...(field.accepted || [])]).filter(Boolean).map(String);
+  if (publicIds.some((id) => privateIds.includes(id)) || publicIds.some((id) => /^opt-\d+$/i.test(id))) {
+    publicChoiceIdLeaks.push(`${codeOf(doc)}/${doc.id || doc.familyId || 'unknown'}`);
+  }
 });
 
 const sourceText = SOURCE_MODULES.map((path) => readFileSync(path, 'utf8')).join('\n');
@@ -137,11 +156,12 @@ console.log(`Distinct task/DOK/band patterns across 49 standards: ${patterns.siz
   .sort((a, b) => b[1].length - a[1].length)
   .forEach(([pattern, codes]) => console.log(`  ${codes.length} standards: ${pattern}`));
 
-console.log('\n## 2. Public choice-id predictability\n');
+console.log('\n## 2. Public choice-id security\n');
 console.log(`Multiple-choice families: ${choiceDocs.length}`);
-console.log('Correct choice ids in stored grading keys: '
+console.log('Private author/grading ids: '
   + [...correctChoiceIds.entries()].map(([id, count]) => `${id}=${count}`).join(', '));
-console.log('The runtime shuffles choice order, but the public question preserves choice ids. A single universal correct id is therefore a devtools/network-payload leakage pattern.');
+console.log(`Issued questions leaking a private/predictable id: ${publicChoiceIdLeaks.length}`);
+console.log('Stable author ids are allowed inside the private bank; issued browser choices must use opaque runtime ids that are independent of correctness.');
 
 console.log('\n## 3. Canonical-source drift\n');
 console.log(`Old authored-module families parsed: ${sourceSet.size}`);
@@ -161,7 +181,7 @@ const redFlags = [
   dokBandCorrelation > 0.8,
   actualErrorAnalysis.length < Math.ceil(errorAnalysis.length / 2),
   actualTables.length < Math.ceil(tableClaims.length / 2),
-  choiceDocs.length > 0 && correctChoiceIds.size === 1,
+  publicChoiceIdLeaks.length > 0,
   sourceShippingOverlap.length === 0,
   interactionFindings.length > 0,
 ].filter(Boolean).length;
