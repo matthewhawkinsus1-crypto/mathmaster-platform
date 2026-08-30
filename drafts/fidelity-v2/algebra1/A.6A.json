@@ -230,7 +230,102 @@
           "hi": "h+span",
           "top": "a*span*span+k"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-domain-crosses-vertex-range",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "For $q(x)={{a}}(x-{{h}})^2{{k|signed}}$ restricted to ${{lo}}\\le x\\le {{hi}}$, determine the domain and range. The interval crosses the vertex, so evaluate the vertex and BOTH restricted endpoints before deciding the maximum output.",
+          "responseFields": [
+            {
+              "id": "domain",
+              "label": "Domain",
+              "inputProfile": "interval",
+              "expected": "[{{lo}},{{hi}}]"
+            },
+            {
+              "id": "left-output",
+              "label": "q({{lo}})",
+              "inputProfile": "number",
+              "expected": "{{yleft}}"
+            },
+            {
+              "id": "vertex-output",
+              "label": "Vertex output",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "right-output",
+              "label": "q({{hi}})",
+              "inputProfile": "number",
+              "expected": "{{yright}}"
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "inputProfile": "interval",
+              "expected": "[{{k}},{{yleft}}]"
+            }
+          ],
+          "solutionReview": {
+            "headline": "When a restricted interval crosses the vertex, compare the vertex with both endpoint outputs.",
+            "reasoning": [
+              "The vertex x={{h}} lies inside [{{lo}},{{hi}}], so the minimum output is {{k}}.",
+              "The left endpoint is farther from the vertex than the right endpoint, giving q({{lo}})={{yleft}} and q({{hi}})={{yright}}.",
+              "Because the parabola opens upward, the restricted range is [{{k}},{{yleft}}]."
+            ],
+            "answerSummary": "Domain [{{lo}},{{hi}}]; range [{{k}},{{yleft}}]."
+          },
+          "attemptFeedback": [
+            "Do not assume the right endpoint gives the largest output; compare distances from the vertex."
+          ],
+          "supportHints": [
+            "For an upward-opening parabola, farther horizontal distance from the vertex gives a larger output."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "h": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "k": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "left": {
+                "type": "int",
+                "min": 3,
+                "max": 5
+              },
+              "right": {
+                "type": "int",
+                "min": 1,
+                "max": 2
+              }
+            },
+            "derived": {
+              "lo": "h-left",
+              "hi": "h+right",
+              "yleft": "a*left*left+k",
+              "yright": "a*right*right+k"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_6A_v2_downward-range-error",
@@ -349,7 +444,95 @@
             "max": 8
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-range-representation-consistency",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "An upward-opening quadratic has vertex $({{h}},{{k}})$. Student A writes the range as $[{{k}},\\infty)$. Student B writes $y\\ge{{k}}$. Decide whether the two statements represent the SAME set of outputs, explain the role of the included vertex, and give both representations.",
+          "responseFields": [
+            {
+              "id": "verdict",
+              "label": "Are the two range statements equivalent?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes; both include {{k}} and all larger y-values."
+                },
+                {
+                  "id": "no",
+                  "label": "No; interval notation and inequality notation describe different sets."
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "interval",
+              "label": "Range in interval notation",
+              "inputProfile": "interval",
+              "expected": "[{{k}},inf)"
+            },
+            {
+              "id": "inequality",
+              "label": "Range as an inequality",
+              "inputProfile": "inequality",
+              "expected": "y>={{k}}"
+            },
+            {
+              "id": "vertex-role",
+              "label": "Why is the endpoint included?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "attained",
+                  "label": "The vertex is on the graph, so y={{k}} is actually attained."
+                },
+                {
+                  "id": "approached",
+                  "label": "The graph only approaches y={{k}} but never reaches it."
+                }
+              ],
+              "expected": "attained"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Equivalent representations should describe exactly the same attainable outputs.",
+            "reasoning": [
+              "The upward-opening quadratic has minimum output {{k}} at its vertex.",
+              "Because the vertex is part of the graph, {{k}} is included.",
+              "Thus [{{k}},∞) and y≥{{k}} describe the same range."
+            ],
+            "answerSummary": "The representations are equivalent."
+          },
+          "attemptFeedback": [
+            "Compare which y-values each notation includes rather than comparing the symbols visually."
+          ],
+          "supportHints": [
+            "A bracket at {{k}} corresponds to ≥ because the minimum is attained."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "k": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }
