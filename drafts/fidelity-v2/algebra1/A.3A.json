@@ -207,7 +207,7 @@
       "assessedConstruct": "A.3A",
       "taskType": "representationTranslation",
       "representation": "symbolic",
-      "prompt": "Determine the slope of the standard-form line ${{A}}x+{{B}}y={{C}}$ without graphing it.",
+      "prompt": "The line is written in standard form ${{A}}x+{{B}}y={{C}}$. Determine its slope without graphing it.",
       "responseFields": [
         {
           "id": "answer",
