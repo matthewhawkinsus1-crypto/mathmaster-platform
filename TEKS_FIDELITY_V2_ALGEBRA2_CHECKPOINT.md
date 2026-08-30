@@ -429,17 +429,38 @@ Certification result:
 
 Do **not** re-audit A2.4H unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.5A
 
-### A2.5A — REBUILD — STAGED / CERTIFICATION RUNNING
+### A2.5A — REBUILD — CERTIFIED
 
 Official construct: **Determine effects on key attributes of exponential and logarithmic graphs when they are vertically scaled/reflected or translated.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- both transformed exponential and logarithmic graphs are represented repeatedly;
+- secure Function Investigation constructs one transformed exponential graph and one transformed logarithmic graph;
+- vertical stretch/compression, x-axis reflection, horizontal/vertical translation, asymptotes, domain/range, anchor points, and increasing/decreasing behavior are all assessed;
+- complete error analysis repairs parameter-role confusion and finishes the corrected attribute set;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- generated graph points are independently verified against the function specification;
+- incorrect point/attribute work is rejected;
+- public payloads strip answer keys;
+- replacement Algebra II Fidelity V2 Certification run `33324974453`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.5A unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.5B — PENDING AUDIT
+
+Official construct: **Formulate exponential and logarithmic equations that model real-world situations, including exponential relationships written recursively.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.5A
+### A2.5B
 
-Resume here. Do not reopen A2.2A–A2.4H unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.5A unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.5A audit finding
@@ -1292,4 +1313,7 @@ For each standard:
 - Generated content, number-line secure grading, no-real-zero sign case, strict/inclusive breadth, wrong-answer rejection, public-key stripping, and student/runtime build all passed.
 - A2.4H is now locked as certified.
 - FIRST UNFINISHED STANDARD advanced to **A2.5A**.
-- Replacement A2.5A run `33324974453`: **IN_PROGRESS** at this checkpoint.
+- Replacement A2.5A run `33324974453`: **PASS**.
+- Secure graph construction, transformed feature/behavior parity, wrong-point/attribute rejection, public-key stripping, and student/runtime build all passed.
+- A2.5A is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.5B**.
