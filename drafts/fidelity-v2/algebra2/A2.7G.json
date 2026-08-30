@@ -1,8 +1,8 @@
 {
   "standard": "A2.7G",
   "verdict": "REBUILD",
-  "certificationStatus": "candidate-variable-radical-equivalent-forms-square-cube-rational-exponent-absolute-value-error-repair",
-  "rationale": "A2.7G specifically requires rewriting radical expressions that contain variables. Fidelity V2 removes constant-only drift, adds variable-power and indexed-root breadth, handles even-root absolute-value semantics explicitly, and keeps equation solving out of this standard.",
+  "certificationStatus": "candidate-variable-radical-rewritten-forms-square-cube-rational-exponent-absolute-value-error-repair",
+  "rationale": "A2.7G specifically requires rewriting radical expressions that contain variables. Fidelity V2 removes constant-only drift, adds variable-power and indexed-root breadth, handles even-root absolute-value semantics explicitly, and keeps equation solving out of this standard. Final fields preserve the requested rewritten form rather than accepting the unchanged source merely because it is mathematically equivalent.",
   "documents": [
     {
       "id": "mm_A2_7G_v2_square-root-variable-power",
@@ -45,7 +45,6 @@
           "id": "answer",
           "label": "Equivalent simplified radical expression",
           "inputProfile": "expression",
-          "equivalence": "nonnegativeRadicalExpression",
           "expected": "{{k}}*x^{{m}}*sqrt(x)"
         }
       ],
@@ -135,7 +134,6 @@
           "id": "answer",
           "label": "Equivalent simplified expression",
           "inputProfile": "expression",
-          "equivalence": "nonnegativeRadicalExpression",
           "expected": "{{k}}*x^{{m}}"
         }
       ],
@@ -326,7 +324,6 @@
           "id": "answer",
           "label": "Equivalent simplified radical expression",
           "inputProfile": "expression",
-          "equivalence": "nonnegativeRadicalExpression",
           "expected": "x^{{m}}*\\sqrt[{{q}}]{x^{{r}}}"
         }
       ],
