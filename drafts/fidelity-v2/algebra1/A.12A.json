@@ -468,7 +468,272 @@
       },
       "variants": [
         {
-          "coverageKey": "core-2b3"
+          "coverageKey": "core-2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-large-relation-conflict-scan",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "representationTranslation",
+          "representation": "table",
+          "prompt": "The table contains eight ordered pairs. Determine whether the relation is a function. If it is not, identify the repeated input that is paired with two different outputs.",
+          "stimulus": {
+            "kind": "table",
+            "table": {
+              "headers": [
+                "x",
+                "y"
+              ],
+              "rows": [
+                [
+                  "{{x0}}",
+                  "{{y0}}"
+                ],
+                [
+                  "{{x1}}",
+                  "{{y1}}"
+                ],
+                [
+                  "{{x2}}",
+                  "{{y2}}"
+                ],
+                [
+                  "{{x3}}",
+                  "{{y3}}"
+                ],
+                [
+                  "{{x4}}",
+                  "{{y4}}"
+                ],
+                [
+                  "{{xConflict}}",
+                  "{{yc1}}"
+                ],
+                [
+                  "{{x5}}",
+                  "{{y5}}"
+                ],
+                [
+                  "{{xConflict}}",
+                  "{{yc2}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "classification",
+              "label": "Function or not a function?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "function",
+                  "label": "FUNCTION"
+                },
+                {
+                  "id": "not",
+                  "label": "NOT A FUNCTION"
+                }
+              ],
+              "expected": "not"
+            },
+            {
+              "id": "conflict-input",
+              "label": "Input causing the conflict",
+              "inputProfile": "number",
+              "expected": "{{xConflict}}"
+            },
+            {
+              "id": "output-1",
+              "label": "One output paired with that input",
+              "inputProfile": "number",
+              "expected": "{{yc1}}"
+            },
+            {
+              "id": "output-2",
+              "label": "The other output paired with that input",
+              "inputProfile": "number",
+              "expected": "{{yc2}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A relation fails the function rule only when one input is assigned more than one output.",
+            "reasoning": [
+              "Repeated outputs are allowed, so scan the x-column rather than the y-column.",
+              "Input {{xConflict}} appears twice with outputs {{yc1}} and {{yc2}}, so the relation is not a function."
+            ],
+            "answerSummary": "NOT A FUNCTION; conflicting input {{xConflict}}."
+          },
+          "attemptFeedback": [
+            "Look for repeated x-values with different y-values."
+          ],
+          "supportHints": [
+            "A large table can contain repeated outputs without violating the function rule."
+          ],
+          "generator": {
+            "parameters": {
+              "x0": {
+                "type": "int",
+                "min": -8,
+                "max": -4
+              },
+              "xConflict": {
+                "type": "int",
+                "min": -3,
+                "max": 2
+              },
+              "y0": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "y1": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "y2": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "y3": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "y4": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "y5": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "yc1": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "yc2": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "x1": "x0+1",
+              "x2": "x0+2",
+              "x3": "x0+3",
+              "x4": "xConflict+1",
+              "x5": "xConflict+2"
+            },
+            "constraints": [
+              "yc1!=yc2",
+              "x3<xConflict"
+            ]
+          }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-original-vs-swapped-relation",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "reverseReasoning",
+          "representation": "multipleRepresentation",
+          "prompt": "The original relation contains $({{x1}},{{y}})$, $({{x2}},{{y}})$, and $({{x3}},{{z}})$. Classify the original relation, then swap every ordered pair and classify the swapped relation. Identify the input conflict created by the swap.",
+          "responseFields": [
+            {
+              "id": "original",
+              "label": "Original relation",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "function",
+                  "label": "FUNCTION"
+                },
+                {
+                  "id": "not",
+                  "label": "NOT A FUNCTION"
+                }
+              ],
+              "expected": "function"
+            },
+            {
+              "id": "swapped",
+              "label": "Swapped relation",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "function",
+                  "label": "FUNCTION"
+                },
+                {
+                  "id": "not",
+                  "label": "NOT A FUNCTION"
+                }
+              ],
+              "expected": "not"
+            },
+            {
+              "id": "conflict",
+              "label": "Conflicting input in the swapped relation",
+              "inputProfile": "number",
+              "expected": "{{y}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Swapping inputs and outputs can change whether a relation is a function.",
+            "reasoning": [
+              "The original x-values {{x1}}, {{x2}}, and {{x3}} are distinct, so the original relation is a function.",
+              "After swapping, input {{y}} is paired with both {{x1}} and {{x2}}, so the swapped relation is not a function."
+            ],
+            "answerSummary": "Original: function; swapped: not a function."
+          },
+          "attemptFeedback": [
+            "Apply the one-input/one-output rule separately before and after the swap."
+          ],
+          "supportHints": [
+            "Repeated y-values in the original become repeated x-values after swapping."
+          ],
+          "generator": {
+            "parameters": {
+              "x1": {
+                "type": "int",
+                "min": -6,
+                "max": -2
+              },
+              "x2": {
+                "type": "int",
+                "min": -1,
+                "max": 2
+              },
+              "x3": {
+                "type": "int",
+                "min": 3,
+                "max": 7
+              },
+              "y": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "z": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            },
+            "constraints": [
+              "x1!=x2",
+              "x1!=x3",
+              "x2!=x3",
+              "y!=z"
+            ]
+          }
         },
         {
           "coverageKey": "challenge-d3b4-swap-input-output-function-analysis",
