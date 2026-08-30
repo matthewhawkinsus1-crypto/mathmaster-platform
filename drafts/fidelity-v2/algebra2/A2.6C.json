@@ -112,7 +112,210 @@
           "va": "abs(a)",
           "hb": "1/abs(b)"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-fixed-compression-opening",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "interpretation",
+          "representation": "symbolic",
+          "prompt": "Analyze $g(x)=-1.5|2(x-({{h}}))|{{k|signed}}$ relative to $y=|x|$. Identify the scale factors, opening, vertex, and range.",
+          "responseFields": [
+            {
+              "id": "vertical-scale",
+              "label": "Vertical scale factor",
+              "inputProfile": "number",
+              "expected": "1.5"
+            },
+            {
+              "id": "horizontal-scale",
+              "label": "Horizontal scale factor",
+              "inputProfile": "number",
+              "expected": "0.5"
+            },
+            {
+              "id": "x-reflection",
+              "label": "x-axis reflection?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "vertex",
+              "label": "Vertex",
+              "inputProfile": "orderedPair",
+              "expected": "({{h}},{{k}})"
+            },
+            {
+              "id": "opening",
+              "label": "Opening",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "down",
+                  "label": "Down"
+                },
+                {
+                  "id": "up",
+                  "label": "Up"
+                }
+              ],
+              "expected": "down"
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "inputProfile": "inequality",
+              "expected": "y<={{k}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The outside sign controls opening while the inside magnitude controls horizontal scale.",
+            "reasoning": [
+              "a=-1.5 gives a vertical scale of 1.5 and reflects the V across the x-axis.",
+              "b=2 gives horizontal scale 1/2.",
+              "The vertex is ({{h}},{{k}}), the graph opens down, and its range is y≤{{k}}."
+            ],
+            "answerSummary": "Scale 1.5 vertically, 0.5 horizontally; vertex ({{h}},{{k}}); opens down."
+          },
+          "attemptFeedback": [
+            "Read the outside and inside multipliers separately."
+          ],
+          "supportHints": [
+            "For $a|b(x-h)|+k$, horizontal scale is $1/|b|$."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "k": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d2b4-strong-compression-arm-slope",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "interpretation",
+          "representation": "multipleRepresentation",
+          "prompt": "Analyze $g(x)=-3|4(x-({{h}}))|{{k|signed}}$ relative to $y=|x|$. Determine the scale factors, opening, vertex, range, and effective arm-slope magnitude.",
+          "responseFields": [
+            {
+              "id": "vertical-scale",
+              "label": "Vertical scale factor",
+              "inputProfile": "number",
+              "expected": "3"
+            },
+            {
+              "id": "horizontal-scale",
+              "label": "Horizontal scale factor",
+              "inputProfile": "number",
+              "expected": "0.25"
+            },
+            {
+              "id": "x-reflection",
+              "label": "x-axis reflection?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "vertex",
+              "label": "Vertex",
+              "inputProfile": "orderedPair",
+              "expected": "({{h}},{{k}})"
+            },
+            {
+              "id": "opening",
+              "label": "Opening",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "down",
+                  "label": "Down"
+                },
+                {
+                  "id": "up",
+                  "label": "Up"
+                }
+              ],
+              "expected": "down"
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "inputProfile": "inequality",
+              "expected": "y<={{k}}"
+            },
+            {
+              "id": "effective-slope",
+              "label": "Arm slope magnitude |ab|",
+              "inputProfile": "number",
+              "expected": "12"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The effective arm slope reflects both vertical and horizontal scale parameters.",
+            "reasoning": [
+              "a=-3 gives vertical scale 3 and downward opening.",
+              "b=4 gives horizontal scale 1/4.",
+              "The arm slope magnitude is |ab|=12, with vertex ({{h}},{{k}}) and range y≤{{k}}."
+            ],
+            "answerSummary": "Vertical scale 3; horizontal scale 0.25; arm slope 12; opens down."
+          },
+          "attemptFeedback": [
+            "Horizontal scale and arm slope are different quantities."
+          ],
+          "supportHints": [
+            "Use $1/|b|$ for horizontal scale and $|ab|$ for the arm slope magnitude."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_6C_v2_negative-b-point-map",
@@ -215,7 +418,122 @@
           "hm1": "h-1",
           "ay": "k+8"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-negative-b-symmetry-map",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "representationTranslation",
+          "representation": "table",
+          "prompt": "Map parent points through $g(x)=|-4(x-({{h}}))|{{k|signed}}$ and explain why b=-4 does not create a distinct visible reflection for the even absolute-value parent.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Parent points to map",
+            "table": {
+              "headers": [
+                "Parent x",
+                "Parent y"
+              ],
+              "rows": [
+                [
+                  "-4",
+                  "4"
+                ],
+                [
+                  "0",
+                  "0"
+                ],
+                [
+                  "4",
+                  "4"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "left",
+              "label": "Image of (-4,4)",
+              "inputProfile": "orderedPair",
+              "expected": "({{hp1}},{{ay}})"
+            },
+            {
+              "id": "vertex",
+              "label": "Vertex image",
+              "inputProfile": "orderedPair",
+              "expected": "({{h}},{{k}})"
+            },
+            {
+              "id": "right",
+              "label": "Image of (4,4)",
+              "inputProfile": "orderedPair",
+              "expected": "({{hm1}},{{ay}})"
+            },
+            {
+              "id": "horizontal-scale",
+              "label": "Horizontal scale",
+              "inputProfile": "number",
+              "expected": "0.25"
+            },
+            {
+              "id": "negative-b-effect",
+              "label": "Visible effect of b<0",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "same",
+                  "label": "No distinct reflection; symmetric arms swap."
+                },
+                {
+                  "id": "new",
+                  "label": "A new reflected V appears."
+                }
+              ],
+              "expected": "same"
+            }
+          ],
+          "solutionReview": {
+            "headline": "For an even parent, a negative inside multiplier swaps symmetric arms rather than changing the visible graph.",
+            "reasoning": [
+              "Parent x=-4 maps to h+1 and x=4 maps to h-1.",
+              "Both parent points have the same y-value, so their images remain at the same height.",
+              "The horizontal scale is 1/4; the negative sign does not create a distinct reflected V."
+            ],
+            "answerSummary": "Horizontal scale 0.25 with no distinct visible reflection."
+          },
+          "attemptFeedback": [
+            "Separate the coordinate mapping from the visible effect on an even parent."
+          ],
+          "supportHints": [
+            "Absolute value is even: $|-u|=|u|$."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            },
+            "derived": {
+              "hp1": "h+1",
+              "hm1": "h-1",
+              "ay": "k+4"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_6C_v2_graph-horizontal-stretch",
