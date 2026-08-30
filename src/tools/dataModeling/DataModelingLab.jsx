@@ -24,9 +24,9 @@ const inputStyle = { width:'100%', boxSizing:'border-box', padding:'9px 10px', b
 
 const modelFunction = (entry) => entry?.predict || (() => Number.NaN);
 
-const MODE_TASKS = {'full': 'Fit a line to the data, describe the association, choose the best model family, and make a prediction you can defend.', 'lineFit': 'Find the slope and intercept of a line that fits this data well.', 'association': 'Describe the direction and strength of the association, and say what this data can justify.', 'prediction': 'Use the model to predict a value, and say whether that prediction is interpolation or extrapolation.', 'modelCompare': 'Decide which model family fits this data best.'};
-const MODE_STEPS = {'full': ['Adjust the slope and intercept until the residuals are small and evenly scattered.', 'Read the correlation to describe direction and strength.', 'Compare the model families, then predict and classify.'], 'lineFit': ['Move the slope until the line matches the overall trend.', 'Move the intercept until the line sits through the middle of the points.', 'Watch the residual plot — you want it scattered around zero with no pattern.'], 'association': ['Look at whether the points rise or fall from left to right.', 'Look at how tightly they cluster around a line.', 'Decide whether this data could show cause and effect, or only a relationship.'], 'prediction': ['Enter the x-value you are predicting at.', 'Use the model to compute the predicted y.', 'Decide whether that x is inside or outside the observed data.'], 'modelCompare': ['Compare the residual error of each candidate.', 'Check that the shape is reasonable for what the data describes.', 'Select the best model and check.']};
-const HINTS = {'full': ['Work through the panels in order — each one builds on the last.', 'A good fit has residuals scattered above and below zero with no curve or pattern in them.', 'Correlation describes how tightly the points follow a line. It never proves that one variable causes the other.'], 'lineFit': ['Get the slope roughly right first, then slide the intercept to centre the line.', 'Slope is rise over run: pick two points far apart on the trend and compare how much y changes to how much x changes.', 'If the residual plot curves, a straight line is the wrong shape for this data — that is information, not failure.'], 'association': ['Direction is about which way the cloud of points tilts.', 'Strength is about how close the points sit to a single line, not how steep that line is.', 'Observational data can only establish an association. Only a controlled experiment can establish cause and effect.'], 'prediction': ['Substitute your x into the model and compute the y it gives.', 'Interpolation means predicting inside the range of x-values you actually observed.', 'Extrapolation goes beyond the data, where the pattern may not hold — treat those predictions cautiously.'], 'modelCompare': ['Smaller residual error means the model is closer to the points on average.', 'RMSE punishes large misses more than MAE does, so a model with one big error will look worse under RMSE.', 'Also ask whether the shape makes sense: a model that fits well but predicts a negative quantity is still wrong.']};
+const MODE_TASKS = {'full': 'Fit a line to the data, describe the association, choose the best model family, and make a prediction you can defend.', 'lineFit': 'Find the slope and intercept of a line that fits this data well.', 'association': 'Describe the direction and strength of the association, and say what this data can justify.', 'correlation': 'Use statistical technology to calculate the correlation coefficient r, then interpret its direction and strength and state what the data can justify.', 'prediction': 'Use the model to predict a value, and say whether that prediction is interpolation or extrapolation.', 'modelCompare': 'Decide which model family fits this data best.'};
+const MODE_STEPS = {'full': ['Adjust the slope and intercept until the residuals are small and evenly scattered.', 'Read the correlation to describe direction and strength.', 'Compare the model families, then predict and classify.'], 'lineFit': ['Move the slope until the line matches the overall trend.', 'Move the intercept until the line sits through the middle of the points.', 'Watch the residual plot — you want it scattered around zero with no pattern.'], 'association': ['Look at whether the points rise or fall from left to right.', 'Look at how tightly they cluster around a line.', 'Decide whether this data could show cause and effect, or only a relationship.'], 'correlation': ['Run a correlation calculation on the x- and y-data using statistical technology.', 'Record r to at least the thousandths place.', 'Use the sign and magnitude of r to interpret direction and strength, then distinguish association from causation.'], 'prediction': ['Enter the x-value you are predicting at.', 'Use the model to compute the predicted y.', 'Decide whether that x is inside or outside the observed data.'], 'modelCompare': ['Compare the residual error of each candidate.', 'Check that the shape is reasonable for what the data describes.', 'Select the best model and check.']};
+const HINTS = {'full': ['Work through the panels in order — each one builds on the last.', 'A good fit has residuals scattered above and below zero with no curve or pattern in them.', 'Correlation describes how tightly the points follow a line. It never proves that one variable causes the other.'], 'lineFit': ['Get the slope roughly right first, then slide the intercept to centre the line.', 'Slope is rise over run: pick two points far apart on the trend and compare how much y changes to how much x changes.', 'If the residual plot curves, a straight line is the wrong shape for this data — that is information, not failure.'], 'association': ['Direction is about which way the cloud of points tilts.', 'Strength is about how close the points sit to a single line, not how steep that line is.', 'Observational data can only establish an association. Only a controlled experiment can establish cause and effect.'], 'correlation': ['Use the statistical correlation or linear-regression feature of your approved technology; do not estimate r from the picture.', 'The sign of r gives direction. The size of |r| describes how tightly the points follow a line.', 'Correlation can support an association claim, but correlation alone cannot establish cause and effect.'], 'prediction': ['Substitute your x into the model and compute the y it gives.', 'Interpolation means predicting inside the range of x-values you actually observed.', 'Extrapolation goes beyond the data, where the pattern may not hold — treat those predictions cautiously.'], 'modelCompare': ['Smaller residual error means the model is closer to the points on average.', 'RMSE punishes large misses more than MAE does, so a model with one big error will look worse under RMSE.', 'Also ask whether the shape makes sense: a model that fits well but predicts a negative quantity is still wrong.']};
 
 function ResidualPlot({ rows, xMin, xMax }) {
   const absMax = Math.max(2, ...rows.map((row) => Math.abs(row.residual || 0)));
@@ -61,6 +61,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const [predictionX, setPredictionX] = useState(questionData.predictionX ?? xMax - 1);
   const [predictionY, setPredictionY] = useState('');
   const [predictionType, setPredictionType] = useState('interpolation');
+  const [correlationEntry, setCorrelationEntry] = useState('');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
   const studentResiduals = useMemo(() => residualsForLine(points, Number(m), Number(b)), [points, m, b]);
@@ -72,9 +73,10 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
 
   const requiredParts = mode === 'lineFit' ? ['fit']
     : mode === 'association' ? ['association']
-      : mode === 'prediction' ? ['prediction']
-        : mode === 'modelCompare' ? ['modelChoice']
-          : ['fit', 'association', 'modelChoice', 'prediction'];
+      : mode === 'correlation' ? ['correlation', 'association']
+        : mode === 'prediction' ? ['prediction']
+          : mode === 'modelCompare' ? ['modelChoice']
+            : ['fit', 'association', 'modelChoice', 'prediction'];
 
   const check = () => {
     const results = {};
@@ -86,6 +88,10 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       && Math.abs(fitSlope - regression.m) <= slopeTolerance
       && Math.abs(fitIntercept - regression.b) <= interceptTolerance;
     results.association = direction === descriptor.direction && strength === descriptor.strength && causation === (questionData.causationSupported ? 'causation' : 'association');
+    const enteredCorrelation = parseNumericAnswer(correlationEntry);
+    const correlationTolerance = Number(questionData.correlationTolerance ?? 0.03);
+    results.correlation = enteredCorrelation != null
+      && Math.abs(enteredCorrelation - r) <= correlationTolerance;
     results.modelChoice = modelChoice === expectedModelId;
     const predictionTolerance = Number(questionData.predictionTolerance ?? Math.max(0.5, Math.abs(expectedPrediction) * 0.08));
     const predicted = parseNumericAnswer(predictionY);
@@ -97,7 +103,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
     const score = scored.filter(Boolean).length / scored.length;
     submit(
       { isCorrect: score === 1, score },
-      { m:Number(m), b:Number(b), direction, strength, causation, modelChoice, predictionX:Number(predictionX), predictionY:Number(predictionY), predictionType },
+      { m:Number(m), b:Number(b), r:Number(correlationEntry), direction, strength, causation, modelChoice, predictionX:Number(predictionX), predictionY:Number(predictionY), predictionType },
       {
         mode,
         parts: results,
@@ -134,7 +140,26 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
         </Panel>
 
         <Panel title="2 · Association and causation">
-          <p style={{ marginTop:0, color:'#4b5563' }}>Correlation coefficient: <strong>r ≈ {round(r, 3)}</strong></p>
+          {mode === 'correlation' ? (
+            <div style={{ marginBottom:12 }}>
+              <Field label="Correlation coefficient r">
+                <input
+                  type="number"
+                  step="0.001"
+                  inputMode="decimal"
+                  value={correlationEntry}
+                  onChange={(e)=>{setCorrelationEntry(e.target.value);clearFeedback();}}
+                  placeholder="Use statistical technology, then enter r"
+                  style={inputStyle}
+                />
+              </Field>
+              <p style={{ margin:'7px 0 0', color:'#5f6b7a', fontSize:13 }}>
+                Calculate r from the x- and y-data using statistical technology. The lab intentionally does not display r in this mode.
+              </p>
+            </div>
+          ) : (
+            <p style={{ marginTop:0, color:'#4b5563' }}>Correlation coefficient: <strong>r ≈ {round(r, 3)}</strong></p>
+          )}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
             <Field label="Direction"><select value={direction} onChange={(e)=>setDirection(e.target.value)} style={inputStyle}><option value="positive">Positive</option><option value="negative">Negative</option><option value="none">No clear direction</option></select></Field>
             <Field label="Strength"><select value={strength} onChange={(e)=>setStrength(e.target.value)} style={inputStyle}><option value="strong">Strong</option><option value="moderate">Moderate</option><option value="weak">Weak</option><option value="none">None</option></select></Field>
@@ -194,7 +219,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
               {(() => {
                 const parts = feedback.metadata?.parts || {};
                 const missed = requiredParts.filter((part) => !parts[part]);
-                const label = { fit:'the line of best fit', association:'the association description', modelChoice:'the model family', prediction:'the prediction' };
+                const label = { fit:'the line of best fit', correlation:'the correlation coefficient', association:'the association description', modelChoice:'the model family', prediction:'the prediction' };
                 const text = feedback.isCorrect
                   ? 'Every part of your modelling reasoning holds up.'
                   : `Still to fix: ${missed.map((part) => label[part] || part).join(', ')}. Everything else is right.`;
