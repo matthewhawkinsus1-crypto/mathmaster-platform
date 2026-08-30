@@ -621,7 +621,120 @@
           "yu": "m*u+b",
           "yv": "m*v+b"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-simple-constant-transfer-error",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "solutionMethod": "factoring",
+          "prompt": "A student sets $y=x+{{b}}$ equal to $y=x^2{{A|signed}}x{{B|signed}}$ but forgets to move the line's constant {{b}} when forming the quadratic. Diagnose the error, write the corrected reduced equation, and give both ordered-pair solutions.",
+          "stimulus": {
+            "kind": "steps",
+            "title": "Student reduction",
+            "steps": [
+              {
+                "id": "set",
+                "label": "Set equal",
+                "work": "$x+{{b}}=x^2{{A|signed}}x{{B|signed}}$"
+              },
+              {
+                "id": "wrong",
+                "label": "Student claim",
+                "work": "The constant {{b}} can be ignored when moving the line terms."
+              }
+            ]
+          },
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Diagnosis",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "constant",
+                  "label": "The line's constant must also be subtracted when forming the reduced quadratic."
+                },
+                {
+                  "id": "ignore",
+                  "label": "Constants do not affect system intersections."
+                }
+              ],
+              "expected": "constant"
+            },
+            {
+              "id": "reduced",
+              "label": "Correct reduced quadratic",
+              "inputProfile": "equation",
+              "expected": "x^2{{C|signed}}x{{D|signed}}=0"
+            },
+            {
+              "id": "point1",
+              "label": "First solution",
+              "inputProfile": "orderedPair",
+              "expected": "({{u}},{{yu}})"
+            },
+            {
+              "id": "point2",
+              "label": "Second solution",
+              "inputProfile": "orderedPair",
+              "expected": "({{v}},{{yv}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Every term in the line must be moved when the equations are set equal.",
+            "reasoning": [
+              "Subtract both x and {{b}} from the quadratic side.",
+              "The corrected reduced equation has roots {{u}} and {{v}}.",
+              "Use y=x+{{b}} to recover both y-values."
+            ],
+            "answerSummary": "Two corrected ordered-pair solutions."
+          },
+          "attemptFeedback": [
+            "Correct the reduced equation before solving for either coordinate."
+          ],
+          "supportHints": [
+            "Move the entire line expression, not only its x-term."
+          ],
+          "generator": {
+            "parameters": {
+              "b": {
+                "type": "int",
+                "min": -4,
+                "max": 4,
+                "exclude": [
+                  0
+                ]
+              },
+              "u": {
+                "type": "int",
+                "min": -4,
+                "max": -1
+              },
+              "v": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            },
+            "derived": {
+              "C": "-(u+v)",
+              "D": "u*v",
+              "A": "C+1",
+              "B": "D+b",
+              "yu": "u+b",
+              "yv": "v+b"
+            }
+          }
+        }
+      ]
     }
   ]
 }
