@@ -2841,7 +2841,7 @@
         "Move an imaginary vertical line from left to right and check whether it ever hits two points at the same $x$-value."
       ],
       "supportHints": [
-        "Functions may repeat outputs; the problem is one input paired with two different outputs."
+        "The vertical-line test asks whether any single x-value is paired with more than one y-value."
       ],
       "generator": {
         "parameters": {
