@@ -15,6 +15,7 @@ import {
   splitEquationSides,
 } from './algebraicForm.mjs';
 import { stackDivisions } from './stackDivisions.mjs';
+import { sameExpandedPolynomialExpression } from './expandedPolynomialExpressionEquivalence.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
 
@@ -461,6 +462,12 @@ export const sameValue = (left, right, tolerance = 1e-6) => {
   if (sameSimpleInequality(left, right, tolerance)) return true;
   if (sameFormPreservingEquation(left, right)) return true;
   if (sameFormPreservingExpression(left, right)) return true;
+  // Expanded polynomial answers are mathematical expressions, so harmless
+  // term order and coefficient arithmetic must not make a correct student
+  // response wrong. The comparator is deliberately form-specific: if either
+  // side contains a grouped variable expression such as (x+2)(x+3), it
+  // refuses rather than silently turning a factoring task into expansion.
+  if (sameExpandedPolynomialExpression(left, right, tolerance)) return true;
   if (sameInverseFunctionEquation(left, right, tolerance)) return true;
   if (sameExpandedPolynomialEquation(left, right, tolerance)) return true;
   // LAST RESORT, and only for equations. Text equality already handled every
