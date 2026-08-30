@@ -99,7 +99,7 @@
         {
           "id": "behavior",
           "label": "Overall behavior for base > 1",
-          "kind": "text",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "decreasing"
@@ -249,7 +249,7 @@
         {
           "id": "behavior",
           "label": "Overall behavior for base > 1",
-          "kind": "text",
+          "kind": "value",
           "responseMode": "text",
           "expected": [
             "increasing"
