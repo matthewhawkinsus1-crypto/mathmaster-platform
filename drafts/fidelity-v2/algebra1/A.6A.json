@@ -308,43 +308,36 @@
       "assessedConstruct": "A.6A",
       "taskType": "transfer",
       "representation": "multipleRepresentation",
-      "prompt": "A quadratic has domain all real numbers, opens {{direction}}, and has vertex $({{h}},{{k}})$. Write its range in interval notation and give the inequality statement that describes the same y-values.",
+      "prompt": "A quadratic has domain all real numbers, opens upward, and has vertex $({{h}},{{k}})$. Write its range in interval notation and give the inequality statement that describes the same y-values.",
       "responseFields": [
         {
           "id": "interval",
           "label": "Range in interval notation",
           "inputProfile": "interval",
-          "expected": "{{interval}}"
+          "expected": "[{{k}},inf)"
         },
         {
           "id": "inequality",
           "label": "Equivalent range inequality",
           "inputProfile": "inequality",
-          "expected": "{{ineq}}"
+          "expected": "y>={{k}}"
         }
       ],
       "solutionReview": {
         "headline": "The same range can be represented as an interval or as an inequality.",
         "reasoning": [
-          "The opening direction determines whether {{k}} is the minimum or maximum output.",
-          "The endpoint is included because the vertex lies on the graph, so both representations include equality."
+          "Opening upward makes {{k}} the minimum output.",
+          "The vertex is included, so the range is $[{{k}},\\infty)$, equivalently $y\\ge {{k}}$."
         ]
       },
       "attemptFeedback": [
-        "Make the interval direction and inequality direction agree with the opening of the parabola."
+        "Both representations must say that y is greater than or equal to the vertex output."
       ],
       "supportHints": [
-        "Upward: y is at least k. Downward: y is at most k."
+        "Upward-opening quadratics have a minimum at the vertex."
       ],
       "generator": {
         "parameters": {
-          "up": {
-            "type": "choice",
-            "values": [
-              0,
-              1
-            ]
-          },
           "h": {
             "type": "int",
             "min": -5,
@@ -355,11 +348,6 @@
             "min": -8,
             "max": 8
           }
-        },
-        "derived": {
-          "direction": "up==1?'upward':'downward'",
-          "interval": "up==1?'['+k+',inf)':'(-inf,'+k+']'",
-          "ineq": "up==1?'y>='+k:'y<='+k"
         }
       }
     }
