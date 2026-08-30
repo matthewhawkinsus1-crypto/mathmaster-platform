@@ -139,7 +139,125 @@
         "derived": {
           "maxcost": "fee+rate*maxh"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d2b2-bounded-service-domain-range",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "A service charges {{fee}} dollars plus {{rate}} dollars per hour and may be booked from 0 through {{maxh}} hours. Write the reasonable domain of h and the corresponding range of C in interval notation. Use the two endpoint costs to determine the range.",
+          "responseFields": [
+            {
+              "id": "domain",
+              "label": "Reasonable domain of h",
+              "inputProfile": "expression",
+              "expected": "[0,{{maxh}}]"
+            },
+            {
+              "id": "min-cost",
+              "label": "Minimum cost",
+              "inputProfile": "number",
+              "expected": "{{fee}}"
+            },
+            {
+              "id": "max-cost",
+              "label": "Maximum cost",
+              "inputProfile": "number",
+              "expected": "{{maxCost}}"
+            },
+            {
+              "id": "range",
+              "label": "Range of C",
+              "inputProfile": "expression",
+              "expected": "[{{fee}},{{maxCost}}]"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "fee": {
+                "type": "int",
+                "min": 5,
+                "max": 30,
+                "step": 5
+              },
+              "rate": {
+                "type": "int",
+                "min": 2,
+                "max": 10
+              },
+              "maxh": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              }
+            },
+            "derived": {
+              "maxCost": "fee+rate*maxh"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d2b4-two-representations-decreasing-bounded-range",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "For the decreasing linear function $f(x)=-{{mag}}x{{b|signed}}$ restricted to $[{{lo}},{{hi}}]$, determine the range and then write the same range both in interval notation and as a compound inequality in y.",
+          "responseFields": [
+            {
+              "id": "left-output",
+              "label": "f({{lo}})",
+              "inputProfile": "number",
+              "expected": "{{yleft}}"
+            },
+            {
+              "id": "right-output",
+              "label": "f({{hi}})",
+              "inputProfile": "number",
+              "expected": "{{yright}}"
+            },
+            {
+              "id": "interval",
+              "label": "Range in interval notation",
+              "inputProfile": "expression",
+              "expected": "[{{yright}},{{yleft}}]"
+            },
+            {
+              "id": "inequality",
+              "label": "Equivalent range inequality",
+              "inputProfile": "expression",
+              "expected": "{{yright}}<=y and y<={{yleft}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "mag": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              },
+              "b": {
+                "type": "int",
+                "min": -12,
+                "max": 12
+              },
+              "lo": {
+                "type": "int",
+                "min": -6,
+                "max": -1
+              },
+              "width": {
+                "type": "int",
+                "min": 3,
+                "max": 8
+              }
+            },
+            "derived": {
+              "hi": "lo+width",
+              "yleft": "-mag*lo+b",
+              "yright": "-mag*hi+b"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_2A_v2_discrete-mapping-domain-range",
@@ -501,7 +619,51 @@
           "rlo": "min(yleft,yright)",
           "rhi": "max(yleft,yright)"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d3b3-endpoint-reasoning-range-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "For $p(x)=-{{mag}}x{{b|signed}}$ on $[{{lo}},{{hi}}]$, Student A says the range is $[{{yleft}},{{yright}}]$ because those outputs came from the left and right endpoints in that order. Student B says the smaller output must be written first. Decide which reasoning is valid, use the endpoint outputs to justify it, and give the correct range.",
+          "responseFields": [
+            {
+              "id": "left-output",
+              "label": "p({{lo}})",
+              "inputProfile": "number",
+              "expected": "{{yleft}}"
+            },
+            {
+              "id": "right-output",
+              "label": "p({{hi}})",
+              "inputProfile": "number",
+              "expected": "{{yright}}"
+            },
+            {
+              "id": "reasoning",
+              "label": "Which student's reasoning is valid?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "student-b",
+                  "label": "Student B; interval notation is ordered from the smaller output to the larger output."
+                },
+                {
+                  "id": "student-a",
+                  "label": "Student A; range endpoints must stay in left-to-right input order."
+                }
+              ],
+              "expected": "student-b"
+            },
+            {
+              "id": "range",
+              "label": "Correct range",
+              "inputProfile": "expression",
+              "expected": "[{{yright}},{{yleft}}]"
+            }
+          ]
+        }
+      ]
     }
   ]
 }
