@@ -3,6 +3,7 @@ import {
   DEFAULT_MASTERY_COURSE_ID, MASTERY_STATUS_COLORS, getMasteryStrands, masteryCourseLabel,
 } from '../../platform/mastery/strandConfig.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
+import { normalizeCoursePathPassProgress } from '../../platform/path/pathPassPresentation.js';
 
 const polarToCartesian = (cx, cy, radius, angle) => ({
   x: cx + radius * Math.cos(angle),
@@ -26,6 +27,7 @@ const describeArc = (cx, cy, innerRadius, outerRadius, startAngle, endAngle) => 
 
 export const MyMathPathWheel = ({
   masteryProfilesByTEKS = {},
+  skillProgressByTEKS = {},
   onSelectTEKS,
   size = 380,
   // The wheel shows the course the student is enrolled in. Showing an Algebra
@@ -45,10 +47,12 @@ export const MyMathPathWheel = ({
       mastery: { status: 'Not Enough Evidence', estimate: null },
       signals: { retention: 'stable' },
     },
+    passProgress: normalizeCoursePathPassProgress(skillProgressByTEKS[code] || {}),
   })));
   const anglePerSegment = entries.length ? (2 * Math.PI) / entries.length : 0;
   const gapAngle = 0.012;
   const activeProfile = focusedTeks ? masteryProfilesByTEKS[focusedTeks] : null;
+  const activePass = focusedTeks ? normalizeCoursePathPassProgress(skillProgressByTEKS[focusedTeks] || {}) : null;
   // Wrapped so a long skill name does not run off the hub of the wheel.
   const focusedLabel = focusedTeks ? studentLabelForTeks(focusedTeks) : 'My Math Path';
 
@@ -61,10 +65,14 @@ export const MyMathPathWheel = ({
           const status = entry.profile.mastery?.status || 'Not Enough Evidence';
           const active = focusedTeks === entry.code;
           const retentionConcern = ['concern', 'confirmedLoss'].includes(entry.profile.signals?.retention);
+          const passCount = entry.passProgress?.passesCompleted || 0;
           const badge = polarToCartesian(center, center, outerRadius + 7, (startAngle + endAngle) / 2);
+          const passBadge = polarToCartesian(center, center, outerRadius - 9, (startAngle + endAngle) / 2);
+          const passColor = passCount >= 3 ? '#5b21b6' : '#137333';
           return (
-            <g key={entry.code} role="button" tabIndex="0" aria-label={`${studentLabelForTeks(entry.code)}: ${status}`} onClick={() => onSelectTEKS?.(entry.code)} onFocus={() => setFocusedTeks(entry.code)} onBlur={() => setFocusedTeks(null)} onMouseEnter={() => setFocusedTeks(entry.code)} onMouseLeave={() => setFocusedTeks(null)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectTEKS?.(entry.code); } }} style={{ cursor: 'pointer' }}>
-              <path d={describeArc(center, center, innerRadius, active ? outerRadius + 5 : outerRadius, startAngle, endAngle)} fill={MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS['Not Enough Evidence']} opacity={active ? 1 : 0.9} stroke="#fff" strokeWidth="2" />
+            <g key={entry.code} role="button" tabIndex="0" aria-label={`${studentLabelForTeks(entry.code)}: ${status}${passCount ? ` · Path Pass ${Math.min(passCount, 3)} complete` : ''}`} onClick={() => onSelectTEKS?.(entry.code)} onFocus={() => setFocusedTeks(entry.code)} onBlur={() => setFocusedTeks(null)} onMouseEnter={() => setFocusedTeks(entry.code)} onMouseLeave={() => setFocusedTeks(null)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectTEKS?.(entry.code); } }} style={{ cursor: 'pointer' }}>
+              <path d={describeArc(center, center, innerRadius, active ? outerRadius + 5 : outerRadius, startAngle, endAngle)} fill={MASTERY_STATUS_COLORS[status] || MASTERY_STATUS_COLORS['Not Enough Evidence']} opacity={active ? 1 : 0.9} stroke={passCount ? passColor : '#fff'} strokeWidth={passCount ? 3 : 2} />
+              {passCount > 0 && <circle cx={passBadge.x} cy={passBadge.y} r="4.5" fill={passColor} stroke="#fff" strokeWidth="1.5" />}
               {retentionConcern && <circle cx={badge.x} cy={badge.y} r="5" fill="#d93025" stroke="#fff" strokeWidth="2" />}
             </g>
           );
@@ -77,6 +85,11 @@ export const MyMathPathWheel = ({
           {focusedLabel}
         </text>
         <text x={center} y={center + 15} textAnchor="middle" style={{ fontSize: '12px', fill: '#5f6368' }}>{focusedTeks ? (activeProfile?.mastery?.status || 'Not practised yet') : 'Choose a skill'}</text>
+        {focusedTeks && activePass?.passesCompleted > 0 && (
+          <text x={center} y={center + 32} textAnchor="middle" style={{ fontSize: '10.5px', fontWeight: 800, fill: activePass.passesCompleted >= 3 ? '#5b21b6' : '#137333' }}>
+            Path Pass {Math.min(activePass.passesCompleted, 3)} complete
+          </text>
+        )}
       </svg>
     </div>
   );
