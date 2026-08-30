@@ -569,7 +569,11 @@ export const MyMathPathProductionContainer = ({
     const weeklyPurposeLabel = session?.weeklySlotKey
       ? (PURPOSE_LABEL[session?.weeklyPurpose] || 'Weekly Path')
       : null;
-    const coursePassLevel = !weeklyPurposeLabel && !directAssessment && session?.sessionKind !== 'retentionProbe'
+    const courseChallengeIntent = !weeklyPurposeLabel
+      && !directAssessment
+      && session?.sessionKind !== 'retentionProbe'
+      && session?.coursePracticeIntent === 'challenge';
+    const coursePassLevel = !courseChallengeIntent && !weeklyPurposeLabel && !directAssessment && session?.sessionKind !== 'retentionProbe'
       ? Math.max(1, Math.min(3, Number(session?.coursePassLevel || 1)))
       : null;
     const coursePassName = coursePassLevel ? coursePathLevelName(coursePassLevel) : null;
@@ -593,7 +597,9 @@ export const MyMathPathProductionContainer = ({
                 ? `${challenge.label} complete`
                 : weeklyPurposeLabel
                   ? `${weeklyPurposeLabel} complete`
-                  : coursePassLevel
+                  : courseChallengeIntent
+                    ? 'Challenge complete'
+                    : coursePassLevel
                     ? `Level ${coursePassLevel} complete`
                     : 'Session complete'}
         </h1>
@@ -603,6 +609,12 @@ export const MyMathPathProductionContainer = ({
               ? `You completed all ${weeklyGoalRequired} of ${weeklyGoalRequired} weekly Path sessions.`
               : 'You completed every assigned weekly Path session.'}
             {' '}Free-choice paths are unlocked for the rest of the week.
+          </div>
+        )}
+        {courseChallengeIntent && !paused && (
+          <div style={{ margin: '0 auto 16px', maxWidth: 540, padding: '12px 14px', borderRadius: 10, background: '#f3ecfd', color: '#5b21b6', lineHeight: 1.55 }}>
+            <strong style={{ display: 'block', marginBottom: 3 }}>Ahead-of-class Challenge complete</strong>
+            This session adds mastery evidence, but it does not advance the numbered Foundation → Deeper practice → Mastery challenge pass loop for this skill.
           </div>
         )}
         {coursePassLevel && !paused && (
