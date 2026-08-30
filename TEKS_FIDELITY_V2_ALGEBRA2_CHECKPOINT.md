@@ -683,9 +683,36 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.7G
+### A2.7H
 
-Resume here. Do not reopen A2.2A–A2.7F unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.7G unless a failing gate names them.
+
+
+### 2026-08-30 — A2.7H audit finding
+- Official construct: **solve equations involving rational exponents**.
+- TEA breakout contains one direct action: solve equations involving rational exponents.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - unit-fraction exponent equations such as (x^{1/n}=r) are present;
+  - reciprocal-power language and substitution checking are directionally correct.
+- Legacy limitations:
+  - three of five families primarily ask students to recognize/check a method or choose an equation rather than solve one;
+  - the bank overwhelmingly uses the single structure (x^{1/n}=r);
+  - equations such as (x^{2/3}=a), where two real solutions may occur, are absent;
+  - even-denominator rational exponents and their real-domain restrictions are not meaningfully assessed;
+  - translated/scaled equations are absent;
+  - no-real-solution cases are absent;
+  - error analysis stops at choosing “raise both sides to a power” instead of repairing and finishing the solution set.
+- Fidelity V2 requirements:
+  - every family must solve an actual rational-exponent equation;
+  - include a unit-fraction equation with a translated variable;
+  - include an odd-denominator/even-numerator equation that produces two real solutions;
+  - include an even-denominator equation with an explicit real-domain restriction and one valid solution;
+  - include a translated/scaled or no-real-solution case that requires isolation before applying a reciprocal power;
+  - include complete error analysis that repairs a missed negative branch or domain mistake and finishes the solution set;
+  - require solution-set evidence and substitution/domain reasoning where relevant;
+  - keep routine solving DOK 2; reserve DOK 3 for complete error analysis.
+- Existing secure numeric, finite-set, inequality, and equation grading is sufficient; no new Path tool is expected.
 
 
 ### 2026-08-30 — A2.7G audit finding
@@ -713,6 +740,19 @@ Resume here. Do not reopen A2.2A–A2.7F unless a failing gate names them.
   - include complete error analysis that repairs the rewritten expression;
   - keep routine rewriting DOK 2; reserve DOK 3 for complete error analysis.
 - Before staging, certify that the generic expression grader fairly accepts equivalent radical serialization (MathLive square-root/rational-exponent forms) without accepting mathematically different variable powers.
+
+### 2026-08-30 — A2.7G capability, staging, and certification
+- Added opt-in nonnegative-variable radical equivalence in `functions/shared/nonnegativeRadicalExpressionEquivalence.mjs` with dedicated regression tests.
+- Capability gate `33332862077`: **PASS**.
+- Staged five A2.7G Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7G.json` — initial commit `9cd844ffef1c10c719f7d5033c35c391a7226722`.
+- Coverage includes square-root variable-power extraction, radical quotient rewriting, odd-index cube-root rewriting, rational-exponent-to-indexed-radical rewriting, and unrestricted-sign absolute-value error repair.
+- Stronger review intentionally removed broad semantic equivalence from final fields where the requested **rewritten form** itself is evidence; this prevents the unchanged source expression from earning final-form credit.
+- Rational-exponent indexed-radical generation also enforces a reduced fractional part with `gcd(r,q)==1`.
+- Dedicated A2.7G certification is included in the Algebra II workflow and explicitly rejects unchanged source forms.
+- Latest replacement certification run `33333076780`: **PASS**.
+- Generated exponent decomposition, variable presence, square/cube-root mathematics, absolute-value semantics, requested-form grading, secure self-acceptance, answer-key stripping, and student/runtime build all passed.
+- A2.7G is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7H**.
 
 ### 2026-08-30 — A2.7G staged / certification
 - Added opt-in nonnegative monomial radical/rational-exponent equivalence and secure routing; dedicated capability run `33332862077`: **PASS**.
