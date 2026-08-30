@@ -359,7 +359,104 @@
           "arg": "pow(2,wrongLog)",
           "candidate": "h+arg"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-positive-domain-wrong-value",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "interpretation",
+          "representation": "multipleRepresentation",
+          "prompt": "A solver proposes x={{candidate}} for $\\log_2(x-({{h}}))=1$ and argues that the candidate is reasonable because the log argument is positive. Check the domain AND the original equality, then judge the reasoning.",
+          "responseFields": [
+            {
+              "id": "argument",
+              "label": "Original log argument",
+              "inputProfile": "number",
+              "expected": "4"
+            },
+            {
+              "id": "domain",
+              "label": "Domain status",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "valid",
+                  "label": "The candidate is in the logarithm's domain."
+                },
+                {
+                  "id": "invalid",
+                  "label": "The candidate is outside the domain."
+                }
+              ],
+              "expected": "valid"
+            },
+            {
+              "id": "lhs",
+              "label": "Original left side log_2(4)",
+              "inputProfile": "number",
+              "expected": "2"
+            },
+            {
+              "id": "rhs",
+              "label": "Original right side",
+              "inputProfile": "number",
+              "expected": "1"
+            },
+            {
+              "id": "verdict",
+              "label": "Reasonableness verdict",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "reject",
+                  "label": "Reject — the argument is positive, but the original equality is false."
+                },
+                {
+                  "id": "keep",
+                  "label": "Keep — a positive argument alone is enough."
+                }
+              ],
+              "expected": "reject"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Domain validity is necessary but not sufficient.",
+            "reasoning": [
+              "The argument 4 is positive, so the logarithm is defined.",
+              "But $\\log_2(4)=2$, not 1.",
+              "Therefore the candidate must be rejected despite being in the domain."
+            ],
+            "answerSummary": "Reject the candidate."
+          },
+          "attemptFeedback": [
+            "Separate the domain check from the equality check."
+          ],
+          "supportHints": [
+            "After confirming the argument is positive, evaluate the original logarithm."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              }
+            },
+            "derived": {
+              "n": "1",
+              "wrongLog": "2",
+              "arg": "4",
+              "candidate": "h+4"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_5E_v2_two-log-original-check",
@@ -487,7 +584,152 @@
           "h2": "x-p2",
           "sum": "r+s"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d2b4-three-log-original-check",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "multipleRepresentation",
+          "prompt": "A candidate x={{x}} is proposed for a THREE-log equation. Substitute into all three original logarithm arguments, verify each log value, add the three left-side values, and decide whether the candidate satisfies the original equation.",
+          "responseFields": [
+            {
+              "id": "arg1",
+              "label": "First log argument",
+              "inputProfile": "number",
+              "expected": "{{p1}}"
+            },
+            {
+              "id": "arg2",
+              "label": "Second log argument",
+              "inputProfile": "number",
+              "expected": "{{p2}}"
+            },
+            {
+              "id": "arg3",
+              "label": "Third log argument",
+              "inputProfile": "number",
+              "expected": "{{p3}}"
+            },
+            {
+              "id": "domain",
+              "label": "Are all three logarithms defined?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes — all arguments are positive."
+                },
+                {
+                  "id": "no",
+                  "label": "No — at least one argument is not positive."
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "log1",
+              "label": "First logarithm value",
+              "inputProfile": "number",
+              "expected": "{{r}}"
+            },
+            {
+              "id": "log2",
+              "label": "Second logarithm value",
+              "inputProfile": "number",
+              "expected": "{{s}}"
+            },
+            {
+              "id": "log3",
+              "label": "Third logarithm value",
+              "inputProfile": "number",
+              "expected": "{{t}}"
+            },
+            {
+              "id": "lhs",
+              "label": "Original left side total",
+              "inputProfile": "number",
+              "expected": "{{sum}}"
+            },
+            {
+              "id": "verdict",
+              "label": "Reasonableness verdict",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "keep",
+                  "label": "Reasonable"
+                },
+                {
+                  "id": "reject",
+                  "label": "Unreasonable"
+                }
+              ],
+              "expected": "keep"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A longer original equation still uses routine substitution evidence.",
+            "reasoning": [
+              "All three generated arguments are positive.",
+              "Their base-2 log values are {{r}}, {{s}}, and {{t}}.",
+              "The sum is {{sum}}, so the proposed candidate satisfies the original equation."
+            ],
+            "answerSummary": "Keep x={{x}}."
+          },
+          "attemptFeedback": [
+            "Check every original logarithm, not just one or two of them."
+          ],
+          "supportHints": [
+            "Each logarithm requires a positive argument and the total left side must equal the stated right side."
+          ],
+          "generator": {
+            "parameters": {
+              "x": {
+                "type": "int",
+                "min": -2,
+                "max": 6
+              },
+              "r": {
+                "type": "choice",
+                "values": [
+                  1,
+                  2
+                ]
+              },
+              "s": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3
+                ]
+              },
+              "t": {
+                "type": "choice",
+                "values": [
+                  3,
+                  4
+                ]
+              }
+            },
+            "derived": {
+              "p1": "pow(2,r)",
+              "p2": "pow(2,s)",
+              "p3": "pow(2,t)",
+              "h1": "x-p1",
+              "h2": "x-p2",
+              "h3": "x-p3",
+              "sum": "r+s+t"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_5E_v2_context-error-algebra-valid-time-invalid",
