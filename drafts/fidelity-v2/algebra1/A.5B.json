@@ -339,7 +339,117 @@
           "rhs": "-g*correct",
           "wrong": "correct"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b3"
+        },
+        {
+          "coverageKey": "challenge-d3b4-inequality-direction-and-test-point-verification",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "A student solves $-{{g}}x+{{b}}\\le {{rhs}}$ and writes $x\\le {{bound}}$. Repair the algebra, explain the inequality reversal, and use the generated test point x={{test}} to verify which side of the boundary actually belongs to the solution set.",
+          "responseFields": [
+            {
+              "id": "isolated",
+              "label": "Inequality after subtracting {{b}}",
+              "inputProfile": "expression",
+              "expected": "-{{g}}x<={{isolatedRhs}}"
+            },
+            {
+              "id": "diagnosis",
+              "label": "What happens when dividing by -{{g}}?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "reverse",
+                  "label": "Reverse the inequality direction because the divisor is negative."
+                },
+                {
+                  "id": "same",
+                  "label": "Keep the same inequality direction."
+                }
+              ],
+              "expected": "reverse"
+            },
+            {
+              "id": "solution",
+              "label": "Correct solution inequality",
+              "inputProfile": "expression",
+              "expected": "x>={{bound}}"
+            },
+            {
+              "id": "test-value",
+              "label": "Left side of the ORIGINAL inequality at x={{test}}",
+              "inputProfile": "number",
+              "expected": "{{testLeft}}"
+            },
+            {
+              "id": "test-verdict",
+              "label": "Does x={{test}} satisfy the original inequality?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "yes"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The reversal rule can be verified directly against the original inequality.",
+            "reasoning": [
+              "Subtract {{b}} to obtain $-{{g}}x\\le{{isolatedRhs}}$.",
+              "Dividing by the negative coefficient reverses the sign, giving $x\\ge{{bound}}$.",
+              "The test point {{test}} is on that side of the boundary and makes the original left side {{testLeft}}, which is at most {{rhs}}."
+            ],
+            "answerSummary": "$x\\ge{{bound}}$"
+          },
+          "attemptFeedback": [
+            "After reversing the inequality, substitute a value from the proposed solution side into the original statement."
+          ],
+          "supportHints": [
+            "A correct inequality solution should survive a direct test in the original inequality."
+          ],
+          "generator": {
+            "parameters": {
+              "g": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              },
+              "b": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "bound": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "step": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            },
+            "derived": {
+              "isolatedRhs": "-g*bound",
+              "rhs": "b+isolatedRhs",
+              "test": "bound+step",
+              "testLeft": "-g*test+b"
+            }
+          }
+        }
+      ]
     }
   ]
 }
