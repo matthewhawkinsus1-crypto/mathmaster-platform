@@ -1,0 +1,543 @@
+{
+  "standard": "A2.2C",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-inverse-relationship-analysis-quadratic-root-exponential-log-domain-range-restrictions",
+  "rationale": "A2.2C is about describing and analyzing how inverse pairs relate, especially quadratic/square-root and exponential/logarithmic pairs and the domain restrictions needed to make an inverse a function. Fidelity V2 moves equation-writing back to supporting evidence and repeatedly measures domain/range exchange, reflection, paired features, and valid restrictions.",
+  "documents": [
+    {
+      "id": "mm_A2_2C_v2_quadratic-root-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2C:v2-quadratic-root-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2C",
+      "type": "response",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "The functions $f(x)=(x-({{h}}))^2{{k|signed}}$ with domain $x\\ge {{h}}$ and $g(x)=\\sqrt{x-({{k}})}+{{h}}$ are paired. Analyze how the restriction makes them inverses and how their domains and ranges exchange.",
+      "stimulus": {
+        "kind": "expressions",
+        "title": "Quadratic / square-root pair",
+        "expressions": [
+          "$f(x)=(x-({{h}}))^2{{k|signed}},\\;x\\ge {{h}}$",
+          "$g(x)=\\sqrt{x-({{k}})}+{{h}}$"
+        ],
+        "note": "For inverse functions, each ordered pair reverses and the original range becomes the inverse domain."
+      },
+      "responseFields": [
+        {
+          "id": "relationship",
+          "label": "Relationship",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "inverse",
+              "label": "$g=f^{-1}$ and $f=g^{-1}$ on the stated domains"
+            },
+            {
+              "id": "reciprocal",
+              "label": "$g(x)=1/f(x)$"
+            },
+            {
+              "id": "opposite",
+              "label": "$g(x)=-f(x)$"
+            }
+          ],
+          "expected": "inverse"
+        },
+        {
+          "id": "domain-f",
+          "label": "Domain of $f$",
+          "inputProfile": "interval",
+          "expected": "[{{h}},inf)"
+        },
+        {
+          "id": "range-f",
+          "label": "Range of $f$",
+          "inputProfile": "interval",
+          "expected": "[{{k}},inf)"
+        },
+        {
+          "id": "domain-g",
+          "label": "Domain of $g$",
+          "inputProfile": "interval",
+          "expected": "[{{k}},inf)"
+        },
+        {
+          "id": "range-g",
+          "label": "Range of $g$",
+          "inputProfile": "interval",
+          "expected": "[{{h}},inf)"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Inverse functions exchange domain and range.",
+        "reasoning": [
+          "Restricting the quadratic to $x\\ge {{h}}$ keeps one one-to-one branch.",
+          "The restricted quadratic has domain $[{{h}},\\infty)$ and range $[{{k}},\\infty)$.",
+          "The square-root inverse therefore has domain $[{{k}},\\infty)$ and range $[{{h}},\\infty)$."
+        ],
+        "answerSummary": "The two functions are inverses, with domain and range exchanged."
+      },
+      "attemptFeedback": [
+        "Check the branch restriction first, then swap the original function's domain and range."
+      ],
+      "supportHints": [
+        "The inverse's domain is the original function's range, and the inverse's range is the original domain."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2C_v2_left-quadratic-branch",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2C:v2-left-quadratic-branch",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2C",
+      "type": "response",
+      "representation": "symbolic",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "reverseReasoning",
+      "prompt": "A quadratic $f(x)=(x-({{h}}))^2{{k|signed}}$ is restricted to the LEFT branch, $x\\le {{h}}$. Determine which square-root expression is its inverse and analyze the inverse's domain and range.",
+      "responseFields": [
+        {
+          "id": "inverse-form",
+          "label": "Correct inverse",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "left",
+              "label": "$f^{-1}(x)={{h}}-\\sqrt{x-({{k}})}$"
+            },
+            {
+              "id": "right",
+              "label": "$f^{-1}(x)=\\sqrt{x-({{k}})}+{{h}}$"
+            },
+            {
+              "id": "shift-wrong",
+              "label": "$f^{-1}(x)=\\sqrt{x-({{h}})}+{{k}}$"
+            }
+          ],
+          "expected": "left"
+        },
+        {
+          "id": "domain-inverse",
+          "label": "Domain of $f^{-1}$",
+          "inputProfile": "interval",
+          "expected": "[{{k}},inf)"
+        },
+        {
+          "id": "range-inverse",
+          "label": "Range of $f^{-1}$",
+          "inputProfile": "interval",
+          "expected": "(-inf,{{h}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The chosen quadratic branch determines the sign of the square root.",
+        "reasoning": [
+          "The left branch has outputs that come from inputs $x\\le {{h}}$.",
+          "After swapping variables, recovering that left-side input requires the negative square-root branch.",
+          "The original range $[{{k}},\\infty)$ becomes the inverse domain, while the original domain $(-\\infty,{{h}}]$ becomes the inverse range."
+        ],
+        "answerSummary": "$f^{-1}(x)={{h}}-\\sqrt{x-({{k}})}$, domain $[{{k}},\\infty)$, range $(-\\infty,{{h}}]$."
+      },
+      "attemptFeedback": [
+        "The principal positive square root corresponds to the right branch; this problem explicitly keeps the left branch."
+      ],
+      "supportHints": [
+        "Ask whether the inverse outputs must stay at or below the quadratic vertex's x-coordinate."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2C_v2_exponential-log-table",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2C:v2-exponential-log-table",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2C",
+      "type": "response",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "The table shows values of $f(x)={{b}}^x$. Its inverse is $g(x)=\\log_{{b}}x$. Use the reversed input-output relationship to analyze $g$.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Exponential values",
+        "table": {
+          "headers": [
+            "$x$",
+            "$f(x)={{b}}^x$"
+          ],
+          "rows": [
+            [
+              "0",
+              "1"
+            ],
+            [
+              "1",
+              "{{b}}"
+            ],
+            [
+              "2",
+              "{{b2}}"
+            ],
+            [
+              "{{n}}",
+              "{{bn}}"
+            ]
+          ]
+        },
+        "note": "Every point $(x,f(x))$ becomes $(f(x),x)$ on the inverse."
+      },
+      "responseFields": [
+        {
+          "id": "g-of-one",
+          "label": "$g(1)$",
+          "inputProfile": "number",
+          "expected": "0"
+        },
+        {
+          "id": "g-of-b",
+          "label": "$g({{b}})$",
+          "inputProfile": "number",
+          "expected": "1"
+        },
+        {
+          "id": "g-of-bn",
+          "label": "$g({{bn}})$",
+          "inputProfile": "number",
+          "expected": "{{n}}"
+        },
+        {
+          "id": "domain-g",
+          "label": "Domain of $g$",
+          "inputProfile": "interval",
+          "expected": "(0,inf)"
+        },
+        {
+          "id": "range-g",
+          "label": "Range of $g$",
+          "inputProfile": "interval",
+          "expected": "(-inf,inf)"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Logarithms undo exponentials by reversing their ordered pairs.",
+        "reasoning": [
+          "$f({{n}})={{bn}}$ means the inverse satisfies $g({{bn}})={{n}}$.",
+          "The exponential range is $(0,\\infty)$, so that becomes the logarithm's domain.",
+          "The exponential domain is all real numbers, so that becomes the logarithm's range."
+        ],
+        "answerSummary": "$g(1)=0$, $g({{b}})=1$, $g({{bn}})={{n}}$, domain $(0,\\infty)$, range all real numbers."
+      },
+      "attemptFeedback": [
+        "Read each exponential table row as an ordered pair, then reverse it for the logarithm."
+      ],
+      "supportHints": [
+        "If $b^n=v$, then $\\log_b(v)=n$."
+      ],
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "n": {
+            "type": "int",
+            "min": 3,
+            "max": 4
+          }
+        },
+        "derived": {
+          "b2": "b*b",
+          "bn": "pow(b,n)"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2C_v2_exponential-log-features",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2C:v2-exponential-log-features",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2C",
+      "type": "response",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "comparison",
+      "prompt": "Compare $f(x)={{b}}^x$ with $g(x)=\\log_{{b}}x$. Analyze which graph transformation connects them and how a key intercept and asymptote are exchanged.",
+      "stimulus": {
+        "kind": "expressions",
+        "title": "Inverse pair",
+        "expressions": [
+          "$f(x)={{b}}^x$",
+          "$g(x)=\\log_{{b}}x$",
+          "$f(0)=1$"
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "reflection",
+          "label": "Graph relationship",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "yx",
+              "label": "The graphs are reflections across $y=x$."
+            },
+            {
+              "id": "xaxis",
+              "label": "The graphs are reflections across the x-axis."
+            },
+            {
+              "id": "yaxis",
+              "label": "The graphs are reflections across the y-axis."
+            }
+          ],
+          "expected": "yx"
+        },
+        {
+          "id": "f-intercept",
+          "label": "$f$ y-intercept",
+          "inputProfile": "orderedPair",
+          "expected": "(0,1)"
+        },
+        {
+          "id": "g-intercept",
+          "label": "Corresponding $g$ x-intercept",
+          "inputProfile": "orderedPair",
+          "expected": "(1,0)"
+        },
+        {
+          "id": "asymptotes",
+          "label": "How do the asymptotes correspond?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "swap",
+              "label": "$f$ has horizontal asymptote $y=0$ and $g$ has vertical asymptote $x=0$."
+            },
+            {
+              "id": "same-horizontal",
+              "label": "Both have horizontal asymptote $y=0$."
+            },
+            {
+              "id": "none",
+              "label": "Neither function has an asymptote."
+            }
+          ],
+          "expected": "swap"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Reflection across $y=x$ swaps horizontal and vertical features.",
+        "reasoning": [
+          "Inverse ordered pairs swap coordinates, so $(0,1)$ on the exponential becomes $(1,0)$ on the logarithm.",
+          "The exponential's horizontal asymptote $y=0$ reflects to the logarithm's vertical asymptote $x=0$."
+        ],
+        "answerSummary": "Reflection across $y=x$ swaps $(0,1)$ with $(1,0)$ and swaps the horizontal/vertical asymptotes."
+      },
+      "attemptFeedback": [
+        "Track what reflection across $y=x$ does to both coordinates and to horizontal versus vertical lines."
+      ],
+      "supportHints": [
+        "A horizontal line $y=c$ reflects across $y=x$ to the vertical line $x=c$."
+      ],
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2C_v2_unrestricted-quadratic-error",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2C:v2-unrestricted-quadratic-error",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2C",
+      "type": "response",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student claims that $q(x)=(x-({{h}}))^2{{k|signed}}$ and $r(x)=\\sqrt{x-({{k}})}+{{h}}$ are inverse functions when $q$ has domain all real numbers. Analyze the claim and correct it.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's argument",
+        "steps": [
+          {
+            "id": "s1",
+            "label": "Step 1",
+            "work": "Swap $x$ and $y$ in the quadratic."
+          },
+          {
+            "id": "s2",
+            "label": "Step 2",
+            "work": "Take a square root and use only the principal branch."
+          },
+          {
+            "id": "s3",
+            "label": "Claim",
+            "work": "Therefore $r(q(x))=x$ for every real $x$."
+          }
+        ],
+        "note": "Test the claim at $x={{testX}}$, which lies to the left of the vertex."
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "Best diagnosis",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "abs",
+              "label": "The composition becomes $|x-{{h}}|+{{h}}$, so it does not equal $x$ on both sides of the vertex."
+            },
+            {
+              "id": "reciprocal",
+              "label": "The mistake is that an inverse should be the reciprocal $1/q(x)$."
+            },
+            {
+              "id": "always",
+              "label": "There is no mistake; the functions are inverses on all real numbers."
+            }
+          ],
+          "expected": "abs"
+        },
+        {
+          "id": "restriction",
+          "label": "Restriction that makes the stated principal-root inverse valid",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "right",
+              "label": "$x\\ge {{h}}$"
+            },
+            {
+              "id": "left",
+              "label": "$x\\le {{h}}$"
+            },
+            {
+              "id": "exclude",
+              "label": "$x\\ne {{h}}$"
+            }
+          ],
+          "expected": "right"
+        },
+        {
+          "id": "counterexample",
+          "label": "At $x={{testX}}$, what is $r(q(x))$?",
+          "inputProfile": "number",
+          "expected": "{{composition}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The unrestricted quadratic is not one-to-one.",
+        "reasoning": [
+          "Taking the principal square root gives $\\sqrt{(x-{{h}})^2}=|x-{{h}}|$, not $x-{{h}}$ for every real $x$.",
+          "At $x={{testX}}$, the composition returns {{composition}}, not {{testX}}.",
+          "Restricting the quadratic to $x\\ge {{h}}$ selects the branch that the principal square-root inverse reverses."
+        ],
+        "answerSummary": "The student's claim fails on the left branch; restrict the quadratic to $x\\ge {{h}}$."
+      },
+      "attemptFeedback": [
+        "The key issue is one-to-one behavior, not whether a square root can be written algebraically."
+      ],
+      "supportHints": [
+        "For any real $u$, $\\sqrt{u^2}=|u|$."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "testX": "h-d",
+          "composition": "h+d"
+        }
+      }
+    }
+  ]
+}
