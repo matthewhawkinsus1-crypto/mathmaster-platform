@@ -683,9 +683,38 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.7A
+### A2.7B
 
-Resume here. Do not reopen A2.2A–A2.6L unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.7A unless a failing gate names them.
+
+
+### 2026-08-30 — A2.7B audit finding
+- Official construct: **add, subtract, and multiply polynomials**.
+- TEA breakout explicitly requires all three operations:
+  - add polynomials;
+  - subtract polynomials;
+  - multiply polynomials.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - one generated family each already performs addition, subtraction, and binomial multiplication;
+  - coefficient generation includes positive and negative values;
+  - the area family provides one application of polynomial multiplication.
+- Legacy limitations:
+  - one of five legacy families tests degree/leading coefficient rather than adding, subtracting, or multiplying polynomials, so 20% of the bank is off-standard;
+  - addition and subtraction are limited to matching quadratic trinomials and mostly return one final expression;
+  - multiplication is dominated by binomial-by-binomial products and does not reflect the broader Algebra II polynomial degree range;
+  - sparse/missing-degree polynomials are absent, so students are not tested on aligning like powers before adding/subtracting;
+  - no family multiplies a higher-degree polynomial factor (for example cubic by quadratic) to a product above degree 4;
+  - there is no complete operation error analysis that diagnoses a distribution/like-term mistake and repairs the final polynomial.
+- Fidelity V2 requirements:
+  - preserve all three required operations and remove the off-standard degree/leading-coefficient family;
+  - include sparse/missing-term addition and subtraction that require alignment by exponent;
+  - collect key coefficient evidence before the final expanded expression in core families;
+  - include both a product that requires combining like terms and a higher-degree product using factors below degree 4;
+  - include at least one degree-5 or degree-6 product without exceeding the TEKS-supporting polynomial scope;
+  - include complete error analysis that identifies a missed distribution or sign and finishes the corrected operation;
+  - keep routine polynomial arithmetic DOK 2 even when computationally difficult; reserve DOK 3 for genuine error analysis.
+- Existing secure expanded-polynomial expression equivalence should be sufficient; certify harmless term reordering/coefficient arithmetic and reject factored or mathematically changed answers as appropriate.
 
 
 ### 2026-08-30 — A2.7A audit finding
@@ -722,8 +751,10 @@ Resume here. Do not reopen A2.2A–A2.6L unless a failing gate names them.
 - Routine multi-step arithmetic remains DOK 2 across difficulty bands 2–4; only complete error repair is DOK 3.
 - Base Algebra II certification run `33330594410`: **PASS**.
 - Added A2.7A-specific generated certification — commit `47f02755b954719d59ee45a1d87088bfebf65461`.
-- Full A2.7A certification run `33330651450`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.7A** until the full generated certification is green.
+- Full A2.7A certification run `33330651450`: **PASS**.
+- Generated addition/subtraction/multiplication mathematics, deliberate pure-real/pure-imaginary cases, production issuability, secure self-grading, equivalent complex term-order acceptance, wrong-component rejection, DOK-vs-difficulty discipline, public key stripping, and student/runtime build all passed.
+- A2.7A is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7B**.
 
 
 ### 2026-08-30 — A2.6L audit finding
