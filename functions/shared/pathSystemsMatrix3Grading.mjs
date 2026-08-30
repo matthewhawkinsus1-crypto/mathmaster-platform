@@ -64,6 +64,34 @@ export const applyMatrix3RowOperation = (value = {}, operation = {}) => {
   return matrix[target].map((entry, index) => entry - factor * matrix[source][index]);
 };
 
+const normalizeRowOperation = (operation = {}) => {
+  const targetRow = Number(operation.targetRow);
+  const sourceRow = Number(operation.sourceRow);
+  const factor = Number(operation.factor);
+  return [targetRow, sourceRow, factor].every(Number.isFinite)
+    && targetRow >= 0 && targetRow <= 2
+    && sourceRow >= 0 && sourceRow <= 2
+    && targetRow !== sourceRow
+    ? { targetRow, sourceRow, factor }
+    : null;
+};
+
+export const applyMatrix3RowOperationToMatrix = (value = {}, operation = {}) => {
+  const matrix = cleanMatrix3(value);
+  const normalized = normalizeRowOperation(operation);
+  if (!matrix.length || !normalized) return null;
+  const next = clone(matrix);
+  next[normalized.targetRow] = applyMatrix3RowOperation({ rows: matrix }, normalized);
+  return next;
+};
+
+const rowOperationsOf = (question = {}) => {
+  const list = Array.isArray(question.rowOperations)
+    ? question.rowOperations
+    : (question.rowOperation ? [question.rowOperation] : []);
+  return list.map(normalizeRowOperation).filter(Boolean);
+};
+
 const sameRow = (left, right, tolerance) => (
   Array.isArray(left) && Array.isArray(right) && left.length === 4 && right.length === 4
   && left.every((entry, index) => finite(entry) && Math.abs(Number(entry) - Number(right[index])) <= tolerance)
@@ -81,12 +109,8 @@ export const sanitizeSystemsMatrix3PublicQuestion = (question = {}) => ({
   matrix: {
     rows: cleanMatrix3(question.matrix).map((row) => ({ a: row[0], b: row[1], c: row[2], d: row[3] })),
   },
-  ...(question.rowOperation ? {
-    rowOperation: {
-      targetRow: Number(question.rowOperation.targetRow),
-      sourceRow: Number(question.rowOperation.sourceRow),
-      factor: Number(question.rowOperation.factor),
-    },
+  ...(rowOperationsOf(question).length ? {
+    rowOperations: rowOperationsOf(question),
   } : {}),
   ...(question.context ? { context: question.context } : {}),
 });
@@ -95,18 +119,27 @@ export const buildSystemsMatrix3PrivateDefinition = (question = {}) => {
   const matrix = cleanMatrix3(question.matrix);
   const solved = rref3({ rows: matrix });
   const method = ['gaussian', 'rref'].includes(String(question.method)) ? String(question.method) : 'gaussian';
-  const rowOperation = question.rowOperation ? {
-    targetRow: Number(question.rowOperation.targetRow),
-    sourceRow: Number(question.rowOperation.sourceRow),
-    factor: Number(question.rowOperation.factor),
-  } : null;
+  const rowOperations = rowOperationsOf(question);
+  let working = matrix;
+  const checkpoints = [];
+  if (method === 'gaussian') {
+    for (const operation of rowOperations) {
+      const next = applyMatrix3RowOperationToMatrix({ rows: working }, operation);
+      if (!next) break;
+      working = next;
+      checkpoints.push([...working[operation.targetRow]]);
+    }
+  }
   return {
     mode: 'matrix3',
     method,
     matrix,
     solved,
-    rowOperation,
-    checkpoint: method === 'gaussian' && rowOperation ? applyMatrix3RowOperation({ rows: matrix }, rowOperation) : null,
+    rowOperations,
+    checkpoints,
+    // Backward-compatible aliases for the first single-step contract.
+    rowOperation: rowOperations[0] || null,
+    checkpoint: checkpoints[0] || null,
     tolerance: Math.max(1e-8, Math.abs(Number(question.numericTolerance ?? 0.02))),
   };
 };
@@ -117,14 +150,24 @@ export const systemsMatrix3DefinitionIsGradable = (definition = {}) => (
   && definition.solved?.type != null
   && (
     definition.method === 'rref'
-    || (definition.method === 'gaussian' && Array.isArray(definition.checkpoint) && definition.checkpoint.length === 4)
+    || (
+      definition.method === 'gaussian'
+      && Array.isArray(definition.checkpoints)
+      && definition.checkpoints.length > 0
+      && definition.checkpoints.every((row) => Array.isArray(row) && row.length === 4)
+    )
   )
 );
 
 export const validateSystemsMatrix3Response = (raw, definition = {}) => {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, reason: 'A 3×3 system response needs the student work.' };
   if (typeof raw.classification !== 'string' || !raw.classification.trim()) return { ok: false, reason: 'Choose how many solutions the 3×3 system has.' };
-  if (definition.method === 'gaussian' && !Array.isArray(raw.checkpoint)) return { ok: false, reason: 'Enter the required Gaussian-elimination row checkpoint.' };
+  if (definition.method === 'gaussian') {
+    const supplied = Array.isArray(raw.checkpoints) ? raw.checkpoints : (Array.isArray(raw.checkpoint) ? [raw.checkpoint] : []);
+    if (supplied.length !== definition.checkpoints.length) {
+      return { ok: false, reason: 'Enter every required Gaussian-elimination row checkpoint.' };
+    }
+  }
   if (definition.method === 'rref' && !Array.isArray(raw.rref)) return { ok: false, reason: 'Enter the RREF matrix produced by technology.' };
   if (definition.solved?.type === 'one' && ![raw.x, raw.y, raw.z].every(finite)) return { ok: false, reason: 'Enter x, y, and z for the unique solution.' };
   return { ok: true, reason: null };
@@ -137,7 +180,13 @@ export const gradeSystemsMatrix3Response = (definition = {}, raw = {}) => {
   ];
 
   if (definition.method === 'gaussian') {
-    parts.push({ id: 'row-operation', isCorrect: sameRow(raw.checkpoint, definition.checkpoint, tolerance) });
+    const supplied = Array.isArray(raw.checkpoints) ? raw.checkpoints : (Array.isArray(raw.checkpoint) ? [raw.checkpoint] : []);
+    definition.checkpoints.forEach((expected, index) => {
+      parts.push({
+        id: `row-operation-${index + 1}`,
+        isCorrect: sameRow(supplied[index], expected, tolerance),
+      });
+    });
   } else {
     parts.push({ id: 'rref', isCorrect: sameMatrix(raw.rref, definition.solved?.matrix, tolerance) });
   }
