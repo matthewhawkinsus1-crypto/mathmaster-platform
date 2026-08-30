@@ -233,6 +233,14 @@ Resume here. Do not reopen A2.2A–A2.3D unless a failing gate names them.
 - This is formulation, not graph solving; generic secure math-response fields are the right evidence. A2.3F will own construction/solution-region behavior.
 
 
+### 2026-08-30 — A2.3E grading capability check
+- Reused the already-existing algebraic half-plane comparator in `functions/shared/linearInequalityEquivalence.mjs` instead of building a second inequality grader.
+- Found that the comparator had never been wired into the shared `sameValue` path used by generic secure response fields. Without that connection, a student could formulate the correct boundary in an equivalent form such as `3y+2x<=120` instead of `2x+3y<=120` and be marked wrong.
+- Wired `sameLinearInequality` into `functions/shared/answerEquivalence.mjs` — commit `612d91513db3f1353e8c38d222be952ae198e951`.
+- Added regression coverage proving generic secure grading accepts reordered terms, equivalent standard/slope-intercept forms, and reversed sides while still preserving strict versus inclusive boundaries — commit `f84b52a8f8b7feebff4e475ec16419b36b173bef`.
+- This closes a grading-fairness dependency before authoring A2.3E; no new inequality parser was introduced.
+
+
 ### 2026-08-30 — A2.3E staged and gated
 - Staged five A2.3E Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.3E.json` — commit `cfa8f75eb8a22e94f0d90f768e489e19aa047a74`.
 - Students now author the inequalities instead of selecting a prewritten system.
