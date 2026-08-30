@@ -12,6 +12,7 @@ import {
 import { REPRESENTATIONS, TASK_TYPES } from '../../functions/shared/pathQuestionQuality.mjs';
 import {
   feasibleRegionPolygon,
+  satisfiesLinearInequality,
   solve3x3System,
 } from '../../src/tools/systemsWorkspace/systemsMath.js';
 
@@ -967,3 +968,152 @@ test('A2.3F securely constructs and solves two- and three-inequality regions', a
   assert.match(workspaceSource, /INEQUALITY_COLORS/);
   assert.match(workspaceSource, /INEQUALITY_COLORS\[index % INEQUALITY_COLORS\.length\]/);
 });
+
+test('A2.3G determines possible solutions and requires a feasible candidate across full inequality systems', async () => {
+  const entry = payload('A2.3G');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /secure-feasible-point-determination/);
+
+  let generatedCount = 0;
+  let threeConstraintFamilies = 0;
+  let feasibleMarkedFamilies = 0;
+  let infeasibleMarkedFamilies = 0;
+  let strictBoundaryRejectionFamilies = 0;
+  let inclusiveBoundaryAcceptanceFamilies = 0;
+  let contextFamilies = 0;
+  let errorFamilies = 0;
+  let spoiledVerdictsRejected = 0;
+  let spoiledCandidatesRejected = 0;
+  const representations = new Set();
+
+  const pointSatisfiesSystem = (question, point) => (
+    (question.inequalities || []).every((ineq) => satisfiesLinearInequality(ineq, point.x, point.y))
+  );
+
+  const findFeasibleCandidate = (question) => {
+    const graph = question.graph || {};
+    const xMin = Math.ceil(Number(graph.xMin ?? -10));
+    const xMax = Math.floor(Number(graph.xMax ?? 10));
+    const yMin = Math.ceil(Number(graph.yMin ?? -10));
+    const yMax = Math.floor(Number(graph.yMax ?? 10));
+    for (let x = xMin; x <= xMax; x += 1) {
+      for (let y = yMin; y <= yMax; y += 1) {
+        if (pointSatisfiesSystem(question, { x, y })) return { x, y };
+      }
+    }
+    return null;
+  };
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    assert.equal(doc.type, 'systemsWorkspace');
+    assert.equal(doc.mode, 'inequalities');
+    assert.notEqual(doc.interaction, 'construct', `${doc.id} drifted back into A2.3F region construction`);
+    assert.deepEqual(doc.ask, ['testPoint', 'candidate']);
+    assert.ok((doc.inequalities || []).length >= 2);
+    assert.ok(doc.testPoint, `${doc.id} must provide a marked point to judge`);
+
+    if ((doc.inequalities || []).length >= 3) threeConstraintFamilies += 1;
+    if (doc.representation === 'context') contextFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let familyMarkedVerdict = null;
+    let familyStrictBoundaryCase = false;
+    let familyInclusiveBoundaryCase = false;
+    let spoiledVerdictChecked = false;
+    let spoiledCandidateChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+      assert.equal(isPathEligible(question), true, `${doc.id} produced a Path-ineligible candidate-analysis question`);
+
+      const expectedMarked = pointSatisfiesSystem(question, question.testPoint);
+      if (familyMarkedVerdict === null) familyMarkedVerdict = expectedMarked;
+      assert.equal(expectedMarked, familyMarkedVerdict, `${doc.id} changed its intended marked-point verdict across generated instances`);
+
+      const candidate = findFeasibleCandidate(question);
+      assert.ok(candidate, `${doc.id} generated a system with no visible feasible candidate even though A2.3G requires one`);
+
+      const publicPayload = buildPublicToolPayload(question);
+      assert.equal(publicPayload.pathToolId, 'systemsWorkspace');
+      assert.equal(publicPayload.serverGradingVersion, 3);
+      assert.equal(publicPayload.tool.mode, 'inequalities');
+      assert.deepEqual(publicPayload.tool.ask, ['testPoint', 'candidate']);
+      assert.deepEqual(publicPayload.tool.testPoint, {
+        x: Number(question.testPoint.x),
+        y: Number(question.testPoint.y),
+      });
+      assert.equal(JSON.stringify(publicPayload.tool).includes('expectedTestPoint'), false);
+
+      const privateGrading = buildPrivateToolGrading(question);
+      const correctRaw = {
+        testChoice: expectedMarked ? 'yes' : 'no',
+        candidate,
+      };
+      const correct = gradePathResponse({ privateGrading, raw: correctRaw });
+      assert.equal(correct.rejected, false);
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed secure possible-solution self-acceptance: ${JSON.stringify(correct.parts)}`,
+      );
+      assert.equal(correct.parts.find((part) => part.id === 'test-point')?.isCorrect, true);
+      assert.equal(correct.parts.find((part) => part.id === 'candidate-point')?.isCorrect, true);
+
+      if (!spoiledVerdictChecked) {
+        const wrongVerdict = gradePathResponse({
+          privateGrading,
+          raw: { ...correctRaw, testChoice: expectedMarked ? 'no' : 'yes' },
+        });
+        assert.equal(wrongVerdict.rejected, false);
+        assert.equal(wrongVerdict.isCorrect, false, `${doc.id} accepted the opposite marked-point verdict`);
+        spoiledVerdictsRejected += 1;
+        spoiledVerdictChecked = true;
+      }
+
+      if (!spoiledCandidateChecked) {
+        const wrongCandidate = gradePathResponse({
+          privateGrading,
+          raw: { ...correctRaw, candidate: { x: 0, y: 999 } },
+        });
+        assert.equal(wrongCandidate.rejected, false);
+        assert.equal(wrongCandidate.isCorrect, false, `${doc.id} accepted a clearly infeasible candidate`);
+        assert.equal(wrongCandidate.parts.find((part) => part.id === 'candidate-point')?.isCorrect, false);
+        spoiledCandidatesRejected += 1;
+        spoiledCandidateChecked = true;
+      }
+
+      const relations = question.inequalities || [];
+      const onBoundary = relations.find((ineq) => (
+        Math.abs(Number(question.testPoint.y) - (Number(ineq.m) * Number(question.testPoint.x) + Number(ineq.b))) <= 1e-9
+      ));
+      if (onBoundary && !String(onBoundary.relation).includes('=') && expectedMarked === false) familyStrictBoundaryCase = true;
+      if (onBoundary && String(onBoundary.relation).includes('=') && expectedMarked === true) familyInclusiveBoundaryCase = true;
+    }
+
+    if (familyMarkedVerdict) feasibleMarkedFamilies += 1;
+    else infeasibleMarkedFamilies += 1;
+    if (familyStrictBoundaryCase) strictBoundaryRejectionFamilies += 1;
+    if (familyInclusiveBoundaryCase) inclusiveBoundaryAcceptanceFamilies += 1;
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(threeConstraintFamilies >= 2, 'A2.3G must repeatedly determine possible solutions against three simultaneous inequalities');
+  assert.ok(feasibleMarkedFamilies >= 2, 'A2.3G must include marked points that really are possible solutions');
+  assert.ok(infeasibleMarkedFamilies >= 2, 'A2.3G must include marked points that fail the system');
+  assert.ok(strictBoundaryRejectionFamilies >= 1, 'A2.3G must reject a point lying on an excluded boundary');
+  assert.ok(inclusiveBoundaryAcceptanceFamilies >= 1, 'A2.3G must accept a point lying on an included boundary when all other constraints hold');
+  assert.ok(contextFamilies >= 1);
+  assert.ok(errorFamilies >= 1);
+  assert.equal(spoiledVerdictsRejected, entry.documents.length);
+  assert.equal(spoiledCandidatesRejected, entry.documents.length);
+  assert.ok(representations.size >= 4);
+});
+
