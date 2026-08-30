@@ -1,5 +1,27 @@
 # Algebra I TEKS Fidelity V2 — Final Candidate Checkpoint
 
+## Resume anchor — August 30, 2026
+
+Use this section first when resuming in a new chat.
+
+- Branch: `audit/teks-fidelity-v2-algebra1`
+- Draft PR: **#80**
+- Content authoring sweep: **COMPLETE — 49/49 standards, 245/245 V2 families**
+- Shipping promotion: **NOT STARTED BY DESIGN**
+- Current phase: **final certification / defect removal**
+- Current certification head when this checkpoint was written: `65a121b2727d1357ca2c4082502454144039b3dc`
+- The previous Full Platform run exposed 10 failures. The content/test mismatches, blank/null inequality bug, and stale Data Modeling contract assumptions have been corrected.
+- Data Modeling now also rejects blank/null numeric targets instead of coercing them to zero.
+- A real-Chromium `Path Tool Browser Contract` workflow now verifies the newly contracted Data Modeling browser response against the server-contract capture fixture.
+- At this checkpoint these four PR workflows are running on the current head:
+  - Correct Answer Acceptance Audit
+  - Assignment V5 Foundation
+  - Full Platform Test Suite
+  - Path Tool Browser Contract
+- Do **not** promote Algebra I until all certification gates below are green and the semantic/cognitive/generator/manual review passes are complete.
+- Exact next action after resuming: inspect the four workflows on the latest PR head, fix any real failures without weakening gates, then continue the candidate semantic/cognitive/generator audits.
+
+
 ## Current state
 
 The Algebra I Fidelity V2 work remains isolated on `audit/teks-fidelity-v2-algebra1` in draft PR #80.
