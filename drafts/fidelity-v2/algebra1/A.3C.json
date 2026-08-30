@@ -292,7 +292,83 @@
         "derived": {
           "b": "-m*root"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b3"
+        },
+        {
+          "coverageKey": "challenge-d3b4-zero-intercept-label-audit",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "For $y={{m}}x{{b|signed}}$, a student labels the point $(0,{{root}})$ as the x-intercept and $({{b}},0)$ as the y-intercept because the values {{root}} and {{b}} were swapped with the coordinate roles. Repair both intercepts, report the slope, and verify that each corrected intercept satisfies the equation.",
+          "responseFields": [
+            {
+              "id": "slope",
+              "label": "Slope",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "x-intercept-x",
+              "label": "x-coordinate of the x-intercept/zero",
+              "inputProfile": "number",
+              "expected": "{{root}}"
+            },
+            {
+              "id": "x-intercept-y",
+              "label": "y-coordinate of the x-intercept",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "y-intercept-x",
+              "label": "x-coordinate of the y-intercept",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "y-intercept-y",
+              "label": "y-coordinate of the y-intercept",
+              "inputProfile": "number",
+              "expected": "{{b}}"
+            },
+            {
+              "id": "diagnosis",
+              "label": "What was confused?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "coordinate-roles",
+                  "label": "The student confused an intercept VALUE with the coordinate position where the other coordinate must be 0."
+                },
+                {
+                  "id": "slope-only",
+                  "label": "Only the slope was wrong; the intercept coordinates were correct."
+                }
+              ],
+              "expected": "coordinate-roles"
+            }
+          ],
+          "solutionReview": {
+            "headline": "An intercept is a point with one coordinate fixed at zero.",
+            "reasoning": [
+              "The zero satisfies y=0, so x={{root}} and the x-intercept is $({{root}},0)$.",
+              "At x=0, y={{b}}, so the y-intercept is $(0,{{b}})$.",
+              "Both points satisfy the same line of slope {{m}}."
+            ],
+            "answerSummary": "x-intercept $({{root}},0)$; y-intercept $(0,{{b}})$; slope {{m}}."
+          },
+          "attemptFeedback": [
+            "Write each intercept as an ordered pair before labeling it."
+          ],
+          "supportHints": [
+            "At an x-intercept y=0; at a y-intercept x=0."
+          ]
+        }
+      ]
     },
     {
       "id": "mm_A_3C_v2_error-zero-vs-intercept",
