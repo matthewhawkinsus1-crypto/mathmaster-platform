@@ -234,6 +234,17 @@ function sanitizeStimulus(stimulus) {
             .map(visiblePoint).filter(Boolean),
         }))
         .filter((line) => line.points.length === 2),
+      // Curves are sent only as sampled visible coordinates. No function
+      // coefficients/equation are admitted here, which lets a graph be the
+      // stimulus for "write the equation" without shipping that answer in a
+      // hidden functionSpec.
+      curves: (Array.isArray(graph.curves) ? graph.curves : []).slice(0, 4)
+        .map((curve, index) => ({
+          label: String(curve?.label || `Curve ${index + 1}`).slice(0, 60),
+          points: (Array.isArray(curve?.points) ? curve.points : []).slice(0, 32)
+            .map(visiblePoint).filter(Boolean),
+        }))
+        .filter((curve) => curve.points.length >= 2),
       shading: (Array.isArray(graph.shading) ? graph.shading : []).slice(0, 4)
         .map((shade) => ({
           lineIndex: Math.max(0, Math.trunc(Number(shade?.lineIndex) || 0)),
