@@ -571,6 +571,9 @@ async function valuesEquivalent(actual, field) {
     if (field.equivalence === 'rationalExpression') {
       return equivalence.sameRationalExpression(actual, expected, tolerance);
     }
+    if (field.equivalence === 'nonnegativeRadicalExpression') {
+      return equivalence.sameNonnegativeRadicalExpression(actual, expected, tolerance);
+    }
     return equivalence.sameValue(actual, expected, tolerance);
   });
 }
