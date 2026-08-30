@@ -189,5 +189,8 @@ For each standard:
 - Replacement run `33316022565` passed all generation, production-issuability, secure self-grading, public-key stripping, representation breadth, restriction breadth, and task-type checks. It failed only on the final error-analysis identity assertion because the test searched `solutionReview` for the generic `\\sqrt{u^2}=|u|` hint, while that identity is intentionally stored in `supportHints` and the solution review uses the generated shifted form `|x-h|`.
 - Corrected the certification to verify the generic identity in `supportHints` and the generated principal-square-root / absolute-value reasoning in every sampled solution review — commit `852f66d3307f70e14af8102994998648d51cd605`.
 - No content requirement was removed; the check now tests the fields where the mathematics actually lives.
+- Replacement run `33316062716` again passed the substantive A2.2C generation/issuability/self-grading/breadth checks. Its last assertion still depended on the literal text `|x-h|`; sign normalization legitimately rewrites that display as `|x+3|` when the generated shift is negative.
+- Replaced the formatting-dependent assertion with the actual mathematical counterexample: every sampled error-analysis item must generate a concrete input left of the vertex whose computed `r(q(x))` differs from that input — commit `bd9a4cd29170cf143e919375aa8ba266b7bbccde`.
+- This is a stronger certification because it checks the contradiction numerically rather than checking how the explanation happened to be typeset.
 - Replacement certification is triggered from the corrected test.
 - FIRST UNFINISHED STANDARD remains **A2.2C** until the replacement run is green.
