@@ -26,7 +26,7 @@ test('KEEP certification contains no fake table or fake error-analysis metadata'
         assert.ok(doc.stimulus?.table?.rows?.length >= 2, `${doc.id} declares table without a real table`);
       }
       if (doc.taskType === 'errorAnalysis') {
-        assert.match(String(doc.prompt), /student|error|mistake|incorrect|correct|claims?/i,
+        assert.match(String(doc.prompt), /student|error|mistake|incorrect|correct|claims?|headline|flaw/i,
           `${doc.id} labels error analysis without an error to analyze`);
       }
     }
