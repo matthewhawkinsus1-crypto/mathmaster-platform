@@ -57518,17 +57518,17 @@
         },
         "derived": {
           "answer": "l*w*h",
-          "satDistractor1": "l*w",
-          "satDistractor2": "l*h",
-          "satDistractor3": "(l+w+h)"
+          "dBase": "l*w",
+          "dSurface": "2*(l*w+l*h+w*h)",
+          "dCube": "max(l,max(w,h))*max(l,max(w,h))*max(l,max(w,h))"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dBase",
+          "answer!=dSurface",
+          "answer!=dCube",
+          "dBase!=dSurface",
+          "dBase!=dCube",
+          "dSurface!=dCube"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -57555,20 +57555,20 @@
       },
       "choices": [
         {
-          "id": "choice-d",
-          "label": "{{answer}}"
-        },
-        {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dBase}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dSurface}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dCube}}"
+        },
+        {
+          "id": "choice-d",
+          "label": "{{answer}}"
         }
       ]
     },
@@ -57626,11 +57626,16 @@
           "b": "2*k",
           "area": "k*h",
           "d1": "2*k*h",
-          "d2": "k*(h+1)",
+          "d2": "2*(2*k+h)",
           "d3": "k+h"
         },
         "constraints": [
-          "k*h!=k+h"
+          "area!=d1",
+          "area!=d2",
+          "area!=d3",
+          "d1!=d2",
+          "d1!=d3",
+          "d2!=d3"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -57717,27 +57722,25 @@
           "r": {
             "type": "int",
             "min": 2,
-            "max": 10
+            "max": 5
           },
           "h": {
             "type": "int",
             "min": 3,
-            "max": 14
+            "max": 7
           }
         },
         "derived": {
           "answer": "r*r*h",
-          "satDistractor1": "r*r",
-          "satDistractor2": "r*h",
-          "satDistractor3": "(r+r+h)"
+          "dNoHeight": "r*r",
+          "dDiameter": "4*r*r*h",
+          "dSurface": "2*r*r+2*r*h"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dNoHeight",
+          "answer!=dSurface",
+          "dNoHeight!=dSurface",
+          "dSurface!=dDiameter"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -57746,7 +57749,7 @@
           "id": "answer",
           "label": "Choose the correct answer",
           "inputProfile": "choice",
-          "expected": "choice-d"
+          "expected": "choice-c"
         }
       ],
       "attemptFeedback": [
@@ -57764,20 +57767,20 @@
       },
       "choices": [
         {
-          "id": "choice-d",
-          "label": "{{answer}}"
-        },
-        {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dNoHeight}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dSurface}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{answer}}"
+        },
+        {
+          "id": "choice-d",
+          "label": "{{dDiameter}}"
         }
       ]
     },
@@ -57839,8 +57842,8 @@
         "derived": {
           "sa": "2*(l*w+l*h+w*h)",
           "d1": "l*w+l*h+w*h",
-          "d2": "2*(l*w+l*h)",
-          "d3": "2*(l+w+h)"
+          "d2": "l*w*h",
+          "d3": "6*max(l,max(w,h))*max(l,max(w,h))"
         },
         "constraints": [
           "sa!=d1",
@@ -57928,7 +57931,7 @@
         "nativeSkillId": "areaVolume",
         "stemProfile": "area-under-length-scale-factor"
       },
-      "prompt": "A figure has area {{A}} square units. A similar figure is made by multiplying every length by a scale factor of {{k}}. What is the area, in square units, of the similar figure?",
+      "prompt": "Figures $B$ and $C$ are similar to a figure of area {{A}} square units, with every length multiplied by {{k}} and {{m}}, respectively. What is the area, in square units, of figure $B$?",
       "generator": {
         "parameters": {
           "A": {
@@ -57939,15 +57942,29 @@
           "k": {
             "type": "int",
             "min": 2,
-            "max": 5
+            "max": 6
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 6
           }
         },
         "derived": {
           "answer": "A*k*k",
           "d1": "A*k",
           "d2": "A*k*k*k",
-          "d3": "A+k"
-        }
+          "d3": "A*m*m"
+        },
+        "constraints": [
+          "k!=m",
+          "answer!=d1",
+          "answer!=d2",
+          "answer!=d3",
+          "d1!=d2",
+          "d1!=d3",
+          "d2!=d3"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -58038,16 +58055,25 @@
           "s": {
             "type": "int",
             "min": 3,
-            "max": 15
+            "max": 19
           }
         },
         "derived": {
           "q2": "q*q",
           "answer": "q*s",
           "d1": "q*q*s",
-          "d2": "s+q",
-          "d3": "s/q"
-        }
+          "d2": "q*q*q",
+          "d3": "s-q"
+        },
+        "constraints": [
+          "answer!=d1",
+          "answer!=d2",
+          "answer!=d3",
+          "d1!=d2",
+          "d1!=d3",
+          "d2!=d3",
+          "s>q"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -58060,20 +58086,20 @@
       ],
       "choices": [
         {
+          "id": "choice-a",
+          "label": "${{d2}}$"
+        },
+        {
+          "id": "choice-b",
+          "label": "${{d3}}$"
+        },
+        {
           "id": "choice-c",
           "label": "${{answer}}$"
         },
         {
           "id": "choice-d",
           "label": "${{d1}}$"
-        },
-        {
-          "id": "choice-a",
-          "label": "${{d2}}$"
-        },
-        {
-          "id": "choice-b",
-          "label": "$\\dfrac{{{s}}}{{{q}}}$"
         }
       ],
       "attemptFeedback": [
@@ -58139,18 +58165,13 @@
         },
         "derived": {
           "k3": "k*k*k",
-          "answer": "k",
-          "satDistractor1": "k*k",
-          "satDistractor2": "k*k*k",
-          "satDistractor3": "2*k"
+          "k2": "k*k",
+          "k2x": "2*k"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "k*k!=2*k",
+          "k*k*k!=2*k",
+          "k!=2*k"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -58159,7 +58180,7 @@
           "id": "answer",
           "label": "Choose the correct answer",
           "inputProfile": "choice",
-          "expected": "choice-c"
+          "expected": "choice-b"
         }
       ],
       "attemptFeedback": [
@@ -58177,20 +58198,20 @@
       },
       "choices": [
         {
-          "id": "choice-c",
-          "label": "{{answer}}"
-        },
-        {
-          "id": "choice-d",
-          "label": "{{satDistractor1}}"
-        },
-        {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "$1:{{k2}}$"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "$1:{{k}}$"
+        },
+        {
+          "id": "choice-c",
+          "label": "$1:{{k3}}$"
+        },
+        {
+          "id": "choice-d",
+          "label": "$1:{{k2x}}$"
         }
       ]
     },
@@ -58236,23 +58257,23 @@
         "parameters": {
           "l": {
             "type": "int",
-            "min": 2,
-            "max": 6
+            "min": 3,
+            "max": 8
           },
           "w": {
             "type": "int",
-            "min": 2,
-            "max": 6
+            "min": 3,
+            "max": 8
           },
           "dl": {
             "type": "int",
-            "min": 2,
-            "max": 5
+            "min": 1,
+            "max": 4
           },
           "dw": {
             "type": "int",
-            "min": 2,
-            "max": 5
+            "min": 1,
+            "max": 4
           },
           "H": {
             "type": "int",
@@ -58266,12 +58287,15 @@
           "outer": "L*W*H",
           "hole": "l*w*H",
           "answer": "outer-hole",
-          "d3": "outer-l*w"
+          "dInner": "dl*dw*H"
         },
         "constraints": [
           "answer!=hole",
-          "answer!=d3",
-          "hole!=d3"
+          "answer!=dInner",
+          "hole!=dInner",
+          "answer!=outer",
+          "hole!=outer",
+          "dInner!=outer"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -58285,10 +58309,6 @@
       ],
       "choices": [
         {
-          "id": "choice-d",
-          "label": "${{answer}}$"
-        },
-        {
           "id": "choice-a",
           "label": "${{outer}}$"
         },
@@ -58298,7 +58318,11 @@
         },
         {
           "id": "choice-c",
-          "label": "${{d3}}$"
+          "label": "${{dInner}}$"
+        },
+        {
+          "id": "choice-d",
+          "label": "${{answer}}$"
         }
       ],
       "attemptFeedback": [
