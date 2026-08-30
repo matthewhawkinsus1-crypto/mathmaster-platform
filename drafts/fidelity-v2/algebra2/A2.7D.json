@@ -118,7 +118,62 @@
           "Q1": "-(r2+r3)",
           "Q0": "r2*r3"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-small-integer-roots",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "procedural",
+          "representation": "symbolic",
+          "prompt": "Determine all linear factors of $P(x)=x^3+({{A2}})x^2+({{A1}})x+({{A0}})$ using algebraic methods. Test the least integer zero, divide by its factor, then finish the remaining two factors.",
+          "generator": {
+            "parameters": {
+              "r1": {
+                "type": "choice",
+                "values": [
+                  -4,
+                  -3,
+                  -2
+                ]
+              },
+              "r2": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "r3": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            "derived": {
+              "A2": "-(r1+r2+r3)",
+              "A1": "r1*r2+r1*r3+r2*r3",
+              "A0": "-r1*r2*r3",
+              "Q1": "-(r2+r3)",
+              "Q0": "r2*r3"
+            },
+            "constraints": [
+              "r1!=r2",
+              "r2!=r3",
+              "r1!=r3"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_7D_v2_quartic-four-integer-roots",
@@ -665,7 +720,74 @@
           "Q1": "r2*r3+r2*r4+r3*r4",
           "Q0": "-r2*r3*r4"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-root-sign-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student uses the wrong sign in synthetic division for divisor $x-({{r1}})$. Diagnose the setup error, use the correct synthetic number, find the reduced cubic, and finish all four linear factors.",
+          "generator": {
+            "parameters": {
+              "r1": {
+                "type": "choice",
+                "values": [
+                  -4,
+                  -3,
+                  -2
+                ]
+              },
+              "r2": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "r3": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3
+                ]
+              },
+              "r4": {
+                "type": "choice",
+                "values": [
+                  4,
+                  5
+                ]
+              }
+            },
+            "derived": {
+              "wrongSynthetic": "-r1",
+              "A3": "-(r1+r2+r3+r4)",
+              "A2": "r1*r2+r1*r3+r1*r4+r2*r3+r2*r4+r3*r4",
+              "A1": "-(r1*r2*r3+r1*r2*r4+r1*r3*r4+r2*r3*r4)",
+              "A0": "r1*r2*r3*r4",
+              "Q2": "-(r2+r3+r4)",
+              "Q1": "r2*r3+r2*r4+r3*r4",
+              "Q0": "-r2*r3*r4"
+            },
+            "constraints": [
+              "r1!=r2",
+              "r1!=r3",
+              "r1!=r4",
+              "r2!=r3",
+              "r2!=r4",
+              "r3!=r4"
+            ]
+          }
+        }
+      ]
     }
   ]
 }
