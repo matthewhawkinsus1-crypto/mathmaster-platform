@@ -351,3 +351,37 @@ Current Algebra II adaptive counts after A2.4:
 - Strict preferred-cell failures: **29/48**
 
 Next batch: **A2.5A–A2.5E**.
+
+
+## Progress — Algebra II A2.5 and A2.6 adaptive batches green
+
+- Algebra I remains **LOCKED COMPLETE**:
+  - Challenge-ready: 49/49
+  - full preferred five-cell target: 49/49
+  - complete DOK2 axis: 49/49
+  - complete DOK3 axis: 49/49
+  - strict preferred-cell failures: 0
+- Algebra II Challenge/Extension remains **48/48 ready**.
+- Algebra II A2.2 through A2.6L have now completed the preferred independent-axis pass.
+- A2.6 required several fidelity-preserving repairs:
+  - A2.6A preserved transformation-family invariants across variants;
+  - A2.6B made the DOK3/Band3 cube-root repair self-contained;
+  - A2.6E moved its DOK3/Band3 reasoning variant into a two-solution family after the first placement violated the negative-isolated family invariant.
+- Latest A2.6L green gates:
+  - Algebra II Fidelity V2 Certification `33340350773`: **PASS**
+  - Algebra I II Challenge DOK Difficulty Audit `33340350745`: **PASS**
+  - Algebra Challenge DOK Difficulty Audit `33340350753`: **PASS**
+- Machine audit at the A2.6L checkpoint:
+  - Algebra II challenge-ready: 48/48
+  - full preferred five-cell target: **36/48**
+  - complete DOK2 axis: **44/48**
+  - complete DOK3 axis: **36/48**
+  - missing preferred cells: DOK2/Band2 = 4; DOK2/Band3 = 0; DOK2/Band4 = 1; DOK3/Band3 = 12; DOK3/Band4 = 0
+  - strict preferred-cell failures: **12**
+- The only Algebra II standards remaining at that checkpoint are:
+  - A2.7A–A2.7I
+  - A2.8A–A2.8C
+- A2.7A has since received its DOK3/Band3 complex-number repair.
+- A2.7B has since received DOK2/Band2 and DOK3/Band3 polynomial-operation variants.
+- A2.7C has since received its DOK3/Band3 polynomial-division repair and is the current active certification gate.
+- Do not reopen A2.2A–A2.6L unless a named regression gate implicates them.
