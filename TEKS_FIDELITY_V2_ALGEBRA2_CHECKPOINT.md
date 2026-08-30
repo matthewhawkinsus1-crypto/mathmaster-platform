@@ -89,7 +89,7 @@ Do **not** re-audit A2.2B unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.2C — ENHANCE — IN PROGRESS
+### A2.2C — ENHANCE — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Describe and analyze relationships between functions and their inverses, including quadratic/square root and logarithmic/exponential pairs and required domain restrictions.**
 
@@ -167,3 +167,18 @@ For each standard:
   - the unrestricted quadratic mapping family encodes the repeated inverse input with `t` instead of the mathematically faithful `t^2`, so its demonstration of the full parabola's inverse relation is structurally misleading.
 - ENHANCE plan: make quadratic/square-root and exponential/logarithmic pairs the center of all five families; explicitly analyze swapped domain/range and graph features; include both right-branch and left-branch quadratic restrictions; reserve inverse writing as supporting evidence rather than the main assessed action; include one genuine error-analysis family about why an unrestricted quadratic and principal square root are not inverses on all reals.
 - No new interactive-tool capability is required for this standard; secure generic multi-response/stimulus grading is sufficient and avoids unnecessary runtime expansion.
+
+
+### 2026-08-30 — A2.2C staged and gated
+- Staged five A2.2C Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.2C.json` — commit `d69983a6f8b1615acb3bd50f643a1440a3270d69`.
+- Coverage now includes:
+  - right-branch quadratic ↔ principal square-root inverse with explicit domain/range exchange;
+  - left-branch quadratic ↔ negative square-root inverse, so restriction reasoning is not taught as a memorized one-sided rule;
+  - exponential ↔ logarithmic table reversal with domain/range analysis;
+  - exponential/log graph-feature comparison through reflection across `y=x`, swapped intercepts, and horizontal/vertical asymptotes;
+  - error analysis proving why an unrestricted quadratic is not inverted by the principal square root on all real inputs.
+- Package-only targeted workflow run `33315902423`: **PASS** (structural/build gate before the new A2.2C-specific assertions landed).
+- Added A2.2C certification to `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `1a72808866ad245d2e1f7b35e147c4298e5e51e6`.
+- The A2.2C gate now samples 200+ generated instances, runs the production template issue gate, self-grades generated correct answers with the legacy secure field grader, checks public-payload key stripping, requires both quadratic/root and exponential/log breadth, and explicitly requires left/right restriction evidence plus error analysis.
+- Full A2.2C assertion run `33315936785`: **QUEUED/RUNNING when this checkpoint was written**.
+- FIRST UNFINISHED STANDARD remains **A2.2C** until that run is green.
