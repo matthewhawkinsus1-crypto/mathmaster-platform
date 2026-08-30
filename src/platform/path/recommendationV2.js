@@ -308,17 +308,41 @@ export const scoreCandidate = ({
  * still needs course-level work; an above-level student still needs retention.
  */
 export const weeklyMixFor = ({ band, honors = false, sessions = 4 }) => {
-  const mix = honors
-    ? { [PURPOSE.CURRENT_LEARNING]: 2, [PURPOSE.RETENTION]: 1, [PURPOSE.EXTENSION]: 1, [PURPOSE.TRANSFER]: 1 }
-    : { [PURPOSE.CURRENT_LEARNING]: 2, [PURPOSE.RESPONSIVE_REVIEW]: 1, [PURPOSE.RETENTION]: 1 };
+  const count = Math.max(0, Math.floor(Number(sessions) || 0));
+
+  // Honors differentiation must survive a teacher reducing the weekly session
+  // count. The previous implementation authored five desired purposes and then
+  // sliced the array; at four sessions that silently dropped EXTENSION because
+  // TRANSFER happened to appear first in the ordering. That let CCMR transfer
+  // replace the student's course Challenge, even though the two are deliberately
+  // separate Path purposes.
+  if (honors) {
+    const slots = band === INSTRUCTIONAL_BAND.BELOW
+      // Keep contact with the course, repair the blocking foundation, and still
+      // revisit prior learning. Challenge/transfer wait until the foundation holds.
+      ? [PURPOSE.CURRENT_LEARNING, PURPOSE.FOUNDATION_BRIDGE, PURPOSE.RETENTION]
+      // In a compressed Honors week, preserve course Challenge before adding
+      // the extra CCMR transfer slot. A five-session week then restores the
+      // second current-learning session.
+      : [PURPOSE.CURRENT_LEARNING, PURPOSE.RETENTION, PURPOSE.EXTENSION];
+
+    if (band !== INSTRUCTIONAL_BAND.BELOW && count >= 4) slots.push(PURPOSE.TRANSFER);
+    if (count >= 5) slots.splice(1, 0, PURPOSE.CURRENT_LEARNING);
+    while (slots.length < count) slots.push(PURPOSE.CURRENT_LEARNING);
+    return slots.slice(0, count);
+  }
+
+  const mix = {
+    [PURPOSE.CURRENT_LEARNING]: 2,
+    [PURPOSE.RESPONSIVE_REVIEW]: 1,
+    [PURPOSE.RETENTION]: 1,
+  };
 
   if (band === INSTRUCTIONAL_BAND.BELOW) {
     // Repair, but never at the cost of contact with the course.
-    mix[PURPOSE.FOUNDATION_BRIDGE] = honors ? 1 : 1;
-    mix[PURPOSE.EXTENSION] = 0;
-    mix[PURPOSE.TRANSFER] = 0;
+    mix[PURPOSE.FOUNDATION_BRIDGE] = 1;
   }
-  if (band === INSTRUCTIONAL_BAND.ABOVE && !honors) {
+  if (band === INSTRUCTIONAL_BAND.ABOVE) {
     mix[PURPOSE.EXTENSION] = 1;
     mix[PURPOSE.RESPONSIVE_REVIEW] = 0;
   }
@@ -331,8 +355,8 @@ export const weeklyMixFor = ({ band, honors = false, sessions = 4 }) => {
   order.forEach((purpose) => {
     for (let i = 0; i < (mix[purpose] || 0); i += 1) slots.push(purpose);
   });
-  while (slots.length < sessions) slots.push(PURPOSE.CURRENT_LEARNING);
-  return slots.slice(0, sessions);
+  while (slots.length < count) slots.push(PURPOSE.CURRENT_LEARNING);
+  return slots.slice(0, count);
 };
 
 /**
