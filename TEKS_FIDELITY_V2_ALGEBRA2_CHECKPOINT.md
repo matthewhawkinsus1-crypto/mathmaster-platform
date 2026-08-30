@@ -105,17 +105,36 @@ Certification result:
 
 Do **not** re-audit A2.2C unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.2D
 
-### A2.2D — REBUILD — STAGED / CERTIFICATION RUNNING
+### A2.2D — REBUILD — CERTIFIED
 
 Official construct: **Use composition of functions, including necessary domain restrictions, to determine whether two functions are inverses.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- composition is the graded evidence used to decide inverse status in every family;
+- at least three families require both $f(g(x))$ and $g(f(x))$;
+- right-branch and left-branch quadratic/square-root restrictions are both verified;
+- true inverse and non-inverse/counterexample cases are both present;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- public Path payloads strip private answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33316271929`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.2D unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.3A — PENDING AUDIT
+
+Official construct: **Formulate systems of equations, including three linear equations in three variables and systems with one linear and one quadratic equation.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.2D
+### A2.3A
 
-Resume here. Do not reopen A2.2A, A2.2B, or A2.2C unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.2D unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.2D audit finding
@@ -145,7 +164,10 @@ Resume here. Do not reopen A2.2A, A2.2B, or A2.2C unless a failing gate names th
 - Added A2.2D-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `dd5871bdd3c981456a38c9a88a5fff92b1fc8dcb`.
 - The A2.2D gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public answer-key stripping, at least three families with both composition orders, repeated domain-restriction evidence, both left/right branch cases, and at least two non-inverse/counterexample families.
 - Full A2.2D assertion run `33316271929`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.2D** until that run is green.
+- Full A2.2D assertion run `33316271929`: **PASS**.
+- Generated content, production issue gate, secure self-grading, public-key stripping, composition-direction breadth, domain-restriction breadth, non-inverse counterexamples, and student/runtime build all passed.
+- A2.2D is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.3A**.
 
 ---
 
