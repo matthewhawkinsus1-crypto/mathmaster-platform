@@ -559,6 +559,9 @@ async function valuesEquivalent(actual, field) {
     if (field.equivalence === 'polynomialRelation') {
       return equivalence.samePolynomialEquationRelation(actual, expected, tolerance);
     }
+    if (field.equivalence === 'absoluteLinearRelation') {
+      return equivalence.sameAbsoluteValueLinearEquation(actual, expected, tolerance);
+    }
     return equivalence.sameValue(actual, expected, tolerance);
   });
 }
