@@ -145,7 +145,7 @@ Do **not** re-audit A2.3A unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.3B — PENDING AUDIT
+### A2.3B — ENHANCE — AUDITED / CAPABILITY WORK
 
 Official construct: **Solve systems of three linear equations in three variables using Gaussian elimination, technology with matrices, and substitution.**
 
@@ -154,6 +154,29 @@ Official construct: **Solve systems of three linear equations in three variables
 ### A2.3B
 
 Resume here. Do not reopen A2.2A–A2.3A unless a failing gate names them.
+
+
+### 2026-08-30 — A2.3B audit finding
+- Official construct: solve 3×3 linear systems using **Gaussian elimination, technology with matrices, and substitution**.
+- Verdict: **ENHANCE**, not blind rebuild. The legacy triangular/substitution, elimination, and contextual 3-variable solve families contain sound mathematics worth preserving, but the method coverage is incomplete.
+- Legacy gaps:
+  - the triangular family is a legitimate substitution/back-substitution solve;
+  - the elimination family solves a real 3×3 system but does not expose enough row-operation evidence to certify Gaussian elimination;
+  - the “matrix” family only asks students to choose a candidate triple, so it does not use matrix technology;
+  - the contextual family solves a 3×3 system but leaves the method unspecified;
+  - the error-analysis family examines only two equations and does not complete a 3×3 solve.
+- Capability audit found a real platform gap:
+  - `SystemsWorkspace` matrix mode currently supports only **2×2** matrices;
+  - its Path server contracts also grade only 2-variable systems;
+  - the built-in “graphing” calculator drawer explicitly provides numeric/scientific calculations and does **not** provide matrix/RREF technology.
+- Therefore A2.3B must not be certified by pretending a 2×2 matrix tool satisfies a 3×3 TEKS.
+- Next implementation target:
+  1. extend the matrix workspace/math engine to authentic 3×3 augmented matrices and row reduction/RREF;
+  2. add a secure Path contract that recomputes the 3×3 solution/row-reduction evidence server-side;
+  3. preserve at least one substitution family and one Gaussian-elimination family with meaningful intermediate evidence;
+  4. include a true matrix-technology family using the upgraded 3×3 workspace;
+  5. add a complete 3×3 row-operation error-analysis family.
+- A2.3B remains the FIRST UNFINISHED STANDARD. This capability work is now logged so a new chat cannot skip the 3×3 matrix gap or restart the earlier inverse/system-formulation standards.
 
 
 ### 2026-08-30 — A2.3A audit finding
