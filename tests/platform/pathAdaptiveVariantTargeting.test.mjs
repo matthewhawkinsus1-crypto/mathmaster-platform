@@ -296,14 +296,14 @@ test('weekly sessions are not promoted into numbered course Path passes', () => 
 
   assert.match(
     source,
-    /if \(!assessmentFramework && sessionKind !== "retentionProbe" && !requestedWeeklySlotKey\)/,
-    'weekly session startup must not assign an open-practice coursePassLevel',
+    /if \(!assessmentFramework && sessionKind !== "retentionProbe" && !requestedWeeklySlotKey && coursePracticeIntent !== "challenge"\)/,
+    'weekly sessions and semantic Challenge sessions must not receive an ordinary numbered coursePassLevel',
   );
 
   assert.match(
     source,
-    /coursePassLevel: session\.assessmentFramework \|\| session\.weeklySlotKey\s*\? null/,
-    'issued weekly questions must not carry a numbered course Path level',
+    /coursePassLevel: session\.assessmentFramework \|\| session\.weeklySlotKey \|\| session\.coursePracticeIntent === "challenge"[\s\S]*?\? null/,
+    'issued weekly and free-choice Challenge questions must not carry a numbered course Path level',
   );
 });
 
