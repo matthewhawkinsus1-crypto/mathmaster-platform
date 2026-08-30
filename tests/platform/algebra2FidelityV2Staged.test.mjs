@@ -1520,3 +1520,142 @@ test('A2.4C determines the full effect of square-root transformations including 
   assert.ok(taskTypes.has('errorAnalysis'));
 });
 
+test('A2.4D transforms standard form to vertex form before identifying attributes', async () => {
+  const entry = payload('A2.4D');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /standard-to-vertex-completing-square-with-attribute-identification/);
+
+  const representations = new Set();
+  const taskTypes = new Set();
+  let generatedCount = 0;
+  let completingSquareFamilies = 0;
+  let positiveLeadingFamilies = 0;
+  let negativeLeadingFamilies = 0;
+  let nonUnitLeadingFamilies = 0;
+  let errorRepairFamilies = 0;
+  let standardFormRejectedAsVertexForm = 0;
+
+  const evaluatePolynomial = (poly, variable, value) => [...poly.entries()].reduce((sum, [key, coefficient]) => {
+    if (key === '') return sum + coefficient;
+    if (key === variable) return sum + coefficient * value;
+    if (key === `${variable}^2`) return sum + coefficient * value * value;
+    assert.fail(`Unexpected monomial ${key} while checking A2.4D`);
+  }, 0);
+
+  const sourceStandardEquation = (question) => {
+    const explicit = question.responseFields?.find((field) => field.id === 'standard-form')?.expected;
+    if (explicit) return String(explicit);
+
+    const mathChunks = [...String(question.prompt || '').matchAll(/\$([^$]+)\$/g)].map((match) => match[1]);
+    return mathChunks.find((chunk) => /^(?:f\(x\)|H\(t\))=/.test(chunk)) || null;
+  };
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    taskTypes.add(doc.taskType);
+
+    assert.match(doc.prompt, /standard form|standard-form/i, `${doc.id} must begin from standard form`);
+    const vertexFormField = (doc.responseFields || []).find((field) => field.id === 'vertex-form');
+    assert.ok(vertexFormField, `${doc.id} must require the complete vertex form`);
+    assert.equal(vertexFormField.inputProfile, 'equation');
+
+    const evidenceFields = new Set((doc.responseFields || []).map((field) => String(field.id)));
+    if (evidenceFields.has('square-add') || evidenceFields.has('factored')) completingSquareFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') {
+      errorRepairFamilies += 1;
+      assert.ok(evidenceFields.has('diagnosis'));
+      assert.ok(evidenceFields.has('factored'));
+      assert.ok(evidenceFields.has('square-add'));
+      assert.ok(evidenceFields.has('vertex'));
+    }
+
+    const aValues = doc.generator?.parameters?.a?.values || [];
+    if (aValues.some((value) => Number(value) > 0)) positiveLeadingFamilies += 1;
+    if (aValues.some((value) => Number(value) < 0)) negativeLeadingFamilies += 1;
+    if (aValues.some((value) => Math.abs(Number(value)) > 1)) nonUnitLeadingFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let wrongFormChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const standardEquation = sourceStandardEquation(question);
+      assert.ok(standardEquation, `${doc.id} generated no visible/graded standard-form source equation`);
+      const vertexEquation = question.responseFields?.find((field) => field.id === 'vertex-form')?.expected;
+      assert.ok(vertexEquation, `${doc.id} generated no private vertex-form key`);
+
+      const standardSides = splitEquationSides(standardEquation);
+      const vertexSides = splitEquationSides(vertexEquation);
+      assert.ok(standardSides && vertexSides);
+
+      const variable = standardEquation.startsWith('H(t)') ? 't' : 'x';
+      const standardPoly = parsePolynomial(standardSides.right);
+      const vertexPoly = parsePolynomial(vertexSides.right);
+      assert.ok(standardPoly && vertexPoly);
+      for (const probe of [-2, 0, 3]) {
+        assert.ok(
+          Math.abs(evaluatePolynomial(standardPoly, variable, probe) - evaluatePolynomial(vertexPoly, variable, probe)) <= 1e-8,
+          `${doc.id} vertex form is not equivalent to its generated standard form at ${variable}=${probe}`,
+        );
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const result = await gradeResponse(grading, { responses });
+      assert.equal(
+        result.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(result.fieldResults)}`,
+      );
+
+      if (!wrongFormChecked) {
+        const wrongForm = await gradeResponse(grading, {
+          responses: { ...responses, 'vertex-form':standardEquation },
+        });
+        assert.equal(
+          wrongForm.isCorrect,
+          false,
+          `${doc.id} accepted the original standard form in a field explicitly requiring vertex form`,
+        );
+        standardFormRejectedAsVertexForm += 1;
+        wrongFormChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(completingSquareFamilies >= 3, 'A2.4D must repeatedly collect completing-square evidence, not just final vertex form');
+  assert.ok(positiveLeadingFamilies >= 2, 'A2.4D must include upward-opening/minimum cases');
+  assert.ok(negativeLeadingFamilies >= 2, 'A2.4D must include downward-opening/maximum cases');
+  assert.ok(nonUnitLeadingFamilies >= 4, 'A2.4D must repeatedly require factoring a before completing the square');
+  assert.ok(errorRepairFamilies >= 1, 'A2.4D must repair a completing-square error and still finish the attributes');
+  assert.equal(standardFormRejectedAsVertexForm, entry.documents.length);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('context'));
+  assert.ok(representations.has('verbal'));
+  assert.ok(taskTypes.has('procedural'));
+  assert.ok(taskTypes.has('interpretation'));
+  assert.ok(taskTypes.has('representationTranslation'));
+  assert.ok(taskTypes.has('application'));
+  assert.ok(taskTypes.has('errorAnalysis'));
+});
+
