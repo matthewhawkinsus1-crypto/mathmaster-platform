@@ -253,7 +253,155 @@
       },
       "variants": [
         {
-          "coverageKey": "core-2b4"
+          "coverageKey": "core-2b4",
+          "dok": 2,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d2b2-simple-rational-exponent-product",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "representationTranslation",
+          "representation": "symbolic",
+          "prompt": "Simplify $x^(1/2)\\cdot x^({{p}}/2)$ by combining the exponents. Give the combined exponent and the final expression.",
+          "responseFields": [
+            {
+              "id": "numerator",
+              "label": "Numerator of the combined exponent",
+              "inputProfile": "number",
+              "expected": "{{sum}}"
+            },
+            {
+              "id": "denominator",
+              "label": "Denominator of the combined exponent before reduction",
+              "inputProfile": "number",
+              "expected": "2"
+            },
+            {
+              "id": "answer",
+              "label": "Simplified expression",
+              "inputProfile": "expression",
+              "expected": "x^({{reduced}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "When multiplying like bases, add the exponents.",
+            "reasoning": [
+              "$1/2+{{p}}/2={{sum}}/2$.",
+              "Reduce the exponent to {{reduced}} when possible."
+            ],
+            "answerSummary": "$x^{{reduced}}$"
+          },
+          "attemptFeedback": [
+            "Add exponent numerators because the denominators already match."
+          ],
+          "supportHints": [
+            "The product rule is x^a·x^b=x^(a+b)."
+          ],
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "choice",
+                "values": [
+                  1,
+                  3,
+                  5
+                ]
+              }
+            },
+            "derived": {
+              "sum": "1+p",
+              "reduced": "sum/2"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-power-of-power-numeric-check",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "A student claims $(x^({{p}}/{{q}}))^{{q}}=x^({{p}}/{{q}}+{{q}})$. Diagnose the exponent-law error, determine the correct exponent, and verify the rule at x={{x}} by evaluating the original power and the corrected expression.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Correct exponent rule",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "multiply",
+                  "label": "For a power of a power, multiply the exponents."
+                },
+                {
+                  "id": "add",
+                  "label": "For a power of a power, add the exponents."
+                }
+              ],
+              "expected": "multiply"
+            },
+            {
+              "id": "exponent",
+              "label": "Correct final exponent",
+              "inputProfile": "number",
+              "expected": "{{p}}"
+            },
+            {
+              "id": "original-value",
+              "label": "Value of the original expression at x={{x}}",
+              "inputProfile": "number",
+              "expected": "{{value}}"
+            },
+            {
+              "id": "answer",
+              "label": "Correct simplified expression",
+              "inputProfile": "expression",
+              "expected": "x^{{p}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A numerical check can expose an incorrect exponent law.",
+            "reasoning": [
+              "Multiply $({{p}}/{{q}})\\cdot{{q}}={{p}}$.",
+              "At x={{x}}, both the original expression and $x^{{p}}$ equal {{value}}."
+            ],
+            "answerSummary": "$x^{{p}}$"
+          },
+          "attemptFeedback": [
+            "Use the power-of-a-power rule, then test one positive input."
+          ],
+          "supportHints": [
+            "(x^a)^b=x^(ab)."
+          ],
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "q": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3
+                ]
+              },
+              "x": {
+                "type": "choice",
+                "values": [
+                  4,
+                  9,
+                  16
+                ]
+              }
+            },
+            "derived": {
+              "value": "pow(x,p)"
+            }
+          }
         },
         {
           "coverageKey": "challenge-d3b4-rational-exponent-law-error-verification",
