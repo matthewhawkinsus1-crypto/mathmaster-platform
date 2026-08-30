@@ -165,13 +165,32 @@ Do **not** re-audit A2.3B unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.3C — PENDING AUDIT
+### A2.3C — REBUILD — AUDITED / AUTHORING
 
 ## FIRST UNFINISHED STANDARD
 
 ### A2.3C
 
 Resume here. Do not reopen A2.2A–A2.3B unless a failing gate names them.
+
+
+### 2026-08-30 — A2.3C audit finding
+- Official construct: **solve algebraically** a two-variable system containing one linear equation and one quadratic equation.
+- Verdict: **REBUILD**.
+- The legacy bank has correct mathematical ingredients, but only the first two families truly solve a system, and even the two-intersection family returns only the x-values rather than the complete ordered-pair solutions.
+- Legacy drift:
+  - the two-intersection family stops after the two x-coordinates;
+  - the tangent family does return one ordered pair but does not collect the algebraic reduction used to get it;
+  - the table family only counts intersections;
+  - the candidate-error family verifies a supplied point instead of solving;
+  - the reverse family designs a quadratic for prescribed intersections rather than solving the given system.
+- Fidelity V2 requirements:
+  - the student must algebraically reduce the system to one quadratic equation;
+  - every real x-solution must be substituted back to produce the complete ordered-pair solution(s);
+  - the five families must cover systems with **two**, **one/tangent**, and **zero** real solutions;
+  - factoring and quadratic-formula pathways must both appear;
+  - error analysis must repair an algebraic solve and finish the complete ordered pairs, not merely identify a conceptual mistake.
+- Generic secure multi-response grading is sufficient; no new Path tool capability is needed for A2.3C.
 
 
 ### 2026-08-30 — A2.3B audit finding
