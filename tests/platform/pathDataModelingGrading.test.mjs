@@ -8,6 +8,7 @@ import {
   predictionKind as clientPredictionKind,
   quadraticRegression as clientQuadratic,
   exponentialRegression as clientExponential,
+  squareRootRegression as clientSquareRoot,
 } from '../../src/tools/dataModeling/dataModelingMath.js';
 import {
   buildDataModelingPrivateDefinition,
@@ -20,6 +21,7 @@ import {
   pathLinearRegression,
   pathPredictionKind,
   pathQuadraticRegression,
+  pathSquareRootRegression,
   sanitizeDataModelingPublicQuestion,
 } from '../../functions/shared/pathDataModelingGrading.mjs';
 
@@ -63,7 +65,7 @@ test('server correlation and linear regression remain in parity with the client 
   }
 });
 
-test('server quadratic and exponential regressions remain in parity with client math', () => {
+test('server quadratic, exponential, and square-root regressions remain in parity with client math', () => {
   for (const points of datasets) {
     const sq = pathQuadraticRegression(points);
     const cq = clientQuadratic(points);
@@ -80,6 +82,15 @@ test('server quadratic and exponential regressions remain in parity with client 
     else {
       nearly(se.a, ce.a);
       nearly(se.base, ce.base);
+    }
+
+    const ss = pathSquareRootRegression(points);
+    const cs = clientSquareRoot(points);
+    if (!ss || !cs) assert.equal(ss, cs);
+    else {
+      nearly(ss.a, cs.a);
+      nearly(ss.h, cs.h);
+      nearly(ss.k, cs.k);
     }
   }
 });
@@ -340,3 +351,83 @@ test('public Data Modeling payload omits expected model, regression answers and 
   assert.equal('exponentialBaseTolerance' in publicQuestion, false);
   assert.equal('answer' in publicQuestion, false);
 });
+
+test('A2.4E square-root technology fits endpoint-anchored table data and securely grades all parameters', () => {
+  const points = [0, 1, 4, 9, 16].map((offset) => [2 + offset, -3 * Math.sqrt(offset) + 5]);
+  const client = clientSquareRoot(points);
+  const server = pathSquareRootRegression(points);
+  assert.ok(client && server);
+  nearly(client.a, -3);
+  nearly(client.h, 2);
+  nearly(client.k, 5);
+  nearly(server.a, client.a);
+  nearly(server.h, client.h);
+  nearly(server.k, client.k);
+
+  const definition = buildDataModelingPrivateDefinition({
+    points,
+    mode: 'squareRootFitPrediction',
+    predictionX: 27,
+    predictionTolerance: 0.001,
+  });
+  assert.equal(definition.expectedModelId, 'squareRoot');
+  nearly(definition.expectedModel.model.a, -3);
+  nearly(definition.expectedModel.model.h, 2);
+  nearly(definition.expectedModel.model.k, 5);
+
+  const right = gradeDataModelingResponse(definition, {
+    a: -3,
+    h: 2,
+    k: 5,
+    predictionX: 27,
+    predictionY: -10,
+    predictionType: 'extrapolation',
+  });
+  assert.equal(right.rejected, false);
+  assert.equal(right.isCorrect, true);
+  assert.equal(right.score, 1);
+
+  const wrongH = gradeDataModelingResponse(definition, {
+    a: -3,
+    h: 3,
+    k: 5,
+    predictionX: 27,
+    predictionY: -10,
+    predictionType: 'extrapolation',
+  });
+  assert.equal(wrongH.isCorrect, false);
+  assert.equal(wrongH.score, 0.5);
+});
+
+test('square-root fit uses the whole table for a rather than one hand-picked point', () => {
+  const points = [
+    [1, 4],
+    [2, 6.05],
+    [5, 8.10],
+    [10, 10.02],
+    [17, 12.08],
+  ];
+  const fit = pathSquareRootRegression(points);
+  assert.ok(fit);
+  nearly(fit.h, 1);
+  nearly(fit.k, 4);
+  assert.ok(fit.a > 1.99 && fit.a < 2.04);
+
+  const publicQuestion = sanitizeDataModelingPublicQuestion({
+    prompt: 'Use square-root regression technology.',
+    mode: 'squareRootFitPrediction',
+    points,
+    predictionX: 26,
+    squareRootATolerance: 999,
+    squareRootHTolerance: 999,
+    squareRootKTolerance: 999,
+    expectedModel: 'squareRoot',
+  });
+  assert.equal(publicQuestion.mode, 'squareRootFitPrediction');
+  assert.deepEqual(publicQuestion.points, points);
+  assert.equal('expectedModel' in publicQuestion, false);
+  assert.equal('squareRootATolerance' in publicQuestion, false);
+  assert.equal('squareRootHTolerance' in publicQuestion, false);
+  assert.equal('squareRootKTolerance' in publicQuestion, false);
+});
+
