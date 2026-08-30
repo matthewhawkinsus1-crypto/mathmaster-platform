@@ -105,7 +105,107 @@
             "max": 5
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-left-branch-domain-range-exchange",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "interpretation",
+          "representation": "multipleRepresentation",
+          "prompt": "The quadratic $f(x)=(x-({{h}}))^2{{k|signed}}$ is restricted to the LEFT branch $x\\le{{h}}$. Its inverse is $g(x)={{h}}-\\sqrt{x-({{k}})}$. Determine the domain and range of BOTH functions and verify that inverse functions exchange those sets.",
+          "stimulus": {
+            "kind": "expressions",
+            "title": "Left-branch inverse pair",
+            "expressions": [
+              "$f(x)=(x-({{h}}))^2{{k|signed}},\\;x\\le{{h}}$",
+              "$g(x)={{h}}-\\sqrt{x-({{k}})}$"
+            ]
+          },
+          "responseFields": [
+            {
+              "id": "relationship",
+              "label": "Relationship",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "inverse",
+                  "label": "They are inverses on the stated domains."
+                },
+                {
+                  "id": "not",
+                  "label": "They cannot be inverses because g contains a square root."
+                }
+              ],
+              "expected": "inverse"
+            },
+            {
+              "id": "domain-f",
+              "label": "Domain of f",
+              "inputProfile": "interval",
+              "expected": "(-inf,{{h}}]"
+            },
+            {
+              "id": "range-f",
+              "label": "Range of f",
+              "inputProfile": "interval",
+              "expected": "[{{k}},inf)"
+            },
+            {
+              "id": "domain-g",
+              "label": "Domain of g",
+              "inputProfile": "interval",
+              "expected": "[{{k}},inf)"
+            },
+            {
+              "id": "range-g",
+              "label": "Range of g",
+              "inputProfile": "interval",
+              "expected": "(-inf,{{h}}]"
+            },
+            {
+              "id": "inverse-form",
+              "label": "Inverse expression g(x)",
+              "inputProfile": "expression",
+              "expected": "{{h}}-sqrt(x-({{k}}))"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The negative square-root branch reverses the left half of the quadratic.",
+            "reasoning": [
+              "The restricted quadratic accepts x≤{{h}} and has outputs y≥{{k}}.",
+              "Those sets exchange for the inverse: domain [{{k}},∞), range (-∞,{{h}}].",
+              "The negative square root is required because the inverse outputs stay at or below {{h}}."
+            ],
+            "answerSummary": "The domain and range exchange across the inverse pair."
+          },
+          "attemptFeedback": [
+            "Use the branch direction to decide the sign in front of the square root."
+          ],
+          "supportHints": [
+            "The inverse domain is the original range, and the inverse range is the original domain."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_2C_v2_left-quadratic-branch",
@@ -300,7 +400,92 @@
           "b2": "b*b",
           "bn": "pow(b,n)"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-base2-three-row-inverse-table",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "interpretation",
+          "representation": "table",
+          "prompt": "The table shows three values of $f(x)=2^x$. Reverse the ordered pairs to analyze its inverse $g(x)=\\log_2x$, then state the inverse domain and range.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Values of f(x)=2^x",
+            "table": {
+              "headers": [
+                "x",
+                "f(x)"
+              ],
+              "rows": [
+                [
+                  0,
+                  1
+                ],
+                [
+                  1,
+                  2
+                ],
+                [
+                  2,
+                  4
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "g1",
+              "label": "g(1)",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "g2",
+              "label": "g(2)",
+              "inputProfile": "number",
+              "expected": "1"
+            },
+            {
+              "id": "g4",
+              "label": "g(4)",
+              "inputProfile": "number",
+              "expected": "2"
+            },
+            {
+              "id": "domain",
+              "label": "Domain of g",
+              "inputProfile": "interval",
+              "expected": "(0,inf)"
+            },
+            {
+              "id": "range",
+              "label": "Range of g",
+              "inputProfile": "interval",
+              "expected": "(-inf,inf)"
+            }
+          ],
+          "solutionReview": {
+            "headline": "An inverse table simply swaps each input and output.",
+            "reasoning": [
+              "$(0,1),(1,2),(2,4)$ become $(1,0),(2,1),(4,2)$.",
+              "The exponential range (0,∞) becomes the logarithm's domain."
+            ],
+            "answerSummary": "$g(1)=0$, $g(2)=1$, $g(4)=2$; domain (0,∞), range all real numbers."
+          },
+          "attemptFeedback": [
+            "Swap coordinates; do not take reciprocals of the outputs."
+          ],
+          "supportHints": [
+            "If 2^x=y, then log₂(y)=x."
+          ]
+        }
+      ]
     },
     {
       "id": "mm_A2_2C_v2_exponential-log-features",
@@ -405,7 +590,91 @@
             "max": 6
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-asymptote-reflection-claim",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "For the inverse pair $f(x)=2^x$ and $g(x)=\\log_2x$, a student says the horizontal asymptote y=0 of f stays horizontal on g. Use reflection across y=x to evaluate the claim, identify the corresponding intercepts, and give the correct asymptote relationship.",
+          "stimulus": {
+            "kind": "expressions",
+            "title": "Fixed inverse pair",
+            "expressions": [
+              "$f(x)=2^x$",
+              "$g(x)=\\log_2x$",
+              "$f(0)=1$"
+            ]
+          },
+          "responseFields": [
+            {
+              "id": "reflection",
+              "label": "Graph relationship",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yx",
+                  "label": "Reflection across y=x"
+                },
+                {
+                  "id": "xaxis",
+                  "label": "Reflection across the x-axis"
+                }
+              ],
+              "expected": "yx"
+            },
+            {
+              "id": "f-intercept",
+              "label": "f y-intercept",
+              "inputProfile": "orderedPair",
+              "expected": "(0,1)"
+            },
+            {
+              "id": "g-intercept",
+              "label": "g x-intercept",
+              "inputProfile": "orderedPair",
+              "expected": "(1,0)"
+            },
+            {
+              "id": "judgment",
+              "label": "Evaluate the asymptote claim",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "false",
+                  "label": "False. y=0 reflects to the vertical line x=0."
+                },
+                {
+                  "id": "true",
+                  "label": "True. Horizontal asymptotes remain horizontal under inverse reflection."
+                }
+              ],
+              "expected": "false"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Reflection across y=x swaps horizontal and vertical features.",
+            "reasoning": [
+              "The point (0,1) reflects to (1,0).",
+              "The horizontal line y=0 reflects to the vertical line x=0, so the student's claim is false."
+            ],
+            "answerSummary": "Exponential y=0 asymptote ↔ logarithmic x=0 asymptote."
+          },
+          "attemptFeedback": [
+            "Reflect a few points on the asymptote line across y=x to see its new orientation."
+          ],
+          "supportHints": [
+            "Reflection across y=x swaps x- and y-coordinates."
+          ]
+        }
+      ]
     },
     {
       "id": "mm_A2_2C_v2_unrestricted-quadratic-error",
