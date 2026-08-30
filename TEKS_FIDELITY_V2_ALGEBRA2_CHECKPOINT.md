@@ -387,17 +387,36 @@ Certification result:
 
 Do **not** re-audit A2.4F unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.4G
 
-### A2.4G — REBUILD — STAGED / CERTIFICATION AUTHORING
+### A2.4G — REBUILD — CERTIFIED
 
 Official construct: **Identify extraneous solutions of square root equations.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- every family checks squared-equation candidates against the original unsquared square-root equation;
+- repeated families collect concrete original-equation LHS/RHS substitution evidence;
+- both one-extraneous and no-extraneous cases are represented;
+- one family proves radical-domain membership alone is insufficient;
+- contextual transfer and complete error repair are included;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect extraneous/valid conclusions are rejected;
+- public payloads strip answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33323859773`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4G unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.4H — PENDING AUDIT
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.4G
+### A2.4H
 
-Resume here. Do not reopen A2.2A–A2.4F unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.4G unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.4G audit finding
@@ -431,8 +450,10 @@ Resume here. Do not reopen A2.2A–A2.4F unless a failing gate names them.
 - Package/build run `33323815028`: **PASS**, including student/runtime build.
 - Added A2.4G-specific generated certification — commit `add83900854ba59784796772560728a660cea066`.
 - The A2.4G gate samples 200+ generated instances, requires original-equation LHS/RHS substitution evidence, verifies repeated one-extraneous cases plus a no-extraneous case, proves domain membership alone is insufficient, requires context/error-repair breadth, rejects a spoiled extraneous/valid conclusion in every family, and checks public answer-key stripping.
-- Full A2.4G assertion run `33323859773`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.4G** until generated certification is added and green.
+- Full A2.4G assertion run `33323859773`: **PASS**.
+- Generated original-equation checks, no-extraneous breadth, domain-insufficient reasoning, context/error repair, secure wrong-outcome rejection, public-key stripping, and student/runtime build all passed.
+- A2.4G is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4H**.
 
 
 ### 2026-08-30 — A2.4F audit finding
