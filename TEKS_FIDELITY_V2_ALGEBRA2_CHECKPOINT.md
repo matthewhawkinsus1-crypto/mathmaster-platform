@@ -236,6 +236,27 @@ Resume here. Do not reopen A2.2A–A2.3E unless a failing gate names them.
 ### 2026-08-30 — A2.3F audit finding
 - Official construct: **solve systems of two or more linear inequalities in two variables**.
 - Verdict: **REBUILD**.
+- The five legacy families are mostly recognition/interpretation:
+  - family 1 tests a single proposed point instead of solving the system;
+  - family 2 describes a vertical slice of an overlap rather than constructing the full solution set;
+  - family 3 checks boundary inclusion for one inequality only;
+  - family 4 names a shading error but does not require the corrected graph;
+  - family 5 chooses a prewritten system and therefore drifts back toward A2.3E formulation.
+- A2.3F must own **graph construction and solution-region evidence**. A2.3E now owns formulation; A2.3G will own deciding whether particular ordered pairs are possible solutions.
+- The existing secure `systemsWorkspace` inequality-construction contract is a good fit and already grades, server-side, two boundary points per inequality, solid/dashed boundary style, and the correct shading direction. It supports any number of nonvertical slope-intercept inequalities and displays only the student's constructed overlap.
+- Fidelity V2 requirements:
+  - every family must require construction of the system's boundary lines and solution overlap;
+  - cover inclusive, strict, and mixed boundary systems;
+  - include at least one **three-inequality** system so “two or more” is real rather than nominal;
+  - include a system whose correctly constructed half-planes have **no common solution region**;
+  - include contextual transfer and a genuine union-vs-intersection error-repair family;
+  - do not substitute candidate-point testing for solving the region.
+- No new Path tool capability is required for A2.3F; use `systemsWorkspace` with `mode: "inequalities"`, `interaction: "construct"`, and `ask: ["construction"]`.
+
+
+### 2026-08-30 — A2.3F audit finding
+- Official construct: **solve systems of two or more linear inequalities in two variables**.
+- Verdict: **REBUILD**.
 - The legacy bank is almost entirely interpretation/recognition: test a point, read a vertical interval from a table, identify boundary inclusion, identify a shading error, or choose a prewritten system. None requires the student to construct the full solution region.
 - This platform already has the correct secure capability from Algebra I Fidelity V2: `systemsWorkspace` inequality **construction** mode grades two boundary points, solid/dashed style, and shading direction for every inequality, then the workspace computes/displays only the overlap.
 - A2.3F should reuse that tested secure contract rather than create a parallel inequality graph tool.
