@@ -581,6 +581,70 @@ export const sameFiniteSetNotation = (left, right, tolerance = 1e-6) => {
   });
 };
 
+
+/**
+ * Compare structured modeling equations while allowing only harmless
+ * commutativity of top-level additive terms and reversal of equation sides.
+ *
+ * This is deliberately narrower than algebraic equation equivalence. It is
+ * intended for authored rational-model fields such as work-rate equations,
+ * where 1/a + 1/b = 1/t and 1/b + 1/a = 1/t are the same model, but moving or
+ * cancelling variable-dependent terms would change the formulation being
+ * assessed.
+ */
+export const sameCommutativeModelEquation = (left, right) => {
+  const canonicalSide = (value) => {
+    const text = normalizeAnswer(value);
+    if (!text) return null;
+    const terms = [];
+    let token = '';
+    let sign = '+';
+    let roundDepth = 0;
+    let squareDepth = 0;
+    let braceDepth = 0;
+
+    const push = () => {
+      if (!token) return;
+      terms.push(`${sign}${token}`);
+      token = '';
+    };
+
+    for (let index = 0; index < text.length; index += 1) {
+      const char = text[index];
+      if (char === '(') roundDepth += 1;
+      else if (char === ')') roundDepth = Math.max(0, roundDepth - 1);
+      else if (char === '[') squareDepth += 1;
+      else if (char === ']') squareDepth = Math.max(0, squareDepth - 1);
+      else if (char === '{') braceDepth += 1;
+      else if (char === '}') braceDepth = Math.max(0, braceDepth - 1);
+
+      const topLevel = roundDepth === 0 && squareDepth === 0 && braceDepth === 0;
+      if (topLevel && (char === '+' || char === '-') && token) {
+        push();
+        sign = char;
+      } else if (topLevel && (char === '+' || char === '-') && !token) {
+        sign = char;
+      } else {
+        token += char;
+      }
+    }
+    push();
+    return terms.sort().join('');
+  };
+
+  const a = splitEquationSides(left);
+  const b = splitEquationSides(right);
+  if (!a || !b) return false;
+
+  const al = canonicalSide(a.left);
+  const ar = canonicalSide(a.right);
+  const bl = canonicalSide(b.left);
+  const br = canonicalSide(b.right);
+  if (!al || !ar || !bl || !br) return false;
+
+  return (al === bl && ar === br) || (al === br && ar === bl);
+};
+
 export const sameValue = (left, right, tolerance = 1e-6) => {
   const leftSet = parseFiniteSetNotation(left);
   const rightSet = parseFiniteSetNotation(right);
