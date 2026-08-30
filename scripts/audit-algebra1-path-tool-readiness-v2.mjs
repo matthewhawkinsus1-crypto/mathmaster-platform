@@ -21,6 +21,8 @@ const linearSystemQuestion = {
 const inequalitySystemQuestion = {
   type: 'systemsWorkspace',
   mode: 'inequalities',
+  interaction: 'construct',
+  ask: ['construction'],
   prompt: 'Construct both boundaries and the feasible region.',
   inequalities: [
     { m: 1, b: 1, relation: '>=' },
