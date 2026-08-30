@@ -156,3 +156,14 @@ For each standard:
 - Targeted generated-instance/inverse-contract tests: **PASS**.
 - Student/runtime bundle build in the same certification run: **PASS**.
 - A2.2B is now locked as certified; FIRST UNFINISHED STANDARD advanced to **A2.2C**.
+
+
+### 2026-08-30 — A2.2C audit finding
+- Official construct is relationship analysis, not another inverse-equation-writing standard.
+- Legacy A2.2C has useful pieces but drifts toward A2.2B:
+  - the restricted-quadratic item mainly asks students to write the inverse;
+  - the point-swap item is generic coordinate reversal;
+  - the exponential/log item checks one reversed value but does not analyze the exponential/logarithmic relationship;
+  - the unrestricted quadratic mapping family encodes the repeated inverse input with `t` instead of the mathematically faithful `t^2`, so its demonstration of the full parabola's inverse relation is structurally misleading.
+- ENHANCE plan: make quadratic/square-root and exponential/logarithmic pairs the center of all five families; explicitly analyze swapped domain/range and graph features; include both right-branch and left-branch quadratic restrictions; reserve inverse writing as supporting evidence rather than the main assessed action; include one genuine error-analysis family about why an unrestricted quadratic and principal square root are not inverses on all reals.
+- No new interactive-tool capability is required for this standard; secure generic multi-response/stimulus grading is sufficient and avoids unnecessary runtime expansion.
