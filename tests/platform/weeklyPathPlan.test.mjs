@@ -194,12 +194,26 @@ test('a teacher pin survives the whole two-engine journey', () => {
     'a teacher choice must not have to outscore the engine to be honoured');
 });
 
-test('an Honors week reaches beyond the course; a regular week does not have to', () => {
+test('an Honors week requests both course Challenge and CCMR transfer when the week has room', () => {
   const options = optionsFor();
   const honors = buildWeeklyPathPlan({ options, courseId: 'algebra1', honors: true, sessions: 5, now: NOW });
   const purposes = new Set(honors.requestedMix);
-  assert.ok(purposes.has(PURPOSE.EXTENSION) || purposes.has(PURPOSE.TRANSFER),
-    'Honors pacing has to ask for something the regular week does not');
+  assert.equal(honors.requestedMix.length, 5);
+  assert.ok(purposes.has(PURPOSE.EXTENSION),
+    'Honors pacing must preserve a course-TEKS Challenge slot');
+  assert.ok(purposes.has(PURPOSE.TRANSFER),
+    'Honors pacing must also preserve a CCMR transfer slot');
+});
+
+test('a four-session Honors plan keeps Challenge and transfer instead of truncating one', () => {
+  const options = optionsFor();
+  const honors = buildWeeklyPathPlan({ options, courseId: 'algebra1', honors: true, sessions: 4, now: NOW });
+  assert.deepEqual(honors.requestedMix, [
+    PURPOSE.CURRENT_LEARNING,
+    PURPOSE.RETENTION,
+    PURPOSE.EXTENSION,
+    PURPOSE.TRANSFER,
+  ]);
 });
 
 // --- A calendar that has not started yet ------------------------------------------
