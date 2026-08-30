@@ -592,6 +592,15 @@ Resume here. Do not reopen A2.2A–A2.6A unless a failing gate names them.
 - Unlike square-root equations, no extraneous/domain-rejection layer should be invented here; real cube roots are defined for all real radicands.
 - Generic secure response grading is sufficient; no new Path capability is required.
 
+
+### 2026-08-30 — A2.6B staged and gated
+- Staged five A2.6B Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6B.json` — commit `0d275751bf94380f20581ffc3fabddfc85688fae`.
+- Coverage includes complete basic solving, scaled equations with nontrivial linear radicands, a noninteger real cube-root value, a contextual modeled solve, and complete squaring-vs-cubing error repair.
+- Added A2.6B-specific generated certification — commit `9fecebd60cbf73820e4972f9e9482d94a9ef0aa6`.
+- The gate samples 200+ generated instances, requires production issuability and secure self-grading, requires isolate/cube/final evidence, independently checks noninteger cubing, requires repeated negative real cube-root cases, rejects an incorrect final solution in every family, and checks public answer-key stripping.
+- Full A2.6B certification is triggered.
+- FIRST UNFINISHED STANDARD remains **A2.6B** until the generated gate and build are green.
+
 ### 2026-08-30 — A2.6A audit finding
 - Official construct: **analyze transformations of cubic and cube root parent functions for specified positive and negative real parameter values**.
 - Verdict: **REBUILD**.
