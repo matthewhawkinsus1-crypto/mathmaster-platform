@@ -235,7 +235,104 @@
           "y3": "a+4*k",
           "y4": "a+2*k"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-eight-point-noisy-correlation",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Use statistical technology on all EIGHT observations to calculate the correlation coefficient r. The point cloud is intentionally noisy, so do not classify the association by visual impression alone. Report r and interpret its direction and strength.",
+          "points": [
+            {
+              "x": 0,
+              "y": "{{y0}}"
+            },
+            {
+              "x": 1,
+              "y": "{{y1}}"
+            },
+            {
+              "x": 2,
+              "y": "{{y2}}"
+            },
+            {
+              "x": 3,
+              "y": "{{y3}}"
+            },
+            {
+              "x": 4,
+              "y": "{{y4}}"
+            },
+            {
+              "x": 5,
+              "y": "{{y5}}"
+            },
+            {
+              "x": 6,
+              "y": "{{y6}}"
+            },
+            {
+              "x": 7,
+              "y": "{{y7}}"
+            }
+          ],
+          "correlationTolerance": 0.03,
+          "context": {
+            "title": "Eight-point correlation audit",
+            "note": "All eight pairs must be entered before calculating r."
+          },
+          "solutionReview": {
+            "headline": "A larger noisy data set makes technology more important, not the reasoning deeper.",
+            "reasoning": [
+              "Enter all eight ordered pairs and calculate r with statistical technology.",
+              "Use the sign of r for direction and |r| for strength; do not let one unusual point determine the classification."
+            ],
+            "answerSummary": "Report the technology-calculated r with its direction and strength."
+          },
+          "attemptFeedback": [
+            "Re-check all eight entries before interpreting the coefficient."
+          ],
+          "supportHints": [
+            "Direction comes from the sign of r; strength comes from how close |r| is to 1."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 12,
+                "max": 30
+              },
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "dir": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  1
+                ]
+              }
+            },
+            "derived": {
+              "y0": "a",
+              "y1": "a+dir*(2*k)",
+              "y2": "a+dir*k",
+              "y3": "a+dir*(4*k)",
+              "y4": "a+dir*(3*k)",
+              "y5": "a+dir*(6*k)",
+              "y6": "a+dir*(5*k)",
+              "y7": "a+dir*(8*k)"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_4A_v2_correlation-context-study",
