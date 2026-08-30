@@ -271,3 +271,27 @@ Final Algebra I batch: **A.11A, A.11B, A.12A–A.12E**.
 
 **Algebra II Challenge is already 48/48**, but its independent-axis preferred cells remain incomplete. Continue with Algebra II in batches, beginning with **A2.2A–A2.2D**.
 
+## Progress — Algebra II A2.2 adaptive batch green
+
+- Completed **A2.2A–A2.2D** with authentic independent-axis variants while preserving the certified core and Challenge families.
+- Examples of independence:
+  - harder reciprocal/fractional graph construction remains DOK2/Band4;
+  - simpler but still analytical inverse/logarithm claim checks supply DOK3/Band3;
+  - inverse-construction and composition variants preserve secure Function Investigation contracts.
+- Algebra II Fidelity V2 Certification at A2.2D batch head `8cd72edfd547053d03316f02c079d18b08137a1b` — run `33337668023`: **PASS**.
+- Cross-course Challenge/DOK Difficulty Audit — run `33337667892`: **PASS**.
+
+Current Algebra II adaptive counts after A2.2:
+- Challenge-ready: **48/48**
+- Full preferred five-cell target: **4/48**
+- Complete DOK2 axis: **14/48**
+- Complete DOK3 axis: **10/48**
+- Missing 2/2: **13**
+- Missing 2/3: **2**
+- Missing 2/4: **30**
+- Missing 3/3: **38**
+- Missing 3/4: **0**
+- Strict preferred-cell failures: **44/48**
+
+Next batch: **A2.3A–A2.3G**.
+
