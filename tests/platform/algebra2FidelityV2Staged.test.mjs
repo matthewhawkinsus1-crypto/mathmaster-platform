@@ -3590,3 +3590,130 @@ test('A2.6E solves absolute-value linear equations through isolate-case-solve ev
   assert.ok(representations.has('verbal'));
 });
 
+test('A2.6F solves absolute-value linear inequalities through isolation, AND/OR branches, and interval unions', async () => {
+  const entry = payload('A2.6F');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /complete-absolute-value-linear-inequality-solving/);
+
+  let generatedCount = 0;
+  let nontrivialLinearFamilies = 0;
+  let boundedFamilies = 0;
+  let unionFamilies = 0;
+  let negativeOutsideFamilies = 0;
+  let edgeContrastFamilies = 0;
+  let contextFamilies = 0;
+  let errorFamilies = 0;
+  let wrongOutcomeRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const ids = new Set((doc.responseFields || []).map((field) => String(field.id)));
+    const text = stringValues(doc).join(' ');
+
+    if (text.includes('{{m}}')) nontrivialLinearFamilies += 1;
+    if (ids.has('lower') && ids.has('upper') && ids.has('interval')) boundedFamilies += 1;
+    if (ids.has('left-case') && ids.has('right-case') && ids.has('interval')) unionFamilies += 1;
+    if (doc.id.includes('negative-outside')) negativeOutsideFamilies += 1;
+    if (doc.id.includes('negative-bound-contrast')) edgeContrastFamilies += 1;
+    if (doc.representation === 'context') contextFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let spoiledChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const fields = Object.fromEntries(
+        (question.responseFields || []).map((field) => [field.id, field]),
+      );
+
+      if (doc.id.includes('negative-outside-and-interval')) {
+        assert.match(String(fields.isolated?.expected), /<=/);
+        assert.ok(fields.lower && fields.upper && fields.interval);
+        assert.match(String(fields.interval.expected), /^\[/);
+      }
+
+      if (doc.id.includes('strict-or-two-rays') || doc.id.includes('and-or-error-repair')) {
+        assert.ok(fields['left-case'] && fields['right-case'] && fields.interval);
+        assert.match(String(fields.interval.expected), /\(-inf,/);
+        assert.match(String(fields.interval.expected), /,inf\)/);
+      }
+
+      if (doc.id.includes('negative-bound-contrast')) {
+        assert.equal(fields.less?.expected, 'none');
+        assert.equal(fields.greater?.expected, 'all');
+        assert.equal(fields['all-real-interval']?.expected, '(-inf,inf)');
+      }
+
+      if (doc.id.includes('context-linear-tolerance')) {
+        assert.ok(fields.model && fields.lower && fields.upper && fields.interval);
+        const interval = String(fields.interval.expected).match(/^\[(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\]$/);
+        assert.ok(interval);
+        assert.ok(Number(interval[1]) >= 1);
+        assert.ok(Number(interval[1]) < Number(interval[2]));
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(correct.fieldResults)}`,
+      );
+
+      if (!spoiledChecked) {
+        let field = grading.fields.find((item) => item.id === 'interval');
+        let wrongValue;
+        if (field) {
+          wrongValue = '(-inf,inf)';
+          if (String(field.expected) === wrongValue) wrongValue = '(0,1)';
+        } else {
+          field = grading.fields.find((item) => item.id === 'less' || item.id === 'greater');
+          wrongValue = String(field?.expected) === 'none' ? 'all' : 'none';
+        }
+        assert.ok(field, `${doc.id} has no final inequality outcome field to spoil`);
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, [field.id]:wrongValue },
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted an incorrect solution region`);
+        wrongOutcomeRejected += 1;
+        spoiledChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(nontrivialLinearFamilies >= 5, 'A2.6F must move beyond |x-h| and solve nontrivial linear interiors throughout');
+  assert.ok(boundedFamilies >= 2, 'A2.6F must repeatedly execute bounded AND-style inequality reasoning');
+  assert.ok(unionFamilies >= 2, 'A2.6F must repeatedly execute outside OR-style inequality reasoning');
+  assert.ok(negativeOutsideFamilies >= 1, 'A2.6F must include inequality reversal while isolating through a negative outside coefficient');
+  assert.ok(edgeContrastFamilies >= 1, 'A2.6F must contrast impossible and automatically true negative-bound cases');
+  assert.ok(contextFamilies >= 1);
+  assert.ok(errorFamilies >= 1);
+  assert.equal(wrongOutcomeRejected, entry.documents.length);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('context'));
+  assert.ok(representations.has('verbal'));
+});
+
