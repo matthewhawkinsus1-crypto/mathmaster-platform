@@ -5759,6 +5759,788 @@ mkc('8.5H', 'change-that-would-make-a-charge-proportional', {
   feedback: 'Changing the hourly rate leaves the fixed charge exactly where it is.',
 });
 
+// ================================================================ 8.5I
+// Writing a linear equation from a description.
+
+mkc('8.5I', 'equation-for-a-tank-that-gains-and-loses', {
+  difficultyBand: 4, dok: 2, taskType: 'representationTranslation', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A tank holds ${{b}}$ litres, gains ${{m}}$ a minute from a pump and loses ${{c}}$ a minute through a leak. Which equation gives the amount after $x$ minutes?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 20, max: 400 },
+      m: { type: 'int', min: 5, max: 60 },
+      c: { type: 'int', min: 2, max: 40 },
+    },
+    constraints: ['m>c', 'm-c>1'],
+  },
+  choices: [
+    { label: plain('y = ({{m}} - {{c}})x + {{b}}'), correct: true },
+    { label: plain('y = ({{m}} + {{c}})x + {{b}}'), error: 'signError' },
+    { label: plain('y = ({{m}} - {{c}})x - {{b}}'), error: 'operationInverted' },
+    { label: plain('y = {{m}}x - {{c}} + {{b}}'), error: 'orderOfOperations' },
+  ],
+  reasoning: ['Each minute the tank nets ${{m}} - {{c}}$ litres, and that is what multiplies $x$.', 'The ${{b}}$ litres are already there before any minute passes.'],
+  answerSummary: { headline: 'Net the two rates, then add the starting amount once.', text: 'It is $y = ({{m}} - {{c}})x + {{b}}$.' },
+  hint: 'Work out the change over a single minute first.',
+  feedback: 'The leak runs every minute, so it belongs inside the term that carries $x$.',
+});
+
+mkc('8.5I', 'input-where-a-linear-rule-reaches-zero', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A linear rule gives $y = {{y1}}$ at $x = {{x1}}$ and $y = {{y2}}$ at $x = {{x2}}$. At which $x$ is $y$ zero?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      z: { type: 'int', min: 2, max: 14 },
+      x1: { type: 'int', min: 4, max: 80 },
+      gap: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      x0: 'm*z',
+      x2: 'x1+gap',
+      y1: 'm*(x1-m*z)',
+      y2: 'm*(x1+gap-m*z)',
+      answer: 'm*z',
+      // Answered the rate times the crossing point.
+      d_ratioReversed: 'm*m*z',
+      // Divided by the rate twice.
+      d_forgotFinalStep: 'z',
+      // Answered an input that was given.
+      d_usedGivenValue: 'x1',
+    },
+    constraints: ['x1!=m*z', 'abs(x1-m*z)>3', 'm*z>7', 'abs(m*z-z)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The rule climbs ${{m}}$ for each step, since $y$ moves from ${{y1}}$ to ${{y2}}$ over ${{gap}}$ steps.', 'Working back from $({{x1}}, {{y1}})$ reaches zero at $x = {{answer}}$.'],
+  answerSummary: { headline: 'Find the rate, then walk back until $y$ runs out.', text: '$x = {{answer}}$.' },
+  hint: 'Work out how far $y$ has to fall and how many steps that takes.',
+  feedback: 'The crossing point is an input, not the rate multiplied by one.',
+});
+
+mkc('8.5I', 'falling-line-written-as-a-rising-one', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal', courseId: 'grade8',
+  prompt: 'For a line crossing the vertical axis at ${{b}}$ and falling ${{m}}$ for each step a student writes $y = {{m}}x + {{b}}$. What is wrong?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 10, max: 200 },
+      m: { type: 'int', min: 2, max: 40 },
+    },
+    constraints: ['b>m'],
+  },
+  choices: [
+    { label: 'A fall makes the rate negative.', correct: true },
+    { label: 'The crossing value should be negative as well.', error: 'signError' },
+    { label: 'The rate and the crossing value are the wrong way round.', error: 'ratioReversed' },
+    { label: 'The rate should be divided by the step size.', error: 'operationInverted' },
+  ],
+  reasoning: ['A line that falls sends $y$ down as $x$ rises, so the coefficient is $-{{m}}$.', 'The crossing value ${{b}}$ is where the line starts and stays positive.'],
+  answerSummary: { headline: 'The sign of the rate records the direction.', text: 'The rate should be $-{{m}}$.' },
+  hint: 'Work out $y$ one step past the axis.',
+  feedback: 'The line crosses above zero, so the constant is positive.',
+});
+
+// ================================================================ 8.6A
+// Volume as base area times height.
+
+mkc('8.6A', 'depth-after-pouring-into-a-wider-tank', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A tank of base ${{B}}$ square cm holds water ${{h}}$ cm deep. Poured into a tank of base ${{B2}}$ square cm, how deep does it stand?',
+  generator: {
+    parameters: {
+      q: { type: 'int', min: 3, max: 140 },
+      s: { type: 'int', min: 2, max: 9 },
+      h: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      B2: 'q',
+      B: 'q*s',
+      answer: 's*h',
+      // Answered the depth it started at.
+      d_usedGivenValue: 'h',
+      // Answered the base area of the second tank.
+      d_ratioReversed: 'B2',
+      // Answered the volume rather than a depth.
+      d_operationInverted: 'q*s*h',
+    },
+    constraints: ['s*h>7', 'abs(q-s*h)>4', 'abs(s*h-h)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The water takes up ${{B}} \\times {{h}}$ cubic cm however it is poured.', 'Spread over a base of ${{B2}}$ it stands ${{answer}}$ cm deep.'],
+  answerSummary: { headline: 'Volume stays fixed; base area and depth trade off.', text: 'It stands ${{answer}}$ cm deep.' },
+  hint: 'Work out the volume before changing tanks.',
+  feedback: 'A narrower base makes the same water stand deeper.',
+});
+
+mkc('8.6A', 'base-area-of-a-second-tank', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Two tanks are the same height; one has base ${{B}}$ square cm and holds ${{V}}$ cubic cm, and the other holds ${{V2}}$. What is the second base area?',
+  generator: {
+    parameters: {
+      h: { type: 'int', min: 2, max: 16 },
+      w: { type: 'int', min: 2, max: 16 },
+      B: { type: 'int', min: 4, max: 160 },
+    },
+    derived: {
+      V: 'B*h',
+      V2: 'h*h*w',
+      answer: 'h*w',
+      // Answered the second volume.
+      d_forgotFinalStep: 'V2',
+      // Divided by the height twice.
+      d_partialTotal: 'w',
+      // Answered the base area that was given.
+      d_usedGivenValue: 'B',
+    },
+    constraints: ['h*w>7', 'abs(B-h*w)>4', 'abs(h*w-w)>3', 'B!=h*w'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The first tank gives the shared height as ${{V}} \\div {{B}} = {{h}}$ cm.', 'Dividing ${{V2}}$ by that height leaves a base of ${{answer}}$ square cm.'],
+  answerSummary: { headline: 'Recover the shared height from the tank you know.', text: 'Its base is ${{answer}}$ square cm.' },
+  hint: 'One tank is enough to fix the height.',
+  feedback: 'A volume is not a base area; it still has the height folded in.',
+});
+
+mkc('8.6A', 'claim-about-widening-a-cylinder', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade8',
+  prompt: 'A cylinder of radius ${{r}}$ cm and height ${{h}}$ cm holds $V = Bh$. Which statement is wrong?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 20 },
+      h: { type: 'int', min: 2, max: 24 },
+    },
+    constraints: ['r!=h'],
+  },
+  choices: [
+    { label: 'Doubling the radius doubles $B$.', correct: true },
+    { label: 'Doubling the height doubles $V$.', error: 'partialTotal' },
+    { label: '$B$ is the area of the circular face.', error: 'usedGivenValue' },
+    { label: 'Doubling the radius makes $V$ four times as large.', error: 'exponentError' },
+  ],
+  reasoning: ['$B$ is $\\pi r^{2}$, so doubling ${{r}}$ makes it four times as large.', 'The height enters only once, so doubling it doubles $V$.'],
+  answerSummary: { headline: 'The radius enters the base area twice over.', text: 'Doubling the radius quadruples $B$.' },
+  hint: 'Write $B$ in terms of the radius before deciding.',
+  feedback: 'The height really does scale the volume once for one.',
+});
+
+// ================================================================ 8.6B
+// Cones against cylinders.
+
+mkc('8.6B', 'extra-room-in-the-cylinder', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A cone ${{h}}$ cm tall and a cylinder ${{h2}}$ cm tall share a radius of ${{r}}$ cm. How much more does the cylinder hold, in terms of $\\pi$?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 12 },
+      g: { type: 'int', min: 1, max: 20 },
+      h2: { type: 'int', min: 2, max: 30 },
+    },
+    derived: {
+      h: '3*g',
+      answer: 'r*r*(h2-g)',
+      // Treated the cone as a second cylinder.
+      d_forgotFinalStep: 'r*r*(h2-3*g)',
+      // Answered the cone's volume.
+      d_partialTotal: 'r*r*g',
+      // Added the two volumes instead of comparing them.
+      d_operationInverted: 'r*r*(h2+g)',
+    },
+    constraints: ['h2>g', 'r*r*(h2-g)>8', 'abs(h2-2*g)>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The cone holds $\\frac{{{r}}^{2} \\times {{h}}}{3}\\pi$, which is ${{r}}^{2} \\times {{g}}$ lots of $\\pi$.', 'The cylinder holds ${{r}}^{2} \\times {{h2}}$, leaving a gap of ${{answer}}\\pi$.'],
+  answerSummary: { headline: 'Only the cone carries the thirding.', text: 'It is ${{answer}}\\pi$ cubic cm more.' },
+  hint: 'Work out the cone first, with its third.',
+  feedback: 'Treating the cone as a cylinder overstates it three times over.',
+});
+
+mkc('8.6B', 'cylinder-height-from-a-known-cone', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A cone of radius ${{r}}$ cm and height ${{hCone}}$ cm holds ${{V}}\\pi$ cubic cm. How tall is a cylinder of the same radius holding ${{V2}}\\pi$?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 9 },
+      g: { type: 'int', min: 2, max: 14 },
+      z: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      hCone: '3*g',
+      V: 'r*r*g',
+      V2: '3*r*r*z',
+      answer: '3*z',
+      // Answered the volume rather than a height.
+      d_forgotFinalStep: 'V2',
+      // Thirded a height that needed no thirding.
+      d_operationInverted: 'z',
+      // Answered the cone's height.
+      d_usedGivenValue: 'hCone',
+    },
+    constraints: ['abs(g-z)>2', '3*z>7', 'abs(3*z-z)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['A cylinder of radius ${{r}}$ holds ${{r}}^{2}h\\pi$ cubic cm.', 'Setting that equal to ${{V2}}\\pi$ gives $h = {{answer}}$ cm.'],
+  answerSummary: { headline: 'A cylinder needs no third, whatever the cone did.', text: 'It is ${{answer}}$ cm tall.' },
+  hint: 'The cone is there to fix the radius, not the formula.',
+  feedback: 'The thirding belongs to the cone alone.',
+});
+
+mkc('8.6B', 'heights-of-a-cone-and-cylinder-that-match', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade8',
+  prompt: 'A cone and a cylinder share a radius of ${{r}}$ cm and hold the same volume. How do their heights compare?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 20 },
+      h: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { triple: '3*h' },
+    constraints: ['r!=h'],
+  },
+  choices: [
+    { label: 'The cone is three times as tall.', correct: true },
+    { label: 'The cylinder is three times as tall.', error: 'ratioReversed' },
+    { label: 'They are the same height.', error: 'usedGivenValue' },
+    { label: 'The cone is nine times as tall.', error: 'exponentError' },
+  ],
+  reasoning: ['A cone holds a third of a cylinder on the same base and height.', 'To make up the shortfall its height has to be three times as great.'],
+  answerSummary: { headline: 'Matching a third means tripling the height.', text: 'The cone is three times as tall.' },
+  hint: 'Write both volumes with the same radius and compare.',
+  feedback: 'The radius is shared, so the whole difference falls on the height.',
+});
+
+// ================================================================ 8.6C
+// Squares on the sides of a right triangle.
+
+mkc('8.6C', 'perimeter-of-the-square-on-the-longest-side', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Squares on the two shorter sides of a right triangle cover ${{A}}$ and ${{B}}$ square cm. How much longer is the longest side than ${{e}}$ cm?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 6 },
+      n: { type: 'int', min: 1, max: 5 },
+      k: { type: 'int', min: 1, max: 2 },
+      e: { type: 'int', min: 2, max: 90 },
+    },
+    derived: {
+      a: 'k*(m*m-n*n)',
+      b: 'k*2*m*n',
+      c: 'k*(m*m+n*n)',
+      A: 'k*k*(m*m-n*n)*(m*m-n*n)',
+      B: 'k*k*4*m*m*n*n',
+      answer: 'c-e',
+      // Added the two lengths instead of comparing them.
+      d_operationInverted: 'c+e',
+      // Answered the length it was being compared with.
+      d_partialTotal: 'e',
+      // Compared the two the other way round.
+      d_signError: 'e-c',
+    },
+    constraints: ['n<m', 'm*m-n*n>0', 'c-e>4', 'abs(2*e-c)>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The square on the longest side covers ${{A}} + {{B}}$ square cm, so that side is ${{c}}$ cm.', 'That is ${{answer}}$ cm more than ${{e}}$ cm.'],
+  answerSummary: { headline: 'The two smaller squares together give the largest one.', text: 'It is ${{answer}}$ cm longer.' },
+  hint: 'Add the two areas, then take a square root.',
+  feedback: 'The comparison runs from the longest side down to ${{e}}$ cm.',
+});
+
+mkc('8.6C', 'square-on-the-remaining-side', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A right triangle has its longest side ${{c}}$ cm and one shorter side ${{a}}$ cm. What area does the square on the third side cover?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      n: { type: 'int', min: 1, max: 4 },
+      k: { type: 'int', min: 1, max: 3 },
+    },
+    derived: {
+      a: 'k*(m*m-n*n)',
+      b: 'k*2*m*n',
+      c: 'k*(m*m+n*n)',
+      answer: 'k*k*4*m*m*n*n',
+      // Added the two squares instead of subtracting.
+      d_operationInverted: 'k*k*(m*m+n*n)*(m*m+n*n)+k*k*(m*m-n*n)*(m*m-n*n)',
+      // Subtracted the sides instead of their squares.
+      d_forgotFinalStep: 'k*(m*m+n*n)-k*(m*m-n*n)',
+      // Answered the square on the side that was given.
+      d_partialTotal: 'k*k*(m*m-n*n)*(m*m-n*n)',
+    },
+    constraints: ['n<m', 'm*m-n*n>0', 'abs(k*k*(m*m-n*n)*(m*m-n*n)-k*k*4*m*m*n*n)>5', 'k*2*m*n>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The square on the longest side covers ${{c}}^{2}$, and the given side accounts for ${{a}}^{2}$ of it.', 'What is left is ${{answer}}$ square cm.'],
+  answerSummary: { headline: 'The largest square is the total of the two smaller ones.', text: 'It covers ${{answer}}$ square cm.' },
+  hint: 'Work with the areas, not the side lengths.',
+  feedback: 'Subtracting the sides themselves leaves a length, not an area.',
+});
+
+mkc('8.6C', 'fact-that-shows-a-right-angle', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade8',
+  prompt: 'Squares are drawn on the three sides of a triangle with sides ${{a}}$, ${{b}}$ and ${{c}}$ cm. Which fact would show it has a right angle?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 8 },
+      n: { type: 'int', min: 1, max: 7 },
+    },
+    derived: {
+      a: 'm*m-n*n',
+      b: '2*m*n',
+      c: 'm*m+n*n',
+    },
+    constraints: ['n<m', 'm*m-n*n>1'],
+  },
+  choices: [
+    { label: 'The two smaller squares together cover exactly as much as the largest.', correct: true },
+    { label: 'The three squares are all different sizes.', error: 'usedGivenValue' },
+    { label: 'The largest square covers more than the other two together.', error: 'signError' },
+    { label: 'All three side lengths are whole numbers.', error: 'roundedWrong' },
+  ],
+  reasoning: ['A right angle is exactly the case where the two smaller squares add to the largest.', 'Different sizes and whole-number sides happen in triangles with no right angle at all.'],
+  answerSummary: { headline: 'Equality of the areas is the whole test.', text: 'The two smaller squares total the largest.' },
+  hint: 'Recall what the theorem claims, and read it backwards.',
+  feedback: 'If the largest square covers more, the angle opposite it is obtuse.',
+});
+
+// ================================================================ 8.7A
+// Volume of cylinders, cones and spheres.
+
+mkc('8.7A', 'space-left-round-a-sphere-in-a-drum', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A sphere of radius ${{r}}$ cm sits in a drum of the same radius and height ${{h}}$ cm. How much space is left, in terms of $\\pi$?',
+  generator: {
+    parameters: {
+      s: { type: 'int', min: 1, max: 8 },
+      h: { type: 'int', min: 6, max: 50 },
+    },
+    derived: {
+      r: '3*s',
+      answer: '9*s*s*h-36*s*s*s',
+      // Answered the drum's whole volume.
+      d_forgotFinalStep: '9*s*s*h',
+      // Answered the sphere's volume.
+      d_partialTotal: '36*s*s*s',
+      // Compared the two the other way round.
+      d_signError: '36*s*s*s-9*s*s*h',
+    },
+    constraints: ['h>4*s', '9*s*s*h-36*s*s*s>8', 'abs(36*s*s*s-(9*s*s*h-36*s*s*s))>6'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The drum holds ${{r}}^{2} \\times {{h}}\\pi$ and the sphere holds $\\frac{4}{3}{{r}}^{3}\\pi$.', 'The difference is ${{answer}}\\pi$ cubic cm.'],
+  answerSummary: { headline: 'Work out both solids before subtracting.', text: '${{answer}}\\pi$ cubic cm are left.' },
+  hint: 'The sphere uses the cube of the radius; the drum uses its square.',
+  feedback: 'The drum is the larger of the two here, so the difference runs that way.',
+});
+
+mkc('8.7A', 'second-drum-of-the-same-height', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A drum of radius ${{r}}$ cm holds ${{V}}\\pi$ cubic cm, and a second of the same height has radius ${{r2}}$ cm. What does the second hold?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 12 },
+      r2: { type: 'int', min: 2, max: 14 },
+      h: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      V: 'r*r*h',
+      answer: 'r2*r2*h',
+      // Answered the first drum's volume.
+      d_usedGivenValue: 'V',
+      // Doubled the radius before squaring it.
+      d_diameterForRadius: '4*r2*r2*h',
+      // Answered the shared height.
+      d_forgotFinalStep: 'h',
+    },
+    constraints: ['r!=r2', 'r2*r2*h>9', 'abs(r-r2)>1', 'abs(r2*r2*h-h)>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_diameterForRadius}}'), error: 'diameterForRadius' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['The first drum gives the shared height as ${{V}} \\div {{r}}^{2} = {{h}}$ cm.', 'The second then holds ${{r2}}^{2} \\times {{h}} = {{answer}}$ lots of $\\pi$.'],
+  answerSummary: { headline: 'Recover the shared height, then rebuild with the new radius.', text: 'It holds ${{answer}}\\pi$ cubic cm.' },
+  hint: 'Divide out the first radius squared.',
+  feedback: 'A radius is not a diameter; squaring it twice over inflates the answer fourfold.',
+});
+
+mkc('8.7A', 'claim-about-widening-a-drum', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade8',
+  prompt: 'A cylinder, a cone and a sphere share a radius of ${{r}}$ cm, and the cylinder and cone stand ${{h}}$ cm tall. Which statement is wrong?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 18 },
+      h: { type: 'int', min: 2, max: 24 },
+    },
+    constraints: ['r!=h'],
+  },
+  choices: [
+    { label: 'Doubling the radius doubles what the cylinder holds.', correct: true },
+    { label: 'The cone holds a third of what the cylinder holds.', error: 'partialTotal' },
+    { label: 'Doubling the height doubles what the cylinder holds.', error: 'usedGivenValue' },
+    { label: 'The sphere holds $\\frac{4}{3}\\pi {{r}}^{3}$ whatever the height.', error: 'ratioReversed' },
+  ],
+  reasoning: ['A cylinder holds $\\pi r^{2}h$, so the radius enters twice and the height once.', 'Doubling the radius therefore makes it four times as large.'],
+  answerSummary: { headline: 'The radius is squared; the height is not.', text: 'Doubling the radius quadruples it.' },
+  hint: 'Write the formula out before testing each claim.',
+  feedback: 'The cone really does hold a third, and the sphere ignores the height entirely.',
+});
+
+// ================================================================ 8.7B
+// Surface area of cylinders.
+
+mkc('8.7B', 'surface-of-an-open-tin', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A tin of radius ${{r}}$ cm and height ${{h}}$ cm has no lid. What is its surface area, in terms of $\\pi$?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 40 },
+      h: { type: 'int', min: 2, max: 24 },
+    },
+    derived: {
+      answer: '2*r*h+r*r',
+      // Left the base out as well.
+      d_forgotFinalStep: '2*r*h',
+      // Counted both ends.
+      d_operationInverted: '2*r*h+2*r*r',
+      // Answered the two circular faces on their own.
+      d_partialTotal: '2*r*r',
+    },
+    constraints: ['abs(2*r*r-2*r*h-r*r)>5', 'r!=h', '2*r*h+r*r>9'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The curved surface is $2{{r}}{{h}}\\pi$ and the base is ${{r}}^{2}\\pi$.', 'Together they come to ${{answer}}\\pi$ square cm.'],
+  answerSummary: { headline: 'Count the faces the tin actually has.', text: 'It is ${{answer}}\\pi$ square cm.' },
+  hint: 'An open tin has one circular face, not two.',
+  feedback: 'Leaving both ends out drops the base the tin still has.',
+});
+
+mkc('8.7B', 'height-from-a-curved-surface', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'The curved surface of a tin of radius ${{r}}$ cm covers ${{S}}\\pi$ square cm. How tall is it?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 36 },
+      z: { type: 'int', min: 2, max: 16 },
+    },
+    derived: {
+      h: '2*z',
+      S: '4*r*z',
+      answer: '2*z',
+      // Answered the surface rather than a height.
+      d_forgotFinalStep: 'S',
+      // Left the factor of two out.
+      d_diameterForRadius: 'z',
+      // Answered the radius that was given.
+      d_usedGivenValue: 'r',
+    },
+    constraints: ['abs(r-2*z)>3', '2*z>5', 'abs(2*z-z)>2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_diameterForRadius}}'), error: 'diameterForRadius' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The curved surface unrolls into a rectangle $2{{r}}\\pi$ across and $h$ tall.', 'So $h = {{S}} \\div (2 \\times {{r}}) = {{answer}}$ cm.'],
+  answerSummary: { headline: 'The unrolled width is the circumference, not the radius.', text: 'It is ${{answer}}$ cm tall.' },
+  hint: 'Divide by the whole circumference.',
+  feedback: 'Dividing by the radius alone leaves a factor of two behind.',
+});
+
+mkc('8.7B', 'what-widening-and-shortening-does', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'grade8',
+  prompt: 'A tin of radius ${{r}}$ cm and height ${{h}}$ cm has its radius doubled and its height halved. Which statement is true?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 2, max: 16 },
+      h: { type: 'int', min: 4, max: 24, step: 2 },
+    },
+    constraints: ['r!=h'],
+  },
+  choices: [
+    { label: 'The curved surface is unchanged but the total is not.', correct: true },
+    { label: 'The total surface is unchanged.', error: 'usedGivenValue' },
+    { label: 'The curved surface doubles.', error: 'operationInverted' },
+    { label: 'Nothing about the surface changes.', error: 'partialTotal' },
+  ],
+  reasoning: ['The curved surface is $2\\pi rh$, and doubling one factor while halving the other leaves it alone.', 'The two circular ends are $2\\pi r^{2}$, which grows fourfold.'],
+  answerSummary: { headline: 'The ends depend on the radius alone.', text: 'The curved surface holds; the total grows.' },
+  hint: 'Split the surface into the curved part and the ends.',
+  feedback: 'The ends carry no height at all, so they cannot be left unchanged.',
+});
+
+// ================================================================ 8.7C
+// The Pythagorean theorem in use.
+
+mkc('8.7C', 'how-far-a-brace-exceeds-a-side', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A gate ${{a}}$ cm by ${{b}}$ cm is braced corner to corner. By how much does the brace exceed the shorter side?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 8 },
+      n: { type: 'int', min: 1, max: 7 },
+      k: { type: 'int', min: 1, max: 4 },
+    },
+    derived: {
+      a: 'k*(m*m-n*n)',
+      b: 'k*2*m*n',
+      c: 'k*(m*m+n*n)',
+      answer: 'c-min(a,b)',
+      // Added the brace to the side instead of comparing them.
+      d_operationInverted: 'c+min(a,b)',
+      // Answered the shorter side itself.
+      d_partialTotal: 'min(a,b)',
+      // Compared the two the other way round.
+      d_signError: 'min(a,b)-c',
+    },
+    constraints: ['n<m', '5*m>6*n', 'm<6*n', 'm*m-n*n>0', 'c-min(a,b)>3', 'abs(2*min(a,b)-c)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The brace runs $\\sqrt{{{a}}^{2} + {{b}}^{2}} = {{c}}$ cm.', 'That is ${{answer}}$ cm more than the shorter side.'],
+  answerSummary: { headline: 'Find the diagonal first, then compare.', text: 'It exceeds it by ${{answer}}$ cm.' },
+  hint: 'The brace is the longest side of the right triangle.',
+  feedback: 'The brace is longer than either side, so the difference runs that way.',
+});
+
+mkc('8.7C', 'gate-height-a-brace-demands', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A brace of ${{d}}$ cm is to run corner to corner on a gate ${{a}}$ cm wide. How tall must the gate be?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      n: { type: 'int', min: 1, max: 4 },
+      k: { type: 'int', min: 1, max: 3 },
+    },
+    derived: {
+      a: 'k*(m*m-n*n)',
+      answer: 'k*2*m*n',
+      d: 'k*(m*m+n*n)',
+      // Added the width to the brace.
+      d_operationInverted: 'k*(m*m+n*n)+k*(m*m-n*n)',
+      // Subtracted the sides instead of their squares.
+      d_forgotFinalStep: 'k*(m*m+n*n)-k*(m*m-n*n)',
+      // Answered the width that was given.
+      d_usedGivenValue: 'k*(m*m-n*n)',
+    },
+    constraints: ['n<m', 'm*m-n*n>0', 'k*2*m*n>5', 'abs(k*(m*m-n*n)-k*2*m*n)>3', 'abs(k*(m*m+n*n)-k*(m*m-n*n)-k*2*m*n)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The brace and the width are two sides of a right triangle, with the brace longest.', 'The height is $\\sqrt{{{d}}^{2} - {{a}}^{2}} = {{answer}}$ cm.'],
+  answerSummary: { headline: 'Subtract the squares, then take the root.', text: 'It must be ${{answer}}$ cm tall.' },
+  hint: 'The brace is the side opposite the right angle.',
+  feedback: 'Subtracting the lengths themselves skips the squaring the theorem needs.',
+});
+
+mkc('8.7C', 'gate-that-cannot-take-its-brace', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'table', courseId: 'grade8',
+  prompt: 'Three of these gates take the brace listed beside them and one does not. Which row is wrong?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Row', 'Width (cm)', 'Height (cm)', 'Brace (cm)'],
+    rows: [
+      ['$1$', '${{a1}}$', '${{b1}}$', '${{c1}}$'],
+      ['$2$', '${{a2}}$', '${{b2}}$', '${{c2}}$'],
+      ['$3$', '${{a3}}$', '${{b3}}$', '${{cBad}}$'],
+      ['$4$', '${{a4}}$', '${{b4}}$', '${{c4}}$'],
+    ],
+  },
+  generator: {
+    parameters: {
+      k1: { type: 'int', min: 1, max: 5 },
+      k2: { type: 'int', min: 1, max: 5 },
+      k3: { type: 'int', min: 1, max: 5 },
+      k4: { type: 'int', min: 1, max: 5 },
+      off: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      a1: '3*k1', b1: '4*k1', c1: '5*k1',
+      a2: '5*k2', b2: '12*k2', c2: '13*k2',
+      a3: '8*k3', b3: '15*k3', cBad: '17*k3+off',
+      a4: '7*k4', b4: '24*k4', c4: '25*k4',
+    },
+    constraints: ['off>1', 'k1!=k2', 'k3!=k4'],
+  },
+  choices: [
+    { label: 'Row $3$', correct: true },
+    { label: 'Row $1$', error: 'usedGivenValue' },
+    { label: 'Row $2$', error: 'partialTotal' },
+    { label: 'Row $4$', error: 'ratioReversed' },
+  ],
+  reasoning: ['In three rows the two sides squared add to the brace squared.', 'Row $3$ needs a brace of $17 \\times {{k3}}$ cm, so the one listed is too long.'],
+  answerSummary: { headline: 'Square the two sides and compare with the brace squared.', text: 'Row $3$ is wrong.' },
+  hint: 'Test each row against the theorem in turn.',
+  feedback: 'The other three rows are all right-angled as listed.',
+});
+
+// ================================================================ 8.7D
+// Distance between two points.
+
+mkc('8.7D', 'saving-from-cutting-the-corner', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'orderedPairs', courseId: 'grade8',
+  prompt: 'How much shorter is the straight line from $({{x1}}, {{y1}})$ to $({{x2}}, {{y2}})$ than going across and then up?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 7 },
+      n: { type: 'int', min: 1, max: 6 },
+      k: { type: 'int', min: 1, max: 2 },
+      x1: { type: 'int', min: 1, max: 12 },
+      y1: { type: 'int', min: 1, max: 12 },
+    },
+    derived: {
+      a: 'k*(m*m-n*n)',
+      b: 'k*2*m*n',
+      c: 'k*(m*m+n*n)',
+      x2: 'x1+k*(m*m-n*n)',
+      y2: 'y1+k*2*m*n',
+      answer: 'k*(m*m-n*n)+k*2*m*n-k*(m*m+n*n)',
+      // Added all three lengths.
+      d_operationInverted: 'k*(m*m-n*n)+k*2*m*n+k*(m*m+n*n)',
+      // Answered the straight line itself.
+      d_partialTotal: 'k*(m*m+n*n)',
+      // Compared the two the other way round.
+      d_signError: 'k*(m*m+n*n)-k*(m*m-n*n)-k*2*m*n',
+    },
+    constraints: ['n<m', 'm*m-n*n>0', 'k*(m*m-n*n)+k*2*m*n-k*(m*m+n*n)>3', 'abs(k*(m*m+n*n)-2*(k*(m*m-n*n)+k*2*m*n-k*(m*m+n*n)))>4'],
+  },
+  choices: [
+    { label: 'Shorter by ${{answer}}$.', correct: true },
+    { label: 'Shorter by ${{d_operationInverted}}$.', error: 'operationInverted' },
+    { label: 'Shorter by ${{d_partialTotal}}$.', error: 'partialTotal' },
+    { label: 'Longer by ${{d_signError}}$.', error: 'signError' },
+  ],
+  reasoning: ['Going across and up covers ${{a}} + {{b}}$, while the straight line covers ${{c}}$.', 'The saving is ${{answer}}$.'],
+  answerSummary: { headline: 'The straight line is the hypotenuse of the two moves.', text: 'It is shorter by ${{answer}}$.' },
+  hint: 'Work out each route separately before comparing.',
+  feedback: 'The straight line is shorter than the two moves added together.',
+});
+
+mkc('8.7D', 'height-of-a-point-at-a-set-distance', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A point $({{x2}}, y)$ sits ${{c}}$ from $({{x1}}, {{y1}})$ and above it. What is $y$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      n: { type: 'int', min: 1, max: 4 },
+      k: { type: 'int', min: 1, max: 2 },
+      x1: { type: 'int', min: 1, max: 14 },
+      y1: { type: 'int', min: 1, max: 30 },
+    },
+    derived: {
+      a: 'k*(m*m-n*n)',
+      b: 'k*2*m*n',
+      c: 'k*(m*m+n*n)',
+      x2: 'x1+k*(m*m-n*n)',
+      answer: 'y1+k*2*m*n',
+      // Used the whole distance as the rise.
+      d_forgotFinalStep: 'y1+k*(m*m+n*n)',
+      // Never moved up at all.
+      d_usedGivenValue: 'y1',
+      // Used the horizontal move as the rise.
+      d_ratioReversed: 'y1+k*(m*m-n*n)',
+    },
+    constraints: ['n<m', 'm*m-n*n>0', 'abs(k*(m*m-n*n)-k*2*m*n)>3', 'k*2*m*n>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The horizontal move is ${{a}}$, so the vertical move satisfies ${{a}}^{2} + b^{2} = {{c}}^{2}$.', 'That gives ${{b}}$, so $y = {{answer}}$.'],
+  answerSummary: { headline: 'The distance is the hypotenuse, not either move.', text: '$y = {{answer}}$.' },
+  hint: 'Find the horizontal move first.',
+  feedback: 'The whole distance covers both moves, so it cannot be the rise on its own.',
+});
+
+mkc('8.7D', 'pair-the-same-distance-apart', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'orderedPairs', courseId: 'grade8',
+  prompt: 'Which pair of points is the same distance apart as $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 2, max: 14 },
+      x1: { type: 'int', min: 1, max: 12 },
+      y1: { type: 'int', min: 1, max: 12 },
+      p: { type: 'int', min: 13, max: 30 },
+      q: { type: 'int', min: 13, max: 30 },
+      off: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      x2: 'x1+a',
+      y2: 'y1+b',
+      px: 'p+a', py: 'q+b',
+      ox: 'p+a', oy: 'q+b+off',
+      sx: 'p+a+b', sy: 'q',
+      dx: 'p+2*a', dy: 'q+2*b',
+    },
+    constraints: ['a!=b', 'off>1'],
+  },
+  choices: [
+    { label: plain('({{p}}, {{q}}) \\text{ and } ({{px}}, {{py}})'), correct: true },
+    { label: plain('({{p}}, {{q}}) \\text{ and } ({{ox}}, {{oy}})'), error: 'offByOneStep' },
+    { label: plain('({{p}}, {{q}}) \\text{ and } ({{sx}}, {{sy}})'), error: 'partialTotal' },
+    { label: plain('({{p}}, {{q}}) \\text{ and } ({{dx}}, {{dy}})'), error: 'exponentError' },
+  ],
+  reasoning: ['Distance depends only on the horizontal and vertical moves, here ${{a}}$ and ${{b}}$.', 'Only the first pair repeats both moves exactly.'],
+  answerSummary: { headline: 'The same two moves give the same distance, wherever they start.', text: 'It is $({{p}}, {{q}})$ and $({{px}}, {{py}})$.' },
+  hint: 'Work out the two moves for each pair.',
+  feedback: 'Adding the two moves together along one axis gives a longer separation.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

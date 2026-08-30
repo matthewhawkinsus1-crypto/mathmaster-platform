@@ -26268,6 +26268,3446 @@
     "sourceFamilyId": "mathmaster:asvab:mk:8.5H:change-that-would-make-a-charge-proportional",
     "sourcePrompt": "A job is billed as a $\\${{b}}$ callout plus $\\${{k}}$ an hour. Which change would make the bill proportional to the hours?"
    }
+  },
+  {
+   "id": "mm_asvab_mk_8_5I_equation_for_a_tank_that_gains_and_loses",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.5I:equation-for-a-tank-that-gains-and-loses",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5I",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A tank holds ${{b}}$ litres, gains ${{m}}$ a minute from a pump and loses ${{c}}$ a minute through a leak. Which equation gives the amount after $x$ minutes?",
+   "solutionReview": {
+    "headline": "Net the two rates, then add the starting amount once.",
+    "reasoning": [
+     "Each minute the tank nets ${{m}} - {{c}}$ litres, and that is what multiplies $x$.",
+     "The ${{b}}$ litres are already there before any minute passes."
+    ],
+    "answerSummary": "It is $y = ({{m}} - {{c}})x + {{b}}$."
+   },
+   "attemptFeedback": [
+    "The leak runs every minute, so it belongs inside the term that carries $x$."
+   ],
+   "supportHints": [
+    "Work out the change over a single minute first."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 20,
+      "max": 400
+     },
+     "m": {
+      "type": "int",
+      "min": 5,
+      "max": 60
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "constraints": [
+     "m>c",
+     "m-c>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y = ({{m}} - {{c}})x + {{b}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y = ({{m}} - {{c}})x - {{b}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y = {{m}}x - {{c}} + {{b}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y = ({{m}} + {{c}})x + {{b}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.5I:equation-for-a-tank-that-gains-and-loses",
+    "sourcePrompt": "A tank holds ${{b}}$ litres, gains ${{m}}$ a minute from a pump and loses ${{c}}$ a minute through a leak. Which equation gives the amount after $x$ minutes?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_5I_input_where_a_linear_rule_reaches_zero",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.5I:input-where-a-linear-rule-reaches-zero",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5I",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A linear rule gives $y = {{y1}}$ at $x = {{x1}}$ and $y = {{y2}}$ at $x = {{x2}}$. At which $x$ is $y$ zero?",
+   "solutionReview": {
+    "headline": "Find the rate, then walk back until $y$ runs out.",
+    "reasoning": [
+     "The rule climbs ${{m}}$ for each step, since $y$ moves from ${{y1}}$ to ${{y2}}$ over ${{gap}}$ steps.",
+     "Working back from $({{x1}}, {{y1}})$ reaches zero at $x = {{answer}}$."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The crossing point is an input, not the rate multiplied by one."
+   ],
+   "supportHints": [
+    "Work out how far $y$ has to fall and how many steps that takes."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "z": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "x1": {
+      "type": "int",
+      "min": 4,
+      "max": 80
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "x0": "m*z",
+     "x2": "x1+gap",
+     "y1": "m*(x1-m*z)",
+     "y2": "m*(x1+gap-m*z)",
+     "answer": "m*z",
+     "d_ratioReversed": "m*m*z",
+     "d_forgotFinalStep": "z",
+     "d_usedGivenValue": "x1"
+    },
+    "constraints": [
+     "x1!=m*z",
+     "abs(x1-m*z)>3",
+     "m*z>7",
+     "abs(m*z-z)>3",
+     "answer!=d_ratioReversed",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_ratioReversed!=d_forgotFinalStep",
+     "d_ratioReversed!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.5I:input-where-a-linear-rule-reaches-zero",
+    "sourcePrompt": "A linear rule gives $y = {{y1}}$ at $x = {{x1}}$ and $y = {{y2}}$ at $x = {{x2}}$. At which $x$ is $y$ zero?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_5I_falling_line_written_as_a_rising_one",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.5I"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.5I",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.5I:falling-line-written-as-a-rising-one",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.5I",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For a line crossing the vertical axis at ${{b}}$ and falling ${{m}}$ for each step a student writes $y = {{m}}x + {{b}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "The sign of the rate records the direction.",
+    "reasoning": [
+     "A line that falls sends $y$ down as $x$ rises, so the coefficient is $-{{m}}$.",
+     "The crossing value ${{b}}$ is where the line starts and stays positive."
+    ],
+    "answerSummary": "The rate should be $-{{m}}$."
+   },
+   "attemptFeedback": [
+    "The line crosses above zero, so the constant is positive."
+   ],
+   "supportHints": [
+    "Work out $y$ one step past the axis."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 10,
+      "max": 200
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "constraints": [
+     "b>m"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The rate and the crossing value are the wrong way round.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "The crossing value should be negative as well.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "A fall makes the rate negative."
+    },
+    {
+     "id": "choice-d",
+     "label": "The rate should be divided by the step size.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.5I:falling-line-written-as-a-rising-one",
+    "sourcePrompt": "For a line crossing the vertical axis at ${{b}}$ and falling ${{m}}$ for each step a student writes $y = {{m}}x + {{b}}$. What is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_6A_depth_after_pouring_into_a_wider_tank",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.6A:depth-after-pouring-into-a-wider-tank",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A tank of base ${{B}}$ square cm holds water ${{h}}$ cm deep. Poured into a tank of base ${{B2}}$ square cm, how deep does it stand?",
+   "solutionReview": {
+    "headline": "Volume stays fixed; base area and depth trade off.",
+    "reasoning": [
+     "The water takes up ${{B}} \\times {{h}}$ cubic cm however it is poured.",
+     "Spread over a base of ${{B2}}$ it stands ${{answer}}$ cm deep."
+    ],
+    "answerSummary": "It stands ${{answer}}$ cm deep."
+   },
+   "attemptFeedback": [
+    "A narrower base makes the same water stand deeper."
+   ],
+   "supportHints": [
+    "Work out the volume before changing tanks."
+   ],
+   "generator": {
+    "parameters": {
+     "q": {
+      "type": "int",
+      "min": 3,
+      "max": 140
+     },
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "B2": "q",
+     "B": "q*s",
+     "answer": "s*h",
+     "d_usedGivenValue": "h",
+     "d_ratioReversed": "B2",
+     "d_operationInverted": "q*s*h"
+    },
+    "constraints": [
+     "s*h>7",
+     "abs(q-s*h)>4",
+     "abs(s*h-h)>3",
+     "answer!=d_usedGivenValue",
+     "answer!=d_ratioReversed",
+     "answer!=d_operationInverted",
+     "d_usedGivenValue!=d_ratioReversed",
+     "d_usedGivenValue!=d_operationInverted",
+     "d_ratioReversed!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.6A:depth-after-pouring-into-a-wider-tank",
+    "sourcePrompt": "A tank of base ${{B}}$ square cm holds water ${{h}}$ cm deep. Poured into a tank of base ${{B2}}$ square cm, how deep does it stand?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_6A_base_area_of_a_second_tank",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.6A:base-area-of-a-second-tank",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two tanks are the same height; one has base ${{B}}$ square cm and holds ${{V}}$ cubic cm, and the other holds ${{V2}}$. What is the second base area?",
+   "solutionReview": {
+    "headline": "Recover the shared height from the tank you know.",
+    "reasoning": [
+     "The first tank gives the shared height as ${{V}} \\div {{B}} = {{h}}$ cm.",
+     "Dividing ${{V2}}$ by that height leaves a base of ${{answer}}$ square cm."
+    ],
+    "answerSummary": "Its base is ${{answer}}$ square cm."
+   },
+   "attemptFeedback": [
+    "A volume is not a base area; it still has the height folded in."
+   ],
+   "supportHints": [
+    "One tank is enough to fix the height."
+   ],
+   "generator": {
+    "parameters": {
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "w": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "B": {
+      "type": "int",
+      "min": 4,
+      "max": 160
+     }
+    },
+    "derived": {
+     "V": "B*h",
+     "V2": "h*h*w",
+     "answer": "h*w",
+     "d_forgotFinalStep": "V2",
+     "d_partialTotal": "w",
+     "d_usedGivenValue": "B"
+    },
+    "constraints": [
+     "h*w>7",
+     "abs(B-h*w)>4",
+     "abs(h*w-w)>3",
+     "B!=h*w",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.6A:base-area-of-a-second-tank",
+    "sourcePrompt": "Two tanks are the same height; one has base ${{B}}$ square cm and holds ${{V}}$ cubic cm, and the other holds ${{V2}}$. What is the second base area?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_6A_claim_about_widening_a_cylinder",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.6A:claim-about-widening-a-cylinder",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6A",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cylinder of radius ${{r}}$ cm and height ${{h}}$ cm holds $V = Bh$. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "The radius enters the base area twice over.",
+    "reasoning": [
+     "$B$ is $\\pi r^{2}$, so doubling ${{r}}$ makes it four times as large.",
+     "The height enters only once, so doubling it doubles $V$."
+    ],
+    "answerSummary": "Doubling the radius quadruples $B$."
+   },
+   "attemptFeedback": [
+    "The height really does scale the volume once for one."
+   ],
+   "supportHints": [
+    "Write $B$ in terms of the radius before deciding."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     }
+    },
+    "constraints": [
+     "r!=h"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Doubling the height doubles $V$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$B$ is the area of the circular face.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "Doubling the radius makes $V$ four times as large.",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-d",
+     "label": "Doubling the radius doubles $B$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.6A:claim-about-widening-a-cylinder",
+    "sourcePrompt": "A cylinder of radius ${{r}}$ cm and height ${{h}}$ cm holds $V = Bh$. Which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_6B_extra_room_in_the_cylinder",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.6B:extra-room-in-the-cylinder",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cone ${{h}}$ cm tall and a cylinder ${{h2}}$ cm tall share a radius of ${{r}}$ cm. How much more does the cylinder hold, in terms of $\\pi$?",
+   "solutionReview": {
+    "headline": "Only the cone carries the thirding.",
+    "reasoning": [
+     "The cone holds $\\frac{{{r}}^{2} \\times {{h}}}{3}\\pi$, which is ${{r}}^{2} \\times {{g}}$ lots of $\\pi$.",
+     "The cylinder holds ${{r}}^{2} \\times {{h2}}$, leaving a gap of ${{answer}}\\pi$."
+    ],
+    "answerSummary": "It is ${{answer}}\\pi$ cubic cm more."
+   },
+   "attemptFeedback": [
+    "Treating the cone as a cylinder overstates it three times over."
+   ],
+   "supportHints": [
+    "Work out the cone first, with its third."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "g": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     },
+     "h2": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     }
+    },
+    "derived": {
+     "h": "3*g",
+     "answer": "r*r*(h2-g)",
+     "d_forgotFinalStep": "r*r*(h2-3*g)",
+     "d_partialTotal": "r*r*g",
+     "d_operationInverted": "r*r*(h2+g)"
+    },
+    "constraints": [
+     "h2>g",
+     "r*r*(h2-g)>8",
+     "abs(h2-2*g)>1",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_partialTotal!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.6B:extra-room-in-the-cylinder",
+    "sourcePrompt": "A cone ${{h}}$ cm tall and a cylinder ${{h2}}$ cm tall share a radius of ${{r}}$ cm. How much more does the cylinder hold, in terms of $\\pi$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_6B_cylinder_height_from_a_known_cone",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.6B:cylinder-height-from-a-known-cone",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6B",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cone of radius ${{r}}$ cm and height ${{hCone}}$ cm holds ${{V}}\\pi$ cubic cm. How tall is a cylinder of the same radius holding ${{V2}}\\pi$?",
+   "solutionReview": {
+    "headline": "A cylinder needs no third, whatever the cone did.",
+    "reasoning": [
+     "A cylinder of radius ${{r}}$ holds ${{r}}^{2}h\\pi$ cubic cm.",
+     "Setting that equal to ${{V2}}\\pi$ gives $h = {{answer}}$ cm."
+    ],
+    "answerSummary": "It is ${{answer}}$ cm tall."
+   },
+   "attemptFeedback": [
+    "The thirding belongs to the cone alone."
+   ],
+   "supportHints": [
+    "The cone is there to fix the radius, not the formula."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "g": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "z": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "hCone": "3*g",
+     "V": "r*r*g",
+     "V2": "3*r*r*z",
+     "answer": "3*z",
+     "d_forgotFinalStep": "V2",
+     "d_operationInverted": "z",
+     "d_usedGivenValue": "hCone"
+    },
+    "constraints": [
+     "abs(g-z)>2",
+     "3*z>7",
+     "abs(3*z-z)>3",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.6B:cylinder-height-from-a-known-cone",
+    "sourcePrompt": "A cone of radius ${{r}}$ cm and height ${{hCone}}$ cm holds ${{V}}\\pi$ cubic cm. How tall is a cylinder of the same radius holding ${{V2}}\\pi$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_6B_heights_of_a_cone_and_cylinder_that_match",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.6B:heights-of-a-cone-and-cylinder-that-match",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cone and a cylinder share a radius of ${{r}}$ cm and hold the same volume. How do their heights compare?",
+   "solutionReview": {
+    "headline": "Matching a third means tripling the height.",
+    "reasoning": [
+     "A cone holds a third of a cylinder on the same base and height.",
+     "To make up the shortfall its height has to be three times as great."
+    ],
+    "answerSummary": "The cone is three times as tall."
+   },
+   "attemptFeedback": [
+    "The radius is shared, so the whole difference falls on the height."
+   ],
+   "supportHints": [
+    "Write both volumes with the same radius and compare."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "triple": "3*h"
+    },
+    "constraints": [
+     "r!=h"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The cone is three times as tall."
+    },
+    {
+     "id": "choice-b",
+     "label": "They are the same height.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The cylinder is three times as tall.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "The cone is nine times as tall.",
+     "error": "exponentError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.6B:heights-of-a-cone-and-cylinder-that-match",
+    "sourcePrompt": "A cone and a cylinder share a radius of ${{r}}$ cm and hold the same volume. How do their heights compare?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_6C_perimeter_of_the_square_on_the_longest_side",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.6C:perimeter-of-the-square-on-the-longest-side",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6C",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Squares on the two shorter sides of a right triangle cover ${{A}}$ and ${{B}}$ square cm. How much longer is the longest side than ${{e}}$ cm?",
+   "solutionReview": {
+    "headline": "The two smaller squares together give the largest one.",
+    "reasoning": [
+     "The square on the longest side covers ${{A}} + {{B}}$ square cm, so that side is ${{c}}$ cm.",
+     "That is ${{answer}}$ cm more than ${{e}}$ cm."
+    ],
+    "answerSummary": "It is ${{answer}}$ cm longer."
+   },
+   "attemptFeedback": [
+    "The comparison runs from the longest side down to ${{e}}$ cm."
+   ],
+   "supportHints": [
+    "Add the two areas, then take a square root."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "k": {
+      "type": "int",
+      "min": 1,
+      "max": 2
+     },
+     "e": {
+      "type": "int",
+      "min": 2,
+      "max": 90
+     }
+    },
+    "derived": {
+     "a": "k*(m*m-n*n)",
+     "b": "k*2*m*n",
+     "c": "k*(m*m+n*n)",
+     "A": "k*k*(m*m-n*n)*(m*m-n*n)",
+     "B": "k*k*4*m*m*n*n",
+     "answer": "c-e",
+     "d_operationInverted": "c+e",
+     "d_partialTotal": "e",
+     "d_signError": "e-c"
+    },
+    "constraints": [
+     "n<m",
+     "m*m-n*n>0",
+     "c-e>4",
+     "abs(2*e-c)>4",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "answer!=d_signError",
+     "d_operationInverted!=d_partialTotal",
+     "d_operationInverted!=d_signError",
+     "d_partialTotal!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.6C:perimeter-of-the-square-on-the-longest-side",
+    "sourcePrompt": "Squares on the two shorter sides of a right triangle cover ${{A}}$ and ${{B}}$ square cm. How much longer is the longest side than ${{e}}$ cm?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_6C_square_on_the_remaining_side",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.6C:square-on-the-remaining-side",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6C",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A right triangle has its longest side ${{c}}$ cm and one shorter side ${{a}}$ cm. What area does the square on the third side cover?",
+   "solutionReview": {
+    "headline": "The largest square is the total of the two smaller ones.",
+    "reasoning": [
+     "The square on the longest side covers ${{c}}^{2}$, and the given side accounts for ${{a}}^{2}$ of it.",
+     "What is left is ${{answer}}$ square cm."
+    ],
+    "answerSummary": "It covers ${{answer}}$ square cm."
+   },
+   "attemptFeedback": [
+    "Subtracting the sides themselves leaves a length, not an area."
+   ],
+   "supportHints": [
+    "Work with the areas, not the side lengths."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "k": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     }
+    },
+    "derived": {
+     "a": "k*(m*m-n*n)",
+     "b": "k*2*m*n",
+     "c": "k*(m*m+n*n)",
+     "answer": "k*k*4*m*m*n*n",
+     "d_operationInverted": "k*k*(m*m+n*n)*(m*m+n*n)+k*k*(m*m-n*n)*(m*m-n*n)",
+     "d_forgotFinalStep": "k*(m*m+n*n)-k*(m*m-n*n)",
+     "d_partialTotal": "k*k*(m*m-n*n)*(m*m-n*n)"
+    },
+    "constraints": [
+     "n<m",
+     "m*m-n*n>0",
+     "abs(k*k*(m*m-n*n)*(m*m-n*n)-k*k*4*m*m*n*n)>5",
+     "k*2*m*n>3",
+     "answer!=d_operationInverted",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "d_operationInverted!=d_forgotFinalStep",
+     "d_operationInverted!=d_partialTotal",
+     "d_forgotFinalStep!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.6C:square-on-the-remaining-side",
+    "sourcePrompt": "A right triangle has its longest side ${{c}}$ cm and one shorter side ${{a}}$ cm. What area does the square on the third side cover?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_6C_fact_that_shows_a_right_angle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.6C:fact-that-shows-a-right-angle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.6C",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Squares are drawn on the three sides of a triangle with sides ${{a}}$, ${{b}}$ and ${{c}}$ cm. Which fact would show it has a right angle?",
+   "solutionReview": {
+    "headline": "Equality of the areas is the whole test.",
+    "reasoning": [
+     "A right angle is exactly the case where the two smaller squares add to the largest.",
+     "Different sizes and whole-number sides happen in triangles with no right angle at all."
+    ],
+    "answerSummary": "The two smaller squares total the largest."
+   },
+   "attemptFeedback": [
+    "If the largest square covers more, the angle opposite it is obtuse."
+   ],
+   "supportHints": [
+    "Recall what the theorem claims, and read it backwards."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 7
+     }
+    },
+    "derived": {
+     "a": "m*m-n*n",
+     "b": "2*m*n",
+     "c": "m*m+n*n"
+    },
+    "constraints": [
+     "n<m",
+     "m*m-n*n>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The largest square covers more than the other two together.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "All three side lengths are whole numbers.",
+     "error": "roundedWrong"
+    },
+    {
+     "id": "choice-c",
+     "label": "The two smaller squares together cover exactly as much as the largest."
+    },
+    {
+     "id": "choice-d",
+     "label": "The three squares are all different sizes.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.6C:fact-that-shows-a-right-angle",
+    "sourcePrompt": "Squares are drawn on the three sides of a triangle with sides ${{a}}$, ${{b}}$ and ${{c}}$ cm. Which fact would show it has a right angle?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_7A_space_left_round_a_sphere_in_a_drum",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.7A:space-left-round-a-sphere-in-a-drum",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A sphere of radius ${{r}}$ cm sits in a drum of the same radius and height ${{h}}$ cm. How much space is left, in terms of $\\pi$?",
+   "solutionReview": {
+    "headline": "Work out both solids before subtracting.",
+    "reasoning": [
+     "The drum holds ${{r}}^{2} \\times {{h}}\\pi$ and the sphere holds $\\frac{4}{3}{{r}}^{3}\\pi$.",
+     "The difference is ${{answer}}\\pi$ cubic cm."
+    ],
+    "answerSummary": "${{answer}}\\pi$ cubic cm are left."
+   },
+   "attemptFeedback": [
+    "The drum is the larger of the two here, so the difference runs that way."
+   ],
+   "supportHints": [
+    "The sphere uses the cube of the radius; the drum uses its square."
+   ],
+   "generator": {
+    "parameters": {
+     "s": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "h": {
+      "type": "int",
+      "min": 6,
+      "max": 50
+     }
+    },
+    "derived": {
+     "r": "3*s",
+     "answer": "9*s*s*h-36*s*s*s",
+     "d_forgotFinalStep": "9*s*s*h",
+     "d_partialTotal": "36*s*s*s",
+     "d_signError": "36*s*s*s-9*s*s*h"
+    },
+    "constraints": [
+     "h>4*s",
+     "9*s*s*h-36*s*s*s>8",
+     "abs(36*s*s*s-(9*s*s*h-36*s*s*s))>6",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_signError",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_signError",
+     "d_partialTotal!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.7A:space-left-round-a-sphere-in-a-drum",
+    "sourcePrompt": "A sphere of radius ${{r}}$ cm sits in a drum of the same radius and height ${{h}}$ cm. How much space is left, in terms of $\\pi$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_7A_second_drum_of_the_same_height",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.7A:second-drum-of-the-same-height",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A drum of radius ${{r}}$ cm holds ${{V}}\\pi$ cubic cm, and a second of the same height has radius ${{r2}}$ cm. What does the second hold?",
+   "solutionReview": {
+    "headline": "Recover the shared height, then rebuild with the new radius.",
+    "reasoning": [
+     "The first drum gives the shared height as ${{V}} \\div {{r}}^{2} = {{h}}$ cm.",
+     "The second then holds ${{r2}}^{2} \\times {{h}} = {{answer}}$ lots of $\\pi$."
+    ],
+    "answerSummary": "It holds ${{answer}}\\pi$ cubic cm."
+   },
+   "attemptFeedback": [
+    "A radius is not a diameter; squaring it twice over inflates the answer fourfold."
+   ],
+   "supportHints": [
+    "Divide out the first radius squared."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "r2": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "V": "r*r*h",
+     "answer": "r2*r2*h",
+     "d_usedGivenValue": "V",
+     "d_diameterForRadius": "4*r2*r2*h",
+     "d_forgotFinalStep": "h"
+    },
+    "constraints": [
+     "r!=r2",
+     "r2*r2*h>9",
+     "abs(r-r2)>1",
+     "abs(r2*r2*h-h)>4",
+     "answer!=d_usedGivenValue",
+     "answer!=d_diameterForRadius",
+     "answer!=d_forgotFinalStep",
+     "d_usedGivenValue!=d_diameterForRadius",
+     "d_usedGivenValue!=d_forgotFinalStep",
+     "d_diameterForRadius!=d_forgotFinalStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_diameterForRadius}}$",
+     "error": "diameterForRadius"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.7A:second-drum-of-the-same-height",
+    "sourcePrompt": "A drum of radius ${{r}}$ cm holds ${{V}}\\pi$ cubic cm, and a second of the same height has radius ${{r2}}$ cm. What does the second hold?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_7A_claim_about_widening_a_drum",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.7A:claim-about-widening-a-drum",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7A",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A cylinder, a cone and a sphere share a radius of ${{r}}$ cm, and the cylinder and cone stand ${{h}}$ cm tall. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "The radius is squared; the height is not.",
+    "reasoning": [
+     "A cylinder holds $\\pi r^{2}h$, so the radius enters twice and the height once.",
+     "Doubling the radius therefore makes it four times as large."
+    ],
+    "answerSummary": "Doubling the radius quadruples it."
+   },
+   "attemptFeedback": [
+    "The cone really does hold a third, and the sphere ignores the height entirely."
+   ],
+   "supportHints": [
+    "Write the formula out before testing each claim."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 18
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     }
+    },
+    "constraints": [
+     "r!=h"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Doubling the radius doubles what the cylinder holds."
+    },
+    {
+     "id": "choice-b",
+     "label": "The sphere holds $\\frac{4}{3}\\pi {{r}}^{3}$ whatever the height.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "Doubling the height doubles what the cylinder holds.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "The cone holds a third of what the cylinder holds.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.7A:claim-about-widening-a-drum",
+    "sourcePrompt": "A cylinder, a cone and a sphere share a radius of ${{r}}$ cm, and the cylinder and cone stand ${{h}}$ cm tall. Which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_7B_surface_of_an_open_tin",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.7B:surface-of-an-open-tin",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A tin of radius ${{r}}$ cm and height ${{h}}$ cm has no lid. What is its surface area, in terms of $\\pi$?",
+   "solutionReview": {
+    "headline": "Count the faces the tin actually has.",
+    "reasoning": [
+     "The curved surface is $2{{r}}{{h}}\\pi$ and the base is ${{r}}^{2}\\pi$.",
+     "Together they come to ${{answer}}\\pi$ square cm."
+    ],
+    "answerSummary": "It is ${{answer}}\\pi$ square cm."
+   },
+   "attemptFeedback": [
+    "Leaving both ends out drops the base the tin still has."
+   ],
+   "supportHints": [
+    "An open tin has one circular face, not two."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 24
+     }
+    },
+    "derived": {
+     "answer": "2*r*h+r*r",
+     "d_forgotFinalStep": "2*r*h",
+     "d_operationInverted": "2*r*h+2*r*r",
+     "d_partialTotal": "2*r*r"
+    },
+    "constraints": [
+     "abs(2*r*r-2*r*h-r*r)>5",
+     "r!=h",
+     "2*r*h+r*r>9",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_operationInverted!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.7B:surface-of-an-open-tin",
+    "sourcePrompt": "A tin of radius ${{r}}$ cm and height ${{h}}$ cm has no lid. What is its surface area, in terms of $\\pi$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_7B_height_from_a_curved_surface",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.7B:height-from-a-curved-surface",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7B",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The curved surface of a tin of radius ${{r}}$ cm covers ${{S}}\\pi$ square cm. How tall is it?",
+   "solutionReview": {
+    "headline": "The unrolled width is the circumference, not the radius.",
+    "reasoning": [
+     "The curved surface unrolls into a rectangle $2{{r}}\\pi$ across and $h$ tall.",
+     "So $h = {{S}} \\div (2 \\times {{r}}) = {{answer}}$ cm."
+    ],
+    "answerSummary": "It is ${{answer}}$ cm tall."
+   },
+   "attemptFeedback": [
+    "Dividing by the radius alone leaves a factor of two behind."
+   ],
+   "supportHints": [
+    "Divide by the whole circumference."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 36
+     },
+     "z": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     }
+    },
+    "derived": {
+     "h": "2*z",
+     "S": "4*r*z",
+     "answer": "2*z",
+     "d_forgotFinalStep": "S",
+     "d_diameterForRadius": "z",
+     "d_usedGivenValue": "r"
+    },
+    "constraints": [
+     "abs(r-2*z)>3",
+     "2*z>5",
+     "abs(2*z-z)>2",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_diameterForRadius",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_diameterForRadius",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_diameterForRadius!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_diameterForRadius}}$",
+     "error": "diameterForRadius"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.7B:height-from-a-curved-surface",
+    "sourcePrompt": "The curved surface of a tin of radius ${{r}}$ cm covers ${{S}}\\pi$ square cm. How tall is it?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_7B_what_widening_and_shortening_does",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.7B:what-widening-and-shortening-does",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7B",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A tin of radius ${{r}}$ cm and height ${{h}}$ cm has its radius doubled and its height halved. Which statement is true?",
+   "solutionReview": {
+    "headline": "The ends depend on the radius alone.",
+    "reasoning": [
+     "The curved surface is $2\\pi rh$, and doubling one factor while halving the other leaves it alone.",
+     "The two circular ends are $2\\pi r^{2}$, which grows fourfold."
+    ],
+    "answerSummary": "The curved surface holds; the total grows."
+   },
+   "attemptFeedback": [
+    "The ends carry no height at all, so they cannot be left unchanged."
+   ],
+   "supportHints": [
+    "Split the surface into the curved part and the ends."
+   ],
+   "generator": {
+    "parameters": {
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "h": {
+      "type": "int",
+      "min": 4,
+      "max": 24,
+      "step": 2
+     }
+    },
+    "constraints": [
+     "r!=h"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The curved surface is unchanged but the total is not."
+    },
+    {
+     "id": "choice-b",
+     "label": "The curved surface doubles.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Nothing about the surface changes.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The total surface is unchanged.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.7B:what-widening-and-shortening-does",
+    "sourcePrompt": "A tin of radius ${{r}}$ cm and height ${{h}}$ cm has its radius doubled and its height halved. Which statement is true?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_7C_how_far_a_brace_exceeds_a_side",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.7C:how-far-a-brace-exceeds-a-side",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7C",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A gate ${{a}}$ cm by ${{b}}$ cm is braced corner to corner. By how much does the brace exceed the shorter side?",
+   "solutionReview": {
+    "headline": "Find the diagonal first, then compare.",
+    "reasoning": [
+     "The brace runs $\\sqrt{{{a}}^{2} + {{b}}^{2}} = {{c}}$ cm.",
+     "That is ${{answer}}$ cm more than the shorter side."
+    ],
+    "answerSummary": "It exceeds it by ${{answer}}$ cm."
+   },
+   "attemptFeedback": [
+    "The brace is longer than either side, so the difference runs that way."
+   ],
+   "supportHints": [
+    "The brace is the longest side of the right triangle."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 7
+     },
+     "k": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     }
+    },
+    "derived": {
+     "a": "k*(m*m-n*n)",
+     "b": "k*2*m*n",
+     "c": "k*(m*m+n*n)",
+     "answer": "c-min(a,b)",
+     "d_operationInverted": "c+min(a,b)",
+     "d_partialTotal": "min(a,b)",
+     "d_signError": "min(a,b)-c"
+    },
+    "constraints": [
+     "n<m",
+     "5*m>6*n",
+     "m<6*n",
+     "m*m-n*n>0",
+     "c-min(a,b)>3",
+     "abs(2*min(a,b)-c)>3",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "answer!=d_signError",
+     "d_operationInverted!=d_partialTotal",
+     "d_operationInverted!=d_signError",
+     "d_partialTotal!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.7C:how-far-a-brace-exceeds-a-side",
+    "sourcePrompt": "A gate ${{a}}$ cm by ${{b}}$ cm is braced corner to corner. By how much does the brace exceed the shorter side?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_7C_gate_height_a_brace_demands",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.7C:gate-height-a-brace-demands",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7C",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A brace of ${{d}}$ cm is to run corner to corner on a gate ${{a}}$ cm wide. How tall must the gate be?",
+   "solutionReview": {
+    "headline": "Subtract the squares, then take the root.",
+    "reasoning": [
+     "The brace and the width are two sides of a right triangle, with the brace longest.",
+     "The height is $\\sqrt{{{d}}^{2} - {{a}}^{2}} = {{answer}}$ cm."
+    ],
+    "answerSummary": "It must be ${{answer}}$ cm tall."
+   },
+   "attemptFeedback": [
+    "Subtracting the lengths themselves skips the squaring the theorem needs."
+   ],
+   "supportHints": [
+    "The brace is the side opposite the right angle."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "k": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     }
+    },
+    "derived": {
+     "a": "k*(m*m-n*n)",
+     "answer": "k*2*m*n",
+     "d": "k*(m*m+n*n)",
+     "d_operationInverted": "k*(m*m+n*n)+k*(m*m-n*n)",
+     "d_forgotFinalStep": "k*(m*m+n*n)-k*(m*m-n*n)",
+     "d_usedGivenValue": "k*(m*m-n*n)"
+    },
+    "constraints": [
+     "n<m",
+     "m*m-n*n>0",
+     "k*2*m*n>5",
+     "abs(k*(m*m-n*n)-k*2*m*n)>3",
+     "abs(k*(m*m+n*n)-k*(m*m-n*n)-k*2*m*n)>3",
+     "answer!=d_operationInverted",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_forgotFinalStep",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.7C:gate-height-a-brace-demands",
+    "sourcePrompt": "A brace of ${{d}}$ cm is to run corner to corner on a gate ${{a}}$ cm wide. How tall must the gate be?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_7C_gate_that_cannot_take_its_brace",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.7C:gate-that-cannot-take-its-brace",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7C",
+   "taskType": "errorAnalysis",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Three of these gates take the brace listed beside them and one does not. Which row is wrong?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Row",
+     "Width (cm)",
+     "Height (cm)",
+     "Brace (cm)"
+    ],
+    "rows": [
+     [
+      "$1$",
+      "${{a1}}$",
+      "${{b1}}$",
+      "${{c1}}$"
+     ],
+     [
+      "$2$",
+      "${{a2}}$",
+      "${{b2}}$",
+      "${{c2}}$"
+     ],
+     [
+      "$3$",
+      "${{a3}}$",
+      "${{b3}}$",
+      "${{cBad}}$"
+     ],
+     [
+      "$4$",
+      "${{a4}}$",
+      "${{b4}}$",
+      "${{c4}}$"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "Square the two sides and compare with the brace squared.",
+    "reasoning": [
+     "In three rows the two sides squared add to the brace squared.",
+     "Row $3$ needs a brace of $17 \\times {{k3}}$ cm, so the one listed is too long."
+    ],
+    "answerSummary": "Row $3$ is wrong."
+   },
+   "attemptFeedback": [
+    "The other three rows are all right-angled as listed."
+   ],
+   "supportHints": [
+    "Test each row against the theorem in turn."
+   ],
+   "generator": {
+    "parameters": {
+     "k1": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "k2": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "k3": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "k4": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "off": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "a1": "3*k1",
+     "b1": "4*k1",
+     "c1": "5*k1",
+     "a2": "5*k2",
+     "b2": "12*k2",
+     "c2": "13*k2",
+     "a3": "8*k3",
+     "b3": "15*k3",
+     "cBad": "17*k3+off",
+     "a4": "7*k4",
+     "b4": "24*k4",
+     "c4": "25*k4"
+    },
+    "constraints": [
+     "off>1",
+     "k1!=k2",
+     "k3!=k4"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Row $1$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "Row $2$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "Row $4$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "Row $3$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.7C:gate-that-cannot-take-its-brace",
+    "sourcePrompt": "Three of these gates take the brace listed beside them and one does not. Which row is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_7D_saving_from_cutting_the_corner",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.7D:saving-from-cutting-the-corner",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7D",
+   "taskType": "procedural",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "How much shorter is the straight line from $({{x1}}, {{y1}})$ to $({{x2}}, {{y2}})$ than going across and then up?",
+   "solutionReview": {
+    "headline": "The straight line is the hypotenuse of the two moves.",
+    "reasoning": [
+     "Going across and up covers ${{a}} + {{b}}$, while the straight line covers ${{c}}$.",
+     "The saving is ${{answer}}$."
+    ],
+    "answerSummary": "It is shorter by ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The straight line is shorter than the two moves added together."
+   ],
+   "supportHints": [
+    "Work out each route separately before comparing."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     },
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "k": {
+      "type": "int",
+      "min": 1,
+      "max": 2
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 12
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 12
+     }
+    },
+    "derived": {
+     "a": "k*(m*m-n*n)",
+     "b": "k*2*m*n",
+     "c": "k*(m*m+n*n)",
+     "x2": "x1+k*(m*m-n*n)",
+     "y2": "y1+k*2*m*n",
+     "answer": "k*(m*m-n*n)+k*2*m*n-k*(m*m+n*n)",
+     "d_operationInverted": "k*(m*m-n*n)+k*2*m*n+k*(m*m+n*n)",
+     "d_partialTotal": "k*(m*m+n*n)",
+     "d_signError": "k*(m*m+n*n)-k*(m*m-n*n)-k*2*m*n"
+    },
+    "constraints": [
+     "n<m",
+     "m*m-n*n>0",
+     "k*(m*m-n*n)+k*2*m*n-k*(m*m+n*n)>3",
+     "abs(k*(m*m+n*n)-2*(k*(m*m-n*n)+k*2*m*n-k*(m*m+n*n)))>4"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Shorter by ${{answer}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "Longer by ${{d_signError}}$.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "Shorter by ${{d_partialTotal}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Shorter by ${{d_operationInverted}}$.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.7D:saving-from-cutting-the-corner",
+    "sourcePrompt": "How much shorter is the straight line from $({{x1}}, {{y1}})$ to $({{x2}}, {{y2}})$ than going across and then up?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_7D_height_of_a_point_at_a_set_distance",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.7D:height-of-a-point-at-a-set-distance",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7D",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A point $({{x2}}, y)$ sits ${{c}}$ from $({{x1}}, {{y1}})$ and above it. What is $y$?",
+   "solutionReview": {
+    "headline": "The distance is the hypotenuse, not either move.",
+    "reasoning": [
+     "The horizontal move is ${{a}}$, so the vertical move satisfies ${{a}}^{2} + b^{2} = {{c}}^{2}$.",
+     "That gives ${{b}}$, so $y = {{answer}}$."
+    ],
+    "answerSummary": "$y = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The whole distance covers both moves, so it cannot be the rise on its own."
+   ],
+   "supportHints": [
+    "Find the horizontal move first."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "n": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "k": {
+      "type": "int",
+      "min": 1,
+      "max": 2
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 14
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 30
+     }
+    },
+    "derived": {
+     "a": "k*(m*m-n*n)",
+     "b": "k*2*m*n",
+     "c": "k*(m*m+n*n)",
+     "x2": "x1+k*(m*m-n*n)",
+     "answer": "y1+k*2*m*n",
+     "d_forgotFinalStep": "y1+k*(m*m+n*n)",
+     "d_usedGivenValue": "y1",
+     "d_ratioReversed": "y1+k*(m*m-n*n)"
+    },
+    "constraints": [
+     "n<m",
+     "m*m-n*n>0",
+     "abs(k*(m*m-n*n)-k*2*m*n)>3",
+     "k*2*m*n>4",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_ratioReversed",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_ratioReversed",
+     "d_usedGivenValue!=d_ratioReversed"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.7D:height-of-a-point-at-a-set-distance",
+    "sourcePrompt": "A point $({{x2}}, y)$ sits ${{c}}$ from $({{x1}}, {{y1}})$ and above it. What is $y$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_7D_pair_the_same_distance_apart",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.7D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.7D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.7D:pair-the-same-distance-apart",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.7D",
+   "taskType": "interpretation",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which pair of points is the same distance apart as $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$?",
+   "solutionReview": {
+    "headline": "The same two moves give the same distance, wherever they start.",
+    "reasoning": [
+     "Distance depends only on the horizontal and vertical moves, here ${{a}}$ and ${{b}}$.",
+     "Only the first pair repeats both moves exactly."
+    ],
+    "answerSummary": "It is $({{p}}, {{q}})$ and $({{px}}, {{py}})$."
+   },
+   "attemptFeedback": [
+    "Adding the two moves together along one axis gives a longer separation."
+   ],
+   "supportHints": [
+    "Work out the two moves for each pair."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 12
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 12
+     },
+     "p": {
+      "type": "int",
+      "min": 13,
+      "max": 30
+     },
+     "q": {
+      "type": "int",
+      "min": 13,
+      "max": 30
+     },
+     "off": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "x2": "x1+a",
+     "y2": "y1+b",
+     "px": "p+a",
+     "py": "q+b",
+     "ox": "p+a",
+     "oy": "q+b+off",
+     "sx": "p+a+b",
+     "sy": "q",
+     "dx": "p+2*a",
+     "dy": "q+2*b"
+    },
+    "constraints": [
+     "a!=b",
+     "off>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{p}}, {{q}}) \\text{ and } ({{sx}}, {{sy}})$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{p}}, {{q}}) \\text{ and } ({{ox}}, {{oy}})$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{p}}, {{q}}) \\text{ and } ({{px}}, {{py}})$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{p}}, {{q}}) \\text{ and } ({{dx}}, {{dy}})$",
+     "error": "exponentError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.7D:pair-the-same-distance-apart",
+    "sourcePrompt": "Which pair of points is the same distance apart as $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$?"
+   }
   }
  ]
 }
