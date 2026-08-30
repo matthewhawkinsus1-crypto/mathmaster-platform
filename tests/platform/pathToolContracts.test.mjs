@@ -56,6 +56,15 @@ const QUESTIONS = {
     // server does it again for itself.
     system: { m1: 2, b1: 1, m2: -1, b2: 7 },
   },
+  dataModelingLab: {
+    // Exercise the authoring alias as well as the registry's canonical id.
+    type: 'dataModeling',
+    prompt: 'Calculate and interpret the correlation coefficient.',
+    mode: 'correlation',
+    points: [[1, 3], [2, 5], [3, 7], [4, 9]],
+    correlationTolerance: 0.02,
+    answer: 'must-not-leak',
+  },
   stepAlgebra: {
     type: 'stepAlgebra',
     prompt: 'Solve on the balance workspace.',
@@ -86,6 +95,7 @@ const SECRETS = {
   intervalNumberLine: ['[-4, 2)'],
   multiAnswer: ['"3"', '"-2"'],
   systemsWorkspace: [],
+  dataModelingLab: ['must-not-leak', 'correlationTolerance'],
   stepAlgebra: ['"5"'],
   // The y-values of the plotted points, and the end-behaviour symbol.
   functionInvestigation: ['[0,1]', '[2,5]', 'arrow', '(-∞, ∞)'],
@@ -259,6 +269,25 @@ test('systems: the intersection is checked, from either shape the grader sends',
   assert.equal(grade('system', { x: 1, y: 3 }).isCorrect, true);
   assert.equal(grade('system', { value: '(1,3)' }).isCorrect, true);
   assert.equal(grade('system', { x: 2, y: 3 }).isCorrect, false);
+});
+
+test('data modeling: correlation and interpretation are both server-graded', () => {
+  const right = grade('dataModelingLab', {
+    r: 1,
+    direction: 'positive',
+    strength: 'strong',
+    causation: 'association',
+  });
+  assert.equal(right.isCorrect, true);
+  assert.equal(right.score, 1);
+
+  const interpretationOnly = grade('dataModelingLab', {
+    direction: 'positive',
+    strength: 'strong',
+    causation: 'association',
+  });
+  assert.equal(interpretationOnly.isCorrect, false);
+  assert.equal(interpretationOnly.score, 0.5);
 });
 
 test('a systems question that also asks for a classification is not issued', () => {
