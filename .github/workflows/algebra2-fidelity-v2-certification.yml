@@ -37,6 +37,7 @@ on:
       - "tests/platform/a27gVariableRadicalRewriting.test.mjs"
       - "tests/platform/a27hRationalExponentEquations.test.mjs"
       - "tests/platform/a27iDomainRangeNotation.test.mjs"
+      - "tests/platform/a28aModelSelection.test.mjs"
       - "tests/platform/a27fRationalOperations.test.mjs"
       - "tests/platform/systemsMatrix3Technology.test.mjs"
       - "tests/platform/pathDataModelingGrading.test.mjs"
@@ -73,6 +74,7 @@ on:
       - "tests/platform/a27gVariableRadicalRewriting.test.mjs"
       - "tests/platform/a27hRationalExponentEquations.test.mjs"
       - "tests/platform/a27iDomainRangeNotation.test.mjs"
+      - "tests/platform/a28aModelSelection.test.mjs"
       - "tests/platform/a27fRationalOperations.test.mjs"
       - "tests/platform/systemsMatrix3Technology.test.mjs"
       - "tests/platform/pathDataModelingGrading.test.mjs"
@@ -108,6 +110,7 @@ jobs:
             tests/platform/a27gVariableRadicalRewriting.test.mjs \
             tests/platform/a27hRationalExponentEquations.test.mjs \
             tests/platform/a27iDomainRangeNotation.test.mjs \
+            tests/platform/a28aModelSelection.test.mjs \
             tests/platform/a27fRationalOperations.test.mjs \
             tests/platform/systemsMatrix3Technology.test.mjs
       - name: Build student/runtime bundle
