@@ -4445,4 +4445,129 @@ test('A2.6K represents rational asymptotic restrictions in interval inequality a
   assert.ok(representations.has('symbolic'));
   assert.ok(representations.has('verbal'));
 });
+test('A2.6L requires inverse-variation formulation and solving in every family', async () => {
+  const entry = payload('A2.6L');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /formulate-and-solve-inverse-variation/);
 
+  let generatedCount = 0;
+  let contextFamilies = 0;
+  let tableFamilies = 0;
+  let errorFamilies = 0;
+  let reversedModelsAccepted = 0;
+  let directModelsRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    if (doc.representation === 'context') contextFamilies += 1;
+    if (doc.representation === 'table') tableFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const fields = Object.fromEntries((doc.responseFields || []).map((field) => [field.id, field]));
+    assert.ok(fields.constant, doc.id + ' must require the inverse-variation constant');
+    assert.ok(fields.equation, doc.id + ' must require an authored inverse-variation equation');
+    assert.ok(fields.prediction || fields['missing-y'], doc.id + ' must solve/predict a new value');
+    assert.equal(fields.equation.inputProfile, 'equation');
+    assert.equal(fields.equation.equivalence, 'modelEquation');
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, doc.id + ' is not production-issuable: ' + issuePlan.reason);
+
+    let reversedChecked = false;
+    let directChecked = false;
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, doc.id + ' failed generation: ' + generated.reason);
+      const question = generated.question;
+      const params = generated.parameters || {};
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const qFields = Object.fromEntries((question.responseFields || []).map((field) => [field.id, field]));
+      const k = Number(qFields.constant?.expected);
+      assert.ok(Number.isFinite(k) && k > 0, doc.id + ' generated a nonpositive or invalid constant');
+
+      if (doc.id.includes('symbolic-formulate')) {
+        assert.equal(k, Number(params.x1) * Number(params.y1));
+        assert.equal(Number(qFields.prediction?.expected), k / Number(params.x2));
+      }
+      if (doc.id.includes('table-constant-product')) {
+        assert.equal(Number(qFields['product-1']?.expected), k);
+        assert.equal(Number(qFields['product-2']?.expected), k);
+        assert.equal(Number(qFields['product-3']?.expected), k);
+        assert.equal(Number(params.x1) * Number(params.y1), k);
+        assert.equal(Number(params.x2) * Number(params.y2), k);
+        assert.equal(Number(params.x3) * Number(params.y3), k);
+        assert.equal(Number(qFields['missing-y']?.expected), k / Number(params.x4));
+      }
+      if (doc.id.includes('fixed-distance')) {
+        assert.equal(k, Number(params.v1) * Number(params.t1));
+        assert.equal(Number(qFields.prediction?.expected), k / Number(params.v2));
+      }
+      if (doc.id.includes('fixed-area')) {
+        assert.equal(k, Number(params.l1) * Number(params.w1));
+        assert.equal(Number(qFields.prediction?.expected), k / Number(params.l2));
+      }
+      if (doc.id.includes('direct-variation-error')) {
+        assert.equal(qFields.diagnosis?.expected, 'direct');
+        assert.equal(k, Number(params.x1) * Number(params.y1));
+        assert.equal(Number(qFields.prediction?.expected), k / Number(params.x2));
+        assert.notEqual(Number(params.wrongK), k);
+        assert.equal(doc.dok, 3);
+      } else {
+        assert.equal(doc.dok, 2, doc.id + ' should remain DOK 2 even at higher difficulty');
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(correct.isCorrect, true, doc.id + ' failed secure self-acceptance: ' + JSON.stringify(correct.fieldResults));
+
+      if (!reversedChecked) {
+        const equation = grading.fields.find((field) => field.id === 'equation');
+        const sides = splitEquationSides(equation?.expected);
+        assert.ok(sides);
+        const reversed = sides.right + '=' + sides.left;
+        const result = await gradeResponse(grading, { responses: { ...responses, equation: reversed } });
+        assert.equal(result.isCorrect, true, doc.id + ' rejected the same inverse model with equation sides reversed');
+        reversedModelsAccepted += 1;
+        reversedChecked = true;
+      }
+
+      if (!directChecked) {
+        const dependent = doc.id.includes('fixed-distance') ? 't'
+          : (doc.id.includes('fixed-area') ? 'w' : 'y');
+        const independent = doc.id.includes('fixed-distance') ? 'v'
+          : (doc.id.includes('fixed-area') ? 'l' : 'x');
+        const wrongModel = dependent + '=' + k + '*' + independent;
+        const wrong = await gradeResponse(grading, { responses: { ...responses, equation: wrongModel } });
+        assert.equal(wrong.isCorrect, false, doc.id + ' accepted a direct-variation model for inverse variation');
+        directModelsRejected += 1;
+        directChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: 'qa-' + doc.id + '-' + generatedCount,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(contextFamilies >= 1);
+  assert.equal(tableFamilies, 1);
+  assert.equal(errorFamilies, 1);
+  assert.equal(reversedModelsAccepted, entry.documents.length);
+  assert.equal(directModelsRejected, entry.documents.length);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('context'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('verbal'));
+});
