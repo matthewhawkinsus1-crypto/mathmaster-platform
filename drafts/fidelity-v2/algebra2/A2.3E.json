@@ -603,7 +603,120 @@
             "max": 5
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-two-constraint-language-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A region must be ON OR ABOVE $y={{m}}x{{b|signed}}$ and STRICTLY BELOW $y={{c}}$. A student writes $y>{{m}}x{{b|signed}}$ and $y\\le{{c}}$. Diagnose BOTH boundary-language errors and write the corrected system.",
+          "stimulus": {
+            "kind": "steps",
+            "title": "Student inequalities",
+            "steps": [
+              {
+                "id": "one",
+                "label": "First",
+                "work": "$y>{{m}}x{{b|signed}}$"
+              },
+              {
+                "id": "two",
+                "label": "Second",
+                "work": "$y\\le{{c}}$"
+              }
+            ]
+          },
+          "responseFields": [
+            {
+              "id": "diagnosis1",
+              "label": "First boundary error",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "inclusive",
+                  "label": "On or above requires ≥, not >."
+                },
+                {
+                  "id": "strict",
+                  "label": "On or above requires >."
+                }
+              ],
+              "expected": "inclusive"
+            },
+            {
+              "id": "diagnosis2",
+              "label": "Second boundary error",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "strict",
+                  "label": "Strictly below requires <, not ≤."
+                },
+                {
+                  "id": "inclusive",
+                  "label": "Strictly below requires ≤."
+                }
+              ],
+              "expected": "strict"
+            },
+            {
+              "id": "ineq1",
+              "label": "Correct first inequality",
+              "inputProfile": "equation",
+              "expected": "y>={{m}}x{{b|signed}}"
+            },
+            {
+              "id": "ineq2",
+              "label": "Correct second inequality",
+              "inputProfile": "equation",
+              "expected": "y<{{c}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Boundary inclusion words determine whether equality belongs in each symbol.",
+            "reasoning": [
+              "'On or above' includes the line, so use ≥.",
+              "'Strictly below' excludes the line, so use <."
+            ],
+            "answerSummary": "$y\\ge {{m}}x{{b|signed}},\\;y<{{c}}$"
+          },
+          "attemptFeedback": [
+            "Repair both symbols, not just one."
+          ],
+          "supportHints": [
+            "Words like 'on' include equality; 'strictly' excludes it."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }
