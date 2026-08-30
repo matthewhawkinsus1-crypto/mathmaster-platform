@@ -372,12 +372,12 @@
           "difficultyBand": 4
         },
         {
-          "coverageKey": "adaptive-d2b4-full-point-map-double-reflection",
+          "coverageKey": "adaptive-d2b4-four-point-horizontal-reflection-map",
           "dok": 2,
           "difficultyBand": 4,
           "taskType": "procedural",
           "representation": "table",
-          "prompt": "Map the parent points $(0,0)$, $(4,2)$, and $(16,4)$ on $y=\\sqrt{x}$ through $g(x)=-2\\sqrt{-4(x-({{h}}))}{{k|signed}}$. Compute all three image points and state the scale/reflection effects.",
+          "prompt": "Map the parent points $(0,0)$, $(4,2)$, $(16,4)$, and $(36,6)$ on $y=\\sqrt{x}$ through $g(x)=0.5\\sqrt{-4(x-({{h}}))}{{k|signed}}$. Compute all four image points and state the horizontal/vertical scale effects.",
           "stimulus": {
             "kind": "table",
             "title": "Parent points",
@@ -398,6 +398,10 @@
                 [
                   "16",
                   "4"
+                ],
+                [
+                  "36",
+                  "6"
                 ]
               ]
             }
@@ -422,10 +426,16 @@
               "expected": "({{x16}},{{y16}})"
             },
             {
+              "id": "p36",
+              "label": "Image of (36,6)",
+              "inputProfile": "orderedPair",
+              "expected": "({{x36}},{{y36}})"
+            },
+            {
               "id": "vertical-scale",
               "label": "Vertical scale factor",
               "inputProfile": "number",
-              "expected": "2"
+              "expected": "0.5"
             },
             {
               "id": "horizontal-scale",
@@ -448,38 +458,22 @@
                 }
               ],
               "expected": "yes"
-            },
-            {
-              "id": "x-reflection",
-              "label": "Reflection across x-axis?",
-              "inputProfile": "choice",
-              "choices": [
-                {
-                  "id": "yes",
-                  "label": "Yes"
-                },
-                {
-                  "id": "no",
-                  "label": "No"
-                }
-              ],
-              "expected": "yes"
             }
           ],
           "solutionReview": {
-            "headline": "Point mapping applies the reciprocal inside scale to x and the outside scale to y.",
+            "headline": "A harder point-map can stay routine while requiring more coordinate calculations.",
             "reasoning": [
               "The inside factor -4 maps parent x-values by dividing by -4 before translating by h.",
-              "The outside factor -2 doubles y-values and reflects them across the x-axis before adding k.",
-              "The three image points are therefore the generated coordinates shown."
+              "The outside factor 0.5 halves parent y-values before adding k.",
+              "The negative inside factor reflects the parent horizontally, so the mapped x-values move left from the endpoint."
             ],
-            "answerSummary": "Horizontal scale 1/4 with horizontal reflection; vertical scale 2 with x-axis reflection."
+            "answerSummary": "Horizontal scale 1/4 with reflection; vertical scale 1/2."
           },
           "attemptFeedback": [
-            "Transform x- and y-coordinates with their own scale factors; do not use -4 directly as the horizontal scale."
+            "Apply the x-map and y-map separately to every parent point."
           ],
           "supportHints": [
-            "For $a\\sqrt{b(x-h)}+k$, parent x maps to $h+x/b$ and parent y maps to $ay+k$."
+            "For this family, parent $(x,y)$ maps to $(h-x/4,\\;k+y/2)$."
           ],
           "generator": {
             "parameters": {
@@ -496,9 +490,11 @@
             },
             "derived": {
               "x4": "h-1",
-              "y4": "k-4",
+              "y4": "k+1",
               "x16": "h-4",
-              "y16": "k-8"
+              "y16": "k+2",
+              "x36": "h-9",
+              "y36": "k+3"
             }
           }
         }
