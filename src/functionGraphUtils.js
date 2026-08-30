@@ -90,7 +90,10 @@ export const evaluateGraphFunction = (spec, x) => {
   const a = Number(spec.a ?? 1);
   const h = Number(spec.h ?? 0);
   const k = Number(spec.k ?? 0);
-  const base = Number(spec.base ?? 2);
+  // Exponential/logarithmic authoring historically used both `base` and
+  // `b`. New content uses `base`, but accept `b` here so already-published
+  // graph questions do not silently fall back to base 2.
+  const base = Number(spec.base ?? spec.b ?? 2);
 
   // A line is the most common function in these courses and was the one family
   // the spec evaluator did not implement, so any authored line graphed blank.
@@ -188,7 +191,7 @@ export const getSuggestedGraphPoints = (spec) => {
       xValues = [h - 8, h - 1, h, h + 1, h + 8];
       break;
     case 'logarithmic': {
-      const base = Number(spec.base ?? 2);
+      const base = Number(spec.base ?? spec.b ?? 2);
       xValues = [h + 1 / base, h + 1, h + base, h + base ** 2, h + base ** 3];
       break;
     }
@@ -224,7 +227,7 @@ export const formatGraphEquationLatex = (spec) => {
   const a = Number(spec.a ?? 1);
   const h = Number(spec.h ?? 0);
   const k = Number(spec.k ?? 0);
-  const base = Number(spec.base ?? 2);
+  const base = Number(spec.base ?? spec.b ?? 2);
   const shiftedX = termWithShift('x', h);
   const prefix = coefficientPrefix(a);
   let expression = 'y=f(x)';
