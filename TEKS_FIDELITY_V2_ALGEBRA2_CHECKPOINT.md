@@ -637,7 +637,7 @@ Do **not** re-audit A2.6E unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.6F — ENHANCE — AUDITED / AUTHORING
+### A2.6F — ENHANCE — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Solve absolute value linear inequalities.**
 
@@ -668,6 +668,21 @@ Resume here. Do not reopen A2.2A–A2.6E unless a failing gate names them.
   - include contextual transfer and complete AND-vs-OR error repair;
   - require inclusive/strict endpoint control and both bounded intervals and two-ray unions.
 - Generic secure inequality/interval grading is sufficient; no new Path capability is required.
+
+
+### 2026-08-30 — A2.6F staged and gated
+- Staged five A2.6F Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6F.json` — commit `f4ccbcb7d494469e8b26ea9b216e6e1341ef7993`.
+- Replaced chained-compound response fields with separately graded lower/upper inequalities so mathematically equivalent student inequalities use the existing inequality comparator fairly — commit `adae14c3e85044a093d274c49c444c3956d495ee`.
+- Coverage includes:
+  - a negative outside coefficient requiring inequality reversal during isolation and a bounded inclusive interval;
+  - a strict outside/OR system producing a two-ray union;
+  - an explicit contrast of absolute value < negative (empty) versus > negative (all real);
+  - contextual linear-tolerance solving with a nontrivial inside expression;
+  - complete AND-vs-OR error repair through the final interval union.
+- Added A2.6F-specific generated certification — commit `2da78479840d5f1ccbfa6300cbe8d4ff8dc3277b`.
+- The gate samples 200+ generated instances, checks production issuability and secure self-grading, requires nontrivial linear interiors throughout, repeated bounded/union reasoning, negative-coefficient reversal, empty/all-real edge cases, context/error breadth, wrong-region rejection, and public answer-key stripping.
+- Full A2.6F assertion run `33326550990`: **QUEUED/RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.6F** until that run is green.
 
 
 ### 2026-08-30 — A2.6E audit finding
