@@ -277,6 +277,99 @@
           "inputProfile": "number",
           "expected": "{{solutions}}"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "adaptive-d3b3-compare-parallel-and-equivalent-systems",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Compare two systems. System I is $y={{m}}x{{b1|signed}}$ and $y={{m}}x{{b2|signed}}$. System II is $y={{m}}x{{b1|signed}}$ and $2y={{twoM}}x{{twoB1|signed}}$. Determine the number of solutions for EACH system and explain what the intercept comparison reveals.",
+          "responseFields": [
+            {
+              "id": "system1",
+              "label": "Number of solutions for System I",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "system2",
+              "label": "Number of solutions for System II",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "infinite",
+                  "label": "Infinitely many solutions"
+                },
+                {
+                  "id": "zero",
+                  "label": "No solutions"
+                },
+                {
+                  "id": "one",
+                  "label": "One solution"
+                }
+              ],
+              "expected": "infinite"
+            },
+            {
+              "id": "reasoning",
+              "label": "Why are the classifications different?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "intercepts",
+                  "label": "System I has equal slopes but different intercepts; System II's equations are equivalent representations of the same line."
+                },
+                {
+                  "id": "same-slope",
+                  "label": "Any equal slopes always mean infinitely many solutions."
+                }
+              ],
+              "expected": "intercepts"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Equal slopes are not enough to classify a system; intercept/equation equivalence matters.",
+            "reasoning": [
+              "System I has the same slope but different intercepts, so the lines are distinct and parallel.",
+              "Dividing System II's second equation by 2 reproduces the first equation exactly, so both equations describe the same line."
+            ],
+            "answerSummary": "System I: 0 solutions. System II: infinitely many solutions."
+          },
+          "attemptFeedback": [
+            "Rewrite both equations into comparable form before classifying the systems."
+          ],
+          "supportHints": [
+            "Same slope + different intercepts means parallel; identical equations mean the same line."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              },
+              "b1": {
+                "type": "int",
+                "min": -6,
+                "max": 0
+              },
+              "b2": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              }
+            },
+            "derived": {
+              "solutions": "0",
+              "twoM": "2*m",
+              "twoB1": "2*b1"
+            }
+          }
+        }
       ]
     },
     {
