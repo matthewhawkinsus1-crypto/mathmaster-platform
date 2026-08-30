@@ -25,8 +25,8 @@
       "functionSpec": {
         "type": "exponential",
         "a": "{{a}}",
-        "b": "{{base}}",
-        "k": "{{k}}"
+        "k": "{{k}}",
+        "base": "{{base}}"
       },
       "graph": {
         "xMin": -4,
@@ -146,8 +146,8 @@
       "functionSpec": {
         "type": "exponential",
         "a": "{{a}}",
-        "b": "{{base}}",
-        "k": "{{k}}"
+        "k": "{{k}}",
+        "base": "{{base}}"
       },
       "graph": {
         "xMin": -4,
@@ -335,8 +335,8 @@
       "functionSpec": {
         "type": "exponential",
         "a": "{{negA}}",
-        "b": "{{base}}",
-        "k": "{{k}}"
+        "k": "{{k}}",
+        "base": "{{base}}"
       },
       "graph": {
         "xMin": -4,
@@ -457,8 +457,8 @@
       "functionSpec": {
         "type": "exponential",
         "a": "{{a}}",
-        "b": "{{base}}",
-        "k": "{{k}}"
+        "k": "{{k}}",
+        "base": "{{base}}"
       },
       "graph": {
         "xMin": -5,
