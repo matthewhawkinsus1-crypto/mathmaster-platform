@@ -1295,6 +1295,731 @@ mkc('6.6B', 'diagnosing-a-missing-constant', {
   feedback: 'The coordinates were read in the right order; it is the form of the rule that is wrong.',
 });
 
+// ================================================================ 6.6C
+// Equations that describe a situation with a rate and a starting amount.
+
+mkc('6.6C', 'gap-between-two-plans-at-one-input', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Plan A costs $y = {{k}}x + {{b}}$ and Plan B costs $y = {{m}}x$. At $x = {{x}}$, how much cheaper is Plan B?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      m: { type: 'int', min: 3, max: 14 },
+      b: { type: 'int', min: 10, max: 50 },
+      x: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      answer: 'b-(m-k)*x',
+      // Compared the fees and ignored the rates.
+      d_forgotFinalStep: 'b',
+      // Compared the rates and ignored the fee.
+      d_partialTotal: '(m-k)*x',
+      // Took the comparison the other way round.
+      d_signError: '(m-k)*x-b',
+    },
+    constraints: ['m>k', 'b-(m-k)*x>4', 'abs(b-2*(m-k)*x)>3', '(m-k)*x>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['At $x = {{x}}$ Plan A costs ${{k}} \\times {{x}} + {{b}}$ and Plan B costs ${{m}} \\times {{x}}$.', 'The difference is ${{answer}}$.'],
+  answerSummary: { headline: 'The fee and the rate both count at a given input.', text: 'Plan B is ${{answer}}$ cheaper.' },
+  hint: 'Work out each cost in full before comparing them.',
+  feedback: 'The fee is charged once, so it does not scale with $x$.',
+});
+
+mkc('6.6C', 'starting-amount-behind-a-steady-rate', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: 'A pump adding ${{k}}$ litres a minute leaves a tank at ${{v}}$ litres after ${{t}}$ minutes. How much was in it first?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 3, max: 16 },
+      t: { type: 'int', min: 2, max: 12 },
+      start: { type: 'int', min: 6, max: 120 },
+    },
+    derived: {
+      v: 'start+k*t',
+      answer: 'start',
+      // Added the pumped amount again instead of removing it.
+      d_operationInverted: 'v+k*t',
+      // Answered how much the pump delivered.
+      d_usedGivenValue: 'k*t',
+      // Took the difference the other way round.
+      d_signError: 'k*t-v',
+    },
+    constraints: ['abs(k*t-start)>3', 'start>5'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['In ${{t}}$ minutes the pump delivers ${{k}} \\times {{t}}$ litres.', 'Taking that off ${{v}}$ leaves ${{answer}}$.'],
+  answerSummary: { headline: 'Strip out what the rate contributed to reach the starting amount.', text: 'It held ${{answer}}$ litres.' },
+  hint: 'The rate accounts for everything except what was already there.',
+  feedback: 'The pumped amount has to come off the final reading, not be added to it.',
+});
+
+mkc('6.6C', 'equation-that-adds-a-discount', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For "$x$ items at $\\${{k}}$ each, less a $\\${{b}}$ discount" a student writes $y = {{k}}x + {{b}}$. What is wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 3, max: 25 },
+      b: { type: 'int', min: 5, max: 40 },
+    },
+    constraints: ['k!=b'],
+  },
+  choices: [
+    { label: 'The discount should be subtracted, not added.', correct: true },
+    { label: 'The rate and the discount have been swapped.', error: 'ratioReversed' },
+    { label: 'The discount should be multiplied by $x$.', error: 'wrongPercentBase' },
+    { label: 'The rate should be added to $x$, not multiplied by it.', error: 'operationInverted' },
+  ],
+  reasoning: ['A discount lowers the total, so it carries a minus sign.', 'The equation should read $y = {{k}}x - {{b}}$.'],
+  answerSummary: { headline: 'A discount subtracts once, whatever $x$ is.', text: 'The sign in front of ${{b}}$ is wrong.' },
+  hint: 'Ask whether the total goes up or down because of the discount.',
+  feedback: 'The rate is applied per item correctly; the discount is applied once.',
+});
+
+// ================================================================ 6.9A
+// Writing equations and inequalities for verbal descriptions.
+
+mkc('6.9A', 'inequality-for-a-doubled-then-reduced-number', {
+  difficultyBand: 4, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'Twice a number, less ${{a}}$, is at most ${{t}}$. Which inequality says that?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 40 },
+      t: { type: 'int', min: 8, max: 90 },
+    },
+    constraints: ['t>a'],
+  },
+  choices: [
+    { label: plain('2x - {{a}} \\le {{t}}'), correct: true },
+    { label: plain('2x + {{a}} \\le {{t}}'), error: 'operationInverted' },
+    { label: plain('2(x - {{a}}) \\le {{t}}'), error: 'orderOfOperations' },
+    { label: plain('2x - {{a}} \\ge {{t}}'), error: 'signError' },
+  ],
+  reasoning: ['"Twice a number" is $2x$, and "less ${{a}}$" subtracts after the doubling.', '"At most" is $\\le$.'],
+  answerSummary: { headline: 'Translate each phrase in the order it is written.', text: 'It is $2x - {{a}} \\le {{t}}$.' },
+  hint: 'Decide which operation happens first, then which direction the inequality faces.',
+  feedback: 'Bracketing the subtraction doubles it as well as the number.',
+});
+
+mkc('6.9A', 'largest-whole-number-under-a-ceiling', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: 'A number is multiplied by ${{a}}$ and then reduced by ${{b}}$; the result is at most ${{t}}$. What is the largest whole number it can be?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      j: { type: 'int', min: 1, max: 8 },
+      k: { type: 'int', min: 5, max: 40 },
+    },
+    derived: {
+      b: 'a*j',
+      t: 'a*(k-j)',
+      answer: 'k',
+      // Never added the reduction back before dividing.
+      d_forgotFinalStep: 'k-j',
+      // Answered the reduction itself.
+      d_ratioReversed: 'b',
+      // Answered the ceiling untouched.
+      d_usedGivenValue: 't',
+    },
+    constraints: ['k>j+2', 'abs(a*j-k)>3', 'abs(t-k)>3', 'j>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The condition is ${{a}}x - {{b}} \\le {{t}}$, so ${{a}}x \\le {{t}} + {{b}}$.', 'Dividing gives $x \\le {{answer}}$.'],
+  answerSummary: { headline: 'Undo the subtraction before undoing the multiplication.', text: 'The largest is ${{answer}}$.' },
+  hint: 'Move ${{b}}$ across before dividing by ${{a}}$.',
+  feedback: 'Dividing first leaves the reduction still sitting on the wrong side.',
+});
+
+mkc('6.9A', 'inequality-with-the-widest-solution-set', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'symbolic',
+  prompt: 'For whole numbers $x$ of at least $1$, which inequality allows the greatest number of values?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 4, max: 9 },
+      t: { type: 'int', min: 24, max: 90 },
+    },
+    derived: {
+      c1: 't-a',
+      c2: 'floor(t/2)',
+      c3: 'floor(t/3)',
+      c4: 'floor(t/a)',
+    },
+    constraints: ['t>2*a+6', 'c1>c2', 'c2!=c3', 'c3!=c4', 'c1!=c4'],
+  },
+  choices: [
+    { label: plain('x + {{a}} \\le {{t}}'), correct: true },
+    { label: plain('2x \\le {{t}}'), error: 'ratioReversed' },
+    { label: plain('3x \\le {{t}}'), error: 'operationInverted' },
+    { label: plain('{{a}}x \\le {{t}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Adding ${{a}}$ shifts the ceiling down by ${{a}}$, leaving ${{c1}}$ values.', 'Each of the others divides the ceiling, which cuts far more away.'],
+  answerSummary: { headline: 'Adding costs a fixed amount; multiplying costs a share.', text: 'It is $x + {{a}} \\le {{t}}$.' },
+  hint: 'Count the whole numbers each inequality lets through.',
+  feedback: 'Dividing ${{t}}$ by a factor removes a proportion, not a fixed amount.',
+});
+
+// ================================================================ 6.9B
+// Solutions drawn on a number line.
+
+mkc('6.9B', 'where-a-shaded-ray-begins', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'numberLine',
+  prompt: 'Solving ${{k}}x - {{b}} \\le {{t}}$ shades a ray on the number line. At what value does it start?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      j: { type: 'int', min: 1, max: 9 },
+      c: { type: 'int', min: 4, max: 40 },
+    },
+    derived: {
+      b: 'k*j',
+      t: 'k*(c-j)',
+      answer: 'c',
+      // Divided the ceiling without restoring the subtraction.
+      d_forgotFinalStep: 'c-j',
+      // Answered the amount that was subtracted.
+      d_ratioReversed: 'b',
+      // Answered the ceiling untouched.
+      d_usedGivenValue: 't',
+    },
+    constraints: ['c>j+2', 'abs(k*j-c)>3', 'abs(t-c)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Adding ${{b}}$ to both sides gives ${{k}}x \\le {{t}} + {{b}}$.', 'Dividing by ${{k}}$ puts the endpoint at ${{answer}}$.'],
+  answerSummary: { headline: 'The endpoint is the solved boundary, not a number from the question.', text: 'It starts at ${{answer}}$.' },
+  hint: 'Solve the inequality before drawing anything.',
+  feedback: 'The ceiling on ${{k}}x - {{b}}$ is not the ceiling on $x$.',
+});
+
+mkc('6.9B', 'inequality-behind-a-drawn-ray', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'numberLine',
+  prompt: 'A number line is shaded left from a closed dot at ${{c}}$. Which inequality produces exactly that picture?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 30 },
+      c: { type: 'int', min: 3, max: 25 },
+    },
+    derived: { t: 'k*c+b', tLow: 'k*c-b' },
+    constraints: ['k*c-b>0', 'b>2'],
+  },
+  choices: [
+    { label: plain('{{k}}x + {{b}} \\le {{t}}'), correct: true },
+    { label: plain('{{k}}x + {{b}} < {{t}}'), error: 'offByOneStep' },
+    { label: plain('{{k}}x + {{b}} \\ge {{t}}'), error: 'signError' },
+    { label: plain('{{k}}x - {{b}} \\le {{t}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['A closed dot means the endpoint is included, so the relation is $\\le$.', 'Shading to the left means the solutions are the smaller values.'],
+  answerSummary: { headline: 'The dot fixes the relation and the shading fixes the direction.', text: 'It is ${{k}}x + {{b}} \\le {{t}}$.' },
+  hint: 'Decide the direction first, then whether the endpoint counts.',
+  feedback: 'A strict inequality leaves the endpoint open.',
+});
+
+mkc('6.9B', 'diagnosing-a-ray-drawn-backwards', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student solves ${{k}}x > {{t}}$ and shades left from an open dot at ${{c}}$. What is wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 3, max: 30 },
+    },
+    derived: { t: 'k*c' },
+    constraints: ['k>1'],
+  },
+  choices: [
+    { label: 'The shading should run right, because $x$ must be larger than ${{c}}$.', correct: true },
+    { label: 'The dot should be closed at ${{c}}$.', error: 'signError' },
+    { label: 'The endpoint should be at ${{t}}$, not ${{c}}$.', error: 'usedGivenValue' },
+    { label: 'The inequality has no solutions at all.', error: 'operationInverted' },
+  ],
+  reasoning: ['Dividing ${{k}}x > {{t}}$ by the positive ${{k}}$ leaves $x > {{c}}$.', 'Nothing reverses the direction, so the shading belongs on the right.'],
+  answerSummary: { headline: 'Dividing by a positive number keeps the direction.', text: 'The ray points the wrong way.' },
+  hint: 'Check which values actually satisfy the inequality.',
+  feedback: 'The open dot is right; a strict inequality excludes the endpoint.',
+});
+
+// ================================================================ 6.10A
+// Writing and solving one-variable equations.
+
+mkc('6.10A', 'solve-a-grouped-quotient-equation', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Solve $\\frac{x + {{a}}}{{{c}}} = {{q}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 30 },
+      c: { type: 'int', min: 2, max: 9 },
+      q: { type: 'int', min: 4, max: 35 },
+    },
+    derived: {
+      answer: 'c*q-a',
+      // Added ${{a}} instead of subtracting it.
+      d_operationInverted: 'c*q+a',
+      // Never multiplied by the divisor.
+      d_forgotFinalStep: 'q-a',
+      // Multiplied the added value by the divisor instead of the result.
+      d_ratioReversed: 'a*c',
+    },
+    constraints: ['c*q-a>4', 'abs(a*c-c*q+a)>3', 'a!=q', 'abs(q-a)>2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Multiplying both sides by ${{c}}$ gives $x + {{a}} = {{c}} \\times {{q}}$.', 'Subtracting ${{a}}$ leaves $x = {{answer}}$.'],
+  answerSummary: { headline: 'Clear the denominator before touching the constant.', text: '$x = {{answer}}$.' },
+  hint: 'The fraction bar groups $x + {{a}}$, so both terms are divided.',
+  feedback: 'Subtracting before multiplying leaves ${{a}}$ scaled by the wrong amount.',
+});
+
+mkc('6.10A', 'divisor-behind-a-known-solution', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'For which value of $c$ does $\\frac{x + {{a}}}{c} = {{q}}$ have the solution $x = {{v}}$?',
+  generator: {
+    parameters: {
+      q: { type: 'int', min: 4, max: 16 },
+      w: { type: 'int', min: 1, max: 6 },
+      c: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      a: 'q*w',
+      v: 'q*(c-w)',
+      answer: 'c',
+      // Answered the numerator without dividing.
+      d_forgotFinalStep: 'v+a',
+      // Answered the quotient that was given.
+      d_usedGivenValue: 'q',
+      // Subtracted the constant instead of adding it.
+      d_operationInverted: 'c-2*w',
+    },
+    constraints: ['c>w+2', 'c-2*w>0', 'abs(c-q)>3', 'v>3', 'abs(v+a-c)>3', 'w>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['With $x = {{v}}$ the numerator is ${{v}} + {{a}}$.', 'Dividing that by ${{q}}$ gives $c = {{answer}}$.'],
+  answerSummary: { headline: 'Put the solution back in, then solve for what is missing.', text: '$c = {{answer}}$.' },
+  hint: 'Work out the numerator first; the divisor is what turns it into ${{q}}$.',
+  feedback: 'The numerator is not the divisor; it still has to be divided by ${{q}}$.',
+});
+
+mkc('6.10A', 'dividing-only-one-term', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'To solve ${{a}}x + {{b}} = {{t}}$ a student divides only the first term by ${{a}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 40 },
+      x: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { t: 'a*x+b' },
+    constraints: ['a>1'],
+  },
+  choices: [
+    { label: 'Every term on both sides has to be divided, not just one.', correct: true },
+    { label: 'Division may never come before subtraction.', error: 'orderOfOperations' },
+    { label: 'Both sides should be multiplied by ${{a}}$ instead.', error: 'operationInverted' },
+    { label: 'The sign of ${{b}}$ should change where it stands.', error: 'signError' },
+  ],
+  reasoning: ['Dividing an equation by ${{a}}$ changes every term, giving $x + \\frac{{{b}}}{{{a}}} = \\frac{{{t}}}{{{a}}}$.', 'Dividing one term alone makes the two sides unequal.'],
+  answerSummary: { headline: 'An operation applied to an equation reaches every term.', text: 'Only one term was divided.' },
+  hint: 'Ask whether both sides still balance after the step.',
+  feedback: 'Dividing first is a legitimate route; it just has to be done to everything.',
+});
+
+// ================================================================ 6.10B
+// Deciding whether a value satisfies an equation or inequality.
+
+mkc('6.10B', 'value-where-two-expressions-meet', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'For which value of $x$ does ${{k}}x - {{b}}$ equal ${{m}}x + {{c}}$?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 4, max: 12 },
+      m: { type: 'int', min: 2, max: 8 },
+      s: { type: 'int', min: 6, max: 22 },
+      j: { type: 'int', min: 2, max: 7 },
+    },
+    derived: {
+      c: '(k-m)*j',
+      b: '(k-m)*(s-j)',
+      answer: 's',
+      // Answered the combined constant without dividing.
+      d_forgotFinalStep: 'b+c',
+      // Answered the constant on the right.
+      d_usedGivenValue: 'c',
+      // Took the constants apart instead of together.
+      d_signError: 's-2*j',
+    },
+    constraints: ['m<k', 's>2*j+2', 'b>2', 'abs((k-m)*j-s)>3', 'abs(b+c-s)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['Collecting gives $({{k}}-{{m}})x = {{b}} + {{c}}$.', 'Dividing by ${{k}}-{{m}}$ leaves $x = {{answer}}$.'],
+  answerSummary: { headline: 'Gather the variable on one side and the constants on the other.', text: '$x = {{answer}}$.' },
+  hint: 'Both constants move to the same side, and both keep their signs.',
+  feedback: 'The two constants combine before anything is divided.',
+});
+
+mkc('6.10B', 'value-that-clears-two-conditions', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Which listed value satisfies both ${{a}}x \\le {{t}}$ and $x > {{lo}}$?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Value'],
+    rows: [['{{vk}}'], ['{{lo}}'], ['{{tooBig}}'], ['{{tooSmall}}']],
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 9 },
+      vk: { type: 'int', min: 8, max: 40 },
+      gap: { type: 'int', min: 3, max: 12 },
+      over: { type: 'int', min: 2, max: 9 },
+      under: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      lo: 'vk-gap',
+      t: 'a*vk',
+      tooBig: 'vk+over',
+      tooSmall: 'vk-gap-under',
+    },
+    constraints: ['vk-gap>2', 'vk-gap-under>0', 'gap>2'],
+  },
+  choices: [
+    { label: 'Value ${{vk}}$', correct: true },
+    { label: 'Value ${{lo}}$', error: 'offByOneStep' },
+    { label: 'Value ${{tooBig}}$', error: 'forgotFinalStep' },
+    { label: 'Value ${{tooSmall}}$', error: 'signError' },
+  ],
+  reasoning: ['The first condition caps $x$ at ${{vk}}$ and the second needs $x$ above ${{lo}}$.', 'Only ${{vk}}$ clears both.'],
+  answerSummary: { headline: 'A value must satisfy every condition, not just one.', text: 'It is ${{vk}}$.' },
+  hint: 'Test each listed value against both conditions in turn.',
+  feedback: '"Greater than ${{lo}}$" excludes ${{lo}}$ itself.',
+});
+
+mkc('6.10B', 'substituting-inside-the-wrong-grouping', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'To check $x = {{v}}$ in ${{a}}x + {{b}} = {{t}}$ a student computes ${{a}} \\times ({{v}} + {{b}})$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 30 },
+      v: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { t: 'a*v+b', wrong: 'a*(v+b)' },
+    constraints: ['a>1', 'b>2'],
+  },
+  choices: [
+    { label: 'The addition was carried out before the multiplication.', correct: true },
+    { label: 'The value belongs in place of ${{b}}$, not $x$.', error: 'usedGivenValue' },
+    { label: 'Both sides must be divided by ${{a}}$ before checking.', error: 'operationInverted' },
+    { label: 'A second value is needed before the check settles anything.', error: 'partialTotal' },
+  ],
+  reasoning: ['Only $x$ is multiplied by ${{a}}$, so the check is ${{a}} \\times {{v}}$ then $+ {{b}}$.', 'That gives ${{t}}$, while the grouped version gives ${{wrong}}$.'],
+  answerSummary: { headline: 'Substitution replaces the letter, not the structure around it.', text: '${{b}}$ was pulled inside the multiplication.' },
+  hint: 'Look at which term the coefficient actually multiplies.',
+  feedback: 'One value is enough to settle a check; the grouping is the problem.',
+});
+
+// ================================================================ 6.11
+// Points, quadrants and reflections in the coordinate plane.
+
+mkc('6.11', 'point-after-two-reflections', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'orderedPairs',
+  prompt: 'Reflect $(-{{p}}, {{q}})$ across the horizontal axis, then across the vertical axis. Which point results?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 18 },
+      q: { type: 'int', min: 2, max: 18 },
+    },
+    constraints: ['p!=q'],
+  },
+  choices: [
+    { label: plain('({{p}}, -{{q}})'), correct: true },
+    { label: plain('(-{{p}}, -{{q}})'), error: 'forgotFinalStep' },
+    { label: plain('({{p}}, {{q}})'), error: 'signError' },
+    { label: plain('(-{{q}}, {{p}})'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The first reflection changes the sign of the height, giving $(-{{p}}, -{{q}})$.', 'The second changes the sign of the across value, giving $({{p}}, -{{q}})$.'],
+  answerSummary: { headline: 'Each axis flips the coordinate it is not aligned with.', text: 'It is $({{p}}, -{{q}})$.' },
+  hint: 'Apply one reflection at a time and write the point down between them.',
+  feedback: 'Stopping after the first reflection leaves the across value negative.',
+});
+
+mkc('6.11', 'point-behind-a-reflection-distance', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'orderedPairs',
+  prompt: 'A point and its reflection across the vertical axis are ${{d}}$ apart, and the point sits at height $-{{q}}$ in Quadrant III. What is the point?',
+  generator: {
+    parameters: {
+      h: { type: 'int', min: 2, max: 16 },
+      q: { type: 'int', min: 2, max: 18 },
+    },
+    derived: { d: '2*h' },
+    constraints: ['h!=q', 'h*2!=q'],
+  },
+  choices: [
+    { label: plain('(-{{h}}, -{{q}})'), correct: true },
+    { label: plain('(-{{d}}, -{{q}})'), error: 'forgotFinalStep' },
+    { label: plain('({{h}}, -{{q}})'), error: 'signError' },
+    { label: plain('(-{{q}}, -{{h}})'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Reflecting across the vertical axis moves a point twice its distance from that axis.', 'So the across value is $-{{d}} \\div 2 = -{{h}}$.'],
+  answerSummary: { headline: 'The separation is double the distance to the axis.', text: 'The point is $(-{{h}}, -{{q}})$.' },
+  hint: 'Half the separation is how far the point sits from the vertical axis.',
+  feedback: 'Quadrant III means both coordinates are negative.',
+});
+
+mkc('6.11', 'point-farther-from-one-axis-than-the-other', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Which listed point sits farther from the horizontal axis than from the vertical axis?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Point'],
+    rows: [['$({{x1}}, -{{y1}})$'], ['$(-{{x2}}, {{y2}})$'], ['$({{x3}}, {{y3}})$'], ['$(-{{x4}}, -{{y4}})$']],
+  },
+  generator: {
+    parameters: {
+      x1: { type: 'int', min: 2, max: 9 },
+      g1: { type: 'int', min: 3, max: 12 },
+      y2: { type: 'int', min: 2, max: 9 },
+      g2: { type: 'int', min: 3, max: 12 },
+      y3: { type: 'int', min: 2, max: 9 },
+      g3: { type: 'int', min: 3, max: 12 },
+      y4: { type: 'int', min: 2, max: 9 },
+      g4: { type: 'int', min: 3, max: 12 },
+    },
+    derived: {
+      y1: 'x1+g1',
+      x2: 'y2+g2',
+      x3: 'y3+g3',
+      x4: 'y4+g4',
+    },
+    constraints: ['g1>2', 'g2>2', 'g3>2', 'g4>2'],
+  },
+  choices: [
+    { label: plain('({{x1}}, -{{y1}})'), correct: true },
+    { label: plain('(-{{x2}}, {{y2}})'), error: 'ratioReversed' },
+    { label: plain('({{x3}}, {{y3}})'), error: 'signError' },
+    { label: plain('(-{{x4}}, -{{y4}})'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Distance from the horizontal axis is the size of the height; from the vertical axis it is the size of the across value.', 'Only $({{x1}}, -{{y1}})$ has the larger height.'],
+  answerSummary: { headline: 'Compare the sizes of the coordinates, not their signs.', text: 'It is $({{x1}}, -{{y1}})$.' },
+  hint: 'Ignore the signs and compare the two numbers in each pair.',
+  feedback: 'A negative coordinate is not farther from an axis for being negative.',
+});
+
+// ================================================================ 6.8A
+// Angle relationships in triangles.
+
+mkc('6.8A', 'third-angle-from-two-described-angles', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'In a triangle the second angle is ${{k}}$ times the first, and the third is ${{d}}^\\circ$ more than the first. What is the third angle?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 5 },
+      x: { type: 'int', min: 15, max: 45 },
+    },
+    derived: {
+      d: '180-(k+2)*x',
+      answer: 'x+d',
+      // Answered the first angle.
+      d_partialTotal: 'x',
+      // Answered the second angle.
+      d_operationInverted: 'k*x',
+      // Subtracted one angle from the total and stopped.
+      d_signError: '180-x',
+    },
+    constraints: ['180-(k+2)*x>6', 'abs(k*x-x-180+(k+2)*x)>3', 'x>14', 'abs(180-x-x-180+(k+2)*x)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The three angles are $x$, ${{k}}x$ and $x + {{d}}$, and they total $180^\\circ$.', 'That gives $x = {{x}}$, so the third is ${{answer}}^\\circ$.'],
+  answerSummary: { headline: 'Write every angle in terms of one unknown before adding.', text: 'It is ${{answer}}^\\circ$.' },
+  hint: 'Collect the three expressions and set the total to $180$.',
+  feedback: 'Solving for the first angle is only part of the work.',
+});
+
+mkc('6.8A', 'larger-of-two-angles-from-their-difference', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'Two angles of a triangle differ by ${{g}}^\\circ$ and the third measures ${{c}}^\\circ$. What is the larger of the other two?',
+  generator: {
+    parameters: {
+      c: { type: 'int', min: 20, max: 90 },
+      g: { type: 'int', min: 4, max: 30 },
+    },
+    derived: {
+      answer: '(180-c+g)/2',
+      // Split the remainder evenly and ignored the difference.
+      d_forgotFinalStep: '(180-c)/2',
+      // Answered the whole remainder.
+      d_usedGivenValue: '180-c',
+      // Added the two given measures instead of using them.
+      d_operationInverted: 'c+g',
+    },
+    constraints: ['(180-c+g)%2==0', '180-c-g>20', 'abs(c+g-(180-c+g)/2)>3', 'g>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The other two angles total $180 - {{c}}$ and differ by ${{g}}$.', 'The larger is half their total plus half their difference, or ${{answer}}^\\circ$.'],
+  answerSummary: { headline: 'A total and a difference together fix both values.', text: 'The larger is ${{answer}}^\\circ$.' },
+  hint: 'Half the sum sits midway between the two angles.',
+  feedback: 'Splitting the remainder evenly assumes the two angles are equal.',
+});
+
+mkc('6.8A', 'angle-set-with-no-equal-sides', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'Which set of three angles belongs to a triangle whose sides are all different lengths?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 30, max: 70 },
+      b: { type: 'int', min: 20, max: 60 },
+      e: { type: 'int', min: 25, max: 75 },
+      f: { type: 'int', min: 3, max: 20 },
+    },
+    derived: {
+      c: '180-a-b',
+      twin: '180-2*e',
+      offSum: '180-a-b+f',
+      short: '180-a-b-f',
+    },
+    constraints: ['180-a-b>20', 'a!=b', '180-a-b!=a', '180-a-b!=b', '180-2*e>20', 'f>2', '180-a-b-f>10'],
+  },
+  choices: [
+    { label: '${{a}}^\\circ$, ${{b}}^\\circ$, ${{c}}^\\circ$', correct: true },
+    { label: '${{e}}^\\circ$, ${{e}}^\\circ$, ${{twin}}^\\circ$', error: 'partialTotal' },
+    { label: '${{a}}^\\circ$, ${{b}}^\\circ$, ${{offSum}}^\\circ$', error: 'arithmeticSlip' },
+    { label: '${{a}}^\\circ$, ${{b}}^\\circ$, ${{short}}^\\circ$', error: 'signError' },
+  ],
+  reasoning: ['The three angles must total $180^\\circ$, which rules out two of the sets.', 'Equal angles force equal sides, which rules out the pair of ${{e}}^\\circ$ angles.'],
+  answerSummary: { headline: 'Sides are all different exactly when the angles are all different.', text: 'It is ${{a}}^\\circ$, ${{b}}^\\circ$, ${{c}}^\\circ$.' },
+  hint: 'Check the total first, then look for repeated angles.',
+  feedback: 'A set that totals $180^\\circ$ can still describe a triangle with two equal sides.',
+});
+
+// ================================================================ 6.8B
+// Area of triangles and parallelograms by decomposition.
+
+mkc('6.8B', 'area-left-after-a-triangle-is-removed', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'A parallelogram of base ${{b}}$ cm and a triangle of base ${{b2}}$ cm share a height of ${{h}}$ cm. How much larger is the parallelogram?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 6, max: 24 },
+      b2: { type: 'int', min: 4, max: 40, step: 2 },
+      h: { type: 'int', min: 3, max: 14 },
+    },
+    derived: {
+      answer: 'b*h-b2*h/2',
+      // Took the whole rectangle off instead of half of it.
+      d_forgotFinalStep: 'b*h-b2*h',
+      // Added the two areas instead of comparing them.
+      d_operationInverted: 'b*h+b2*h/2',
+      // Answered the triangle's area on its own.
+      d_partialTotal: 'b2*h/2',
+    },
+    constraints: ['b*h-b2*h/2>4', 'abs(b*h-b2*h-b*h+b2*h/2)>3', 'abs(b2*h-b*h)>3', 'b2<2*b'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The parallelogram covers ${{b}} \\times {{h}}$ and the triangle covers half of ${{b2}} \\times {{h}}$.', 'The difference is ${{answer}}$ square centimetres.'],
+  answerSummary: { headline: 'A triangle covers half the rectangle on the same base and height.', text: 'It is ${{answer}}$ square centimetres larger.' },
+  hint: 'Work out both areas before comparing them.',
+  feedback: 'Using the full ${{b2}} \\times {{h}}$ counts the triangle twice over.',
+});
+
+mkc('6.8B', 'base-behind-a-joined-pair-of-triangles', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'Two identical triangles of height ${{h}}$ cm join into a parallelogram of area ${{A}}$ square cm. What is each triangle\'s base?',
+  generator: {
+    parameters: {
+      h: { type: 'int', min: 3, max: 24 },
+      base: { type: 'int', min: 4, max: 20 },
+    },
+    derived: {
+      A: 'base*h',
+      answer: 'base',
+      // Halved the area a second time.
+      d_operationInverted: 'A/(2*h)',
+      // Doubled the base as well as the area.
+      d_forgotFinalStep: '2*A/h',
+      // Answered the height that was given.
+      d_usedGivenValue: 'h',
+    },
+    constraints: ['base%2==0', 'abs(base-h)>3', 'base>5', 'abs(base-base/2)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The parallelogram has the same base as each triangle and the same height.', 'So the base is ${{A}} \\div {{h}} = {{answer}}$ cm.'],
+  answerSummary: { headline: 'Joining the two triangles doubles the area, not the base.', text: 'Each base is ${{answer}}$ cm.' },
+  hint: 'The two triangles sit side by side along the height, not along the base.',
+  feedback: 'The halving is already accounted for once the pair is joined.',
+});
+
+mkc('6.8B', 'claim-linking-two-shapes-that-share-a-base', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'A parallelogram and a triangle share a base of ${{b}}$ cm and a height of ${{h}}$ cm. Which statement is wrong?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 4, max: 24 },
+      h: { type: 'int', min: 3, max: 18 },
+    },
+    constraints: ['b!=h'],
+  },
+  choices: [
+    { label: 'Doubling the triangle\'s height doubles the parallelogram\'s area.', correct: true },
+    { label: 'The triangle covers half of what the parallelogram covers.', error: 'ratioReversed' },
+    { label: 'Doubling the shared base doubles both areas.', error: 'usedGivenValue' },
+    { label: 'Cutting the parallelogram along a diagonal gives two triangles of that area.', error: 'incompleteFactoring' },
+  ],
+  reasoning: ['The two shapes are separate; changing one leaves the other alone.', 'Only a change to the shared base or shared height reaches both.'],
+  answerSummary: { headline: 'Sharing a measurement is not the same as being linked.', text: 'The claim about the triangle\'s height is wrong.' },
+  hint: 'Ask which measurements the two shapes genuinely have in common.',
+  feedback: 'The half-area relationship does hold whenever the base and height match.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

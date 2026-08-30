@@ -5696,6 +5696,3378 @@
     "sourceFamilyId": "mathmaster:asvab:mk:6.6B:diagnosing-a-missing-constant",
     "sourcePrompt": "From the pairs $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$ a student wrote $y = {{ratio}}x$. What went wrong?"
    }
+  },
+  {
+   "id": "mm_asvab_mk_6_6C_gap_between_two_plans_at_one_input",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.6C:gap-between-two-plans-at-one-input",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6C",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Plan A costs $y = {{k}}x + {{b}}$ and Plan B costs $y = {{m}}x$. At $x = {{x}}$, how much cheaper is Plan B?",
+   "solutionReview": {
+    "headline": "The fee and the rate both count at a given input.",
+    "reasoning": [
+     "At $x = {{x}}$ Plan A costs ${{k}} \\times {{x}} + {{b}}$ and Plan B costs ${{m}} \\times {{x}}$.",
+     "The difference is ${{answer}}$."
+    ],
+    "answerSummary": "Plan B is ${{answer}}$ cheaper."
+   },
+   "attemptFeedback": [
+    "The fee is charged once, so it does not scale with $x$."
+   ],
+   "supportHints": [
+    "Work out each cost in full before comparing them."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "m": {
+      "type": "int",
+      "min": 3,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 10,
+      "max": 50
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "answer": "b-(m-k)*x",
+     "d_forgotFinalStep": "b",
+     "d_partialTotal": "(m-k)*x",
+     "d_signError": "(m-k)*x-b"
+    },
+    "constraints": [
+     "m>k",
+     "b-(m-k)*x>4",
+     "abs(b-2*(m-k)*x)>3",
+     "(m-k)*x>3",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_signError",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_signError",
+     "d_partialTotal!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.6C:gap-between-two-plans-at-one-input",
+    "sourcePrompt": "Plan A costs $y = {{k}}x + {{b}}$ and Plan B costs $y = {{m}}x$. At $x = {{x}}$, how much cheaper is Plan B?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_6C_starting_amount_behind_a_steady_rate",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.6C:starting-amount-behind-a-steady-rate",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6C",
+   "taskType": "reverseReasoning",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A pump adding ${{k}}$ litres a minute leaves a tank at ${{v}}$ litres after ${{t}}$ minutes. How much was in it first?",
+   "solutionReview": {
+    "headline": "Strip out what the rate contributed to reach the starting amount.",
+    "reasoning": [
+     "In ${{t}}$ minutes the pump delivers ${{k}} \\times {{t}}$ litres.",
+     "Taking that off ${{v}}$ leaves ${{answer}}$."
+    ],
+    "answerSummary": "It held ${{answer}}$ litres."
+   },
+   "attemptFeedback": [
+    "The pumped amount has to come off the final reading, not be added to it."
+   ],
+   "supportHints": [
+    "The rate accounts for everything except what was already there."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 3,
+      "max": 16
+     },
+     "t": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "start": {
+      "type": "int",
+      "min": 6,
+      "max": 120
+     }
+    },
+    "derived": {
+     "v": "start+k*t",
+     "answer": "start",
+     "d_operationInverted": "v+k*t",
+     "d_usedGivenValue": "k*t",
+     "d_signError": "k*t-v"
+    },
+    "constraints": [
+     "abs(k*t-start)>3",
+     "start>5",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_operationInverted!=d_signError",
+     "d_usedGivenValue!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.6C:starting-amount-behind-a-steady-rate",
+    "sourcePrompt": "A pump adding ${{k}}$ litres a minute leaves a tank at ${{v}}$ litres after ${{t}}$ minutes. How much was in it first?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_6C_equation_that_adds_a_discount",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.6C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.6C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.6C:equation-that-adds-a-discount",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.6C",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For \"$x$ items at $\\${{k}}$ each, less a $\\${{b}}$ discount\" a student writes $y = {{k}}x + {{b}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "A discount subtracts once, whatever $x$ is.",
+    "reasoning": [
+     "A discount lowers the total, so it carries a minus sign.",
+     "The equation should read $y = {{k}}x - {{b}}$."
+    ],
+    "answerSummary": "The sign in front of ${{b}}$ is wrong."
+   },
+   "attemptFeedback": [
+    "The rate is applied per item correctly; the discount is applied once."
+   ],
+   "supportHints": [
+    "Ask whether the total goes up or down because of the discount."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 3,
+      "max": 25
+     },
+     "b": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     }
+    },
+    "constraints": [
+     "k!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The rate and the discount have been swapped.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "The rate should be added to $x$, not multiplied by it.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The discount should be subtracted, not added."
+    },
+    {
+     "id": "choice-d",
+     "label": "The discount should be multiplied by $x$.",
+     "error": "wrongPercentBase"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.6C:equation-that-adds-a-discount",
+    "sourcePrompt": "For \"$x$ items at $\\${{k}}$ each, less a $\\${{b}}$ discount\" a student writes $y = {{k}}x + {{b}}$. What is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_9A_inequality_for_a_doubled_then_reduced_number",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.9A:inequality-for-a-doubled-then-reduced-number",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9A",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Twice a number, less ${{a}}$, is at most ${{t}}$. Which inequality says that?",
+   "solutionReview": {
+    "headline": "Translate each phrase in the order it is written.",
+    "reasoning": [
+     "\"Twice a number\" is $2x$, and \"less ${{a}}$\" subtracts after the doubling.",
+     "\"At most\" is $\\le$."
+    ],
+    "answerSummary": "It is $2x - {{a}} \\le {{t}}$."
+   },
+   "attemptFeedback": [
+    "Bracketing the subtraction doubles it as well as the number."
+   ],
+   "supportHints": [
+    "Decide which operation happens first, then which direction the inequality faces."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     },
+     "t": {
+      "type": "int",
+      "min": 8,
+      "max": 90
+     }
+    },
+    "constraints": [
+     "t>a"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$2x + {{a}} \\le {{t}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$2(x - {{a}}) \\le {{t}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-c",
+     "label": "$2x - {{a}} \\ge {{t}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$2x - {{a}} \\le {{t}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.9A:inequality-for-a-doubled-then-reduced-number",
+    "sourcePrompt": "Twice a number, less ${{a}}$, is at most ${{t}}$. Which inequality says that?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_9A_largest_whole_number_under_a_ceiling",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.9A:largest-whole-number-under-a-ceiling",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9A",
+   "taskType": "reverseReasoning",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A number is multiplied by ${{a}}$ and then reduced by ${{b}}$; the result is at most ${{t}}$. What is the largest whole number it can be?",
+   "solutionReview": {
+    "headline": "Undo the subtraction before undoing the multiplication.",
+    "reasoning": [
+     "The condition is ${{a}}x - {{b}} \\le {{t}}$, so ${{a}}x \\le {{t}} + {{b}}$.",
+     "Dividing gives $x \\le {{answer}}$."
+    ],
+    "answerSummary": "The largest is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Dividing first leaves the reduction still sitting on the wrong side."
+   ],
+   "supportHints": [
+    "Move ${{b}}$ across before dividing by ${{a}}$."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "j": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     },
+     "k": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     }
+    },
+    "derived": {
+     "b": "a*j",
+     "t": "a*(k-j)",
+     "answer": "k",
+     "d_forgotFinalStep": "k-j",
+     "d_ratioReversed": "b",
+     "d_usedGivenValue": "t"
+    },
+    "constraints": [
+     "k>j+2",
+     "abs(a*j-k)>3",
+     "abs(t-k)>3",
+     "j>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_ratioReversed",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_ratioReversed",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_ratioReversed!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.9A:largest-whole-number-under-a-ceiling",
+    "sourcePrompt": "A number is multiplied by ${{a}}$ and then reduced by ${{b}}$; the result is at most ${{t}}$. What is the largest whole number it can be?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_9A_inequality_with_the_widest_solution_set",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.9A:inequality-with-the-widest-solution-set",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9A",
+   "taskType": "interpretation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For whole numbers $x$ of at least $1$, which inequality allows the greatest number of values?",
+   "solutionReview": {
+    "headline": "Adding costs a fixed amount; multiplying costs a share.",
+    "reasoning": [
+     "Adding ${{a}}$ shifts the ceiling down by ${{a}}$, leaving ${{c1}}$ values.",
+     "Each of the others divides the ceiling, which cuts far more away."
+    ],
+    "answerSummary": "It is $x + {{a}} \\le {{t}}$."
+   },
+   "attemptFeedback": [
+    "Dividing ${{t}}$ by a factor removes a proportion, not a fixed amount."
+   ],
+   "supportHints": [
+    "Count the whole numbers each inequality lets through."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 4,
+      "max": 9
+     },
+     "t": {
+      "type": "int",
+      "min": 24,
+      "max": 90
+     }
+    },
+    "derived": {
+     "c1": "t-a",
+     "c2": "floor(t/2)",
+     "c3": "floor(t/3)",
+     "c4": "floor(t/a)"
+    },
+    "constraints": [
+     "t>2*a+6",
+     "c1>c2",
+     "c2!=c3",
+     "c3!=c4",
+     "c1!=c4"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$3x \\le {{t}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}x \\le {{t}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$2x \\le {{t}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "$x + {{a}} \\le {{t}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.9A:inequality-with-the-widest-solution-set",
+    "sourcePrompt": "For whole numbers $x$ of at least $1$, which inequality allows the greatest number of values?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_9B_where_a_shaded_ray_begins",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.9B:where-a-shaded-ray-begins",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9B",
+   "taskType": "procedural",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solving ${{k}}x - {{b}} \\le {{t}}$ shades a ray on the number line. At what value does it start?",
+   "solutionReview": {
+    "headline": "The endpoint is the solved boundary, not a number from the question.",
+    "reasoning": [
+     "Adding ${{b}}$ to both sides gives ${{k}}x \\le {{t}} + {{b}}$.",
+     "Dividing by ${{k}}$ puts the endpoint at ${{answer}}$."
+    ],
+    "answerSummary": "It starts at ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The ceiling on ${{k}}x - {{b}}$ is not the ceiling on $x$."
+   ],
+   "supportHints": [
+    "Solve the inequality before drawing anything."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "j": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 4,
+      "max": 40
+     }
+    },
+    "derived": {
+     "b": "k*j",
+     "t": "k*(c-j)",
+     "answer": "c",
+     "d_forgotFinalStep": "c-j",
+     "d_ratioReversed": "b",
+     "d_usedGivenValue": "t"
+    },
+    "constraints": [
+     "c>j+2",
+     "abs(k*j-c)>3",
+     "abs(t-c)>3",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_ratioReversed",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_ratioReversed",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_ratioReversed!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.9B:where-a-shaded-ray-begins",
+    "sourcePrompt": "Solving ${{k}}x - {{b}} \\le {{t}}$ shades a ray on the number line. At what value does it start?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_9B_inequality_behind_a_drawn_ray",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.9B:inequality-behind-a-drawn-ray",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9B",
+   "taskType": "reverseReasoning",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A number line is shaded left from a closed dot at ${{c}}$. Which inequality produces exactly that picture?",
+   "solutionReview": {
+    "headline": "The dot fixes the relation and the shading fixes the direction.",
+    "reasoning": [
+     "A closed dot means the endpoint is included, so the relation is $\\le$.",
+     "Shading to the left means the solutions are the smaller values."
+    ],
+    "answerSummary": "It is ${{k}}x + {{b}} \\le {{t}}$."
+   },
+   "attemptFeedback": [
+    "A strict inequality leaves the endpoint open."
+   ],
+   "supportHints": [
+    "Decide the direction first, then whether the endpoint counts."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "c": {
+      "type": "int",
+      "min": 3,
+      "max": 25
+     }
+    },
+    "derived": {
+     "t": "k*c+b",
+     "tLow": "k*c-b"
+    },
+    "constraints": [
+     "k*c-b>0",
+     "b>2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{k}}x + {{b}} \\le {{t}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{k}}x + {{b}} < {{t}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{k}}x + {{b}} \\ge {{t}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{k}}x - {{b}} \\le {{t}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.9B:inequality-behind-a-drawn-ray",
+    "sourcePrompt": "A number line is shaded left from a closed dot at ${{c}}$. Which inequality produces exactly that picture?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_9B_diagnosing_a_ray_drawn_backwards",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.9B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.9B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.9B:diagnosing-a-ray-drawn-backwards",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.9B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A student solves ${{k}}x > {{t}}$ and shades left from an open dot at ${{c}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "Dividing by a positive number keeps the direction.",
+    "reasoning": [
+     "Dividing ${{k}}x > {{t}}$ by the positive ${{k}}$ leaves $x > {{c}}$.",
+     "Nothing reverses the direction, so the shading belongs on the right."
+    ],
+    "answerSummary": "The ray points the wrong way."
+   },
+   "attemptFeedback": [
+    "The open dot is right; a strict inequality excludes the endpoint."
+   ],
+   "supportHints": [
+    "Check which values actually satisfy the inequality."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     }
+    },
+    "derived": {
+     "t": "k*c"
+    },
+    "constraints": [
+     "k>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The shading should run right, because $x$ must be larger than ${{c}}$."
+    },
+    {
+     "id": "choice-b",
+     "label": "The endpoint should be at ${{t}}$, not ${{c}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The inequality has no solutions at all.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "The dot should be closed at ${{c}}$.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.9B:diagnosing-a-ray-drawn-backwards",
+    "sourcePrompt": "A student solves ${{k}}x > {{t}}$ and shades left from an open dot at ${{c}}$. What is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_10A_solve_a_grouped_quotient_equation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.10A:solve-a-grouped-quotient-equation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $\\frac{x + {{a}}}{{{c}}} = {{q}}$.",
+   "solutionReview": {
+    "headline": "Clear the denominator before touching the constant.",
+    "reasoning": [
+     "Multiplying both sides by ${{c}}$ gives $x + {{a}} = {{c}} \\times {{q}}$.",
+     "Subtracting ${{a}}$ leaves $x = {{answer}}$."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "Subtracting before multiplying leaves ${{a}}$ scaled by the wrong amount."
+   ],
+   "supportHints": [
+    "The fraction bar groups $x + {{a}}$, so both terms are divided."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "q": {
+      "type": "int",
+      "min": 4,
+      "max": 35
+     }
+    },
+    "derived": {
+     "answer": "c*q-a",
+     "d_operationInverted": "c*q+a",
+     "d_forgotFinalStep": "q-a",
+     "d_ratioReversed": "a*c"
+    },
+    "constraints": [
+     "c*q-a>4",
+     "abs(a*c-c*q+a)>3",
+     "a!=q",
+     "abs(q-a)>2",
+     "answer!=d_operationInverted",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_ratioReversed",
+     "d_operationInverted!=d_forgotFinalStep",
+     "d_operationInverted!=d_ratioReversed",
+     "d_forgotFinalStep!=d_ratioReversed"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.10A:solve-a-grouped-quotient-equation",
+    "sourcePrompt": "Solve $\\frac{x + {{a}}}{{{c}}} = {{q}}$."
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_10A_divisor_behind_a_known_solution",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.10A:divisor-behind-a-known-solution",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For which value of $c$ does $\\frac{x + {{a}}}{c} = {{q}}$ have the solution $x = {{v}}$?",
+   "solutionReview": {
+    "headline": "Put the solution back in, then solve for what is missing.",
+    "reasoning": [
+     "With $x = {{v}}$ the numerator is ${{v}} + {{a}}$.",
+     "Dividing that by ${{q}}$ gives $c = {{answer}}$."
+    ],
+    "answerSummary": "$c = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The numerator is not the divisor; it still has to be divided by ${{q}}$."
+   ],
+   "supportHints": [
+    "Work out the numerator first; the divisor is what turns it into ${{q}}$."
+   ],
+   "generator": {
+    "parameters": {
+     "q": {
+      "type": "int",
+      "min": 4,
+      "max": 16
+     },
+     "w": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     }
+    },
+    "derived": {
+     "a": "q*w",
+     "v": "q*(c-w)",
+     "answer": "c",
+     "d_forgotFinalStep": "v+a",
+     "d_usedGivenValue": "q",
+     "d_operationInverted": "c-2*w"
+    },
+    "constraints": [
+     "c>w+2",
+     "c-2*w>0",
+     "abs(c-q)>3",
+     "v>3",
+     "abs(v+a-c)>3",
+     "w>0",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_usedGivenValue!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.10A:divisor-behind-a-known-solution",
+    "sourcePrompt": "For which value of $c$ does $\\frac{x + {{a}}}{c} = {{q}}$ have the solution $x = {{v}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_10A_dividing_only_one_term",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.10A:dividing-only-one-term",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "To solve ${{a}}x + {{b}} = {{t}}$ a student divides only the first term by ${{a}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "An operation applied to an equation reaches every term.",
+    "reasoning": [
+     "Dividing an equation by ${{a}}$ changes every term, giving $x + \\frac{{{b}}}{{{a}}} = \\frac{{{t}}}{{{a}}}$.",
+     "Dividing one term alone makes the two sides unequal."
+    ],
+    "answerSummary": "Only one term was divided."
+   },
+   "attemptFeedback": [
+    "Dividing first is a legitimate route; it just has to be done to everything."
+   ],
+   "supportHints": [
+    "Ask whether both sides still balance after the step."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "t": "a*x+b"
+    },
+    "constraints": [
+     "a>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Every term on both sides has to be divided, not just one."
+    },
+    {
+     "id": "choice-b",
+     "label": "Both sides should be multiplied by ${{a}}$ instead.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "Division may never come before subtraction.",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-d",
+     "label": "The sign of ${{b}}$ should change where it stands.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.10A:dividing-only-one-term",
+    "sourcePrompt": "To solve ${{a}}x + {{b}} = {{t}}$ a student divides only the first term by ${{a}}$. What is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_10B_value_where_two_expressions_meet",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.10B:value-where-two-expressions-meet",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For which value of $x$ does ${{k}}x - {{b}}$ equal ${{m}}x + {{c}}$?",
+   "solutionReview": {
+    "headline": "Gather the variable on one side and the constants on the other.",
+    "reasoning": [
+     "Collecting gives $({{k}}-{{m}})x = {{b}} + {{c}}$.",
+     "Dividing by ${{k}}-{{m}}$ leaves $x = {{answer}}$."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The two constants combine before anything is divided."
+   ],
+   "supportHints": [
+    "Both constants move to the same side, and both keep their signs."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 4,
+      "max": 12
+     },
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "s": {
+      "type": "int",
+      "min": 6,
+      "max": 22
+     },
+     "j": {
+      "type": "int",
+      "min": 2,
+      "max": 7
+     }
+    },
+    "derived": {
+     "c": "(k-m)*j",
+     "b": "(k-m)*(s-j)",
+     "answer": "s",
+     "d_forgotFinalStep": "b+c",
+     "d_usedGivenValue": "c",
+     "d_signError": "s-2*j"
+    },
+    "constraints": [
+     "m<k",
+     "s>2*j+2",
+     "b>2",
+     "abs((k-m)*j-s)>3",
+     "abs(b+c-s)>3",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_signError",
+     "d_usedGivenValue!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.10B:value-where-two-expressions-meet",
+    "sourcePrompt": "For which value of $x$ does ${{k}}x - {{b}}$ equal ${{m}}x + {{c}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_10B_value_that_clears_two_conditions",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.10B:value-that-clears-two-conditions",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10B",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which listed value satisfies both ${{a}}x \\le {{t}}$ and $x > {{lo}}$?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Value"
+    ],
+    "rows": [
+     [
+      "{{vk}}"
+     ],
+     [
+      "{{lo}}"
+     ],
+     [
+      "{{tooBig}}"
+     ],
+     [
+      "{{tooSmall}}"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "A value must satisfy every condition, not just one.",
+    "reasoning": [
+     "The first condition caps $x$ at ${{vk}}$ and the second needs $x$ above ${{lo}}$.",
+     "Only ${{vk}}$ clears both."
+    ],
+    "answerSummary": "It is ${{vk}}$."
+   },
+   "attemptFeedback": [
+    "\"Greater than ${{lo}}$\" excludes ${{lo}}$ itself."
+   ],
+   "supportHints": [
+    "Test each listed value against both conditions in turn."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     },
+     "vk": {
+      "type": "int",
+      "min": 8,
+      "max": 40
+     },
+     "gap": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "over": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "under": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "lo": "vk-gap",
+     "t": "a*vk",
+     "tooBig": "vk+over",
+     "tooSmall": "vk-gap-under"
+    },
+    "constraints": [
+     "vk-gap>2",
+     "vk-gap-under>0",
+     "gap>2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Value ${{tooBig}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "Value ${{tooSmall}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "Value ${{vk}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "Value ${{lo}}$",
+     "error": "offByOneStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.10B:value-that-clears-two-conditions",
+    "sourcePrompt": "Which listed value satisfies both ${{a}}x \\le {{t}}$ and $x > {{lo}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_10B_substituting_inside_the_wrong_grouping",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.10B:substituting-inside-the-wrong-grouping",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.10B",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "To check $x = {{v}}$ in ${{a}}x + {{b}} = {{t}}$ a student computes ${{a}} \\times ({{v}} + {{b}})$. What is wrong?",
+   "solutionReview": {
+    "headline": "Substitution replaces the letter, not the structure around it.",
+    "reasoning": [
+     "Only $x$ is multiplied by ${{a}}$, so the check is ${{a}} \\times {{v}}$ then $+ {{b}}$.",
+     "That gives ${{t}}$, while the grouped version gives ${{wrong}}$."
+    ],
+    "answerSummary": "${{b}}$ was pulled inside the multiplication."
+   },
+   "attemptFeedback": [
+    "One value is enough to settle a check; the grouping is the problem."
+   ],
+   "supportHints": [
+    "Look at which term the coefficient actually multiplies."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "t": "a*v+b",
+     "wrong": "a*(v+b)"
+    },
+    "constraints": [
+     "a>1",
+     "b>2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The addition was carried out before the multiplication."
+    },
+    {
+     "id": "choice-b",
+     "label": "Both sides must be divided by ${{a}}$ before checking.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "A second value is needed before the check settles anything.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "The value belongs in place of ${{b}}$, not $x$.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.10B:substituting-inside-the-wrong-grouping",
+    "sourcePrompt": "To check $x = {{v}}$ in ${{a}}x + {{b}} = {{t}}$ a student computes ${{a}} \\times ({{v}} + {{b}})$. What is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_11_point_after_two_reflections",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.11"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.11",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.11:point-after-two-reflections",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.11",
+   "taskType": "procedural",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Reflect $(-{{p}}, {{q}})$ across the horizontal axis, then across the vertical axis. Which point results?",
+   "solutionReview": {
+    "headline": "Each axis flips the coordinate it is not aligned with.",
+    "reasoning": [
+     "The first reflection changes the sign of the height, giving $(-{{p}}, -{{q}})$.",
+     "The second changes the sign of the across value, giving $({{p}}, -{{q}})$."
+    ],
+    "answerSummary": "It is $({{p}}, -{{q}})$."
+   },
+   "attemptFeedback": [
+    "Stopping after the first reflection leaves the across value negative."
+   ],
+   "supportHints": [
+    "Apply one reflection at a time and write the point down between them."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 18
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 18
+     }
+    },
+    "constraints": [
+     "p!=q"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$({{p}}, -{{q}})$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(-{{p}}, -{{q}})$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{p}}, {{q}})$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(-{{q}}, {{p}})$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.11:point-after-two-reflections",
+    "sourcePrompt": "Reflect $(-{{p}}, {{q}})$ across the horizontal axis, then across the vertical axis. Which point results?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_11_point_behind_a_reflection_distance",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.11"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.11",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.11:point-behind-a-reflection-distance",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.11",
+   "taskType": "reverseReasoning",
+   "representation": "orderedPairs",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A point and its reflection across the vertical axis are ${{d}}$ apart, and the point sits at height $-{{q}}$ in Quadrant III. What is the point?",
+   "solutionReview": {
+    "headline": "The separation is double the distance to the axis.",
+    "reasoning": [
+     "Reflecting across the vertical axis moves a point twice its distance from that axis.",
+     "So the across value is $-{{d}} \\div 2 = -{{h}}$."
+    ],
+    "answerSummary": "The point is $(-{{h}}, -{{q}})$."
+   },
+   "attemptFeedback": [
+    "Quadrant III means both coordinates are negative."
+   ],
+   "supportHints": [
+    "Half the separation is how far the point sits from the vertical axis."
+   ],
+   "generator": {
+    "parameters": {
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 18
+     }
+    },
+    "derived": {
+     "d": "2*h"
+    },
+    "constraints": [
+     "h!=q",
+     "h*2!=q"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$(-{{h}}, -{{q}})$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$(-{{q}}, -{{h}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "$({{h}}, -{{q}})$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$(-{{d}}, -{{q}})$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.11:point-behind-a-reflection-distance",
+    "sourcePrompt": "A point and its reflection across the vertical axis are ${{d}}$ apart, and the point sits at height $-{{q}}$ in Quadrant III. What is the point?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_11_point_farther_from_one_axis_than_the_other",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.11"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.11",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.11:point-farther-from-one-axis-than-the-other",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.11",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which listed point sits farther from the horizontal axis than from the vertical axis?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Point"
+    ],
+    "rows": [
+     [
+      "$({{x1}}, -{{y1}})$"
+     ],
+     [
+      "$(-{{x2}}, {{y2}})$"
+     ],
+     [
+      "$({{x3}}, {{y3}})$"
+     ],
+     [
+      "$(-{{x4}}, -{{y4}})$"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "Compare the sizes of the coordinates, not their signs.",
+    "reasoning": [
+     "Distance from the horizontal axis is the size of the height; from the vertical axis it is the size of the across value.",
+     "Only $({{x1}}, -{{y1}})$ has the larger height."
+    ],
+    "answerSummary": "It is $({{x1}}, -{{y1}})$."
+   },
+   "attemptFeedback": [
+    "A negative coordinate is not farther from an axis for being negative."
+   ],
+   "supportHints": [
+    "Ignore the signs and compare the two numbers in each pair."
+   ],
+   "generator": {
+    "parameters": {
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "g1": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "y2": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "g2": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "y3": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "g3": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "y4": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "g4": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     }
+    },
+    "derived": {
+     "y1": "x1+g1",
+     "x2": "y2+g2",
+     "x3": "y3+g3",
+     "x4": "y4+g4"
+    },
+    "constraints": [
+     "g1>2",
+     "g2>2",
+     "g3>2",
+     "g4>2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$(-{{x2}}, {{y2}})$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{x3}}, {{y3}})$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "$(-{{x4}}, -{{y4}})$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$({{x1}}, -{{y1}})$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.11:point-farther-from-one-axis-than-the-other",
+    "sourcePrompt": "Which listed point sits farther from the horizontal axis than from the vertical axis?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_8A_third_angle_from_two_described_angles",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.8A:third-angle-from-two-described-angles",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "In a triangle the second angle is ${{k}}$ times the first, and the third is ${{d}}^\\circ$ more than the first. What is the third angle?",
+   "solutionReview": {
+    "headline": "Write every angle in terms of one unknown before adding.",
+    "reasoning": [
+     "The three angles are $x$, ${{k}}x$ and $x + {{d}}$, and they total $180^\\circ$.",
+     "That gives $x = {{x}}$, so the third is ${{answer}}^\\circ$."
+    ],
+    "answerSummary": "It is ${{answer}}^\\circ$."
+   },
+   "attemptFeedback": [
+    "Solving for the first angle is only part of the work."
+   ],
+   "supportHints": [
+    "Collect the three expressions and set the total to $180$."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "x": {
+      "type": "int",
+      "min": 15,
+      "max": 45
+     }
+    },
+    "derived": {
+     "d": "180-(k+2)*x",
+     "answer": "x+d",
+     "d_partialTotal": "x",
+     "d_operationInverted": "k*x",
+     "d_signError": "180-x"
+    },
+    "constraints": [
+     "180-(k+2)*x>6",
+     "abs(k*x-x-180+(k+2)*x)>3",
+     "x>14",
+     "abs(180-x-x-180+(k+2)*x)>3",
+     "answer!=d_partialTotal",
+     "answer!=d_operationInverted",
+     "answer!=d_signError",
+     "d_partialTotal!=d_operationInverted",
+     "d_partialTotal!=d_signError",
+     "d_operationInverted!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.8A:third-angle-from-two-described-angles",
+    "sourcePrompt": "In a triangle the second angle is ${{k}}$ times the first, and the third is ${{d}}^\\circ$ more than the first. What is the third angle?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_8A_larger_of_two_angles_from_their_difference",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.8A:larger-of-two-angles-from-their-difference",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two angles of a triangle differ by ${{g}}^\\circ$ and the third measures ${{c}}^\\circ$. What is the larger of the other two?",
+   "solutionReview": {
+    "headline": "A total and a difference together fix both values.",
+    "reasoning": [
+     "The other two angles total $180 - {{c}}$ and differ by ${{g}}$.",
+     "The larger is half their total plus half their difference, or ${{answer}}^\\circ$."
+    ],
+    "answerSummary": "The larger is ${{answer}}^\\circ$."
+   },
+   "attemptFeedback": [
+    "Splitting the remainder evenly assumes the two angles are equal."
+   ],
+   "supportHints": [
+    "Half the sum sits midway between the two angles."
+   ],
+   "generator": {
+    "parameters": {
+     "c": {
+      "type": "int",
+      "min": 20,
+      "max": 90
+     },
+     "g": {
+      "type": "int",
+      "min": 4,
+      "max": 30
+     }
+    },
+    "derived": {
+     "answer": "(180-c+g)/2",
+     "d_forgotFinalStep": "(180-c)/2",
+     "d_usedGivenValue": "180-c",
+     "d_operationInverted": "c+g"
+    },
+    "constraints": [
+     "(180-c+g)%2==0",
+     "180-c-g>20",
+     "abs(c+g-(180-c+g)/2)>3",
+     "g>3",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_usedGivenValue!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.8A:larger-of-two-angles-from-their-difference",
+    "sourcePrompt": "Two angles of a triangle differ by ${{g}}^\\circ$ and the third measures ${{c}}^\\circ$. What is the larger of the other two?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_8A_angle_set_with_no_equal_sides",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.8A:angle-set-with-no-equal-sides",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8A",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which set of three angles belongs to a triangle whose sides are all different lengths?",
+   "solutionReview": {
+    "headline": "Sides are all different exactly when the angles are all different.",
+    "reasoning": [
+     "The three angles must total $180^\\circ$, which rules out two of the sets.",
+     "Equal angles force equal sides, which rules out the pair of ${{e}}^\\circ$ angles."
+    ],
+    "answerSummary": "It is ${{a}}^\\circ$, ${{b}}^\\circ$, ${{c}}^\\circ$."
+   },
+   "attemptFeedback": [
+    "A set that totals $180^\\circ$ can still describe a triangle with two equal sides."
+   ],
+   "supportHints": [
+    "Check the total first, then look for repeated angles."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 30,
+      "max": 70
+     },
+     "b": {
+      "type": "int",
+      "min": 20,
+      "max": 60
+     },
+     "e": {
+      "type": "int",
+      "min": 25,
+      "max": 75
+     },
+     "f": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "c": "180-a-b",
+     "twin": "180-2*e",
+     "offSum": "180-a-b+f",
+     "short": "180-a-b-f"
+    },
+    "constraints": [
+     "180-a-b>20",
+     "a!=b",
+     "180-a-b!=a",
+     "180-a-b!=b",
+     "180-2*e>20",
+     "f>2",
+     "180-a-b-f>10"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{e}}^\\circ$, ${{e}}^\\circ$, ${{twin}}^\\circ$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}}^\\circ$, ${{b}}^\\circ$, ${{c}}^\\circ$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}^\\circ$, ${{b}}^\\circ$, ${{short}}^\\circ$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}^\\circ$, ${{b}}^\\circ$, ${{offSum}}^\\circ$",
+     "error": "arithmeticSlip"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.8A:angle-set-with-no-equal-sides",
+    "sourcePrompt": "Which set of three angles belongs to a triangle whose sides are all different lengths?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_8B_area_left_after_a_triangle_is_removed",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.8B:area-left-after-a-triangle-is-removed",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A parallelogram of base ${{b}}$ cm and a triangle of base ${{b2}}$ cm share a height of ${{h}}$ cm. How much larger is the parallelogram?",
+   "solutionReview": {
+    "headline": "A triangle covers half the rectangle on the same base and height.",
+    "reasoning": [
+     "The parallelogram covers ${{b}} \\times {{h}}$ and the triangle covers half of ${{b2}} \\times {{h}}$.",
+     "The difference is ${{answer}}$ square centimetres."
+    ],
+    "answerSummary": "It is ${{answer}}$ square centimetres larger."
+   },
+   "attemptFeedback": [
+    "Using the full ${{b2}} \\times {{h}}$ counts the triangle twice over."
+   ],
+   "supportHints": [
+    "Work out both areas before comparing them."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 6,
+      "max": 24
+     },
+     "b2": {
+      "type": "int",
+      "min": 4,
+      "max": 40,
+      "step": 2
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 14
+     }
+    },
+    "derived": {
+     "answer": "b*h-b2*h/2",
+     "d_forgotFinalStep": "b*h-b2*h",
+     "d_operationInverted": "b*h+b2*h/2",
+     "d_partialTotal": "b2*h/2"
+    },
+    "constraints": [
+     "b*h-b2*h/2>4",
+     "abs(b*h-b2*h-b*h+b2*h/2)>3",
+     "abs(b2*h-b*h)>3",
+     "b2<2*b",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_operationInverted!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.8B:area-left-after-a-triangle-is-removed",
+    "sourcePrompt": "A parallelogram of base ${{b}}$ cm and a triangle of base ${{b2}}$ cm share a height of ${{h}}$ cm. How much larger is the parallelogram?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_8B_base_behind_a_joined_pair_of_triangles",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.8B:base-behind-a-joined-pair-of-triangles",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8B",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two identical triangles of height ${{h}}$ cm join into a parallelogram of area ${{A}}$ square cm. What is each triangle's base?",
+   "solutionReview": {
+    "headline": "Joining the two triangles doubles the area, not the base.",
+    "reasoning": [
+     "The parallelogram has the same base as each triangle and the same height.",
+     "So the base is ${{A}} \\div {{h}} = {{answer}}$ cm."
+    ],
+    "answerSummary": "Each base is ${{answer}}$ cm."
+   },
+   "attemptFeedback": [
+    "The halving is already accounted for once the pair is joined."
+   ],
+   "supportHints": [
+    "The two triangles sit side by side along the height, not along the base."
+   ],
+   "generator": {
+    "parameters": {
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 24
+     },
+     "base": {
+      "type": "int",
+      "min": 4,
+      "max": 20
+     }
+    },
+    "derived": {
+     "A": "base*h",
+     "answer": "base",
+     "d_operationInverted": "A/(2*h)",
+     "d_forgotFinalStep": "2*A/h",
+     "d_usedGivenValue": "h"
+    },
+    "constraints": [
+     "base%2==0",
+     "abs(base-h)>3",
+     "base>5",
+     "abs(base-base/2)>3",
+     "answer!=d_operationInverted",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_forgotFinalStep",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.8B:base-behind-a-joined-pair-of-triangles",
+    "sourcePrompt": "Two identical triangles of height ${{h}}$ cm join into a parallelogram of area ${{A}}$ square cm. What is each triangle's base?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_8B_claim_linking_two_shapes_that_share_a_base",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.8B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.8B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.8B:claim-linking-two-shapes-that-share-a-base",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.8B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A parallelogram and a triangle share a base of ${{b}}$ cm and a height of ${{h}}$ cm. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "Sharing a measurement is not the same as being linked.",
+    "reasoning": [
+     "The two shapes are separate; changing one leaves the other alone.",
+     "Only a change to the shared base or shared height reaches both."
+    ],
+    "answerSummary": "The claim about the triangle's height is wrong."
+   },
+   "attemptFeedback": [
+    "The half-area relationship does hold whenever the base and height match."
+   ],
+   "supportHints": [
+    "Ask which measurements the two shapes genuinely have in common."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 4,
+      "max": 24
+     },
+     "h": {
+      "type": "int",
+      "min": 3,
+      "max": 18
+     }
+    },
+    "constraints": [
+     "b!=h"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Doubling the triangle's height doubles the parallelogram's area."
+    },
+    {
+     "id": "choice-b",
+     "label": "Doubling the shared base doubles both areas.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The triangle covers half of what the parallelogram covers.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "Cutting the parallelogram along a diagonal gives two triangles of that area.",
+     "error": "incompleteFactoring"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.8B:claim-linking-two-shapes-that-share-a-base",
+    "sourcePrompt": "A parallelogram and a triangle share a base of ${{b}}$ cm and a height of ${{h}}$ cm. Which statement is wrong?"
+   }
   }
  ]
 }
