@@ -13,10 +13,16 @@ const payloads = readdirSync(DIR)
   .sort()
   .map((name) => JSON.parse(readFileSync(join(DIR, name), 'utf8')));
 
+for (const payload of payloads) {
+  assert.match(String(payload.standard || ''), /^A\.\d+[A-Z]$/);
+  assert.equal(payload.documents?.length, 5, `${payload.standard} must stage exactly five families`);
+}
+
 const documents = payloads.flatMap((payload) => payload.documents || []);
 
 test('every staged Algebra I Fidelity V2 generator passes the production template issue gate', async () => {
-  assert.ok(documents.length >= 55, 'expected the staged bank to contain the current Fidelity V2 replacements');
+  assert.ok(payloads.length >= 14, 'expected the staged bank to contain the current Fidelity V2 standards');
+  assert.equal(documents.length, payloads.length * 5, 'staged document count must remain five per standard');
 
   for (const doc of documents) {
     // Twelve deterministic samples gives each template more coverage than the
