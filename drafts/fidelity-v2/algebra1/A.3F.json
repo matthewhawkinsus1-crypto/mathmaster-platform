@@ -346,6 +346,107 @@
           "inputProfile": "number",
           "expected": "{{b2}}"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-proposed-solution-two-equation-verification",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "The system is $y={{m1}}x{{b1|signed}}$ and $y={{m2}}x{{b2|signed}}$. A student proposes $({{wrongX}},{{wrongY}})$ because it satisfies the FIRST equation. Test the point in BOTH equations, explain why satisfying one equation is not enough, and give the actual intersection.",
+          "responseFields": [
+            {
+              "id": "first-at-proposed",
+              "label": "First-equation y-value at x={{wrongX}}",
+              "inputProfile": "number",
+              "expected": "{{wrongY}}"
+            },
+            {
+              "id": "second-at-proposed",
+              "label": "Second-equation y-value at x={{wrongX}}",
+              "inputProfile": "number",
+              "expected": "{{secondWrongY}}"
+            },
+            {
+              "id": "verdict",
+              "label": "Is the proposed point a system solution?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "no",
+                  "label": "No; a system solution must satisfy both equations at the same ordered pair."
+                },
+                {
+                  "id": "yes",
+                  "label": "Yes; satisfying either one equation is sufficient."
+                }
+              ],
+              "expected": "no"
+            },
+            {
+              "id": "solution-x",
+              "label": "Actual intersection x-coordinate",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            },
+            {
+              "id": "solution-y",
+              "label": "Actual intersection y-coordinate",
+              "inputProfile": "number",
+              "expected": "{{y}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A system solution belongs to both lines simultaneously.",
+            "reasoning": [
+              "At x={{wrongX}}, the first line gives {{wrongY}} but the second gives {{secondWrongY}}, so the proposed ordered pair fails the second equation.",
+              "The generated lines were constructed to meet at $({{x}},{{y}})$.",
+              "Substituting x={{x}} into both equations returns y={{y}}."
+            ],
+            "answerSummary": "The proposal is invalid; the actual solution is $({{x}},{{y}})$."
+          },
+          "attemptFeedback": [
+            "Substitute a proposed ordered pair into every equation in the system."
+          ],
+          "supportHints": [
+            "One correct equation check proves only that the point lies on one line."
+          ],
+          "generator": {
+            "parameters": {
+              "m1": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              },
+              "m2": {
+                "type": "int",
+                "min": -5,
+                "max": -1
+              },
+              "x": {
+                "type": "int",
+                "min": -4,
+                "max": 5
+              },
+              "b1": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "y": "m1*x+b1",
+              "b2": "y-m2*x",
+              "wrongX": "x+1",
+              "wrongY": "m1*wrongX+b1",
+              "secondWrongY": "m2*wrongX+b2"
+            }
+          }
+        }
       ]
     }
   ]
