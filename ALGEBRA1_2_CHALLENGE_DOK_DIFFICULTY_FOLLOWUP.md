@@ -385,3 +385,52 @@ Next batch: **A2.5A–A2.5E**.
 - A2.7B has since received DOK2/Band2 and DOK3/Band3 polynomial-operation variants.
 - A2.7C has since received its DOK3/Band3 polynomial-division repair and is the current active certification gate.
 - Do not reopen A2.2A–A2.6L unless a named regression gate implicates them.
+
+## FINAL STATUS — Algebra I / Algebra II adaptive depth COMPLETE
+
+This section supersedes every earlier in-progress count in this file.
+
+### Algebra I
+- Standards: **49**
+- Families: **245**
+- Challenge/Extension-ready (DOK3/Band4): **49/49**
+- Full preferred five-cell target: **49/49**
+- Complete DOK2 axis (2/2, 2/3, 2/4): **49/49**
+- Complete DOK3 axis (3/3, 3/4): **49/49**
+- Missing preferred cells: **0**
+- Strict adaptive failures: **0**
+- Qualitatively authentic Challenge-ready: **49/49**
+- Procedural-only DOK3/Band4 alternates: **0**
+
+### Algebra II
+- Standards: **48**
+- Families: **240**
+- Challenge/Extension-ready (DOK3/Band4): **48/48**
+- Full preferred five-cell target: **48/48**
+- Complete DOK2 axis (2/2, 2/3, 2/4): **48/48**
+- Complete DOK3 axis (3/3, 3/4): **48/48**
+- Missing preferred cells: **0**
+- Strict adaptive failures: **0**
+- Qualitatively authentic Challenge-ready: **48/48**
+- Four procedural DOK3/Band4 rows remain only as alternate content; every affected standard also has at least one qualifying non-procedural Challenge option.
+
+### Final certification
+- Algebra II Fidelity V2 Certification after the final A2.7F adaptive-test repair — run `33340622790`: **PASS**.
+- Completed strict cross-course adaptive-coverage audit — run `33340615841`: **PASS**.
+- Final strict metadata + qualitative Challenge audit — run `33340705020`: **PASS**.
+- The final Challenge workflow now enforces both:
+  - `scripts/audit-challenge-dok-difficulty-v2.mjs --strict`
+  - `scripts/audit-challenge-quality-v2.mjs --strict`
+
+### Lock rule
+**Algebra I and Algebra II Challenge/Extension plus independent DOK/difficulty coverage are now LOCKED COMPLETE.**
+
+Do not reopen this pass merely because an older snapshot above shows missing cells. Reopen only when:
+1. a named fidelity/adaptive/Challenge-quality regression test fails; or
+2. the Path target architecture is intentionally changed beyond the preferred five cells.
+
+### Important distinction
+- **Path Challenge / Extension** is the adaptive DOK3/Band4 course-content endpoint certified here.
+- **Live Challenge** is the separate teacher-led synchronous competition feature.
+- CCMR transfer is also separate and should not substitute for course-TEKS Challenge content.
+
