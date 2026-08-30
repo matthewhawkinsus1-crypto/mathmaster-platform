@@ -279,7 +279,7 @@
       "ask": [
         "construction"
       ],
-      "prompt": "A planning model requires $y\\ge x+{{upper}}$ but also $y\\le x+{{lower}}$, where the second cap is always below the first requirement. Solve the system by constructing both half-planes and determine the solution region from their overlap.",
+      "prompt": "A planning model requires $y\\ge x+{{upper}}$, $y\\le x+{{lower}}$, and $y\\ge {{floor}}$. Solve the THREE-inequality system by constructing every boundary and the common solution region.",
       "inequalities": [
         {
           "m": 1,
@@ -290,6 +290,11 @@
           "m": 1,
           "b": "{{lower}}",
           "relation": "<="
+        },
+        {
+          "m": 0,
+          "b": "{{floor}}",
+          "relation": ">="
         }
       ],
       "graph": {
@@ -300,22 +305,22 @@
       },
       "context": {
         "title": "Conflicting planning constraints",
-        "note": "If correctly constructed half-planes have no common overlap, the system has no solution."
+        "note": "All three constraints must hold. If the first two correctly constructed half-planes have no overlap, adding a third constraint cannot create a solution."
       },
       "solutionReview": {
-        "headline": "Parallel constraints can make a system infeasible.",
+        "headline": "Contradictory parallel constraints make the whole three-inequality system infeasible.",
         "reasoning": [
-          "Both boundaries have slope 1, so they are parallel.",
-          "The ≥ requirement is above the line with the larger intercept {{upper}}.",
-          "The ≤ cap is below the line with the smaller intercept {{lower}}, so the two half-planes never overlap."
+          "The first two boundaries have slope 1, so they are parallel.",
+          "The ≥ requirement is above the line with larger intercept {{upper}}, while the ≤ cap is below the line with smaller intercept {{lower}}.",
+          "Those two half-planes never overlap, so the additional floor $y\\ge {{floor}}$ cannot restore a solution."
         ],
-        "answerSummary": "No solution region."
+        "answerSummary": "No common solution region."
       },
       "attemptFeedback": [
         "Do not invent an overlap. Correctly graphing contradictory constraints should leave no shared region."
       ],
       "supportHints": [
-        "Parallel boundaries have the same slope. Compare the intercepts and required shading sides."
+        "Check the two parallel constraints first. If they already contradict each other, the three-way intersection is empty."
       ],
       "generator": {
         "parameters": {
@@ -328,6 +333,11 @@
             "type": "int",
             "min": 3,
             "max": 7
+          },
+          "floor": {
+            "type": "int",
+            "min": -6,
+            "max": 0
           }
         },
         "derived": {
