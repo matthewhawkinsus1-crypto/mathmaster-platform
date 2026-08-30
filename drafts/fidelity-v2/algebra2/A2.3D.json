@@ -1,0 +1,599 @@
+{
+  "standard": "A2.3D",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-evidence-based-reasonableness-linear-quadratic-system-solutions",
+  "rationale": "A2.3D is about judging proposed solutions, not re-solving the system. Fidelity V2 makes students compute concrete line/quadratic outputs or residuals, apply domain/context restrictions, and then keep or reject the candidate from that evidence.",
+  "documents": [
+    {
+      "id": "mm_A2_3D_v2_exact-valid-candidate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3D:v2-exact-valid-candidate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3D",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "A solver proposes $({{x}},{{y}})$ for the system $y={{m}}x{{b|signed}}$ and $y=x^2{{A|signed}}x{{B|signed}}$. Check the candidate in BOTH equations and determine whether it is a reasonable exact solution.",
+      "responseFields": [
+        {
+          "id": "line-output",
+          "label": "Line output at x={{x}}",
+          "inputProfile": "number",
+          "expected": "{{line}}"
+        },
+        {
+          "id": "quad-output",
+          "label": "Quadratic output at x={{x}}",
+          "inputProfile": "number",
+          "expected": "{{quad}}"
+        },
+        {
+          "id": "decision",
+          "label": "Decision",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "keep",
+              "label": "Keep it: both equations return the candidate y-value."
+            },
+            {
+              "id": "reject-line",
+              "label": "Reject it: the line does not return the candidate y-value."
+            },
+            {
+              "id": "reject-quad",
+              "label": "Reject it: the quadratic does not return the candidate y-value."
+            }
+          ],
+          "expected": "keep"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A reasonable exact system solution satisfies both equations at the same coordinates.",
+        "reasoning": [
+          "The line gives {{line}} when x={{x}}.",
+          "The quadratic gives {{quad}} when x={{x}}.",
+          "Both equal the proposed y-value {{y}}, so the candidate is valid."
+        ],
+        "answerSummary": "Keep $({{x}},{{y}})$."
+      },
+      "attemptFeedback": [
+        "Compare each computed output with the candidate y-value, not just with each other."
+      ],
+      "supportHints": [
+        "Substitute the same x-coordinate into the line and the quadratic separately."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "A": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          }
+        },
+        "derived": {
+          "y": "m*x+b",
+          "line": "m*x+b",
+          "B": "y-x*x-A*x",
+          "quad": "x*x+A*x+B"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3D_v2_table-invalid-candidate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3D:v2-table-invalid-candidate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3D",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "A solver proposes $({{x}},{{y}})$. Use the computed table evidence to determine whether the candidate is a reasonable solution of the line-quadratic system.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Candidate check",
+        "table": {
+          "headers": [
+            "Check",
+            "Value"
+          ],
+          "rows": [
+            [
+              "Candidate y",
+              "{{y}}"
+            ],
+            [
+              "Line output at x={{x}}",
+              "{{line}}"
+            ],
+            [
+              "Quadratic output at x={{x}}",
+              "{{quad}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "line-residual",
+          "label": "Absolute line residual $|y_{candidate}-y_{line}|$",
+          "inputProfile": "number",
+          "expected": "0"
+        },
+        {
+          "id": "quad-residual",
+          "label": "Absolute quadratic residual $|y_{candidate}-y_{quad}|$",
+          "inputProfile": "number",
+          "expected": "{{residual}}"
+        },
+        {
+          "id": "decision",
+          "label": "Decision",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "reject",
+              "label": "Reject the candidate because it fails the quadratic equation."
+            },
+            {
+              "id": "keep",
+              "label": "Keep the candidate because it satisfies the line."
+            },
+            {
+              "id": "integer",
+              "label": "Keep it because its coordinates are real numbers."
+            }
+          ],
+          "expected": "reject"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Satisfying one equation is not enough.",
+        "reasoning": [
+          "The candidate lies on the line, so its line residual is 0.",
+          "Its quadratic residual is {{residual}}, which is nonzero.",
+          "Therefore the point is not a solution of the system."
+        ],
+        "answerSummary": "Reject $({{x}},{{y}})$."
+      },
+      "attemptFeedback": [
+        "A system candidate survives only if every equation has zero residual for an exact check."
+      ],
+      "supportHints": [
+        "Subtract the candidate y from each equation's output and take the absolute value."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "A": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "offset": {
+            "type": "choice",
+            "values": [
+              -4,
+              -3,
+              -2,
+              -1,
+              1,
+              2,
+              3,
+              4
+            ]
+          }
+        },
+        "derived": {
+          "y": "m*x+b",
+          "line": "m*x+b",
+          "B": "y-x*x-A*x+offset",
+          "quad": "x*x+A*x+B",
+          "residual": "abs(y-quad)"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3D_v2_context-domain-rejection",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3D:v2-context-domain-rejection",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3D",
+      "representation": "context",
+      "difficultyBand": 3,
+      "dok": 3,
+      "taskType": "application",
+      "prompt": "In a motion model, $x$ represents time in seconds, so $x\\ge 0$. Algebra proposes $({{x}},{{y}})$ for $y={{m}}x{{b|signed}}$ and $y=x^2{{A|signed}}x{{B|signed}}$. Check the equations AND the model restriction to determine reasonableness.",
+      "responseFields": [
+        {
+          "id": "line-output",
+          "label": "Line output at x={{x}}",
+          "inputProfile": "number",
+          "expected": "{{y}}"
+        },
+        {
+          "id": "quad-output",
+          "label": "Quadratic output at x={{x}}",
+          "inputProfile": "number",
+          "expected": "{{y}}"
+        },
+        {
+          "id": "algebraic",
+          "label": "Algebraic status",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "valid",
+              "label": "It satisfies both equations."
+            },
+            {
+              "id": "invalid",
+              "label": "It fails at least one equation."
+            }
+          ],
+          "expected": "valid"
+        },
+        {
+          "id": "context",
+          "label": "Contextual decision",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "reject",
+              "label": "Reject it because the time coordinate is negative."
+            },
+            {
+              "id": "keep",
+              "label": "Keep it because satisfying both equations overrides the time restriction."
+            }
+          ],
+          "expected": "reject"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Reasonableness can be stricter than algebraic validity.",
+        "reasoning": [
+          "Both equations return y={{y}}, so the candidate is algebraically valid.",
+          "But x={{x}} is negative, violating the model domain x≥0.",
+          "Therefore it must be rejected for this context."
+        ],
+        "answerSummary": "Algebraically valid, contextually unreasonable."
+      },
+      "attemptFeedback": [
+        "Separate the two decisions: first verify the system, then apply the model's domain."
+      ],
+      "supportHints": [
+        "A correct algebraic intersection can still be unusable when a variable has a real-world restriction."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "b": {
+            "type": "int",
+            "min": 0,
+            "max": 6
+          },
+          "x": {
+            "type": "int",
+            "min": -6,
+            "max": -1
+          },
+          "A": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          }
+        },
+        "derived": {
+          "y": "m*x+b",
+          "B": "y-x*x-A*x"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3D_v2_rounded-residual-tolerance",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3D:v2-rounded-residual-tolerance",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "basic",
+      "assessedConstruct": "A2.3D",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "application",
+      "prompt": "A numerical solver reports the rounded candidate $({{xc}},{{yc}})$ for a line-quadratic system. For this task, a residual of at most 0.05 in each equation is considered reasonable. Compute the outputs/residual and decide whether the rounded candidate is reasonable.",
+      "stimulus": {
+        "kind": "expressions",
+        "title": "System and tolerance",
+        "expressions": [
+          "$y={{m}}x{{b|signed}}$",
+          "$y=x^2{{A|signed}}x{{B|signed}}$",
+          "Reasonable numerical residual: ≤ 0.05"
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "line-output",
+          "label": "Line output at x={{xc}}",
+          "inputProfile": "number",
+          "numericTolerance": 0.001,
+          "expected": "{{line}}"
+        },
+        {
+          "id": "quad-output",
+          "label": "Quadratic output at x={{xc}}",
+          "inputProfile": "number",
+          "numericTolerance": 0.001,
+          "expected": "{{quad}}"
+        },
+        {
+          "id": "quad-residual",
+          "label": "Quadratic residual from candidate y",
+          "inputProfile": "number",
+          "numericTolerance": 0.001,
+          "expected": "{{residual}}"
+        },
+        {
+          "id": "decision",
+          "label": "Decision under the stated tolerance",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "reasonable",
+              "label": "Reasonable approximation: both residuals are at most 0.05."
+            },
+            {
+              "id": "reject",
+              "label": "Reject: the approximation must have residual exactly 0."
+            }
+          ],
+          "expected": "reasonable"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Rounded numerical solutions are judged against an appropriate tolerance.",
+        "reasoning": [
+          "The candidate lies exactly on the line because yc was generated from the line output.",
+          "The quadratic differs from the candidate y by only {{residual}}.",
+          "That residual is below 0.05, so the rounded candidate is reasonable under the stated tolerance."
+        ],
+        "answerSummary": "Reasonable approximation under residual tolerance 0.05."
+      },
+      "attemptFeedback": [
+        "For a numerical approximation, compare the residual with the stated tolerance rather than demanding exact equality."
+      ],
+      "supportHints": [
+        "Residual means the absolute difference between the candidate y-value and the equation's output at the candidate x."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "choice",
+            "values": [
+              -3,
+              -2,
+              -1,
+              1,
+              2,
+              3
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "u": {
+            "type": "int",
+            "min": -4,
+            "max": 3
+          }
+        },
+        "derived": {
+          "v": "u+2",
+          "xc": "u+0.02",
+          "yc": "m*xc+b",
+          "A": "m-u-v",
+          "B": "b+u*v",
+          "line": "m*xc+b",
+          "quad": "xc*xc+A*xc+B",
+          "residual": "abs(yc-quad)"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3D_v2_error-perform-missing-check",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3D:v2-error-perform-missing-check",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3D",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student keeps $({{x}},{{y}})$ after checking only the line in the system $y={{m}}x{{b|signed}}$ and $y=x^2{{A|signed}}x{{B|signed}}$. Perform the missing quadratic check and correct the student's reasonableness decision.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's check",
+        "steps": [
+          {
+            "id": "line",
+            "label": "Line check",
+            "work": "${{m}}({{x}}){{b|signed}}={{y}}$ ✓"
+          },
+          {
+            "id": "claim",
+            "label": "Student conclusion",
+            "work": "Therefore $({{x}},{{y}})$ is a solution of the system."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "quad-output",
+          "label": "Quadratic output at x={{x}}",
+          "inputProfile": "number",
+          "expected": "{{quad}}"
+        },
+        {
+          "id": "quad-residual",
+          "label": "Absolute quadratic residual",
+          "inputProfile": "number",
+          "expected": "{{residual}}"
+        },
+        {
+          "id": "decision",
+          "label": "Corrected decision",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "reject",
+              "label": "Reject it: the missing quadratic check fails."
+            },
+            {
+              "id": "keep",
+              "label": "Keep it: checking the line was sufficient."
+            }
+          ],
+          "expected": "reject"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The missing check changes the verdict.",
+        "reasoning": [
+          "The quadratic output is {{quad}}, not the candidate y-value {{y}}.",
+          "The residual is {{residual}}, so the point fails the quadratic.",
+          "The student must reject the candidate."
+        ],
+        "answerSummary": "Reject $({{x}},{{y}})$."
+      },
+      "attemptFeedback": [
+        "Do the check the student skipped before deciding whether their conclusion is reasonable."
+      ],
+      "supportHints": [
+        "A system solution must satisfy the quadratic and the line at the same ordered pair."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "A": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "offset": {
+            "type": "choice",
+            "values": [
+              -5,
+              -3,
+              -2,
+              -1,
+              1,
+              2,
+              3,
+              5
+            ]
+          }
+        },
+        "derived": {
+          "y": "m*x+b",
+          "B": "y-x*x-A*x+offset",
+          "quad": "x*x+A*x+B",
+          "residual": "abs(y-quad)"
+        }
+      }
+    }
+  ]
+}
