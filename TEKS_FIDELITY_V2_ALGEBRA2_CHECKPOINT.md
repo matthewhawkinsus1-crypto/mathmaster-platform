@@ -683,9 +683,39 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.7B
+### A2.7C
 
-Resume here. Do not reopen A2.2A–A2.7A unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.7B unless a failing gate names them.
+
+
+### 2026-08-30 — A2.7C audit finding
+- Official construct: **determine the quotient of a polynomial of degree three and of degree four when divided by a polynomial of degree one and of degree two**.
+- TEA breakout requires all four dividend/divisor combinations:
+  - degree 3 ÷ degree 1;
+  - degree 3 ÷ degree 2;
+  - degree 4 ÷ degree 1;
+  - degree 4 ÷ degree 2.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - cubic ÷ linear exact division is present;
+  - the legacy bank recognizes remainder/factor relationships and includes one error-check frame.
+- Legacy limitations:
+  - all five families revolve around a **linear divisor** and a cubic dividend;
+  - degree 3 ÷ degree 2 is absent;
+  - degree 4 ÷ degree 1 is absent;
+  - degree 4 ÷ degree 2 is absent;
+  - several families ask about the Remainder Theorem, Factor Theorem, or reconstructing a dividend rather than requiring the student to determine the quotient;
+  - no family requires polynomial long division with a quadratic divisor;
+  - nonzero remainders are discussed, but students rarely produce a complete quotient/remainder result from actual division.
+- Fidelity V2 requirements:
+  - cover each of the four TEA breakout combinations directly with quotient work;
+  - use synthetic or long division appropriately for linear divisors and polynomial long division for quadratic divisors;
+  - include both exact and nonzero-remainder cases;
+  - require quotient coefficients and the final quotient expression, not only a theorem statement;
+  - when a remainder is nonzero, require it explicitly and keep its degree below the divisor degree;
+  - include complete error analysis that identifies premature stopping or term-alignment failure and finishes the quotient/remainder;
+  - keep routine division DOK 2 despite multi-step computation; reserve DOK 3 for complete error analysis.
+- Existing secure expanded-polynomial expression grading is sufficient for quotient/remainder fields; no new Path tool is required.
 
 
 ### 2026-08-30 — A2.7B audit finding
@@ -723,8 +753,10 @@ Resume here. Do not reopen A2.2A–A2.7A unless a failing gate names them.
 - Routine arithmetic remains DOK 2 even at higher computational difficulty; only the error-repair family is DOK 3.
 - Base Algebra II certification run `33330754534`: **PASS**.
 - Added A2.7B-specific generated certification — commit `08eb995c0cbe00df7d7bf918b206579b6fdc9c56`.
-- Full A2.7B certification run `33330813766`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.7B** until full generated certification is green.
+- Full A2.7B certification run `33330813766`: **PASS**.
+- Generated polynomial coefficients, sparse alignment, degree-5 multiplication, production issuability, secure self-grading, reordered expanded-polynomial acceptance, changed-coefficient rejection, DOK-vs-difficulty discipline, public key stripping, and student/runtime build all passed.
+- A2.7B is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7C**.
 
 
 ### 2026-08-30 — A2.7A audit finding
