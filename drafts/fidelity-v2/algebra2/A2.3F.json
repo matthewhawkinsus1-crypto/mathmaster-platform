@@ -1,0 +1,431 @@
+{
+  "standard": "A2.3F",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-secure-construction-of-two-and-three-inequality-solution-regions",
+  "rationale": "A2.3F requires solving systems of inequalities. Fidelity V2 uses the secure Systems Workspace construction mode so students must graph every boundary with the correct style and half-plane; the solution is the actual overlap, not a recognition answer.",
+  "documents": [
+    {
+      "id": "mm_A2_3F_v2_two-inclusive-overlap",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3F:v2-two-inclusive-overlap",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3F",
+      "representation": "graph",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "prompt": "Solve the system by constructing both inequality graphs and shading ONLY their overlap: $y\\ge {{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$.",
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">="
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "The system solution is the intersection of both half-planes.",
+        "reasoning": [
+          "Both inequalities include equality, so both boundaries are solid.",
+          "Shade above the first boundary and below the second; keep only the common region."
+        ]
+      },
+      "attemptFeedback": [
+        "A correct boundary is not enough; each line needs the correct style and the final shading must satisfy both inequalities."
+      ],
+      "supportHints": [
+        "Graph one boundary and half-plane at a time, then keep only the overlap."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          },
+          "b2": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3F_v2_mixed-strict-overlap",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3F:v2-mixed-strict-overlap",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3F",
+      "representation": "graph",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "prompt": "Solve the system graphically: $y>{{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$. Construct the strict and inclusive boundaries correctly and shade only the overlap.",
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">"
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "Boundary style is part of the solution.",
+        "reasoning": [
+          "The > inequality uses a dashed boundary and shades above.",
+          "The ≤ inequality uses a solid boundary and shades below.",
+          "Only their common region solves the system."
+        ]
+      },
+      "attemptFeedback": [
+        "Check both the side you shaded and whether each boundary should be solid or dashed."
+      ],
+      "supportHints": [
+        "Strict symbols > and < exclude the boundary; ≥ and ≤ include it."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          },
+          "b2": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3F_v2_three-constraint-region",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3F:v2-three-constraint-region",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3F",
+      "representation": "graph",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "prompt": "Solve the THREE-inequality system. Construct every boundary and shade the region satisfying all three at once: $y\\ge {{m1}}x{{b1|signed}}$, $y\\le {{m2}}x{{b2|signed}}$, and $y>{{c}}$.",
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">="
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        },
+        {
+          "m": 0,
+          "b": "{{c}}",
+          "relation": ">"
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "“Two or more” means every half-plane must be satisfied simultaneously.",
+        "reasoning": [
+          "Construct the first solid lower boundary and the second solid upper boundary.",
+          "The horizontal constraint y>{{c}} has a dashed boundary and shades above.",
+          "The final solution is the intersection of all three half-planes."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after finding the overlap of two constraints; the third inequality can remove part of that region."
+      ],
+      "supportHints": [
+        "For the horizontal boundary, use two points with y={{c}} and choose dashed because the inequality is strict."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -5,
+            "max": -2
+          },
+          "b2": {
+            "type": "int",
+            "min": 4,
+            "max": 8
+          },
+          "c": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3F_v2_context-three-constraint-feasible",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3F:v2-context-three-constraint-feasible",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3F",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "application",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "prompt": "A planning model has three constraints: $y\\ge0$, $y\\ge x-{{shift}}$, and $y\\le -x+{{cap}}$. Solve the system by constructing the complete feasible region.",
+      "inequalities": [
+        {
+          "m": 0,
+          "b": 0,
+          "relation": ">="
+        },
+        {
+          "m": 1,
+          "b": "-{{shift}}",
+          "relation": ">="
+        },
+        {
+          "m": -1,
+          "b": "{{cap}}",
+          "relation": "<="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 10,
+        "yMin": -4,
+        "yMax": 12
+      },
+      "context": {
+        "kind": "planning",
+        "xLabel": "Plan x",
+        "yLabel": "Plan y"
+      },
+      "solutionReview": {
+        "headline": "A feasible plan must satisfy every constraint.",
+        "reasoning": [
+          "Nonnegativity y≥0 shades above the x-axis.",
+          "The second lower bound shades above y=x-{{shift}}.",
+          "The capacity bound shades below y=-x+{{cap}}; the feasible region is the common overlap."
+        ]
+      },
+      "attemptFeedback": [
+        "In a feasible-region model, a point that misses even one constraint is outside the solution set."
+      ],
+      "supportHints": [
+        "Build each constraint separately, then look for the region that survives all three."
+      ],
+      "generator": {
+        "parameters": {
+          "shift": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "cap": {
+            "type": "int",
+            "min": 5,
+            "max": 10
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3F_v2_union-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3F:v2-union-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3F",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "prompt": "A student shades the UNION of the half-planes for $y>{{m1}}x{{b1|signed}}$, $y\\le {{m2}}x{{b2|signed}}$, and $y\\ge {{c}}$. Repair the error by constructing all three boundaries and showing ONLY the intersection that solves the system.",
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">"
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        },
+        {
+          "m": 0,
+          "b": "{{c}}",
+          "relation": ">="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "A system uses logical AND, not union/OR.",
+        "reasoning": [
+          "Each boundary must have its own correct solid/dashed style and half-plane.",
+          "The system solution keeps only points satisfying inequality 1 AND inequality 2 AND inequality 3."
+        ]
+      },
+      "attemptFeedback": [
+        "The student's error is not fixed until your graph shows the common intersection of all three constraints."
+      ],
+      "supportHints": [
+        "Construct all three half-planes, then keep only the region where all three shadings overlap."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -5,
+            "max": -2
+          },
+          "b2": {
+            "type": "int",
+            "min": 4,
+            "max": 8
+          },
+          "c": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          }
+        }
+      }
+    }
+  ]
+}
