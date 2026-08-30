@@ -559,7 +559,132 @@
           "k%x2==0"
         ],
         "attempts": 300
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-clean-direct-vs-inverse-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student is told that y varies inversely with x and that y={{y1}} when x={{x1}}. The student computes the direct-variation ratio y/x={{wrongK}} and writes y={{wrongK}}x. Diagnose the model error, determine the correct inverse-variation constant, write the corrected equation, and use it to find y when x={{x2}}.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Student comparison",
+            "table": {
+              "headers": [
+                "Student step",
+                "Work"
+              ],
+              "rows": [
+                [
+                  "Constant",
+                  "$y/x={{wrongK}}$"
+                ],
+                [
+                  "Model",
+                  "$y={{wrongK}}x$"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What is the student's main error?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "direct",
+                  "label": "The student used the direct-variation relationship y=kx instead of the inverse-variation constant product xy=k."
+                },
+                {
+                  "id": "multiply",
+                  "label": "The student should multiply the direct-variation constant by x twice."
+                },
+                {
+                  "id": "same",
+                  "label": "Direct and inverse variation use the same equation."
+                }
+              ],
+              "expected": "direct"
+            },
+            {
+              "id": "constant",
+              "label": "Correct constant of variation k",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "equation",
+              "label": "Correct inverse-variation equation",
+              "inputProfile": "equation",
+              "equivalence": "modelEquation",
+              "expected": "y={{k}}/x"
+            },
+            {
+              "id": "prediction",
+              "label": "Correct y when x={{x2}}",
+              "inputProfile": "number",
+              "expected": "{{y2}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Inverse variation preserves a product, not a ratio.",
+            "reasoning": [
+              "The correct constant is xy=({{x1}})({{y1}})={{k}}.",
+              "So the inverse-variation model is y={{k}}/x.",
+              "At x={{x2}}, the model gives y={{y2}}."
+            ],
+            "answerSummary": "k={{k}}, y={{k}}/x, prediction {{y2}}."
+          },
+          "attemptFeedback": [
+            "Identify which quantity stays constant in inverse variation before writing the model."
+          ],
+          "supportHints": [
+            "Inverse variation uses xy=k."
+          ],
+          "generator": {
+            "parameters": {
+              "x1": {
+                "type": "choice",
+                "values": [
+                  2
+                ]
+              },
+              "y1": {
+                "type": "choice",
+                "values": [
+                  4,
+                  6,
+                  8
+                ]
+              },
+              "x2": {
+                "type": "choice",
+                "values": [
+                  4
+                ]
+              }
+            },
+            "derived": {
+              "wrongK": "y1/x1",
+              "k": "x1*y1",
+              "y2": "k/x2"
+            },
+            "constraints": [
+              "x2!=x1",
+              "k%x2==0",
+              "wrongK!=k"
+            ]
+          }
+        }
+      ]
     }
   ]
 }
