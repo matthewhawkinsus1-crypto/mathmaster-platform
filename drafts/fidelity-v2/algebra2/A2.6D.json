@@ -122,7 +122,112 @@
           "left": "center-d",
           "right": "center+d"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-half-unit-scaled-formulation",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "reverseReasoning",
+          "representation": "numberLine",
+          "prompt": "Two marked locations x={{left}} and x={{right}} are exactly the solutions of one absolute-value linear equation. Determine the half-unit center and distance, then formulate an equivalent scaled equation of the form $|2x-c|=r$. Do not solve it.",
+          "stimulus": {
+            "kind": "table",
+            "table": {
+              "headers": [
+                "Marked solution",
+                "Location"
+              ],
+              "rows": [
+                [
+                  "Left",
+                  "{{left}}"
+                ],
+                [
+                  "Right",
+                  "{{right}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "center",
+              "label": "Midpoint/center",
+              "inputProfile": "number",
+              "expected": "{{center}}"
+            },
+            {
+              "id": "distance",
+              "label": "Distance from center",
+              "inputProfile": "number",
+              "expected": "{{d}}"
+            },
+            {
+              "id": "equation",
+              "label": "Equivalent scaled absolute-value equation",
+              "inputProfile": "equation",
+              "equivalence": "absoluteLinearRelation",
+              "expected": "abs(2*x-({{center2}}))={{d2}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A half-unit center can be represented cleanly by scaling the whole distance equation.",
+            "reasoning": [
+              "The midpoint of {{left}} and {{right}} is {{center}}, and each point is {{d}} units from that center.",
+              "The center-distance model is $|x-({{center}})|={{d}}$.",
+              "Multiplying both sides by 2 gives the equivalent scaled relation $|2x-({{center2}})|={{d2}}$."
+            ],
+            "answerSummary": "Center {{center}}, distance {{d}}, scaled equation $|2x-({{center2}})|={{d2}}$."
+          },
+          "attemptFeedback": [
+            "Use the midpoint and half-distance first, then scale the entire relation consistently."
+          ],
+          "supportHints": [
+            "For two solution points, center is their average and distance is half their separation."
+          ],
+          "generator": {
+            "parameters": {
+              "center2": {
+                "type": "choice",
+                "values": [
+                  -9,
+                  -7,
+                  -5,
+                  -3,
+                  -1,
+                  1,
+                  3,
+                  5,
+                  7,
+                  9
+                ]
+              },
+              "d2": {
+                "type": "choice",
+                "values": [
+                  3,
+                  5,
+                  7,
+                  9,
+                  11
+                ]
+              }
+            },
+            "derived": {
+              "center": "center2/2",
+              "d": "d2/2",
+              "left": "(center2-d2)/2",
+              "right": "(center2+d2)/2"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_6D_v2_linear-reading-deviation",
@@ -345,7 +450,80 @@
             "max": 12
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-one-sided-distance-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A measurement x must be exactly {{d}} units from {{h}}. A student writes $x-({{h}})={{d}}$, which captures only the value on one side of {{h}}. Diagnose the modeling error and formulate the corrected absolute-value equation. Do not solve it.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Diagnosis",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "absolute",
+                  "label": "Distance must use absolute value so both directions from the center are represented."
+                },
+                {
+                  "id": "square",
+                  "label": "The linear expression must be squared."
+                },
+                {
+                  "id": "none",
+                  "label": "The one-sided equation already captures both possible measurements."
+                }
+              ],
+              "expected": "absolute"
+            },
+            {
+              "id": "equation",
+              "label": "Corrected absolute-value equation",
+              "inputProfile": "equation",
+              "equivalence": "absoluteLinearRelation",
+              "expected": "abs(x-({{h}}))={{d}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Distance from a center is represented by absolute value.",
+            "reasoning": [
+              "The equation $x-({{h}})={{d}}$ captures only the point to one side of {{h}}.",
+              "Absolute value represents either direction with the same distance.",
+              "The corrected model is $|x-({{h}})|={{d}}$."
+            ],
+            "answerSummary": "$|x-({{h}})|={{d}}$"
+          },
+          "attemptFeedback": [
+            "Repair the model only; do not solve for the two x-values."
+          ],
+          "supportHints": [
+            "Absolute value encodes distance without direction."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "d": {
+                "type": "int",
+                "min": 2,
+                "max": 10
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }
