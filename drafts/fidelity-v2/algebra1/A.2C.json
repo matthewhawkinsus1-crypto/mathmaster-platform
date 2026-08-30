@@ -1,12 +1,14 @@
 {
   "standard": "A.2C",
   "verdict": "REBUILD",
-  "certificationStatus": "candidate-needs-real-graph-family",
+  "certificationStatus": "candidate-table-graph-verbal-equation-writing",
   "documents": [
     {
       "id": "mm_A_2C_v2_table-to-equation",
       "active": true,
-      "alignmentKeys": ["texas:A.2C"],
+      "alignmentKeys": [
+        "texas:A.2C"
+      ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.2C:v2-table-to-equation",
       "familyVersion": 3,
@@ -22,16 +24,34 @@
       "stimulus": {
         "kind": "table",
         "table": {
-          "headers": ["$x$", "$y$"],
-          "rows": [["{{x0}}", "{{y0}}"], ["{{x1}}", "{{y1}}"], ["{{x2}}", "{{y2}}"]]
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "{{x0}}",
+              "{{y0}}"
+            ],
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ]
+          ]
         }
       },
-      "responseFields": [{
-        "id": "answer",
-        "label": "Linear equation",
-        "inputProfile": "equation",
-        "expected": "y={{m}}x{{b|signed}}"
-      }],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Linear equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{b|signed}}"
+        }
+      ],
       "solutionReview": {
         "headline": "Turn the table into rate of change and initial value.",
         "reasoning": [
@@ -40,14 +60,37 @@
         ],
         "answerSummary": "$y={{m}}x{{b|signed}}$"
       },
-      "attemptFeedback": ["Find the change in $y$ for one change in $x$, then determine the value when $x=0$."],
-      "supportHints": ["Start with two consecutive rows and calculate $\\Delta y/\\Delta x$."],
+      "attemptFeedback": [
+        "Find the change in $y$ for one change in $x$, then determine the value when $x=0$."
+      ],
+      "supportHints": [
+        "Start with two consecutive rows and calculate $\\Delta y/\\Delta x$."
+      ],
       "generator": {
         "parameters": {
-          "m": {"type": "int", "min": -6, "max": 6, "exclude": [0]},
-          "b": {"type": "int", "min": -10, "max": 10},
-          "x0": {"type": "int", "min": -4, "max": 0},
-          "step": {"type": "int", "min": 1, "max": 3}
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "x0": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          },
+          "step": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
         },
         "derived": {
           "x1": "x0+step",
@@ -61,7 +104,9 @@
     {
       "id": "mm_A_2C_v2_verbal-rate-start-to-equation",
       "active": true,
-      "alignmentKeys": ["texas:A.2C"],
+      "alignmentKeys": [
+        "texas:A.2C"
+      ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.2C:v2-verbal-rate-start-to-equation",
       "familyVersion": 3,
@@ -74,12 +119,14 @@
       "taskType": "modeling",
       "representation": "context",
       "prompt": "A tank starts with {{b}} liters of water and changes by {{m}} liters each minute. Let $t$ be minutes and $W$ be liters of water. Write the linear equation relating $W$ and $t$.",
-      "responseFields": [{
-        "id": "answer",
-        "label": "Equation",
-        "inputProfile": "equation",
-        "expected": "W={{m}}t{{b|signed}}"
-      }],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Equation",
+          "inputProfile": "equation",
+          "expected": "W={{m}}t{{b|signed}}"
+        }
+      ],
       "solutionReview": {
         "headline": "A linear situation needs a starting value and a rate.",
         "reasoning": [
@@ -88,20 +135,39 @@
         ],
         "answerSummary": "$W={{m}}t{{b|signed}}$"
       },
-      "attemptFeedback": ["Identify what the amount is at time zero and how much it changes each minute."],
-      "supportHints": ["Use the structure output = rate(input) + starting value."],
+      "attemptFeedback": [
+        "Identify what the amount is at time zero and how much it changes each minute."
+      ],
+      "supportHints": [
+        "Use the structure output = rate(input) + starting value."
+      ],
       "generator": {
         "parameters": {
-          "m": {"type": "int", "min": -8, "max": 8, "exclude": [0]},
-          "b": {"type": "int", "min": 20, "max": 100}
+          "m": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": 20,
+            "max": 100
+          }
         },
-        "constraints": ["b + 5*m > 0"]
+        "constraints": [
+          "b + 5*m > 0"
+        ]
       }
     },
     {
       "id": "mm_A_2C_v2_points-to-equation",
       "active": true,
-      "alignmentKeys": ["texas:A.2C"],
+      "alignmentKeys": [
+        "texas:A.2C"
+      ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.2C:v2-points-to-equation",
       "familyVersion": 3,
@@ -112,46 +178,85 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A.2C",
       "taskType": "representationTranslation",
-      "representation": "orderedPairs",
-      "prompt": "A linear graph passes through the plotted points $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. Write the equation of the line in slope-intercept form.",
+      "representation": "graph",
+      "prompt": "The graph shows a linear function. Write its equation in slope-intercept form.",
       "stimulus": {
-        "kind": "orderedPairs",
-        "orderedPairs": [{"x": "{{x1}}", "y": "{{y1}}"}, {"x": "{{x2}}", "y": "{{y2}}"}]
+        "kind": "graph",
+        "title": "Linear function",
+        "graph": {
+          "xMin": -6,
+          "xMax": 6,
+          "yMin": -10,
+          "yMax": 10,
+          "ariaLabel": "Graph of one linear function",
+          "lines": [
+            {
+              "label": "Linear function",
+              "boundaryStyle": "solid",
+              "points": [
+                {
+                  "x": -2,
+                  "y": "{{yLeft}}"
+                },
+                {
+                  "x": 2,
+                  "y": "{{yRight}}"
+                }
+              ]
+            }
+          ]
+        }
       },
-      "responseFields": [{
-        "id": "answer",
-        "label": "Equation",
-        "inputProfile": "equation",
-        "expected": "y={{m}}x{{b|signed}}"
-      }],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{b|signed}}"
+        }
+      ],
       "solutionReview": {
-        "headline": "Two plotted points determine one nonvertical line.",
+        "headline": "Read both slope and intercept from the graph before writing the equation.",
         "reasoning": [
-          "The slope between the points is $({{y2}}-{{y1}})/({{x2}}-{{x1}})={{m}}$.",
-          "Substituting either point into $y={{m}}x+b$ gives $b={{b}}$."
+          "The line crosses the $y$-axis at {{b}}, so the intercept is $b={{b}}$.",
+          "Using two grid points on the line gives slope {{m}}, so the equation is $y={{m}}x{{b|signed}}$."
         ],
         "answerSummary": "$y={{m}}x{{b|signed}}$"
       },
-      "attemptFeedback": ["Use both plotted points to find slope before finding the intercept."],
-      "supportHints": ["Compute rise over run, then substitute one point into $y=mx+b$."],
+      "attemptFeedback": [
+        "Use the graph to identify the $y$-intercept and the rise/run between two clear grid points."
+      ],
+      "supportHints": [
+        "In $y=mx+b$, $b$ is where the line crosses the $y$-axis and $m$ is rise over run."
+      ],
       "generator": {
         "parameters": {
-          "m": {"type": "int", "min": -5, "max": 5, "exclude": [0]},
-          "b": {"type": "int", "min": -8, "max": 8},
-          "x1": {"type": "int", "min": -4, "max": 1},
-          "dx": {"type": "int", "min": 1, "max": 4}
+          "m": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
         },
         "derived": {
-          "x2": "x1+dx",
-          "y1": "m*x1+b",
-          "y2": "m*x2+b"
+          "yLeft": "-2*m+b",
+          "yRight": "2*m+b"
         }
       }
     },
     {
       "id": "mm_A_2C_v2_error-analysis-table-equation",
       "active": true,
-      "alignmentKeys": ["texas:A.2C"],
+      "alignmentKeys": [
+        "texas:A.2C"
+      ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.2C:v2-error-analysis-table-equation",
       "familyVersion": 3,
@@ -167,16 +272,30 @@
       "stimulus": {
         "kind": "table",
         "table": {
-          "headers": ["$x$", "$y$"],
-          "rows": [["{{x1}}", "{{y1}}"], ["{{x2}}", "{{y2}}"]]
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ]
+          ]
         }
       },
-      "responseFields": [{
-        "id": "answer",
-        "label": "Correct equation",
-        "inputProfile": "equation",
-        "expected": "y={{m}}x{{b|signed}}"
-      }],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{b|signed}}"
+        }
+      ],
       "solutionReview": {
         "headline": "Slope is change in output divided by change in input.",
         "reasoning": [
@@ -185,14 +304,37 @@
         ],
         "answerSummary": "$y={{m}}x{{b|signed}}$"
       },
-      "attemptFeedback": ["Check whether the student's number is a rise or a slope."],
-      "supportHints": ["A slope needs both a numerator and a denominator: $\\Delta y/\\Delta x$."],
+      "attemptFeedback": [
+        "Check whether the student's number is a rise or a slope."
+      ],
+      "supportHints": [
+        "A slope needs both a numerator and a denominator: $\\Delta y/\\Delta x$."
+      ],
       "generator": {
         "parameters": {
-          "m": {"type": "int", "min": -4, "max": 4, "exclude": [0]},
-          "b": {"type": "int", "min": -8, "max": 8},
-          "x1": {"type": "int", "min": -3, "max": 1},
-          "dx": {"type": "int", "min": 2, "max": 4}
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x1": {
+            "type": "int",
+            "min": -3,
+            "max": 1
+          },
+          "dx": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          }
         },
         "derived": {
           "x2": "x1+dx",
@@ -205,7 +347,9 @@
     {
       "id": "mm_A_2C_v2_nonconsecutive-points-model",
       "active": true,
-      "alignmentKeys": ["texas:A.2C"],
+      "alignmentKeys": [
+        "texas:A.2C"
+      ],
       "courseId": "algebra1",
       "familyId": "mathmaster:A.2C:v2-nonconsecutive-points-model",
       "familyVersion": 3,
@@ -220,14 +364,29 @@
       "prompt": "A linear relationship has $f({{x1}})={{y1}}$ and $f({{x2}})={{y2}}$. A third point $({{x3}},{{y3}})$ is also on the same line. Use the information together to write the equation for $f(x)$.",
       "stimulus": {
         "kind": "orderedPairs",
-        "orderedPairs": [{"x": "{{x1}}", "y": "{{y1}}"}, {"x": "{{x2}}", "y": "{{y2}}"}, {"x": "{{x3}}", "y": "{{y3}}"}]
+        "orderedPairs": [
+          {
+            "x": "{{x1}}",
+            "y": "{{y1}}"
+          },
+          {
+            "x": "{{x2}}",
+            "y": "{{y2}}"
+          },
+          {
+            "x": "{{x3}}",
+            "y": "{{y3}}"
+          }
+        ]
       },
-      "responseFields": [{
-        "id": "answer",
-        "label": "Function equation",
-        "inputProfile": "equation",
-        "expected": "f(x)={{m}}x{{b|signed}}"
-      }],
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Function equation",
+          "inputProfile": "equation",
+          "expected": "f(x)={{m}}x{{b|signed}}"
+        }
+      ],
       "solutionReview": {
         "headline": "Use the repeated structure, not just one pair.",
         "reasoning": [
@@ -236,15 +395,42 @@
         ],
         "answerSummary": "$f(x)={{m}}x{{b|signed}}$"
       },
-      "attemptFeedback": ["Use at least two points to determine the rate, then use another point as a check."],
-      "supportHints": ["Find slope first; after that, only the intercept is unknown."],
+      "attemptFeedback": [
+        "Use at least two points to determine the rate, then use another point as a check."
+      ],
+      "supportHints": [
+        "Find slope first; after that, only the intercept is unknown."
+      ],
       "generator": {
         "parameters": {
-          "m": {"type": "int", "min": -6, "max": 6, "exclude": [0]},
-          "b": {"type": "int", "min": -10, "max": 10},
-          "x1": {"type": "int", "min": -5, "max": -1},
-          "gap1": {"type": "int", "min": 2, "max": 4},
-          "gap2": {"type": "int", "min": 1, "max": 4}
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "x1": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "gap1": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "gap2": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
         },
         "derived": {
           "x2": "x1+gap1",
