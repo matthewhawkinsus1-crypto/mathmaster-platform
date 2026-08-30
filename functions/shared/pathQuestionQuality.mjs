@@ -142,7 +142,8 @@ export const hasStimulus = (question = {}) => {
   const stimulus = question.stimulus;
   if (!stimulus || typeof stimulus !== 'object') return false;
   return Boolean(
-    stimulus.table?.rows?.length
+    stimulus.graph
+    || stimulus.table?.rows?.length
     || list(stimulus.orderedPairs).length
     || list(stimulus.steps).length
     || list(stimulus.expressions).length
