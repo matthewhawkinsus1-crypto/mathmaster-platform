@@ -18,17 +18,18 @@
 // The browser binary is the one this environment ships; override with
 // CHROMIUM_PATH and PLAYWRIGHT_MODULE if yours live elsewhere.
 
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs');
+const playwrightModule = process.env.PLAYWRIGHT_MODULE || '/opt/node22/lib/node_modules/playwright/index.mjs';
+const { chromium } = await import(playwrightModule);
 import { writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 
 const only = process.argv[2] || null;
 const DEBUG = process.argv.includes('--debug');
 
-const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium',
-  args: ['--no-sandbox'],
-});
+const launchOptions = { args: ['--no-sandbox'] };
+if (process.env.CHROMIUM_PATH) launchOptions.executablePath = process.env.CHROMIUM_PATH;
+else if (!process.env.PLAYWRIGHT_MODULE) launchOptions.executablePath = '/opt/pw-browsers/chromium';
+const browser = await chromium.launch(launchOptions);
 
 // --- helpers ------------------------------------------------------------------
 
@@ -118,6 +119,13 @@ const SCRIPTS = {
     await btn(page, /Shade left from/).click();
     await typeMathField(page, 'Interval notation', '(-\\infty, -3] \\cup (2, \\infty)');
     await btn(page, 'Check').click();
+  },
+
+  dataModelingLab: async (page) => {
+    await page.locator('label', { hasText: /Correlation coefficient r/i }).locator('input').fill('1');
+    await page.locator('label', { hasText: /^Direction/i }).locator('select').selectOption('positive');
+    await page.locator('label', { hasText: /^Strength/i }).locator('select').selectOption('strong');
+    await btn(page, 'Check data model').click();
   },
 
   systemsWorkspace: async (page) => {
