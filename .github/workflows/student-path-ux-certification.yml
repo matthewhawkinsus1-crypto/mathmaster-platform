@@ -23,9 +23,11 @@ on:
       - tests/platform/recommendationV2.test.mjs
       - src/platform/path/weeklyPathPlan.js
       - src/platform/path/recommendationV2.js
+      - src/platform/simulation/teacherPathRuntime.js
       - functions/index.js
       - tests/platform/pathAdaptiveVariantTargeting.test.mjs
       - tests/platform/pathPassDashboardUx.test.mjs
+      - tests/platform/teacherPathTargetParity.test.mjs
       - .github/workflows/student-path-ux-certification.yml
 
 jobs:
@@ -43,6 +45,7 @@ jobs:
         run: |
           node --test \
             tests/platform/pathPassDashboardUx.test.mjs \
+            tests/platform/teacherPathTargetParity.test.mjs \
             tests/platform/studentPathEntryUx.test.mjs \
             tests/platform/pathStudentWorkspace.test.mjs \
             tests/platform/pathAdaptiveVariantTargeting.test.mjs \
