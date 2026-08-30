@@ -635,17 +635,61 @@ Certification result:
 
 Do **not** re-audit A2.6E unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.6F
 
-### A2.6F — ENHANCE — STAGED / CERTIFICATION RUNNING
+### A2.6F — ENHANCE — CERTIFIED
 
 Official construct: **Solve absolute value linear inequalities.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- nontrivial linear expressions inside absolute value are used throughout;
+- bounded AND intervals and outside OR unions are both solved repeatedly;
+- a negative outside coefficient forces an inequality reversal during isolation;
+- absolute value < negative and > negative are explicitly contrasted as empty versus all-real solution sets;
+- contextual tolerance solving and complete AND-vs-OR error repair are included;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect solution regions are rejected and public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33326550990`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.6F unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.6G — REBUILD — AUDITED / AUTHORING
+
+Official construct: **Analyze transformations of the reciprocal parent function for specified positive and negative real parameter values.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.6F
+### A2.6G
 
-Resume here. Do not reopen A2.2A–A2.6E unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.6F unless a failing gate names them.
+
+
+### 2026-08-30 — A2.6G audit finding
+- Official construct: **analyze transformations of the reciprocal parent function for specified positive and negative real parameter values**.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - translated asymptotes, reciprocal graphing, outside-sign reflection, and reverse equation recognition are present.
+- Legacy gaps:
+  - the bank uses only the reduced form $a/(x-h)+k$ and never analyzes a separate inside parameter b;
+  - positive/negative parameter breadth is thin and horizontal scaling is absent;
+  - most families isolate one attribute rather than analyzing a combined transformation;
+  - error analysis only repairs the sign of h in the vertical asymptote.
+- Important reciprocal-function structure:
+  - for the full model $y=a\,f(b(x-h))+k$ with $f(x)=1/x$, the equation simplifies to $y=\frac{a/b}{x-h}+k$;
+  - horizontal scale is $1/|b|$ and b<0 is a horizontal reflection, but because $1/x$ is odd that horizontal reflection is visually equivalent to an x-axis reflection;
+  - the final branch orientation/scale depends on the signed ratio a/b, so a and b cannot be recovered separately from the final graph alone unless the transformation sequence is supplied;
+  - the asymptotes remain $x=h$ and $y=k$ regardless of nonzero a and b.
+- Fidelity V2 requirements:
+  - use supplied a/b/h/k values to analyze vertical scale, reciprocal horizontal scale, reflections, asymptotes, mapped points, and final branch orientation;
+  - include both positive and negative a and b values and both horizontal stretch/compression;
+  - explicitly distinguish the separate transformation sequence from the algebraically equivalent final coefficient a/b;
+  - include exact point mapping, graph evidence, reverse reasoning from a supplied sequence, and genuine error analysis;
+  - never claim a and b can be separately inferred from the final reciprocal graph alone.
+- No risky interactive-tool expansion is needed; generic secure fields and generated graph/table evidence can assess the full parameter reasoning, while the existing rational graph tool can represent the equivalent reduced coefficient when needed.
 
 
 ### 2026-08-30 — A2.6F audit finding
@@ -681,8 +725,10 @@ Resume here. Do not reopen A2.2A–A2.6E unless a failing gate names them.
   - complete AND-vs-OR error repair through the final interval union.
 - Added A2.6F-specific generated certification — commit `2da78479840d5f1ccbfa6300cbe8d4ff8dc3277b`.
 - The gate samples 200+ generated instances, checks production issuability and secure self-grading, requires nontrivial linear interiors throughout, repeated bounded/union reasoning, negative-coefficient reversal, empty/all-real edge cases, context/error breadth, wrong-region rejection, and public answer-key stripping.
-- Full A2.6F assertion run `33326550990`: **QUEUED/RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.6F** until that run is green.
+- Full A2.6F assertion run `33326550990`: **PASS**.
+- Generated bounded/union reasoning, negative-coefficient reversal, empty/all-real edge cases, context/error repair, secure wrong-region rejection, public-key stripping, and student/runtime build all passed.
+- A2.6F is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.6G**.
 
 
 ### 2026-08-30 — A2.6E audit finding
