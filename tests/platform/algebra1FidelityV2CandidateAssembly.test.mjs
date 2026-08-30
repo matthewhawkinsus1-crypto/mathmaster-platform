@@ -32,11 +32,12 @@ const REQUIRED_REBUILDS = [
   'A.12A', 'A.12D',
 ];
 
-test('current staged Fidelity V2 candidate replaces only complete five-family standards', () => {
+test('final Fidelity V2 candidate replaces all 49 Algebra I standards with complete five-family packages', () => {
   for (const code of REQUIRED_REBUILDS) {
     assert.equal(overrideCodes.has(code), true, `required REBUILD standard ${code} is not staged`);
   }
-  assert.equal(replacements.length, overrideCodes.size * 5, 'every staged standard must contribute exactly five families');
+  assert.equal(overrideCodes.size, 49, 'Algebra I certification must stage every content standard');
+  assert.equal(replacements.length, 245, '49 standards × 5 V2 families must produce 245 replacements');
   assert.equal(candidate.length, 245);
 
   const counts = new Map();
