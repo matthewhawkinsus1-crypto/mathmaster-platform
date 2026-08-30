@@ -418,7 +418,81 @@
           "abs(t4) <= 50",
           "abs(t9) <= 70"
         ]
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-reconstruct-verify-explicit-sequence",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "reverseReasoning",
+          "representation": "multipleRepresentation",
+          "prompt": "An arithmetic sequence has $f(4)={{t4}}$ and $f(9)={{t9}}$. A student claims the explicit rule is $f(n)={{t4}}+{{d}}(n-1)$ because {{t4}} is the first value shown. Reconstruct the sequence from the nonconsecutive terms, diagnose the mistake, write the correct explicit formula, and verify $f(9)$.",
+          "responseFields": [
+            {
+              "id": "difference",
+              "label": "Common difference",
+              "inputProfile": "number",
+              "expected": "{{d}}"
+            },
+            {
+              "id": "first-term",
+              "label": "Recovered first term $f(1)$",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "diagnosis",
+              "label": "What is wrong with the student's rule?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "t4-not-first",
+                  "label": "f(4) is the fourth term, not the first term; the rule must be reconstructed back to f(1)."
+                },
+                {
+                  "id": "difference-zero",
+                  "label": "The common difference must be zero because the terms are nonconsecutive."
+                },
+                {
+                  "id": "use-nine",
+                  "label": "The ninth term should always be used as the first term in an explicit rule."
+                }
+              ],
+              "expected": "t4-not-first"
+            },
+            {
+              "id": "formula",
+              "label": "Correct explicit formula: $f(n)=$",
+              "inputProfile": "expression",
+              "expected": "{{a}} {{d|signed}}(n-1)"
+            },
+            {
+              "id": "verify-nine",
+              "label": "Value produced by the corrected formula at n=9",
+              "inputProfile": "number",
+              "expected": "{{t9}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Nonconsecutive terms locate positions; they do not redefine the first term.",
+            "reasoning": [
+              "From term 4 to term 9 there are 5 equal steps, so the common difference is ({{t9}}-{{t4}})/5={{d}}.",
+              "Move back three steps from f(4) to recover f(1)={{a}}.",
+              "The correct formula is $f(n)={{a}} {{d|signed}}(n-1)$, and substituting n=9 returns {{t9}}."
+            ],
+            "answerSummary": "$f(n)={{a}} {{d|signed}}(n-1)$"
+          },
+          "attemptFeedback": [
+            "Count the number of sequence steps between term numbers before treating any displayed value as the first term."
+          ],
+          "supportHints": [
+            "There are five common-difference steps from n=4 to n=9."
+          ]
+        }
+      ]
     }
   ]
 }
