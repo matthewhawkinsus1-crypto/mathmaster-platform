@@ -131,7 +131,7 @@ const mockQuestionFor = (session) => {
   };
 };
 
-export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind = 'practice', requiredQuestions = 5, assessmentFramework = null, weekKey = null, weeklySlotKey = null, weeklySlot = null }) => {
+export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind = 'practice', requiredQuestions = 5, assessmentFramework = null, coursePracticeIntent = null, weekKey = null, weeklySlotKey = null, weeklySlot = null }) => {
   assertRuntimeAvailable();
   const canonicalKey = toCanonicalKey(targetAlignmentKey);
   if (!canonicalKey) throw new Error('Choose a TEKS standard before starting My Math Path.');
@@ -143,6 +143,7 @@ export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind
       status: 'active',
       sessionKind,
       assessmentFramework: assessmentFramework || null,
+      coursePracticeIntent: coursePracticeIntent === 'challenge' ? 'challenge' : null,
       weekKey: weekKey || null,
       weeklySlotKey: weeklySlotKey || null,
       weeklySlot: weeklySlot || null,
@@ -161,6 +162,7 @@ export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind
     sessionKind,
     requiredQuestions,
     assessmentFramework: assessmentFramework || null,
+    coursePracticeIntent: coursePracticeIntent === 'challenge' ? 'challenge' : null,
     weekKey: weekKey || null,
     weeklySlotKey: weeklySlotKey || null,
     weeklySlot: weeklySlot || null,
