@@ -254,21 +254,6 @@ Resume here. Do not reopen A2.2A–A2.3E unless a failing gate names them.
 - No new Path tool capability is required for A2.3F; use `systemsWorkspace` with `mode: "inequalities"`, `interaction: "construct"`, and `ask: ["construction"]`.
 
 
-### 2026-08-30 — A2.3F audit finding
-- Official construct: **solve systems of two or more linear inequalities in two variables**.
-- Verdict: **REBUILD**.
-- The legacy bank is almost entirely interpretation/recognition: test a point, read a vertical interval from a table, identify boundary inclusion, identify a shading error, or choose a prewritten system. None requires the student to construct the full solution region.
-- This platform already has the correct secure capability from Algebra I Fidelity V2: `systemsWorkspace` inequality **construction** mode grades two boundary points, solid/dashed style, and shading direction for every inequality, then the workspace computes/displays only the overlap.
-- A2.3F should reuse that tested secure contract rather than create a parallel inequality graph tool.
-- Fidelity V2 requirements:
-  - all five families must construct/solve the actual system graph, not answer a recognition prompt;
-  - include two-constraint and three-constraint systems;
-  - include inclusive, strict, and mixed boundary styles;
-  - include contextual feasible-region solving;
-  - include error analysis where a union/incorrect half-plane is repaired by constructing the correct intersection;
-  - at least one family should require three inequalities so “two or more” is real rather than nominal.
-
-
 ### 2026-08-30 — A2.3F staged and gated
 - Staged five A2.3F Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.3F.json` — commit `4f993bfc02b143ee44fa53f9eeaf436dec68067b`.
 - Package-only Algebra II certification run `33318706257`: **PASS**, including student/runtime build.
@@ -283,6 +268,11 @@ Resume here. Do not reopen A2.2A–A2.3E unless a failing gate names them.
 - Added A2.3F-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `cc1c0468b5e659d7fbb4ff1d4aac26fe7c27fa15`.
 - The A2.3F gate samples 200+ generated instances, runs the production issue gate, requires secure Path eligibility, checks public-payload nonleakage, self-grades a mathematically correct graph construction through the server contract, deliberately spoils one half-plane per family and requires rejection, requires repeated three-constraint systems, and certifies strict/inclusive/mixed/context/error-analysis breadth.
 - Full A2.3F assertion run `33318812867`: **QUEUED/RUNNING** at this checkpoint.
+- The first full assertion run was superseded by overlapping commits; run `33318819114` then exposed one substantive coverage mismatch: the staged package had only two three-inequality families while the certification correctly required repeated three-inequality solving.
+- Strengthened the contextual no-solution family into a **three-inequality** infeasible system while preserving the no-common-region requirement — commit `97cd9c56a064df056b91c96e38ecc13a23924288`.
+- Consolidated two overlapping A2.3F test blocks into one authoritative gate, retained the stricter repeated-three-constraint requirement, and added an explicit generated no-solution polygon check — commit `2594e6b7e67cf83533ab147351d1ba4be5ffc85d`.
+- No content requirement was weakened: A2.3F now simultaneously requires repeated three-inequality systems, strict/inclusive/mixed boundaries, context, error repair, secure wrong-shade rejection, and a genuine empty solution set.
+- Replacement certification run `33318879330`: **RUNNING** at this checkpoint.
 - FIRST UNFINISHED STANDARD remains **A2.3F** until that run is green.
 
 
