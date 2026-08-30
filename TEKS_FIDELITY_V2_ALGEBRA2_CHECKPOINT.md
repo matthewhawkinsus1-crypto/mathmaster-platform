@@ -536,18 +536,61 @@ Certification result:
 
 Do **not** re-audit A2.5E unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.6A
 
-### A2.6A — REBUILD — AUDITED / AUTHORING
+### A2.6A — REBUILD — CERTIFIED
 
 Official construct: **Analyze transformations of cubic and cube root parent functions for specified positive and negative real parameter values.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- cubic and cube-root parents are both analyzed repeatedly;
+- the full a·f(b(x-h))+k model is used;
+- reciprocal horizontal scale, horizontal stretch/compression, x-axis reflection, horizontal reflection, and translated center/inflection are all explicit;
+- positive and negative a/b parameter effects are represented;
+- exact point-mapping, graph evidence, reverse parameter recovery, and complete error analysis are included;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect transformation effects are rejected and public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33325840476`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.6A unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.6B — ENHANCE — AUDITED / AUTHORING
+
+Official construct: **Solve cube root equations that have real roots.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.6A
+### A2.6B
 
-Resume here. Do not reopen A2.2A–A2.5E unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.6A unless a failing gate names them.
 
+
+### 2026-08-30 — A2.6B audit finding
+- Official construct: **solve cube root equations that have real roots**.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - basic and shifted/scaled cube-root equations are mathematically correct;
+  - the inverse operation of cubing is identified;
+  - a context and an error-analysis frame are present.
+- Legacy limitations:
+  - most families collect only the final numeric answer, so the actual isolate → cube → solve process is invisible;
+  - inside expressions are almost always x-h rather than a nontrivial linear expression;
+  - generated cube-root values are integer-only, so students do not see broader real-number cases;
+  - the context is mostly direct cube-root evaluation rather than solving a modeled equation;
+  - error analysis is multiple-choice recognition and does not repair the algebra through the final solution.
+- Fidelity V2 requirements:
+  - repeatedly collect the isolated cube-root equation, the equation after cubing, and the final solution;
+  - include a scaled equation with a nontrivial linear radicand mx+c;
+  - include negative cube-root values/radicands to reinforce that cube roots accept all real radicands;
+  - include at least one noninteger real cube-root value so the standard does not collapse to memorized perfect cubes;
+  - include a contextual modeled equation that must be solved, not merely evaluate a given cube root;
+  - include complete error analysis that replaces an incorrect squaring step with cubing and finishes x.
+- Unlike square-root equations, no extraneous/domain-rejection layer should be invented here; real cube roots are defined for all real radicands.
+- Generic secure response grading is sufficient; no new Path capability is required.
 
 ### 2026-08-30 — A2.6A audit finding
 - Official construct: **analyze transformations of cubic and cube root parent functions for specified positive and negative real parameter values**.
