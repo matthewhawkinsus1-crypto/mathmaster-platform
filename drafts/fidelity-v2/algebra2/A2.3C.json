@@ -288,7 +288,105 @@
           "D": "B-b",
           "disc": "C*C-4*D"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-nonmonic-two-intersection-solve",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "symbolic",
+          "solutionMethod": "factoring",
+          "prompt": "Solve the system algebraically: $y={{m}}x{{b|signed}}$ and $y=2x^2{{A|signed}}x{{B|signed}}$. Reduce to a NONMONIC quadratic, solve both x-values, and give both complete ordered-pair solutions.",
+          "responseFields": [
+            {
+              "id": "reduced",
+              "label": "Reduced quadratic equation",
+              "inputProfile": "equation",
+              "expected": "2x^2{{C|signed}}x{{D|signed}}=0"
+            },
+            {
+              "id": "x1",
+              "label": "Smaller x-value",
+              "inputProfile": "number",
+              "expected": "{{u}}"
+            },
+            {
+              "id": "x2",
+              "label": "Larger x-value",
+              "inputProfile": "number",
+              "expected": "{{v}}"
+            },
+            {
+              "id": "point1",
+              "label": "First ordered-pair solution",
+              "inputProfile": "orderedPair",
+              "expected": "({{u}},{{yu}})"
+            },
+            {
+              "id": "point2",
+              "label": "Second ordered-pair solution",
+              "inputProfile": "orderedPair",
+              "expected": "({{v}},{{yv}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A leading coefficient of 2 raises algebraic complexity without changing the solve strategy.",
+            "reasoning": [
+              "Setting the equations equal gives $2x^2{{C|signed}}x{{D|signed}}=0=2(x-{{u}})(x-{{v}})$.",
+              "The roots are {{u}} and {{v}}.",
+              "Substituting into the line gives y-values {{yu}} and {{yv}}."
+            ],
+            "answerSummary": "$({{u}},{{yu}})$ and $({{v}},{{yv}})$"
+          },
+          "attemptFeedback": [
+            "Do not stop after finding x; a system solution needs complete ordered pairs."
+          ],
+          "supportHints": [
+            "Factor out the known leading coefficient structure, then substitute both roots into the line."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -4,
+                "max": 4,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "u": {
+                "type": "int",
+                "min": -5,
+                "max": -1
+              },
+              "v": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              }
+            },
+            "derived": {
+              "C": "-2*(u+v)",
+              "D": "2*u*v",
+              "A": "C+m",
+              "B": "D+b",
+              "yu": "m*u+b",
+              "yv": "m*v+b"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_3C_v2_quadratic-formula-exact",
