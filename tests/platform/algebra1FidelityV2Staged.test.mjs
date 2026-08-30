@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { REPRESENTATIONS, TASK_TYPES } from '../../functions/shared/pathQuestionQuality.mjs';
 
 const read = (path) => JSON.parse(readFileSync(path, 'utf8'));
-const codes = ['A.2C', 'A.2H', 'A.2I', 'A.8A', 'A.10A', 'A.10B', 'A.10C', 'A.10D', 'A.10E', 'A.10F', 'A.12D'];
+const codes = ['A.2C', 'A.2H', 'A.2I', 'A.8A', 'A.10A', 'A.10B', 'A.10C', 'A.10D', 'A.10E', 'A.10F', 'A.11B', 'A.12D'];
 const staged = codes.map((code) => read(`drafts/fidelity-v2/algebra1/${code}.json`));
 const codeOf = (doc) => String((doc.alignmentKeys || []).find((key) => String(key).startsWith('texas:')) || '').replace(/^texas:/, '');
 const allStrings = (node, out = []) => {
@@ -123,6 +123,18 @@ test('A.10E-F require complete factored forms and preserve factor order alternat
     assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis'));
     assert.ok(new Set(entry.documents.map((doc) => doc.dok)).size >= 2, `${code} needs honest DOK spread without forcing DOK 3`);
   }
+});
+
+test('A.11B includes integral and rational exponent laws with complete simplification', () => {
+  const entry = payload('A.11B');
+  assert.match(entry.certificationStatus, /rational-and-integral-exponent-coverage/);
+  const text = JSON.stringify(entry.documents).toLowerCase();
+  assert.match(text, /rational exponent/);
+  assert.match(text, /positive exponents/);
+  assert.ok(entry.documents.some((doc) => /\^\(\{\{p\}\}\/\{\{q\}\}\)/.test(doc.prompt) || doc.prompt.includes('{{p}}/{{q}}')));
+  assert.ok(entry.documents.some((doc) => doc.responseFields?.[0]?.inputProfile === 'number'));
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /adding the exponents/i.test(doc.prompt)));
+  assert.ok(new Set(entry.documents.map((doc) => doc.dok)).size >= 2);
 });
 
 test('A.12D requires nth-term formulas and covers arithmetic plus geometric growth/decay', () => {
