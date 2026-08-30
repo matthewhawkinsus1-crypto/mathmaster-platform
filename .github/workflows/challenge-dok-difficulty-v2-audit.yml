@@ -9,6 +9,11 @@ on:
       - "scripts/audit-challenge-quality-v2.mjs"
       - "tests/platform/challengeDokDifficultyV2Audit.test.mjs"
       - "tests/platform/challengeQualityV2Audit.test.mjs"
+      - "tests/platform/pathAdaptiveVariantTargeting.test.mjs"
+      - "functions/index.js"
+      - "functions/lib/mathPath.js"
+      - "functions/shared/pathQuestionSelection.mjs"
+      - "functions/shared/pathQuestionGeneration.mjs"
       - "ALGEBRA1_2_CHALLENGE_DOK_DIFFICULTY_FOLLOWUP.md"
       - ".github/workflows/challenge-dok-difficulty-v2-audit.yml"
   pull_request:
@@ -19,6 +24,11 @@ on:
       - "scripts/audit-challenge-quality-v2.mjs"
       - "tests/platform/challengeDokDifficultyV2Audit.test.mjs"
       - "tests/platform/challengeQualityV2Audit.test.mjs"
+      - "tests/platform/pathAdaptiveVariantTargeting.test.mjs"
+      - "functions/index.js"
+      - "functions/lib/mathPath.js"
+      - "functions/shared/pathQuestionSelection.mjs"
+      - "functions/shared/pathQuestionGeneration.mjs"
       - "ALGEBRA1_2_CHALLENGE_DOK_DIFFICULTY_FOLLOWUP.md"
       - ".github/workflows/challenge-dok-difficulty-v2-audit.yml"
   workflow_dispatch:
@@ -33,8 +43,8 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Run adaptive coverage and Challenge-quality regression tests
-        run: node --test tests/platform/challengeDokDifficultyV2Audit.test.mjs tests/platform/challengeQualityV2Audit.test.mjs
+      - name: Run adaptive coverage, Challenge-quality, and runtime-targeting tests
+        run: node --test tests/platform/challengeDokDifficultyV2Audit.test.mjs tests/platform/challengeQualityV2Audit.test.mjs tests/platform/pathAdaptiveVariantTargeting.test.mjs
       - name: Enforce complete variant-aware DOK/difficulty coverage
         run: node scripts/audit-challenge-dok-difficulty-v2.mjs --strict
       - name: Enforce authentic Challenge quality
