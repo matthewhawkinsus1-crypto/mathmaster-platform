@@ -714,7 +714,11 @@ Resume here. Do not reopen A2.2A–A2.6G unless a failing gate names them.
 - Added A2.6H generated certification — commit `acb7ce856b0257779479fbf61e91be9bd7faf84a`.
 - The gate samples 200+ generated instances, checks production issuability and secure self-grading, requires all four modeling structures plus error repair, verifies side-reversed equivalent equations are accepted, rejects unrelated models, prevents drift into A2.6I solving, and checks public key stripping.
 - Full A2.6H certification is triggered.
-- FIRST UNFINISHED STANDARD remains **A2.6H** until the full run is green.
+- Full A2.6H run `33327017850` failed only on the certification selector for rate-model breadth: the gate counted ids containing “work” but did not count the staged opposing-rates fill/drain error-repair family.
+- Repaired the selector so the already-authored opposing-rates family is counted as rate modeling — commit `a06ee609cd0215cf2ca64aaae43528d4fbf81e59`.
+- No content requirement was weakened; A2.6H still requires both constructive work-rate modeling and a distinct opposing-rate error-repair model.
+- Replacement certification is triggered.
+- FIRST UNFINISHED STANDARD remains **A2.6H** until the replacement run is green.
 
 
 ### 2026-08-30 — A2.6G audit finding
