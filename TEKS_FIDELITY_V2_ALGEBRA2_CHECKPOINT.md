@@ -683,9 +683,36 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.7F
+### A2.7G
 
-Resume here. Do not reopen A2.2A–A2.7E unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.7F unless a failing gate names them.
+
+
+### 2026-08-30 — A2.7G audit finding
+- Official construct: **rewrite radical expressions that contain variables to equivalent forms**.
+- TEA breakout contains one direct action: rewrite variable-containing radical expressions into equivalent forms.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - simplifying a square root with a variable factor is present;
+  - rational-exponent ↔ radical-form translation is present;
+  - one misconception about incorrectly removing a non-square variable from a radical is represented.
+- Legacy limitations:
+  - one family rationalizes (1/\sqrt{n}) with **no variable at all**, so it does not satisfy the stated construct;
+  - two families mostly test rule recognition/translation rather than substantial rewriting of a variable radical expression;
+  - the bank repeats the same (\sqrt{k^2x}) structure and does not vary radical index or variable exponent deeply;
+  - it never tests the essential even-root identity (\sqrt{x^2}=|x|) when no sign restriction is given;
+  - higher variable powers such as (\sqrt{x^5}), cube roots, and products/quotients of variable radical expressions are absent;
+  - error analysis stops at selecting a statement rather than repairing the complete equivalent form.
+- Fidelity V2 requirements:
+  - every family must contain a variable inside the radical/exponent structure;
+  - include square-root simplification with variable powers and explicit sign-domain handling;
+  - include an absolute-value case so even-root extraction is mathematically correct without assuming (x\ge0);
+  - include at least one odd-index radical where no absolute value is needed;
+  - include rational-exponent ↔ radical rewriting as an authentic expression transformation, not only multiple-choice recognition;
+  - include product/quotient rewriting of variable radical expressions when it remains within equivalent-form scope;
+  - include complete error analysis that repairs the rewritten expression;
+  - keep routine rewriting DOK 2; reserve DOK 3 for complete error analysis.
+- Before staging, certify that the generic expression grader fairly accepts equivalent radical serialization (MathLive square-root/rational-exponent forms) without accepting mathematically different variable powers.
 
 
 ### 2026-08-30 — A2.7F audit finding
@@ -736,7 +763,11 @@ Resume here. Do not reopen A2.2A–A2.7E unless a failing gate names them.
 - Addition/subtraction require LCD numerator work; product/quotient require complete factoring/cancellation; all families separately grade original restrictions.
 - The fifth family is DOK 3 quotient-domain error repair.
 - Base Algebra II certification run `33332488635`: **PASS**.
-- FIRST UNFINISHED STANDARD remains **A2.7F** until the dedicated generated certification is green.
+- Added focused A2.7F 12-breakout certification in `tests/platform/a27fRationalOperations.test.mjs` — commit `3d35508d7bd94e375b89793cbd8ffd63902101c1`.
+- Full A2.7F certification run `33332649684`: **PASS**.
+- All 12 TEA operation/degree combinations were observed in generated instances; LCD arithmetic, factor cancellation, quotient-domain restrictions, semantic rational-expression grading, extra-hole rejection, secure self-grading, answer-key stripping, and student/runtime build all passed.
+- A2.7F is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7G**.
 
 
 ### 2026-08-30 — A2.7E audit finding
