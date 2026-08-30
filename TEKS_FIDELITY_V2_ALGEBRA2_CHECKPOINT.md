@@ -657,7 +657,7 @@ Do **not** re-audit A2.6F unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.6G — REBUILD — AUDITED / AUTHORING
+### A2.6G — REBUILD — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Analyze transformations of the reciprocal parent function for specified positive and negative real parameter values.**
 
@@ -690,6 +690,20 @@ Resume here. Do not reopen A2.2A–A2.6F unless a failing gate names them.
   - include exact point mapping, graph evidence, reverse reasoning from a supplied sequence, and genuine error analysis;
   - never claim a and b can be separately inferred from the final reciprocal graph alone.
 - No risky interactive-tool expansion is needed; generic secure fields and generated graph/table evidence can assess the full parameter reasoning, while the existing rational graph tool can represent the equivalent reduced coefficient when needed.
+
+
+### 2026-08-30 — A2.6G staged and gated
+- Staged five A2.6G Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6G.json` — commit `91aad9d53c9124decc1144b296002f03953d419e`.
+- Coverage includes:
+  - combined a/b/h/k symbolic analysis with a<0;
+  - exact point mapping for b=-2, including horizontal reflection and the equivalent signed coefficient a/b;
+  - graph evidence for a true horizontal stretch from b=0.5;
+  - reverse reasoning from a supplied sequence with both reflections, correctly recognizing their visual cancellation for the odd reciprocal parent;
+  - error analysis correcting reciprocal horizontal scale, reflection, asymptote, and effective-coefficient mistakes.
+- Added A2.6G-specific generated certification — commit `222c08b8649ad4957543e5c0bfc648e5eba5b1a5`.
+- The gate samples 200+ generated instances, checks production issuability and secure self-grading, independently verifies point mapping and graph distances, requires positive/negative parameter and stretch/compression breadth, checks asymptotes and a/b, rejects incorrect effects, and strips public answer keys.
+- Package run `33326640125` and full assertion run `33326658552` are **RUNNING/QUEUED** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.6G** until the full run is green.
 
 
 ### 2026-08-30 — A2.6F audit finding
