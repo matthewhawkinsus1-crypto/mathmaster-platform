@@ -319,7 +319,86 @@
           "bsq": "b*b",
           "y2": "a*bsq"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-nonconsecutive-exponential-reconstruction-and-check",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "reverseReasoning",
+          "representation": "multipleRepresentation",
+          "prompt": "An exponential function $y=ab^x$ has $y(1)={{y1}}$ and $y(4)={{y4}}$, with positive base b. Reconstruct the model from these NONCONSECUTIVE data: determine the three-period growth factor, recover b, work backward to a, write the equation, and verify y(4).",
+          "responseFields": [
+            {
+              "id": "three-period-factor",
+              "label": "$y(4)/y(1)=b^3$",
+              "inputProfile": "number",
+              "expected": "{{bcube}}"
+            },
+            {
+              "id": "base",
+              "label": "Base b",
+              "inputProfile": "number",
+              "expected": "{{b}}"
+            },
+            {
+              "id": "initial",
+              "label": "Initial value a",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "equation",
+              "label": "Complete exponential equation",
+              "inputProfile": "equation",
+              "expected": "y={{a}}({{b}})^x"
+            },
+            {
+              "id": "verify-four",
+              "label": "Value produced by the model at x=4",
+              "inputProfile": "number",
+              "expected": "{{y4}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Nonconsecutive exponential data encode a power of the base, not the base itself.",
+            "reasoning": [
+              "From x=1 to x=4 there are three equal periods, so $y(4)/y(1)=b^3={{bcube}}$.",
+              "The positive cube root gives b={{b}}.",
+              "Since y(1)=ab={{y1}}, divide by {{b}} to recover a={{a}}. The completed model reproduces y(4)={{y4}}."
+            ],
+            "answerSummary": "$y={{a}}({{b}})^x$"
+          },
+          "attemptFeedback": [
+            "Count the number of exponent steps between the two x-values before solving for b."
+          ],
+          "supportHints": [
+            "A ratio across three periods equals b³, not b."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 30
+              },
+              "b": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              }
+            },
+            "derived": {
+              "y1": "a*b",
+              "bcube": "b*b*b",
+              "y4": "a*pow(b,4)"
+            }
+          }
+        }
+      ]
     }
   ]
 }
