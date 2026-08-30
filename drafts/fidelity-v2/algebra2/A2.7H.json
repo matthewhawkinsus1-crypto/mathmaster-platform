@@ -39,7 +39,7 @@
           "id": "solution-set",
           "label": "Complete real solution set",
           "inputProfile": "expression",
-          "expected": "{{xsol}}"
+          "expected": "{ {{xsol}} }"
         }
       ],
       "solutionReview": {
@@ -150,7 +150,7 @@
           "id": "solution-set",
           "label": "Complete real solution set",
           "inputProfile": "expression",
-          "expected": "{{xsol}}"
+          "expected": "{ {{xsol}} }"
         }
       ],
       "solutionReview": {
@@ -262,7 +262,7 @@
           "id": "solution-set",
           "label": "Complete real solution set",
           "inputProfile": "expression",
-          "expected": "{{xlow}},{{xhigh}}"
+          "expected": "{ {{xlow}}, {{xhigh}} }"
         }
       ],
       "solutionReview": {
@@ -454,7 +454,7 @@
           "id": "solution-set",
           "label": "Complete real solution set",
           "inputProfile": "expression",
-          "expected": "{{r}}"
+          "expected": "{ {{r}} }"
         }
       ],
       "solutionReview": {
