@@ -13,6 +13,7 @@ export const MyMathPathDashboard = ({
   studentName = 'Student',
   masteryProfilesByTEKS = {},
   retentionSchedulesByTEKS = {},
+  skillProgressByTEKS = {},
   // No default recommendation. A hardcoded 'A.5A' told every Algebra II
   // student to practise an Algebra I standard whenever the engine had nothing
   // to say; saying nothing is the honest answer.
@@ -87,7 +88,7 @@ export const MyMathPathDashboard = ({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '22px', alignItems: 'center' }}>
         <div style={{ minWidth: 0, padding: '18px', border: '1px solid #dadce0', borderRadius: '12px', background: '#fff' }}>
           <h2 style={{ margin: '0 0 10px', fontSize: '18px', color: '#3c4043', textAlign: 'left' }}>Your skills map</h2>
-          <MyMathPathWheel masteryProfilesByTEKS={masteryProfilesByTEKS} onSelectTEKS={setSelectedTeks} courseId={courseId} />
+          <MyMathPathWheel masteryProfilesByTEKS={masteryProfilesByTEKS} skillProgressByTEKS={skillProgressByTEKS} onSelectTEKS={setSelectedTeks} courseId={courseId} />
         </div>
 
         <div style={{ display: 'grid', gap: '13px' }}>
@@ -128,6 +129,7 @@ export const MyMathPathDashboard = ({
         <SkillDetailCardModal
           teksCode={selectedTeks}
           masteryProfile={masteryProfilesByTEKS[selectedTeks]}
+          pathPassProgress={skillProgressByTEKS[selectedTeks] || null}
           pathOptions={pathOptions}
           assessmentContext={assessmentContext}
           onPracticeAs={onPracticeAs}
