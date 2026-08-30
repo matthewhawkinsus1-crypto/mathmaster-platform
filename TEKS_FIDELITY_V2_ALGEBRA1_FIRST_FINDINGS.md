@@ -1,39 +1,69 @@
-# Algebra I TEKS Fidelity V2 — First Findings
+# Algebra I TEKS Fidelity V2 — Corrected Course Findings
+
+## Authority
+
+The authoritative audit target is the shipping compiled seed:
+`seed/pathQuestionBank/algebra1_pathQuestionBank_seed.json`.
+
+The older seven Algebra I authoring modules are useful only as historical/pedagogical source material. They contain 245 families, but have **0/245 code+slug overlap** with the 245-family shipping Adaptive V2 seed.
 
 ## Current conclusion
-The compiled Algebra I bank is structurally much healthier than the retired ASVAB bank. It already contains parameterized generators, multiple task types, DOK/difficulty metadata, solution review, and representation metadata. This makes a blanket replacement unjustified.
 
-The correct strategy is KEEP / ENHANCE / REBUILD by standard.
+The shipping bank is structurally healthy but semantically over-certified.
 
-## Confirmed strengths
-- Compiled course families can derive expected answers from the same generated parameters shown to the student.
-- The existing Path quality layer already distinguishes mere coverage from a production-quality five-question session.
-- Algebra I authoring is organized by mathematical strands rather than one generic question generator.
-- Several standards already span procedural, interpretation/application, reverse reasoning, and error-analysis tasks.
+Strengths:
+- 245 active families across all 49 content standards, exactly five per standard.
+- All 245 are parameterized generators.
+- FamilyVersion is consistently 2.
+- The shipping seed and Functions mirror are byte-identical.
+- Existing generation/issuability work already protects against malformed placeholders, broken arithmetic, and many render failures.
 
-## Confirmed weaknesses / new audit dimensions
-### 1. Repeat-session durability is not currently a first-class release gate
-A standard can provide five varied families yet still become predictable after repeated sessions. Fidelity V2 measures generator coverage and repeated task-shape signatures separately.
+The new Fidelity V2 audit shows that those structural strengths do **not** guarantee TEKS fidelity.
 
-### 2. Generic coaching is overused in at least some compiled families
-Repeated text such as "Use the given information to identify the relationship before computing" and "Name what each number represents" is mathematically harmless but weakens the adaptive feel and does not diagnose the student's likely misconception.
+## Course-wide findings
 
-### 3. Structural diversity does not guarantee conceptual progression
-A.12C/A.12D sequences contain legitimate different tasks, but they do not yet fully support the connected progression:
-term number/input -> term/value table -> ordered pairs -> discrete graph -> recursive rule -> explicit rule -> application.
-This is currently an ENHANCE signal, not evidence for a wholesale rebuild.
+### 1. Metadata diversity is overstated
 
-### 4. DOK and difficulty require continued independence checks
-The repository already has a bank-wide DOK/difficulty audit. Fidelity V2 keeps that gate and adds human review of whether the claimed DOK is justified by the actual student reasoning.
+- 49 families are labelled `errorAnalysis`.
+- Only **2/49** actually present a mistake/claim/error for the student to analyze.
+- 25 families are labelled `table`.
+- Only **7/25** contain an actual table stimulus.
+- DOK/difficulty correlation is approximately **0.845**.
+- 33 of 49 standards use the same five-role task/DOK/band pattern.
 
-### 5. Compiled bank must remain source of truth for audit
-Some authoring-source snippets look fixed while the generated seed is parameterized. Fidelity decisions therefore inspect the compiled student-facing bank and use source files only to repair confirmed problems.
+This means the current production-quality labels often describe the intended slot rather than the rendered student task.
 
-## Immediate review order
-1. A.12C / A.12D sequences — representation progression and connected learning.
-2. Function strand A.12A-E — repeated-session durability and task differentiation.
-3. Linear writing/graphing — graph/table/equation translation and tool use.
-4. Systems/data — misconception quality and DOK progression.
-5. Quadratics/exponentials — generator robustness and higher-DOK transfer.
+### 2. Many writing standards do not make the student write
 
-Do not modify student-facing content until the relevant standard has a human verdict and a written repair target.
+Standards with **0/5** equation/expression/inequality responses include:
+A.2C, A.2D, A.2H, A.2I, A.4C, A.8B, A.9C, A.9E, and A.12D.
+
+The bank often measures a coefficient, slope, root, factor, or output instead of the construction named by the TEKS.
+
+### 3. Several graph/technology standards are assessed through proxies
+
+Most serious:
+- A.3D is a two-variable graphing standard but currently uses a one-variable number-line interaction.
+- A.3H has no graph-region interaction.
+- A.4A/A.4C/A.8B/A.9E require technology/data/model fitting, but the Path contract has no data/regression tool.
+
+### 4. Multiple-choice IDs expose a universal answer-key pattern
+
+All 11 Algebra I multiple-choice families store `opt-1` as the correct id. Option order is shuffled, but the public question preserves each choice id. This is a payload/devtools leakage pattern and should be hardened the same way ASVAB was.
+
+### 5. The bank is not an ASVAB-style total failure
+
+The mathematics is often sound and the generator architecture is useful. The right response is targeted:
+- **KEEP 12**
+- **ENHANCE 17**
+- **REBUILD 20**
+
+See `TEKS_FIDELITY_V2_ALGEBRA1_49_STANDARD_MATRIX.md` for the full decision.
+
+## Corrected note on open-ended grading
+
+The earlier open-ended-whitelist concern came from the **older source modules**, not the shipping Adaptive V2 seed. It remains a future authoring safeguard, but it is not counted as a current shipping defect.
+
+## Direction
+
+Do not redesign My Path around the current DOK/task/representation metadata yet. Repair/certify the content and metadata first, then let Path expose the verified progression.
