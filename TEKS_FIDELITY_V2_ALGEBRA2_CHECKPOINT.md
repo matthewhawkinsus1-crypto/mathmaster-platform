@@ -683,9 +683,38 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.6L
+### A2.7A
 
-Resume here. Do not reopen A2.2A–A2.6K unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.6L unless a failing gate names them.
+
+
+### 2026-08-30 — A2.7A audit finding
+- Official construct: **add, subtract, and multiply complex numbers**.
+- TEA breakout explicitly requires all three operations:
+  - add complex numbers;
+  - subtract complex numbers;
+  - multiply complex numbers.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - separate generated families already cover addition, subtraction, and multiplication;
+  - multiplication correctly uses (i^2=-1);
+  - a conjugate misconception, symbolic work, and some reverse reasoning are represented;
+  - generated coefficients include positive and negative values.
+- Legacy limitations:
+  - addition and subtraction usually collapse to one final answer with no evidence that real and imaginary parts were combined separately;
+  - multiplication appears only once as a general product, while the second multiplication-related family only asks students to recall (i^2=-1);
+  - the existing error-analysis family diagnoses the fact (i^2=-1) but does not repair and finish the complex-number product;
+  - no family deliberately produces pure-real, pure-imaginary, or zero-component results, so sign/zero edge cases are not tested intentionally;
+  - the bank does not include a mixed-operation expression requiring students to coordinate addition/subtraction with multiplication before writing standard (a+bi) form.
+- Fidelity V2 requirements:
+  - preserve direct addition, subtraction, and general multiplication coverage;
+  - collect real-part and imaginary-coefficient evidence before the final standard-form response in core procedural families;
+  - repeatedly require multiplication simplification through (i^2=-1), including a conjugate product and a non-conjugate product;
+  - deliberately generate edge cases where the real or imaginary component becomes zero while still grading standard complex form fairly;
+  - include one mixed-operation family that combines at least two of the required operations without drifting beyond A2.7A;
+  - include complete error analysis that diagnoses an (i^2) or sign-distribution error and finishes the corrected product;
+  - keep DOK separate from computational difficulty: routine multi-step complex arithmetic remains DOK 2; complete error analysis may be DOK 3.
+- Generic secure expression grading appears sufficient because final responses are simplified linear expressions in (i); certify equivalent term order/sign forms and wrong-operation rejection before locking.
 
 
 ### 2026-08-30 — A2.6L audit finding
@@ -726,8 +755,12 @@ Resume here. Do not reopen A2.2A–A2.6K unless a failing gate names them.
   - a fixed-area length/width context;
   - complete direct-vs-inverse variation error analysis followed by corrected formulation and prediction.
 - DOK and difficulty remain separate: the first four families are DOK 2 across difficulty bands 2–4; only the full error-analysis repair is DOK 3.
-- Base Algebra II certification run `33330439857`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.6L** until generated certification is fully green.
+- Base Algebra II certification run `33330439857`: **PASS**.
+- Added A2.6L-specific generated certification — commit `cbc323c785b1f0b9fb527cf8f057bc36ac292afd`.
+- Full A2.6L certification run `33330503100`: **PASS**.
+- Generated inverse-variation constants, model formulation, predictions, production issuability, secure self-grading, equation-side reversal, direct-variation rejection, DOK-vs-difficulty discipline, public key stripping, and student/runtime build all passed.
+- A2.6L is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7A**.
 
 
 ### 2026-08-30 — A2.6K audit finding
