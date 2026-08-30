@@ -1,0 +1,499 @@
+{
+  "standard": "A2.6I",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-complete-rational-equation-solving-single-term-multiple-denominators-quadratic-work-rate-error-repair",
+  "rationale": "A2.6I already solves rational equations in the legacy bank, but Fidelity V2 deepens the action from one-denominator linear cases to authentic denominator clearing, quadratic cleared forms, complete real solution sets, a supplied work-rate model, and full error repair while leaving reasonableness/extraneous-candidate judgment to A2.6J.",
+  "documents": [
+    {
+      "id": "mm_A2_6I_v2_shifted-isolate-complete",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6I"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6I:v2-shifted-isolate-complete",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6I",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Solve $\\frac{{{a}}}{x-({{h}})}{{k|signed}}={{r}}$. The denominator cannot be zero. Isolate the rational term, determine the denominator value, and finish x.",
+      "responseFields": [
+        {
+          "id": "excluded",
+          "label": "Excluded x-value from the denominator",
+          "inputProfile": "number",
+          "expected": "{{h}}"
+        },
+        {
+          "id": "isolated-value",
+          "label": "Value of a/(x-h) after isolating the rational term",
+          "inputProfile": "number",
+          "expected": "{{s}}"
+        },
+        {
+          "id": "denominator",
+          "label": "Value of x-h after clearing the isolated fraction",
+          "inputProfile": "number",
+          "expected": "{{d}}"
+        },
+        {
+          "id": "solution",
+          "label": "Solution x",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Isolate the rational expression before clearing its denominator.",
+        "reasoning": [
+          "Subtract {{k}} from both sides to get $\\frac{{{a}}}{x-({{h}})}={{s}}$.",
+          "Because {{a}}={{d}}·{{s}}, clearing the denominator gives $x-({{h}})={{d}}$.",
+          "Therefore $x={{x}}$, and {{x}} is not the excluded value {{h}}."
+        ],
+        "answerSummary": "$x={{x}}$"
+      },
+      "attemptFeedback": [
+        "First isolate the fraction; then clear the denominator without losing the horizontal shift."
+      ],
+      "supportHints": [
+        "The denominator is x-({{h}}), so x={{h}} is excluded before you solve."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          },
+          "s": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "a": "d*s",
+          "r": "k+s",
+          "x": "h+d"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6I_v2_quadratic-proportion-two-roots",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6I"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6I:v2-quadratic-proportion-two-roots",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6I",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Solve $\\frac{x}{x-1}=\\frac{{{c}}}{x+{{b}}}$. Both real solutions are valid in the original equation. Clear the denominators, solve the resulting quadratic, and report both roots.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Denominator restrictions",
+        "table": {
+          "headers": [
+            "Denominator",
+            "Excluded value"
+          ],
+          "rows": [
+            [
+              "x-1",
+              "1"
+            ],
+            [
+              "x+{{b}}",
+              "-{{b}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "cleared",
+          "label": "Equation after clearing denominators",
+          "inputProfile": "equation",
+          "equivalence": "polynomialRelation",
+          "expected": "x*(x+{{b}})={{c}}*(x-1)"
+        },
+        {
+          "id": "root-1",
+          "label": "Smaller real solution",
+          "inputProfile": "number",
+          "expected": "{{p}}"
+        },
+        {
+          "id": "root-2",
+          "label": "Larger real solution",
+          "inputProfile": "number",
+          "expected": "{{q}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Clearing both denominators can produce a genuine quadratic equation.",
+        "reasoning": [
+          "Multiplying by $(x-1)(x+{{b}})$ gives $x(x+{{b}})={{c}}(x-1)$.",
+          "The cleared quadratic factors with roots {{p}} and {{q}}.",
+          "Neither root is 1 or -{{b}}, so both are real solutions of the original rational equation."
+        ],
+        "answerSummary": "$x={{p}}$ or $x={{q}}$"
+      },
+      "attemptFeedback": [
+        "Do not cancel across addition. Multiply the entire equation by the common denominator."
+      ],
+      "supportHints": [
+        "After clearing denominators, bring all terms to one side and factor the quadratic."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "q": {
+            "type": "int",
+            "min": 4,
+            "max": 10
+          }
+        },
+        "derived": {
+          "c": "p*q",
+          "b": "p*q-p-q"
+        },
+        "constraints": [
+          "q>p"
+        ]
+      }
+    },
+    {
+      "id": "mm_A2_6I_v2_two-denominator-quadratic",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6I"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6I:v2-two-denominator-quadratic",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6I",
+      "representation": "table",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "Solve $\\frac{{{a}}}{x}+\\frac{{{b}}}{x-3}=1$. Use the LCD to clear both rational terms, then solve the resulting quadratic and give every real solution.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Rational terms",
+        "table": {
+          "headers": [
+            "Term",
+            "Denominator"
+          ],
+          "rows": [
+            [
+              "{{a}}/x",
+              "x"
+            ],
+            [
+              "{{b}}/(x-3)",
+              "x-3"
+            ],
+            [
+              "1",
+              "1"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "lcd",
+          "label": "Least common denominator",
+          "inputProfile": "expression",
+          "expected": "x*(x-3)"
+        },
+        {
+          "id": "cleared",
+          "label": "Equation after multiplying every term by the LCD",
+          "inputProfile": "equation",
+          "equivalence": "polynomialRelation",
+          "expected": "{{a}}*(x-3)+{{b}}*x=x*(x-3)"
+        },
+        {
+          "id": "root-1",
+          "label": "Smaller real solution",
+          "inputProfile": "number",
+          "expected": "{{p}}"
+        },
+        {
+          "id": "root-2",
+          "label": "Larger real solution",
+          "inputProfile": "number",
+          "expected": "{{q}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Every term must receive the entire LCD.",
+        "reasoning": [
+          "The LCD is $x(x-3)$, with excluded values 0 and 3.",
+          "Clearing denominators gives ${{a}}(x-3)+{{b}}x=x(x-3)$.",
+          "The resulting quadratic has roots {{p}} and {{q}}; the generator keeps both away from 0 and 3."
+        ],
+        "answerSummary": "$x={{p}}$ or $x={{q}}$"
+      },
+      "attemptFeedback": [
+        "When multiplying by the LCD, simplify each rational term only after the whole term receives the multiplier."
+      ],
+      "supportHints": [
+        "The first denominator contributes x; the second contributes x-3."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": 1,
+            "max": 8,
+            "exclude": [
+              3
+            ]
+          },
+          "q": {
+            "type": "int",
+            "min": 2,
+            "max": 12,
+            "exclude": [
+              3
+            ]
+          }
+        },
+        "derived": {
+          "a": "p*q/3",
+          "b": "p+q-3-a"
+        },
+        "constraints": [
+          "q>p",
+          "(p*q)%3==0",
+          "b!=0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A2_6I_v2_combined-work-solve",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6I"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6I:v2-combined-work-solve",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6I",
+      "representation": "context",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "application",
+      "prompt": "Machine A can complete a job alone in {{a}} hours. Working with machine B, the job takes {{t}} hours. The model $\\frac{1}{{{a}}}+\\frac{1}{x}=\\frac{1}{{{t}}}$ is already formulated, where x is machine B's solo time. Solve the rational equation for x and interpret the answer in hours.",
+      "responseFields": [
+        {
+          "id": "cleared",
+          "label": "Equation after clearing denominators",
+          "inputProfile": "equation",
+          "equivalence": "polynomialRelation",
+          "expected": "{{t}}*x+{{a}}*{{t}}={{a}}*x"
+        },
+        {
+          "id": "solution",
+          "label": "Machine B solo time",
+          "inputProfile": "number",
+          "unit": "hours",
+          "expected": "{{x}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A2.6I solves the supplied rational model; A2.6H is where the model is formulated.",
+        "reasoning": [
+          "Multiply the supplied equation by {{a}}·{{t}}·x to get ${{t}}x+{{a}}({{t}})={{a}}x$.",
+          "Solving the resulting linear equation gives $x={{x}}$.",
+          "Machine B would complete the job alone in {{x}} hours."
+        ],
+        "answerSummary": "$x={{x}}$ hours"
+      },
+      "attemptFeedback": [
+        "The equation is already built. Your task is to clear its denominators and solve it completely."
+      ],
+      "supportHints": [
+        "Multiply every term by a common multiple of {{a}}, {{t}}, and x."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 4,
+            "max": 30
+          },
+          "x": {
+            "type": "int",
+            "min": 2,
+            "max": 20
+          }
+        },
+        "derived": {
+          "t": "a*x/(a+x)"
+        },
+        "constraints": [
+          "(a*x)%(a+x)==0",
+          "x!=a"
+        ],
+        "attempts": 300
+      }
+    },
+    {
+      "id": "mm_A2_6I_v2_lcd-error-complete-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6I"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6I:v2-lcd-error-complete-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6I",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student solves $\\frac{{{a}}}{x}+\\frac{{{b}}}{x-3}=1$. Using the LCD $x(x-3)$, the student writes ${{a}}(x-3)+{{b}}=x(x-3)$. Diagnose the denominator-clearing error, write the corrected cleared equation, and finish every real solution.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student work",
+        "steps": [
+          {
+            "id": "original",
+            "label": "Original",
+            "work": "$\\frac{{{a}}}{x}+\\frac{{{b}}}{x-3}=1$"
+          },
+          {
+            "id": "wrong",
+            "label": "Student's cleared equation",
+            "work": "${{a}}(x-3)+{{b}}=x(x-3)$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What was the denominator-clearing error?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "missing-x",
+              "label": "The second rational term should become {{b}}x, not {{b}}."
+            },
+            {
+              "id": "cancel-add",
+              "label": "The two denominators should be added before multiplying."
+            },
+            {
+              "id": "drop-right",
+              "label": "The right side should become 0 instead of x(x-3)."
+            }
+          ],
+          "expected": "missing-x"
+        },
+        {
+          "id": "cleared",
+          "label": "Correct equation after multiplying every term by the LCD",
+          "inputProfile": "equation",
+          "equivalence": "polynomialRelation",
+          "expected": "{{a}}*(x-3)+{{b}}*x=x*(x-3)"
+        },
+        {
+          "id": "root-1",
+          "label": "Smaller real solution",
+          "inputProfile": "number",
+          "expected": "{{p}}"
+        },
+        {
+          "id": "root-2",
+          "label": "Larger real solution",
+          "inputProfile": "number",
+          "expected": "{{q}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The LCD multiplies every term; cancellation happens within each entire rational term.",
+        "reasoning": [
+          "The term ${{b}}/(x-3)$ receives $x(x-3)$, so it simplifies to ${{b}}x$.",
+          "The correct cleared equation is ${{a}}(x-3)+{{b}}x=x(x-3)$.",
+          "Solving that quadratic gives {{p}} and {{q}}, and both are allowed because neither is 0 nor 3."
+        ],
+        "answerSummary": "$x={{p}}$ or $x={{q}}$"
+      },
+      "attemptFeedback": [
+        "Track what remains after the LCD cancels each denominator; do not erase the other factor."
+      ],
+      "supportHints": [
+        "For the term b/(x-3), cancelling x-3 leaves a factor of x."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": 1,
+            "max": 8,
+            "exclude": [
+              3
+            ]
+          },
+          "q": {
+            "type": "int",
+            "min": 2,
+            "max": 12,
+            "exclude": [
+              3
+            ]
+          }
+        },
+        "derived": {
+          "a": "p*q/3",
+          "b": "p+q-3-a"
+        },
+        "constraints": [
+          "q>p",
+          "(p*q)%3==0",
+          "b!=0"
+        ]
+      }
+    }
+  ]
+}
