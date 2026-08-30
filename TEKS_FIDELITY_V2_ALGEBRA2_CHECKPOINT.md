@@ -400,6 +400,9 @@ Resume here. Do not reopen A2.2A–A2.4D unless a failing gate names them.
 - Package/build run `33323381039`: **FAILED at the global staged-package identity gate** before content certification because three newly authored document ids used `_v2-` instead of the required `_v2_` marker.
 - Normalized those three A2.4E document ids without changing any math, prompts, grading, or family logic — commit `4b114c29d757cc07169f009c894d706a856b556c`.
 - A2.4E generated certification was added in commit `e69de80988066473f67957e3e1f19764857d73e5`; the replacement run will test the full package after the id repair.
+- The first generated A2.4E certification run also caught unbound prompt placeholders: three prompts referenced `{{predictionX}}` even though the generator binds the actual fixed targets as literal 3, `{{x25}}`, or `{{x625}}`.
+- Rebound those student-visible prompt targets to the actual generated keys/literals — commit `087b0cd4df641608565daeddaecfa5a065eaa886`.
+- This was a template-binding defect only; the secure fixed prediction targets and server grading were already correct.
 - A2.4E remains FIRST UNFINISHED until the staged package receives its generated certification gate and that gate is green.
 
 - Fidelity V2 content requirements after capability work:
