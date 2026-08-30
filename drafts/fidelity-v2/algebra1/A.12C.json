@@ -450,7 +450,188 @@
       },
       "variants": [
         {
-          "coverageKey": "core-2b3"
+          "coverageKey": "core-2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-alternating-geometric-sequence",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "representationTranslation",
+          "representation": "multipleRepresentation",
+          "prompt": "A geometric sequence has first term {{a1}} and common ratio {{r}}. Generate terms a₂ through a₅, list the first five domain/input values, and write the first three ordered pairs $(n,a_n)$. The alternating signs make the arithmetic harder, but the sequence remains discrete.",
+          "responseFields": [
+            {
+              "id": "a2",
+              "label": "a₂",
+              "inputProfile": "number",
+              "expected": "{{a2}}"
+            },
+            {
+              "id": "a3",
+              "label": "a₃",
+              "inputProfile": "number",
+              "expected": "{{a3}}"
+            },
+            {
+              "id": "a4",
+              "label": "a₄",
+              "inputProfile": "number",
+              "expected": "{{a4}}"
+            },
+            {
+              "id": "a5",
+              "label": "a₅",
+              "inputProfile": "number",
+              "expected": "{{a5}}"
+            },
+            {
+              "id": "domain",
+              "label": "First five domain values",
+              "inputProfile": "expression",
+              "expected": "{1,2,3,4,5}"
+            },
+            {
+              "id": "pair1",
+              "label": "First ordered pair",
+              "inputProfile": "expression",
+              "expected": "(1,{{a1}})"
+            },
+            {
+              "id": "pair2",
+              "label": "Second ordered pair",
+              "inputProfile": "expression",
+              "expected": "(2,{{a2}})"
+            },
+            {
+              "id": "pair3",
+              "label": "Third ordered pair",
+              "inputProfile": "expression",
+              "expected": "(3,{{a3}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A negative common ratio changes signs but not the discrete sequence domain.",
+            "reasoning": [
+              "Multiply by {{r}} each step: {{a1}}, {{a2}}, {{a3}}, {{a4}}, {{a5}}.",
+              "The inputs are term numbers 1,2,3,4,5.",
+              "The graph uses ordered pairs $(n,a_n)$ and remains discrete."
+            ],
+            "answerSummary": "Five generated terms with domain {1,2,3,4,5}."
+          },
+          "attemptFeedback": [
+            "Apply the negative ratio one step at a time and keep term number separate from term value."
+          ],
+          "supportHints": [
+            "The sign alternates because the common ratio is negative."
+          ],
+          "generator": {
+            "parameters": {
+              "a1": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              },
+              "r": {
+                "type": "choice",
+                "values": [
+                  -2,
+                  -3
+                ]
+              }
+            },
+            "derived": {
+              "a2": "a1*r",
+              "a3": "a2*r",
+              "a4": "a3*r",
+              "a5": "a4*r"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-compare-sequence-graph-encodings",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "An arithmetic sequence begins {{a1}}, {{a2}}, {{a3}}, ... . Student A plots $(1,{{a1}}),(2,{{a2}}),(3,{{a3}})$ as separate points. Student B plots $({{a1}},1),({{a2}},2),({{a3}},3)$ and connects them with a line. Decide which representation is valid, identify the correct first three domain values, and find a₄.",
+          "responseFields": [
+            {
+              "id": "valid",
+              "label": "Valid representation",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "A",
+                  "label": "Student A"
+                },
+                {
+                  "id": "B",
+                  "label": "Student B"
+                }
+              ],
+              "expected": "A"
+            },
+            {
+              "id": "domain1",
+              "label": "First domain value",
+              "inputProfile": "number",
+              "expected": "1"
+            },
+            {
+              "id": "domain2",
+              "label": "Second domain value",
+              "inputProfile": "number",
+              "expected": "2"
+            },
+            {
+              "id": "domain3",
+              "label": "Third domain value",
+              "inputProfile": "number",
+              "expected": "3"
+            },
+            {
+              "id": "next",
+              "label": "a₄",
+              "inputProfile": "number",
+              "expected": "{{a4}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Sequence graphs use term number as input and stay discrete.",
+            "reasoning": [
+              "Student A uses $(n,a_n)$, so the domain values are 1,2,3.",
+              "Student B reverses input and output and also incorrectly makes the sequence continuous.",
+              "Continuing the arithmetic pattern gives a₄={{a4}}."
+            ],
+            "answerSummary": "Student A is correct; a₄={{a4}}."
+          },
+          "attemptFeedback": [
+            "Separate the term number from the term value before judging the graph."
+          ],
+          "supportHints": [
+            "A sequence is a function whose inputs are positive integer term numbers."
+          ],
+          "generator": {
+            "parameters": {
+              "a1": {
+                "type": "int",
+                "min": -5,
+                "max": 8
+              },
+              "d": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              }
+            },
+            "derived": {
+              "a2": "a1+d",
+              "a3": "a1+2*d",
+              "a4": "a1+3*d"
+            }
+          }
         },
         {
           "coverageKey": "challenge-d3b4-sequence-domain-graph-error-repair",
