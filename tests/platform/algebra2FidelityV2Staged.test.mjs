@@ -4276,3 +4276,173 @@ test('A2.6J determines rational-solution reasonableness from original-equation e
   assert.ok(representations.has('symbolic'));
   assert.ok(representations.has('verbal'));
 });
+
+test('A2.6K represents rational asymptotic restrictions in interval inequality and set-builder notation', async () => {
+  const entry = payload('A2.6K');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /asymptotic-domain-range-three-notations/);
+
+  let generatedCount = 0;
+  let setBuilderFields = 0;
+  let intervalFields = 0;
+  let inequalityFields = 0;
+  let twoVerticalFamilies = 0;
+  let positiveOneSidedFamilies = 0;
+  let negativeOneSidedFamilies = 0;
+  let errorFamilies = 0;
+  let wrongSetBuildersRejected = 0;
+  let equivalentSetBuildersAccepted = 0;
+  const checkedSetFields = new Set();
+  const wrongCheckedDocs = new Set();
+  const representations = new Set();
+
+  const alternateSetBuilder = (expected) => {
+    const match = /^\{([xy])\|(.+)\}$/.exec(String(expected || ''));
+    assert.ok(match, 'set-builder key is not in canonical authored form: ' + expected);
+    const variable = match[1];
+    const condition = match[2]
+      .replace(/!=/g, '≠')
+      .replace(/ and /g, ', ');
+    return '{' + variable + ' ∈ ℝ : ' + condition + '}';
+  };
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    if (doc.id.includes('two-vertical')) twoVerticalFamilies += 1;
+    if (doc.id.includes('positive-range') || doc.id.includes('full-repair')) positiveOneSidedFamilies += 1;
+    if (doc.id.includes('negative-range')) negativeOneSidedFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const authoredSetFields = (doc.responseFields || []).filter((field) => field.equivalence === 'setBuilder');
+    const authoredIntervalFields = (doc.responseFields || []).filter((field) => field.inputProfile === 'interval');
+    const authoredInequalityFields = (doc.responseFields || []).filter((field) => field.inputProfile === 'inequality');
+    assert.ok(authoredSetFields.length >= 1, doc.id + ' must require student-authored set-builder notation');
+    assert.ok(authoredIntervalFields.length >= 1, doc.id + ' must require interval notation');
+    assert.ok(authoredInequalityFields.length >= 1, doc.id + ' must require inequality notation');
+    assert.ok(authoredSetFields.every((field) => field.inputProfile === 'expression'));
+    assert.ok(authoredSetFields.every((field) => field.answerFormat === 'set-builder'));
+    setBuilderFields += authoredSetFields.length;
+    intervalFields += authoredIntervalFields.length;
+    inequalityFields += authoredInequalityFields.length;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, doc.id + ' is not production-issuable: ' + issuePlan.reason);
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, doc.id + ' failed generation: ' + generated.reason);
+      const question = generated.question;
+      const params = generated.parameters || {};
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const fields = Object.fromEntries(
+        (question.responseFields || []).map((field) => [field.id, field]),
+      );
+
+      if (doc.id.includes('translated-reciprocal')) {
+        assert.equal(Number(fields.vertical?.expected), Number(params.h));
+        assert.equal(Number(fields.horizontal?.expected), Number(params.k));
+        assert.equal(fields['domain-inequality']?.expected, 'x!=' + params.h);
+        assert.equal(fields['range-inequality']?.expected, 'y!=' + params.k);
+      }
+
+      if (doc.id.includes('two-vertical')) {
+        assert.ok(Number(params.p) < Number(params.q));
+        assert.equal(Number(fields['vertical-1']?.expected), Number(params.p));
+        assert.equal(Number(fields['vertical-2']?.expected), Number(params.q));
+        assert.equal(fields['domain-left']?.expected, 'x<' + params.p);
+        assert.equal(fields['domain-middle']?.expected, params.p + '<x<' + params.q);
+        assert.equal(fields['domain-right']?.expected, 'x>' + params.q);
+      }
+
+      if (doc.id.includes('positive-range') || doc.id.includes('full-repair')) {
+        assert.ok(Number(params.a) > 0);
+        assert.equal(fields['range-inequality']?.expected, 'y>' + params.k);
+        assert.equal(fields['range-interval']?.expected, '(' + params.k + ',inf)');
+      }
+
+      if (doc.id.includes('negative-range')) {
+        assert.ok(Number(params.a) > 0);
+        assert.equal(fields['range-inequality']?.expected, 'y<' + params.k);
+        assert.equal(fields['range-interval']?.expected, '(-inf,' + params.k + ')');
+      }
+
+      if (doc.taskType === 'errorAnalysis') {
+        assert.equal(fields.diagnosis?.expected, 'both');
+        assert.equal(doc.dok, 3);
+      } else {
+        assert.equal(doc.dok, 2, doc.id + ' should stay DOK 2 even when difficulty is high');
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        doc.id + ' failed generated correct-answer self-acceptance: ' + JSON.stringify(correct.fieldResults),
+      );
+
+      for (const field of grading.fields.filter((candidate) => candidate.equivalence === 'setBuilder')) {
+        const checkKey = doc.id + ':' + field.id;
+        if (checkedSetFields.has(checkKey)) continue;
+        const alternate = alternateSetBuilder(field.expected);
+        const equivalent = await gradeResponse(grading, {
+          responses: { ...responses, [field.id]: alternate },
+        });
+        assert.equal(
+          equivalent.isCorrect,
+          true,
+          doc.id + '/' + field.id + ' rejected equivalent textbook set-builder notation ' + alternate,
+        );
+        equivalentSetBuildersAccepted += 1;
+        checkedSetFields.add(checkKey);
+      }
+
+      if (!wrongCheckedDocs.has(doc.id)) {
+        const setField = grading.fields.find((candidate) => candidate.equivalence === 'setBuilder');
+        assert.ok(setField);
+        const binder = /^\{([xy])\|/.exec(String(setField.expected || ''))?.[1] || 'x';
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, [setField.id]: '{' + binder + '|' + binder + '!=999}' },
+        });
+        assert.equal(wrong.isCorrect, false, doc.id + ' accepted a wrong set-builder restriction');
+        wrongSetBuildersRejected += 1;
+        wrongCheckedDocs.add(doc.id);
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: 'qa-' + doc.id + '-' + generatedCount,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+      for (const field of publicQuestion.responseFields || []) {
+        if (String(field.id).includes('set')) {
+          assert.equal(field.answerFormat, 'set-builder');
+          assert.ok(Array.isArray(field.requiredSymbols) && field.requiredSymbols.includes('{'));
+        }
+      }
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(setBuilderFields >= 8, 'A2.6K must repeatedly require authored set-builder domain/range notation');
+  assert.ok(intervalFields >= 8, 'A2.6K must repeatedly require interval notation');
+  assert.ok(inequalityFields >= 10, 'A2.6K must repeatedly require inequality notation');
+  assert.equal(twoVerticalFamilies, 1);
+  assert.ok(positiveOneSidedFamilies >= 2);
+  assert.equal(negativeOneSidedFamilies, 1);
+  assert.equal(errorFamilies, 1);
+  assert.equal(wrongSetBuildersRejected, entry.documents.length);
+  assert.equal(equivalentSetBuildersAccepted, setBuilderFields);
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('verbal'));
+});
+
