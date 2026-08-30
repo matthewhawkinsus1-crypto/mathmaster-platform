@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { REPRESENTATIONS, TASK_TYPES } from '../../functions/shared/pathQuestionQuality.mjs';
 
 const read = (path) => JSON.parse(readFileSync(path, 'utf8'));
-const codes = ['A.2C', 'A.2H', 'A.2I', 'A.8A', 'A.10A', 'A.10B', 'A.10C', 'A.10D', 'A.10E', 'A.10F', 'A.11B', 'A.12A', 'A.12D'];
+const codes = ['A.2C', 'A.2H', 'A.2I', 'A.8A', 'A.9C', 'A.10A', 'A.10B', 'A.10C', 'A.10D', 'A.10E', 'A.10F', 'A.11B', 'A.12A', 'A.12D'];
 const staged = codes.map((code) => read(`drafts/fidelity-v2/algebra1/${code}.json`));
 const codeOf = (doc) => String((doc.alignmentKeys || []).find((key) => String(key).startsWith('texas:')) || '').replace(/^texas:/, '');
 const allStrings = (node, out = []) => {
@@ -89,6 +89,23 @@ test('A.8A covers all four required quadratic solution methods and complete solu
   assert.match(prompts, /completing the square/);
   assert.match(prompts, /quadratic formula/);
   assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /complete solution set/i.test(doc.prompt)));
+});
+
+test('A.9C makes students write complete exponential equations for growth and decay', () => {
+  const entry = payload('A.9C');
+  assert.match(entry.certificationStatus, /full-equation-writing/);
+  for (const doc of entry.documents) {
+    assert.equal(doc.responseFields?.length, 1);
+    assert.equal(doc.responseFields[0].inputProfile, 'equation');
+    assert.match(String(doc.responseFields[0].expected), /^y=/);
+  }
+  const growth = entry.documents.find((doc) => doc.id.includes('context-growth-model'));
+  const decay = entry.documents.find((doc) => doc.id.includes('context-decay-model'));
+  assert.ok(growth?.generator?.parameters?.base?.values?.some((value) => value > 1));
+  assert.ok(decay?.generator?.parameters?.base?.values?.every((value) => value > 0 && value < 1));
+  assert.ok(entry.documents.some((doc) => doc.representation === 'table' && doc.stimulus?.table?.rows?.length >= 3));
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /linear model/i.test(doc.prompt)));
+  assert.ok(entry.documents.some((doc) => doc.dok === 3 && doc.taskType === 'reverseReasoning' && /y\(2\)/i.test(doc.prompt)));
 });
 
 test('A.10A-D require complete polynomial-operation expressions rather than component answers', () => {
