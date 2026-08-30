@@ -285,7 +285,7 @@ Do **not** re-audit A2.4A unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4B — REBUILD — AUDITED / AUTHORING
+### A2.4B — REBUILD — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Write the equation of a parabola using given attributes, including vertex, focus, directrix, axis of symmetry, and direction of opening.**
 
@@ -330,6 +330,12 @@ Resume here. Do not reopen A2.2A–A2.4A unless a failing gate names them.
 - Marked every A2.4B parabola-equation response with the opt-in relation equivalence — commit `dfd6861e5f197ba1afd95d0c9f2465a5fbff6fd3`.
 - This preserves the instructional request for standard conic form while avoiding a false-negative grade when a student's equation is algebraically the identical parabola relation.
 - FIRST UNFINISHED STANDARD remains **A2.4B**. Next gate must certify the generated geometry, orientation breadth, secure answer acceptance, and public-key stripping before advancing.
+- A2.4B generated certification was added in commit `d111f3e2b5d4a8af6c5cd867ce1c887c48065c90`.
+- Run `33319519650` reached the A2.4B test and failed only on a certification-status regex that expected the literal word “attribute”; the package status actually spells out `vertex-focus-directrix-axis-and-opening`.
+- Corrected the test to require that exact status string — commit `f5ee298a75aea9012e6c39bd78921602ab66262c`.
+- No mathematical/content requirement was weakened; the test now names the actual staged certification contract.
+- Replacement certification has been triggered.
+- FIRST UNFINISHED STANDARD remains **A2.4B** until the replacement run is green.
 
 
 ### 2026-08-30 — A2.4A audit finding
