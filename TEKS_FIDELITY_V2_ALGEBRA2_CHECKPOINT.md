@@ -306,7 +306,7 @@ Do **not** re-audit A2.4B unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4C — REBUILD — AUDITED / AUTHORING
+### A2.4C — REBUILD — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Determine the effect on the graph of the square root parent function when it is vertically or horizontally scaled, reflected, or translated.**
 
@@ -341,6 +341,22 @@ Resume here. Do not reopen A2.2A–A2.4B unless a failing gate names them.
   - graph/point-mapping evidence, symbolic transformation analysis, reverse reasoning, and genuine error analysis;
   - at least one combined transformation where the student determines several effects together rather than answering isolated vocabulary.
 - The current interactive Function Investigation tool intentionally models $a\sqrt{x-h}+k$ and does not support b. A2.4C does **not** need a risky tool expansion to be faithful: secure generic multi-response fields plus generated point-mapping/graph stimuli can assess the missing horizontal effects directly. The existing tool may still be used only where its supported a/h/k model is mathematically sufficient.
+
+
+### 2026-08-30 — A2.4C staged and gated
+- Staged five A2.4C Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4C.json` — commit `ce11794df8fec234200612490fb763f6ead7605d`.
+- Package/build run `33319744204`: **PASS**, including student/runtime build.
+- Coverage now includes:
+  - combined symbolic analysis of $a\sqrt{b(x-h)}+k$ with vertical scale, reciprocal horizontal scale, reflections, endpoint, and ray direction;
+  - exact parent-point mapping through a negative inside factor, showing horizontal compression/reflection and vertical compression;
+  - parent-vs-transformed graph evidence for a true horizontal stretch from $b=0.25$;
+  - reverse reasoning from vertical/horizontal scales, both reflections, and endpoint translation to an equation;
+  - error analysis correcting both the reciprocal horizontal-scale misconception and the inside-vs-outside reflection misconception.
+- No unsupported interactive-tool behavior is claimed; horizontal effects are assessed through secure generic response fields and generated graph/table evidence.
+- Added A2.4C-specific generated certification — commit `abbb471f3184eb96814185f087da81b64e909fdf`.
+- The A2.4C gate samples 200+ generated instances, runs production issuability and secure self-grading, verifies public-key stripping, independently checks the horizontal-reflection point mapping and horizontal-stretch graph distances, requires vertical stretch/compression and horizontal stretch/compression, and requires reverse reasoning plus genuine error analysis.
+- Full A2.4C assertion run `33319791387`: **QUEUED/RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.4C** until that run is green.
 
 
 ### 2026-08-30 — A2.4B audit finding
