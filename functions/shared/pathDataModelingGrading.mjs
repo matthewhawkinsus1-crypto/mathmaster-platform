@@ -168,13 +168,36 @@ export const pathPredictionKind = (points = [], x) => {
   return value >= Math.min(...xs) && value <= Math.max(...xs) ? 'interpolation' : 'extrapolation';
 };
 
+const FIT_PREDICTION_MODES = Object.freeze({
+  linearFitPrediction: 'linear',
+  quadraticFitPrediction: 'quadratic',
+  exponentialFitPrediction: 'exponential',
+});
+
+const supportedDataModelingModes = new Set([
+  'full',
+  'lineFit',
+  'association',
+  'correlation',
+  'prediction',
+  'modelCompare',
+  ...Object.keys(FIT_PREDICTION_MODES),
+]);
+
 const requiredPartsForMode = (mode) => {
   if (mode === 'lineFit') return ['fit'];
+  if (FIT_PREDICTION_MODES[mode]) return ['fit', 'prediction'];
   if (mode === 'association') return ['association'];
   if (mode === 'correlation') return ['correlation', 'association'];
   if (mode === 'prediction') return ['prediction'];
   if (mode === 'modelCompare') return ['modelChoice'];
   return ['fit', 'association', 'modelChoice', 'prediction'];
+};
+
+const coefficientTolerance = (expected, authored, floor, relative = 0.05) => {
+  if (finite(authored)) return Math.abs(Number(authored));
+  const value = Number(expected);
+  return Number.isFinite(value) ? Math.max(floor, Math.abs(value) * relative) : floor;
 };
 
 export const buildDataModelingPrivateDefinition = (question = {}) => {
@@ -183,15 +206,22 @@ export const buildDataModelingPrivateDefinition = (question = {}) => {
   const candidateModels = buildPathCandidateModels(points);
   const metric = ['rmse', 'mae', 'sse'].includes(String(question.modelMetric)) ? String(question.modelMetric) : 'rmse';
   const bestModel = choosePathBestModel(candidateModels, metric);
-  const expectedModelId = ['linear', 'quadratic', 'exponential'].includes(String(question.expectedModel))
-    ? String(question.expectedModel)
-    : bestModel?.id || 'linear';
-  const expectedModel = candidateModels.find((entry) => entry.id === expectedModelId) || candidateModels[0] || null;
-  const r = pathCorrelation(points);
-  const descriptor = pathCorrelationDescriptor(r);
-  const mode = ['full', 'lineFit', 'association', 'correlation', 'prediction', 'modelCompare'].includes(String(question.mode))
+  const mode = supportedDataModelingModes.has(String(question.mode))
     ? String(question.mode)
     : 'full';
+  // A TEKS-specific fit mode names the family the student must write. That is
+  // stronger than "pick the best model": A.4C, A.8B and A.9E each name the
+  // model family in the standard itself.
+  const forcedModelId = FIT_PREDICTION_MODES[mode] || null;
+  const expectedModelId = forcedModelId
+    || (['linear', 'quadratic', 'exponential'].includes(String(question.expectedModel))
+      ? String(question.expectedModel)
+      : bestModel?.id || 'linear');
+  const expectedModel = candidateModels.find((entry) => entry.id === expectedModelId) || null;
+  const r = pathCorrelation(points);
+  const descriptor = pathCorrelationDescriptor(r);
+  const predictionX = finite(question.predictionX) ? Number(question.predictionX) : null;
+  const model = expectedModel?.model || {};
   return {
     mode,
     points,
@@ -202,8 +232,18 @@ export const buildDataModelingPrivateDefinition = (question = {}) => {
     expectedModelId,
     expectedModel: expectedModel ? { id: expectedModel.id, model: expectedModel.model } : null,
     requiredParts: requiredPartsForMode(mode),
-    slopeTolerance: finite(question.slopeTolerance) ? Math.abs(Number(question.slopeTolerance)) : Math.max(0.2, Math.abs(regression.m) * 0.12),
-    interceptTolerance: finite(question.interceptTolerance) ? Math.abs(Number(question.interceptTolerance)) : 0.8,
+    predictionX,
+    slopeTolerance: coefficientTolerance(regression.m, question.slopeTolerance, 0.2, 0.12),
+    interceptTolerance: coefficientTolerance(regression.b, question.interceptTolerance, 0.8, 0.08),
+    quadraticTolerance: {
+      a: coefficientTolerance(model.a, question.quadraticATolerance, 0.03),
+      b: coefficientTolerance(model.b, question.quadraticBTolerance, 0.08),
+      c: coefficientTolerance(model.c, question.quadraticCTolerance, 0.2),
+    },
+    exponentialTolerance: {
+      a: coefficientTolerance(model.a, question.exponentialATolerance, 0.08),
+      base: coefficientTolerance(model.base, question.exponentialBaseTolerance, 0.02, 0.03),
+    },
     correlationTolerance: finite(question.correlationTolerance) ? Math.abs(Number(question.correlationTolerance)) : 0.03,
     predictionTolerance: finite(question.predictionTolerance) ? Math.abs(Number(question.predictionTolerance)) : null,
   };
@@ -231,9 +271,27 @@ export const gradeDataModelingResponse = (definition = {}, raw = {}) => {
   const results = {};
   const m = Number(raw.m);
   const b = Number(raw.b);
-  results.fit = Number.isFinite(m) && Number.isFinite(b)
-    && Math.abs(m - definition.regression.m) <= definition.slopeTolerance
-    && Math.abs(b - definition.regression.b) <= definition.interceptTolerance;
+  if (definition.expectedModelId === 'quadratic' && FIT_PREDICTION_MODES[definition.mode]) {
+    const a = Number(raw.a);
+    const qb = Number(raw.b);
+    const qc = Number(raw.c);
+    const expected = definition.expectedModel?.model || {};
+    results.fit = [a, qb, qc].every(Number.isFinite)
+      && Math.abs(a - Number(expected.a)) <= definition.quadraticTolerance.a
+      && Math.abs(qb - Number(expected.b)) <= definition.quadraticTolerance.b
+      && Math.abs(qc - Number(expected.c)) <= definition.quadraticTolerance.c;
+  } else if (definition.expectedModelId === 'exponential' && FIT_PREDICTION_MODES[definition.mode]) {
+    const a = Number(raw.a);
+    const base = Number(raw.base);
+    const expected = definition.expectedModel?.model || {};
+    results.fit = Number.isFinite(a) && Number.isFinite(base)
+      && Math.abs(a - Number(expected.a)) <= definition.exponentialTolerance.a
+      && Math.abs(base - Number(expected.base)) <= definition.exponentialTolerance.base;
+  } else {
+    results.fit = Number.isFinite(m) && Number.isFinite(b)
+      && Math.abs(m - definition.regression.m) <= definition.slopeTolerance
+      && Math.abs(b - definition.regression.b) <= definition.interceptTolerance;
+  }
 
   results.association = String(raw.direction) === definition.descriptor.direction
     && String(raw.strength) === definition.descriptor.strength
@@ -245,14 +303,21 @@ export const gradeDataModelingResponse = (definition = {}, raw = {}) => {
 
   results.modelChoice = String(raw.modelChoice) === definition.expectedModelId;
 
-  const predictionX = Number(raw.predictionX);
+  const rawPredictionX = Number(raw.predictionX);
+  // If the author supplied a target x, it is part of the question and cannot
+  // be replaced by the browser with an easier value. This closes a real Path
+  // grading hole: previously the server graded whatever x the client chose.
+  const predictionX = definition.predictionX ?? rawPredictionX;
   const predictionY = Number(raw.predictionY);
+  const fixedXMatches = definition.predictionX == null
+    || (Number.isFinite(rawPredictionX) && Math.abs(rawPredictionX - definition.predictionX) <= 1e-9);
   const expectedPrediction = predictFromStoredModel(definition.expectedModel, predictionX);
   const defaultPredictionTolerance = Number.isFinite(expectedPrediction)
     ? Math.max(0.5, Math.abs(expectedPrediction) * 0.08)
     : Number.NaN;
   const predictionTolerance = definition.predictionTolerance ?? defaultPredictionTolerance;
-  results.prediction = Number.isFinite(predictionX) && Number.isFinite(predictionY)
+  results.prediction = fixedXMatches
+    && Number.isFinite(predictionX) && Number.isFinite(predictionY)
     && Number.isFinite(expectedPrediction) && Number.isFinite(predictionTolerance)
     && Math.abs(predictionY - expectedPrediction) <= predictionTolerance
     && String(raw.predictionType) === pathPredictionKind(definition.points, predictionX);
@@ -272,7 +337,7 @@ export const gradeDataModelingResponse = (definition = {}, raw = {}) => {
 
 export const sanitizeDataModelingPublicQuestion = (question = {}) => ({
   prompt: String(question.prompt || ''),
-  mode: ['full', 'lineFit', 'association', 'correlation', 'prediction', 'modelCompare'].includes(String(question.mode))
+  mode: supportedDataModelingModes.has(String(question.mode))
     ? String(question.mode)
     : 'full',
   points: cleanPathDataPoints(question.points),
