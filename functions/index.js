@@ -6058,10 +6058,27 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
       preferredDok = Math.max(2, Number(preferredDok || 2));
     }
     if (coursePassLevel >= 3) {
-      preferredDifficultyBand = Math.max(5, Number(preferredDifficultyBand || 4));
+      // Course TEKS content is authored through Band 4. Pass 3 stretches by
+      // depth (DOK 3), not by requesting a nonexistent Band 5 and relying on a
+      // fallback that teachers cannot see.
+      preferredDifficultyBand = Math.max(4, Number(preferredDifficultyBand || 4));
       preferredDok = Math.max(3, Number(preferredDok || 2));
     }
   }
+  // Routing can recognize mastery from fresh in-session evidence before the
+  // asynchronous mastery-profile trigger catches up. When it explicitly says
+  // ENRICHMENT, honor that server-owned decision immediately so the student
+  // actually receives Challenge work rather than a stale core-rigor question.
+  if (
+    !session.assessmentFramework
+    && session.lastDecision?.action === "enrichment"
+    && activeDisplayCode === targetDisplayCode
+    && !session.diagnosing
+  ) {
+    preferredDifficultyBand = 4;
+    preferredDok = 3;
+  }
+
   // Selection prefers an UNUSED family, widening to the closest adjacent band
   // before it repeats anything. Narrowing to the nearest band first and cycling
   // inside it — which is what this used to do — trapped a five-question session
