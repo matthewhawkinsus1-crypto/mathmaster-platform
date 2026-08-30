@@ -153,6 +153,11 @@
       ],
       "variants": [
         {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
           "coverageKey": "adaptive-d2b2-unit-step-table-rate",
           "dok": 2,
           "difficultyBand": 2,
@@ -365,6 +370,11 @@
         }
       ],
       "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
         {
           "coverageKey": "adaptive-d3b3-three-interval-rate-consistency",
           "dok": 3,
