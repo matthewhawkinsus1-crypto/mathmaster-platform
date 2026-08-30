@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { REPRESENTATIONS, TASK_TYPES } from '../../functions/shared/pathQuestionQuality.mjs';
 
 const read = (path) => JSON.parse(readFileSync(path, 'utf8'));
-const codes = ['A.2C', 'A.2H', 'A.2I', 'A.8A', 'A.9C', 'A.10A', 'A.10B', 'A.10C', 'A.10D', 'A.10E', 'A.10F', 'A.11B', 'A.12A', 'A.12C', 'A.12D'];
+const codes = ['A.2C', 'A.2H', 'A.2I', 'A.3D', 'A.3H', 'A.4A', 'A.4C', 'A.8A', 'A.8B', 'A.9C', 'A.9E', 'A.10A', 'A.10B', 'A.10C', 'A.10D', 'A.10E', 'A.10F', 'A.11B', 'A.12A', 'A.12C', 'A.12D'];
 const staged = codes.map((code) => read(`drafts/fidelity-v2/algebra1/${code}.json`));
 const codeOf = (doc) => String((doc.alignmentKeys || []).find((key) => String(key).startsWith('texas:')) || '').replace(/^texas:/, '');
 const allStrings = (node, out = []) => {
@@ -73,6 +73,99 @@ test('A.2I requires both equations of the system in every family', () => {
     assert.equal(doc.responseFields?.length, 2);
     assert.ok(doc.responseFields.every((field) => field.inputProfile === 'equation' && String(field.expected).includes('=')));
   }
+});
+
+test('A.3D uses real two-variable graph construction in every replacement family', () => {
+  const entry = payload('A.3D');
+  assert.match(entry.certificationStatus, /real-two-variable-graph-construction/);
+  for (const doc of entry.documents) {
+    assert.equal(doc.type, 'systemsWorkspace');
+    assert.equal(doc.mode, 'inequalities');
+    assert.equal(doc.interaction, 'construct');
+    assert.deepEqual(doc.ask, ['construction']);
+    assert.equal(doc.inequalities?.length, 1);
+    assert.equal(doc.representation === 'graph' || doc.representation === 'context', true);
+    assert.equal(doc.responseFields, undefined, 'A.3D must not fall back to a one-variable answer box');
+  }
+  const relations = new Set(entry.documents.flatMap((doc) => doc.inequalities.map((ineq) => ineq.relation)));
+  assert.deepEqual([...relations].sort(), ['<', '<=', '>', '>=']);
+});
+
+test('A.3H constructs every boundary and the system overlap rather than displaying it', () => {
+  const entry = payload('A.3H');
+  assert.match(entry.certificationStatus, /system-inequality-overlap-construction/);
+  for (const doc of entry.documents) {
+    assert.equal(doc.type, 'systemsWorkspace');
+    assert.equal(doc.mode, 'inequalities');
+    assert.equal(doc.interaction, 'construct');
+    assert.deepEqual(doc.ask, ['construction']);
+    assert.equal(doc.inequalities?.length, 2);
+    assert.match(String(doc.prompt), /system|both|constraints|overlap/i);
+  }
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis'));
+  assert.ok(entry.documents.some((doc) => doc.representation === 'context'));
+});
+
+test('A.4A calculates r with technology and interprets direction plus strength', () => {
+  const entry = payload('A.4A');
+  assert.match(entry.certificationStatus, /technology-calculation-and-interpretation/);
+  for (const doc of entry.documents) {
+    assert.equal(doc.type, 'dataModelingLab');
+    assert.equal(doc.mode, 'correlation');
+    assert.equal(doc.calculatorPolicy, 'graphing');
+    assert.ok(doc.points?.length >= 5);
+    assert.ok(Number(doc.correlationTolerance) > 0);
+    assert.match(String(doc.prompt), /calculate|use.*technology/i);
+  }
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis'));
+  assert.ok(entry.documents.some((doc) => doc.dok === 3));
+});
+
+test('A.4C makes students write the fitted linear function before prediction', () => {
+  const entry = payload('A.4C');
+  assert.match(entry.certificationStatus, /linear-regression-equation-and-prediction/);
+  for (const doc of entry.documents) {
+    assert.equal(doc.type, 'dataModelingLab');
+    assert.equal(doc.mode, 'linearFitPrediction');
+    assert.equal(doc.calculatorPolicy, 'graphing');
+    assert.ok(doc.points?.length >= 5);
+    assert.notEqual(doc.predictionX, undefined);
+    assert.match(String(doc.prompt), /write|regression/i);
+  }
+  assert.ok(entry.documents.some((doc) => Number(doc.predictionX) > 4));
+  assert.ok(entry.documents.some((doc) => Number(doc.predictionX) > 0 && Number(doc.predictionX) < 4));
+});
+
+test('A.8B requires a quadratic regression equation and a model-based prediction', () => {
+  const entry = payload('A.8B');
+  assert.match(entry.certificationStatus, /quadratic-regression-equation-and-prediction/);
+  for (const doc of entry.documents) {
+    assert.equal(doc.type, 'dataModelingLab');
+    assert.equal(doc.mode, 'quadraticFitPrediction');
+    assert.equal(doc.calculatorPolicy, 'graphing');
+    assert.equal(doc.points?.length, 5);
+    assert.notEqual(doc.predictionX, undefined);
+    assert.match(String(doc.prompt), /quadratic.*regression|regression.*quadratic/i);
+  }
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis'));
+  assert.ok(entry.documents.some((doc) => doc.representation === 'context'));
+});
+
+test('A.9E uses exponential regression for both growth and decay and requires prediction', () => {
+  const entry = payload('A.9E');
+  assert.match(entry.certificationStatus, /exponential-regression-growth-decay-equation-prediction/);
+  for (const doc of entry.documents) {
+    assert.equal(doc.type, 'dataModelingLab');
+    assert.equal(doc.mode, 'exponentialFitPrediction');
+    assert.equal(doc.calculatorPolicy, 'graphing');
+    assert.equal(doc.points?.length, 5);
+    assert.notEqual(doc.predictionX, undefined);
+    assert.match(String(doc.prompt), /exponential|multiplicative/i);
+  }
+  const baseValues = entry.documents.flatMap((doc) => doc.generator?.parameters?.base?.values || []);
+  assert.ok(baseValues.some((value) => value > 1), 'A.9E needs growth regression');
+  assert.ok(baseValues.some((value) => value > 0 && value < 1), 'A.9E needs decay regression');
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis'));
 });
 
 test('A.8A covers all four required quadratic solution methods and complete solution sets', () => {
