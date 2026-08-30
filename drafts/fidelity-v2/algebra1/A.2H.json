@@ -260,6 +260,11 @@
       },
       "variants": [
         {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
           "coverageKey": "adaptive-d2b4-boundary-from-points-and-shading",
           "dok": 2,
           "difficultyBand": 4,
@@ -437,6 +442,11 @@
         }
       },
       "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
         {
           "coverageKey": "adaptive-d3b3-test-point-boundary-audit",
           "dok": 3,
