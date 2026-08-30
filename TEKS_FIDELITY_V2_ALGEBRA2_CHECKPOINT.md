@@ -547,6 +547,20 @@ Resume here. Do not reopen A2.2A–A2.5D unless a failing gate names them.
   - keep A2.5E distinct from A2.5D: the candidate is supplied here; the primary action is judging its reasonableness.
 - Generic secure multi-response grading is sufficient; no new Path capability is required.
 
+
+### 2026-08-30 — A2.5E staged and gated
+- Staged five A2.5E Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.5E.json` — commit `f103922b614ee96d90ca8a51cc632e0651a313f6`.
+- Coverage includes:
+  - a domain-invalid proposed solution;
+  - a valid common-log candidate verified in the original equation;
+  - a positive-domain candidate that is still unreasonable because the original equality is false;
+  - a two-log equation requiring both original arguments and the combined original LHS to be checked;
+  - contextual error analysis where the logarithmic equation is algebraically satisfied but a negative elapsed time makes the candidate unreasonable in context.
+- Added A2.5E-specific generated certification — commit `772f6d54fce49157194ba5d85f1be356de5dc64e`.
+- The gate samples 200+ generated instances, requires production issuability and secure self-grading, independently verifies domain/value evidence, requires both valid and rejected candidates, proves domain validity alone is insufficient, checks multi-log and context/error-repair breadth, rejects an incorrect reasonableness verdict in every family, and checks public answer-key stripping.
+- Full A2.5E certification is triggered.
+- FIRST UNFINISHED STANDARD remains **A2.5E** until the generated gate and build are green.
+
 ### 2026-08-30 — A2.5D audit finding
 - Official construct: **solve exponential equations of the form y = ab^x and single logarithmic equations having real solutions**.
 - Verdict: **ENHANCE**.
