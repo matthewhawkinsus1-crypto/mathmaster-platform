@@ -281,6 +281,37 @@ test('A.8A covers all four required quadratic solution methods and complete solu
   assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /complete solution set/i.test(doc.prompt)));
 });
 
+test('A.9A connects growth and true decay graphs to asymptote, domain, and range', () => {
+  const entry = payload('A.9A');
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /growth-decay-domain-range-connected-to-graphs/);
+  const graphDocs = entry.documents.filter((doc) => doc.type === 'functionInvestigation');
+  assert.ok(graphDocs.length >= 4);
+  const baseValues = entry.documents.flatMap((doc) => doc.generator?.parameters?.base?.values || []);
+  assert.ok(baseValues.some((value) => Number(value) > 1), 'A.9A needs growth evidence');
+  assert.ok(baseValues.some((value) => Number(value) > 0 && Number(value) < 1), 'A.9A needs genuine decay evidence');
+  assert.ok(graphDocs.some((doc) => doc.analysisRequests?.some((part) => part.kind === 'domain')));
+  assert.ok(graphDocs.some((doc) => doc.analysisRequests?.some((part) => part.kind === 'range')));
+  assert.ok(graphDocs.some((doc) => doc.analysisRequests?.some((part) => /asymptote/i.test(part.label || ''))));
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /decay/i.test(doc.prompt)));
+});
+
+test('A.9D requires growth and decay graph construction with y-intercept and asymptote evidence', () => {
+  const entry = payload('A.9D');
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /growth-decay-graph-construction-yintercept-asymptote/);
+  assert.ok(entry.documents.filter((doc) => doc.type === 'functionInvestigation').length >= 4);
+  for (const doc of entry.documents.filter((item) => item.type === 'functionInvestigation')) {
+    assert.ok(doc.pointTasks?.length >= 3, `${doc.id} must require enough points to construct the exponential curve`);
+    assert.ok(doc.analysisRequests?.some((part) => /y-intercept/i.test(part.label || '')));
+    assert.ok(doc.analysisRequests?.some((part) => /asymptote/i.test(part.label || '')));
+  }
+  const baseValues = entry.documents.flatMap((doc) => doc.generator?.parameters?.base?.values || []);
+  assert.ok(baseValues.some((value) => Number(value) > 1), 'A.9D needs growth graphs');
+  assert.ok(baseValues.some((value) => Number(value) > 0 && Number(value) < 1), 'A.9D needs decay graphs');
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis'));
+});
+
 test('A.9C makes students write complete exponential equations for growth and decay', () => {
   const entry = payload('A.9C');
   assert.match(entry.certificationStatus, /full-equation-writing/);
