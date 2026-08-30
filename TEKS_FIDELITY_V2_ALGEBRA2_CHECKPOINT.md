@@ -683,9 +683,11 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.8C
+### CORE ALGEBRA II TEKS FIDELITY COMPLETE
 
-Resume here. Do not reopen A2.2A–A2.8B unless a failing gate names them.
+Do not reopen A2.2A–A2.8C unless a named regression/certification gate fails.
+
+Next required work: Algebra I + Algebra II Challenge/Extension and independent DOK/difficulty coverage pass.
 
 
 ### 2026-08-30 — A2.7H audit finding
@@ -2719,3 +2721,16 @@ For each standard:
   - require critical judgments about extrapolation, plausibility, model-domain limits, or whether a prediction should be trusted for each model family;
   - keep A2.8C distinct from A2.8B: regression coefficients may be supplied or securely fitted as supporting information, but the assessed action must be prediction/decision/judgment rather than writing the regression function;
   - keep ordinary prediction/decision work DOK 2 and use DOK 3 for genuine critical judgment/error analysis.
+
+
+### 2026-08-30 — A2.8C staged / certification
+- Staged five A2.8C Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.8C.json` — commit `660d064e40039c940cdbc0c5bb0ff46d7ce883c4`.
+- The first three variant families explicitly cover all nine TEA breakouts: prediction, decision, and critical judgment for linear, quadratic, and exponential models.
+- Additional families deepen interpolation/extrapolation classification and complete distant-extrapolation error repair.
+- Base production/generated/build run `33334210195`: **PASS**.
+- Focused nine-breakout certification in `tests/platform/a28cPredictionDecisionJudgment.test.mjs`.
+- Focused certification run `33334253668`: **PASS**.
+- Secure technology prediction, numeric decision evidence, model-specific critical judgments, interpolation/extrapolation classification, wrong-prediction rejection, public key stripping, and student/runtime build all passed.
+- A2.8C is now locked as certified.
+- **All Algebra II core TEKS Fidelity V2 standards in this sequence are now certified.**
+- Next required work is the cross-course Algebra I + Algebra II Challenge/Extension and independent DOK/difficulty coverage pass.
