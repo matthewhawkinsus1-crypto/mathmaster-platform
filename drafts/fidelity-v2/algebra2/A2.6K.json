@@ -123,7 +123,125 @@
             "max": 7
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-simple-translated-reciprocal",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "representationTranslation",
+          "representation": "multipleRepresentation",
+          "prompt": "For $f(x)=\\frac{1}{x-({{h}})}{{k|signed}}$, identify the vertical and horizontal asymptotes, then write the domain and range in interval notation, inequality form, and set-builder notation.",
+          "responseFields": [
+            {
+              "id": "vertical",
+              "label": "Vertical asymptote x-value",
+              "inputProfile": "number",
+              "expected": "{{h}}"
+            },
+            {
+              "id": "horizontal",
+              "label": "Horizontal asymptote y-value",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "domain-interval",
+              "label": "Domain — interval notation",
+              "inputProfile": "interval",
+              "expected": "(-inf,{{h}})U({{h}},inf)"
+            },
+            {
+              "id": "domain-inequality",
+              "label": "Domain — inequality",
+              "inputProfile": "inequality",
+              "expected": "x!={{h}}"
+            },
+            {
+              "id": "domain-set",
+              "label": "Domain — set-builder notation",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "answerFormat": "set-builder",
+              "requiredSymbols": [
+                "{",
+                "|",
+                "}",
+                "≠"
+              ],
+              "responseHint": "Write a set-builder statement, for example {x | x ≠ 2}.",
+              "expected": "{x|x!={{h}}}"
+            },
+            {
+              "id": "range-interval",
+              "label": "Range — interval notation",
+              "inputProfile": "interval",
+              "expected": "(-inf,{{k}})U({{k}},inf)"
+            },
+            {
+              "id": "range-inequality",
+              "label": "Range — inequality",
+              "inputProfile": "inequality",
+              "expected": "y!={{k}}"
+            },
+            {
+              "id": "range-set",
+              "label": "Range — set-builder notation",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "answerFormat": "set-builder",
+              "requiredSymbols": [
+                "{",
+                "|",
+                "}",
+                "≠"
+              ],
+              "responseHint": "Write a set-builder statement, for example {y | y ≠ 2}.",
+              "expected": "{y|y!={{k}}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A basic translated reciprocal excludes one x-value and one y-value.",
+            "reasoning": [
+              "The denominator is zero at x={{h}}, so that input is excluded.",
+              "The reciprocal term is never 0, so the output can never equal y={{k}}.",
+              "Translate those two restrictions consistently into all three notation systems."
+            ],
+            "answerSummary": "Domain x≠{{h}}; range y≠{{k}}."
+          },
+          "attemptFeedback": [
+            "Match the vertical asymptote to the domain restriction and the horizontal asymptote to the range restriction."
+          ],
+          "supportHints": [
+            "Only one input and one output are excluded in this basic reciprocal form."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  1
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "k": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              }
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_6K_v2_two-vertical-asymptotes-domain",
@@ -650,7 +768,152 @@
             "max": 6
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-centered-notation-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student analyzes $s(x)=\\frac{{{a}}}{x^2}$ and writes domain $[0,\\infty)$ and range $(-\\infty,0)\\cup(0,\\infty)$. Diagnose both mistakes, then repair the domain and range in interval, inequality, and set-builder notation.",
+          "stimulus": {
+            "kind": "steps",
+            "title": "Student work",
+            "steps": [
+              {
+                "id": "domain-error",
+                "label": "Claimed domain",
+                "work": "$[0,\\infty)$"
+              },
+              {
+                "id": "range-error",
+                "label": "Claimed range",
+                "work": "$(-\\infty,0)\\cup(0,\\infty)$"
+              }
+            ]
+          },
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Which diagnosis repairs both errors?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "both",
+                  "label": "Only x=0 is excluded from the domain, and the positive squared-denominator term forces every output above 0."
+                },
+                {
+                  "id": "left",
+                  "label": "All negative x-values are excluded, but the student's range is correct."
+                },
+                {
+                  "id": "range-only",
+                  "label": "The domain is correct, but the range should be y=0 only."
+                }
+              ],
+              "expected": "both"
+            },
+            {
+              "id": "domain-interval",
+              "label": "Correct domain — interval notation",
+              "inputProfile": "interval",
+              "expected": "(-inf,0)U(0,inf)"
+            },
+            {
+              "id": "domain-inequality",
+              "label": "Correct domain — inequality",
+              "inputProfile": "inequality",
+              "expected": "x!=0"
+            },
+            {
+              "id": "domain-set",
+              "label": "Domain — set-builder notation",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "answerFormat": "set-builder",
+              "requiredSymbols": [
+                "{",
+                "|",
+                "}",
+                "≠"
+              ],
+              "responseHint": "Write a set-builder statement, for example {x | x ≠ 2}.",
+              "expected": "{x|x!=0}"
+            },
+            {
+              "id": "range-interval",
+              "label": "Correct range — interval notation",
+              "inputProfile": "interval",
+              "expected": "(0,inf)"
+            },
+            {
+              "id": "range-inequality",
+              "label": "Correct range — inequality",
+              "inputProfile": "inequality",
+              "expected": "y>0"
+            },
+            {
+              "id": "range-set",
+              "label": "Correct range — set-builder notation",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "answerFormat": "set-builder",
+              "requiredSymbols": [
+                "{",
+                "|",
+                "}",
+                ">"
+              ],
+              "responseHint": "Write a set-builder statement, for example {y | y > 2}.",
+              "expected": "{y|y>0}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A reciprocal square is defined on both sides of its vertical asymptote and stays above its horizontal asymptote.",
+            "reasoning": [
+              "Only x=0 makes the denominator zero; negative x-values are otherwise allowed.",
+              "Because a={{a}}>0 and x²>0 wherever defined, the output is always positive.",
+              "Thus domain x≠0 and range y>0 must agree across all three notations."
+            ],
+            "answerSummary": "Domain x≠0; range y>0."
+          },
+          "attemptFeedback": [
+            "Repair the mathematics first, then translate the same restrictions into each notation system."
+          ],
+          "supportHints": [
+            "Squaring a nonzero real input makes the denominator positive."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  1,
+                  2
+                ]
+              },
+              "h": {
+                "type": "choice",
+                "values": [
+                  0
+                ]
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  0
+                ]
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }
