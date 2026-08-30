@@ -683,9 +683,9 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.8A
+### A2.8B
 
-Resume here. Do not reopen A2.2A–A2.7I unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.8A unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.7H audit finding
@@ -2655,5 +2655,34 @@ For each standard:
 - Base production/generated/build run `33333628425`: **PASS**.
 - First focused run `33333656945`: **FAIL** only because the certification counter counted the first linear family but omitted the separate non-unit-spacing linear family; all generated mathematics and secure self-grading reached the final aggregate assertion.
 - Fixed the certification counter — commit `cb6deee1a2653853ae52d25ed1cff59072102faa`.
-- Replacement focused run `33333706071`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.8A** until the replacement run is green.
+- Replacement focused run `33333706071`: **PASS**.
+- Raw-data diagnostic mathematics, growth/decay variants, non-unit input spacing, full error repair, production issuability, secure self-grading, wrong-model rejection, public key stripping, and student/runtime build all passed.
+- A2.8A is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.8B**.
+
+### 2026-08-30 — A2.8B audit finding
+- Official construct: **use regression methods available through technology to write a linear function, a quadratic function, and an exponential function from a given set of data**.
+- TEA breakout requires exactly three technology-regression targets:
+  - write a linear function from data using regression technology;
+  - write a quadratic function from data using regression technology;
+  - write an exponential function from data using regression technology.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - linear, quadratic, and exponential regression are all named;
+  - one R-squared interpretation and one swapped-list error are present;
+  - the secure Data Modeling Lab already has server-authoritative linear/quadratic/exponential regression mathematics.
+- Legacy limitations:
+  - most data are perfect and the prompt often gives the generating coefficients/pattern, so technology is not genuinely necessary;
+  - the exponential family is multiple-choice rather than requiring the fitted function;
+  - the linear and quadratic families expose coefficients in the prompt;
+  - R-squared interpretation is useful support but does not replace any of the three required fitted-function breakouts;
+  - the current Data Modeling Lab only has fit-only linear mode; quadratic/exponential fit modes also force prediction, which would contaminate A2.8B with A2.8C.
+- Fidelity V2 requirements:
+  - use the secure Data Modeling Lab for all three required model families;
+  - add fit-only quadratic and exponential modes so A2.8B assesses the exact construct without prediction;
+  - use overdetermined data sets and include non-perfect/noisy data so regression technology is authentic rather than decorative;
+  - require all fitted coefficients: m,b for linear; a,b,c for quadratic; a and base for exponential;
+  - include both exponential growth and decay across the bank;
+  - include complete technology-entry/transcription error repair that still requires the student to re-run the regression;
+  - keep routine regression fitting DOK 2; reserve DOK 3 for complete error analysis.
+- No separate regression grader should be invented; extend the existing Data Modeling Lab's secure fit modes minimally and retain server/client parity tests.
