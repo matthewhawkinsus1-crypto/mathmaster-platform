@@ -510,7 +510,22 @@
               "newb!=refb",
               "altm!=m"
             ]
-          }
+          },
+          "solutionReview": {
+            "headline": "A parallel line must satisfy both conditions: same slope and the required point.",
+            "reasoning": [
+              "Candidate A has slope {{m}} but its intercept makes it miss $({{px}},{{py}})$.",
+              "Candidate B goes through the point but uses slope {{altm}}, so it is not parallel.",
+              "The correct line uses slope {{m}} and intercept {{newb}}: y={{m}}x{{newb|signed}}."
+            ],
+            "answerSummary": "Neither candidate works; the correct line is y={{m}}x{{newb|signed}}."
+          },
+          "attemptFeedback": [
+            "Check slope and point membership separately; satisfying only one condition is not enough."
+          ],
+          "supportHints": [
+            "Parallel lines have equal slopes, then use the required point to determine the new intercept."
+          ]
         }
       ]
     },
