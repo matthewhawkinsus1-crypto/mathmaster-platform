@@ -368,6 +368,7 @@ export const MyMathPathExperience = ({
       sessionKind: options.sessionKind || 'practice',
       requiredQuestions: options.requiredQuestions || (options.sessionKind === 'retentionProbe' ? 2 : 5),
       assessmentFramework: requestedFramework,
+      coursePracticeIntent: !requestedFramework && options.coursePracticeIntent === 'challenge' ? 'challenge' : null,
       weekKey: options.weekKey || null,
       weeklySlotKey: options.weeklySlotKey || null,
       weeklySlot: options.weeklySlot || null,
@@ -470,7 +471,7 @@ export const MyMathPathExperience = ({
               : null}
             freeChoiceLocked={weeklyFreeChoiceLocked}
             freeChoiceMessage={weeklyFreeChoiceMessage}
-            onChooseSkill={(card) => { const code = teksCodeFromSkillId(card.skillId); if (code) startSession(code); }}
+            onChooseSkill={(card) => { const code = teksCodeFromSkillId(card.skillId); if (code) startSession(code, { coursePracticeIntent: card.status === 'extension' ? 'challenge' : null }); }}
             assessmentContext={assessmentContextWithCoverage}
             onPracticeAs={({ skillId, framework }) => {
               const code = teksCodeFromSkillId(skillId);
