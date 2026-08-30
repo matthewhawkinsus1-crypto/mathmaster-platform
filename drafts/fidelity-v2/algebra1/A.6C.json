@@ -239,7 +239,106 @@
           "ymid": "(mid-r1)*(mid-r2)",
           "yp1": "(xp1-r1)*(xp1-r2)"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-nonmonic-zeros-plus-point-recovery",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "reverseReasoning",
+          "representation": "multipleRepresentation",
+          "prompt": "A quadratic has zeros {{r1}} and {{r2}} and also passes through $(0,{{y0}})$. A student uses only the zeros and assumes the parabola is monic, writing $y=(x{{nr1|signed}})(x{{nr2|signed}})$. Determine why the zeros alone do not fix the vertical scale, use the extra point to recover the leading coefficient, and write the complete factored equation.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What information is missing when only the zeros are used?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "scale",
+                  "label": "The zeros determine the factors but not the nonzero leading coefficient/vertical scale."
+                },
+                {
+                  "id": "roots",
+                  "label": "The extra point changes the zeros themselves."
+                }
+              ],
+              "expected": "scale"
+            },
+            {
+              "id": "monic-at-zero",
+              "label": "Value the MONIC factor product would have at x=0",
+              "inputProfile": "number",
+              "expected": "{{baseY0}}"
+            },
+            {
+              "id": "leading-coefficient",
+              "label": "Recovered leading coefficient",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "answer",
+              "label": "Complete factored quadratic equation",
+              "inputProfile": "equation",
+              "expected": "y={{a}}(x{{nr1|signed}})(x{{nr2|signed}})"
+            },
+            {
+              "id": "verify-zero-point",
+              "label": "Value of the completed model at x=0",
+              "inputProfile": "number",
+              "expected": "{{y0}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Zeros locate the x-intercepts; an additional point determines the vertical scale.",
+            "reasoning": [
+              "The zero factors are $(x{{nr1|signed}})(x{{nr2|signed}})$.",
+              "At x=0 the monic product equals {{baseY0}}.",
+              "Because the actual point has y={{y0}}, the scale is {{y0}}/{{baseY0}}={{a}}, giving the complete equation."
+            ],
+            "answerSummary": "$y={{a}}(x{{nr1|signed}})(x{{nr2|signed}})$"
+          },
+          "attemptFeedback": [
+            "Use the zeros to build the factor structure, then use the extra point to determine a."
+          ],
+          "supportHints": [
+            "Substitute x=0 into y=a(x-r1)(x-r2)."
+          ],
+          "generator": {
+            "parameters": {
+              "r1": {
+                "type": "int",
+                "min": -6,
+                "max": -1
+              },
+              "r2": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "a": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  2,
+                  3
+                ]
+              }
+            },
+            "derived": {
+              "nr1": "-r1",
+              "nr2": "-r2",
+              "baseY0": "(-r1)*(-r2)",
+              "y0": "a*baseY0"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_6C_v2_projectile-model-from-roots-point",
