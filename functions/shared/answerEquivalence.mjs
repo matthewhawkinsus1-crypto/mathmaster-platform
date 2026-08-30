@@ -310,6 +310,10 @@ const normalizeFormPreservingSide = (value) => {
   //   x-(-5) -> x+5
   //   x+(-5) -> x-5
   let radicalReady = String(value ?? '')
+    // Adjacency to a numeric parenthesis is multiplication, not digit
+    // concatenation: 96(0.5) means 96*(0.5). Insert that operator BEFORE
+    // removing generator bookkeeping parentheses.
+    .replace(/([0-9A-Za-z)\]])(?=\((-?\d+(?:\.\d+)?)\))/g, '$1*')
     .replace(/\((-?\d+(?:\.\d+)?)\)/g, '$1');
 
   for (let guard = 0; guard < 4; guard += 1) {
@@ -338,7 +342,11 @@ const normalizeFormPreservingSide = (value) => {
   //   x-(-2) -> x--2 -> x+2
   //   +(-3) -> +-3 -> -3
   // They are not algebraic grouping around a variable expression.
-  text = text.replace(/\((-?\d+(?:\.\d+)?)\)/g, '$1');
+  text = text
+    // MathLive may introduce \left/\right around the numeric group after the
+    // first pass. Preserve the same implicit-multiplication meaning here too.
+    .replace(/([0-9A-Za-z)\]])(?=\((-?\d+(?:\.\d+)?)\))/g, '$1*')
+    .replace(/\((-?\d+(?:\.\d+)?)\)/g, '$1');
 
   // Settle adjacent signs created by removing numeric bookkeeping parentheses.
   for (let guard = 0; guard < 4; guard += 1) {
