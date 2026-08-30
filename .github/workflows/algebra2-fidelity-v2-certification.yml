@@ -14,6 +14,7 @@ on:
       - "functions/shared/pathToolContracts.mjs"
       - "functions/shared/answerEquivalence.mjs"
       - "functions/shared/rationalExpressionEquivalence.mjs"
+      - "functions/shared/nonnegativeRadicalExpressionEquivalence.mjs"
       - "functions/lib/mathPath.js"
       - "src/InteractiveGraphWorkspace.jsx"
       - "src/components/student/PathQuestionStimulus.jsx"
@@ -32,6 +33,7 @@ on:
       - "tests/platform/modelEquationAnswerEquivalence.test.mjs"
       - "tests/platform/setBuilderAnswerEquivalence.test.mjs"
       - "tests/platform/rationalExpressionAnswerEquivalence.test.mjs"
+      - "tests/platform/nonnegativeRadicalExpressionAnswer.test.mjs"
       - "tests/platform/algebra2A27FRationalOperations.test.mjs"
       - "tests/platform/a27fRationalOperations.test.mjs"
       - "tests/platform/systemsMatrix3Technology.test.mjs"
@@ -46,6 +48,7 @@ on:
       - "functions/shared/pathToolContracts.mjs"
       - "functions/shared/answerEquivalence.mjs"
       - "functions/shared/rationalExpressionEquivalence.mjs"
+      - "functions/shared/nonnegativeRadicalExpressionEquivalence.mjs"
       - "functions/lib/mathPath.js"
       - "src/InteractiveGraphWorkspace.jsx"
       - "src/components/student/PathQuestionStimulus.jsx"
@@ -64,6 +67,7 @@ on:
       - "tests/platform/modelEquationAnswerEquivalence.test.mjs"
       - "tests/platform/setBuilderAnswerEquivalence.test.mjs"
       - "tests/platform/rationalExpressionAnswerEquivalence.test.mjs"
+      - "tests/platform/nonnegativeRadicalExpressionAnswer.test.mjs"
       - "tests/platform/algebra2A27FRationalOperations.test.mjs"
       - "tests/platform/a27fRationalOperations.test.mjs"
       - "tests/platform/systemsMatrix3Technology.test.mjs"
@@ -96,6 +100,7 @@ jobs:
             tests/platform/modelEquationAnswerEquivalence.test.mjs \
             tests/platform/setBuilderAnswerEquivalence.test.mjs \
             tests/platform/rationalExpressionAnswerEquivalence.test.mjs \
+            tests/platform/nonnegativeRadicalExpressionAnswer.test.mjs \
             tests/platform/algebra2A27FRationalOperations.test.mjs \
             tests/platform/a27fRationalOperations.test.mjs \
             tests/platform/systemsMatrix3Technology.test.mjs
