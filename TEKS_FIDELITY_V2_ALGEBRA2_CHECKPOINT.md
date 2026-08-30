@@ -452,7 +452,7 @@ Do **not** re-audit A2.5A unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.5B — REBUILD — AUDITED / AUTHORING
+### A2.5B — REBUILD — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Formulate exponential and logarithmic equations that model real-world situations, including exponential relationships written recursively.**
 
@@ -486,6 +486,21 @@ Resume here. Do not reopen A2.2A–A2.5A unless a failing gate names them.
   - include genuine error analysis that repairs a faulty growth/decay factor or recurrence and still writes the complete corrected model.
 - Keep A2.5B distinct from A2.5C/D: this standard is model formulation, not conversion practice or equation solving.
 - Generic secure equation/number fields are sufficient; no new Path tool capability is required.
+
+
+### 2026-08-30 — A2.5B staged and gated
+- Staged five A2.5B Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.5B.json` — commit `36d8f6c51ca5eb934b7f8c638bf2c2fa4281f26c`.
+- Package/build run `33325107421`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - growth context with student-authored explicit and recursive exponential models;
+  - decay context with student-authored explicit and recursive models;
+  - table/data family that requires inferring the common multiplier before writing both forms;
+  - authentic logarithmic ratio-scale modeling in a real-world measurement context;
+  - complete growth-factor error repair that fixes both explicit and recursive models.
+- Added A2.5B-specific generated certification — commit `314f162401e54fafb2219121b29f4332b17c77a9`.
+- The gate samples 200+ generated instances, validates growth/decay factors, verifies tabular ratios independently, requires repeated explicit+recursive formulation, requires authentic logarithmic modeling, rejects a nonmatching model in every family, and checks public answer-key stripping.
+- Full A2.5B assertion run `33325134988`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.5B** until that run is green.
 
 
 ### 2026-08-30 — A2.5A audit finding
