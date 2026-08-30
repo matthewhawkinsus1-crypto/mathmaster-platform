@@ -287,7 +287,135 @@
       },
       "variants": [
         {
-          "coverageKey": "core-d2b4"
+          "coverageKey": "core-d2b4",
+          "dok": 2,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d2b2-simple-difference-squares-context",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "application",
+          "representation": "context",
+          "prompt": "A square region has area $x^2$, and a smaller square of side {{a}} is removed. Factor the remaining area $x^2-{{sq}}$ into two linear factors.",
+          "responseFields": [
+            {
+              "id": "factor1",
+              "label": "First linear factor",
+              "inputProfile": "expression",
+              "expected": "x-{{a}}"
+            },
+            {
+              "id": "factor2",
+              "label": "Second linear factor",
+              "inputProfile": "expression",
+              "expected": "x+{{a}}"
+            },
+            {
+              "id": "answer",
+              "label": "Complete factorization",
+              "inputProfile": "expression",
+              "expected": "(x-{{a}})*(x+{{a}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A difference of two square areas factors into conjugates.",
+            "reasoning": [
+              "${{sq}}={{a}}^2$.",
+              "Use $u^2-v^2=(u-v)(u+v)$ with u=x and v={{a}}."
+            ],
+            "answerSummary": "$(x-{{a}})(x+{{a}})$"
+          },
+          "attemptFeedback": [
+            "Use one plus and one minus factor."
+          ],
+          "supportHints": [
+            "Difference of squares produces conjugates, not a repeated binomial."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              }
+            },
+            "derived": {
+              "sq": "a*a"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-repeated-binomial-vs-conjugates",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student says $x^2-{{sq}}=(x-{{a}})^2$. Compare the student's repeated-binomial expansion with the conjugate product, identify which coefficient exposes the error, and write the correct factorization.",
+          "responseFields": [
+            {
+              "id": "student-xcoef",
+              "label": "x coefficient from (x-a)²",
+              "inputProfile": "number",
+              "expected": "{{studentX}}"
+            },
+            {
+              "id": "correct-xcoef",
+              "label": "x coefficient from conjugates",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "diagnosis",
+              "label": "Why is the repeated binomial wrong?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "middle",
+                  "label": "It creates a nonzero middle x-term, while x²-a² has no x-term."
+                },
+                {
+                  "id": "same",
+                  "label": "The repeated binomial and conjugates always expand the same way."
+                }
+              ],
+              "expected": "middle"
+            },
+            {
+              "id": "answer",
+              "label": "Correct factorization",
+              "inputProfile": "expression",
+              "expected": "(x-{{a}})*(x+{{a}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Expansion exposes the structural difference between a square and a difference of squares.",
+            "reasoning": [
+              "$(x-{{a}})^2$ has x coefficient {{studentX}}.",
+              "$(x-{{a}})(x+{{a}})$ has canceling middle terms and x coefficient 0.",
+              "Therefore the conjugate factorization is correct."
+            ],
+            "answerSummary": "$(x-{{a}})(x+{{a}})$"
+          },
+          "attemptFeedback": [
+            "Compare the middle terms produced by the two proposed products."
+          ],
+          "supportHints": [
+            "Conjugates cancel their cross terms."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              }
+            },
+            "derived": {
+              "sq": "a*a",
+              "studentX": "-2*a"
+            }
+          }
         },
         {
           "coverageKey": "challenge-d3b4-conjugate-error-verification",
