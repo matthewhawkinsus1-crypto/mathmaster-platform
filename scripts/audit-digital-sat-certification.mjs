@@ -37,7 +37,11 @@ const load = (file) => {
   return parsed.documents || parsed.items || parsed.questions || [];
 };
 
-const SAT = load('seed/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json');
+// Defaults to the shipping seed. `--source drafts/digitalSAT.v2.1.json` points
+// it at the compiled draft instead, which is how repairs are measured on a
+// branch that must not touch the production mirrors.
+const SOURCE = flag('source', 'seed/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json');
+const SAT = load(SOURCE);
 const OTHER_FRAMEWORKS = {
   act: load('seed/pathQuestionBank/act_pathQuestionBank_seed.json'),
   tsia2: load('seed/pathQuestionBank/tsia2_pathQuestionBank_seed.json'),
@@ -78,6 +82,12 @@ const VOICE_BANS = [
 
 // ---------------------------------------------------------------- 3. choices
 const numericLabel = (label) => {
+  // Labels arrive as numbers as often as strings — a generator that derives an
+  // integer emits an integer. An earlier version of this check tested
+  // `typeof label !== 'string'` and returned null for every numeric label,
+  // which silently reduced two of the checks below to the LaTeX-labelled
+  // families only.
+  if (typeof label === 'number') return Number.isFinite(label) ? label : null;
   if (typeof label !== 'string') return null;
   const cleaned = label
     .replace(/\$/g, '')
@@ -96,6 +106,7 @@ const TRANSPARENT_ID = /(correct|answer|key|right|true)/i;
 
 const report = {
   generatedAt: new Date().toISOString(),
+  source: SOURCE,
   samplesPerFamily: SAMPLES,
   totals: {},
   verdicts: { keep: 0, revise: 0, replace: 0 },
@@ -297,6 +308,7 @@ const bySeverity = report.findings.reduce((acc, f) => ({ ...acc, [f.severity]: (
 const byKind = report.findings.reduce((acc, f) => ({ ...acc, [f.code]: (acc[f.code] || 0) + 1 }), {});
 
 console.log(`Digital SAT V2.1 certification sweep  —  ${SAT.length} families, ${SAMPLES} samples each`);
+console.log(`  source ${SOURCE}`);
 console.log(`  direct ${report.totals.direct}   challenge ${report.totals.challenge}   standards ${report.totals.standards}`);
 console.log(`\nverdicts: keep=${report.verdicts.keep} revise=${report.verdicts.revise} replace=${report.verdicts.replace}`);
 console.log('\nfindings by kind:');
