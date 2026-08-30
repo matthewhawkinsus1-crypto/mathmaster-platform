@@ -8,6 +8,7 @@ import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 import { describeChallengeTier } from '../../platform/ccmr/assessmentFidelity.js';
 import { responseClosesQuestion } from '../../platform/path/pathProgression.js';
 import { coursePathLevelName } from '../../platform/path/pathPassPresentation.js';
+import { PURPOSE_LABEL } from '../../platform/path/recommendationV2.js';
 
 // The session runtime is injected.
 //
@@ -554,7 +555,10 @@ export const MyMathPathProductionContainer = ({
     const independentRate = Number(session?.summary?.independentSuccesses || 0) / completedCount;
     const challengePassed = sessionAccuracy >= 0.8 && independentRate >= 0.6;
     const weeklyTargetReached = Boolean(completesWeeklyGoal && !paused);
-    const coursePassLevel = !directAssessment && session?.sessionKind !== 'retentionProbe'
+    const weeklyPurposeLabel = session?.weeklySlotKey
+      ? (PURPOSE_LABEL[session?.weeklyPurpose] || 'Weekly Path')
+      : null;
+    const coursePassLevel = !weeklyPurposeLabel && !directAssessment && session?.sessionKind !== 'retentionProbe'
       ? Math.max(1, Math.min(3, Number(session?.coursePassLevel || 1)))
       : null;
     const coursePassName = coursePassLevel ? coursePathLevelName(coursePassLevel) : null;
@@ -576,9 +580,11 @@ export const MyMathPathProductionContainer = ({
               ? 'Practice paused'
               : directAssessment
                 ? `${challenge.label} complete`
-                : coursePassLevel
-                  ? `Level ${coursePassLevel} complete`
-                  : 'Session complete'}
+                : weeklyPurposeLabel
+                  ? `${weeklyPurposeLabel} complete`
+                  : coursePassLevel
+                    ? `Level ${coursePassLevel} complete`
+                    : 'Session complete'}
         </h1>
         {weeklyTargetReached && (
           <div style={{ margin: '0 auto 16px', maxWidth: 520, color: '#245c33', fontSize: 16, fontWeight: 800, lineHeight: 1.55 }}>
