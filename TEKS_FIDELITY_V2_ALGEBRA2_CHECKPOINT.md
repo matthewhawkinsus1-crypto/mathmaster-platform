@@ -711,6 +711,21 @@ Resume here. Do not reopen A2.2A–A2.6H unless a failing gate names them.
 - Generic secure response fields plus opt-in polynomial-relation equivalence for cleared polynomial equations are sufficient; no new Path tool is required.
 
 
+### 2026-08-30 — A2.6I staged and gated
+- Staged five A2.6I Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6I.json` — commit `869719dae55d1c39cbd239ca4405f0aba85b5770`.
+- Coverage includes:
+  - an accessible shifted rational equation that collects isolation, denominator value, and final solution;
+  - a two-denominator proportion whose cleared form is genuinely quadratic with two valid real roots;
+  - a two-term rational equation requiring the authentic LCD and a quadratic solve;
+  - a supplied combined-work rational model that students solve and interpret without reformulating it;
+  - complete denominator-clearing error analysis that repairs the missing LCD factor and finishes both real roots.
+- Package/build Algebra II certification run `33329107935`: **PASS**, including the student/runtime bundle.
+- Added A2.6I-specific generated certification — commit `3612a26dd420dd4a45c8f980e4bc20a1cf048e00`.
+- The gate samples 200+ generated instances, independently verifies each generated rational equation and root, checks production issuability and secure self-grading, rejects wrong roots, accepts equivalent side-reversed cleared polynomial equations, enforces multi-denominator/quadratic breadth, keeps A2.6I distinct from A2.6J reasonableness, and checks public key stripping.
+- Full A2.6I certification run `33329205726`: **QUEUED/RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.6I** until the full run is green.
+
+
 ### 2026-08-30 — A2.6H audit finding
 - Official construct: **formulate rational equations that model real-world situations**.
 - Verdict: **REBUILD**.
