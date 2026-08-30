@@ -151,19 +151,68 @@ function runtimeId(prefix) {
 // author writing `choices: [{ id: 'a', label: '…', correct: true }]` would
 // otherwise have shipped the answer key inside a field the allowlist had just
 // admitted, which is the exact hole the tool contract exists to close.
-function normalizeChoices(choices) {
-  return (Array.isArray(choices) ? choices : []).slice(0, 12).map((choice, index) => {
-    if (choice && typeof choice === 'object') {
-      return {
-        id: String(choice.id || choice.value || `choice-${index + 1}`),
-        label: String(choice.label ?? choice.text ?? choice.value ?? ''),
-      };
-    }
-    return { id: String(choice), label: String(choice) };
-  }).filter((choice) => choice.label !== '');
+const authoredChoiceId = (choice, index) => (
+  choice && typeof choice === 'object'
+    ? String(choice.id || choice.value || `choice-${index + 1}`)
+    : String(choice)
+);
+
+const authoredChoiceLabel = (choice) => (
+  choice && typeof choice === 'object'
+    ? String(choice.label ?? choice.text ?? choice.value ?? '')
+    : String(choice)
+);
+
+// Author IDs such as "opt-1" are useful inside the bank, but must never become
+// the browser's answer vocabulary. Otherwise a bank-wide convention where
+// opt-1 is usually correct can be discovered from the network payload even
+// after the buttons are shuffled.
+//
+// The runtime id is deterministic from the CONCRETE issued question and the
+// visible choice list. A reload of the same question therefore keeps its ids,
+// while a different generated instance gets a different namespace. Nothing in
+// this hash depends on which choice is correct.
+function choiceRuntimeNamespace(question = {}, sourceKey = 'question', choices = []) {
+  const visibleSignature = (Array.isArray(choices) ? choices : [])
+    .slice(0, 12)
+    .map((choice) => authoredChoiceLabel(choice))
+    .join('\u241f');
+  return [
+    question.id || question.familyId || question.questionType || 'path-question',
+    question.prompt || '',
+    sourceKey,
+    visibleSignature,
+  ].join('|');
 }
 
-function normalizeResponseFields(fields = []) {
+function choiceRuntimeId(question, sourceKey, choices, choice, index) {
+  return opaqueId(
+    'choice',
+    choiceRuntimeNamespace(question, sourceKey, choices),
+    authoredChoiceId(choice, index),
+    String(index),
+  );
+}
+
+function choiceIdMap(question, sourceKey, choices) {
+  const map = new Map();
+  (Array.isArray(choices) ? choices : []).slice(0, 12).forEach((choice, index) => {
+    map.set(
+      authoredChoiceId(choice, index),
+      choiceRuntimeId(question, sourceKey, choices, choice, index),
+    );
+  });
+  return map;
+}
+
+function normalizeChoices(choices, question = {}, sourceKey = 'question') {
+  return (Array.isArray(choices) ? choices : []).slice(0, 12).map((choice, index) => ({
+    id: choiceRuntimeId(question, sourceKey, choices, choice, index),
+    label: authoredChoiceLabel(choice),
+  })).filter((choice) => choice.label !== '');
+}
+
+function normalizeResponseFields(fields = [], question = {}) {
   const safeSymbols = (value) => (Array.isArray(value) ? value : [])
     .map((symbol) => String(symbol || '').trim())
     .filter(Boolean)
@@ -189,7 +238,7 @@ function normalizeResponseFields(fields = []) {
       // notation"). Presentation only.
       responseHint: field?.responseHint ? String(field.responseHint).slice(0, 160) : null,
       placeholder: field?.placeholder ? String(field.placeholder).slice(0, 60) : null,
-      ...(Array.isArray(field?.choices) ? { choices: normalizeChoices(field.choices) } : {}),
+      ...(Array.isArray(field?.choices) ? { choices: normalizeChoices(field.choices, question, `field:${String(field?.id || `response-${index + 1}`)}`) } : {}),
     };
   });
 }
@@ -384,9 +433,9 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
         : [],
     } : null,
     prompt: String(question.prompt || ''),
-    choices: normalizeChoices(question.choices),
+    choices: normalizeChoices(question.choices, question, 'question'),
     formulaLatex: question.formulaLatex ? String(question.formulaLatex) : null,
-    responseFields: normalizeResponseFields(question.responseFields),
+    responseFields: normalizeResponseFields(question.responseFields, question),
     // What the student has to look at to answer. Never anything they have to
     // work out.
     stimulus: sanitizeStimulus(question.stimulus),
@@ -406,13 +455,30 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
 
 function privateGradingDefinition(question) {
   const explicit = question.grading && typeof question.grading === 'object' ? question.grading : {};
-  const fields = (Array.isArray(question.responseFields) ? question.responseFields : []).map((field, index) => ({
-    id: String(field?.id || `response-${index + 1}`),
-    expected: field?.expected,
-    accepted: Array.isArray(field?.accepted) ? field.accepted : null,
-    numericTolerance: Number(field?.numericTolerance ?? explicit.numericTolerance ?? 1e-6),
-    caseSensitive: Boolean(field?.caseSensitive ?? explicit.caseSensitive),
-  }));
+  const fields = (Array.isArray(question.responseFields) ? question.responseFields : []).map((field, index) => {
+    const id = String(field?.id || `response-${index + 1}`);
+    const isChoice = String(field?.inputProfile || '').toLowerCase() === 'choice';
+    const hasFieldChoices = Array.isArray(field?.choices) && field.choices.length > 0;
+    const sourceChoices = hasFieldChoices
+      ? field.choices
+      : (isChoice && Array.isArray(question.choices) ? question.choices : []);
+    const sourceKey = hasFieldChoices ? `field:${id}` : 'question';
+    const runtimeIds = isChoice && sourceChoices.length
+      ? choiceIdMap(question, sourceKey, sourceChoices)
+      : null;
+    const remap = (value) => (
+      runtimeIds && runtimeIds.has(String(value))
+        ? runtimeIds.get(String(value))
+        : value
+    );
+    return {
+      id,
+      expected: remap(field?.expected),
+      accepted: Array.isArray(field?.accepted) ? field.accepted.map(remap) : null,
+      numericTolerance: Number(field?.numericTolerance ?? explicit.numericTolerance ?? 1e-6),
+      caseSensitive: Boolean(field?.caseSensitive ?? explicit.caseSensitive),
+    };
+  });
   return { ...explicit, fields };
 }
 
