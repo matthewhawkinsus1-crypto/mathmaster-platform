@@ -118,7 +118,9 @@ test('A.3A measures slope from a real graph, real table, and multiple equation f
   const table = entry.documents.find((doc) => doc.representation === 'table');
   assert.ok(table?.stimulus?.table?.rows?.length >= 3);
   const prompts = entry.documents.map((doc) => String(doc.prompt).toLowerCase()).join(' ');
-  assert.match(prompts, /standard-form|standard form/);
+  assert.ok(entry.documents.some((doc) => doc.id.includes('standard-form-slope')
+    && /\{\{A\}\}x\+\{\{B\}\}y=\{\{C\}\}/.test(String(doc.prompt))),
+    'A.3A needs slope extraction from a standard-form equation');
   assert.match(prompts, /point-slope/);
   assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /run by the rise/i.test(doc.prompt)));
 });
