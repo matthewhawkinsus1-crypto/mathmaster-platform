@@ -231,3 +231,24 @@ Current Algebra I adaptive counts after A.9:
 
 Next batch: **A.10A–A.10F**.
 
+## Progress — Algebra I A.10 adaptive batch green
+
+- Completed **A.10A–A.10F** with authentic independent-axis variants while preserving five families per standard and all Challenge endpoints.
+- The batch deliberately separates computational difficulty from reasoning depth: harder polynomial arithmetic is DOK2/Band4; verification and error analysis are DOK3/Band3.
+- Algebra I Fidelity V2 Certification at A.10F head — run `33337284407`: **PASS**.
+- Cross-course Challenge/DOK Difficulty Audit at A.10F head — run `33337284376`: **PASS**.
+
+Current Algebra I adaptive counts after A.10:
+- Challenge-ready: **49/49**
+- Full preferred five-cell target: **42/49**
+- Complete DOK2 axis: **43/49**
+- Complete DOK3 axis: **43/49**
+- Missing 2/2: **4**
+- Missing 2/3: **0**
+- Missing 2/4: **2**
+- Missing 3/3: **6**
+- Missing 3/4: **0**
+- Standards still failing strict preferred-cell readiness: **7/49**
+
+Final Algebra I batch: **A.11A, A.11B, A.12A–A.12E**.
+
