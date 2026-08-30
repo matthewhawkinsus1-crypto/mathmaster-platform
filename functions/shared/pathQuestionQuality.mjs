@@ -89,15 +89,28 @@ const ANSWER_BEARING_KEYS = [
   'pairs', 'system', 'solution',
 ];
 
-const hasExpectedAnswer = (question = {}) => (
-  list(question.responseFields).some((field) => field && Object.prototype.hasOwnProperty.call(field, 'expected'))
-  || ANSWER_BEARING_KEYS.some((key) => Object.prototype.hasOwnProperty.call(question, key))
-  || list(question.answerFields).some((field) => field && field.expected !== undefined)
-  || list(question.parts).some((field) => field && field.expected !== undefined)
-  || list(question.pointTasks).some((task) => Array.isArray(task?.expected))
-  || list(question.analysisRequests).some((part) => part?.expected !== undefined || part?.acceptedAnswers !== undefined)
-  || list(question.analysisParts).some((part) => part?.expected !== undefined || part?.acceptedAnswers !== undefined)
-);
+const hasExpectedAnswer = (question = {}) => {
+  const tool = text(question.pathToolId || question.toolId || question.type);
+  const serverDerivableToolAnswer = (
+    tool === 'systemsWorkspace'
+      && text(question.mode) === 'inequalities'
+      && list(question.inequalities).length > 0
+  ) || (
+    ['dataModeling', 'dataModelingLab'].includes(tool)
+      && list(question.points).length >= 2
+  );
+
+  return (
+    list(question.responseFields).some((field) => field && Object.prototype.hasOwnProperty.call(field, 'expected'))
+    || ANSWER_BEARING_KEYS.some((key) => Object.prototype.hasOwnProperty.call(question, key))
+    || list(question.answerFields).some((field) => field && field.expected !== undefined)
+    || list(question.parts).some((field) => field && field.expected !== undefined)
+    || list(question.pointTasks).some((task) => Array.isArray(task?.expected))
+    || list(question.analysisRequests).some((part) => part?.expected !== undefined || part?.acceptedAnswers !== undefined)
+    || list(question.analysisParts).some((part) => part?.expected !== undefined || part?.acceptedAnswers !== undefined)
+    || serverDerivableToolAnswer
+  );
+};
 
 const looksInteractive = (question = {}) => Boolean(
   declaredToolOf(question)
