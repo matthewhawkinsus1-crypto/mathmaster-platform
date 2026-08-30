@@ -3466,3 +3466,127 @@ test('A2.6D formulates absolute-value linear equations instead of selecting or s
   assert.ok(representations.has('verbal'));
 });
 
+test('A2.6E solves absolute-value linear equations through isolate-case-solve evidence and all solution counts', async () => {
+  const entry = payload('A2.6E');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /complete-absolute-value-linear-solving/);
+
+  let generatedCount = 0;
+  let twoSolutionFamilies = 0;
+  let oneSolutionFamilies = 0;
+  let zeroSolutionFamilies = 0;
+  let linearInsideFamilies = 0;
+  let contextFamilies = 0;
+  let errorFamilies = 0;
+  let wrongOutcomeRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const ids = new Set((doc.responseFields || []).map((field) => String(field.id)));
+    if (ids.has('case-plus') && ids.has('case-minus')) twoSolutionFamilies += 1;
+    if (doc.id.includes('zero-distance-one-solution')) oneSolutionFamilies += 1;
+    if (doc.id.includes('negative-isolated-error')) zeroSolutionFamilies += 1;
+    if (stringValues(doc).join(' ').includes('{{m}}')) linearInsideFamilies += 1;
+    if (doc.representation === 'context') contextFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let spoiledChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const fields = Object.fromEntries(
+        (question.responseFields || []).map((field) => [field.id, field]),
+      );
+
+      if (doc.id.includes('two-case-complete') || doc.id.includes('scaled-linear-inside') || doc.id.includes('context-two-times')) {
+        assert.ok(fields['case-plus'] && fields['case-minus']);
+      }
+
+      if (doc.id.includes('scaled-linear-inside')) {
+        assert.ok(fields.isolated);
+        assert.equal(fields.isolated.equivalence, 'absoluteLinearRelation');
+        assert.ok(fields.left && fields.right);
+        assert.ok(Number(fields.left.expected) < Number(fields.right.expected));
+      }
+
+      if (doc.id.includes('zero-distance-one-solution')) {
+        assert.equal(fields['solution-count']?.expected, 'one');
+        assert.ok(fields.solution);
+        assert.match(String(fields.isolated?.expected), /=0$/);
+      }
+
+      if (doc.id.includes('context-two-times')) {
+        assert.equal(fields.isolated?.equivalence, 'absoluteLinearRelation');
+        assert.ok(Number(fields.early?.expected) >= 1);
+        assert.ok(Number(fields.early?.expected) < Number(fields.late?.expected));
+      }
+
+      if (doc.id.includes('negative-isolated-error')) {
+        assert.match(String(fields.isolated?.expected), /=-/);
+        assert.equal(fields.diagnosis?.expected, 'none');
+        assert.equal(fields['solution-count']?.expected, 'zero');
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(correct.fieldResults)}`,
+      );
+
+      if (!spoiledChecked) {
+        let field = grading.fields.find((item) => ['right','late','solution'].includes(item.id));
+        let wrongValue;
+        if (field) {
+          wrongValue = Number(field.expected ?? field.accepted?.[0]) + 1;
+        } else {
+          field = grading.fields.find((item) => item.id === 'solution-count' || item.id === 'diagnosis');
+          wrongValue = String(field?.expected) === 'zero' ? 'two' : '__wrong__';
+        }
+        assert.ok(field, `${doc.id} has no final solution/outcome field to spoil`);
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, [field.id]:wrongValue },
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted an incorrect final solve outcome`);
+        wrongOutcomeRejected += 1;
+        spoiledChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(twoSolutionFamilies >= 3, 'A2.6E must repeatedly execute both linear cases');
+  assert.ok(oneSolutionFamilies >= 1, 'A2.6E must explicitly solve an absolute-value equation with exactly one real solution');
+  assert.ok(zeroSolutionFamilies >= 1, 'A2.6E must explicitly solve a negative-isolated-value equation with no real solution');
+  assert.ok(linearInsideFamilies >= 4, 'A2.6E must repeatedly solve nontrivial linear expressions inside absolute value');
+  assert.ok(contextFamilies >= 1);
+  assert.ok(errorFamilies >= 1);
+  assert.equal(wrongOutcomeRejected, entry.documents.length);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('context'));
+  assert.ok(representations.has('verbal'));
+});
+
