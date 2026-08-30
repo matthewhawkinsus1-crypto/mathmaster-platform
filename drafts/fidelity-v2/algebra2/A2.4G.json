@@ -1,0 +1,638 @@
+{
+  "standard": "A2.4G",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-original-equation-substitution-identifies-extraneous-square-root-candidates",
+  "rationale": "A2.4G is not a domain-rule vocabulary standard. Fidelity V2 gives candidates created by squaring and requires concrete substitution into the original unsquared equation, including cases with one extraneous candidate and cases with none.",
+  "documents": [
+    {
+      "id": "mm_A2_4G_v2_substitute-both-candidates",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4G:v2-substitute-both-candidates",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4G",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Squaring $\\sqrt{x{{c|signed}}}=x-({{k}})$ produces candidates $x={{u}}$ and $x={{v}}$. Substitute BOTH candidates into the ORIGINAL equation, compare the two sides, and identify the extraneous solution.",
+      "responseFields": [
+        {
+          "id": "u-lhs",
+          "label": "Original left side at x={{u}}",
+          "inputProfile": "number",
+          "expected": "{{d}}"
+        },
+        {
+          "id": "u-rhs",
+          "label": "Original right side at x={{u}}",
+          "inputProfile": "number",
+          "expected": "{{negD}}"
+        },
+        {
+          "id": "u-verdict",
+          "label": "Verdict for x={{u}}",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "extraneous",
+              "label": "Extraneous — the original equation is false."
+            },
+            {
+              "id": "valid",
+              "label": "Valid — the original equation is true."
+            }
+          ],
+          "expected": "extraneous"
+        },
+        {
+          "id": "v-lhs",
+          "label": "Original left side at x={{v}}",
+          "inputProfile": "number",
+          "expected": "{{vp}}"
+        },
+        {
+          "id": "v-rhs",
+          "label": "Original right side at x={{v}}",
+          "inputProfile": "number",
+          "expected": "{{vp}}"
+        },
+        {
+          "id": "v-verdict",
+          "label": "Verdict for x={{v}}",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "valid",
+              "label": "Valid — the original equation is true."
+            },
+            {
+              "id": "extraneous",
+              "label": "Extraneous — the original equation is false."
+            }
+          ],
+          "expected": "valid"
+        },
+        {
+          "id": "extraneous",
+          "label": "Extraneous solution",
+          "inputProfile": "number",
+          "expected": "{{u}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The original equation, not the squared equation, decides whether a candidate survives.",
+        "reasoning": [
+          "At x={{u}}, the principal square root is {{d}} but the right side is {{negD}}, so the original equation is false.",
+          "At x={{v}}, both sides equal {{vp}}, so that candidate is valid.",
+          "Therefore x={{u}} is extraneous."
+        ],
+        "answerSummary": "Extraneous: $x={{u}}$; valid: $x={{v}}$."
+      },
+      "attemptFeedback": [
+        "Do not judge the candidates only from the squared equation; both already satisfy that transformed equation."
+      ],
+      "supportHints": [
+        "Evaluate the principal square root and the unsquared right side separately for each candidate."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 5
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "u": "k-d",
+          "v": "k+1+d",
+          "c": "k*k-(k-d)*(k+1+d)",
+          "negD": "-d",
+          "vp": "d+1"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4G_v2_no-extraneous-both-valid",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4G:v2-no-extraneous-both-valid",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4G",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "Squaring the square-root equation produces two candidates. Check both in the ORIGINAL equation. Do not assume that squaring always creates an extraneous root.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Candidate check for $\\sqrt{x{{c|signed}}}=x-({{k}})$",
+        "table": {
+          "headers": [
+            "Candidate",
+            "Original LHS",
+            "Original RHS"
+          ],
+          "rows": [
+            [
+              "x={{k}}",
+              "?",
+              "?"
+            ],
+            [
+              "x={{kp1}}",
+              "?",
+              "?"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "k-lhs",
+          "label": "LHS at x={{k}}",
+          "inputProfile": "number",
+          "expected": "0"
+        },
+        {
+          "id": "k-rhs",
+          "label": "RHS at x={{k}}",
+          "inputProfile": "number",
+          "expected": "0"
+        },
+        {
+          "id": "k-verdict",
+          "label": "Verdict for x={{k}}",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "valid",
+              "label": "Valid"
+            },
+            {
+              "id": "extraneous",
+              "label": "Extraneous"
+            }
+          ],
+          "expected": "valid"
+        },
+        {
+          "id": "kp1-lhs",
+          "label": "LHS at x={{kp1}}",
+          "inputProfile": "number",
+          "expected": "1"
+        },
+        {
+          "id": "kp1-rhs",
+          "label": "RHS at x={{kp1}}",
+          "inputProfile": "number",
+          "expected": "1"
+        },
+        {
+          "id": "kp1-verdict",
+          "label": "Verdict for x={{kp1}}",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "valid",
+              "label": "Valid"
+            },
+            {
+              "id": "extraneous",
+              "label": "Extraneous"
+            }
+          ],
+          "expected": "valid"
+        },
+        {
+          "id": "extraneous-count",
+          "label": "How many candidates are extraneous?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "zero",
+              "label": "0"
+            },
+            {
+              "id": "one",
+              "label": "1"
+            },
+            {
+              "id": "two",
+              "label": "2"
+            }
+          ],
+          "expected": "zero"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Squaring can create extraneous solutions, but it does not have to.",
+        "reasoning": [
+          "Here c=-k, so the original equation is $\\sqrt{x-k}=x-k$.",
+          "At x=k, both sides are 0. At x=k+1, both sides are 1.",
+          "Both candidates survive; there are no extraneous solutions."
+        ],
+        "answerSummary": "Both candidates are valid; extraneous count = 0."
+      },
+      "attemptFeedback": [
+        "The rule is to check every candidate, not to automatically discard one of two roots."
+      ],
+      "supportHints": [
+        "Evaluate the original equation at each candidate exactly as written."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": -4,
+            "max": 5
+          }
+        },
+        "derived": {
+          "c": "-k",
+          "kp1": "k+1"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4G_v2_domain-is-not-enough",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4G:v2-domain-is-not-enough",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4G",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "Squaring $\\sqrt{2x{{c|signed}}}=x-({{k}})$ produces candidates $x={{u}}$ and $x={{v}}$. The smaller candidate is inside the radical domain. Determine why it is STILL extraneous by checking the original equation.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Smaller candidate evidence",
+        "table": {
+          "headers": [
+            "Quantity at x={{u}}",
+            "Value"
+          ],
+          "rows": [
+            [
+              "Radicand $2x{{c|signed}}$",
+              "{{d2}}"
+            ],
+            [
+              "Principal square root",
+              "?"
+            ],
+            [
+              "Right side $x-({{k}})$",
+              "?"
+            ]
+          ]
+        },
+        "note": "A nonnegative radicand is necessary, but it is not the same thing as satisfying the entire original equation."
+      },
+      "responseFields": [
+        {
+          "id": "domain",
+          "label": "Is x={{u}} in the radical domain?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "yes",
+              "label": "Yes"
+            },
+            {
+              "id": "no",
+              "label": "No"
+            }
+          ],
+          "expected": "yes"
+        },
+        {
+          "id": "u-lhs",
+          "label": "Original LHS at x={{u}}",
+          "inputProfile": "number",
+          "expected": "{{d}}"
+        },
+        {
+          "id": "u-rhs",
+          "label": "Original RHS at x={{u}}",
+          "inputProfile": "number",
+          "expected": "{{negD}}"
+        },
+        {
+          "id": "reason",
+          "label": "Why is x={{u}} extraneous?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "sign",
+              "label": "It is in the domain, but the principal square root is nonnegative while the original right side is negative."
+            },
+            {
+              "id": "domain",
+              "label": "It is outside the radical domain."
+            },
+            {
+              "id": "squared",
+              "label": "It does not satisfy the squared equation."
+            }
+          ],
+          "expected": "sign"
+        },
+        {
+          "id": "extraneous",
+          "label": "Extraneous candidate",
+          "inputProfile": "number",
+          "expected": "{{u}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Domain membership alone does not prove a candidate solves the original equation.",
+        "reasoning": [
+          "At x={{u}}, the radicand is {{d2}}, so the radical is defined and its principal value is {{d}}.",
+          "But the right side is {{negD}}.",
+          "Since {{d}}≠{{negD}}, x={{u}} is extraneous even though it lies in the radical domain."
+        ],
+        "answerSummary": "$x={{u}}$ is extraneous because the original sides have opposite signs."
+      },
+      "attemptFeedback": [
+        "Do not stop at checking that the radicand is nonnegative; compare the two sides of the original equation."
+      ],
+      "supportHints": [
+        "The principal square root can never be negative."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": -2,
+            "max": 5
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "u": "k-d",
+          "v": "k+2+d",
+          "c": "k*k-(k-d)*(k+2+d)",
+          "d2": "d*d",
+          "negD": "-d"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4G_v2_context-candidate-verification",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4G:v2-context-candidate-verification",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4G",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "application",
+      "prompt": "A timing model leads to $\\sqrt{t{{c|signed}}}=t-({{k}})$. After squaring, the algebra produces possible times t={{u}} and t={{v}}. Both times are nonnegative, so use the ORIGINAL model equation—not the context alone—to determine which time is extraneous.",
+      "responseFields": [
+        {
+          "id": "u-lhs",
+          "label": "Original model LHS at t={{u}}",
+          "inputProfile": "number",
+          "expected": "{{d}}"
+        },
+        {
+          "id": "u-rhs",
+          "label": "Original model RHS at t={{u}}",
+          "inputProfile": "number",
+          "expected": "{{negD}}"
+        },
+        {
+          "id": "u-verdict",
+          "label": "Verdict for t={{u}}",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "extraneous",
+              "label": "Extraneous"
+            },
+            {
+              "id": "valid",
+              "label": "Valid"
+            }
+          ],
+          "expected": "extraneous"
+        },
+        {
+          "id": "v-lhs",
+          "label": "Original model LHS at t={{v}}",
+          "inputProfile": "number",
+          "expected": "{{vp}}"
+        },
+        {
+          "id": "v-rhs",
+          "label": "Original model RHS at t={{v}}",
+          "inputProfile": "number",
+          "expected": "{{vp}}"
+        },
+        {
+          "id": "valid-time",
+          "label": "Valid modeled time",
+          "inputProfile": "number",
+          "unit": "seconds",
+          "expected": "{{v}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A context restriction and an algebraic extraneous check are different tests.",
+        "reasoning": [
+          "Both candidates are nonnegative times, so neither is rejected merely by the context.",
+          "At t={{u}}, the original sides are {{d}} and {{negD}}, so that candidate is extraneous.",
+          "At t={{v}}, both sides equal {{vp}}, so t={{v}} seconds is valid."
+        ],
+        "answerSummary": "Extraneous t={{u}}; valid time t={{v}} seconds."
+      },
+      "attemptFeedback": [
+        "Do not use 'time must be nonnegative' as the reason here; both candidates pass that context check."
+      ],
+      "supportHints": [
+        "Substitution into the original radical equation is what identifies the extraneous candidate."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 4,
+            "max": 8
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 2
+          }
+        },
+        "derived": {
+          "u": "k-d",
+          "v": "k+1+d",
+          "c": "k*k-(k-d)*(k+1+d)",
+          "negD": "-d",
+          "vp": "d+1"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4G_v2_error-kept-both-squared-roots",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4G:v2-error-kept-both-squared-roots",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4G",
+      "representation": "verbal",
+      "difficultyBand": 5,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student squares $\\sqrt{x{{c|signed}}}=x-({{k}})$, solves the resulting quadratic, gets x={{u}} and x={{v}}, and declares BOTH answers valid because both satisfy the squared equation. Repair the student's conclusion by checking the original equation.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's conclusion",
+        "steps": [
+          {
+            "id": "square",
+            "label": "After squaring",
+            "work": "Both x={{u}} and x={{v}} solve the squared equation."
+          },
+          {
+            "id": "claim",
+            "label": "Student claim",
+            "work": "Therefore both solve the original square-root equation."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What is wrong with the conclusion?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "check-original",
+              "label": "Squaring can lose sign information, so each candidate must be checked in the original equation."
+            },
+            {
+              "id": "quadratic",
+              "label": "Quadratic equations can have only one solution."
+            },
+            {
+              "id": "domain-only",
+              "label": "Any candidate in the radical domain is automatically valid."
+            }
+          ],
+          "expected": "check-original"
+        },
+        {
+          "id": "u-lhs",
+          "label": "Original LHS at x={{u}}",
+          "inputProfile": "number",
+          "expected": "{{d}}"
+        },
+        {
+          "id": "u-rhs",
+          "label": "Original RHS at x={{u}}",
+          "inputProfile": "number",
+          "expected": "{{negD}}"
+        },
+        {
+          "id": "v-lhs",
+          "label": "Original LHS at x={{v}}",
+          "inputProfile": "number",
+          "expected": "{{vp}}"
+        },
+        {
+          "id": "v-rhs",
+          "label": "Original RHS at x={{v}}",
+          "inputProfile": "number",
+          "expected": "{{vp}}"
+        },
+        {
+          "id": "extraneous",
+          "label": "Candidate that must be removed",
+          "inputProfile": "number",
+          "expected": "{{u}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A solution of the squared equation is only a candidate for the original radical equation.",
+        "reasoning": [
+          "At x={{u}}, the original equation compares {{d}} with {{negD}}, so it fails.",
+          "At x={{v}}, both original sides equal {{vp}}, so it survives.",
+          "The repaired solution set removes the extraneous candidate x={{u}}."
+        ],
+        "answerSummary": "Remove x={{u}}; keep x={{v}}."
+      },
+      "attemptFeedback": [
+        "The squared equation cannot certify its own candidates for the original radical equation."
+      ],
+      "supportHints": [
+        "Check both sides before deciding which candidate to keep."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 5
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "u": "k-d",
+          "v": "k+1+d",
+          "c": "k*k-(k-d)*(k+1+d)",
+          "negD": "-d",
+          "vp": "d+1"
+        }
+      }
+    }
+  ]
+}
