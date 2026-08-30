@@ -150,6 +150,100 @@
           "inputProfile": "number",
           "expected": "{{rate}}"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "adaptive-d2b2-unit-step-table-rate",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use the three-row table to determine the constant rate of change. The x-values increase by 1 each time, so compare consecutive output changes.",
+          "stimulus": {
+            "kind": "table",
+            "table": {
+              "headers": [
+                "x",
+                "y"
+              ],
+              "rows": [
+                [
+                  "{{x0}}",
+                  "{{y0}}"
+                ],
+                [
+                  "{{x1}}",
+                  "{{y1}}"
+                ],
+                [
+                  "{{x2}}",
+                  "{{y2}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "delta-x",
+              "label": "Δx between consecutive rows",
+              "inputProfile": "number",
+              "expected": "1"
+            },
+            {
+              "id": "delta-y",
+              "label": "Δy between consecutive rows",
+              "inputProfile": "number",
+              "expected": "{{rate}}"
+            },
+            {
+              "id": "answer",
+              "label": "Constant rate of change",
+              "inputProfile": "number",
+              "expected": "{{rate}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "With a unit input step, the output change equals the rate.",
+            "reasoning": [
+              "Each x-value increases by 1.",
+              "Each y-value changes by {{rate}}.",
+              "Therefore Δy/Δx={{rate}}/1={{rate}}."
+            ],
+            "answerSummary": "Rate {{rate}}."
+          },
+          "attemptFeedback": [
+            "Compare the same pair of consecutive rows for Δx and Δy."
+          ],
+          "supportHints": [
+            "When Δx=1, the rate equals Δy."
+          ],
+          "generator": {
+            "parameters": {
+              "rate": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "x0": {
+                "type": "int",
+                "min": 0,
+                "max": 3
+              },
+              "y0": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "x1": "x0+1",
+              "x2": "x0+2",
+              "y1": "y0+rate",
+              "y2": "y0+2*rate"
+            }
+          }
+        }
       ]
     },
     {
@@ -268,6 +362,126 @@
           "label": "Answer",
           "inputProfile": "number",
           "expected": "{{rate}}"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "adaptive-d3b3-three-interval-rate-consistency",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A quantity is claimed to change at a constant rate. The table gives three observations. Compute the rate over the first interval and the second interval, decide whether one constant-rate model is supported, and state that rate.",
+          "stimulus": {
+            "kind": "table",
+            "table": {
+              "headers": [
+                "time",
+                "value"
+              ],
+              "rows": [
+                [
+                  "{{x0}}",
+                  "{{y0}}"
+                ],
+                [
+                  "{{x1}}",
+                  "{{y1}}"
+                ],
+                [
+                  "{{x2}}",
+                  "{{y2}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "rate1",
+              "label": "Rate over interval 1",
+              "inputProfile": "number",
+              "expected": "{{rate}}"
+            },
+            {
+              "id": "rate2",
+              "label": "Rate over interval 2",
+              "inputProfile": "number",
+              "expected": "{{rate}}"
+            },
+            {
+              "id": "verdict",
+              "label": "Do the observations support one constant rate?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "rate",
+              "label": "Constant rate",
+              "inputProfile": "number",
+              "expected": "{{rate}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A constant rate must agree across separate intervals.",
+            "reasoning": [
+              "The first interval has rate {{rate}}.",
+              "The second interval also has rate {{rate}}.",
+              "Matching rates support one linear constant-rate model."
+            ],
+            "answerSummary": "Yes; constant rate {{rate}}."
+          },
+          "attemptFeedback": [
+            "Compute each interval rate independently before deciding."
+          ],
+          "supportHints": [
+            "Use Δvalue/Δtime on both intervals."
+          ],
+          "generator": {
+            "parameters": {
+              "rate": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "x0": {
+                "type": "int",
+                "min": 0,
+                "max": 2
+              },
+              "step1": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "step2": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "y0": {
+                "type": "int",
+                "min": -10,
+                "max": 10
+              }
+            },
+            "derived": {
+              "x1": "x0+step1",
+              "x2": "x1+step2",
+              "y1": "y0+rate*step1",
+              "y2": "y1+rate*step2"
+            }
+          }
         }
       ]
     },
