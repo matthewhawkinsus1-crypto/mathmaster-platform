@@ -9,17 +9,27 @@ Use this section first when resuming in a new chat.
 - Content authoring sweep: **COMPLETE — 49/49 standards, 245/245 V2 families**
 - Shipping promotion: **NOT STARTED BY DESIGN**
 - Current phase: **final certification / defect removal**
-- Current certification head when this checkpoint was written: `65a121b2727d1357ca2c4082502454144039b3dc`
-- The previous Full Platform run exposed 10 failures. The content/test mismatches, blank/null inequality bug, and stale Data Modeling contract assumptions have been corrected.
-- Data Modeling now also rejects blank/null numeric targets instead of coercing them to zero.
-- A real-Chromium `Path Tool Browser Contract` workflow now verifies the newly contracted Data Modeling browser response against the server-contract capture fixture.
-- At this checkpoint these four PR workflows are running on the current head:
+- Current certification head when this checkpoint was written: `adcef8b8c636408a4c850e46eeccf63ce6ff987c`
+- Manual high-risk review is complete across graph construction, systems, correlation/regression, sequences, polynomial responses, and literal equations.
+- Three substantive defects were found and fixed during that manual review:
+  1. exponential graph families A.9A/A.9D authored the base as `functionSpec.b` while the graph engine reads `functionSpec.base`; new V2 content is canonical and the graph engine also accepts legacy `b` for already-published content;
+  2. secure generic Path grading let alternate `accepted` answers replace the primary `expected` key; primary + alternate forms now supplement each other consistently across Path, rich multiAnswer, and assignment-side grading;
+  3. A.12E now explicitly accepts common mathematically equivalent literal-equation rearrangements that the form-preserving comparator deliberately does not infer globally.
+- Certification infrastructure was also hardened:
+  - strict generator health samples 36 draws per family (8,820 candidate instances);
+  - numeric/object values are included in generator distinctness fingerprints;
+  - secure-tool readiness explicitly checks inequality construction, correlation, and all three fitted-model modes while unsupported matrix mode must fail closed;
+  - `set -o pipefail` prevents `tee` from hiding failed audits.
+- The previously reported generator “undefined slope” failure was an audit false positive; the detector is now narrowed so legitimate mathematical prose is allowed while NaN/Infinity/machine leakage remains blocked.
+- All 49 packages still assemble to exactly 245 V2 families.
+- At this checkpoint the five PR workflows are rerunning on the current head:
+  - Algebra I Fidelity V2 Certification
   - Correct Answer Acceptance Audit
   - Assignment V5 Foundation
   - Full Platform Test Suite
   - Path Tool Browser Contract
-- Do **not** promote Algebra I until all certification gates below are green and the semantic/cognitive/generator/manual review passes are complete.
-- Exact next action after resuming: inspect the four workflows on the latest PR head, fix any real failures without weakening gates, then continue the candidate semantic/cognitive/generator audits.
+- Do **not** promote Algebra I until those current-head workflows are green (ignoring only the known Vercel build-rate-limit if it remains non-code-related).
+- Exact next action after resuming: inspect the five workflows on the latest PR head. If green, promote the reviewed 245-family candidate into the canonical Algebra I source, rebuild both seed mirrors + Path manifest, then rerun the complete suite against the promoted source.
 
 
 ## Current state
@@ -102,6 +112,16 @@ Examples:
 - A.4B keeps the strong association-vs-causation bank with secure choice ids and honest representation labels.
 - A.12B now evaluates functions in every family rather than drifting into reverse/inverse solving.
 - A.12E is predominantly symbolic literal-equation rearrangement and includes a target variable appearing in multiple terms.
+
+## Manual defect-removal evidence — August 30, 2026
+
+The final manual pass did more than visually inspect templates. It traced the student renderer, secure issue payload, and server grader for the highest-risk interactions.
+
+- **Exponential graph base wiring:** fixed before promotion and regression-tested.
+- **Primary + alternate answer semantics:** fixed before promotion. A primary factored/nth-term/literal answer remains correct when an alternate form is authored; alternates also pass; form-sensitive wrong forms remain rejected.
+- **Literal-equation fairness:** common equivalent rearrangements are explicitly authored where the general form-preserving comparator intentionally stays conservative.
+- **Generator-health gate:** candidate-only stress mode is now a real release blocker and cannot be masked by shell pipelines.
+- **Tool-readiness gate:** approved secure modes must be issuable; unsupported rich modes must remain fail-closed.
 
 ## Final Algebra I gates before promotion
 
