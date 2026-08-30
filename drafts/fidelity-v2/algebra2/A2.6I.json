@@ -493,7 +493,125 @@
           "(p*q)%3==0",
           "b!=0"
         ]
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-coefficient-lcd-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student solves $\\frac{{{a}}}{x}+\\frac{{{b}}}{x-3}=1$ using LCD $x(x-3)$, but writes ${{a}}(x-3)+{{b}}=x(x-3)$. Diagnose exactly what factor was lost, write the corrected cleared equation, and finish both real solutions.",
+          "stimulus": {
+            "kind": "table",
+            "title": "LCD cancellation check",
+            "table": {
+              "headers": [
+                "Original term",
+                "After multiplying by x(x-3)"
+              ],
+              "rows": [
+                [
+                  "${{a}}/x$",
+                  "${{a}}(x-3)$"
+                ],
+                [
+                  "${{b}}/(x-3)$",
+                  "Student wrote ${{b}}$"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What was the denominator-clearing error?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "missing-x",
+                  "label": "The second rational term should become {{b}}x, not {{b}}."
+                },
+                {
+                  "id": "cancel-add",
+                  "label": "The denominators should be added before multiplying."
+                },
+                {
+                  "id": "drop-right",
+                  "label": "The right side should become 0 instead of x(x-3)."
+                }
+              ],
+              "expected": "missing-x"
+            },
+            {
+              "id": "cleared",
+              "label": "Correct equation after multiplying every term by the LCD",
+              "inputProfile": "equation",
+              "equivalence": "polynomialRelation",
+              "expected": "{{a}}*(x-3)+{{b}}*x=x*(x-3)"
+            },
+            {
+              "id": "root-1",
+              "label": "Smaller real solution",
+              "inputProfile": "number",
+              "expected": "{{p}}"
+            },
+            {
+              "id": "root-2",
+              "label": "Larger real solution",
+              "inputProfile": "number",
+              "expected": "{{q}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Reasoning about what remains after cancellation is the key step.",
+            "reasoning": [
+              "For {{b}}/(x-3), multiplying by x(x-3) cancels only x-3, leaving {{b}}x.",
+              "The corrected equation is ${{a}}(x-3)+{{b}}x=x(x-3)$.",
+              "With the smaller coefficients in this variant, the corrected quadratic solves to x={{p}} and x={{q}}."
+            ],
+            "answerSummary": "Repair the missing x factor; roots {{p}} and {{q}}."
+          },
+          "attemptFeedback": [
+            "Name the factor that remains after the denominator cancels before solving the quadratic."
+          ],
+          "supportHints": [
+            "x(x-3)/(x-3)=x."
+          ],
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "choice",
+                "values": [
+                  1,
+                  2
+                ]
+              },
+              "q": {
+                "type": "choice",
+                "values": [
+                  6,
+                  9
+                ]
+              }
+            },
+            "derived": {
+              "a": "p*q/3",
+              "b": "p+q-3-a"
+            },
+            "constraints": [
+              "q>p",
+              "(p*q)%3==0",
+              "b!=0"
+            ]
+          }
+        }
+      ]
     }
   ]
 }
