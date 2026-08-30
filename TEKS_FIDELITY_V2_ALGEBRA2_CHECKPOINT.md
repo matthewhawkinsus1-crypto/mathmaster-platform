@@ -450,17 +450,39 @@ Certification result:
 
 Do **not** re-audit A2.5A unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.5B
 
-### A2.5B — REBUILD — STAGED / CERTIFICATION RUNNING
+### A2.5B — REBUILD — CERTIFIED
 
 Official construct: **Formulate exponential and logarithmic equations that model real-world situations, including exponential relationships written recursively.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- students author equations rather than select prewritten models;
+- growth and decay contexts both require explicit and recursive exponential forms;
+- a table/data family requires inferring the common multiplier before writing both forms;
+- an authentic logarithmic ratio-scale real-world model is included;
+- error analysis repairs a growth factor and both explicit/recursive equations;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- tabular common ratios and growth/decay factors are independently checked;
+- a spoiled model equation is rejected in every family;
+- public payloads strip answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33325134988`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.5B unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.5C — PENDING AUDIT
+
+Official construct: **Rewrite exponential equations as corresponding logarithmic equations and logarithmic equations as corresponding exponential equations.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.5B
+### A2.5C
 
-Resume here. Do not reopen A2.2A–A2.5A unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.5B unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.5B audit finding
@@ -499,8 +521,10 @@ Resume here. Do not reopen A2.2A–A2.5A unless a failing gate names them.
   - complete growth-factor error repair that fixes both explicit and recursive models.
 - Added A2.5B-specific generated certification — commit `314f162401e54fafb2219121b29f4332b17c77a9`.
 - The gate samples 200+ generated instances, validates growth/decay factors, verifies tabular ratios independently, requires repeated explicit+recursive formulation, requires authentic logarithmic modeling, rejects a nonmatching model in every family, and checks public answer-key stripping.
-- Full A2.5B assertion run `33325134988`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.5B** until that run is green.
+- Full A2.5B assertion run `33325134988`: **PASS**.
+- Generated growth/decay/table/log modeling, explicit+recursive formulation, wrong-model rejection, public-key stripping, and student/runtime build all passed.
+- A2.5B is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.5C**.
 
 
 ### 2026-08-30 — A2.5A audit finding
