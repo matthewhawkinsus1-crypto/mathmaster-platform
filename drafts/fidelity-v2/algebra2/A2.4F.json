@@ -667,6 +667,23 @@
               "b": "t*t-x",
               "r": "c+t"
             }
+          },
+          "stimulus": {
+            "kind": "steps",
+            "title": "Student's incorrect order",
+            "steps": [
+              {
+                "id": "start",
+                "label": "Equation",
+                "work": "$\\sqrt{x{{b|signed}}}+{{c}}={{r}}$"
+              },
+              {
+                "id": "wrong",
+                "label": "Student action",
+                "work": "Squares both sides before isolating the radical."
+              }
+            ],
+            "note": "The issue is the order of operations: the radical term is still part of a sum."
           }
         }
       ]
