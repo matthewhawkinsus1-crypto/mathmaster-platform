@@ -203,7 +203,7 @@ Do **not** re-audit A2.3D unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.3E — PENDING AUDIT
+### A2.3E — REBUILD — AUDITED / AUTHORING
 
 Official construct: **Formulate systems of at least two linear inequalities in two variables.**
 
@@ -212,6 +212,25 @@ Official construct: **Formulate systems of at least two linear inequalities in t
 ### A2.3E
 
 Resume here. Do not reopen A2.2A–A2.3D unless a failing gate names them.
+
+
+### 2026-08-30 — A2.3E audit finding
+- Official construct: **formulate systems of at least two linear inequalities in two variables**.
+- Verdict: **REBUILD**.
+- All five legacy families are recognition-first: students select a prewritten inequality/system instead of formulating the constraints themselves.
+- Specific drift:
+  - the budget context is authentic but only asks which system matches;
+  - the table family formulates only one inequality, not a system of at least two;
+  - the nonnegativity/cap family chooses prewritten bounds;
+  - the feasible-region family chooses a prewritten pair;
+  - the strict-boundary error family fixes one symbol but does not formulate the complete system.
+- Fidelity V2 requirements:
+  - every family must make students **write at least two inequalities**;
+  - contexts must include realistic coupled constraints, not only independent x/y bounds;
+  - include strict and inclusive boundaries, nonnegativity, capacity/budget, and graph/verbal half-plane descriptions;
+  - one error-analysis family must diagnose the boundary-symbol mistake and then write the entire corrected system;
+  - representations should include context, table, graph/half-plane description, and verbal constraints.
+- This is formulation, not graph solving; generic secure math-response fields are the right evidence. A2.3F will own construction/solution-region behavior.
 
 
 ### 2026-08-30 — A2.3D audit finding
