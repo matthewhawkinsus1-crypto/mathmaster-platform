@@ -56,7 +56,7 @@ test('A.3F and A.5C preserve real system work and genuine classification misconc
 test('A.4B keeps authentic association-versus-causation evidence with real choices', () => {
   const docs = payloads.get('A.4B').documents;
   assert.ok(docs.every((doc) => doc.choices?.length === 4));
-  assert.ok(docs.some((doc) => /random/i.test(doc.prompt)));
+  assert.ok(docs.some((doc) => /random/i.test(JSON.stringify({ choices: doc.choices, solutionReview: doc.solutionReview, stimulus: doc.stimulus }))), 'random-assignment evidence must be present without giving the answer away in the prompt');
   assert.ok(docs.some((doc) => doc.taskType === 'errorAnalysis'));
   assert.ok(docs.every((doc) => doc.representation !== 'table' || doc.stimulus?.table?.rows?.length));
 });
