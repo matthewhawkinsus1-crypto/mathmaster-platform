@@ -136,6 +136,9 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
     : mode === 'exponentialFitPrediction'
       ? [exponentialA, exponentialBase].every((value) => parseNumericAnswer(value) != null)
       : false;
+  const studentModelReady = mode === 'quadraticFitPrediction' || mode === 'exponentialFitPrediction'
+    ? nonlinearModelReady
+    : linearModelReady;
 
   const check = () => {
     const results = {};
@@ -208,32 +211,40 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
             lines={showModelEntry && mode !== 'quadraticFitPrediction' && mode !== 'exponentialFitPrediction' && linearModelReady ? [{ m:Number(m), b:Number(b) }] : []}
             functions={(mode === 'quadraticFitPrediction' || mode === 'exponentialFitPrediction') && nonlinearModelReady ? [studentPredict] : []}
           />
-          {showModelEntry ? (mode === 'quadraticFitPrediction' ? (
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:10, marginTop:12 }}>
-              <Field label="a in y = ax² + bx + c"><input type="number" step="0.01" value={quadraticA} onChange={(e)=>{setQuadraticA(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
-              <Field label="b"><input type="number" step="0.01" value={quadraticB} onChange={(e)=>{setQuadraticB(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
-              <Field label="c"><input type="number" step="0.01" value={quadraticC} onChange={(e)=>{setQuadraticC(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
-            </div>
-          ) : mode === 'exponentialFitPrediction' ? (
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:12 }}>
-              <Field label="a in y = a(b)^x"><input type="number" step="0.01" value={exponentialA} onChange={(e)=>{setExponentialA(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
-              <Field label="Base b"><input type="number" step="0.001" value={exponentialBase} onChange={(e)=>{setExponentialBase(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
-            </div>
+          {showModelEntry ? (
+            <>
+              {mode === 'quadraticFitPrediction' ? (
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:10, marginTop:12 }}>
+                  <Field label="a in y = ax² + bx + c"><input type="number" step="0.01" value={quadraticA} onChange={(e)=>{setQuadraticA(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
+                  <Field label="b"><input type="number" step="0.01" value={quadraticB} onChange={(e)=>{setQuadraticB(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
+                  <Field label="c"><input type="number" step="0.01" value={quadraticC} onChange={(e)=>{setQuadraticC(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
+                </div>
+              ) : mode === 'exponentialFitPrediction' ? (
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:12 }}>
+                  <Field label="a in y = a(b)^x"><input type="number" step="0.01" value={exponentialA} onChange={(e)=>{setExponentialA(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
+                  <Field label="Base b"><input type="number" step="0.001" value={exponentialBase} onChange={(e)=>{setExponentialBase(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
+                </div>
+              ) : (
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:12 }}>
+                  <Field label="Slope m"><input type="number" step="0.1" value={m} onChange={(e)=>{setM(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
+                  <Field label="Intercept b"><input type="number" step="0.1" value={b} onChange={(e)=>{setB(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
+                </div>
+              )}
+              {studentModelReady ? (
+                <div style={{ marginTop:12, borderRadius:10, padding:11, background:'#f3f7ff', color:'#344563' }}>
+                  <strong>Your model:</strong>{' '}
+                  {mode === 'quadraticFitPrediction'
+                    ? <>y = {quadraticA}x² {Number(quadraticB) >= 0 ? '+' : '−'} {Math.abs(Number(quadraticB))}x {Number(quadraticC) >= 0 ? '+' : '−'} {Math.abs(Number(quadraticC))}</>
+                    : mode === 'exponentialFitPrediction'
+                      ? <>y = {exponentialA}({exponentialBase})^x</>
+                      : <>y = {m}x {Number(b) >= 0 ? '+' : '−'} {Math.abs(Number(b))}</>}
+                  <br/><span style={{ fontSize:13 }}>Current MAE: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'} · RMSE: {Number.isFinite(studentMetrics.rmse) ? round(studentMetrics.rmse, 2) : '—'}</span>
+                </div>
+              ) : (
+                <p style={{margin:'10px 0 0',fontSize:13,color:'#5f6b7a'}}>Enter every coefficient from your regression result to draw and evaluate your model.</p>
+              )}
+            </>
           ) : (
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:12 }}>
-              <Field label="Slope m"><input type="number" step="0.1" value={m} onChange={(e)=>{setM(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
-              <Field label="Intercept b"><input type="number" step="0.1" value={b} onChange={(e)=>{setB(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
-            </div>
-          )}
-          <div style={{ marginTop:12, borderRadius:10, padding:11, background:'#f3f7ff', color:'#344563' }}>
-            <strong>Your model:</strong>{' '}
-            {mode === 'quadraticFitPrediction'
-              ? <>y = {quadraticA}x² {Number(quadraticB) >= 0 ? '+' : '−'} {Math.abs(Number(quadraticB))}x {Number(quadraticC) >= 0 ? '+' : '−'} {Math.abs(Number(quadraticC))}</>
-              : mode === 'exponentialFitPrediction'
-                ? <>y = {exponentialA}({exponentialBase})^x</>
-                : <>y = {m}x {Number(b) >= 0 ? '+' : '−'} {Math.abs(Number(b))}</>}
-            <br/><span style={{ fontSize:13 }}>Current MAE: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'} · RMSE: {Number.isFinite(studentMetrics.rmse) ? round(studentMetrics.rmse, 2) : '—'}</span>
-          </div>) : (
             <p style={{margin:'12px 0 0',fontSize:13,color:'#5f6b7a'}}>Use the scatter plot and data values for the task. No fitted model is preloaded.</p>
           )}
         </Panel>
@@ -279,14 +290,20 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
         </Panel> : null}
 
         {showResidualPanel ? <Panel title="3 · Residual evidence">
-          <ResidualPlot rows={studentResiduals} xMin={xMin} xMax={xMax} />
-          <div style={{ maxHeight:185, overflow:'auto', border:'1px solid #e5e7eb', borderRadius:8, marginTop:10 }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
-              <thead><tr style={{ background:'#f7f9fc' }}><th style={{padding:6}}>x</th><th>y</th><th>ŷ</th><th>residual</th></tr></thead>
-              <tbody>{studentResiduals.map((row, index)=><tr key={`${row.x}-${index}`}><td style={{padding:6,textAlign:'center'}}>{row.x}</td><td style={{textAlign:'center'}}>{row.y}</td><td style={{textAlign:'center'}}>{round(row.predicted,2)}</td><td style={{textAlign:'center'}}>{round(row.residual,2)}</td></tr>)}</tbody>
-            </table>
-          </div>
-          <p style={{ color:'#5f6b7a', fontSize:13, marginBottom:0 }}>A good residual plot should look randomly scattered around 0 rather than forming a clear curve or pattern.</p>
+          {studentModelReady ? (
+            <>
+              <ResidualPlot rows={studentResiduals} xMin={xMin} xMax={xMax} />
+              <div style={{ maxHeight:185, overflow:'auto', border:'1px solid #e5e7eb', borderRadius:8, marginTop:10 }}>
+                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                  <thead><tr style={{ background:'#f7f9fc' }}><th style={{padding:6}}>x</th><th>y</th><th>ŷ</th><th>residual</th></tr></thead>
+                  <tbody>{studentResiduals.map((row, index)=><tr key={`${row.x}-${index}`}><td style={{padding:6,textAlign:'center'}}>{row.x}</td><td style={{textAlign:'center'}}>{row.y}</td><td style={{textAlign:'center'}}>{round(row.predicted,2)}</td><td style={{textAlign:'center'}}>{round(row.residual,2)}</td></tr>)}</tbody>
+                </table>
+              </div>
+              <p style={{ color:'#5f6b7a', fontSize:13, marginBottom:0 }}>A good residual plot should look randomly scattered around 0 rather than forming a clear curve or pattern.</p>
+            </>
+          ) : (
+            <p style={{margin:0,color:'#5f6b7a'}}>Enter the complete fitted function first. Residual evidence will appear after your model can be evaluated.</p>
+          )}
         </Panel> : null}
 
         {showModelComparePanel ? <Panel title="4 · Compare model families">
