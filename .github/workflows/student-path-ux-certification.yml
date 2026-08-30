@@ -15,6 +15,7 @@ on:
       - src/components/student/MyMathPathWheel.jsx
       - src/components/student/SkillDetailCardModal.jsx
       - src/components/student/PathSessionPlayer.jsx
+      - src/components/student/MyMathPathProductionContainer.jsx
       - src/components/student/WeeklyPathGoalPanel.jsx
       - src/components/common/StandardBadge.jsx
       - src/platform/path/pathPassPresentation.js
