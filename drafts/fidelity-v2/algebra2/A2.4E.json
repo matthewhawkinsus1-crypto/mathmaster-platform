@@ -23,7 +23,7 @@
       "taskType": "procedural",
       "type": "dataModelingLab",
       "mode": "quadraticFitPrediction",
-      "prompt": "Use quadratic regression technology on the full five-row table to formulate the model $y=ax^2+bx+c$. Enter all three regression coefficients, then use that fitted model to predict y when $x={{predictionX}}$.",
+      "prompt": "Use quadratic regression technology on the full five-row table to formulate the model $y=ax^2+bx+c$. Enter all three regression coefficients, then use that fitted model to predict y when $x=3$.",
       "points": [
         [
           -2,
@@ -217,7 +217,7 @@
       "taskType": "procedural",
       "type": "dataModelingLab",
       "mode": "squareRootFitPrediction",
-      "prompt": "Use the square-root regression technology on the complete five-row table to formulate $y=a\\sqrt{x-h}+k$. Enter a, h, and k from the technology fit, then predict y at $x={{predictionX}}$.",
+      "prompt": "Use the square-root regression technology on the complete five-row table to formulate $y=a\\sqrt{x-h}+k$. Enter a, h, and k from the technology fit, then predict y at $x={{x25}}$.",
       "points": [
         [
           "{{h}}",
@@ -315,7 +315,7 @@
       "taskType": "modeling",
       "type": "dataModelingLab",
       "mode": "squareRootFitPrediction",
-      "prompt": "A sensor response follows a square-root pattern. Use the regression technology on all five observations to formulate $y=a\\sqrt{x-h}+k$, then interpolate the response at $x={{predictionX}}$.",
+      "prompt": "A sensor response follows a square-root pattern. Use the regression technology on all five observations to formulate $y=a\\sqrt{x-h}+k$, then interpolate the response at $x={{x625}}$.",
       "points": [
         [
           "{{h}}",
