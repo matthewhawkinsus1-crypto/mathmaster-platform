@@ -345,7 +345,7 @@
                   "label": "No"
                 }
               ],
-              "expected": "{{reflection}}"
+              "expected": "yes"
             },
             {
               "id": "horizontal-shift",
@@ -377,7 +377,7 @@
             "reasoning": [
               "The vertex gives h={{h}} and k={{k}}.",
               "At x={{x1}}=h+1, the squared factor is 1, so y-k=a and therefore a={{a}}.",
-              "The sign of a determines reflection, and the complete model reproduces y={{y1}} at the supplied point."
+              "Because a is negative, the parent parabola was reflected across the x-axis. The complete model reproduces y={{y1}} at the supplied point."
             ],
             "answerSummary": "$y={{a}}(x-({{h}}))^2+({{k}})$"
           },
@@ -404,17 +404,13 @@
                 "values": [
                   -4,
                   -3,
-                  -2,
-                  2,
-                  3,
-                  4
+                  -2
                 ]
               }
             },
             "derived": {
               "x1": "h+1",
-              "y1": "a+k",
-              "reflection": "a<0?'yes':'no'"
+              "y1": "a+k"
             }
           }
         }
