@@ -599,7 +599,7 @@ Do **not** re-audit A2.6C unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.6D — ENHANCE — AUDITED / CAPABILITY WORK
+### A2.6D — ENHANCE — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Formulate absolute value linear equations.**
 
@@ -634,7 +634,14 @@ Resume here. Do not reopen A2.2A–A2.6C unless a failing gate names them.
 - Routed private fields through `equivalence: "absoluteLinearRelation"` without changing default equation grading — commit `8aa1d34a0e51d556c9bd27661f6c09e84e0e0bfe`.
 - Added regression tests for sign reversal, scaled equivalents, side reversal, and wrong-model rejection — commit `226aa126e59ac79240963078ec50395c7f54cfda`.
 - Added the new gate to the dedicated Algebra II workflow — commit `9a3f8cc7d8173f227a7f9e889f1e0e0fdf361679`.
-- A2.6D remains FIRST UNFINISHED until this answer-equivalence capability is green and the five formulation families are staged/certified.
+- Answer-equivalence capability run `33326247865`: **PASS**, including student/runtime build.
+- Staged five A2.6D Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6D.json` — commit `d5626dd38ab7f32db6e6d9c47d6c21ea0daac4cc`.
+- Coverage now includes direct distance modeling, reverse midpoint/pair formulation, nontrivial linear-inside context, scaled-equation formulation from a table, and complete missing-absolute-value error repair.
+- Every family requires an authored equation and opts into `absoluteLinearRelation`; A2.6D does not drift into solving.
+- Added A2.6D generated certification — commit `3212f8c7200ff2154174787aa2e15ef7f50a5a74`.
+- The gate samples 200+ generated instances, checks production issuability and secure self-grading, requires repeated $|mx+b|=d$ formulation, accepts equivalent side-reversed models, rejects wrong-distance models, requires context/reverse/error breadth, and checks public key stripping.
+- Full A2.6D assertion run `33326321807`: **QUEUED/RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.6D** until that run is green.
 
 
 ### 2026-08-30 — A2.6C audit finding
