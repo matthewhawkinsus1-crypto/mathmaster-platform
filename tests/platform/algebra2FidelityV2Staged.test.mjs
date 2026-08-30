@@ -3900,7 +3900,7 @@ test('A2.6H formulates real-world rational equations through student-authored mo
       `${doc.id} drifted into A2.6I solving instead of A2.6H formulation`,
     );
 
-    if (doc.id.includes('work')) workFamilies += 1;
+    if (doc.id.includes('work') || doc.id.includes('opposing-rates')) workFamilies += 1;
     if (doc.id.includes('average-speed')) speedFamilies += 1;
     if (doc.id.includes('current')) currentFamilies += 1;
     if (doc.id.includes('dilution')) concentrationFamilies += 1;
