@@ -24,18 +24,110 @@ async function pathGeneration() {
 }
 
 /**
+ * Give public multiple-choice options instance-specific opaque ids.
+ *
+ * Choice ids are presentation plumbing, not mathematics. Several older course
+ * banks used ids such as "correct", "right", or a universal "opt-1" for the
+ * answer key. The sanitizer has to send choice ids to the browser so the
+ * student's selection can come back, which made those authoring conventions an
+ * answer-key side channel even though the option ORDER was shuffled.
+ *
+ * Remap after generation/shuffling but before the issue plan is built. The
+ * expected/accepted private key is remapped with the same table, so grading is
+ * unchanged. The seed makes the ids stable when Live Challenge or Secure Exam
+ * regenerates the same concrete question server-side.
+ */
+function protectIssuedChoiceIds(question, seedKey = '') {
+  if (!question || typeof question !== 'object') return question;
+
+  const identity = String(question.id || question.familyId || question.assessedConstruct || 'path-question');
+  const remapChoiceList = (choices, scope, preferredAliases = null) => {
+    const source = Array.isArray(choices) ? choices : [];
+    const aliases = new Map();
+    const protectedChoices = source.map((choice, index) => {
+      const objectChoice = choice && typeof choice === 'object';
+      const originalId = String(
+        objectChoice
+          ? (choice.id ?? choice.value ?? `choice-${index + 1}`)
+          : choice,
+      );
+      const originalValue = objectChoice && choice.value != null ? String(choice.value) : null;
+      const protectedId = preferredAliases?.get(originalId)
+        || (originalValue ? preferredAliases?.get(originalValue) : null)
+        || opaqueId('choice', seedKey, identity, scope, index, originalId);
+
+      aliases.set(originalId, protectedId);
+      if (objectChoice && choice.id != null) aliases.set(String(choice.id), protectedId);
+      if (originalValue != null) aliases.set(originalValue, protectedId);
+
+      return objectChoice
+        ? { ...choice, id: protectedId }
+        : { id: protectedId, label: String(choice) };
+    });
+    return { choices: protectedChoices, aliases };
+  };
+
+  const topLevel = remapChoiceList(question.choices, 'question');
+  const responseFields = (Array.isArray(question.responseFields) ? question.responseFields : [])
+    .map((field, index) => {
+      const local = Array.isArray(field?.choices)
+        ? remapChoiceList(
+          field.choices,
+          `field:${field?.id || index + 1}`,
+          topLevel.aliases.size ? topLevel.aliases : null,
+        )
+        : null;
+      const maps = [local?.aliases, topLevel.aliases].filter(Boolean);
+      const mapAnswer = (value) => {
+        if (value === undefined || value === null) return value;
+        const key = String(value);
+        for (const map of maps) {
+          if (map.has(key)) return map.get(key);
+        }
+        return value;
+      };
+      const isChoice = String(field?.inputProfile || '') === 'choice';
+      return {
+        ...field,
+        ...(local ? { choices: local.choices } : {}),
+        ...(isChoice && field?.expected !== undefined ? { expected: mapAnswer(field.expected) } : {}),
+        ...(isChoice && Array.isArray(field?.accepted)
+          ? { accepted: field.accepted.map(mapAnswer) }
+          : {}),
+      };
+    });
+
+  return {
+    ...question,
+    ...(topLevel.choices.length ? { choices: topLevel.choices } : {}),
+    responseFields,
+  };
+}
+
+/**
  * The question a student is actually given, from the family that was selected.
  *
  * A template becomes one concrete question here, deterministically from the
  * seed, and the concrete question is what gets stored on the session and
- * graded. A question with no generator is returned unchanged, which is every
- * question in the bank today — this is additive, and nothing that works now
- * changes shape.
+ * graded. Choice ids are protected at this same boundary so every public
+ * consumer — My Path, Live Challenge and Secure Exam — receives the same safe
+ * concrete instance.
  */
 async function instantiateQuestion(question, seedKey) {
   const generation = await pathGeneration();
-  if (!generation.hasPathGenerator(question)) return { question, parameters: null, reason: null };
-  return generation.generatePathInstanceWithRetries(question, seedKey);
+  if (!generation.hasPathGenerator(question)) {
+    return {
+      question: protectIssuedChoiceIds(question, seedKey),
+      parameters: null,
+      reason: null,
+    };
+  }
+  const generated = generation.generatePathInstanceWithRetries(question, seedKey);
+  if (!generated?.question) return generated;
+  return {
+    ...generated,
+    question: protectIssuedChoiceIds(generated.question, seedKey),
+  };
 }
 
 /**
@@ -573,6 +665,7 @@ module.exports = {
   attemptSupport,
   buildPrivateSupport,
   pathSolutionSupport,
+  protectIssuedChoiceIds,
   buildIssuePlan,
   buildTemplateIssuePlan,
   instantiateQuestion,
