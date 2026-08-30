@@ -6762,6 +6762,1020 @@
     "sourceFamilyId": "mathmaster:asvab:ar:6.12C:average-pulled-by-one-large-load",
     "sourcePrompt": "Five loads were logged as shown and {{logged}} was entered as the average. What is the average really?"
    }
+  },
+  {
+   "id": "mm_asvab_ar_6_3B_run_scaled_up_then_back",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.3B:run-scaled-up-then-back",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A run of {{total}} {{item}} was raised to {{a}} for every {{b}}, then cut to {{c}} of every {{d}}. How many are there now?",
+   "solutionReview": {
+    "headline": "The second scaling applies to the raised run.",
+    "reasoning": [
+     "Raising {{total}} to {{a}} for every {{b}} gives {{raised}}.",
+     "Cutting that to {{c}} of every {{d}} leaves {{answer}}."
+    ],
+    "answerSummary": "There are ${{answer}}$ now."
+   },
+   "attemptFeedback": [
+    "Cutting the original run skips the increase entirely."
+   ],
+   "supportHints": [
+    "The cut is taken from the run after it was raised, not from the original."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "base": {
+      "type": "int",
+      "min": 4,
+      "max": 20
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     },
+     "up": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "c": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "dGap": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "planned": {
+      "type": "int",
+      "min": 20,
+      "max": 250
+     }
+    },
+    "derived": {
+     "a": "b+up",
+     "d": "c+dGap",
+     "total": "base*b*d",
+     "raised": "total*a/b",
+     "answer": "raised*c/d",
+     "d_forgotFinalStep": "raised",
+     "d_operationInverted": "total*c/d",
+     "d_usedGivenValue": "planned"
+    },
+    "constraints": [
+     "planned!=answer",
+     "total*c/d!=answer",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.3B:run-scaled-up-then-back",
+    "sourcePrompt": "A run of {{total}} {{item}} was raised to {{a}} for every {{b}}, then cut to {{c}} of every {{d}}. How many are there now?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_3B_original_run_behind_a_cut",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.3B:original-run-behind-a-cut",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3B",
+   "taskType": "reverseReasoning",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A run was cut to {{num}} of every {{den}}, leaving {{after}} {{item}}. The sheet listed {{listed}}. How many were in the original run?",
+   "solutionReview": {
+    "headline": "Find one share before rebuilding the whole.",
+    "reasoning": [
+     "{{after}} is {{num}} of every {{den}}, so one share of the run is {{unit}}.",
+     "The whole run was {{den}} shares, or {{answer}}."
+    ],
+    "answerSummary": "The run held ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Multiplying the remainder by the whole denominator counts each share too often."
+   ],
+   "supportHints": [
+    "The count left over covers only part of the original shares."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "unit": {
+      "type": "int",
+      "min": 6,
+      "max": 30
+     },
+     "num": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     },
+     "gap": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "listed": {
+      "type": "int",
+      "min": 25,
+      "max": 170
+     }
+    },
+    "derived": {
+     "den": "num+gap",
+     "answer": "unit*den",
+     "after": "unit*num",
+     "d_forgotFinalStep": "after",
+     "d_operationInverted": "after*den",
+     "d_usedGivenValue": "listed"
+    },
+    "constraints": [
+     "listed!=answer",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.3B:original-run-behind-a-cut",
+    "sourcePrompt": "A run was cut to {{num}} of every {{den}}, leaving {{after}} {{item}}. The sheet listed {{listed}}. How many were in the original run?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_3B_scaling_row_that_does_not_hold",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.3B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.3B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.3B:scaling-row-that-does-not-hold",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.3B",
+   "taskType": "errorAnalysis",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Every run below was scaled by the same fraction, except one. What should that run have finished at?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Before",
+     "After"
+    ],
+    "rows": [
+     [
+      "{{b1}}",
+      "{{a1}}"
+     ],
+     [
+      "{{b2}}",
+      "{{a2}}"
+     ],
+     [
+      "{{b3}}",
+      "{{aBad}}"
+     ],
+     [
+      "{{b4}}",
+      "{{a4}}"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "Recover the fraction from the runs that agree.",
+    "reasoning": [
+     "The runs that agree keep {{num}} of every {{den}}.",
+     "{{b3}} should finish at {{answer}}, not {{aBad}}."
+    ],
+    "answerSummary": "It should read ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The figure recorded for that run is the error, not the correction."
+   ],
+   "supportHints": [
+    "Three runs share one scaling. Use them to test the fourth."
+   ],
+   "generator": {
+    "parameters": {
+     "num": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     },
+     "gap": {
+      "type": "int",
+      "min": 1,
+      "max": 3
+     },
+     "u1": {
+      "type": "int",
+      "min": 3,
+      "max": 8
+     },
+     "u3": {
+      "type": "int",
+      "min": 11,
+      "max": 20
+     },
+     "off": {
+      "type": "int",
+      "min": 4,
+      "max": 26
+     },
+     "sheet": {
+      "type": "int",
+      "min": 20,
+      "max": 74
+     }
+    },
+    "derived": {
+     "den": "num+gap",
+     "u2": "u1+2",
+     "u4": "u1+4",
+     "b1": "u1*den",
+     "a1": "u1*num",
+     "b2": "u2*den",
+     "a2": "u2*num",
+     "b3": "u3*den",
+     "answer": "u3*num",
+     "aBad": "answer+off",
+     "b4": "u4*den",
+     "a4": "u4*num",
+     "d_forgotFinalStep": "aBad",
+     "d_offByOneStep": "a2",
+     "d_usedGivenValue": "sheet"
+    },
+    "constraints": [
+     "off!=num",
+     "sheet!=answer",
+     "aBad!=a4",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_offByOneStep",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_offByOneStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.3B:scaling-row-that-does-not-hold",
+    "sourcePrompt": "Every run below was scaled by the same fraction, except one. What should that run have finished at?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_14C_closing_balance_after_a_fee",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.14C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.14C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.14C:closing-balance-after-a-fee",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.14C",
+   "taskType": "application",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A register opened at $${{start}}$ and recorded the entries shown, then a $${{fee}}$ service charge. What is the closing balance?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Entry",
+     "Amount"
+    ],
+    "rows": [
+     [
+      "Deposit",
+      "$${{dep}}$"
+     ],
+     [
+      "Withdrawal",
+      "$${{wd}}$"
+     ],
+     [
+      "Deposit",
+      "$${{dep2}}$"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "Deposits add, withdrawals and charges take away.",
+    "reasoning": [
+     "The two deposits add $${{dep}}$ and $${{dep2}}$; the withdrawal takes $${{wd}}$.",
+     "After the $${{fee}}$ charge the balance is $${{answer}}$."
+    ],
+    "answerSummary": "It closes at $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Adding the withdrawal moves the balance the wrong way."
+   ],
+   "supportHints": [
+    "A service charge leaves the account like a withdrawal."
+   ],
+   "generator": {
+    "parameters": {
+     "start": {
+      "type": "int",
+      "min": 120,
+      "max": 600,
+      "step": 10
+     },
+     "dep": {
+      "type": "int",
+      "min": 40,
+      "max": 200,
+      "step": 10
+     },
+     "dep2": {
+      "type": "int",
+      "min": 30,
+      "max": 180,
+      "step": 10
+     },
+     "wd": {
+      "type": "int",
+      "min": 50,
+      "max": 250,
+      "step": 10
+     },
+     "fee": {
+      "type": "int",
+      "min": 5,
+      "max": 30,
+      "step": 5
+     },
+     "statement": {
+      "type": "int",
+      "min": 100,
+      "max": 800,
+      "step": 10
+     }
+    },
+    "derived": {
+     "answer": "start+dep+dep2-wd-fee",
+     "d_operationInverted": "start+dep+dep2+wd-fee",
+     "d_forgotFinalStep": "start+dep+dep2-wd-fee-fee",
+     "d_usedGivenValue": "statement"
+    },
+    "constraints": [
+     "start+dep+dep2-wd-fee>0",
+     "statement!=answer",
+     "answer!=d_operationInverted",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_forgotFinalStep",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.14C:closing-balance-after-a-fee",
+    "sourcePrompt": "A register opened at $${{start}}$ and recorded the entries shown, then a $${{fee}}$ service charge. What is the closing balance?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_14C_entry_that_is_missing",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.14C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.14C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.14C:entry-that-is-missing",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.14C",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A register opened at $${{start}}$, took a $${{dep}}$ deposit and one withdrawal, and closed at $${{close}}$. What was the withdrawal?",
+   "solutionReview": {
+    "headline": "Add the deposit before working out what left.",
+    "reasoning": [
+     "After the deposit the register held $${{start}}$+$${{dep}}$.",
+     "Closing at $${{close}}$ means $${{answer}}$ went out."
+    ],
+    "answerSummary": "The withdrawal was $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Comparing the opening and closing balances ignores the deposit."
+   ],
+   "supportHints": [
+    "The deposit went in before the withdrawal came out."
+   ],
+   "generator": {
+    "parameters": {
+     "start": {
+      "type": "int",
+      "min": 150,
+      "max": 700,
+      "step": 10
+     },
+     "dep": {
+      "type": "int",
+      "min": 40,
+      "max": 220,
+      "step": 10
+     },
+     "wd": {
+      "type": "int",
+      "min": 60,
+      "max": 400,
+      "step": 10
+     },
+     "noted": {
+      "type": "int",
+      "min": 50,
+      "max": 420,
+      "step": 10
+     }
+    },
+    "derived": {
+     "close": "start+dep-wd",
+     "answer": "wd",
+     "d_operationInverted": "start+dep+close",
+     "d_forgotFinalStep": "abs(start-close)",
+     "d_usedGivenValue": "noted"
+    },
+    "constraints": [
+     "start+dep-wd>0",
+     "noted!=answer",
+     "abs(start-close)!=wd",
+     "answer!=d_operationInverted",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_forgotFinalStep",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.14C:entry-that-is-missing",
+    "sourcePrompt": "A register opened at $${{start}}$, took a $${{dep}}$ deposit and one withdrawal, and closed at $${{close}}$. What was the withdrawal?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_14C_largest_withdrawal_that_clears",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.14C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.14C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.14C:largest-withdrawal-that-clears",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.14C",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A register holds $${{start}}$ with $${{pending}}$ of payments still to clear. The account must keep $${{floor}}$. What is the largest whole withdrawal?",
+   "solutionReview": {
+    "headline": "Payments not yet cleared are already committed.",
+    "reasoning": [
+     "The $${{pending}}$ still to clear and the $${{floor}}$ that must stay are both spoken for.",
+     "That leaves $${{answer}}$ available."
+    ],
+    "answerSummary": "The largest withdrawal is $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Leaving only the minimum forgets the payments still to clear."
+   ],
+   "supportHints": [
+    "Two amounts in the account are not available to withdraw."
+   ],
+   "generator": {
+    "parameters": {
+     "floor": {
+      "type": "int",
+      "min": 25,
+      "max": 100,
+      "step": 25
+     },
+     "pending": {
+      "type": "int",
+      "min": 40,
+      "max": 260,
+      "step": 10
+     },
+     "room": {
+      "type": "int",
+      "min": 30,
+      "max": 380,
+      "step": 10
+     },
+     "offered": {
+      "type": "int",
+      "min": 30,
+      "max": 420,
+      "step": 10
+     }
+    },
+    "derived": {
+     "start": "floor+pending+room",
+     "answer": "room",
+     "d_percentNotApplied": "start-floor",
+     "d_forgotFinalStep": "start-pending-floor-floor",
+     "d_usedGivenValue": "offered"
+    },
+    "constraints": [
+     "start-pending-floor-floor>0",
+     "offered!=answer",
+     "answer!=d_percentNotApplied",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_percentNotApplied!=d_forgotFinalStep",
+     "d_percentNotApplied!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.14C:largest-withdrawal-that-clears",
+    "sourcePrompt": "A register holds $${{start}}$ with $${{pending}}$ of payments still to clear. The account must keep $${{floor}}$. What is the largest whole withdrawal?"
+   }
   }
  ]
 }

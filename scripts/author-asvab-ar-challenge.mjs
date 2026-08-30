@@ -1497,6 +1497,226 @@ arc('6.12C', 'average-pulled-by-one-large-load', {
   feedback: 'The middle of the five loads is not what they average.',
 });
 
+// ================================================================ 6.3B
+// Scaling by fractions.
+
+arc('6.3B', 'run-scaled-up-then-back', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A run of {{total}} {{item}} was raised to {{a}} for every {{b}}, then cut to {{c}} of every {{d}}. How many are there now?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      base: { type: 'int', min: 4, max: 20 },
+      b: { type: 'int', min: 2, max: 4 },
+      up: { type: 'int', min: 1, max: 3 },
+      c: { type: 'int', min: 1, max: 3 },
+      dGap: { type: 'int', min: 1, max: 3 },
+      planned: { type: 'int', min: 20, max: 250 },
+    },
+    derived: {
+      a: 'b+up',
+      d: 'c+dGap',
+      total: 'base*b*d',
+      raised: 'total*a/b',
+      answer: 'raised*c/d',
+      d_forgotFinalStep: 'raised',
+      d_operationInverted: 'total*c/d',
+      d_usedGivenValue: 'planned',
+    },
+    constraints: ['planned!=answer', 'total*c/d!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Raising {{total}} to {{a}} for every {{b}} gives {{raised}}.', 'Cutting that to {{c}} of every {{d}} leaves {{answer}}.'],
+  answerSummary: { headline: 'The second scaling applies to the raised run.', text: 'There are ${{answer}}$ now.' },
+  hint: 'The cut is taken from the run after it was raised, not from the original.',
+  feedback: 'Cutting the original run skips the increase entirely.',
+});
+
+arc('6.3B', 'original-run-behind-a-cut', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: 'A run was cut to {{num}} of every {{den}}, leaving {{after}} {{item}}. The sheet listed {{listed}}. How many were in the original run?',
+  generator: {
+    parameters: {
+      item: GOODS,
+      unit: { type: 'int', min: 6, max: 30 },
+      num: { type: 'int', min: 2, max: 4 },
+      gap: { type: 'int', min: 1, max: 3 },
+      listed: { type: 'int', min: 25, max: 170 },
+    },
+    derived: {
+      den: 'num+gap',
+      answer: 'unit*den',
+      after: 'unit*num',
+      d_forgotFinalStep: 'after',
+      d_operationInverted: 'after*den',
+      d_usedGivenValue: 'listed',
+    },
+    constraints: ['listed!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{after}} is {{num}} of every {{den}}, so one share of the run is {{unit}}.', 'The whole run was {{den}} shares, or {{answer}}.'],
+  answerSummary: { headline: 'Find one share before rebuilding the whole.', text: 'The run held ${{answer}}$.' },
+  hint: 'The count left over covers only part of the original shares.',
+  feedback: 'Multiplying the remainder by the whole denominator counts each share too often.',
+});
+
+arc('6.3B', 'scaling-row-that-does-not-hold', {
+  difficultyBand: 5, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'Every run below was scaled by the same fraction, except one. What should that run have finished at?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Before', 'After'],
+    rows: [['{{b1}}', '{{a1}}'], ['{{b2}}', '{{a2}}'], ['{{b3}}', '{{aBad}}'], ['{{b4}}', '{{a4}}']],
+  },
+  generator: {
+    parameters: {
+      num: { type: 'int', min: 2, max: 4 },
+      gap: { type: 'int', min: 1, max: 3 },
+      u1: { type: 'int', min: 3, max: 8 },
+      u3: { type: 'int', min: 11, max: 20 },
+      off: { type: 'int', min: 4, max: 26 },
+      sheet: { type: 'int', min: 20, max: 74 },
+    },
+    derived: {
+      den: 'num+gap',
+      u2: 'u1+2',
+      u4: 'u1+4',
+      b1: 'u1*den', a1: 'u1*num',
+      b2: 'u2*den', a2: 'u2*num',
+      b3: 'u3*den',
+      answer: 'u3*num',
+      aBad: 'answer+off',
+      b4: 'u4*den', a4: 'u4*num',
+      d_forgotFinalStep: 'aBad',
+      d_offByOneStep: 'a2',
+      d_usedGivenValue: 'sheet',
+    },
+    constraints: ['off!=num', 'sheet!=answer', 'aBad!=a4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The runs that agree keep {{num}} of every {{den}}.', '{{b3}} should finish at {{answer}}, not {{aBad}}.'],
+  answerSummary: { headline: 'Recover the fraction from the runs that agree.', text: 'It should read ${{answer}}$.' },
+  hint: 'Three runs share one scaling. Use them to test the fourth.',
+  feedback: 'The figure recorded for that run is the error, not the correction.',
+});
+
+// ================================================================ 6.14C
+// Running a financial record.
+
+arc('6.14C', 'closing-balance-after-a-fee', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'table',
+  prompt: 'A register opened at $\$\{{start}}$ and recorded the entries shown, then a $\$\{{fee}}$ service charge. What is the closing balance?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Entry', 'Amount'],
+    rows: [['Deposit', '$\$\{{dep}}$'], ['Withdrawal', '$\$\{{wd}}$'], ['Deposit', '$\$\{{dep2}}$']],
+  },
+  generator: {
+    parameters: {
+      start: { type: 'int', min: 120, max: 600, step: 10 },
+      dep: { type: 'int', min: 40, max: 200, step: 10 },
+      dep2: { type: 'int', min: 30, max: 180, step: 10 },
+      wd: { type: 'int', min: 50, max: 250, step: 10 },
+      fee: { type: 'int', min: 5, max: 30, step: 5 },
+      statement: { type: 'int', min: 100, max: 800, step: 10 },
+    },
+    derived: {
+      answer: 'start+dep+dep2-wd-fee',
+      d_operationInverted: 'start+dep+dep2+wd-fee',
+      d_forgotFinalStep: 'start+dep+dep2-wd-fee-fee',
+      d_usedGivenValue: 'statement',
+    },
+    constraints: ['start+dep+dep2-wd-fee>0', 'statement!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The two deposits add $\$\{{dep}}$ and $\$\{{dep2}}$; the withdrawal takes $\$\{{wd}}$.', 'After the $\$\{{fee}}$ charge the balance is $\$\{{answer}}$.'],
+  answerSummary: { headline: 'Deposits add, withdrawals and charges take away.', text: 'It closes at $\$\{{answer}}$.' },
+  hint: 'A service charge leaves the account like a withdrawal.',
+  feedback: 'Adding the withdrawal moves the balance the wrong way.',
+});
+
+arc('6.14C', 'entry-that-is-missing', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A register opened at $\$\{{start}}$, took a $\$\{{dep}}$ deposit and one withdrawal, and closed at $\$\{{close}}$. What was the withdrawal?',
+  generator: {
+    parameters: {
+      start: { type: 'int', min: 150, max: 700, step: 10 },
+      dep: { type: 'int', min: 40, max: 220, step: 10 },
+      wd: { type: 'int', min: 60, max: 400, step: 10 },
+      noted: { type: 'int', min: 50, max: 420, step: 10 },
+    },
+    derived: {
+      close: 'start+dep-wd',
+      answer: 'wd',
+      d_operationInverted: 'start+dep+close',
+      d_forgotFinalStep: 'abs(start-close)',
+      d_usedGivenValue: 'noted',
+    },
+    constraints: ['start+dep-wd>0', 'noted!=answer', 'abs(start-close)!=wd'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['After the deposit the register held $\$\{{start}}$+$\$\{{dep}}$.', 'Closing at $\$\{{close}}$ means $\$\{{answer}}$ went out.'],
+  answerSummary: { headline: 'Add the deposit before working out what left.', text: 'The withdrawal was $\$\{{answer}}$.' },
+  hint: 'The deposit went in before the withdrawal came out.',
+  feedback: 'Comparing the opening and closing balances ignores the deposit.',
+});
+
+arc('6.14C', 'largest-withdrawal-that-clears', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'context',
+  prompt: 'A register holds $\$\{{start}}$ with $\$\{{pending}}$ of payments still to clear. The account must keep $\$\{{floor}}$. What is the largest whole withdrawal?',
+  generator: {
+    parameters: {
+      floor: { type: 'int', min: 25, max: 100, step: 25 },
+      pending: { type: 'int', min: 40, max: 260, step: 10 },
+      room: { type: 'int', min: 30, max: 380, step: 10 },
+      offered: { type: 'int', min: 30, max: 420, step: 10 },
+    },
+    derived: {
+      start: 'floor+pending+room',
+      answer: 'room',
+      d_percentNotApplied: 'start-floor',
+      d_forgotFinalStep: 'start-pending-floor-floor',
+      d_usedGivenValue: 'offered',
+    },
+    constraints: ['start-pending-floor-floor>0', 'offered!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The $\$\{{pending}}$ still to clear and the $\$\{{floor}}$ that must stay are both spoken for.', 'That leaves $\$\{{answer}}$ available.'],
+  answerSummary: { headline: 'Payments not yet cleared are already committed.', text: 'The largest withdrawal is $\$\{{answer}}$.' },
+  hint: 'Two amounts in the account are not available to withdraw.',
+  feedback: 'Leaving only the minimum forgets the payments still to clear.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
