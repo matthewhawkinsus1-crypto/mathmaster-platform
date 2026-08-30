@@ -1,0 +1,408 @@
+{
+ "documents": [
+  {
+   "id": "mm_asvab_mk_6_2A_counting_multiples_inside_a_range",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.2A:counting-multiples-inside-a-range",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "How many multiples of ${{m}}$ lie strictly between $-{{a}}$ and ${{b}}$?",
+   "solutionReview": {
+    "headline": "Zero is a multiple of every number and sits inside the range.",
+    "reasoning": [
+     "The multiples run from $-{{a}}+{{m}}$ up to ${{b}}-{{m}}$, and zero is one of them.",
+     "That is ${{ka}}+{{kb}}-1={{answer}}$ values."
+    ],
+    "answerSummary": "There are ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The range does not reach as far below zero as it does above, or the other way round."
+   ],
+   "supportHints": [
+    "Count the multiples on each side of zero, then zero itself."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "ka": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "kb": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "a": "m*ka",
+     "b": "m*kb",
+     "answer": "ka+kb-1",
+     "d_signError": "2*kb-1",
+     "d_partialTotal": "kb-1",
+     "d_wrongPercentBase": "a+b-1"
+    },
+    "constraints": [
+     "ka!=kb",
+     "kb>1",
+     "abs(ka-kb)>1",
+     "answer!=d_signError",
+     "answer!=d_partialTotal",
+     "answer!=d_wrongPercentBase",
+     "d_signError!=d_partialTotal",
+     "d_signError!=d_wrongPercentBase",
+     "d_partialTotal!=d_wrongPercentBase"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_wrongPercentBase}}$",
+     "error": "wrongPercentBase"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.2A:counting-multiples-inside-a-range",
+    "sourcePrompt": "How many multiples of ${{m}}$ lie strictly between $-{{a}}$ and ${{b}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_2A_number_behind_a_doubling",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.2A:number-behind-a-doubling",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Doubling a number and adding ${{b}}$ gives ${{result}}$. What is the number?",
+   "solutionReview": {
+    "headline": "Undo the addition before undoing the doubling.",
+    "reasoning": [
+     "Taking ${{b}}$ off ${{result}}$ leaves twice the number.",
+     "Halving that gives ${{answer}}$."
+    ],
+    "answerSummary": "The number is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Halving before removing the addition halves part of the wrong quantity."
+   ],
+   "supportHints": [
+    "The addition happened last, so it comes off first."
+   ],
+   "generator": {
+    "parameters": {
+     "x": {
+      "type": "int",
+      "min": 6,
+      "max": 40
+     },
+     "b": {
+      "type": "int",
+      "min": 8,
+      "max": 52
+     }
+    },
+    "derived": {
+     "result": "2*x+b",
+     "answer": "x",
+     "d_forgotFinalStep": "result-b",
+     "d_orderOfOperations": "round(result/2)-b",
+     "d_operationInverted": "result-2*b"
+    },
+    "constraints": [
+     "round(result/2)-b>0",
+     "result-2*b!=x",
+     "b>3",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_orderOfOperations",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_orderOfOperations",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_orderOfOperations!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_orderOfOperations}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.2A:number-behind-a-doubling",
+    "sourcePrompt": "Doubling a number and adding ${{b}}$ gives ${{result}}$. What is the number?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_2A_which_set_claim_holds",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.2A:which-set-claim-holds",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2A",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which statement is true of every rational number?",
+   "solutionReview": {
+    "headline": "Rational means expressible as a ratio of integers.",
+    "reasoning": [
+     "A rational number is by definition a ratio of two integers with a non-zero denominator.",
+     "The other statements each fail for a value such as $\\frac{1}{{{n}}}$."
+    ],
+    "answerSummary": "It is a ratio of two integers."
+   },
+   "attemptFeedback": [
+    "A non-repeating, non-terminating decimal is irrational, not rational."
+   ],
+   "supportHints": [
+    "Test each claim against a simple fraction."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "twice": "n*2"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "It is an integer whenever it is greater than zero.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "It can be written as a decimal that never repeats or ends.",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-c",
+     "label": "It can be written as one integer divided by a non-zero integer."
+    },
+    {
+     "id": "choice-d",
+     "label": "It becomes a whole number when multiplied by any integer.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.2A:which-set-claim-holds",
+    "sourcePrompt": "Which statement is true of every rational number?"
+   }
+  }
+ ]
+}

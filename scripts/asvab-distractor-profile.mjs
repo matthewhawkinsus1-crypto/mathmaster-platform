@@ -24,6 +24,7 @@ for (const question of documents) {
   // it too, since stripping happens at the server boundary, not here.
   const above = new Map();
   const total = new Map();
+  const nearKey = new Map();
   const keys = [];
   let counted = 0;
   for (const { question: instance } of samplePathInstances(question, draws)) {
@@ -37,7 +38,22 @@ for (const question of documents) {
       if (choice.id === keyId) continue;
       const code = choice.error || '(unnamed)';
       total.set(code, (total.get(code) || 0) + 1);
-      if (numericLabel(choice.label) > key) above.set(code, (above.get(code) || 0) + 1);
+      const value = numericLabel(choice.label);
+      if (value > key) above.set(code, (above.get(code) || 0) + 1);
+      // The retired tier built every distractor as key + 1, + 2, + 3. A
+      // distractor that sits a fixed small step from the key in nearly every
+      // draw is that pattern reappearing, whatever the error is called, and it
+      // is invisible in the above-key percentage: an always-plus-one distractor
+      // reads a healthy 100%.
+      //
+      // The step has to be judged against the key's own size. An absolute
+      // window of 2 flagged three sound families whose answers are fractions
+      // between 0 and 1, where every choice is necessarily within 2 of every
+      // other. Keys below 8 are left alone for that reason; the pattern this
+      // looks for lived on keys like 16 and 504.
+      if (Math.abs(key) >= 8 && Math.abs(value - key) <= 2 && value !== key) {
+        nearKey.set(code, (nearKey.get(code) || 0) + 1);
+      }
     }
   }
   if (!counted) { console.log(`${question.id}: non-numeric`); continue; }
@@ -45,5 +61,9 @@ for (const question of documents) {
   keys.sort((a, b) => a - b);
   const at = (fraction) => keys[Math.min(keys.length - 1, Math.floor(fraction * keys.length))];
   const span = `key ${at(0.05)}..${at(0.95)} mid ${at(0.5)}`;
-  console.log(`${String(question.id).padEnd(48)} above-key: ${parts.join('  ')}   [${span}]`);
+  const stepwise = [...total.entries()]
+    .filter(([code, n]) => (nearKey.get(code) || 0) / n > 0.9)
+    .map(([code]) => code);
+  const warn = stepwise.length ? `  !! within 2 of the key: ${stepwise.join(', ')}` : '';
+  console.log(`${String(question.id).padEnd(48)} above-key: ${parts.join('  ')}   [${span}]${warn}`);
 }
