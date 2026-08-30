@@ -30,7 +30,7 @@ import {
 } from '../../../functions/shared/pathToolContracts.mjs';
 import { buildFieldGradingDefinition, hasFieldGradableDefinition } from '../../../functions/shared/legacyFieldGrading.mjs';
 import { buildAttemptSupportPayload, buildPrivateSupport } from '../../../functions/shared/pathSolutionSupport.mjs';
-import { sameValue } from '../../../functions/shared/answerEquivalence.mjs';
+import * as answerEquivalence from '../../../functions/shared/answerEquivalence.mjs';
 import { selectNextFamily, recordFamilyUse } from '../../../functions/shared/pathQuestionSelection.mjs';
 import { generatePathInstanceWithRetries, hasPathGenerator } from '../../../functions/shared/pathQuestionGeneration.mjs';
 import { getQuestionPrimaryTeksCodes } from '../../questionMetadata.js';
@@ -151,14 +151,34 @@ const publicFieldPayload = (question = {}) => ({
 });
 
 const fieldValuesEquivalent = (actual, field) => {
-  const candidates = field.accepted?.length ? field.accepted : [field.expected];
+  const candidates = [field.expected, ...(Array.isArray(field.accepted) ? field.accepted : [])]
+    .filter((value) => value !== undefined && value !== null);
   return candidates.some((expected) => {
     const actualText = String(actual ?? '').trim();
     const expectedText = String(expected ?? '').trim();
     if (field.caseSensitive && !Number.isFinite(Number(actual)) && !Number.isFinite(Number(expected))) {
       return actualText === expectedText;
     }
-    return sameValue(actual, expected, Math.max(0, Number(field.numericTolerance) || 0));
+    const tolerance = Math.max(0, Number(field.numericTolerance) || 0);
+    if (field.equivalence === 'polynomialRelation') {
+      return answerEquivalence.samePolynomialEquationRelation(actual, expected, tolerance);
+    }
+    if (field.equivalence === 'absoluteLinearRelation') {
+      return answerEquivalence.sameAbsoluteValueLinearEquation(actual, expected, tolerance);
+    }
+    if (field.equivalence === 'modelEquation') {
+      return answerEquivalence.sameCommutativeModelEquation(actual, expected);
+    }
+    if (field.equivalence === 'setBuilder') {
+      return answerEquivalence.sameSetBuilderNotation(actual, expected, tolerance);
+    }
+    if (field.equivalence === 'rationalExpression') {
+      return answerEquivalence.sameRationalExpression(actual, expected, tolerance);
+    }
+    if (field.equivalence === 'nonnegativeRadicalExpression') {
+      return answerEquivalence.sameNonnegativeRadicalExpression(actual, expected, tolerance);
+    }
+    return answerEquivalence.sameValue(actual, expected, tolerance);
   });
 };
 
