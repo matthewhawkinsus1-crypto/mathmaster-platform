@@ -94,7 +94,55 @@
           "y1": "m+b-2*e",
           "y2": "2*m+b+e"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-small-linear-regression",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "procedural",
+          "representation": "table",
+          "prompt": "Use linear regression technology on all five observations to write the line of best fit $y=mx+b$. The coefficients and noise are intentionally small; enter the fitted slope and intercept reported by the technology.",
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "e": {
+                "type": "choice",
+                "values": [
+                  1
+                ]
+              }
+            },
+            "derived": {
+              "ym2": "-2*m+b+e",
+              "ym1": "-m+b-2*e",
+              "y0": "b+2*e",
+              "y1": "m+b-2*e",
+              "y2": "2*m+b+e"
+            }
+          }
+        }
+      ]
     },
     {
       "active": true,
@@ -486,7 +534,65 @@
           "y1": "a+b+c+2*e",
           "y2": "4*a+2*b+c-e"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-transcription-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student runs quadratic regression on five observations but copies the x-term coefficient with the wrong sign. Re-run the regression, identify the transcription error, and enter the correct a, b, and c.",
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -2,
+                  -1,
+                  1,
+                  2
+                ]
+              },
+              "b": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "e": {
+                "type": "choice",
+                "values": [
+                  1
+                ]
+              }
+            },
+            "derived": {
+              "wrongB": "-b",
+              "ym2": "4*a-2*b+c+e",
+              "ym1": "a-b+c-2*e",
+              "y0": "c",
+              "y1": "a+b+c+2*e",
+              "y2": "4*a+2*b+c-e"
+            }
+          }
+        }
+      ]
     }
   ]
 }
