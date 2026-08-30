@@ -179,6 +179,31 @@ Resume here. Do not reopen A2.2A–A2.3A unless a failing gate names them.
 - A2.3B remains the FIRST UNFINISHED STANDARD. This capability work is now logged so a new chat cannot skip the 3×3 matrix gap or restart the earlier inverse/system-formulation standards.
 
 
+### 2026-08-30 — A2.3B 3×3 matrix capability implemented
+- Added a real 3×3 augmented-matrix RREF solver to `src/tools/systemsWorkspace/systemsMath.js` — commit `8c7373eaed31aae549522fe68de9009bd56caf4e`.
+- Extended the secure `systemsWorkspace` Path contract with `mode: "matrix3"` — commit `29f8251307b6ec14b050d4935d4656b199ab8c38`.
+  - server recomputes RREF and x/y/z from the public matrix;
+  - public payload contains the matrix but no stored solution/RREF key;
+  - matrix3 responses require classification, all three coordinates for a unique solution, and a recorded RREF-technology action;
+  - existing linear and inequality workspace modes remain intact.
+- Correct Answer Acceptance Audit on the secure contract commit: **PASS**.
+- Algebra II Fidelity V2 Certification on the secure contract commit: **PASS**.
+- Upgraded `SystemsWorkspace` with an authentic 3×3 matrix-technology flow — commit `552e3790fba9d377070d4edc0585f3eb84fe2478`.
+  - displays a 3×4 augmented matrix;
+  - requires the student to invoke **Use matrix technology · Compute RREF**;
+  - renders the computed RREF as the technology output;
+  - requires interpretation/classification and x, y, z;
+  - preserves the existing 2×2 matrix mode.
+- Added `tests/platform/systemsMatrix3Technology.test.mjs` — commit `f06d7ea69e1a94f863d639763c84903433d07f02`.
+  - checks unique/inconsistent/dependent 3×3 systems;
+  - checks secure public-payload nonleakage;
+  - requires the technology action;
+  - rejects a wrong z-coordinate.
+- Added the new workspace/math/test files to the dedicated Algebra II certification workflow — commit `2ce4c346ab6ec6e59adeaa95348af8a3973e755f`.
+- Capability certification run `33317879619`: **RUNNING** when this checkpoint was written.
+- Next: author the five A2.3B Fidelity V2 families around substitution, Gaussian elimination, matrix technology, and complete row-operation error analysis.
+
+
 ### 2026-08-30 — A2.3A audit finding
 - Official construct: **formulate systems of equations**, specifically including systems of three linear equations in three variables and systems containing one linear and one quadratic equation.
 - Verdict: **REBUILD**.
