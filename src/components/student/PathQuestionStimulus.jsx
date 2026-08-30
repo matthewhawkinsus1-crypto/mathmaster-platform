@@ -120,6 +120,14 @@ function StimulusGraph({ graph }) {
   const points = (Array.isArray(graph.points) ? graph.points : [])
     .map(graphPoint)
     .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+  const curves = (Array.isArray(graph.curves) ? graph.curves : [])
+    .map((curve, index) => ({
+      label:String(curve?.label || `Curve ${index + 1}`),
+      points:(Array.isArray(curve?.points) ? curve.points : [])
+        .map(graphPoint)
+        .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y)),
+    }))
+    .filter((curve) => curve.points.length >= 2);
 
   const regions = (Array.isArray(graph.shading) ? graph.shading : [])
     .map((shade) => {
@@ -133,7 +141,7 @@ function StimulusGraph({ graph }) {
     })
     .filter(Boolean);
 
-  if (!lines.length && !verticalLines.length && !points.length && !regions.length) return null;
+  if (!lines.length && !verticalLines.length && !points.length && !curves.length && !regions.length) return null;
 
   return (
     <div>
@@ -145,7 +153,20 @@ function StimulusGraph({ graph }) {
         verticalLines={verticalLines}
         regions={regions}
         ariaLabel={graph.ariaLabel || 'Question graph'}
-      />
+      >
+        {({ sx, sy }) => curves.map((curve, index) => (
+          <polyline
+            key={`curve-${index}`}
+            points={curve.points.map((point) => `${sx(point.x)},${sy(point.y)}`).join(' ')}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            aria-label={curve.label}
+          />
+        ))}
+      </CoordinatePlane>
       {sourceLines.length > 1 && (
         <div style={{ display:'flex', gap:14, flexWrap:'wrap', justifyContent:'center', marginTop:8, fontSize:12, color:'#5f6368' }}>
           {sourceLines.map((line, index) => (
