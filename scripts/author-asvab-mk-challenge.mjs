@@ -4246,6 +4246,753 @@ mkc('7.11C', 'pair-of-facts-that-cannot-both-hold', {
   feedback: 'Two angles of $90^\\circ$ each are supplementary and equal, so that pair is possible.',
 });
 
+// ================================================================ 8.2A
+// Real numbers: which sets a value belongs to.
+
+mkc('8.2A', 'operation-that-lands-back-in-the-rationals', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade8',
+  prompt: 'Which of these is certain to give a rational result?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 2, max: 40 },
+      m: { type: 'int', min: 2, max: 40 },
+      a: { type: 'int', min: 2, max: 20 },
+    },
+    constraints: ['n!=m', 'n!=4', 'n!=9', 'n!=16', 'n!=25', 'n!=36', 'm!=4', 'm!=9', 'm!=16', 'm!=25', 'm!=36'],
+  },
+  choices: [
+    { label: 'Multiplying $\\sqrt{{{n}}}$ by itself.', correct: true },
+    { label: 'Adding $\\sqrt{{{n}}}$ to $\\sqrt{{{m}}}$.', error: 'usedGivenValue' },
+    { label: 'Dividing $\\sqrt{{{n}}}$ by ${{a}}$.', error: 'partialTotal' },
+    { label: 'Subtracting ${{a}}$ from $\\sqrt{{{n}}}$.', error: 'signError' },
+  ],
+  reasoning: ['$\\sqrt{{{n}}} \\times \\sqrt{{{n}}}$ is ${{n}}$, which is a whole number.', 'The other three leave an irrational part behind.'],
+  answerSummary: { headline: 'Squaring undoes a square root exactly.', text: 'Multiplying $\\sqrt{{{n}}}$ by itself.' },
+  hint: 'Ask which operation removes the root altogether.',
+  feedback: 'Dividing or shifting an irrational number leaves it irrational.',
+});
+
+mkc('8.2A', 'irrational-with-a-rational-square', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Which value is irrational but has a rational square?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 2, max: 60 },
+      root: { type: 'int', min: 3, max: 12 },
+      p: { type: 'int', min: 2, max: 11 },
+      q: { type: 'int', min: 3, max: 13 },
+    },
+    derived: { sq: 'root*root' },
+    constraints: [
+      'gcd(p,q)==1', 'n!=4', 'n!=9', 'n!=16', 'n!=25', 'n!=36', 'n!=49',
+      'n*n!=root*root', 'n!=root*root',
+    ],
+  },
+  choices: [
+    { label: plain('\\sqrt{{{n}}}'), correct: true },
+    { label: plain('\\sqrt{{{sq}}}'), error: 'usedGivenValue' },
+    { label: plain('\\frac{{{p}}}{{{q}}}'), error: 'ratioReversed' },
+    { label: plain('\\pi'), error: 'operationInverted' },
+  ],
+  reasoning: ['$\\sqrt{{{n}}}$ is irrational because ${{n}}$ is not a perfect square, and its square is ${{n}}$.', '$\\sqrt{{{sq}}}$ and $\\frac{{{p}}}{{{q}}}$ are already rational, and $\\pi^{2}$ is irrational.'],
+  answerSummary: { headline: 'A root of a non-square is irrational; its square is not.', text: 'It is $\\sqrt{{{n}}}$.' },
+  hint: 'Square each choice and see what comes out.',
+  feedback: '$\\sqrt{{{sq}}}$ is a whole number, so it was never irrational.',
+});
+
+mkc('8.2A', 'sum-of-a-rational-and-an-irrational', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'grade8',
+  prompt: 'What is true of ${{a}}$ added to $\\sqrt{{{n}}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 30 },
+      n: { type: 'int', min: 2, max: 60 },
+    },
+    constraints: ['n!=4', 'n!=9', 'n!=16', 'n!=25', 'n!=36', 'n!=49'],
+  },
+  choices: [
+    { label: 'The total is always irrational.', correct: true },
+    { label: 'The total is always rational.', error: 'operationInverted' },
+    { label: 'The total is rational whenever ${{a}}$ is a whole number.', error: 'usedGivenValue' },
+    { label: 'It depends on which of the two is larger.', error: 'partialTotal' },
+  ],
+  reasoning: ['If the total were rational, subtracting the rational ${{a}}$ would leave $\\sqrt{{{n}}}$ rational.', 'It is not, so the total cannot be rational.'],
+  answerSummary: { headline: 'A rational shift cannot repair an irrational number.', text: 'The total is irrational.' },
+  hint: 'Suppose the total were rational and see what follows.',
+  feedback: 'Being a whole number is what makes ${{a}}$ rational, which is exactly the case that fails.',
+});
+
+// ================================================================ 8.2B
+// Approximating irrational numbers.
+
+mkc('8.2B', 'root-to-the-nearest-tenth-interval', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'numberLine', courseId: 'grade8',
+  prompt: 'Between which two consecutive tenths does $\\sqrt{{{n}}}$ lie?',
+  generator: {
+    parameters: { n: { type: 'int', min: 12, max: 300 } },
+    derived: {
+      t: 'floor(sqrt(n)*10)',
+      lo: 'floor(sqrt(n)*10)/10',
+      hi: '(floor(sqrt(n)*10)+1)/10',
+      hi2: '(floor(sqrt(n)*10)+2)/10',
+      below: '(floor(sqrt(n)*10)-1)/10',
+      w: 'floor(sqrt(n))',
+      w1: 'floor(sqrt(n))+1',
+    },
+    constraints: ['floor(sqrt(n)*10)%10!=0', 'floor(sqrt(n))>2'],
+  },
+  choices: [
+    { label: plain('{{lo}} \\text{ and } {{hi}}'), correct: true },
+    { label: plain('{{hi}} \\text{ and } {{hi2}}'), error: 'roundedWrong' },
+    { label: plain('{{below}} \\text{ and } {{lo}}'), error: 'offByOneStep' },
+    { label: plain('{{w}} \\text{ and } {{w1}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['${{lo}}^{2}$ is below ${{n}}$ and ${{hi}}^{2}$ is above it.', 'So $\\sqrt{{{n}}}$ sits between ${{lo}}$ and ${{hi}}$.'],
+  answerSummary: { headline: 'Square each candidate tenth and compare with the number.', text: 'Between ${{lo}}$ and ${{hi}}$.' },
+  hint: 'Try squaring a tenth just below your estimate.',
+  feedback: 'Whole numbers bracket the root too loosely to answer this.',
+});
+
+mkc('8.2B', 'interval-holding-a-sum-of-two-roots', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Between which two whole numbers does $\\sqrt{{{n}}} + \\sqrt{{{m}}}$ lie?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 5, max: 90 },
+      m: { type: 'int', min: 5, max: 90 },
+    },
+    derived: {
+      lo: 'floor(sqrt(n)+sqrt(m))',
+      hi: 'floor(sqrt(n)+sqrt(m))+1',
+      sepLo: 'floor(sqrt(n))+floor(sqrt(m))',
+      sepHi: 'floor(sqrt(n))+floor(sqrt(m))+1',
+      joinLo: 'floor(sqrt(n+m))',
+      joinHi: 'floor(sqrt(n+m))+1',
+      prodLo: 'floor(sqrt(n)*sqrt(m))',
+      prodHi: 'floor(sqrt(n)*sqrt(m))+1',
+    },
+    constraints: [
+      'floor(sqrt(n)+sqrt(m))!=floor(sqrt(n))+floor(sqrt(m))',
+      'floor(sqrt(n)+sqrt(m))!=floor(sqrt(n+m))',
+      'floor(sqrt(n)+sqrt(m))!=floor(sqrt(n)*sqrt(m))',
+      'floor(sqrt(n))+floor(sqrt(m))!=floor(sqrt(n+m))',
+      'floor(sqrt(n))+floor(sqrt(m))!=floor(sqrt(n)*sqrt(m))',
+      'floor(sqrt(n+m))!=floor(sqrt(n)*sqrt(m))',
+    ],
+  },
+  choices: [
+    { label: plain('{{lo}} \\text{ and } {{hi}}'), correct: true },
+    { label: plain('{{sepLo}} \\text{ and } {{sepHi}}'), error: 'partialTotal' },
+    { label: plain('{{joinLo}} \\text{ and } {{joinHi}}'), error: 'operationInverted' },
+    { label: plain('{{prodLo}} \\text{ and } {{prodHi}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Each root sits between two whole numbers, but their two fractional parts can carry the total past the next whole number.', 'The sum lands between ${{lo}}$ and ${{hi}}$.'],
+  answerSummary: { headline: 'Estimate the sum itself, not the two parts separately.', text: 'Between ${{lo}}$ and ${{hi}}$.' },
+  hint: 'Estimate each root to a tenth before adding.',
+  feedback: 'Rounding each root down first loses whatever the two fractions add up to.',
+});
+
+mkc('8.2B', 'adding-under-one-root', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal', courseId: 'grade8',
+  prompt: 'A student writes $\\sqrt{{{n}}} + \\sqrt{{{m}}} = \\sqrt{{{sum}}}$. What is wrong?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 5, max: 80 },
+      m: { type: 'int', min: 5, max: 80 },
+    },
+    derived: { sum: 'n+m' },
+    constraints: ['n!=m'],
+  },
+  choices: [
+    { label: 'A square root does not split across a sum.', correct: true },
+    { label: 'The two roots should have been multiplied first.', error: 'operationInverted' },
+    { label: 'The total under the root should be halved.', error: 'partialTotal' },
+    { label: 'Each root should be squared before adding.', error: 'exponentError' },
+  ],
+  reasoning: ['Squaring the left side gives ${{n}} + {{m}}$ plus a cross term of $2\\sqrt{{{n}} \\times {{m}}}$.', 'That extra term is exactly what the claim throws away.'],
+  answerSummary: { headline: 'Roots distribute over products, not over sums.', text: 'The root cannot be split across the sum.' },
+  hint: 'Square both sides and compare.',
+  feedback: 'Multiplying the roots is a different calculation with a different answer.',
+});
+
+// ================================================================ 8.2C
+// Scientific notation.
+
+mkc('8.2C', 'product-in-scientific-notation', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'What is $({{a}} \\times 10^{{{e}}}) \\times ({{b}} \\times 10^{{{f}}})$ in scientific notation?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 9 },
+      e: { type: 'int', min: 2, max: 9 },
+      f: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      ab: 'a*b',
+      mant: 'a*b/10',
+      ee: 'e+f+1',
+      ef: 'e+f',
+      eProduct: 'e*f',
+    },
+    constraints: ['a*b>10', 'a*b%10!=0', 'e*f!=e+f+1', 'e*f!=e+f'],
+  },
+  choices: [
+    { label: plain('{{mant}} \\times 10^{{{ee}}}'), correct: true },
+    { label: plain('{{ab}} \\times 10^{{{ef}}}'), error: 'exponentError' },
+    { label: plain('{{mant}} \\times 10^{{{ef}}}'), error: 'offByOneStep' },
+    { label: plain('{{mant}} \\times 10^{{{eProduct}}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The first factors multiply to ${{ab}}$ and the powers add to $10^{{{ef}}}$.', 'Rewriting ${{ab}}$ as ${{mant}} \\times 10$ raises the exponent to ${{ee}}$.'],
+  answerSummary: { headline: 'Normalising the first factor costs one from the exponent.', text: 'It is ${{mant}} \\times 10^{{{ee}}}$.' },
+  hint: 'Multiply the first factors, then fix the result to sit between $1$ and $10$.',
+  feedback: 'Exponents add under multiplication; they are not multiplied.',
+});
+
+mkc('8.2C', 'reading-behind-a-multiple', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A reading of ${{m}} \\times 10^{{{e}}}$ is ${{k}}$ times another. Write the other in scientific notation.',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 8 },
+      k: { type: 'int', min: 3, max: 9 },
+      e: { type: 'int', min: 3, max: 9 },
+    },
+    derived: {
+      q: 'm*10/k',
+      em: 'e-1',
+      mk: 'm/k',
+      ek: 'e-k',
+    },
+    constraints: ['m<k', 'm*10%k==0', 'e-k!=e-1', 'm*10/k>=1'],
+  },
+  choices: [
+    { label: plain('{{q}} \\times 10^{{{em}}}'), correct: true },
+    { label: plain('{{q}} \\times 10^{{{e}}}'), error: 'offByOneStep' },
+    { label: plain('{{mk}} \\times 10^{{{em}}}'), error: 'exponentError' },
+    { label: plain('{{q}} \\times 10^{{{ek}}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Dividing ${{m}}$ by ${{k}}$ gives a first factor below $1$, which is not allowed.', 'Writing it as ${{q}}$ costs one from the exponent, leaving $10^{{{em}}}$.'],
+  answerSummary: { headline: 'A first factor below one has to borrow from the exponent.', text: 'It is ${{q}} \\times 10^{{{em}}}$.' },
+  hint: 'Divide the first factors, then renormalise.',
+  feedback: 'The exponent falls by one, not by ${{k}}$.',
+});
+
+mkc('8.2C', 'largest-of-four-readings', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'table', courseId: 'grade8',
+  prompt: 'Which of the listed readings is the largest?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Reading'],
+    rows: [
+      ['${{a}} \\times 10^{{{e}}}$'],
+      ['${{b}} \\times 10^{{{e}}}$'],
+      ['${{c}} \\times 10^{{{eLow}}}$'],
+      ['${{d}} \\times 10^{{{eLow2}}}$'],
+    ],
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 5, max: 9 },
+      b: { type: 'int', min: 2, max: 4 },
+      c: { type: 'int', min: 2, max: 9 },
+      d: { type: 'int', min: 2, max: 9 },
+      e: { type: 'int', min: 5, max: 12 },
+      g: { type: 'int', min: 1, max: 3 },
+      g2: { type: 'int', min: 1, max: 3 },
+    },
+    derived: { eLow: 'e-g', eLow2: 'e-g2' },
+    constraints: ['a>b', 'e-g>0', 'e-g2>0', 'g!=g2'],
+  },
+  choices: [
+    { label: plain('{{a}} \\times 10^{{{e}}}'), correct: true },
+    { label: plain('{{b}} \\times 10^{{{e}}}'), error: 'partialTotal' },
+    { label: plain('{{c}} \\times 10^{{{eLow}}}'), error: 'usedGivenValue' },
+    { label: plain('{{d}} \\times 10^{{{eLow2}}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The exponent decides first, so the two readings at $10^{{{e}}}$ outrank the rest.', 'Between those two, the larger first factor wins.'],
+  answerSummary: { headline: 'Compare exponents first, first factors second.', text: 'It is ${{a}} \\times 10^{{{e}}}$.' },
+  hint: 'Sort by the power of ten before looking at anything else.',
+  feedback: 'A large first factor cannot make up for a smaller power of ten.',
+});
+
+// ================================================================ 8.2D
+// Ordering real numbers.
+
+mkc('8.2D', 'nearest-value-to-a-root', {
+  difficultyBand: 4, dok: 2, taskType: 'representationTranslation', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Which of these is closest to $\\sqrt{{{n}}}$?',
+  generator: {
+    parameters: { n: { type: 'int', min: 20, max: 200 } },
+    derived: {
+      near: 'round(sqrt(n)*10)/10',
+      low: 'floor(sqrt(n))',
+      high: 'floor(sqrt(n))+1',
+      half: 'n/2',
+      pct: 'round(sqrt(n)*10)*10',
+    },
+    constraints: ['floor(sqrt(n))>3', 'round(sqrt(n)*10)%10!=0', 'n/2!=floor(sqrt(n))'],
+  },
+  choices: [
+    { label: plain('{{near}}'), correct: true },
+    { label: plain('{{low}}'), error: 'roundedWrong' },
+    { label: plain('{{high}}'), error: 'offByOneStep' },
+    { label: plain('\\frac{{{n}}}{2}'), error: 'operationInverted' },
+  ],
+  rankAnalysisNotApplicable: true,
+  reasoning: ['Squaring ${{near}}$ lands within a tenth of ${{n}}$.', 'The whole numbers either side are further away, and half of ${{n}}$ is nowhere near.'],
+  answerSummary: { headline: 'Test a candidate by squaring it.', text: 'It is ${{near}}$.' },
+  hint: 'Square each candidate and compare with ${{n}}$.',
+  feedback: 'Halving is not the same as taking a square root.',
+});
+
+mkc('8.2D', 'multiple-of-a-fraction-that-brackets-a-root', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'For which whole number $k$ does $\\sqrt{{{n}}}$ lie between $\\frac{k}{{{c}}}$ and $\\frac{k+1}{{{c}}}$?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 20, max: 700 },
+      c: { type: 'int', min: 3, max: 5 },
+    },
+    derived: {
+      answer: 'floor(sqrt(n)*c)',
+      // Left the denominator out altogether.
+      d_partialTotal: 'floor(sqrt(n))',
+      // Divided instead of taking a root.
+      d_exponentError: 'floor(n/c)',
+      // Scaled the whole-number part by the denominator twice.
+      d_usedGivenValue: 'floor(sqrt(n))*c*c',
+    },
+    constraints: [
+      'floor(sqrt(n)*c)%c!=0', 'floor(sqrt(n))>3',
+      'abs(floor(sqrt(n))*c*c-floor(sqrt(n)*c))>3', 'abs(floor(n/c)-floor(sqrt(n)*c))>3',
+      'abs(floor(sqrt(n))-floor(sqrt(n)*c))>3',
+    ],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Multiplying $\\sqrt{{{n}}}$ by ${{c}}$ and taking the whole-number part gives ${{answer}}$.', 'So $\\sqrt{{{n}}}$ sits between $\\frac{{{answer}}}{{{c}}}$ and the next ${{c}}$th.'],
+  answerSummary: { headline: 'Scale the root by the denominator before rounding down.', text: '$k = {{answer}}$.' },
+  hint: 'Work out ${{c}}\\sqrt{{{n}}}$ first.',
+  feedback: 'Dividing ${{n}}$ by ${{c}}$ never involves a square root at all.',
+});
+
+mkc('8.2D', 'comparing-under-the-root-sign', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal', courseId: 'grade8',
+  prompt: 'A student says $\\sqrt{{{n}}}$ is greater than $\\frac{{{p}}}{{{q}}}$ because ${{n}}$ is greater than ${{p}}$. What is wrong?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 5, max: 60 },
+      p: { type: 'int', min: 2, max: 4 },
+      q: { type: 'int', min: 3, max: 9 },
+    },
+    constraints: ['gcd(p,q)==1', 'p<q', 'n>p', 'n!=4', 'n!=9', 'n!=16', 'n!=25', 'n!=36', 'n!=49'],
+  },
+  choices: [
+    { label: 'Comparing ${{n}}$ with ${{p}}$ ignores both the root and the denominator.', correct: true },
+    { label: 'The root should be doubled before any comparison.', error: 'operationInverted' },
+    { label: 'The fraction is negative, so it is smaller in any case.', error: 'signError' },
+    { label: 'Both values should be rounded to whole numbers first.', error: 'roundedWrong' },
+  ],
+  reasoning: ['$\\sqrt{{{n}}}$ is far smaller than ${{n}}$, and $\\frac{{{p}}}{{{q}}}$ is far smaller than ${{p}}$.', 'The conclusion happens to be right here, but the reason given settles nothing.'],
+  answerSummary: { headline: 'Compare the values themselves, not the numbers inside them.', text: 'The root and the denominator were both ignored.' },
+  hint: 'Work out roughly what each side comes to.',
+  feedback: 'Rounding both to whole numbers would lose the very difference being tested.',
+});
+
+// ================================================================ 8.3A
+// Dilations and similar figures.
+
+mkc('8.3A', 'point-after-two-dilations', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'orderedPairs', courseId: 'grade8',
+  prompt: 'A dilation of factor ${{k}}$ about the origin is followed by one of factor ${{m}}$. Where does $({{x}}, {{y}})$ end up?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 7 },
+      m: { type: 'int', min: 2, max: 7 },
+      x: { type: 'int', min: 2, max: 14 },
+      y: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      px: 'k*m*x', py: 'k*m*y',
+      sx: 'k+m',
+      ax: '(k+m)*x', ay: '(k+m)*y',
+      fx: 'k*x', fy: 'k*y',
+      mx: 'k*x', my: 'm*y',
+    },
+    constraints: ['x!=y', 'k!=m', 'k*m!=k+m'],
+  },
+  choices: [
+    { label: plain('({{px}}, {{py}})'), correct: true },
+    { label: plain('({{ax}}, {{ay}})'), error: 'operationInverted' },
+    { label: plain('({{fx}}, {{fy}})'), error: 'forgotFinalStep' },
+    { label: plain('({{mx}}, {{my}})'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The first dilation gives $({{fx}}, {{fy}})$.', 'The second multiplies both by ${{m}}$, giving $({{px}}, {{py}})$.'],
+  answerSummary: { headline: 'Two dilations about the same centre multiply their factors.', text: 'It ends at $({{px}}, {{py}})$.' },
+  hint: 'Apply one dilation at a time.',
+  feedback: 'Factors combine by multiplying, not by adding.',
+});
+
+mkc('8.3A', 'perimeter-from-two-similar-areas', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Similar rectangles cover ${{A}}$ and ${{A2}}$ square cm, and the smaller has perimeter ${{P}}$ cm. What is the larger perimeter?',
+  generator: {
+    parameters: {
+      A: { type: 'int', min: 4, max: 24 },
+      k: { type: 'int', min: 6, max: 30 },
+      P: { type: 'int', min: 8, max: 26 },
+    },
+    derived: {
+      A2: 'A*k*k',
+      answer: 'P*k',
+      // Scaled the perimeter by the area factor.
+      d_exponentError: 'P*k*k',
+      // Answered the perimeter that was given.
+      d_usedGivenValue: 'P',
+      // Answered the area factor instead of a length.
+      d_ratioReversed: 'k*k',
+    },
+    constraints: ['P*k>9', 'abs(k*k-P*k)>3', 'abs(P*k-P)>3', 'P*P>=16*A'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The areas are in the ratio ${{k}}^{2}$, so the lengths are in the ratio ${{k}}$.', 'The larger perimeter is ${{P}} \\times {{k}} = {{answer}}$ cm.'],
+  answerSummary: { headline: 'Take the square root of the area ratio to get the length ratio.', text: 'It is ${{answer}}$ cm.' },
+  hint: 'Perimeter is a length, so it scales once.',
+  feedback: 'The area factor is the square of the factor a perimeter uses.',
+});
+
+mkc('8.3A', 'scaling-area-like-a-length', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal', courseId: 'grade8',
+  prompt: 'A student says a dilation of factor ${{k}}$ multiplies both the perimeter and the area by ${{k}}$. What is wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      s: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { k2: 'k*k', twoK: '2*k' },
+    constraints: ['k>1'],
+  },
+  choices: [
+    { label: 'The area is multiplied by ${{k2}}$, not by ${{k}}$.', correct: true },
+    { label: 'The perimeter is multiplied by ${{k2}}$ as well.', error: 'exponentError' },
+    { label: 'Neither one changes under a dilation.', error: 'usedGivenValue' },
+    { label: 'The area is multiplied by ${{twoK}}$.', error: 'partialTotal' },
+  ],
+  reasoning: ['Both dimensions of the figure are multiplied by ${{k}}$, so the area gains ${{k}}$ twice.', 'The perimeter is a single length, so it gains ${{k}}$ once.'],
+  answerSummary: { headline: 'Area scales by the square of the factor.', text: 'The area is multiplied by ${{k2}}$.' },
+  hint: 'Try a square of side ${{s}}$ before and after.',
+  feedback: 'The perimeter really is multiplied by ${{k}}$; the error is on the area.',
+});
+
+// ================================================================ 8.3B
+// What a dilation changes and what it leaves alone.
+
+mkc('8.3B', 'growth-in-area-under-a-dilation', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A panel of perimeter ${{p}}$ cm and area ${{A}}$ square cm is dilated by a factor of ${{k}}$. By how much does its area grow?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 10, max: 200 },
+      A: { type: 'int', min: 4, max: 60 },
+      k: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      answer: 'A*k*k-A',
+      // Scaled the area once instead of twice.
+      d_exponentError: 'A*k-A',
+      // Answered the new area rather than the growth.
+      d_forgotFinalStep: 'A*k*k',
+      // Answered the new perimeter.
+      d_usedGivenValue: 'p*k',
+    },
+    constraints: ['A*k*k-A>8', 'abs(p*k-(A*k*k-A))>4', 'abs(A*k-A-(A*k*k-A))>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The new area is ${{A}} \\times {{k}}^{2}$ square cm.', 'Taking off the original ${{A}}$ leaves a growth of ${{answer}}$.'],
+  answerSummary: { headline: 'Area scales by the square, and growth is the difference.', text: 'It grows by ${{answer}}$ square cm.' },
+  hint: 'Work out the new area before comparing.',
+  feedback: 'Scaling the area once treats it as if it were a length.',
+});
+
+mkc('8.3B', 'second-length-under-the-same-dilation', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A dilation sends a rod of length ${{L}}$ to one of length ${{L2}}$. What does it send a rod of length ${{M}}$ to?',
+  generator: {
+    parameters: {
+      L: { type: 'int', min: 2, max: 20 },
+      k: { type: 'int', min: 2, max: 7 },
+      M: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      L2: 'L*k',
+      answer: 'M*k',
+      // Answered the length that was given.
+      d_usedGivenValue: 'M',
+      // Applied the factor twice.
+      d_exponentError: 'M*k*k',
+      // Answered the first rod's image.
+      d_ratioReversed: 'L2',
+    },
+    constraints: ['L!=M', 'M*k>7', 'abs(L-M)>2', 'abs(M*k-M)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The dilation multiplies every length by ${{L2}} \\div {{L}} = {{k}}$.', 'So ${{M}}$ becomes ${{answer}}$.'],
+  answerSummary: { headline: 'One pair of lengths fixes the factor for every other.', text: 'It becomes ${{answer}}$.' },
+  hint: 'Find the factor from the pair you are given.',
+  feedback: 'The factor applies once to each length, not twice.',
+});
+
+mkc('8.3B', 'row-that-scales-the-wrong-quantity', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'table', courseId: 'grade8',
+  prompt: 'Each row records what a dilation of factor ${{k}}$ does. Which row is wrong?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Row', 'Quantity', 'After the dilation'],
+    rows: [
+      ['$1$', 'a side of ${{s}}$ cm', '${{ks}}$ cm'],
+      ['$2$', 'a perimeter of ${{p}}$ cm', '${{kp}}$ cm'],
+      ['$3$', 'an area of ${{A}}$ square cm', '${{kA}}$ square cm'],
+      ['$4$', 'an angle of ${{ang}}$ degrees', '${{ang}}$ degrees'],
+    ],
+  },
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 7 },
+      s: { type: 'int', min: 3, max: 20 },
+      p: { type: 'int', min: 10, max: 90 },
+      A: { type: 'int', min: 6, max: 80 },
+      ang: { type: 'int', min: 20, max: 150 },
+    },
+    derived: { ks: 'k*s', kp: 'k*p', kA: 'k*A' },
+    constraints: ['k>1'],
+  },
+  choices: [
+    { label: 'Row $3$', correct: true },
+    { label: 'Row $1$', error: 'usedGivenValue' },
+    { label: 'Row $2$', error: 'partialTotal' },
+    { label: 'Row $4$', error: 'exponentError' },
+  ],
+  reasoning: ['Sides and perimeters are lengths, so they take one factor of ${{k}}$.', 'An area takes two, so row $3$ is short by a factor of ${{k}}$.'],
+  answerSummary: { headline: 'Only the area carries the factor twice.', text: 'Row $3$ is wrong.' },
+  hint: 'Ask how many lengths each quantity is built from.',
+  feedback: 'Angles are unchanged by a dilation, so row $4$ is sound.',
+});
+
+// ================================================================ 8.3C
+// Dilations with a rational factor.
+
+mkc('8.3C', 'point-after-a-fraction-and-a-whole-factor', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'orderedPairs', courseId: 'grade8',
+  prompt: 'A dilation of factor $\\frac{{{p}}}{{{q}}}$ about the origin is followed by one of factor ${{k}}$. Where does $({{x}}, {{y}})$ go?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 7 },
+      q: { type: 'int', min: 3, max: 9 },
+      k: { type: 'int', min: 2, max: 6 },
+      u: { type: 'int', min: 2, max: 9 },
+      v: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      x: 'q*u', y: 'q*v',
+      ax: 'k*p*u', ay: 'k*p*v',
+      fx: 'p*u', fy: 'p*v',
+      rx: 'k*q*u', ry: 'k*q*v',
+      sx: 'k*p*v', sy: 'k*p*u',
+    },
+    constraints: ['gcd(p,q)==1', 'p<q', 'u!=v'],
+  },
+  choices: [
+    { label: plain('({{ax}}, {{ay}})'), correct: true },
+    { label: plain('({{fx}}, {{fy}})'), error: 'forgotFinalStep' },
+    { label: plain('({{rx}}, {{ry}})'), error: 'ratioReversed' },
+    { label: plain('({{sx}}, {{sy}})'), error: 'operationInverted' },
+  ],
+  reasoning: ['The fraction sends $({{x}}, {{y}})$ to $({{fx}}, {{fy}})$.', 'Multiplying both by ${{k}}$ gives $({{ax}}, {{ay}})$.'],
+  answerSummary: { headline: 'Apply the fraction first, then the whole-number factor.', text: 'It goes to $({{ax}}, {{ay}})$.' },
+  hint: 'A factor of $\\frac{{{p}}}{{{q}}}$ divides by ${{q}}$ and multiplies by ${{p}}$.',
+  feedback: 'Turning the fraction upside down enlarges instead of reducing.',
+});
+
+mkc('8.3C', 'factor-behind-a-shortened-length', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A dilation about the origin sends a length of ${{L}}$ to ${{L2}}$. In lowest terms, what is the factor?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 8 },
+      b: { type: 'int', min: 3, max: 12 },
+      t: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      L: 'b*t',
+      L2: 'a*t',
+      diff: 'b-a',
+      sum: 'a+b',
+    },
+    constraints: ['gcd(a,b)==1', 'a<b', 'b-a>1', 'b*t>7'],
+  },
+  choices: [
+    { label: plain('\\frac{{{a}}}{{{b}}}'), correct: true },
+    { label: plain('\\frac{{{b}}}{{{a}}}'), error: 'ratioReversed' },
+    { label: plain('\\frac{{{a}}}{{{sum}}}'), error: 'partialTotal' },
+    { label: plain('\\frac{{{diff}}}{{{b}}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The factor is the image over the original, or ${{L2}}$ over ${{L}}$.', 'Cancelling ${{t}}$ leaves $\\frac{{{a}}}{{{b}}}$.'],
+  answerSummary: { headline: 'Image over original, then cancel.', text: 'It is $\\frac{{{a}}}{{{b}}}$.' },
+  hint: 'Divide the image by the original before simplifying.',
+  feedback: 'The factor divides by the original length, not by a total.',
+});
+
+mkc('8.3C', 'what-a-reduction-really-does', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'grade8',
+  prompt: 'A dilation about the origin uses a factor of $\\frac{{{p}}}{{{q}}}$, with ${{p}}$ below ${{q}}$. Which statement is true?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 7 },
+      q: { type: 'int', min: 3, max: 11 },
+    },
+    constraints: ['gcd(p,q)==1', 'p<q'],
+  },
+  choices: [
+    { label: 'Every point except the origin moves closer to the origin.', correct: true },
+    { label: 'Every angle shrinks by the same factor.', error: 'exponentError' },
+    { label: 'The area shrinks by $\\frac{{{p}}}{{{q}}}$.', error: 'partialTotal' },
+    { label: 'Points on the axes stay where they are.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['A factor below $1$ multiplies every distance from the origin by less than $1$.', 'Angles are untouched, and the area shrinks by the square of the factor.'],
+  answerSummary: { headline: 'A factor below one pulls everything towards the centre.', text: 'Every point except the origin moves closer.' },
+  hint: 'Track one point on an axis through the dilation.',
+  feedback: 'Only the origin itself is fixed by a dilation about the origin.',
+});
+
+// ================================================================ 8.4A
+// Slope triangles on a line.
+
+mkc('8.4A', 'rise-of-a-second-slope-triangle', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'One slope triangle on a line has rise ${{rise}}$ and run ${{run}}$, and a second has run ${{run2}}$. What is the second rise?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      run: { type: 'int', min: 2, max: 16 },
+      run2: { type: 'int', min: 2, max: 16 },
+    },
+    derived: {
+      rise: 'm*run',
+      answer: 'm*run2',
+      // Answered the rise that was given.
+      d_usedGivenValue: 'rise',
+      // Answered the run without applying the slope.
+      d_forgotFinalStep: 'run2',
+      // Applied the slope twice.
+      d_operationInverted: 'm*m*run2',
+    },
+    constraints: ['run!=run2', 'm*run2>7', 'abs(m*run2-run2)>3', 'abs(run-run2)>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The two triangles are similar, so ${{rise}}$ over ${{run}}$ equals the new rise over ${{run2}}$.', 'That gives ${{answer}}$.'],
+  answerSummary: { headline: 'Every slope triangle on a line has the same rise-to-run ratio.', text: 'Its rise is ${{answer}}$.' },
+  hint: 'Work out the ratio from the first triangle.',
+  feedback: 'The rise changes with the run; it is the ratio that stays put.',
+});
+
+mkc('8.4A', 'run-that-reaches-a-given-rise', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Two points on a line differ by ${{rise}}$ vertically and ${{run}}$ horizontally, and a third sits ${{y3}}$ above the first. How far across is it?',
+  generator: {
+    parameters: {
+      rise: { type: 'int', min: 2, max: 18 },
+      run: { type: 'int', min: 2, max: 18 },
+      t: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      y3: 'rise*t',
+      answer: 'run*t',
+      // Answered the vertical distance instead.
+      d_ratioReversed: 'y3',
+      // Answered how many times over, not the distance.
+      d_forgotFinalStep: 't',
+      // Multiplied by the rise as well as the run.
+      d_operationInverted: 'run*rise*t',
+    },
+    constraints: ['rise!=run', 'run*t>7', 'abs(run-rise)>1', 'abs(run*t-t)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['${{y3}}$ is ${{t}}$ times the rise of ${{rise}}$.', 'The horizontal distance grows by the same factor, giving ${{answer}}$.'],
+  answerSummary: { headline: 'Scale the run by the same factor as the rise.', text: 'It is ${{answer}}$ across.' },
+  hint: 'Work out how many of the first triangle fit into the new rise.',
+  feedback: 'The rise and the run scale together, so one does not multiply the other.',
+});
+
+mkc('8.4A', 'triangle-that-cannot-sit-on-the-line', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'table', courseId: 'grade8',
+  prompt: 'Three of these slope triangles sit on one line and one cannot. Which one?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Triangle', 'Rise', 'Run'],
+    rows: [
+      ['A', '${{r1}}$', '${{n1}}$'],
+      ['B', '${{r2}}$', '${{n2}}$'],
+      ['C', '${{rBad}}$', '${{n3}}$'],
+      ['D', '${{r4}}$', '${{n4}}$'],
+    ],
+  },
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 8 },
+      n1: { type: 'int', min: 2, max: 12 },
+      n2: { type: 'int', min: 2, max: 12 },
+      n3: { type: 'int', min: 2, max: 12 },
+      n4: { type: 'int', min: 2, max: 12 },
+      off: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      r1: 'm*n1', r2: 'm*n2', r4: 'm*n4',
+      rBad: 'm*n3+off',
+    },
+    constraints: ['n1!=n2', 'n2!=n4', 'n1!=n4', 'off>1', '(m*n3+off)%n3!=0'],
+  },
+  choices: [
+    { label: 'Triangle C', correct: true },
+    { label: 'Triangle A', error: 'usedGivenValue' },
+    { label: 'Triangle B', error: 'partialTotal' },
+    { label: 'Triangle D', error: 'ratioReversed' },
+  ],
+  reasoning: ['Three of the triangles give a rise-to-run ratio of ${{m}}$.', 'Triangle C gives ${{rBad}}$ over ${{n3}}$, which is not ${{m}}$.'],
+  answerSummary: { headline: 'Every slope triangle on a line shares one ratio.', text: 'Triangle C cannot sit on it.' },
+  hint: 'Divide each rise by its run.',
+  feedback: 'A larger triangle is not a steeper one as long as the ratio matches.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
