@@ -145,7 +145,160 @@
           "candidate!=k",
           "h!=k"
         ]
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b2",
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "coverageKey": "adaptive-d2b4-half-unit-exact-substitution",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "conceptual",
+          "representation": "table",
+          "prompt": "A solver reports the half-unit candidate x={{candidate}} for $\\frac{{{a}}}{x-({{h}})}=\\frac{{{b}}}{x-({{k}})}$. Check both original denominators and evaluate both sides before deciding whether to keep the candidate. Do not re-solve the equation.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Half-unit candidate check",
+            "table": {
+              "headers": [
+                "Check",
+                "Value"
+              ],
+              "rows": [
+                [
+                  "x-({{h}})",
+                  "?"
+                ],
+                [
+                  "x-({{k}})",
+                  "?"
+                ],
+                [
+                  "Left side",
+                  "?"
+                ],
+                [
+                  "Right side",
+                  "?"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "denom-left",
+              "label": "First denominator at x={{candidate}}",
+              "inputProfile": "number",
+              "expected": "{{d1}}"
+            },
+            {
+              "id": "denom-right",
+              "label": "Second denominator at x={{candidate}}",
+              "inputProfile": "number",
+              "expected": "{{d2}}"
+            },
+            {
+              "id": "left-value",
+              "label": "Left-side value",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "right-value",
+              "label": "Right-side value",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "verdict",
+              "label": "Final reasonableness decision",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "keep",
+                  "label": "Keep x={{candidate}}; both denominators are nonzero and both original sides agree."
+                },
+                {
+                  "id": "reject-domain",
+                  "label": "Reject x={{candidate}} because a denominator is zero."
+                },
+                {
+                  "id": "reject-equation",
+                  "label": "Reject x={{candidate}} because the two original sides do not agree."
+                }
+              ],
+              "expected": "keep"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Harder substitution arithmetic does not change the reasonableness logic.",
+            "reasoning": [
+              "At x={{candidate}}, the denominators are {{d1}} and {{d2}}, both nonzero.",
+              "The two rational sides each evaluate to {{m}}.",
+              "The supplied candidate is therefore reasonable in the original equation."
+            ],
+            "answerSummary": "Keep x={{candidate}}."
+          },
+          "attemptFeedback": [
+            "Check the original denominators first, then compare the two substituted side values."
+          ],
+          "supportHints": [
+            "A candidate must be both defined and make the original equation true."
+          ],
+          "generator": {
+            "parameters": {
+              "candidate2": {
+                "type": "choice",
+                "values": [
+                  -9,
+                  -7,
+                  -5,
+                  -3,
+                  -1,
+                  1,
+                  3,
+                  5,
+                  7,
+                  9,
+                  11,
+                  13
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "k": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "m": {
+                "type": "choice",
+                "values": [
+                  2,
+                  4,
+                  6
+                ]
+              }
+            },
+            "derived": {
+              "candidate": "candidate2/2",
+              "d1": "candidate-h",
+              "d2": "candidate-k",
+              "a": "m*d1",
+              "b": "m*d2"
+            },
+            "constraints": [
+              "h!=k"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_6J_v2_cleared-root-excluded-original",
@@ -612,7 +765,129 @@
         "constraints": [
           "candidate!=h"
         ]
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-integer-substitution-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student checks candidate x={{candidate}} for $\\frac{{{a}}}{x}={{rhs}}$. The student notices x is not excluded and immediately keeps it without substituting. Diagnose the incomplete reasonableness check, evaluate both sides, and give the correct verdict.",
+          "stimulus": {
+            "kind": "steps",
+            "title": "Student check",
+            "steps": [
+              {
+                "id": "domain",
+                "label": "Domain check",
+                "work": "$x={{candidate}}\\ne0$"
+              },
+              {
+                "id": "claim",
+                "label": "Student conclusion",
+                "work": "Keep the candidate without substitution."
+              }
+            ]
+          },
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What is missing from the student's check?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "substitute",
+                  "label": "Substitute x={{candidate}} into the original equation and compare both sides."
+                },
+                {
+                  "id": "integer",
+                  "label": "Check only whether {{candidate}} is an integer."
+                },
+                {
+                  "id": "positive",
+                  "label": "Check only whether {{candidate}} is positive."
+                }
+              ],
+              "expected": "substitute"
+            },
+            {
+              "id": "denominator",
+              "label": "Original denominator at x={{candidate}}",
+              "inputProfile": "number",
+              "expected": "{{d}}"
+            },
+            {
+              "id": "left-value",
+              "label": "Original left-side value",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "right-value",
+              "label": "Original right-side value",
+              "inputProfile": "number",
+              "expected": "{{rhs}}"
+            },
+            {
+              "id": "verdict",
+              "label": "Corrected final decision",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "reject",
+                  "label": "Reject x={{candidate}}; it is defined but does not satisfy the original equation."
+                },
+                {
+                  "id": "keep",
+                  "label": "Keep x={{candidate}} because being in the domain is enough."
+                }
+              ],
+              "expected": "reject"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Being in the domain is necessary but does not prove a candidate solves the equation.",
+            "reasoning": [
+              "The denominator is {{d}}, so the candidate is defined.",
+              "The left side equals {{m}} while the right side equals {{rhs}}.",
+              "Because the sides differ, reject the candidate."
+            ],
+            "answerSummary": "Reject x={{candidate}}."
+          },
+          "attemptFeedback": [
+            "Complete the substitution check after the domain check."
+          ],
+          "supportHints": [
+            "Defined does not mean equal; compare the original left and right sides."
+          ],
+          "generator": {
+            "parameters": {
+              "candidate": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              }
+            },
+            "derived": {
+              "h": "0",
+              "d": "candidate",
+              "a": "m*d",
+              "rhs": "m+1"
+            }
+          }
+        }
+      ]
     }
   ]
 }
