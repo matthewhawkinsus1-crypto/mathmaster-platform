@@ -54,6 +54,13 @@ import {
   validateSystemsInequalityResponse,
 } from './pathSystemsInequalityGrading.mjs';
 import {
+  buildSystemsMatrix3PrivateDefinition,
+  gradeSystemsMatrix3Response,
+  sanitizeSystemsMatrix3PublicQuestion,
+  systemsMatrix3DefinitionIsGradable,
+  validateSystemsMatrix3Response,
+} from './pathSystemsMatrix3Grading.mjs';
+import {
   buildDataModelingPrivateDefinition,
   dataModelingDefinitionIsGradable,
   gradeDataModelingResponse,
@@ -524,38 +531,43 @@ const CONTRACTS = {
     },
   },
 
-  // The Systems Workspace has two Path-safe modes.
+  // Systems Workspace Path-safe modes.
   //
-  // Linear mode re-solves the two equations server-side. Inequality mode keeps
-  // the graph data public because it IS the question, but recomputes the marked
-  // test point and the student's candidate point server-side. Other workspace
-  // modes remain fail-closed until they receive equally explicit contracts.
+  // Linear mode re-solves two equations server-side. Inequality mode grades
+  // student-constructed boundaries/shading. Matrix3 mode supports Algebra II
+  // 3×3 Gaussian elimination / technology RREF without trusting the browser's
+  // answer or local verdict. Unsupported legacy 2×2 matrix and linearQuadratic
+  // modes still fail closed until they receive equally explicit contracts.
   systemsWorkspace: {
-    serverGradingVersion: 2,
+    serverGradingVersion: 3,
     responseShape: 'systemsWorkspace',
-    sanitizePublicQuestion: (question) => (
-      String(question.mode || 'linear') === 'inequalities'
-        ? sanitizeSystemsInequalityPublicQuestion(question)
-        : pick(question, ['prompt', 'mode', 'system', 'graph', 'context', 'hint'])
-    ),
-    buildPrivateGradingDefinition: (question) => (
-      String(question.mode || 'linear') === 'inequalities'
-        ? buildSystemsInequalityPrivateDefinition(question)
-        : {
-          mode: 'linear',
-          // The same solve the workspace shows, done again where the browser
-          // cannot reach it.
-          solution: solveTwoLines(question.system),
-          tolerance: Number(question.numericTolerance ?? 0.05),
-        }
-    ),
+    sanitizePublicQuestion: (question) => {
+      const mode = String(question.mode || 'linear');
+      if (mode === 'inequalities') return sanitizeSystemsInequalityPublicQuestion(question);
+      if (mode === 'matrix3') return sanitizeSystemsMatrix3PublicQuestion(question);
+      return pick(question, ['prompt', 'mode', 'system', 'graph', 'context', 'hint']);
+    },
+    buildPrivateGradingDefinition: (question) => {
+      const mode = String(question.mode || 'linear');
+      if (mode === 'inequalities') return buildSystemsInequalityPrivateDefinition(question);
+      if (mode === 'matrix3') return buildSystemsMatrix3PrivateDefinition(question);
+      return {
+        mode: 'linear',
+        // The same solve the workspace shows, done again where the browser
+        // cannot reach it.
+        solution: solveTwoLines(question.system),
+        tolerance: Number(question.numericTolerance ?? 0.05),
+      };
+    },
     validateStudentResponse: (raw, definition) => {
       // The grader is selected from the server-held definition, never from a
-      // client-sent mode flag. Inequality validation also needs that definition
-      // because a construction task requires different fields from a legacy
-      // test-point task.
+      // client-sent mode flag.
       if (definition?.mode === 'inequalities') {
         return validateSystemsInequalityResponse(raw, definition);
+      }
+      if (definition?.mode === 'matrix3') {
+        const check = validateSystemsMatrix3Response(raw, definition);
+        return check.ok ? valid() : invalid(check.reason);
       }
       return raw && typeof raw.classification === 'string' && raw.classification.trim() !== ''
         ? valid()
@@ -564,6 +576,9 @@ const CONTRACTS = {
     gradeStudentResponse: (definition, raw) => {
       if (definition.mode === 'inequalities') {
         return gradeSystemsInequalityResponse(definition, raw);
+      }
+      if (definition.mode === 'matrix3') {
+        return gradeSystemsMatrix3Response(definition, raw);
       }
       const { solution, tolerance } = definition;
       const parts = [{ id: 'classification', isCorrect: sameText(raw.classification, solution.type) }];
@@ -1110,9 +1125,10 @@ export const hasGradableDefinition = (toolId, definition) => {
       // question belongs to `systemsWorkspace`, which does collect one.
       return definition.solution != null && definition.classification == null;
     case 'systemsWorkspace':
-      return definition.mode === 'linear'
-        ? definition.solution.type != null
-        : definition.mode === 'inequalities' && systemsInequalityDefinitionIsGradable(definition);
+      if (definition.mode === 'linear') return definition.solution.type != null;
+      if (definition.mode === 'inequalities') return systemsInequalityDefinitionIsGradable(definition);
+      if (definition.mode === 'matrix3') return systemsMatrix3DefinitionIsGradable(definition);
+      return false;
     case 'dataModelingLab':
       return dataModelingDefinitionIsGradable(definition);
     case 'graphing2':
