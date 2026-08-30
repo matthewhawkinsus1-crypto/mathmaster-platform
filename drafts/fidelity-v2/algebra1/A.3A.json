@@ -254,7 +254,77 @@
           "A": "-m*B",
           "C": "c0*B"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d2b4-fractional-standard-form-slope",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "The line is written in standard form ${{A}}x+{{B}}y={{C}}$. Determine its slope exactly. The coefficients are chosen so the slope is not an integer, so simplify the ratio $-A/B$ rather than estimating from a graph.",
+          "responseFields": [
+            {
+              "id": "numerator",
+              "label": "Numerator -A",
+              "inputProfile": "number",
+              "expected": "{{negA}}"
+            },
+            {
+              "id": "denominator",
+              "label": "Denominator B",
+              "inputProfile": "number",
+              "expected": "{{B}}"
+            },
+            {
+              "id": "answer",
+              "label": "Exact slope",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Standard form reveals slope through the ratio -A/B.",
+            "reasoning": [
+              "Solving {{A}}x+{{B}}y={{C}} for y gives slope -{{A}}/{{B}}.",
+              "That ratio equals {{m}}."
+            ],
+            "answerSummary": "Slope {{m}}."
+          },
+          "attemptFeedback": [
+            "Do not use C when finding slope; only A and B determine -A/B."
+          ],
+          "supportHints": [
+            "From Ax+By=C, slope is -A/B."
+          ],
+          "generator": {
+            "parameters": {
+              "A": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              },
+              "B": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              },
+              "C": {
+                "type": "int",
+                "min": -12,
+                "max": 12
+              }
+            },
+            "derived": {
+              "negA": "-A",
+              "m": "-A/B"
+            },
+            "constraints": [
+              "A!=B",
+              "A%B!=0",
+              "B%A!=0"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_3A_v2_point-slope-read",
@@ -517,6 +587,103 @@
               "b": "y1-m*x1",
               "A": "-m*B",
               "C": "b*B"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-rise-run-method-comparison",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Between $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$, Student A uses rise/run $={{rise}}/{{run}}$ while Student B uses run/rise $={{run}}/{{rise}}$. Use the relationship $\\Delta y=m\\Delta x$ to determine which method is consistent with the actual coordinate changes and give the correct slope.",
+          "responseFields": [
+            {
+              "id": "run",
+              "label": "Δx",
+              "inputProfile": "number",
+              "expected": "{{run}}"
+            },
+            {
+              "id": "rise",
+              "label": "Δy",
+              "inputProfile": "number",
+              "expected": "{{rise}}"
+            },
+            {
+              "id": "method",
+              "label": "Which method is valid?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "a",
+                  "label": "Student A: rise/run"
+                },
+                {
+                  "id": "b",
+                  "label": "Student B: run/rise"
+                }
+              ],
+              "expected": "a"
+            },
+            {
+              "id": "slope",
+              "label": "Correct slope",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "check",
+              "label": "Value of m·Δx",
+              "inputProfile": "number",
+              "expected": "{{rise}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The correct slope must reproduce the observed output change from the input change.",
+            "reasoning": [
+              "Δx={{run}} and Δy={{rise}}.",
+              "Using m={{m}} gives m·Δx={{rise}}, exactly the observed rise.",
+              "The reciprocal value does not satisfy Δy=mΔx."
+            ],
+            "answerSummary": "Student A is consistent; slope {{m}}."
+          },
+          "attemptFeedback": [
+            "Test the proposed slope by multiplying it by Δx and comparing with Δy."
+          ],
+          "supportHints": [
+            "Slope answers the question: how much y changes for each 1 unit of x."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  2,
+                  3
+                ]
+              },
+              "run": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              },
+              "x1": {
+                "type": "int",
+                "min": -4,
+                "max": 0
+              },
+              "y1": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "x2": "x1+run",
+              "rise": "m*run",
+              "y2": "y1+rise",
+              "wrong": "run/rise"
             }
           }
         }
