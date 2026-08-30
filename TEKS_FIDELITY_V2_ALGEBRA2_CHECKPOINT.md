@@ -718,7 +718,9 @@ Resume here. Do not reopen A2.2A–A2.7C unless a failing gate names them.
 - Staged five A2.7D Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7D.json` — commit `a1db8ea32e39fa1d09f2b32b57dc3531ec2b5682`.
 - All families start from expanded polynomial functions and use algebraic evidence rather than graph-only factor identification.
 - Coverage includes a cubic with three integer roots, a quartic with four integer roots, a non-monic cubic with a non-integer rational root, a quartic repeated-root/multiplicity case, and complete synthetic-division sign-error repair.
-- Base Algebra II certification run `33331116456`: **RUNNING** at this checkpoint.
+- Base Algebra II certification run `33331116456`: **PASS**.
+- Added A2.7D-specific generated certification — commit `2dfbe054ee7e71ad28b71c5ba332811a58c69136`.
+- Full A2.7D certification run `33331166467`: **RUNNING** at this checkpoint.
 - FIRST UNFINISHED STANDARD remains **A2.7D** until full generated certification is green.
 
 
