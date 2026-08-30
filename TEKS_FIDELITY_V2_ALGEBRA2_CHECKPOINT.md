@@ -496,7 +496,7 @@ Do **not** re-audit A2.5C unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.5D — PENDING AUDIT
+### A2.5D — ENHANCE — AUDITED / AUTHORING
 
 Official construct: **Solve exponential equations of the form y = ab^x and single logarithmic equations having real solutions.**
 
@@ -505,6 +505,30 @@ Official construct: **Solve exponential equations of the form y = ab^x and singl
 ### A2.5D
 
 Resume here. Do not reopen A2.2A–A2.5C unless a failing gate names them.
+
+
+### 2026-08-30 — A2.5D audit finding
+- Official construct: **solve exponential equations of the form y = ab^x and single logarithmic equations having real solutions**.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - same-base exponential solving is correct;
+  - one y=ab^x solve is present;
+  - single logarithmic equations and common-log notation are present;
+  - the “isolate the exponential first” misconception is identified correctly.
+- Legacy limitations:
+  - every exponential target is engineered to be an exact integer power of the base, so logarithmic solving is never truly necessary;
+  - logarithmic equations are mostly one-step rewrites with easy integer outputs;
+  - the error-analysis family asks only what to do first and never completes the solve;
+  - context is thin and does not require interpreting the solved exponent as time/period;
+  - exact noninteger logarithmic solutions are absent.
+- Fidelity V2 requirements:
+  - preserve a same-base pathway, but add a genuine y=ab^x case whose solution must be expressed with logarithms;
+  - include single-log equations with an affine argument so rewriting to exponential form still requires a linear solve;
+  - include common/natural-log notation breadth where appropriate;
+  - include a contextual exponential solve with interpretation of the exponent;
+  - include complete error analysis that repairs the isolation/log step and still finishes x;
+  - keep A2.5D distinct from A2.5E: solve the equation here; reasonableness/domain validation is the next standard's primary action.
+- Generic secure equation/expression/number fields are sufficient; no new Path capability is required.
 
 
 ### 2026-08-30 — A2.5C audit finding
