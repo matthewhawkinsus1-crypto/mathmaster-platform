@@ -313,6 +313,111 @@
           "inputProfile": "number",
           "expected": "{{shift}}"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-combined-linear-transformation-effects",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "Let $f(x)={{m}}x+({{b}})$ and define $g(x)=-{{a}}f(x)+{{k}}$. A student says the +{{k}} changes both the slope and intercept. Analyze the reflection, vertical stretch, and vertical shift separately; determine the final slope and intercept and identify which parameter actually changes the slope.",
+          "responseFields": [
+            {
+              "id": "after-scale-slope",
+              "label": "Slope after multiplying f by -{{a}}",
+              "inputProfile": "number",
+              "expected": "{{newm}}"
+            },
+            {
+              "id": "after-scale-intercept",
+              "label": "Intercept after multiplying f by -{{a}}",
+              "inputProfile": "number",
+              "expected": "{{scaledb}}"
+            },
+            {
+              "id": "final-slope",
+              "label": "Final slope of g",
+              "inputProfile": "number",
+              "expected": "{{newm}}"
+            },
+            {
+              "id": "final-intercept",
+              "label": "Final y-intercept of g",
+              "inputProfile": "number",
+              "expected": "{{newb}}"
+            },
+            {
+              "id": "diagnosis",
+              "label": "Which operation changes the slope?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "scale-reflect",
+                  "label": "The multiplication by -a changes the slope; the added k only shifts the intercept vertically."
+                },
+                {
+                  "id": "shift",
+                  "label": "The added k changes both slope and intercept."
+                }
+              ],
+              "expected": "scale-reflect"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Output scaling and vertical shifting affect different linear features.",
+            "reasoning": [
+              "Multiplying f by -{{a}} changes slope {{m}} to {{newm}} and intercept {{b}} to {{scaledb}}.",
+              "Adding {{k}} leaves the slope {{newm}} unchanged.",
+              "The final intercept is {{scaledb}}+{{k}}={{newb}}."
+            ],
+            "answerSummary": "Final slope {{newm}}; final intercept {{newb}}."
+          },
+          "attemptFeedback": [
+            "Track slope and intercept separately through each transformation."
+          ],
+          "supportHints": [
+            "Adding a constant to every output is a vertical shift, not a change in rate."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              },
+              "k": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "newm": "-a*m",
+              "scaledb": "-a*b",
+              "newb": "scaledb+k"
+            }
+          }
+        }
       ]
     }
   ]
