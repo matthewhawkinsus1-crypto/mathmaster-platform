@@ -42,6 +42,13 @@ test('skills wheel keeps pass completion visible independently of mastery status
   assert.match(dashboard, /Mastery-challenge pass/);
 });
 
+test('skill modal exposes clickable TEKS and CCMR context before practice starts', () => {
+  assert.match(modal, /import StandardBadge/);
+  assert.match(modal, /<StandardBadge code=\{teksCode\}/);
+  assert.match(badge, />TEKS \{info\.displayCode\}/);
+  assert.match(badge, /CCMR connection/);
+});
+
 test('skill modal uses the canonical Path pass presentation instead of a generic practice button', () => {
   assert.match(modal, /describeCoursePathPass/);
   assert.match(modal, /pass\.completedLabel \|\| pass\.levelLabel/);
