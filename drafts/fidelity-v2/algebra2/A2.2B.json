@@ -1,0 +1,467 @@
+{
+  "standard": "A2.2B",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-inverse-equation-writing-graph-reflection-table-and-domain-restriction",
+  "rationale": "The legacy bank contained one strong inverse-reflection family but too much recognition/evaluation. V2 preserves the authentic graph workflow and makes complete inverse writing the dominant evidence across symbolic, graph, table, nonlinear, and restricted-domain forms.",
+  "documents": [
+    {
+      "id": "mm_A2_2B_v2_write-linear-inverse",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2B:v2-write-linear-inverse",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2B",
+      "type": "multiAnswer",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Find the inverse of $f(x)={{a}}x{{b|signed}}$. Write the COMPLETE equation for $f^{-1}(x)$.",
+      "answerFields": [
+        {
+          "id": "inverseEquation",
+          "label": "$f^{-1}(x)=$",
+          "inputMode": "math",
+          "expected": "f^-1(x)=(x-({{b}}))/{{a}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Swap input and output, then isolate the new output.",
+        "reasoning": [
+          "Write $y={{a}}x{{b|signed}}$, exchange $x$ and $y$, and solve $x={{a}}y{{b|signed}}$ for $y$.",
+          "The inverse is $f^{-1}(x)=\\frac{x-({{b}})}{{{a}}}$."
+        ],
+        "answerSummary": "$f^{-1}(x)=\\frac{x-({{b}})}{{{a}}}$"
+      },
+      "attemptFeedback": [
+        "Do not write only a slope or a point; the requested answer is the complete inverse equation."
+      ],
+      "supportHints": [
+        "Swap x and y first, then solve for y."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2B_v2_reflect-linear-and-write",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2B:v2-reflect-linear-and-write",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2B",
+      "type": "functionInvestigation",
+      "representation": "graph",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "Construct $f(x)={{m}}x{{b|signed}}$ from the two required points. Reflect BOTH points across $y=x$, draw the inverse on the same coordinate plane, and write the complete equation of $f^{-1}$.",
+      "functionSpec": {
+        "type": "linear",
+        "m": "{{m}}",
+        "b": "{{b}}"
+      },
+      "graph": {
+        "xMin": -10,
+        "xMax": 10,
+        "yMin": -14,
+        "yMax": 14,
+        "xStep": 1,
+        "yStep": 1,
+        "snapStep": 0.5
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot the point where x = 0",
+          "x": 0,
+          "expected": [
+            0,
+            "{{b}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot the point where x = {{x}}",
+          "x": "{{x}}",
+          "expected": [
+            "{{x}}",
+            "{{y}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "inverse",
+          "label": "Give one corresponding inverse point.",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "({{y}},{{x}})"
+          ]
+        }
+      ],
+      "inverseReflection": {
+        "enabled": true,
+        "sourceTaskIds": [
+          "p0",
+          "p1"
+        ],
+        "consumeAnalysisId": "inverse",
+        "showReferenceLine": true,
+        "requireInverseSketch": true,
+        "requireInverseEquation": true,
+        "expectedEquation": "f^-1(x)=(x-({{b}}))/{{m}}",
+        "equationPartId": "inverse-equation",
+        "equationLabel": "Write the equation of $f^{-1}(x)$.",
+        "inverseLineLabel": "Draw $f^{-1}$ through both reflected points."
+      },
+      "solutionReview": {
+        "headline": "Inverse graphs are reflections across $y=x$.",
+        "reasoning": [
+          "Each original point $(x,y)$ becomes $(y,x)$ on the inverse.",
+          "The reflected line has equation $f^{-1}(x)=\\frac{x-({{b}})}{{{m}}}$."
+        ],
+        "answerSummary": "Reflect both points and write $f^{-1}(x)=\\frac{x-({{b}})}{{{m}}}$."
+      },
+      "attemptFeedback": [
+        "If the reflection is correct but the equation is not, derive the inverse from the original equation instead of estimating the reflected slope."
+      ],
+      "supportHints": [
+        "Reflection across $y=x$ swaps every ordered pair's coordinates."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "x": {
+            "type": "choice",
+            "values": [
+              -2,
+              -1,
+              1,
+              2
+            ]
+          }
+        },
+        "derived": {
+          "y": "m*x+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2B_v2_table-reverse-and-write-rule",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2B:v2-table-reverse-and-write-rule",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2B",
+      "type": "multiAnswer",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "The table shows three input-output pairs from the linear function $f$. Reverse the relationship and write the COMPLETE equation for $f^{-1}(x)$.",
+      "table": {
+        "headers": [
+          "x",
+          "f(x)"
+        ],
+        "rows": [
+          [
+            "{{x1}}",
+            "{{y1}}"
+          ],
+          [
+            "{{x2}}",
+            "{{y2}}"
+          ],
+          [
+            "{{x3}}",
+            "{{y3}}"
+          ]
+        ]
+      },
+      "answerFields": [
+        {
+          "id": "inverseRule",
+          "label": "Inverse rule",
+          "inputMode": "math",
+          "expected": "f^-1(x)=(x-({{b}}))/{{m}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The inverse table is formed by reversing every ordered pair.",
+        "reasoning": [
+          "The original rule is linear with slope {{m}} and intercept {{b}}; reversing the table exchanges each x-value with its output.",
+          "Swapping x and y in $y={{m}}x{{b|signed}}$ and solving gives $f^{-1}(x)=\\frac{x-({{b}})}{{{m}}}$."
+        ],
+        "answerSummary": "$f^{-1}(x)=\\frac{x-({{b}})}{{{m}}}$"
+      },
+      "attemptFeedback": [
+        "A single reversed table value is not enough; use the pattern to write the whole inverse function."
+      ],
+      "supportHints": [
+        "Reverse the ordered pairs, then determine the linear rule that maps the old outputs back to the old inputs."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "choice",
+            "values": [
+              -4,
+              -3,
+              -2,
+              2,
+              3,
+              4
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x1": {
+            "type": "int",
+            "min": -4,
+            "max": -2
+          },
+          "x2": {
+            "type": "int",
+            "min": -1,
+            "max": 1
+          },
+          "x3": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          }
+        },
+        "derived": {
+          "y1": "m*x1+b",
+          "y2": "m*x2+b",
+          "y3": "m*x3+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2B_v2_nonlinear-cubic-cuberoot-inverse",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2B:v2-nonlinear-cubic-cuberoot-inverse",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2B",
+      "type": "multiAnswer",
+      "representation": "symbolic",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "Write the complete inverse equation for the nonlinear one-to-one function shown.",
+      "variants": [
+        {
+          "prompt": "Write the complete inverse of $f(x)=(x-({{h}}))^3{{k|signed}}$.",
+          "answerFields": [
+            {
+              "id": "inverseEquation",
+              "label": "$f^{-1}(x)=$",
+              "inputMode": "math",
+              "expected": "f^-1(x)=(x-({{k}}))^(1/3)+{{h}}",
+              "acceptedAnswers": [
+                "f^-1(x)=cbrt(x-({{k}}))+{{h}}"
+              ]
+            }
+          ],
+          "solutionReview": {
+            "headline": "A cubic is undone by a cube root.",
+            "reasoning": [
+              "Swap x and y, subtract {{k}}, take the cube root, then add {{h}}.",
+              "No domain restriction is needed because a cubic is one-to-one over all real numbers."
+            ],
+            "answerSummary": "$f^{-1}(x)=\\sqrt[3]{x-({{k}})}+{{h}}$"
+          },
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            }
+          }
+        },
+        {
+          "prompt": "Write the complete inverse of $f(x)=\\sqrt[3]{x-({{h}})}{{k|signed}}$.",
+          "answerFields": [
+            {
+              "id": "inverseEquation",
+              "label": "$f^{-1}(x)=$",
+              "inputMode": "math",
+              "expected": "f^-1(x)=(x-({{k}}))^3+{{h}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A cube-root function is undone by cubing.",
+            "reasoning": [
+              "Swap x and y, subtract {{k}}, cube both sides, then add {{h}}.",
+              "The cube-root parent is one-to-one across all real numbers."
+            ],
+            "answerSummary": "$f^{-1}(x)=(x-({{k}}))^3+{{h}}$"
+          },
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            }
+          }
+        }
+      ],
+      "attemptFeedback": [
+        "Use inverse operations in reverse order; an inverse function is not the reciprocal $1/f(x)$."
+      ],
+      "supportHints": [
+        "Cubing and taking a cube root undo one another."
+      ],
+      "generator": {
+        "parameters": {
+          "seed": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2B_v2_restricted-quadratic-write-inverse",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2B:v2-restricted-quadratic-write-inverse",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2B",
+      "type": "multiAnswer",
+      "representation": "symbolic",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student tries to invert $f(x)=(x-({{h}}))^2{{v|signed}}$ without restricting its domain and gets a relation instead of a function. Correct the work: state the restriction on the ORIGINAL quadratic that selects the principal branch, then write the complete inverse equation.",
+      "answerFields": [
+        {
+          "id": "restriction",
+          "label": "Restriction on f",
+          "inputMode": "inequality",
+          "notation": "inequality",
+          "expected": "x>={{h}}",
+          "acceptedAnswers": [
+            "x≥{{h}}"
+          ]
+        },
+        {
+          "id": "inverseEquation",
+          "label": "Inverse equation",
+          "inputMode": "math",
+          "expected": "f^-1(x)=sqrt(x-({{v}}))+{{h}}",
+          "acceptedAnswers": [
+            "f^-1(x)=(x-({{v}}))^(1/2)+{{h}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A quadratic must be made one-to-one before it can have an inverse function.",
+        "reasoning": [
+          "The vertex is at x={{h}}. Restricting the original function to $x\\ge {{h}}$ keeps the right-hand branch and matches the principal square root.",
+          "Swap x and y and solve using the positive square root: $f^{-1}(x)=\\sqrt{x-({{v}})}+{{h}}$."
+        ],
+        "answerSummary": "Restrict $f$ to $x\\ge {{h}}$; then $f^{-1}(x)=\\sqrt{x-({{v}})}+{{h}}$."
+      },
+      "attemptFeedback": [
+        "Both parts matter: the inverse formula and the original-domain restriction that makes it a function."
+      ],
+      "supportHints": [
+        "The principal square root corresponds to the branch on or to the right of the vertex."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "v": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        }
+      }
+    }
+  ]
+}
