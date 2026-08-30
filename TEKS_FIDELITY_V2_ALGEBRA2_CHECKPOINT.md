@@ -367,17 +367,37 @@ Certification result:
 
 Do **not** re-audit A2.4E unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.4F
 
-### A2.4F — ENHANCE — STAGED / CERTIFICATION AUTHORING
+### A2.4F — ENHANCE — CERTIFIED
 
 Official construct: **Solve quadratic and square root equations.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- quadratic solving includes both factoring and an exact quadratic-formula family with a guaranteed non-perfect-square discriminant;
+- square-root solving repeatedly requires isolate → square → solve rather than one-step undoing;
+- contextual interpretation and complete error repair are included;
+- every family finishes the actual solution set rather than stopping at a method-identification step;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- a spoiled final solution is rejected in every family;
+- public payloads strip answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33323687834`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4F unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.4G — PENDING AUDIT
+
+Official construct: **Identify extraneous solutions of square root equations.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.4F
+### A2.4G
 
-Resume here. Do not reopen A2.2A–A2.4E unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.4F unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.4F audit finding
@@ -415,8 +435,10 @@ Resume here. Do not reopen A2.2A–A2.4E unless a failing gate names them.
 - Package/build run `33323628362`: **PASS**, including student/runtime build.
 - Added A2.4F-specific generated certification — commit `5854e277a250a85dce6139848da25150813d3fe7`.
 - The A2.4F gate samples 200+ generated instances, checks production issuability and secure self-grading, requires repeated quadratic and square-root solves, verifies a non-perfect-square discriminant for the exact quadratic-formula family, requires repeated isolate→square→solve radical evidence, requires context/error-repair coverage, rejects a spoiled final solution in every family, and checks public answer-key stripping.
-- Full A2.4F assertion run `33323687834`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.4F** until generated certification is added and green.
+- Full A2.4F assertion run `33323687834`: **PASS**.
+- Generated breadth, exact-formula discrimination, complete radical solve evidence, secure self-grading, wrong-final rejection, public-key stripping, and student/runtime build all passed.
+- A2.4F is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4G**.
 
 
 ### 2026-08-30 — A2.4E audit finding
