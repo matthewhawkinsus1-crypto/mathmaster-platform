@@ -158,8 +158,8 @@
       "graph": {
         "xMin": -9,
         "xMax": 9,
-        "yMin": -12,
-        "yMax": 12,
+        "yMin": -24,
+        "yMax": 24,
         "snapStep": 1
       },
       "pointTasks": [
@@ -437,8 +437,8 @@
       "graph": {
         "xMin": -8,
         "xMax": 8,
-        "yMin": -12,
-        "yMax": 12,
+        "yMin": -36,
+        "yMax": 36,
         "snapStep": 1
       },
       "pointTasks": [
