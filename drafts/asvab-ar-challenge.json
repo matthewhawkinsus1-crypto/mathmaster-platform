@@ -8760,6 +8760,1015 @@
     "sourceFamilyId": "mathmaster:asvab:ar:7.13E:compound-balance-after-two-years",
     "sourcePrompt": "A {{worker}} put $${{principal}}$ into an account paying {{r}}% compounded yearly. What is the balance after two years?"
    }
+  },
+  {
+   "id": "mm_asvab_ar_7_13F_sale_then_coupon_then_tax",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.13F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.13F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.13F:sale-then-coupon-then-tax",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.13F",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{tool}} listed at $${{price}}$ is cut {{p}}%, then a $${{coupon}}$ coupon comes off. Sales tax of {{t}}% is added. What is paid?",
+   "solutionReview": {
+    "headline": "Tax is charged on what is actually owed.",
+    "reasoning": [
+     "{{p}}% off leaves $${{sale}}$, and the coupon brings it to $${{afterCoupon}}$.",
+     "Adding {{t}}% tax gives $${{answer}}$."
+    ],
+    "answerSummary": "The price paid is $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Leaving the sale discount out overstates what the tax is charged on."
+   ],
+   "supportHints": [
+    "The tax goes on last, after both reductions."
+   ],
+   "generator": {
+    "parameters": {
+     "tool": {
+      "type": "choice",
+      "values": [
+       "drill",
+       "compressor",
+       "welder",
+       "generator",
+       "grinder"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 40,
+      "step": 10
+     },
+     "coupon": {
+      "type": "int",
+      "min": 10,
+      "max": 50,
+      "step": 10
+     },
+     "t": {
+      "type": "int",
+      "min": 5,
+      "max": 25,
+      "step": 5
+     },
+     "posted": {
+      "type": "int",
+      "min": 90,
+      "max": 700,
+      "step": 10
+     }
+    },
+    "derived": {
+     "price": "hundreds*100",
+     "sale": "price*(100-p)/100",
+     "afterCoupon": "sale-coupon",
+     "answer": "afterCoupon*(100+t)/100",
+     "d_forgotFinalStep": "afterCoupon",
+     "d_percentNotApplied": "(price-coupon)*(100+t)/100",
+     "d_usedGivenValue": "posted"
+    },
+    "constraints": [
+     "sale-coupon>0",
+     "posted!=answer",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_percentNotApplied",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_percentNotApplied",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_percentNotApplied!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.13F:sale-then-coupon-then-tax",
+    "sourcePrompt": "A {{tool}} listed at $${{price}}$ is cut {{p}}%, then a $${{coupon}}$ coupon comes off. Sales tax of {{t}}% is added. What is paid?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_7_13F_list_price_behind_a_till_receipt",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.13F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.13F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.13F:list-price-behind-a-till-receipt",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.13F",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "After {{p}}% was taken off and a $${{coupon}}$ coupon applied, a {{tool}} came to $${{paid}}$. The ticket read $${{ticket}}$. What was the list price?",
+   "solutionReview": {
+    "headline": "Put the coupon back before undoing the percentage.",
+    "reasoning": [
+     "Adding the coupon back gives $${{sale}}$, which is {{100-p}}% of the list price.",
+     "That makes the list price $${{answer}}$."
+    ],
+    "answerSummary": "The list price was $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Restoring the coupon still leaves the percentage to undo."
+   ],
+   "supportHints": [
+    "The coupon came off after the discount, so it goes back on first."
+   ],
+   "generator": {
+    "parameters": {
+     "tool": {
+      "type": "choice",
+      "values": [
+       "drill",
+       "compressor",
+       "welder",
+       "generator",
+       "grinder"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 40,
+      "step": 10
+     },
+     "coupon": {
+      "type": "int",
+      "min": 10,
+      "max": 50,
+      "step": 10
+     },
+     "ticket": {
+      "type": "int",
+      "min": 130,
+      "max": 1000,
+      "step": 10
+     }
+    },
+    "derived": {
+     "answer": "hundreds*100",
+     "sale": "answer*(100-p)/100",
+     "paid": "sale-coupon",
+     "d_forgotFinalStep": "paid+coupon",
+     "d_partialTotal": "answer+coupon",
+     "d_usedGivenValue": "ticket"
+    },
+    "constraints": [
+     "sale-coupon>0",
+     "ticket!=answer",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.13F:list-price-behind-a-till-receipt",
+    "sourcePrompt": "After {{p}}% was taken off and a $${{coupon}}$ coupon applied, a {{tool}} came to $${{paid}}$. The ticket read $${{ticket}}$. What was the list price?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_7_13F_how_many_the_budget_buys_on_sale",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.13F"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.13F",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.13F:how-many-the-budget-buys-on-sale",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.13F",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The sale below runs while $${{budget}}$ is available to spend. How many {{tool}}s can be bought?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Item",
+     "Value"
+    ],
+    "rows": [
+     [
+      "List price",
+      "$${{price}}$"
+     ],
+     [
+      "Sale",
+      "{{p}}% off"
+     ],
+     [
+      "Ordered last time",
+      "{{ordered}}"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "Price one at the sale rate before dividing the budget.",
+    "reasoning": [
+     "{{p}}% off $${{price}}$ leaves $${{sale}}$ each.",
+     "$${{budget}}$ buys {{answer}} whole ones at that price."
+    ],
+    "answerSummary": "${{answer}}$ can be bought."
+   },
+   "attemptFeedback": [
+    "Using the list price prices them higher than the sale allows."
+   ],
+   "supportHints": [
+    "Only whole ones can be bought."
+   ],
+   "generator": {
+    "parameters": {
+     "tool": {
+      "type": "choice",
+      "values": [
+       "drill",
+       "compressor",
+       "welder",
+       "generator",
+       "grinder"
+      ]
+     },
+     "tens": {
+      "type": "int",
+      "min": 6,
+      "max": 20
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 40,
+      "step": 10
+     },
+     "cut": {
+      "type": "int",
+      "min": 5,
+      "max": 30,
+      "step": 5
+     },
+     "budget": {
+      "type": "int",
+      "min": 400,
+      "max": 1800,
+      "step": 50
+     },
+     "ordered": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     }
+    },
+    "derived": {
+     "price": "tens*10",
+     "sale": "price*(100-p)/100",
+     "answer": "floor(budget/sale)",
+     "d_percentNotApplied": "floor(budget/price)",
+     "d_forgotFinalStep": "floor(budget/(sale-cut))",
+     "d_usedGivenValue": "ordered"
+    },
+    "constraints": [
+     "sale-cut>0",
+     "ordered!=answer",
+     "floor(budget/sale)>0",
+     "answer!=d_percentNotApplied",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_percentNotApplied!=d_forgotFinalStep",
+     "d_percentNotApplied!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.13F:how-many-the-budget-buys-on-sale",
+    "sourcePrompt": "The sale below runs while $${{budget}}$ is available to spend. How many {{tool}}s can be bought?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_8_12A_total_repaid_on_a_simple_loan",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:8.12A:total-repaid-on-a-simple-loan",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{worker}} borrows $${{principal}}$ at {{r}}% simple interest for {{years}} years, plus a $${{fee}}$ arrangement fee. What is repaid in all?",
+   "solutionReview": {
+    "headline": "The fee is repaid alongside the loan and its interest.",
+    "reasoning": [
+     "{{r}}% for {{years}} years on $${{principal}}$ is $${{interest}}$ of interest.",
+     "With the $${{fee}}$ fee the total repaid is $${{answer}}$."
+    ],
+    "answerSummary": "$${{answer}}$ is repaid."
+   },
+   "attemptFeedback": [
+    "Leaving the fee out understates what is owed."
+   ],
+   "supportHints": [
+    "Three amounts make up the repayment."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "technician",
+       "driver",
+       "fitter",
+       "welder"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 5,
+      "max": 30
+     },
+     "r": {
+      "type": "int",
+      "min": 4,
+      "max": 12
+     },
+     "years": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "fee": {
+      "type": "int",
+      "min": 20,
+      "max": 150,
+      "step": 10
+     },
+     "quoted": {
+      "type": "int",
+      "min": 700,
+      "max": 4200,
+      "step": 20
+     }
+    },
+    "derived": {
+     "principal": "hundreds*100",
+     "interest": "principal*r*years/100",
+     "answer": "principal+interest+fee",
+     "d_partialTotal": "answer+interest",
+     "d_forgotFinalStep": "principal+interest",
+     "d_usedGivenValue": "quoted"
+    },
+    "constraints": [
+     "quoted!=answer",
+     "answer!=d_partialTotal",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=d_forgotFinalStep",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:8.12A:total-repaid-on-a-simple-loan",
+    "sourcePrompt": "A {{worker}} borrows $${{principal}}$ at {{r}}% simple interest for {{years}} years, plus a $${{fee}}$ arrangement fee. What is repaid in all?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_8_12A_term_behind_the_interest_charged",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:8.12A:term-behind-the-interest-charged",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12A",
+   "taskType": "reverseReasoning",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A $${{principal}}$ loan at {{r}}% simple interest was charged $${{interest}}$ in interest. The agreement listed {{stated}} years. How many years did it run?",
+   "solutionReview": {
+    "headline": "Find one year of interest before dividing.",
+    "reasoning": [
+     "One year at {{r}}% on $${{principal}}$ is $${{yearly}}$.",
+     "$${{interest}}$ divided by that is {{answer}} years."
+    ],
+    "answerSummary": "It ran ${{answer}}$ years."
+   },
+   "attemptFeedback": [
+    "The listed term is what the paperwork claims, not what the interest shows."
+   ],
+   "supportHints": [
+    "Work out what a single year costs first."
+   ],
+   "generator": {
+    "parameters": {
+     "hundreds": {
+      "type": "int",
+      "min": 5,
+      "max": 30
+     },
+     "r": {
+      "type": "int",
+      "min": 4,
+      "max": 12
+     },
+     "years": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "stated": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     }
+    },
+    "derived": {
+     "principal": "hundreds*100",
+     "yearly": "principal*r/100",
+     "interest": "yearly*years",
+     "answer": "years",
+     "d_operationInverted": "round(interest/r)",
+     "d_forgotFinalStep": "round(interest/principal)",
+     "d_usedGivenValue": "stated"
+    },
+    "constraints": [
+     "stated!=answer",
+     "round(interest/r)!=answer",
+     "round(interest/principal)!=answer",
+     "answer!=d_operationInverted",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_forgotFinalStep",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:8.12A:term-behind-the-interest-charged",
+    "sourcePrompt": "A $${{principal}}$ loan at {{r}}% simple interest was charged $${{interest}}$ in interest. The agreement listed {{stated}} years. How many years did it run?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_8_12A_monthly_payment_on_a_loan",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:8.12A:monthly-payment-on-a-loan",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12A",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A loan is set out below. What is the monthly payment?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Item",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Amount borrowed",
+      "$${{principal}}$"
+     ],
+     [
+      "Simple interest",
+      "{{r}}% a year"
+     ],
+     [
+      "Term",
+      "{{years}} years"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "Interest is repaid alongside the amount borrowed.",
+    "reasoning": [
+     "The interest is $${{interest}}$, so $${{total}}$ is repaid over {{months}} months.",
+     "That is about $${{answer}}$ a month."
+    ],
+    "answerSummary": "It is about $${{answer}}$ a month."
+   },
+   "attemptFeedback": [
+    "Spreading only the amount borrowed leaves the interest unpaid."
+   ],
+   "supportHints": [
+    "The term is given in years but the payments are monthly."
+   ],
+   "generator": {
+    "parameters": {
+     "hundreds": {
+      "type": "int",
+      "min": 6,
+      "max": 24
+     },
+     "r": {
+      "type": "int",
+      "min": 4,
+      "max": 12
+     },
+     "years": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "offered": {
+      "type": "int",
+      "min": 15,
+      "max": 95,
+      "step": 5
+     }
+    },
+    "derived": {
+     "principal": "hundreds*100",
+     "interest": "principal*r*years/100",
+     "total": "principal+interest",
+     "months": "years*12",
+     "answer": "round(total/months)",
+     "d_percentNotApplied": "round(principal/months)",
+     "d_operationInverted": "round(total/years)",
+     "d_usedGivenValue": "offered"
+    },
+    "constraints": [
+     "offered!=answer",
+     "round(principal/months)!=answer",
+     "answer!=d_percentNotApplied",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_percentNotApplied!=d_operationInverted",
+     "d_percentNotApplied!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:8.12A:monthly-payment-on-a-loan",
+    "sourcePrompt": "A loan is set out below. What is the monthly payment?"
+   }
   }
  ]
 }

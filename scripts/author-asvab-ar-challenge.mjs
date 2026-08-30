@@ -1927,6 +1927,225 @@ arc('7.13E', 'compound-balance-after-two-years', {
   feedback: 'Two years of simple interest misses the interest earned on interest.',
 });
 
+// ================================================================ 7.13F
+// Discounts, coupons and what is actually paid.
+
+arc('7.13F', 'sale-then-coupon-then-tax', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{tool}} listed at $\$\{{price}}$ is cut {{p}}%, then a $\$\{{coupon}}$ coupon comes off. Sales tax of {{t}}% is added. What is paid?',
+  generator: {
+    parameters: {
+      tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
+      hundreds: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 10, max: 40, step: 10 },
+      coupon: { type: 'int', min: 10, max: 50, step: 10 },
+      t: { type: 'int', min: 5, max: 25, step: 5 },
+      posted: { type: 'int', min: 90, max: 700, step: 10 },
+    },
+    derived: {
+      price: 'hundreds*100',
+      sale: 'price*(100-p)/100',
+      afterCoupon: 'sale-coupon',
+      answer: 'afterCoupon*(100+t)/100',
+      d_forgotFinalStep: 'afterCoupon',
+      d_percentNotApplied: '(price-coupon)*(100+t)/100',
+      d_usedGivenValue: 'posted',
+    },
+    constraints: ['sale-coupon>0', 'posted!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{p}}% off leaves $\$\{{sale}}$, and the coupon brings it to $\$\{{afterCoupon}}$.', 'Adding {{t}}% tax gives $\$\{{answer}}$.'],
+  answerSummary: { headline: 'Tax is charged on what is actually owed.', text: 'The price paid is $\$\{{answer}}$.' },
+  hint: 'The tax goes on last, after both reductions.',
+  feedback: 'Leaving the sale discount out overstates what the tax is charged on.',
+});
+
+arc('7.13F', 'list-price-behind-a-till-receipt', {
+  difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'After {{p}}% was taken off and a $\$\{{coupon}}$ coupon applied, a {{tool}} came to $\$\{{paid}}$. The ticket read $\$\{{ticket}}$. What was the list price?',
+  generator: {
+    parameters: {
+      tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
+      hundreds: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 10, max: 40, step: 10 },
+      coupon: { type: 'int', min: 10, max: 50, step: 10 },
+      ticket: { type: 'int', min: 130, max: 1000, step: 10 },
+    },
+    derived: {
+      answer: 'hundreds*100',
+      sale: 'answer*(100-p)/100',
+      paid: 'sale-coupon',
+      d_forgotFinalStep: 'paid+coupon',
+      d_partialTotal: 'answer+coupon',
+      d_usedGivenValue: 'ticket',
+    },
+    constraints: ['sale-coupon>0', 'ticket!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Adding the coupon back gives $\$\{{sale}}$, which is {{100-p}}% of the list price.', 'That makes the list price $\$\{{answer}}$.'],
+  answerSummary: { headline: 'Put the coupon back before undoing the percentage.', text: 'The list price was $\$\{{answer}}$.' },
+  hint: 'The coupon came off after the discount, so it goes back on first.',
+  feedback: 'Restoring the coupon still leaves the percentage to undo.',
+});
+
+arc('7.13F', 'how-many-the-budget-buys-on-sale', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'The sale below runs while $\$\{{budget}}$ is available to spend. How many {{tool}}s can be bought?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Item', 'Value'],
+    rows: [['List price', '$\$\{{price}}$'], ['Sale', '{{p}}% off'], ['Ordered last time', '{{ordered}}']],
+  },
+  generator: {
+    parameters: {
+      tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
+      tens: { type: 'int', min: 6, max: 20 },
+      p: { type: 'int', min: 10, max: 40, step: 10 },
+      cut: { type: 'int', min: 5, max: 30, step: 5 },
+      budget: { type: 'int', min: 400, max: 1800, step: 50 },
+      ordered: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      price: 'tens*10',
+      sale: 'price*(100-p)/100',
+      answer: 'floor(budget/sale)',
+      d_percentNotApplied: 'floor(budget/price)',
+      d_forgotFinalStep: 'floor(budget/(sale-cut))',
+      d_usedGivenValue: 'ordered',
+    },
+    constraints: ['sale-cut>0', 'ordered!=answer', 'floor(budget/sale)>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{p}}% off $\$\{{price}}$ leaves $\$\{{sale}}$ each.', '$\$\{{budget}}$ buys {{answer}} whole ones at that price.'],
+  answerSummary: { headline: 'Price one at the sale rate before dividing the budget.', text: '${{answer}}$ can be bought.' },
+  hint: 'Only whole ones can be bought.',
+  feedback: 'Using the list price prices them higher than the sale allows.',
+});
+
+// ================================================================ 8.12A
+// Borrowing cost.
+
+arc('8.12A', 'total-repaid-on-a-simple-loan', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{worker}} borrows $\$\{{principal}}$ at {{r}}% simple interest for {{years}} years, plus a $\$\{{fee}}$ arrangement fee. What is repaid in all?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
+      hundreds: { type: 'int', min: 5, max: 30 },
+      r: { type: 'int', min: 4, max: 12 },
+      years: { type: 'int', min: 2, max: 6 },
+      fee: { type: 'int', min: 20, max: 150, step: 10 },
+      quoted: { type: 'int', min: 700, max: 4200, step: 20 },
+    },
+    derived: {
+      principal: 'hundreds*100',
+      interest: 'principal*r*years/100',
+      answer: 'principal+interest+fee',
+      d_partialTotal: 'answer+interest',
+      d_forgotFinalStep: 'principal+interest',
+      d_usedGivenValue: 'quoted',
+    },
+    constraints: ['quoted!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{r}}% for {{years}} years on $\$\{{principal}}$ is $\$\{{interest}}$ of interest.', 'With the $\$\{{fee}}$ fee the total repaid is $\$\{{answer}}$.'],
+  answerSummary: { headline: 'The fee is repaid alongside the loan and its interest.', text: '$\$\{{answer}}$ is repaid.' },
+  hint: 'Three amounts make up the repayment.',
+  feedback: 'Leaving the fee out understates what is owed.',
+});
+
+arc('8.12A', 'term-behind-the-interest-charged', {
+  difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: 'A $\$\{{principal}}$ loan at {{r}}% simple interest was charged $\$\{{interest}}$ in interest. The agreement listed {{stated}} years. How many years did it run?',
+  generator: {
+    parameters: {
+      hundreds: { type: 'int', min: 5, max: 30 },
+      r: { type: 'int', min: 4, max: 12 },
+      years: { type: 'int', min: 2, max: 9 },
+      stated: { type: 'int', min: 1, max: 9 },
+    },
+    derived: {
+      principal: 'hundreds*100',
+      yearly: 'principal*r/100',
+      interest: 'yearly*years',
+      answer: 'years',
+      d_operationInverted: 'round(interest/r)',
+      d_forgotFinalStep: 'round(interest/principal)',
+      d_usedGivenValue: 'stated',
+    },
+    constraints: ['stated!=answer', 'round(interest/r)!=answer', 'round(interest/principal)!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['One year at {{r}}% on $\$\{{principal}}$ is $\$\{{yearly}}$.', '$\$\{{interest}}$ divided by that is {{answer}} years.'],
+  answerSummary: { headline: 'Find one year of interest before dividing.', text: 'It ran ${{answer}}$ years.' },
+  hint: 'Work out what a single year costs first.',
+  feedback: 'The listed term is what the paperwork claims, not what the interest shows.',
+});
+
+arc('8.12A', 'monthly-payment-on-a-loan', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'A loan is set out below. What is the monthly payment?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Item', 'Value'],
+    rows: [['Amount borrowed', '$\$\{{principal}}$'], ['Simple interest', '{{r}}% a year'], ['Term', '{{years}} years']],
+  },
+  generator: {
+    parameters: {
+      hundreds: { type: 'int', min: 6, max: 24 },
+      r: { type: 'int', min: 4, max: 12 },
+      years: { type: 'int', min: 2, max: 5 },
+      offered: { type: 'int', min: 15, max: 95, step: 5 },
+    },
+    derived: {
+      principal: 'hundreds*100',
+      interest: 'principal*r*years/100',
+      total: 'principal+interest',
+      months: 'years*12',
+      answer: 'round(total/months)',
+      d_percentNotApplied: 'round(principal/months)',
+      d_operationInverted: 'round(total/years)',
+      d_usedGivenValue: 'offered',
+    },
+    constraints: ['offered!=answer', 'round(principal/months)!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The interest is $\$\{{interest}}$, so $\$\{{total}}$ is repaid over {{months}} months.', 'That is about $\$\{{answer}}$ a month.'],
+  answerSummary: { headline: 'Interest is repaid alongside the amount borrowed.', text: 'It is about $\$\{{answer}}$ a month.' },
+  hint: 'The term is given in years but the payments are monthly.',
+  feedback: 'Spreading only the amount borrowed leaves the interest unpaid.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
