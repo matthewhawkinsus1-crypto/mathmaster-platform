@@ -16,12 +16,24 @@ const EXPECTED = Object.freeze({
   'mathmaster:sat:A.12B:ccmr-challenge-challenge-reciprocal-function-value': ['satDistractor3', 'k'],
   'mathmaster:sat:A.12E:advanced:ccmr-challenge-inverse-square-parameter': ['satDistractor2', 'r*r'],
   'mathmaster:sat:A.2B:ccmr-challenge-derived-feature-from-two-points': ['satDistractor3', 'b'],
-  'mathmaster:sat:A.2F:ccmr-challenge-perpendicular-rational-step-output': ['satDistractor3', 'q'],
+  // Replaced, not weakened. The V2.1 certification sweep found this family's key
+  // sitting at an extreme of the four: its three distractors all moved with the
+  // sign of the step, so the key could only ever be the largest or the smallest.
+  // The `q` option ("answered with the run") moved with them, so it gave way to
+  // one that does not - the x-coordinate the question hands you - which is the
+  // stronger "grabbed the wrong number" misconception anyway, because that value
+  // is printed in the stem.
+  'mathmaster:sat:A.2F:ccmr-challenge-perpendicular-rational-step-output': ['dGaveXCoordinate', 'x1+run'],
   'mathmaster:sat:A.2G:ccmr-challenge-horizontal-vertical-intersection': ['satDistractor3', 'h'],
   'mathmaster:sat:A.2I:ccmr-challenge-parameterized-common-solution': ['satDistractor3', 'c'],
-  'mathmaster:sat:A.3A:ccmr-challenge-compare-representations': ['satDistractor3', 'mq'],
+  // Replaced, not weakened, for the same reason. With options {mp-mq, mp+mq, mp,
+  // mq} the key was an extreme in 92% of draws. Answering with one input slope
+  // was the option that had to go; `-mp-mq` is the classic sign error, computing
+  // line p's slope as (y1-y2)/(x2-x1) and then subtracting.
+  'mathmaster:sat:A.3A:ccmr-challenge-compare-representations': ['dSlopeSignError', '-mp-mq'],
   'mathmaster:sat:A.3F:ccmr-challenge-intersection-derived-sum': ['satDistractor3', 'q'],
-  'mathmaster:sat:A.5B:ccmr-challenge-parameter': ['satDistractor3', 'delta'],
+  // Renamed, not weakened: still the coefficient gap offered in place of k.
+  'mathmaster:sat:A.5B:ccmr-challenge-parameter': ['dCoefficientOnly', 'delta'],
   'mathmaster:sat:A.5C:ccmr-challenge-combined-value': ['satDistractor3', 'y'],
   'mathmaster:sat:A.8A:ccmr-challenge-challenge-one-solution-parameter': ['satDistractor3', '4*h*h'],
   'mathmaster:sat:A.9D:ccmr-challenge-shifted-center-value': ['satDistractor3', 'k'],
@@ -44,9 +56,12 @@ const EXPECTED = Object.freeze({
   'mathmaster:sat:native:linesAnglesTriangles:triangle-exterior-angle': ['dAdjacent', '180-a-b'],
 });
 
+// Two counting families deliberately offer one-past-the-answer. Both were
+// renamed in the V2.1 sweep and both still evaluate to answer+1: `gap+2` where
+// the answer is gap+1, and `span+2` where the count is span+1.
 const KEEP = Object.freeze({
-  'mathmaster:sat:A.3H:ccmr-challenge-integer-points-vertical-slice': ['satDistractor3', '(answer)+1'],
-  'mathmaster:sat:A2.3F:ccmr-challenge-challenge-integer-count': ['satDistractor3', '(count)+1'],
+  'mathmaster:sat:A.3H:ccmr-challenge-integer-points-vertical-slice': ['dCountedBothEnds', 'gap+2'],
+  'mathmaster:sat:A2.3F:ccmr-challenge-challenge-integer-count': ['dCountedBothEnds', 'span+2'],
 });
 
 const norm = (value) => String(value ?? '').replace(/\s+/g, '');

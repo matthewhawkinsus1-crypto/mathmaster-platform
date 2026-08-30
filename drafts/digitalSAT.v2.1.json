@@ -36770,7 +36770,7 @@
         "officialSkillFamily": "linear functions",
         "stemProfile": "constant-difference"
       },
-      "prompt": "For a linear function $f$ with rate of change {{m}}, $f({{a}})={{y}}$. What is $f({{a2}})$?",
+      "prompt": "For a linear function $f$ with rate of change ${{m}}$, $f({{a}})={{y}}$. What is $f({{a2}})$?",
       "attemptFeedback": [
         "Use the defining relationship in the prompt and verify the result in the original representation."
       ],
@@ -36778,11 +36778,12 @@
         "Translate the notation or condition into an equation or input-output statement before answering."
       ],
       "solutionReview": {
-        "headline": "Use the stated relationship precisely.",
+        "headline": "Apply the rate to the change in input.",
         "reasoning": [
-          "Apply the defining condition and verify the result against the original representation."
+          "From $x={{a}}$ to $x={{a2}}$ the input increases by {{step}}.",
+          "So $f({{a2}})={{y}}+{{m}}({{step}})={{answer}}$."
         ],
-        "answerSummary": "Check the final result in the original relation."
+        "answerSummary": "$f({{a2}})={{answer}}$"
       },
       "generator": {
         "parameters": {
@@ -36791,13 +36792,18 @@
             "min": -7,
             "max": 7,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "a": {
             "type": "int",
             "min": -5,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              0
+            ]
           },
           "step": {
             "type": "int",
@@ -36813,13 +36819,13 @@
         "derived": {
           "a2": "a+step",
           "answer": "y+m*step",
-          "d1": "answer+2",
-          "d2": "answer+1",
-          "d3": "answer-1"
+          "dWrongDirection": "y-m*step",
+          "dRateTimesInput": "y+m*a2",
+          "dSingleStep": "y+m"
         },
         "constraints": [
-          "m!=1",
-          "m!=-1"
+          "a!=-2*step",
+          "a+step!=1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -36830,15 +36836,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{d1}}$"
+          "label": "${{dWrongDirection}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d2}}$"
+          "label": "${{dRateTimesInput}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d3}}$"
+          "label": "${{dSingleStep}}$"
         }
       ],
       "responseFields": [
@@ -38396,15 +38402,22 @@
           "r": {
             "type": "int",
             "min": -20,
-            "max": 20
+            "max": 20,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "p": "-m*q",
-          "d1": "m*q",
-          "d2": "-m",
-          "d3": "m"
-        }
+          "dSignError": "m*q",
+          "dDroppedCoefficient": "-m",
+          "dSubstitutedSlopeForY": "r-m*q"
+        },
+        "constraints": [
+          "r!=2*m*q",
+          "r!=m*q-m"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -38414,15 +38427,15 @@
         },
         {
           "id": "choice-c",
-          "label": "${{d1}}$"
+          "label": "${{dSignError}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d2}}$"
+          "label": "${{dDroppedCoefficient}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d3}}$"
+          "label": "${{dSubstitutedSlopeForY}}$"
         }
       ],
       "responseFields": [
@@ -39445,7 +39458,10 @@
           "y1": {
             "type": "int",
             "min": -5,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              0
+            ]
           },
           "step": {
             "type": "int",
@@ -39457,17 +39473,17 @@
           "C": "A*x1+B*y1",
           "x2": "x1+B*step",
           "y2": "y1-A*step",
-          "satDistractor1": "A*x1-B*y1",
-          "satDistractor2": "A*x1",
-          "satDistractor3": "A+x1+B*y1"
+          "dSignError": "A*x1-B*y1",
+          "dSwappedCoordinates": "A*y1+B*x1",
+          "dDroppedCoefficients": "x1+y1"
         },
         "constraints": [
-          "satDistractor1!=C",
-          "satDistractor2!=C",
-          "satDistractor3!=C",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "A!=B",
+          "x1!=y1",
+          "dDroppedCoefficients!=C",
+          "dDroppedCoefficients!=dSignError",
+          "dDroppedCoefficients!=dSwappedCoordinates",
+          "dSignError!=dSwappedCoordinates"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -39486,15 +39502,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSignError}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dSwappedCoordinates}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dDroppedCoefficients}}"
         }
       ]
     },
@@ -40066,13 +40082,13 @@
         "parameters": {
           "k": {
             "type": "int",
-            "min": 3,
-            "max": 11
+            "min": 2,
+            "max": 8
           },
           "u1": {
             "type": "int",
             "min": 2,
-            "max": 7
+            "max": 8
           },
           "scale": {
             "type": "int",
@@ -40084,17 +40100,17 @@
           "v1": "k*u1",
           "u2": "u1*scale",
           "v2": "v1*scale",
-          "satDistractor1": "(v1+scale)",
-          "satDistractor2": "v1",
-          "satDistractor3": "scale"
+          "dScaleAsConstant": "scale*u2",
+          "dFirstUAsConstant": "u1*u2",
+          "dAdditive": "v1+u2-u1"
         },
         "constraints": [
-          "satDistractor1!=v2",
-          "satDistractor2!=v2",
-          "satDistractor3!=v2",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "k!=scale",
+          "k!=u1",
+          "scale!=u1",
+          "dAdditive!=v2",
+          "dAdditive!=dScaleAsConstant",
+          "dAdditive!=dFirstUAsConstant"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -40113,15 +40129,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dScaleAsConstant}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dFirstUAsConstant}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dAdditive}}"
         }
       ]
     },
@@ -40189,7 +40205,7 @@
         "parameters": {
           "a": {
             "type": "int",
-            "min": -5,
+            "min": -2,
             "max": 12
           },
           "c": {
@@ -40206,10 +40222,15 @@
         "derived": {
           "k": "a-c",
           "y": "k*x",
-          "d1": "a+c",
-          "d2": "a-c",
-          "d3": "a+1"
-        }
+          "dSlopeOnly": "a-c",
+          "dReversedSubtraction": "2*c-a",
+          "dAddedConstant": "a+c"
+        },
+        "constraints": [
+          "a!=c",
+          "3*c!=2*a",
+          "c!=2*a"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -40219,15 +40240,15 @@
         },
         {
           "id": "choice-d",
-          "label": "${{d1}}$"
+          "label": "${{dAddedConstant}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d2}}$"
+          "label": "${{dSlopeOnly}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d3}}$"
+          "label": "${{dReversedSubtraction}}$"
         }
       ],
       "responseFields": [
@@ -40310,7 +40331,7 @@
           "delta": {
             "type": "int",
             "min": 2,
-            "max": 5
+            "max": 8
           },
           "x": {
             "type": "int",
@@ -40323,17 +40344,14 @@
           "y1": "k1*x",
           "y2": "k2*x",
           "diff": "delta*x",
-          "satDistractor1": "(delta+x)",
-          "satDistractor2": "delta",
-          "satDistractor3": "x"
+          "dConstantDifference": "delta",
+          "dFirstOutput": "k1*x",
+          "dSumOfOutputs": "(k1+k2)*x"
         },
         "constraints": [
-          "satDistractor1!=diff",
-          "satDistractor2!=diff",
-          "satDistractor3!=diff",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "k1!=delta",
+          "delta!=k1*x",
+          "delta!=(k1+k2)*x"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -40352,15 +40370,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dConstantDifference}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dFirstOutput}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSumOfOutputs}}"
         }
       ]
     },
@@ -41027,8 +41045,13 @@
           },
           "scale": {
             "type": "int",
-            "min": 2,
-            "max": 5
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "C1": {
             "type": "int",
@@ -41044,12 +41067,13 @@
         "derived": {
           "As": "A*scale",
           "p": "B*scale",
-          "d1": "-p",
-          "d2": "p+B",
-          "d3": "p-B"
+          "dSignError": "-B*scale",
+          "dUsedXCoefficient": "A*scale",
+          "dUnscaled": "B"
         },
         "constraints": [
           "A!=B",
+          "A*scale!=B",
           "C2!=C1*scale"
         ]
       },
@@ -41075,15 +41099,15 @@
         },
         {
           "id": "choice-c",
-          "label": "${{d1}}$"
+          "label": "${{dSignError}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d2}}$"
+          "label": "${{dUsedXCoefficient}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d3}}$"
+          "label": "${{dUnscaled}}$"
         }
       ],
       "responseFields": [
@@ -41765,7 +41789,7 @@
         "officialSkillFamily": "linear equations in two variables",
         "stemProfile": "perpendicular-slope-parameter"
       },
-      "prompt": "The line $y=px {{c|signed}}$, where $p$ is a constant, is perpendicular to the line $y={{m}}x {{b|signed}}$. Which value of $p$ makes the lines perpendicular?",
+      "prompt": "The line $y=px {{c|signed}}$, where $p$ is a constant, is perpendicular to the line $y={{m}}x+{{b}}$. Which value of $p$ makes the lines perpendicular?",
       "generator": {
         "parameters": {
           "m": {
@@ -41775,15 +41799,21 @@
           },
           "b": {
             "type": "int",
-            "min": -9,
-            "max": 9
+            "min": 2,
+            "max": 8
           },
           "c": {
             "type": "int",
             "min": -9,
-            "max": 9
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
-        }
+        },
+        "constraints": [
+          "b!=m"
+        ]
       },
       "solutionReview": {
         "headline": "Use the perpendicular-slope condition.",
@@ -41815,7 +41845,7 @@
         },
         {
           "id": "choice-c",
-          "label": "${{m}}$"
+          "label": "$-\\frac{1}{ {{b}} }$"
         }
       ],
       "responseFields": [
@@ -41981,7 +42011,7 @@
         "officialSkillFamily": "linear equations in two variables",
         "stemProfile": "perpendicular-standard-form-parameter"
       },
-      "prompt": "The lines ${{A}}x+{{B}}y={{C1}}$ and $px+{{q}}y={{C2}}$ are perpendicular, where $p$ is a constant. What is the value of $p$?",
+      "prompt": "The lines ${{A}}x+{{B}}y={{C1}}$ and $px {{q|signed}}y={{C2}}$ are perpendicular, where $p$ is a constant. What is the value of $p$?",
       "generator": {
         "parameters": {
           "A": {
@@ -41996,8 +42026,13 @@
           },
           "k": {
             "type": "int",
-            "min": 2,
-            "max": 5
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "C1": {
             "type": "int",
@@ -42013,9 +42048,9 @@
         "derived": {
           "q": "A*k",
           "p": "-B*k",
-          "d1": "B*k",
-          "d2": "-A*k",
-          "d3": "A*k"
+          "dNoNegative": "B*k",
+          "dWrongCoefficient": "-A*k",
+          "dParallel": "A*k"
         },
         "constraints": [
           "A!=B"
@@ -42043,15 +42078,15 @@
         },
         {
           "id": "choice-d",
-          "label": "${{d1}}$"
+          "label": "${{dNoNegative}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d2}}$"
+          "label": "${{dWrongCoefficient}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d3}}$"
+          "label": "${{dParallel}}$"
         }
       ],
       "responseFields": [
@@ -42130,6 +42165,14 @@
               0
             ]
           },
+          "t": {
+            "type": "int",
+            "min": -2,
+            "max": 2,
+            "exclude": [
+              0
+            ]
+          },
           "u1": {
             "type": "int",
             "min": -4,
@@ -42155,27 +42198,25 @@
           "dy": "sgn*p",
           "u2": "u1+q",
           "v2": "v1+dy",
-          "x2": "x1+dy",
-          "r": "y1-q",
-          "satDistractor1": "y1+q",
-          "satDistractor2": "y1",
-          "satDistractor3": "q"
+          "run": "t*dy",
+          "x2": "x1+run",
+          "rise": "-t*q",
+          "r": "y1+rise",
+          "dReciprocalOnly": "y1-rise",
+          "dNoStep": "y1",
+          "dGaveXCoordinate": "x1+run"
         },
         "constraints": [
-          "p!=q",
-          "satDistractor1!=r",
-          "satDistractor2!=r",
-          "satDistractor3!=r",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "r!=dGaveXCoordinate",
+          "dReciprocalOnly!=dGaveXCoordinate",
+          "dNoStep!=dGaveXCoordinate"
         ]
       },
       "solutionReview": {
         "headline": "Use a step compatible with the negative reciprocal slope.",
         "reasoning": [
           "The slope of $\\ell$ is ${{dy}}/{{q}}$, so the perpendicular slope is $-{{q}}/{{dy}}$.",
-          "From $x={{x1}}$ to $x={{x2}}$, the change in $x$ is {{dy}}, so the change in $y$ is $-{{q}}$."
+          "From $x={{x1}}$ to $x={{x2}}$ the change in $x$ is {{run}}, so the change in $y$ is {{rise}}."
         ],
         "answerSummary": "${{r}}$"
       },
@@ -42201,15 +42242,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dReciprocalOnly}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dNoStep}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dGaveXCoordinate}}"
         }
       ]
     },
@@ -42280,7 +42321,10 @@
           "t": {
             "type": "int",
             "min": -4,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              0
+            ]
           },
           "y1": {
             "type": "int",
@@ -42291,18 +42335,15 @@
         "derived": {
           "x1": "A*t",
           "b": "y1-B*t",
-          "satDistractor1": "y1+B*t",
-          "satDistractor2": "y1",
-          "satDistractor3": "y1-B+t"
+          "dSlopeSign": "y1+B*t",
+          "dNoStep": "y1",
+          "dGaveConstant": "C"
         },
         "constraints": [
           "A!=B",
-          "satDistractor1!=b",
-          "satDistractor2!=b",
-          "satDistractor3!=b",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "C!=b",
+          "C!=dSlopeSign",
+          "C!=dNoStep"
         ]
       },
       "solutionReview": {
@@ -42335,15 +42376,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSlopeSign}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dNoStep}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dGaveConstant}}"
         }
       ]
     },
@@ -45876,18 +45917,13 @@
           "x2": "x1+dx",
           "y2": "y1+mp*dx",
           "answer": "mp-mq",
-          "satDistractor1": "mp+mq",
-          "satDistractor2": "mp",
-          "satDistractor3": "mq"
+          "dReversedOrder": "mq-mp",
+          "dAdded": "mp+mq",
+          "dSlopeSignError": "-mp-mq"
         },
         "constraints": [
           "mp!=mq",
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "mp+mq!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -45906,11 +45942,12 @@
         "Keep the definition of slope fixed even when the line is given in a less familiar form."
       ],
       "solutionReview": {
-        "headline": "Identify the line's rate of change.",
+        "headline": "Find each slope, then subtract in the order asked.",
         "reasoning": [
-          "Use the representation given to determine slope, then answer the quantity asked for."
+          "Line $p$ rises from ${{y1}}$ to ${{y2}}$ over {{dx}} units, so its slope is {{mp}}.",
+          "Line $q$ has slope {{mq}}, so the difference is ${{mp}}-({{mq}})={{answer}}$."
         ],
-        "answerSummary": "Use the generated relationship to verify the result."
+        "answerSummary": "${{answer}}$"
       },
       "choices": [
         {
@@ -45919,15 +45956,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dReversedOrder}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dAdded}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSlopeSignError}}"
         }
       ]
     },
@@ -47506,39 +47543,37 @@
         "stemProfile": "parameter-from-x-intercept",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "The line $y={{m}}x+b$ has $x$-intercept $({{x0}},0)$. What is the value of $b$?",
+      "prompt": "The line $y=\\frac{ {{p}} }{ {{q}} }x+b$ has $x$-intercept $({{x0}},0)$. What is the value of $b$?",
       "generator": {
         "parameters": {
-          "m": {
+          "p": {
             "type": "int",
-            "min": -7,
-            "max": 7,
-            "exclude": [
-              0
-            ]
+            "min": 2,
+            "max": 7
           },
-          "x0": {
+          "q": {
             "type": "int",
-            "min": -8,
-            "max": 8,
+            "min": 2,
+            "max": 5
+          },
+          "t": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
             "exclude": [
               0
             ]
           }
         },
         "derived": {
-          "answer": "-m*x0",
-          "satDistractor1": "-(m+x0)",
-          "satDistractor2": "-m",
-          "satDistractor3": "-x0"
+          "x0": "q*t",
+          "answer": "-p*t",
+          "dSignError": "p*t",
+          "dNoDenominator": "-p*x0",
+          "dNegatedIntercept": "-x0"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "gcd(p,q)==1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -47557,11 +47592,12 @@
         "At an $x$-intercept or zero, the output is 0. At the $y$-intercept, the input is 0."
       ],
       "solutionReview": {
-        "headline": "Connect the equation and its graph.",
+        "headline": "Substitute the $x$-intercept into the equation.",
         "reasoning": [
-          "Use the defining condition for the requested graph feature and substitute it into the linear equation."
+          "At an $x$-intercept the output is 0, so $0=\\frac{ {{p}} }{ {{q}} }({{x0}})+b$.",
+          "Because ${{x0}}={{q}}({{t}})$, the fraction is an integer and $b={{answer}}$."
         ],
-        "answerSummary": "Verify that the resulting point or value lies on the generated line."
+        "answerSummary": "$b={{answer}}$"
       },
       "choices": [
         {
@@ -47570,15 +47606,15 @@
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSignError}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
+          "label": "{{dNoDenominator}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dNegatedIntercept}}"
         }
       ]
     },
@@ -48617,27 +48653,38 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -9,
-            "max": 9
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "x": {
             "type": "int",
             "min": -5,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "boundary": "m*x+b",
           "answer": "boundary+1",
-          "d1": "boundary",
-          "d2": "boundary-1",
-          "d3": "boundary+2"
-        }
+          "dInclusive": "boundary",
+          "dSlopeSign": "-m*x+b+1",
+          "dConstantSign": "m*x-b+1"
+        },
+        "constraints": [
+          "b!=m*x"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -48655,15 +48702,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{d1}}$"
+          "label": "${{dInclusive}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d2}}$"
+          "label": "${{dSlopeSign}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d3}}$"
+          "label": "${{dConstantSign}}$"
         }
       ],
       "attemptFeedback": [
@@ -48673,11 +48720,12 @@
         "Check boundary conditions and whether the requested point or feature satisfies every condition."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "A strict inequality excludes its boundary.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "At $x={{x}}$ the boundary value is ${{m}}({{x}}) {{b|signed}}={{boundary}}$.",
+          "Since $y>{{boundary}}$ and $y$ is an integer, the least value is {{answer}}."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "answerSummary": "${{answer}}$"
       }
     },
     {
@@ -49134,7 +49182,7 @@
         "officialSkillFamily": "linear functions",
         "stemProfile": "intercept-change"
       },
-      "prompt": "The line $y={{m}}x {{b|signed}}$ is translated vertically so that its new $y$-intercept is {{newb}}. By how many units was the line translated upward?",
+      "prompt": "The graph of $y={{m}}x {{b|signed}}$ is translated $k$ units vertically, producing a line with $y$-intercept ${{newb}}$. A positive value of $k$ means the graph moved up. What is the value of $k$?",
       "generator": {
         "parameters": {
           "m": {
@@ -49142,26 +49190,41 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "k": {
             "type": "int",
-            "min": 2,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           }
         },
         "derived": {
           "newb": "b+k",
-          "d1": "k+1",
-          "d2": "k-1",
-          "d3": "-k"
-        }
+          "dReversed": "-k",
+          "dNewIntercept": "b+k",
+          "dOldIntercept": "b"
+        },
+        "constraints": [
+          "b!=-2*k",
+          "b!=-k",
+          "b!=k"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -49179,15 +49242,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{d1}}$"
+          "label": "${{dReversed}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d2}}$"
+          "label": "${{dNewIntercept}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d3}}$"
+          "label": "${{dOldIntercept}}$"
         }
       ],
       "attemptFeedback": [
@@ -49197,11 +49260,12 @@
         "Use the defining property of the requested graph, intersection, or solution region."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "A vertical translation changes only the constant term.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "The original $y$-intercept is {{b}} and the new one is {{newb}}.",
+          "So $k={{newb}}-({{b}})={{k}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "answerSummary": "$k={{k}}$"
       }
     },
     {
@@ -49486,13 +49550,18 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -9,
-            "max": 9
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "h": {
             "type": "int",
@@ -49502,13 +49571,13 @@
         },
         "derived": {
           "answer": "-m*h",
-          "d1": "m*h",
-          "d2": "h",
-          "d3": "-h"
+          "dSignError": "m*h",
+          "dHorizontalShift": "h",
+          "dNewIntercept": "b-m*h"
         },
         "constraints": [
-          "m!=1",
-          "m!=-1"
+          "b!=2*m*h",
+          "b!=h*(m+1)"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -49527,15 +49596,15 @@
         },
         {
           "id": "choice-d",
-          "label": "${{d1}}$"
+          "label": "${{dSignError}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d2}}$"
+          "label": "${{dHorizontalShift}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d3}}$"
+          "label": "${{dNewIntercept}}$"
         }
       ],
       "attemptFeedback": [
@@ -49545,11 +49614,12 @@
         "Check boundary conditions and whether the requested point or feature satisfies every condition."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Rewrite the horizontal shift as a vertical one.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "$g(x)={{m}}(x-{{h}}) {{b|signed}}$, which is $f(x)-{{m}}({{h}})$.",
+          "So $k={{answer}}$ for every $x$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "answerSummary": "$k={{answer}}$"
       }
     },
     {
@@ -50164,18 +50234,21 @@
         "parameters": {
           "A": {
             "type": "int",
-            "min": 1,
-            "max": 5
+            "min": 2,
+            "max": 7
           },
           "B": {
             "type": "int",
-            "min": 1,
-            "max": 5
+            "min": 2,
+            "max": 7
           },
           "C1": {
             "type": "int",
-            "min": 2,
-            "max": 12
+            "min": -12,
+            "max": 12,
+            "exclude": [
+              0
+            ]
           },
           "scale": {
             "type": "int",
@@ -50187,17 +50260,14 @@
           "sA": "scale*A",
           "sB": "scale*B",
           "answer": "scale*C1",
-          "satDistractor1": "(scale+C1)",
-          "satDistractor2": "scale",
-          "satDistractor3": "C1"
+          "dUnscaled": "C1",
+          "dWrongMultiplier": "A*C1",
+          "dAdded": "C1+scale"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "A!=scale",
+          "scale*C1!=C1+scale",
+          "A*C1!=C1+scale"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -50216,11 +50286,12 @@
         "Check boundary conditions and whether the requested point or feature satisfies every condition."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "No solution needs matching coefficients and different constants.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "The second equation’s coefficients are {{scale}} times the first’s.",
+          "Every $k$ except ${{scale}}({{C1}})={{answer}}$ leaves the constants mismatched, so that one value is excluded."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "answerSummary": "$k={{answer}}$"
       },
       "choices": [
         {
@@ -50229,15 +50300,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dUnscaled}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dWrongMultiplier}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dAdded}}"
         }
       ]
     },
@@ -50426,18 +50497,21 @@
         "parameters": {
           "A": {
             "type": "int",
-            "min": 1,
+            "min": 2,
             "max": 6
           },
           "B": {
             "type": "int",
-            "min": 1,
+            "min": 2,
             "max": 6
           },
           "C": {
             "type": "int",
-            "min": 2,
-            "max": 15
+            "min": -15,
+            "max": 15,
+            "exclude": [
+              0
+            ]
           },
           "s": {
             "type": "int",
@@ -50449,12 +50523,13 @@
           "sA": "s*A",
           "sB": "s*B",
           "answer": "s*C",
-          "d1": "C",
-          "d2": "s+C",
-          "d3": "s*C+1"
+          "dUnscaled": "C",
+          "dScaledTwice": "s*s*C",
+          "dAdded": "C+s"
         },
         "constraints": [
-          "C!=s"
+          "s*C!=C+s",
+          "s*s*C!=C+s"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -50473,15 +50548,15 @@
         },
         {
           "id": "choice-a",
-          "label": "${{d1}}$"
+          "label": "${{dUnscaled}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d2}}$"
+          "label": "${{dAdded}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d3}}$"
+          "label": "${{dScaledTwice}}$"
         }
       ],
       "attemptFeedback": [
@@ -50491,11 +50566,12 @@
         "Check boundary conditions and whether the requested point or feature satisfies every condition."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "The same line means every value scales by one factor.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "Because {{A}} becomes {{sA}}, the scale factor is {{s}}.",
+          "So $k={{s}}({{C}})={{answer}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "answerSummary": "$k={{answer}}$"
       }
     },
     {
@@ -51062,10 +51138,13 @@
           "below": "rate*t",
           "above": "rate*q",
           "answer": "a+t",
-          "d1": "a+t-1",
-          "d2": "a+t+1",
-          "d3": "b+2"
-        }
+          "dWrongGap": "a+q",
+          "dSecondPoint": "a+t+q",
+          "dFirstPoint": "a"
+        },
+        "constraints": [
+          "t!=q"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -51083,15 +51162,15 @@
         },
         {
           "id": "choice-d",
-          "label": "${{d1}}$"
+          "label": "${{dWrongGap}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d2}}$"
+          "label": "${{dSecondPoint}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d3}}$"
+          "label": "${{dFirstPoint}}$"
         }
       ],
       "attemptFeedback": [
@@ -51101,11 +51180,12 @@
         "Check boundary conditions and whether the requested point or feature satisfies every condition."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "The gap between the graphs closes at a constant rate.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "$f-g$ moves from $-{{below}}$ to ${{above}}$ across the interval, so it changes by {{rate}} per unit.",
+          "It reaches 0 after {{t}} units, at $x={{answer}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "answerSummary": "$x={{answer}}$"
       }
     },
     {
@@ -51970,7 +52050,10 @@
           "x": {
             "type": "int",
             "min": -5,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              0
+            ]
           },
           "y": {
             "type": "int",
@@ -51980,7 +52063,12 @@
           "m": {
             "type": "int",
             "min": -4,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "slack": {
             "type": "int",
@@ -51991,17 +52079,14 @@
         "derived": {
           "upper": "y+slack",
           "answer": "y-m*x",
-          "satDistractor1": "y+m*x",
-          "satDistractor2": "y",
-          "satDistractor3": "y-m+x"
+          "dSignError": "y+m*x",
+          "dIgnoredSlope": "y",
+          "dSwappedCoordinates": "x-m*y"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "x!=y",
+          "dSwappedCoordinates!=dSignError",
+          "dSwappedCoordinates!=y"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -52020,11 +52105,12 @@
         "Check boundary conditions and whether the requested point or feature satisfies every condition."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Solve the first inequality for $k$.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "$y\\ge {{m}}x+k$ rearranges to $k\\le y-{{m}}x$.",
+          "At $({{x}},{{y}})$ that is $k\\le{{answer}}$, so the greatest integer value is {{answer}}."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "answerSummary": "$k={{answer}}$"
       },
       "choices": [
         {
@@ -52033,15 +52119,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSignError}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dIgnoredSlope}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSwappedCoordinates}}"
         }
       ]
     },
@@ -52091,40 +52177,47 @@
         "stemProfile": "integer-points-vertical-slice",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For a fixed integer $x={{x}}$, a feasible region satisfies $y\\ge {{low}}$ and $y\\le {{high}}$. How many integer values of $y$ are feasible?",
+      "prompt": "For a fixed integer $x={{x}}$, a feasible region satisfies $y\\ge {{m}}x {{c|signed}}$ and $y\\le {{high}}$. How many integer values of $y$ are feasible?",
       "generator": {
         "parameters": {
           "x": {
             "type": "int",
-            "min": -6,
-            "max": 6
+            "min": -2,
+            "max": 2,
+            "exclude": [
+              0
+            ]
           },
-          "low": {
+          "m": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
+          },
+          "c": {
             "type": "int",
             "min": -8,
-            "max": 4
+            "max": 8
           },
           "gap": {
             "type": "int",
-            "min": 2,
-            "max": 8
+            "min": 7,
+            "max": 12
           }
         },
         "derived": {
+          "low": "m*x+c",
           "high": "low+gap",
           "answer": "gap+1",
-          "satDistractor1": "gap-1",
-          "satDistractor2": "gap",
-          "satDistractor3": "(answer)+1"
+          "dFencepost": "gap",
+          "dIgnoredSlope": "gap+m*x+1",
+          "dCountedBothEnds": "gap+2"
         },
-        "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
-        ]
+        "constraints": []
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -52142,11 +52235,12 @@
         "Check boundary conditions and whether the requested point or feature satisfies every condition."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Count the integers between the bounds, inclusive.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "At $x={{x}}$ the lower bound is ${{m}}({{x}}) {{c|signed}}={{low}}$.",
+          "The integers from {{low}} to {{high}} number ${{high}}-({{low}})+1={{answer}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "answerSummary": "${{answer}}$"
       },
       "choices": [
         {
@@ -52155,15 +52249,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dFencepost}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dIgnoredSlope}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dCountedBothEnds}}"
         }
       ]
     },
@@ -53040,12 +53134,12 @@
         "officialSkillFamily": "linear equations in one variable",
         "stemProfile": "no-solution-parameter"
       },
-      "prompt": "In the equation $t({{a}}x+{{b}})={{c}}x+{{d}}$, $t$ is a constant. For what value of $t$ does the equation have no solution?",
+      "prompt": "In the equation $t({{a}}x+{{b}})={{c}}x {{d|signed}}$, $t$ is a constant. For what value of $t$ does the equation have no solution?",
       "solutionReview": {
-        "headline": "Compare the coefficients after distribution.",
+        "headline": "Compare the coefficients after distributing.",
         "reasoning": [
-          "For a linear equation to have no solution, the coefficients of $x$ must match while the constant terms do not.",
-          "Choose $t$ so that $t\\cdot{{a}}={{c}}$; with that value, the generated constant terms are unequal."
+          "Distributing gives ${{a}}tx+{{b}}t$, so the $x$-coefficients match when ${{a}}t={{c}}$, that is $t={{t}}$.",
+          "At that value the constants are ${{b}}({{t}})$ and {{d}}, which differ, so the equation has no solution."
         ],
         "answerSummary": "$t={{t}}$"
       },
@@ -53069,17 +53163,35 @@
           },
           "t": {
             "type": "int",
-            "min": 2,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
+          },
+          "u": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "c": "a*t",
-          "d": "b*(t+1)",
-          "d1": "t+1",
-          "d2": "-t",
-          "d3": "c"
-        }
+          "d": "b*u",
+          "dConstantMatch": "u",
+          "dSignError": "-t",
+          "dUndivided": "a*t"
+        },
+        "constraints": [
+          "u!=t",
+          "u!=-t",
+          "u!=a*t"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -53089,15 +53201,15 @@
         },
         {
           "id": "choice-c",
-          "label": "${{d1}}$"
+          "label": "${{dConstantMatch}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d2}}$"
+          "label": "${{dSignError}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d3}}$"
+          "label": "${{dUndivided}}$"
         }
       ],
       "responseFields": [
@@ -53888,11 +54000,12 @@
         "stemProfile": "parameter-boundary",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "In the inequality $k x+{{b}}>{{c}}x+{{d}}$, $k$ is a constant. For what value of $k$ is the solution set $x>{{t}}$?",
+      "prompt": "In the inequality $k x {{b|signed}}>{{c}}x {{d|signed}}$, $k$ is a constant. For what value of $k$ is the solution set $x>{{t}}$?",
       "solutionReview": {
-        "headline": "Match the boundary and direction.",
+        "headline": "Match both the boundary and the direction.",
         "reasoning": [
-          "The boundary occurs when the two sides are equal at $x={{t}}$. The generated values make $k-{{c}}>0$, so the direction remains $x>{{t}}$."
+          "A solution set of $x>{{t}}$ needs $k-{{c}}>0$, with equality at $x={{t}}$.",
+          "From $(k-{{c}})({{t}})={{d}}-({{b}})$ we get $k-{{c}}={{delta}}$, so $k={{k}}$."
         ],
         "answerSummary": "$k={{k}}$"
       },
@@ -53906,8 +54019,13 @@
         "parameters": {
           "c": {
             "type": "int",
-            "min": 1,
-            "max": 5
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "delta": {
             "type": "int",
@@ -53922,23 +54040,22 @@
           "b": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "k": "c+delta",
           "d": "b+delta*t",
-          "satDistractor1": "c-delta",
-          "satDistractor2": "c",
-          "satDistractor3": "delta"
+          "dSubtracted": "c-delta",
+          "dCoefficientOnly": "delta",
+          "dConstantGap": "c+delta*t"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "c!=2*delta",
+          "delta!=c+delta*t"
         ]
       },
       "responseFields": [
@@ -53957,15 +54074,15 @@
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSubtracted}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
+          "label": "{{dCoefficientOnly}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dConstantGap}}"
         }
       ]
     },
@@ -54535,9 +54652,10 @@
       },
       "prompt": "In the system ${{a}}x+{{b}}y={{c}}$ and ${{ka}}x+k y={{kc}}$, $k$ is a constant. For what value of $k$ does the system have infinitely many solutions?",
       "solutionReview": {
-        "headline": "Make the equations equivalent.",
+        "headline": "Make the two equations multiples of one another.",
         "reasoning": [
-          "For infinitely many solutions, every coefficient and the constant in one equation must be the same multiple of the corresponding value in the other."
+          "Because {{a}} becomes {{ka}}, every coefficient and the constant scale by {{mult}}.",
+          "So $k={{mult}}({{b}})={{kb}}$."
         ],
         "answerSummary": "$k={{kb}}$"
       },
@@ -54551,13 +54669,13 @@
         "parameters": {
           "a": {
             "type": "int",
-            "min": 1,
-            "max": 5
+            "min": 2,
+            "max": 7
           },
           "b": {
             "type": "int",
             "min": 2,
-            "max": 5
+            "max": 7
           },
           "c": {
             "type": "int",
@@ -54574,17 +54692,14 @@
           "ka": "mult*a",
           "kb": "mult*b",
           "kc": "mult*c",
-          "satDistractor1": "(mult+b)",
-          "satDistractor2": "mult",
-          "satDistractor3": "b"
+          "dUnscaled": "b",
+          "dWrongCoefficient": "mult*a",
+          "dScaledTwice": "mult*mult*b"
         },
         "constraints": [
-          "satDistractor1!=kb",
-          "satDistractor2!=kb",
-          "satDistractor3!=kb",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "a!=b",
+          "b!=mult*a",
+          "a!=mult*b"
         ]
       },
       "responseFields": [
@@ -54603,15 +54718,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dUnscaled}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dWrongCoefficient}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dScaledTwice}}"
         }
       ]
     },
@@ -56386,7 +56501,7 @@
         "stemProfile": "challenge-integer-count",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For $x={{x}}$, a system reduces to ${{low}}\\le y\\le {{high}}$. How many integer values of $y$ satisfy the system?",
+      "prompt": "For $x={{x}}$, a system reduces to $3y\\ge {{tripleLow}}$ and $y\\le {{high}}$. How many integer values of $y$ satisfy the system?",
       "generator": {
         "parameters": {
           "x": {
@@ -56396,30 +56511,27 @@
           },
           "low": {
             "type": "int",
-            "min": -10,
-            "max": 2
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
           },
           "span": {
             "type": "int",
-            "min": 4,
+            "min": 8,
             "max": 12
           }
         },
         "derived": {
+          "tripleLow": "3*low",
           "high": "low+span",
           "count": "span+1",
-          "satDistractor1": "span-1",
-          "satDistractor2": "span",
-          "satDistractor3": "(count)+1"
+          "dFencepost": "span",
+          "dUndividedBound": "high-3*low+1",
+          "dCountedBothEnds": "span+2"
         },
-        "constraints": [
-          "satDistractor1!=count",
-          "satDistractor2!=count",
-          "satDistractor3!=count",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
-        ]
+        "constraints": []
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -56437,11 +56549,12 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Isolate $y$ before counting.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "$3y\\ge{{tripleLow}}$ gives $y\\ge{{low}}$.",
+          "The integers from {{low}} to {{high}} number ${{high}}-({{low}})+1={{count}}$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "answerSummary": "${{count}}$"
       },
       "choices": [
         {
@@ -56450,15 +56563,15 @@
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dFencepost}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
+          "label": "{{dUndividedBound}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dCountedBothEnds}}"
         }
       ]
     },
@@ -56836,8 +56949,8 @@
         "parameters": {
           "x": {
             "type": "int",
-            "min": -5,
-            "max": 5
+            "min": -9,
+            "max": 10
           },
           "lower": {
             "type": "int",
@@ -56848,15 +56961,23 @@
             "type": "int",
             "min": 3,
             "max": 8
+          },
+          "j": {
+            "type": "int",
+            "min": 1,
+            "max": 3
           }
         },
         "derived": {
           "upper": "lower+gap",
-          "yc": "lower+1",
-          "yd1": "lower",
-          "yd2": "upper+1",
-          "yd3": "upper+2"
-        }
+          "yc": "lower+j",
+          "dLowerBound": "lower",
+          "dPastUpper": "upper+1",
+          "dGaveXCoordinate": "x"
+        },
+        "constraints": [
+          "x<lower||x>upper+1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -56874,15 +56995,15 @@
         },
         {
           "id": "choice-a",
-          "label": "${{yd1}}$"
+          "label": "${{dLowerBound}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{yd2}}$"
+          "label": "${{dPastUpper}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{yd3}}$"
+          "label": "${{dGaveXCoordinate}}$"
         }
       ],
       "attemptFeedback": [
@@ -56892,11 +57013,12 @@
         "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "Test each value against both inequalities.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "The solution set is every $y$ with ${{lower}}<y\\le{{upper}}$.",
+          "Of the four values offered, only {{yc}} lies in that interval."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "answerSummary": "$y={{yc}}$"
       }
     },
     {
