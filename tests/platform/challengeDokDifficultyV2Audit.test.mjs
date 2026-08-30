@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
 
 import {
   TARGET_ADAPTIVE_PAIRS,
@@ -49,6 +50,31 @@ test('strict readiness remains explicit until every preferred cell is present or
         row.undocumentedMissingTargets,
         row.missingTargets,
         'No adaptive exceptions have been declared yet for ' + row.standard,
+      );
+    }
+  }
+});
+
+
+test('variant-bearing Algebra I families preserve their original core cell', () => {
+  const dir = 'drafts/fidelity-v2/algebra1';
+  const files = readdirSync(dir).filter((name) => name.endsWith('.json'));
+
+  for (const name of files) {
+    const entry = JSON.parse(readFileSync(dir + '/' + name, 'utf8'));
+    for (const doc of entry.documents || []) {
+      if (!Array.isArray(doc.variants) || doc.variants.length === 0) continue;
+      const originalPair = String(doc.dok) + ':' + String(doc.difficultyBand);
+      const preservesCore = doc.variants.some((variant) => {
+        const dok = Number(variant.dok ?? doc.dok);
+        const band = Number(variant.difficultyBand ?? doc.difficultyBand);
+        return String(dok) + ':' + String(band) === originalPair
+          && String(variant.coverageKey || '').startsWith('core-');
+      });
+      assert.equal(
+        preservesCore,
+        true,
+        doc.id + ' has variants but no explicit core variant preserving original DOK/difficulty ' + originalPair,
       );
     }
   }
