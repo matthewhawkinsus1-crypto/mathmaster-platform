@@ -709,6 +709,22 @@ Resume here. Do not reopen A2.2A–A2.6I unless a failing gate names them.
 - Generic secure multi-response grading is sufficient; no new Path tool capability is needed.
 
 
+### 2026-08-30 — A2.6J staged and gated
+- Staged five A2.6J Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6J.json` — commits `3cc1cd969371b492727cbf5e75425ef742b51458` and `5b21d2fe35e8d7e1c3d867ecd4656e038eeafd97`.
+- The second commit strengthens the rounded-candidate family so the residual is genuinely nonzero; the task therefore tests tolerance reasoning rather than accidentally presenting an exact value.
+- Coverage includes:
+  - an exact valid candidate verified against both original denominators and both original sides;
+  - a root of the cleared polynomial that is excluded from the original rational equation;
+  - an algebraically valid negative elapsed-time candidate rejected by context;
+  - a rounded candidate judged against an explicit 0.01 original-equation residual tolerance;
+  - complete error analysis showing that passing a denominator/domain check is necessary but not sufficient when substitution fails.
+- Package/build runs `33329335915` and `33329354924`: **PASS**.
+- Added A2.6J-specific generated certification — commit `5724d98e9ed7ac4a6ca23d682937e268973c6e6a`.
+- The gate samples 200+ generated instances, independently validates candidate/domain/substitution/context/tolerance mathematics, requires both keep and reject outcomes, routes generated keys through secure self-grading, rejects wrong verdicts, enforces representation breadth, and checks public key stripping.
+- Full A2.6J certification run `33329383765`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.6J** until the full run is green.
+
+
 ### 2026-08-30 — A2.6I audit finding
 - Official construct: **solve rational equations that have real solutions**.
 - Verdict: **ENHANCE**.
