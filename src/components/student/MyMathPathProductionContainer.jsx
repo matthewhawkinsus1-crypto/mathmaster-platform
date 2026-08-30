@@ -27,6 +27,7 @@ export const MyMathPathProductionContainer = ({
   // directly-authored items for that framework; ordinary Path sessions keep
   // selecting ordinary course items.
   assessmentFramework = null,
+  coursePracticeIntent = null,
   weekKey = null,
   weeklySlotKey = null,
   weeklySlot = null,
@@ -86,6 +87,7 @@ export const MyMathPathProductionContainer = ({
     sessionKind,
     requiredQuestions,
     assessmentFramework,
+    coursePracticeIntent,
     weekKey,
     weeklySlotKey,
     weeklySlot,
