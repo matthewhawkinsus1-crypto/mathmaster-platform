@@ -29708,6 +29708,3400 @@
     "sourceFamilyId": "mathmaster:asvab:mk:8.7D:pair-the-same-distance-apart",
     "sourcePrompt": "Which pair of points is the same distance apart as $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$?"
    }
+  },
+  {
+   "id": "mm_asvab_mk_8_8A_equation_for_two_plans_with_a_rebate",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.8A:equation-for-two-plans-with-a-rebate",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8A",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Plan A costs $\\${{b1}}$ plus $\\${{m1}}$ a month, and Plan B $\\${{b2}}$ plus $\\${{m2}}$ a month less a $\\${{d}}$ rebate at the end. Which equation says they match over $x$ months?",
+   "solutionReview": {
+    "headline": "One-off amounts stay outside the term that carries $x$.",
+    "reasoning": [
+     "Each side charges a monthly rate times $x$ plus a one-off amount.",
+     "The rebate is a one-off reduction on Plan B, so it comes off that side only."
+    ],
+    "answerSummary": "It is ${{m1}}x + {{b1}} = {{m2}}x + {{b2}} - {{d}}$."
+   },
+   "attemptFeedback": [
+    "Folding the rebate into the monthly rate applies it every month."
+   ],
+   "supportHints": [
+    "Ask which charges depend on the number of months."
+   ],
+   "generator": {
+    "parameters": {
+     "b1": {
+      "type": "int",
+      "min": 10,
+      "max": 200
+     },
+     "b2": {
+      "type": "int",
+      "min": 10,
+      "max": 200
+     },
+     "m1": {
+      "type": "int",
+      "min": 5,
+      "max": 60
+     },
+     "m2": {
+      "type": "int",
+      "min": 5,
+      "max": 60
+     },
+     "d": {
+      "type": "int",
+      "min": 5,
+      "max": 80
+     }
+    },
+    "constraints": [
+     "m1!=m2",
+     "b1!=b2",
+     "d<b2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{m1}}x + {{b1}} = {{m2}}x + {{b2}} + {{d}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{m1}}x + {{b1}} - {{d}} = {{m2}}x + {{b2}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{m1}}x + {{b1}} = {{m2}}x + {{b2}} - {{d}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{m1}}x + {{b1}} = ({{m2}} - {{d}})x + {{b2}}$",
+     "error": "orderOfOperations"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.8A:equation-for-two-plans-with-a-rebate",
+    "sourcePrompt": "Plan A costs $\\${{b1}}$ plus $\\${{m1}}$ a month, and Plan B $\\${{b2}}$ plus $\\${{m2}}$ a month less a $\\${{d}}$ rebate at the end. Which equation says they match over $x$ months?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_8A_monthly_charge_that_levels_two_plans",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.8A:monthly-charge-that-levels-two-plans",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Plan A costs $\\${{b1}}$ plus $\\$m$ a month and Plan B $\\${{b2}}$ plus $\\${{m2}}$ a month, and they match after ${{x}}$ months. What is $m$?",
+   "solutionReview": {
+    "headline": "Spread the fee gap over the months to get the rate gap.",
+    "reasoning": [
+     "Plan B starts ${{g}} \\times {{x}}$ dollars dearer, so Plan A must make that up over ${{x}}$ months.",
+     "That needs ${{g}}$ more a month, or ${{answer}}$."
+    ],
+    "answerSummary": "$m = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The whole fee gap is closed over ${{x}}$ months, not in one."
+   ],
+   "supportHints": [
+    "Work out how much of the fee gap each month has to cover."
+   ],
+   "generator": {
+    "parameters": {
+     "b1": {
+      "type": "int",
+      "min": 10,
+      "max": 200
+     },
+     "g": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "x": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "m2": {
+      "type": "int",
+      "min": 5,
+      "max": 70
+     }
+    },
+    "derived": {
+     "b2": "b1+g*x",
+     "answer": "m2+g",
+     "d_forgotFinalStep": "m2+g*x",
+     "d_usedGivenValue": "g*x",
+     "d_operationInverted": "m2-g"
+    },
+    "constraints": [
+     "m2-g>2",
+     "abs(g*x-m2-g)>4",
+     "x>1",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_usedGivenValue!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.8A:monthly-charge-that-levels-two-plans",
+    "sourcePrompt": "Plan A costs $\\${{b1}}$ plus $\\$m$ a month and Plan B $\\${{b2}}$ plus $\\${{m2}}$ a month, and they match after ${{x}}$ months. What is $m$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_8A_claim_about_life_either_side_of_the_crossing",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.8A:claim-about-life-either-side-of-the-crossing",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8A",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two plans with different monthly charges cost the same after ${{x}}$ months. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "A single crossing point swaps which plan is cheaper.",
+    "reasoning": [
+     "The plan with the smaller monthly charge gains ground steadily.",
+     "Since they are equal at month ${{x}}$, the lead has to change hands there."
+    ],
+    "answerSummary": "One plan cannot lead throughout."
+   },
+   "attemptFeedback": [
+    "Equal totals at ${{x}}$ months is exactly what the crossing means."
+   ],
+   "supportHints": [
+    "Compare the two totals at one month and at twice that."
+   ],
+   "generator": {
+    "parameters": {
+     "x": {
+      "type": "int",
+      "min": 3,
+      "max": 24
+     },
+     "m1": {
+      "type": "int",
+      "min": 5,
+      "max": 60
+     },
+     "m2": {
+      "type": "int",
+      "min": 5,
+      "max": 60
+     }
+    },
+    "constraints": [
+     "m1!=m2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "At month ${{x}}$ the two totals are equal.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "The plan with the smaller monthly charge wins in the long run.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "One plan is cheaper both before month ${{x}}$ and after it."
+    },
+    {
+     "id": "choice-d",
+     "label": "Before month ${{x}}$ one is cheaper, and after it the other is.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.8A:claim-about-life-either-side-of-the-crossing",
+    "sourcePrompt": "Two plans with different monthly charges cost the same after ${{x}}$ months. Which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_8C_solve_across_a_bracket",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.8C:solve-across-a-bracket",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8C",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve ${{m1}}x + {{b1}} = {{m2}}(x - {{c}})$.",
+   "solutionReview": {
+    "headline": "Expand the bracket before collecting anything.",
+    "reasoning": [
+     "Expanding gives ${{m1}}x + {{b1}} = {{m2}}x - {{m2}} \\times {{c}}$.",
+     "Collecting leaves $({{m2}} - {{m1}})x = {{b1}} + {{m2}} \\times {{c}}$, so $x = {{answer}}$."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The collected numerator still has to be divided by the difference in coefficients."
+   ],
+   "supportHints": [
+    "The ${{m2}}$ multiplies both terms inside the bracket."
+   ],
+   "generator": {
+    "parameters": {
+     "m1": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     },
+     "w": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "u": {
+      "type": "int",
+      "min": 6,
+      "max": 40
+     }
+    },
+    "derived": {
+     "m2": "m1+gap",
+     "c": "gap*w/(m1+gap)",
+     "b1": "gap*u-gap*w-m1*0",
+     "answer": "u-w",
+     "d_forgotFinalStep": "gap*(u-w)",
+     "d_usedGivenValue": "gap*w",
+     "d_operationInverted": "u-2*w"
+    },
+    "constraints": [
+     "gap*w%(m1+gap)==0",
+     "u-2*w>2",
+     "gap*u-gap*w>0",
+     "abs(gap*w-(u-w))>4",
+     "u-w>7",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_usedGivenValue!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.8C:solve-across-a-bracket",
+    "sourcePrompt": "Solve ${{m1}}x + {{b1}} = {{m2}}(x - {{c}})$."
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_8C_constant_that_puts_the_crossing_in_place",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.8C:constant-that-puts-the-crossing-in-place",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8C",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For which $c$ does ${{m1}}x + {{b1}} = {{m2}}x + c$ have the solution $x = {{v}}$?",
+   "solutionReview": {
+    "headline": "Substitute the solution and read off what is missing.",
+    "reasoning": [
+     "At $x = {{v}}$ the left side comes to ${{m1}} \\times {{v}} + {{b1}}$.",
+     "Matching the right side gives $c = {{b1}} - {{gap}} \\times {{v}} = {{answer}}$."
+    ],
+    "answerSummary": "$c = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The difference comes off the given constant, not the other way round."
+   ],
+   "supportHints": [
+    "The two $x$ terms differ by ${{gap}}$ for each unit of $x$."
+   ],
+   "generator": {
+    "parameters": {
+     "m1": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "gap": {
+      "type": "int",
+      "min": 4,
+      "max": 20
+     },
+     "v": {
+      "type": "int",
+      "min": 4,
+      "max": 20
+     },
+     "b1": {
+      "type": "int",
+      "min": 40,
+      "max": 400
+     }
+    },
+    "derived": {
+     "m2": "m1+gap",
+     "answer": "b1-gap*v",
+     "d_usedGivenValue": "b1",
+     "d_ratioReversed": "gap*v",
+     "d_signError": "gap*v-b1"
+    },
+    "constraints": [
+     "b1-gap*v>4",
+     "abs(gap*v-(b1-gap*v))>4",
+     "gap*v>4",
+     "answer!=d_usedGivenValue",
+     "answer!=d_ratioReversed",
+     "answer!=d_signError",
+     "d_usedGivenValue!=d_ratioReversed",
+     "d_usedGivenValue!=d_signError",
+     "d_ratioReversed!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.8C:constant-that-puts-the-crossing-in-place",
+    "sourcePrompt": "For which $c$ does ${{m1}}x + {{b1}} = {{m2}}x + c$ have the solution $x = {{v}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_8C_what_a_false_statement_settles",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.8C:what-a-false-statement-settles",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8C",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "An equation with $x$ on both sides simplifies to ${{a}} = {{b}}$. What does that mean?",
+   "solutionReview": {
+    "headline": "A false statement with no $x$ left means no solutions.",
+    "reasoning": [
+     "The $x$ terms cancelled, leaving a claim that does not depend on $x$ at all.",
+     "Since ${{a}}$ is not ${{b}}$, no value of $x$ can make the equation true."
+    ],
+    "answerSummary": "There are none."
+   },
+   "attemptFeedback": [
+    "Every value would satisfy it only if the leftover statement were true."
+   ],
+   "supportHints": [
+    "Ask whether any choice of $x$ could change the two sides."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 60
+     }
+    },
+    "constraints": [
+     "a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Every value of $x$ satisfies it.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "It has no solutions at all."
+    },
+    {
+     "id": "choice-c",
+     "label": "It simply has not been simplified far enough.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "It has exactly one solution.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.8C:what-a-false-statement-settles",
+    "sourcePrompt": "An equation with $x$ on both sides simplifies to ${{a}} = {{b}}$. What does that mean?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_8D_gap_between_two_exterior_angles",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.8D:gap-between-two-exterior-angles",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8D",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A triangle has interior angles of ${{a}}^\\circ$ and ${{b}}^\\circ$ at two vertices. How much larger is the exterior angle at the third vertex than the one at the first?",
+   "solutionReview": {
+    "headline": "An exterior angle equals the two remote interior angles.",
+    "reasoning": [
+     "The exterior angle at the third vertex is ${{a}} + {{b}}$, and the one at the first is $180 - {{a}}$.",
+     "The difference is ${{answer}}^\\circ$."
+    ],
+    "answerSummary": "It is ${{answer}}^\\circ$ larger."
+   },
+   "attemptFeedback": [
+    "The exterior angle at the first vertex sits on a straight line with ${{a}}^\\circ$."
+   ],
+   "supportHints": [
+    "Work out both exterior angles before comparing."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 60,
+      "max": 168
+     },
+     "b": {
+      "type": "int",
+      "min": 6,
+      "max": 88
+     }
+    },
+    "derived": {
+     "answer": "2*a+b-180",
+     "d_partialTotal": "a+b",
+     "d_usedGivenValue": "180-a",
+     "d_signError": "180-2*a-b"
+    },
+    "constraints": [
+     "a+b<175",
+     "2*a+b-180>6",
+     "abs(2*(180-a)-(a+b))>6",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_partialTotal!=d_signError",
+     "d_usedGivenValue!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.8D:gap-between-two-exterior-angles",
+    "sourcePrompt": "A triangle has interior angles of ${{a}}^\\circ$ and ${{b}}^\\circ$ at two vertices. How much larger is the exterior angle at the third vertex than the one at the first?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_8D_third_angle_from_an_exterior_one",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.8D:third-angle-from-an-exterior-one",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8D",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "An exterior angle of a triangle measures ${{e}}^\\circ$ and one remote interior angle is ${{a}}^\\circ$. What is the third interior angle?",
+   "solutionReview": {
+    "headline": "The third angle is the one beside the exterior angle.",
+    "reasoning": [
+     "The exterior angle sits on a straight line with the interior angle at the same vertex.",
+     "So that interior angle is $180 - {{e}} = {{answer}}^\\circ$."
+    ],
+    "answerSummary": "It is ${{answer}}^\\circ$."
+   },
+   "attemptFeedback": [
+    "Subtracting the remote angle gives the other remote angle, not the third one."
+   ],
+   "supportHints": [
+    "Ask which vertex the exterior angle belongs to."
+   ],
+   "generator": {
+    "parameters": {
+     "e": {
+      "type": "int",
+      "min": 95,
+      "max": 170
+     },
+     "a": {
+      "type": "int",
+      "min": 20,
+      "max": 120
+     }
+    },
+    "derived": {
+     "answer": "180-e",
+     "d_usedGivenValue": "e-a",
+     "d_operationInverted": "e",
+     "d_partialTotal": "180-e-a"
+    },
+    "constraints": [
+     "a<e",
+     "180-e>10",
+     "180-e-a>0",
+     "abs(e-a-(180-e))>5",
+     "answer!=d_usedGivenValue",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "d_usedGivenValue!=d_operationInverted",
+     "d_usedGivenValue!=d_partialTotal",
+     "d_operationInverted!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.8D:third-angle-from-an-exterior-one",
+    "sourcePrompt": "An exterior angle of a triangle measures ${{e}}^\\circ$ and one remote interior angle is ${{a}}^\\circ$. What is the third interior angle?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_8D_claim_about_angles_on_a_transversal",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.8D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.8D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.8D:claim-about-angles-on-a-transversal",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.8D",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Parallel lines are cut by a transversal and one angle measures ${{a}}^\\circ$. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "Same-side interior angles are supplementary, not equal.",
+    "reasoning": [
+     "Angles inside the parallels on the same side of the transversal add to $180^\\circ$.",
+     "So that angle is ${{sup}}^\\circ$, not ${{a}}^\\circ$."
+    ],
+    "answerSummary": "That angle is ${{sup}}^\\circ$."
+   },
+   "attemptFeedback": [
+    "Corresponding and alternate angles really are equal."
+   ],
+   "supportHints": [
+    "Sketch the two parallels and mark every angle."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 25,
+      "max": 155
+     }
+    },
+    "derived": {
+     "sup": "180-a"
+    },
+    "constraints": [
+     "a!=90"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The angle inside the parallels on the same side is also ${{a}}^\\circ$."
+    },
+    {
+     "id": "choice-b",
+     "label": "The corresponding angle is ${{a}}^\\circ$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "The alternate angle is ${{a}}^\\circ$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "The angle beside it on the same line is ${{sup}}^\\circ$.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.8D:claim-about-angles-on-a-transversal",
+    "sourcePrompt": "Parallel lines are cut by a transversal and one angle measures ${{a}}^\\circ$. Which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_9_sum_of_the_crossing_coordinates",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.9"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.9",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.9:sum-of-the-crossing-coordinates",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.9",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Lines $y = {{m1}}x + {{b1}}$ and $y = {{m2}}x + {{b2}}$ cross once. What is the total of the crossing point's coordinates?",
+   "solutionReview": {
+    "headline": "Solve for the input, then read the output off either line.",
+    "reasoning": [
+     "Setting the two rules equal gives $x = {{u}}$, and either rule then gives $y = {{yAt}}$.",
+     "Their total is ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The input alone is only half of the point."
+   ],
+   "supportHints": [
+    "The crossing point satisfies both equations at once."
+   ],
+   "generator": {
+    "parameters": {
+     "m1": {
+      "type": "int",
+      "min": 3,
+      "max": 14
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "u": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "b1": {
+      "type": "int",
+      "min": 3,
+      "max": 100
+     }
+    },
+    "derived": {
+     "m2": "m1-gap",
+     "b2": "b1+gap*u",
+     "yAt": "m1*u+b1",
+     "answer": "u+m1*u+b1",
+     "d_forgotFinalStep": "u",
+     "d_usedGivenValue": "b1+b2",
+     "d_orderOfOperations": "u+m1*u+b1+b2"
+    },
+    "constraints": [
+     "m1-gap>0",
+     "abs(b1+b2-(u+m1*u+b1))>5",
+     "u+m1*u+b1>12",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_orderOfOperations",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_orderOfOperations",
+     "d_usedGivenValue!=d_orderOfOperations"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_orderOfOperations}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.9:sum-of-the-crossing-coordinates",
+    "sourcePrompt": "Lines $y = {{m1}}x + {{b1}}$ and $y = {{m2}}x + {{b2}}$ cross once. What is the total of the crossing point's coordinates?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_9_third_line_through_the_same_crossing",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.9"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.9",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.9:third-line-through-the-same-crossing",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.9",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two lines cross at $({{u}}, {{y}})$, and a third line $y = {{m3}}x + c$ passes through the same point. What is $c$?",
+   "solutionReview": {
+    "headline": "A shared point is one equation the third line has to satisfy.",
+    "reasoning": [
+     "The third line must satisfy ${{y}} = {{m3}} \\times {{u}} + c$.",
+     "That gives $c = {{answer}}$."
+    ],
+    "answerSummary": "$c = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The height of the point still has the slope term inside it."
+   ],
+   "supportHints": [
+    "Put the crossing point into the third equation."
+   ],
+   "generator": {
+    "parameters": {
+     "u": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "m3": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "c": {
+      "type": "int",
+      "min": 5,
+      "max": 120
+     }
+    },
+    "derived": {
+     "y": "m3*u+c",
+     "answer": "c",
+     "d_usedGivenValue": "y",
+     "d_ratioReversed": "m3*u",
+     "d_signError": "m3*u-y"
+    },
+    "constraints": [
+     "abs(m3*u-c)>4",
+     "c>4",
+     "answer!=d_usedGivenValue",
+     "answer!=d_ratioReversed",
+     "answer!=d_signError",
+     "d_usedGivenValue!=d_ratioReversed",
+     "d_usedGivenValue!=d_signError",
+     "d_ratioReversed!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.9:third-line-through-the-same-crossing",
+    "sourcePrompt": "Two lines cross at $({{u}}, {{y}})$, and a third line $y = {{m3}}x + c$ passes through the same point. What is $c$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_8_9_claim_about_two_parallel_lines",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.9"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.9",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade8",
+   "familyId": "mathmaster:asvab:mk:8.9:claim-about-two-parallel-lines",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.9",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two lines have slope ${{m}}$ and cross the vertical axis at ${{b1}}$ and ${{b2}}$. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "Same slope, different intercept means no crossing at all.",
+    "reasoning": [
+     "Equal slopes means the two lines rise at the same rate for every step.",
+     "Different crossing points then keep them permanently apart."
+    ],
+    "answerSummary": "They never cross."
+   },
+   "attemptFeedback": [
+    "A gap of ${{b1}} - {{b2}}$ is carried at every value of $x$."
+   ],
+   "supportHints": [
+    "Try to solve the two equations together and see what happens."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "b1": {
+      "type": "int",
+      "min": 2,
+      "max": 90
+     },
+     "b2": {
+      "type": "int",
+      "min": 2,
+      "max": 90
+     }
+    },
+    "constraints": [
+     "b1!=b2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "They stay the same distance apart.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "They cross at exactly one point."
+    },
+    {
+     "id": "choice-c",
+     "label": "They never cross.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "No pair of values satisfies both equations.",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:8.9:claim-about-two-parallel-lines",
+    "sourcePrompt": "Two lines have slope ${{m}}$ and cross the vertical axis at ${{b1}}$ and ${{b2}}$. Which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_2A_width_of_a_range_over_a_closed_domain",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.2A:width-of-a-range-over-a-closed-domain",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For $f(x) = {{m}}x + {{b}}$ on ${{lo}} \\le x \\le {{hi}}$, how wide is the range?",
+   "solutionReview": {
+    "headline": "The range width is the slope times the domain width.",
+    "reasoning": [
+     "Across the domain $x$ moves ${{span}}$, and each step of $1$ moves $f$ by ${{m}}$.",
+     "So the range is ${{answer}}$ wide."
+    ],
+    "answerSummary": "It is ${{answer}}$ wide."
+   },
+   "attemptFeedback": [
+    "The constant shifts the range but does not change how wide it is."
+   ],
+   "supportHints": [
+    "The constant shifts both endpoints equally and cancels."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 160
+     },
+     "lo": {
+      "type": "int",
+      "min": 1,
+      "max": 12
+     },
+     "span": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     }
+    },
+    "derived": {
+     "hi": "lo+span",
+     "answer": "m*span",
+     "d_operationInverted": "m*(2*lo+span)",
+     "d_forgotFinalStep": "span",
+     "d_usedGivenValue": "b"
+    },
+    "constraints": [
+     "m*span>9",
+     "abs(b-m*span)>5",
+     "abs(span-m*span)>4",
+     "answer!=d_operationInverted",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_forgotFinalStep",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.2A:width-of-a-range-over-a-closed-domain",
+    "sourcePrompt": "For $f(x) = {{m}}x + {{b}}$ on ${{lo}} \\le x \\le {{hi}}$, how wide is the range?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_2A_domain_endpoint_behind_a_range",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.2A:domain-endpoint-behind-a-range",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For $f(x) = {{m}}x + {{b}}$ on ${{lo}} \\le x \\le h$ the range tops out at ${{fhi}}$. What is $h$?",
+   "solutionReview": {
+    "headline": "A rising function sends the largest input to the largest output.",
+    "reasoning": [
+     "The top of the range comes from the top of the domain, so ${{m}}h + {{b}} = {{fhi}}$.",
+     "That gives $h = {{answer}}$."
+    ],
+    "answerSummary": "$h = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The constant is part of the output, not an input."
+   ],
+   "supportHints": [
+    "Remove the constant before dividing by the slope."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "j": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "h": {
+      "type": "int",
+      "min": 6,
+      "max": 40
+     },
+     "lo": {
+      "type": "int",
+      "min": 1,
+      "max": 20
+     }
+    },
+    "derived": {
+     "b": "m*j",
+     "fhi": "m*h+m*j",
+     "answer": "h",
+     "d_forgotFinalStep": "fhi",
+     "d_usedGivenValue": "b",
+     "d_signError": "h-2*j"
+    },
+    "constraints": [
+     "h-2*j>2",
+     "abs(b-h)>4",
+     "lo<h",
+     "h>5",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_signError",
+     "d_usedGivenValue!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.2A:domain-endpoint-behind-a-range",
+    "sourcePrompt": "For $f(x) = {{m}}x + {{b}}$ on ${{lo}} \\le x \\le h$ the range tops out at ${{fhi}}$. What is $h$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_2A_claim_about_a_range_on_a_closed_domain",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.2A:claim-about-a-range-on-a-closed-domain",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2A",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For $f(x) = {{m}}x + {{b}}$ on ${{lo}} \\le x \\le {{hi}}$, which statement is wrong?",
+   "solutionReview": {
+    "headline": "The sign of the slope decides which endpoint is which.",
+    "reasoning": [
+     "A negative slope would send the largest input to the smallest output.",
+     "The endpoints of the range would then be the other way round."
+    ],
+    "answerSummary": "The claim ignores a negative slope."
+   },
+   "attemptFeedback": [
+    "A closed domain really does give a closed range for a linear function."
+   ],
+   "supportHints": [
+    "Ask what a falling function does to the two endpoints."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 50
+     },
+     "lo": {
+      "type": "int",
+      "min": 1,
+      "max": 10
+     },
+     "span": {
+      "type": "int",
+      "min": 3,
+      "max": 16
+     }
+    },
+    "derived": {
+     "hi": "lo+span",
+     "count": "span+1"
+    },
+    "constraints": [
+     "span>2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The range is a closed interval.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Each output in the range comes from exactly one input.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "The range runs from $f({{lo}})$ up to $f({{hi}})$ whatever sign ${{m}}$ has."
+    },
+    {
+     "id": "choice-d",
+     "label": "The domain contains ${{count}}$ whole numbers.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.2A:claim-about-a-range-on-a-closed-domain",
+    "sourcePrompt": "For $f(x) = {{m}}x + {{b}}$ on ${{lo}} \\le x \\le {{hi}}$, which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_2B_parallel_line_through_a_second_point",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.2B:parallel-line-through-a-second-point",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2B",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A line of slope ${{m}}$ passes through $({{x1}}, {{y1}})$. Which equation gives the line parallel to it through $({{x2}}, {{y2}})$?",
+   "solutionReview": {
+    "headline": "Parallel means same slope, new point.",
+    "reasoning": [
+     "A parallel line keeps the slope ${{m}}$ and takes the new point.",
+     "Point-slope form subtracts the coordinates of the point it passes through."
+    ],
+    "answerSummary": "It is $y - {{y2}} = {{m}}(x - {{x2}})$."
+   },
+   "attemptFeedback": [
+    "Reversing the sign of the slope gives a line that is not parallel at all."
+   ],
+   "supportHints": [
+    "Decide what changes and what stays the same."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "x1": {
+      "type": "int",
+      "min": 1,
+      "max": 14
+     },
+     "y1": {
+      "type": "int",
+      "min": 1,
+      "max": 40
+     },
+     "x2": {
+      "type": "int",
+      "min": 15,
+      "max": 30
+     },
+     "y2": {
+      "type": "int",
+      "min": 41,
+      "max": 90
+     }
+    },
+    "constraints": [
+     "x1!=x2",
+     "y1!=y2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$y - {{y2}} = {{m}}(x - {{x2}})$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$y - {{y2}} = -{{m}}(x - {{x2}})$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$y + {{y2}} = {{m}}(x + {{x2}})$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "$y - {{y1}} = {{m}}(x - {{x1}})$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.2B:parallel-line-through-a-second-point",
+    "sourcePrompt": "A line of slope ${{m}}$ passes through $({{x1}}, {{y1}})$. Which equation gives the line parallel to it through $({{x2}}, {{y2}})$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_2B_slope_plus_intercept_from_two_points",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.2B:slope-plus-intercept-from-two-points",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2B",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The line through $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$ is written as $y = mx + b$. What is $m + b$?",
+   "solutionReview": {
+    "headline": "Two points fix both the slope and the intercept.",
+    "reasoning": [
+     "The slope is $\\frac{{{y2}} - {{y1}}}{{{x2}} - {{x1}}} = {{m}}$, and working back to zero gives $b = {{b}}$.",
+     "Their total is ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The question asks for the total of the two, not their difference."
+   ],
+   "supportHints": [
+    "Find the slope first, then use either point."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": -40,
+      "max": 40
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "gap": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "x2": "x1+gap",
+     "y1": "m*x1+b",
+     "y2": "m*x1+m*gap+b",
+     "answer": "m+b",
+     "d_signError": "m-b",
+     "d_forgotFinalStep": "m",
+     "d_operationInverted": "m*b"
+    },
+    "constraints": [
+     "abs(m*b-m-b)>4",
+     "abs(m-b-m-b)>4",
+     "abs(b)>3",
+     "abs(m+b)>4",
+     "answer!=d_signError",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "d_signError!=d_forgotFinalStep",
+     "d_signError!=d_operationInverted",
+     "d_forgotFinalStep!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.2B:slope-plus-intercept-from-two-points",
+    "sourcePrompt": "The line through $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$ is written as $y = mx + b$. What is $m + b$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_2B_description_of_a_parallel_but_different_line",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.2B:description-of-a-parallel-but-different-line",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2B",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which description gives a line parallel to $y = {{m}}x + {{b}}$ but not the same line?",
+   "solutionReview": {
+    "headline": "Same slope, different intercept.",
+    "reasoning": [
+     "Parallel lines share a slope, so the slope has to stay ${{m}}$.",
+     "Being a different line means the crossing point has to change."
+    ],
+    "answerSummary": "Slope ${{m}}$ at ${{b2}}$."
+   },
+   "attemptFeedback": [
+    "Keeping both the slope and the crossing point gives the same line back."
+   ],
+   "supportHints": [
+    "Ask what makes two lines parallel and what makes them different."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "b2": {
+      "type": "int",
+      "min": 41,
+      "max": 90
+     },
+     "m2": {
+      "type": "int",
+      "min": 15,
+      "max": 30
+     }
+    },
+    "constraints": [
+     "m!=m2",
+     "b!=b2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Slope ${{m}}$, crossing the vertical axis at ${{b}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "Slope ${{m2}}$, crossing the vertical axis at ${{b2}}$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "Slope $-{{m}}$, crossing the vertical axis at ${{b2}}$.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "Slope ${{m}}$, crossing the vertical axis at ${{b2}}$."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.2B:description-of-a-parallel-but-different-line",
+    "sourcePrompt": "Which description gives a line parallel to $y = {{m}}x + {{b}}$ but not the same line?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_2C_standard_form_with_a_discount",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.2C:standard-form-with-a-discount",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2C",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Tickets cost $\\${{a}}$ and programmes $\\${{b}}$, and a group pays $\\${{c}}$ after a $\\${{d}}$ discount. Which equation in standard form links the counts?",
+   "solutionReview": {
+    "headline": "Undo the discount to reach the pre-discount total.",
+    "reasoning": [
+     "Before the discount the group owed ${{a}}x + {{b}}y$ dollars.",
+     "The discount took ${{d}}$ off, so that total was ${{c}} + {{d}}$."
+    ],
+    "answerSummary": "It is ${{a}}x + {{b}}y = {{cd}}$."
+   },
+   "attemptFeedback": [
+    "Each price belongs with the count of its own item."
+   ],
+   "supportHints": [
+    "Work backwards from what was actually paid."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 4,
+      "max": 40
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "c": {
+      "type": "int",
+      "min": 60,
+      "max": 600
+     },
+     "d": {
+      "type": "int",
+      "min": 5,
+      "max": 50
+     }
+    },
+    "derived": {
+     "cd": "c+d",
+     "cmd": "c-d"
+    },
+    "constraints": [
+     "a!=b",
+     "c>d"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a}}x + {{b}}y = {{cmd}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{b}}x + {{a}}y = {{cd}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}x + {{b}}y = {{cd}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a}}x + {{b}}y = {{c}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.2C:standard-form-with-a-discount",
+    "sourcePrompt": "Tickets cost $\\${{a}}$ and programmes $\\${{b}}$, and a group pays $\\${{c}}$ after a $\\${{d}}$ discount. Which equation in standard form links the counts?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_2C_total_of_the_two_intercepts",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.2C:total-of-the-two-intercepts",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2C",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The line ${{a}}x + {{b}}y = {{c}}$ crosses both axes. What is the total of its two intercepts?",
+   "solutionReview": {
+    "headline": "Each intercept comes from setting the other variable to zero.",
+    "reasoning": [
+     "Setting $y = 0$ gives $x = {{c}} \\div {{a}}$, and setting $x = 0$ gives $y = {{c}} \\div {{b}}$.",
+     "Their total is ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The constant on the right is not an intercept until it is divided through."
+   ],
+   "supportHints": [
+    "Find each intercept separately."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "t": {
+      "type": "int",
+      "min": 1,
+      "max": 9
+     }
+    },
+    "derived": {
+     "c": "a*b*t",
+     "answer": "b*t+a*t",
+     "d_operationInverted": "c",
+     "d_partialTotal": "b*t",
+     "d_ratioReversed": "a*b"
+    },
+    "constraints": [
+     "a!=b",
+     "b*t+a*t>8",
+     "abs(a*b-(b*t+a*t))>4",
+     "abs(b*t-(b*t+a*t))>3",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "answer!=d_ratioReversed",
+     "d_operationInverted!=d_partialTotal",
+     "d_operationInverted!=d_ratioReversed",
+     "d_partialTotal!=d_ratioReversed"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.2C:total-of-the-two-intercepts",
+    "sourcePrompt": "The line ${{a}}x + {{b}}y = {{c}}$ crosses both axes. What is the total of its two intercepts?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_2C_equation_that_is_the_same_line",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.2C:equation-that-is-the-same-line",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2C",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which of the listed equations describes the same line as ${{a}}x + {{b}}y = {{c}}$?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Equation"
+    ],
+    "rows": [
+     [
+      "${{a2}}x + {{b2}}y = {{c2}}$"
+     ],
+     [
+      "${{a2}}x + {{b}}y = {{c2}}$"
+     ],
+     [
+      "${{a}}x + {{b2}}y = {{c}}$"
+     ],
+     [
+      "${{a2}}x + {{b2}}y = {{c}}$"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "A line survives multiplication only if every term is multiplied.",
+    "reasoning": [
+     "Multiplying every term by ${{k}}$ leaves the same line.",
+     "Scaling only some of the terms moves the line."
+    ],
+    "answerSummary": "It is ${{a2}}x + {{b2}}y = {{c2}}$."
+   },
+   "attemptFeedback": [
+    "Leaving the right-hand side alone shifts the line without turning it."
+   ],
+   "supportHints": [
+    "Check whether each equation is the original times a single number."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "c": {
+      "type": "int",
+      "min": 6,
+      "max": 90
+     },
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     }
+    },
+    "derived": {
+     "a2": "a*k",
+     "b2": "b*k",
+     "c2": "c*k"
+    },
+    "constraints": [
+     "a!=b",
+     "k>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{a2}}x + {{b2}}y = {{c2}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a2}}x + {{b2}}y = {{c}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{a}}x + {{b2}}y = {{c}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{a2}}x + {{b}}y = {{c2}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.2C:equation-that-is-the-same-line",
+    "sourcePrompt": "Which of the listed equations describes the same line as ${{a}}x + {{b}}y = {{c}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_2D_input_behind_a_chained_variation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.2D:input-behind-a-chained-variation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2D",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "If $z = {{j}}y$ and $y = {{k}}x$, at which $x$ does $z$ reach ${{t}}$?",
+   "solutionReview": {
+    "headline": "Chained variations multiply their constants.",
+    "reasoning": [
+     "Substituting gives $z = {{j}} \\times {{k}}x$, so $z = {{j}}{{k}}x$.",
+     "Setting that to ${{t}}$ gives $x = {{answer}}$."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "Both constants stand between $z$ and $x$, so both have to come out."
+   ],
+   "supportHints": [
+    "Write $z$ in terms of $x$ before solving."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "j": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "w": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "t": "k*j*j*w",
+     "answer": "j*w",
+     "d_forgotFinalStep": "k*j*w",
+     "d_partialTotal": "w",
+     "d_usedGivenValue": "k*j"
+    },
+    "constraints": [
+     "j*w>7",
+     "abs(k*j-j*w)>4",
+     "abs(j*w-w)>3",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.2D:input-behind-a-chained-variation",
+    "sourcePrompt": "If $z = {{j}}y$ and $y = {{k}}x$, at which $x$ does $z$ reach ${{t}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_2D_time_to_reach_a_later_load",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.2D:time-to-reach-a-later-load",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2D",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A load varies directly with time and reaches ${{y1}}$ kg in ${{x1}}$ minutes. How long does it take to reach ${{y2}}$ kg?",
+   "solutionReview": {
+    "headline": "Find the rate, then divide the target by it.",
+    "reasoning": [
+     "The belt loads ${{y1}} \\div {{x1}} = {{k}}$ kg a minute.",
+     "Reaching ${{y2}}$ kg therefore takes ${{answer}}$ minutes."
+    ],
+    "answerSummary": "It takes ${{answer}}$ minutes."
+   },
+   "attemptFeedback": [
+    "A load in kilograms is not a time in minutes."
+   ],
+   "supportHints": [
+    "One pair of readings fixes the rate."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 34
+     },
+     "x1": {
+      "type": "int",
+      "min": 2,
+      "max": 28
+     },
+     "x2": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     }
+    },
+    "derived": {
+     "y1": "k*x1",
+     "y2": "k*x2",
+     "answer": "x2",
+     "d_usedGivenValue": "y2",
+     "d_ratioReversed": "x1",
+     "d_forgotFinalStep": "k"
+    },
+    "constraints": [
+     "x1!=x2",
+     "abs(x1-x2)>2",
+     "abs(k-x2)>3",
+     "x2>4",
+     "answer!=d_usedGivenValue",
+     "answer!=d_ratioReversed",
+     "answer!=d_forgotFinalStep",
+     "d_usedGivenValue!=d_ratioReversed",
+     "d_usedGivenValue!=d_forgotFinalStep",
+     "d_ratioReversed!=d_forgotFinalStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.2D:time-to-reach-a-later-load",
+    "sourcePrompt": "A load varies directly with time and reaches ${{y1}}$ kg in ${{x1}}$ minutes. How long does it take to reach ${{y2}}$ kg?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_A_2D_claim_about_chained_constants",
+   "active": true,
+   "alignmentKeys": [
+    "texas:A.2D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "A.2D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "algebra1",
+   "familyId": "mathmaster:asvab:mk:A.2D:claim-about-chained-constants",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "A.2D",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The value $y$ varies directly with $x$ with constant ${{k}}$, and $z$ varies directly with $y$ with constant ${{j}}$. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "Chained variations multiply, never add.",
+    "reasoning": [
+     "Substituting $y = {{k}}x$ into $z = {{j}}y$ gives $z = {{j}} \\times {{k}}x$.",
+     "The two constants multiply, so the link is ${{prod}}$."
+    ],
+    "answerSummary": "The constant is ${{prod}}$."
+   },
+   "attemptFeedback": [
+    "Both rules pass through the origin, so the chain does too."
+   ],
+   "supportHints": [
+    "Substitute one rule into the other."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     },
+     "j": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     }
+    },
+    "derived": {
+     "sum": "k+j",
+     "prod": "k*j"
+    },
+    "constraints": [
+     "k!=j"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The constant linking $z$ to $x$ is ${{prod}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "The constant linking $z$ to $x$ is ${{sum}}$."
+    },
+    {
+     "id": "choice-c",
+     "label": "When $x$ is zero, $z$ is zero.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "The value $z$ varies directly with $x$.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:A.2D:claim-about-chained-constants",
+    "sourcePrompt": "The value $y$ varies directly with $x$ with constant ${{k}}$, and $z$ varies directly with $y$ with constant ${{j}}$. Which statement is wrong?"
+   }
   }
  ]
 }

@@ -6541,6 +6541,740 @@ mkc('8.7D', 'pair-the-same-distance-apart', {
   feedback: 'Adding the two moves together along one axis gives a longer separation.',
 });
 
+// ================================================================ 8.8A
+// Setting up equations with the unknown on both sides.
+
+mkc('8.8A', 'equation-for-two-plans-with-a-rebate', {
+  difficultyBand: 4, dok: 2, taskType: 'representationTranslation', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Plan A costs $\\${{b1}}$ plus $\\${{m1}}$ a month, and Plan B $\\${{b2}}$ plus $\\${{m2}}$ a month less a $\\${{d}}$ rebate at the end. Which equation says they match over $x$ months?',
+  generator: {
+    parameters: {
+      b1: { type: 'int', min: 10, max: 200 },
+      b2: { type: 'int', min: 10, max: 200 },
+      m1: { type: 'int', min: 5, max: 60 },
+      m2: { type: 'int', min: 5, max: 60 },
+      d: { type: 'int', min: 5, max: 80 },
+    },
+    constraints: ['m1!=m2', 'b1!=b2', 'd<b2'],
+  },
+  choices: [
+    { label: plain('{{m1}}x + {{b1}} = {{m2}}x + {{b2}} - {{d}}'), correct: true },
+    { label: plain('{{m1}}x + {{b1}} = {{m2}}x + {{b2}} + {{d}}'), error: 'signError' },
+    { label: plain('{{m1}}x + {{b1}} = ({{m2}} - {{d}})x + {{b2}}'), error: 'orderOfOperations' },
+    { label: plain('{{m1}}x + {{b1}} - {{d}} = {{m2}}x + {{b2}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Each side charges a monthly rate times $x$ plus a one-off amount.', 'The rebate is a one-off reduction on Plan B, so it comes off that side only.'],
+  answerSummary: { headline: 'One-off amounts stay outside the term that carries $x$.', text: 'It is ${{m1}}x + {{b1}} = {{m2}}x + {{b2}} - {{d}}$.' },
+  hint: 'Ask which charges depend on the number of months.',
+  feedback: 'Folding the rebate into the monthly rate applies it every month.',
+});
+
+mkc('8.8A', 'monthly-charge-that-levels-two-plans', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Plan A costs $\\${{b1}}$ plus $\\$m$ a month and Plan B $\\${{b2}}$ plus $\\${{m2}}$ a month, and they match after ${{x}}$ months. What is $m$?',
+  generator: {
+    parameters: {
+      b1: { type: 'int', min: 10, max: 200 },
+      g: { type: 'int', min: 2, max: 12 },
+      x: { type: 'int', min: 2, max: 16 },
+      m2: { type: 'int', min: 5, max: 70 },
+    },
+    derived: {
+      b2: 'b1+g*x',
+      answer: 'm2+g',
+      // Added the whole gap in fees to the rate.
+      d_forgotFinalStep: 'm2+g*x',
+      // Answered the gap in fees.
+      d_usedGivenValue: 'g*x',
+      // Took the gap off instead of adding it.
+      d_operationInverted: 'm2-g',
+    },
+    constraints: ['m2-g>2', 'abs(g*x-m2-g)>4', 'x>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Plan B starts ${{g}} \\times {{x}}$ dollars dearer, so Plan A must make that up over ${{x}}$ months.', 'That needs ${{g}}$ more a month, or ${{answer}}$.'],
+  answerSummary: { headline: 'Spread the fee gap over the months to get the rate gap.', text: '$m = {{answer}}$.' },
+  hint: 'Work out how much of the fee gap each month has to cover.',
+  feedback: 'The whole fee gap is closed over ${{x}}$ months, not in one.',
+});
+
+mkc('8.8A', 'claim-about-life-either-side-of-the-crossing', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade8',
+  prompt: 'Two plans with different monthly charges cost the same after ${{x}}$ months. Which statement is wrong?',
+  generator: {
+    parameters: {
+      x: { type: 'int', min: 3, max: 24 },
+      m1: { type: 'int', min: 5, max: 60 },
+      m2: { type: 'int', min: 5, max: 60 },
+    },
+    constraints: ['m1!=m2'],
+  },
+  choices: [
+    { label: 'One plan is cheaper both before month ${{x}}$ and after it.', correct: true },
+    { label: 'Before month ${{x}}$ one is cheaper, and after it the other is.', error: 'partialTotal' },
+    { label: 'At month ${{x}}$ the two totals are equal.', error: 'usedGivenValue' },
+    { label: 'The plan with the smaller monthly charge wins in the long run.', error: 'ratioReversed' },
+  ],
+  reasoning: ['The plan with the smaller monthly charge gains ground steadily.', 'Since they are equal at month ${{x}}$, the lead has to change hands there.'],
+  answerSummary: { headline: 'A single crossing point swaps which plan is cheaper.', text: 'One plan cannot lead throughout.' },
+  hint: 'Compare the two totals at one month and at twice that.',
+  feedback: 'Equal totals at ${{x}}$ months is exactly what the crossing means.',
+});
+
+// ================================================================ 8.8C
+// Solving with the unknown on both sides.
+
+mkc('8.8C', 'solve-across-a-bracket', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Solve ${{m1}}x + {{b1}} = {{m2}}(x - {{c}})$.',
+  generator: {
+    parameters: {
+      m1: { type: 'int', min: 2, max: 9 },
+      gap: { type: 'int', min: 2, max: 4 },
+      w: { type: 'int', min: 2, max: 14 },
+      u: { type: 'int', min: 6, max: 40 },
+    },
+    derived: {
+      m2: 'm1+gap',
+      c: 'gap*w/(m1+gap)',
+      b1: 'gap*u-gap*w-m1*0',
+      answer: 'u-w',
+      // Stopped at the numerator.
+      d_forgotFinalStep: 'gap*(u-w)',
+      // Answered the amount inside the bracket.
+      d_usedGivenValue: 'gap*w',
+      // Took the bracket's contribution off twice.
+      d_operationInverted: 'u-2*w',
+    },
+    constraints: ['gap*w%(m1+gap)==0', 'u-2*w>2', 'gap*u-gap*w>0', 'abs(gap*w-(u-w))>4', 'u-w>7'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Expanding gives ${{m1}}x + {{b1}} = {{m2}}x - {{m2}} \\times {{c}}$.', 'Collecting leaves $({{m2}} - {{m1}})x = {{b1}} + {{m2}} \\times {{c}}$, so $x = {{answer}}$.'],
+  answerSummary: { headline: 'Expand the bracket before collecting anything.', text: '$x = {{answer}}$.' },
+  hint: 'The ${{m2}}$ multiplies both terms inside the bracket.',
+  feedback: 'The collected numerator still has to be divided by the difference in coefficients.',
+});
+
+mkc('8.8C', 'constant-that-puts-the-crossing-in-place', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'For which $c$ does ${{m1}}x + {{b1}} = {{m2}}x + c$ have the solution $x = {{v}}$?',
+  generator: {
+    parameters: {
+      m1: { type: 'int', min: 2, max: 12 },
+      gap: { type: 'int', min: 4, max: 20 },
+      v: { type: 'int', min: 4, max: 20 },
+      b1: { type: 'int', min: 40, max: 400 },
+    },
+    derived: {
+      m2: 'm1+gap',
+      answer: 'b1-gap*v',
+      // Answered the constant that was given.
+      d_usedGivenValue: 'b1',
+      // Answered the amount the two sides differ by.
+      d_ratioReversed: 'gap*v',
+      // Took the difference the other way round.
+      d_signError: 'gap*v-b1',
+    },
+    constraints: ['b1-gap*v>4', 'abs(gap*v-(b1-gap*v))>4', 'gap*v>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['At $x = {{v}}$ the left side comes to ${{m1}} \\times {{v}} + {{b1}}$.', 'Matching the right side gives $c = {{b1}} - {{gap}} \\times {{v}} = {{answer}}$.'],
+  answerSummary: { headline: 'Substitute the solution and read off what is missing.', text: '$c = {{answer}}$.' },
+  hint: 'The two $x$ terms differ by ${{gap}}$ for each unit of $x$.',
+  feedback: 'The difference comes off the given constant, not the other way round.',
+});
+
+mkc('8.8C', 'what-a-false-statement-settles', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'grade8',
+  prompt: 'An equation with $x$ on both sides simplifies to ${{a}} = {{b}}$. What does that mean?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 60 },
+      b: { type: 'int', min: 2, max: 60 },
+    },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: 'It has no solutions at all.', correct: true },
+    { label: 'Every value of $x$ satisfies it.', error: 'operationInverted' },
+    { label: 'It has exactly one solution.', error: 'partialTotal' },
+    { label: 'It simply has not been simplified far enough.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The $x$ terms cancelled, leaving a claim that does not depend on $x$ at all.', 'Since ${{a}}$ is not ${{b}}$, no value of $x$ can make the equation true.'],
+  answerSummary: { headline: 'A false statement with no $x$ left means no solutions.', text: 'There are none.' },
+  hint: 'Ask whether any choice of $x$ could change the two sides.',
+  feedback: 'Every value would satisfy it only if the leftover statement were true.',
+});
+
+// ================================================================ 8.8D
+// Angle relationships in triangles and on transversals.
+
+mkc('8.8D', 'gap-between-two-exterior-angles', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'A triangle has interior angles of ${{a}}^\\circ$ and ${{b}}^\\circ$ at two vertices. How much larger is the exterior angle at the third vertex than the one at the first?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 60, max: 168 },
+      b: { type: 'int', min: 6, max: 88 },
+    },
+    derived: {
+      answer: '2*a+b-180',
+      // Answered the larger exterior angle.
+      d_partialTotal: 'a+b',
+      // Answered the exterior angle at the first vertex.
+      d_usedGivenValue: '180-a',
+      // Compared the two the other way round.
+      d_signError: '180-2*a-b',
+    },
+    constraints: ['a+b<175', '2*a+b-180>6', 'abs(2*(180-a)-(a+b))>6'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The exterior angle at the third vertex is ${{a}} + {{b}}$, and the one at the first is $180 - {{a}}$.', 'The difference is ${{answer}}^\\circ$.'],
+  answerSummary: { headline: 'An exterior angle equals the two remote interior angles.', text: 'It is ${{answer}}^\\circ$ larger.' },
+  hint: 'Work out both exterior angles before comparing.',
+  feedback: 'The exterior angle at the first vertex sits on a straight line with ${{a}}^\\circ$.',
+});
+
+mkc('8.8D', 'third-angle-from-an-exterior-one', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'An exterior angle of a triangle measures ${{e}}^\\circ$ and one remote interior angle is ${{a}}^\\circ$. What is the third interior angle?',
+  generator: {
+    parameters: {
+      e: { type: 'int', min: 95, max: 170 },
+      a: { type: 'int', min: 20, max: 120 },
+    },
+    derived: {
+      answer: '180-e',
+      // Answered the other remote interior angle.
+      d_usedGivenValue: 'e-a',
+      // Answered the exterior angle itself.
+      d_operationInverted: 'e',
+      // Took the given interior angle off as well.
+      d_partialTotal: '180-e-a',
+    },
+    constraints: ['a<e', '180-e>10', '180-e-a>0', 'abs(e-a-(180-e))>5'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The exterior angle sits on a straight line with the interior angle at the same vertex.', 'So that interior angle is $180 - {{e}} = {{answer}}^\\circ$.'],
+  answerSummary: { headline: 'The third angle is the one beside the exterior angle.', text: 'It is ${{answer}}^\\circ$.' },
+  hint: 'Ask which vertex the exterior angle belongs to.',
+  feedback: 'Subtracting the remote angle gives the other remote angle, not the third one.',
+});
+
+mkc('8.8D', 'claim-about-angles-on-a-transversal', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade8',
+  prompt: 'Parallel lines are cut by a transversal and one angle measures ${{a}}^\\circ$. Which statement is wrong?',
+  generator: {
+    parameters: { a: { type: 'int', min: 25, max: 155 } },
+    derived: { sup: '180-a' },
+    constraints: ['a!=90'],
+  },
+  choices: [
+    { label: 'The angle inside the parallels on the same side is also ${{a}}^\\circ$.', correct: true },
+    { label: 'The corresponding angle is ${{a}}^\\circ$.', error: 'partialTotal' },
+    { label: 'The alternate angle is ${{a}}^\\circ$.', error: 'usedGivenValue' },
+    { label: 'The angle beside it on the same line is ${{sup}}^\\circ$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Angles inside the parallels on the same side of the transversal add to $180^\\circ$.', 'So that angle is ${{sup}}^\\circ$, not ${{a}}^\\circ$.'],
+  answerSummary: { headline: 'Same-side interior angles are supplementary, not equal.', text: 'That angle is ${{sup}}^\\circ$.' },
+  hint: 'Sketch the two parallels and mark every angle.',
+  feedback: 'Corresponding and alternate angles really are equal.',
+});
+
+// ================================================================ 8.9
+// Two linear equations at once.
+
+mkc('8.9', 'sum-of-the-crossing-coordinates', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Lines $y = {{m1}}x + {{b1}}$ and $y = {{m2}}x + {{b2}}$ cross once. What is the total of the crossing point\'s coordinates?',
+  generator: {
+    parameters: {
+      m1: { type: 'int', min: 3, max: 14 },
+      gap: { type: 'int', min: 2, max: 10 },
+      u: { type: 'int', min: 2, max: 16 },
+      b1: { type: 'int', min: 3, max: 100 },
+    },
+    derived: {
+      m2: 'm1-gap',
+      b2: 'b1+gap*u',
+      yAt: 'm1*u+b1',
+      answer: 'u+m1*u+b1',
+      // Answered the input only.
+      d_forgotFinalStep: 'u',
+      // Answered the total of the two crossing values on the axis.
+      d_usedGivenValue: 'b1+b2',
+      // Added a second crossing value by mistake.
+      d_orderOfOperations: 'u+m1*u+b1+b2',
+    },
+    constraints: ['m1-gap>0', 'abs(b1+b2-(u+m1*u+b1))>5', 'u+m1*u+b1>12'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_orderOfOperations}}'), error: 'orderOfOperations' },
+  ],
+  reasoning: ['Setting the two rules equal gives $x = {{u}}$, and either rule then gives $y = {{yAt}}$.', 'Their total is ${{answer}}$.'],
+  answerSummary: { headline: 'Solve for the input, then read the output off either line.', text: 'It is ${{answer}}$.' },
+  hint: 'The crossing point satisfies both equations at once.',
+  feedback: 'The input alone is only half of the point.',
+});
+
+mkc('8.9', 'third-line-through-the-same-crossing', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade8',
+  prompt: 'Two lines cross at $({{u}}, {{y}})$, and a third line $y = {{m3}}x + c$ passes through the same point. What is $c$?',
+  generator: {
+    parameters: {
+      u: { type: 'int', min: 2, max: 16 },
+      m3: { type: 'int', min: 2, max: 14 },
+      c: { type: 'int', min: 5, max: 120 },
+    },
+    derived: {
+      y: 'm3*u+c',
+      answer: 'c',
+      // Answered the height of the crossing point.
+      d_usedGivenValue: 'y',
+      // Answered the part the slope contributes.
+      d_ratioReversed: 'm3*u',
+      // Took the difference the other way round.
+      d_signError: 'm3*u-y',
+    },
+    constraints: ['abs(m3*u-c)>4', 'c>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The third line must satisfy ${{y}} = {{m3}} \\times {{u}} + c$.', 'That gives $c = {{answer}}$.'],
+  answerSummary: { headline: 'A shared point is one equation the third line has to satisfy.', text: '$c = {{answer}}$.' },
+  hint: 'Put the crossing point into the third equation.',
+  feedback: 'The height of the point still has the slope term inside it.',
+});
+
+mkc('8.9', 'claim-about-two-parallel-lines', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade8',
+  prompt: 'Two lines have slope ${{m}}$ and cross the vertical axis at ${{b1}}$ and ${{b2}}$. Which statement is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 16 },
+      b1: { type: 'int', min: 2, max: 90 },
+      b2: { type: 'int', min: 2, max: 90 },
+    },
+    constraints: ['b1!=b2'],
+  },
+  choices: [
+    { label: 'They cross at exactly one point.', correct: true },
+    { label: 'They never cross.', error: 'operationInverted' },
+    { label: 'No pair of values satisfies both equations.', error: 'partialTotal' },
+    { label: 'They stay the same distance apart.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['Equal slopes means the two lines rise at the same rate for every step.', 'Different crossing points then keep them permanently apart.'],
+  answerSummary: { headline: 'Same slope, different intercept means no crossing at all.', text: 'They never cross.' },
+  hint: 'Try to solve the two equations together and see what happens.',
+  feedback: 'A gap of ${{b1}} - {{b2}}$ is carried at every value of $x$.',
+});
+
+// ================================================================ A.2A
+// Domain and range of a linear function.
+
+mkc('A.2A', 'width-of-a-range-over-a-closed-domain', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'For $f(x) = {{m}}x + {{b}}$ on ${{lo}} \\le x \\le {{hi}}$, how wide is the range?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 2, max: 160 },
+      lo: { type: 'int', min: 1, max: 12 },
+      span: { type: 'int', min: 2, max: 16 },
+    },
+    derived: {
+      hi: 'lo+span',
+      answer: 'm*span',
+      // Added the two endpoints instead of subtracting.
+      d_operationInverted: 'm*(2*lo+span)',
+      // Answered the width of the domain.
+      d_forgotFinalStep: 'span',
+      // Answered the constant on its own.
+      d_usedGivenValue: 'b',
+    },
+    constraints: ['m*span>9', 'abs(b-m*span)>5', 'abs(span-m*span)>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Across the domain $x$ moves ${{span}}$, and each step of $1$ moves $f$ by ${{m}}$.', 'So the range is ${{answer}}$ wide.'],
+  answerSummary: { headline: 'The range width is the slope times the domain width.', text: 'It is ${{answer}}$ wide.' },
+  hint: 'The constant shifts both endpoints equally and cancels.',
+  feedback: 'The constant shifts the range but does not change how wide it is.',
+});
+
+mkc('A.2A', 'domain-endpoint-behind-a-range', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'For $f(x) = {{m}}x + {{b}}$ on ${{lo}} \\le x \\le h$ the range tops out at ${{fhi}}$. What is $h$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      j: { type: 'int', min: 2, max: 6 },
+      h: { type: 'int', min: 6, max: 40 },
+      lo: { type: 'int', min: 1, max: 20 },
+    },
+    derived: {
+      b: 'm*j',
+      fhi: 'm*h+m*j',
+      answer: 'h',
+      // Answered the top of the range.
+      d_forgotFinalStep: 'fhi',
+      // Answered the constant term.
+      d_usedGivenValue: 'b',
+      // Added the constant instead of removing it.
+      d_signError: 'h-2*j',
+    },
+    constraints: ['h-2*j>2', 'abs(b-h)>4', 'lo<h', 'h>5'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The top of the range comes from the top of the domain, so ${{m}}h + {{b}} = {{fhi}}$.', 'That gives $h = {{answer}}$.'],
+  answerSummary: { headline: 'A rising function sends the largest input to the largest output.', text: '$h = {{answer}}$.' },
+  hint: 'Remove the constant before dividing by the slope.',
+  feedback: 'The constant is part of the output, not an input.',
+});
+
+mkc('A.2A', 'claim-about-a-range-on-a-closed-domain', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'For $f(x) = {{m}}x + {{b}}$ on ${{lo}} \\le x \\le {{hi}}$, which statement is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 2, max: 50 },
+      lo: { type: 'int', min: 1, max: 10 },
+      span: { type: 'int', min: 3, max: 16 },
+    },
+    derived: { hi: 'lo+span', count: 'span+1' },
+    constraints: ['span>2'],
+  },
+  choices: [
+    { label: 'The range runs from $f({{lo}})$ up to $f({{hi}})$ whatever sign ${{m}}$ has.', correct: true },
+    { label: 'The range is a closed interval.', error: 'partialTotal' },
+    { label: 'The domain contains ${{count}}$ whole numbers.', error: 'usedGivenValue' },
+    { label: 'Each output in the range comes from exactly one input.', error: 'ratioReversed' },
+  ],
+  reasoning: ['A negative slope would send the largest input to the smallest output.', 'The endpoints of the range would then be the other way round.'],
+  answerSummary: { headline: 'The sign of the slope decides which endpoint is which.', text: 'The claim ignores a negative slope.' },
+  hint: 'Ask what a falling function does to the two endpoints.',
+  feedback: 'A closed domain really does give a closed range for a linear function.',
+});
+
+// ================================================================ A.2B
+// Writing the equation of a line.
+
+mkc('A.2B', 'parallel-line-through-a-second-point', {
+  difficultyBand: 4, dok: 2, taskType: 'representationTranslation', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A line of slope ${{m}}$ passes through $({{x1}}, {{y1}})$. Which equation gives the line parallel to it through $({{x2}}, {{y2}})$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 14 },
+      x1: { type: 'int', min: 1, max: 14 },
+      y1: { type: 'int', min: 1, max: 40 },
+      x2: { type: 'int', min: 15, max: 30 },
+      y2: { type: 'int', min: 41, max: 90 },
+    },
+    constraints: ['x1!=x2', 'y1!=y2'],
+  },
+  choices: [
+    { label: plain('y - {{y2}} = {{m}}(x - {{x2}})'), correct: true },
+    { label: plain('y - {{y1}} = {{m}}(x - {{x1}})'), error: 'usedGivenValue' },
+    { label: plain('y + {{y2}} = {{m}}(x + {{x2}})'), error: 'signError' },
+    { label: plain('y - {{y2}} = -{{m}}(x - {{x2}})'), error: 'operationInverted' },
+  ],
+  reasoning: ['A parallel line keeps the slope ${{m}}$ and takes the new point.', 'Point-slope form subtracts the coordinates of the point it passes through.'],
+  answerSummary: { headline: 'Parallel means same slope, new point.', text: 'It is $y - {{y2}} = {{m}}(x - {{x2}})$.' },
+  hint: 'Decide what changes and what stays the same.',
+  feedback: 'Reversing the sign of the slope gives a line that is not parallel at all.',
+});
+
+mkc('A.2B', 'slope-plus-intercept-from-two-points', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'The line through $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$ is written as $y = mx + b$. What is $m + b$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: -40, max: 40 },
+      x1: { type: 'int', min: 2, max: 12 },
+      gap: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      x2: 'x1+gap',
+      y1: 'm*x1+b',
+      y2: 'm*x1+m*gap+b',
+      answer: 'm+b',
+      // Subtracted the two instead of adding them.
+      d_signError: 'm-b',
+      // Answered the slope alone.
+      d_forgotFinalStep: 'm',
+      // Multiplied the two instead of adding them.
+      d_operationInverted: 'm*b',
+    },
+    constraints: ['abs(m*b-m-b)>4', 'abs(m-b-m-b)>4', 'abs(b)>3', 'abs(m+b)>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The slope is $\\frac{{{y2}} - {{y1}}}{{{x2}} - {{x1}}} = {{m}}$, and working back to zero gives $b = {{b}}$.', 'Their total is ${{answer}}$.'],
+  answerSummary: { headline: 'Two points fix both the slope and the intercept.', text: 'It is ${{answer}}$.' },
+  hint: 'Find the slope first, then use either point.',
+  feedback: 'The question asks for the total of the two, not their difference.',
+});
+
+mkc('A.2B', 'description-of-a-parallel-but-different-line', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'Which description gives a line parallel to $y = {{m}}x + {{b}}$ but not the same line?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 2, max: 40 },
+      b2: { type: 'int', min: 41, max: 90 },
+      m2: { type: 'int', min: 15, max: 30 },
+    },
+    constraints: ['m!=m2', 'b!=b2'],
+  },
+  choices: [
+    { label: 'Slope ${{m}}$, crossing the vertical axis at ${{b2}}$.', correct: true },
+    { label: 'Slope ${{m}}$, crossing the vertical axis at ${{b}}$.', error: 'usedGivenValue' },
+    { label: 'Slope ${{m2}}$, crossing the vertical axis at ${{b2}}$.', error: 'ratioReversed' },
+    { label: 'Slope $-{{m}}$, crossing the vertical axis at ${{b2}}$.', error: 'signError' },
+  ],
+  reasoning: ['Parallel lines share a slope, so the slope has to stay ${{m}}$.', 'Being a different line means the crossing point has to change.'],
+  answerSummary: { headline: 'Same slope, different intercept.', text: 'Slope ${{m}}$ at ${{b2}}$.' },
+  hint: 'Ask what makes two lines parallel and what makes them different.',
+  feedback: 'Keeping both the slope and the crossing point gives the same line back.',
+});
+
+// ================================================================ A.2C
+// Standard form.
+
+mkc('A.2C', 'standard-form-with-a-discount', {
+  difficultyBand: 4, dok: 2, taskType: 'representationTranslation', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Tickets cost $\\${{a}}$ and programmes $\\${{b}}$, and a group pays $\\${{c}}$ after a $\\${{d}}$ discount. Which equation in standard form links the counts?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 4, max: 40 },
+      b: { type: 'int', min: 2, max: 30 },
+      c: { type: 'int', min: 60, max: 600 },
+      d: { type: 'int', min: 5, max: 50 },
+    },
+    derived: { cd: 'c+d', cmd: 'c-d' },
+    constraints: ['a!=b', 'c>d'],
+  },
+  choices: [
+    { label: plain('{{a}}x + {{b}}y = {{cd}}'), correct: true },
+    { label: plain('{{a}}x + {{b}}y = {{c}}'), error: 'forgotFinalStep' },
+    { label: plain('{{a}}x + {{b}}y = {{cmd}}'), error: 'signError' },
+    { label: plain('{{b}}x + {{a}}y = {{cd}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Before the discount the group owed ${{a}}x + {{b}}y$ dollars.', 'The discount took ${{d}}$ off, so that total was ${{c}} + {{d}}$.'],
+  answerSummary: { headline: 'Undo the discount to reach the pre-discount total.', text: 'It is ${{a}}x + {{b}}y = {{cd}}$.' },
+  hint: 'Work backwards from what was actually paid.',
+  feedback: 'Each price belongs with the count of its own item.',
+});
+
+mkc('A.2C', 'total-of-the-two-intercepts', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'The line ${{a}}x + {{b}}y = {{c}}$ crosses both axes. What is the total of its two intercepts?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 20 },
+      b: { type: 'int', min: 2, max: 20 },
+      t: { type: 'int', min: 1, max: 9 },
+    },
+    derived: {
+      c: 'a*b*t',
+      answer: 'b*t+a*t',
+      // Answered the constant on the right.
+      d_operationInverted: 'c',
+      // Answered one intercept only.
+      d_partialTotal: 'b*t',
+      // Answered the product of the two coefficients.
+      d_ratioReversed: 'a*b',
+    },
+    constraints: ['a!=b', 'b*t+a*t>8', 'abs(a*b-(b*t+a*t))>4', 'abs(b*t-(b*t+a*t))>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Setting $y = 0$ gives $x = {{c}} \\div {{a}}$, and setting $x = 0$ gives $y = {{c}} \\div {{b}}$.', 'Their total is ${{answer}}$.'],
+  answerSummary: { headline: 'Each intercept comes from setting the other variable to zero.', text: 'It is ${{answer}}$.' },
+  hint: 'Find each intercept separately.',
+  feedback: 'The constant on the right is not an intercept until it is divided through.',
+});
+
+mkc('A.2C', 'equation-that-is-the-same-line', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'table', courseId: 'algebra1',
+  prompt: 'Which of the listed equations describes the same line as ${{a}}x + {{b}}y = {{c}}$?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Equation'],
+    rows: [
+      ['${{a2}}x + {{b2}}y = {{c2}}$'],
+      ['${{a2}}x + {{b}}y = {{c2}}$'],
+      ['${{a}}x + {{b2}}y = {{c}}$'],
+      ['${{a2}}x + {{b2}}y = {{c}}$'],
+    ],
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 2, max: 14 },
+      c: { type: 'int', min: 6, max: 90 },
+      k: { type: 'int', min: 2, max: 5 },
+    },
+    derived: { a2: 'a*k', b2: 'b*k', c2: 'c*k' },
+    constraints: ['a!=b', 'k>1'],
+  },
+  choices: [
+    { label: plain('{{a2}}x + {{b2}}y = {{c2}}'), correct: true },
+    { label: plain('{{a2}}x + {{b}}y = {{c2}}'), error: 'partialTotal' },
+    { label: plain('{{a}}x + {{b2}}y = {{c}}'), error: 'ratioReversed' },
+    { label: plain('{{a2}}x + {{b2}}y = {{c}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['Multiplying every term by ${{k}}$ leaves the same line.', 'Scaling only some of the terms moves the line.'],
+  answerSummary: { headline: 'A line survives multiplication only if every term is multiplied.', text: 'It is ${{a2}}x + {{b2}}y = {{c2}}$.' },
+  hint: 'Check whether each equation is the original times a single number.',
+  feedback: 'Leaving the right-hand side alone shifts the line without turning it.',
+});
+
+// ================================================================ A.2D
+// Direct variation.
+
+mkc('A.2D', 'input-behind-a-chained-variation', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'If $z = {{j}}y$ and $y = {{k}}x$, at which $x$ does $z$ reach ${{t}}$?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 14 },
+      j: { type: 'int', min: 2, max: 9 },
+      w: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      t: 'k*j*j*w',
+      answer: 'j*w',
+      // Divided by one constant only.
+      d_forgotFinalStep: 'k*j*w',
+      // Divided by both constants twice over.
+      d_partialTotal: 'w',
+      // Answered the product of the two constants.
+      d_usedGivenValue: 'k*j',
+    },
+    constraints: ['j*w>7', 'abs(k*j-j*w)>4', 'abs(j*w-w)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Substituting gives $z = {{j}} \\times {{k}}x$, so $z = {{j}}{{k}}x$.', 'Setting that to ${{t}}$ gives $x = {{answer}}$.'],
+  answerSummary: { headline: 'Chained variations multiply their constants.', text: '$x = {{answer}}$.' },
+  hint: 'Write $z$ in terms of $x$ before solving.',
+  feedback: 'Both constants stand between $z$ and $x$, so both have to come out.',
+});
+
+mkc('A.2D', 'time-to-reach-a-later-load', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A load varies directly with time and reaches ${{y1}}$ kg in ${{x1}}$ minutes. How long does it take to reach ${{y2}}$ kg?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 34 },
+      x1: { type: 'int', min: 2, max: 28 },
+      x2: { type: 'int', min: 3, max: 30 },
+    },
+    derived: {
+      y1: 'k*x1',
+      y2: 'k*x2',
+      answer: 'x2',
+      // Answered the load rather than the time.
+      d_usedGivenValue: 'y2',
+      // Answered the time that was given.
+      d_ratioReversed: 'x1',
+      // Answered the loading rate.
+      d_forgotFinalStep: 'k',
+    },
+    constraints: ['x1!=x2', 'abs(x1-x2)>2', 'abs(k-x2)>3', 'x2>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['The belt loads ${{y1}} \\div {{x1}} = {{k}}$ kg a minute.', 'Reaching ${{y2}}$ kg therefore takes ${{answer}}$ minutes.'],
+  answerSummary: { headline: 'Find the rate, then divide the target by it.', text: 'It takes ${{answer}}$ minutes.' },
+  hint: 'One pair of readings fixes the rate.',
+  feedback: 'A load in kilograms is not a time in minutes.',
+});
+
+mkc('A.2D', 'claim-about-chained-constants', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'The value $y$ varies directly with $x$ with constant ${{k}}$, and $z$ varies directly with $y$ with constant ${{j}}$. Which statement is wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 16 },
+      j: { type: 'int', min: 2, max: 16 },
+    },
+    derived: { sum: 'k+j', prod: 'k*j' },
+    constraints: ['k!=j'],
+  },
+  choices: [
+    { label: 'The constant linking $z$ to $x$ is ${{sum}}$.', correct: true },
+    { label: 'The constant linking $z$ to $x$ is ${{prod}}$.', error: 'partialTotal' },
+    { label: 'The value $z$ varies directly with $x$.', error: 'usedGivenValue' },
+    { label: 'When $x$ is zero, $z$ is zero.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Substituting $y = {{k}}x$ into $z = {{j}}y$ gives $z = {{j}} \\times {{k}}x$.', 'The two constants multiply, so the link is ${{prod}}$.'],
+  answerSummary: { headline: 'Chained variations multiply, never add.', text: 'The constant is ${{prod}}$.' },
+  hint: 'Substitute one rule into the other.',
+  feedback: 'Both rules pass through the origin, so the chain does too.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
