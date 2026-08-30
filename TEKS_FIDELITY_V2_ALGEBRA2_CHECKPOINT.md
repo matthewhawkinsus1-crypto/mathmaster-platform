@@ -683,9 +683,32 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.6J
+### A2.6K
 
-Resume here. Do not reopen A2.2A–A2.6I unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.6J unless a failing gate names them.
+
+
+### 2026-08-30 — A2.6K audit finding
+- Official construct: **determine the asymptotic restrictions on the domain of a rational function and represent domain and range using interval notation, inequalities, and set notation**.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - a translated reciprocal correctly identifies its excluded domain value and excluded range value;
+  - interval notation, a number-line representation, domain/range language, and a notation-error frame are present;
+  - the content is directionally aligned to asymptotic restrictions rather than drifting into equation solving.
+- Legacy limitations:
+  - all five families are essentially the single translated reciprocal form with one vertical and one horizontal asymptote;
+  - no family handles multiple vertical asymptotes from a denominator with more than one real zero;
+  - students mostly produce interval notation or choose a statement; they do not repeatedly **represent** the same domain/range in interval, inequality, and set notation;
+  - range is always the two-sided restriction y≠k, so one-sided rational ranges such as y>k or y<k are absent;
+  - error analysis identifies a bad interval but does not repair the full domain/range across the three required notation systems.
+- Fidelity V2 requirements:
+  - repeatedly determine asymptotic restrictions from the actual denominator structure;
+  - include both one and two vertical-asymptote cases;
+  - require student-authored interval notation, inequality descriptions, and set-builder notation rather than a multiple-choice proxy;
+  - include translated reciprocal range y≠k and squared-denominator rational ranges y>k and y<k;
+  - connect vertical asymptotes to domain restrictions and horizontal/one-sided asymptotic behavior to range restrictions without turning the task into A2.6G transformation analysis;
+  - include complete notation error repair across domain and range.
+- Before staging, verify that secure generic grading can fairly accept set-builder notation; if it cannot, add the smallest explicit set-notation equivalence capability rather than lowering the TEKS action.
 
 
 ### 2026-08-30 — A2.6J audit finding
@@ -721,8 +744,10 @@ Resume here. Do not reopen A2.2A–A2.6I unless a failing gate names them.
 - Package/build runs `33329335915` and `33329354924`: **PASS**.
 - Added A2.6J-specific generated certification — commit `5724d98e9ed7ac4a6ca23d682937e268973c6e6a`.
 - The gate samples 200+ generated instances, independently validates candidate/domain/substitution/context/tolerance mathematics, requires both keep and reject outcomes, routes generated keys through secure self-grading, rejects wrong verdicts, enforces representation breadth, and checks public key stripping.
-- Full A2.6J certification run `33329383765`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.6J** until the full run is green.
+- Full A2.6J certification run `33329383765`: **PASS**.
+- Generated candidate evidence, production issuability, secure self-grading, wrong-verdict rejection, domain/original-equation/context/tolerance reasoning, public-key stripping, and student/runtime build all passed.
+- A2.6J is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.6K**.
 
 
 ### 2026-08-30 — A2.6I audit finding
