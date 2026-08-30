@@ -1272,7 +1272,10 @@ test('A2.4B writes complete parabola equations from defining attributes in all f
   const entry = payload('A2.4B');
   assert.ok(entry);
   assert.equal(entry.verdict, 'REBUILD');
-  assert.match(entry.certificationStatus, /parabola.*attribute|attribute.*parabola/i);
+  assert.match(
+    entry.certificationStatus,
+    /student-authored-parabola-equations-from-vertex-focus-directrix-axis-and-opening/,
+  );
 
   const authoredText = stringValues(entry.documents).join(' ').toLowerCase();
   for (const required of ['vertex', 'focus', 'directrix', 'axis', 'opens upward', 'opens downward', 'opens right', 'opens left']) {
