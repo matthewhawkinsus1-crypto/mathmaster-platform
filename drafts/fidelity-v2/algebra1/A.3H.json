@@ -84,6 +84,11 @@
       },
       "variants": [
         {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
           "coverageKey": "adaptive-d2b2-horizontal-strip-system",
           "dok": 2,
           "difficultyBand": 2,
@@ -227,6 +232,11 @@
         }
       },
       "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
         {
           "coverageKey": "adaptive-d2b4-fractional-mixed-boundary-system",
           "dok": 2,
