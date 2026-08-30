@@ -369,7 +369,7 @@ Do **not** re-audit A2.4E unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4F — PENDING AUDIT
+### A2.4F — ENHANCE — AUDITED / AUTHORING
 
 Official construct: **Solve quadratic and square root equations.**
 
@@ -378,6 +378,30 @@ Official construct: **Solve quadratic and square root equations.**
 ### A2.4F
 
 Resume here. Do not reopen A2.2A–A2.4E unless a failing gate names them.
+
+
+### 2026-08-30 — A2.4F audit finding
+- Official construct: **solve quadratic and square root equations**.
+- Verdict: **ENHANCE**.
+- The legacy bank is directionally aligned, unlike several earlier standards:
+  - it includes factoring and quadratic-formula quadratic solves;
+  - it includes square-root equations, a context, and a squaring error.
+- The remaining fidelity problem is **depth and breadth**, not total misalignment:
+  - both quadratic families are generated from easy integer roots, so the formula family does not really require the quadratic formula or exact irrational reasoning;
+  - square-root families are almost all one-step $\sqrt{x-h}=r$ equations;
+  - the context does not add mathematical complexity;
+  - error analysis identifies a missed square but does not require repairing a multi-step solve.
+- A2.4F must remain distinct from A2.4G:
+  - A2.4F owns carrying the equation-solving process through to the solution set;
+  - A2.4G will explicitly own **identifying extraneous candidates** created by radical solving.
+- Fidelity V2 requirements:
+  - at least two genuinely different quadratic-solving pathways, including factoring and an exact quadratic-formula case with an irrational discriminant;
+  - at least two square-root families that require isolating the radical and then solving the resulting linear equation after squaring;
+  - include a contextual square-root or quadratic solve where the final value is interpreted;
+  - include a complete error-repair family that fixes the algebra and finishes the solution;
+  - require exact solutions where appropriate rather than decimal-only approximations;
+  - do not make every quadratic have obvious integer roots or every radical equation a one-operation undo.
+- Generic secure multi-response grading is sufficient; no new Path tool capability is required for A2.4F.
 
 
 ### 2026-08-30 — A2.4E audit finding
