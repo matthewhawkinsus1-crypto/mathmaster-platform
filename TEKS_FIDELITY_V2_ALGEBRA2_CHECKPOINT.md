@@ -577,17 +577,37 @@ Certification result:
 
 Do **not** re-audit A2.6B unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.6C
 
-### A2.6C — REBUILD — STAGED / CERTIFICATION RUNNING
+### A2.6C — REBUILD — CERTIFIED
 
 Official construct: **Analyze transformations of the absolute value parent function for specified positive and negative real parameter values.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- the full supplied-parameter model $y=a|b(x-h)|+k$ is analyzed;
+- vertical scale, reciprocal horizontal scale, x-axis reflection, vertex translation, opening/range, and final arm slope are explicit;
+- the even-parent fact that b<0 produces no distinct visible reflection is taught and tested;
+- exact negative-b point mapping, graph evidence, reverse sequence reasoning, and complete error analysis are included;
+- the bank does not falsely claim a and b are separately recoverable from the final V-shape alone;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect transformation effects are rejected and public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33326111449`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.6C unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.6D — PENDING AUDIT
+
+Official construct: **Formulate absolute value linear equations.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.6C
+### A2.6D
 
-Resume here. Do not reopen A2.2A–A2.6B unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.6C unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.6C audit finding
@@ -625,8 +645,10 @@ Resume here. Do not reopen A2.2A–A2.6B unless a failing gate names them.
   - error analysis correcting both “two reflections cancel” and “inside factor 3 means horizontal stretch 3.”
 - Added A2.6C-specific generated certification — commit `db0596df11a413fb4fb561c7be2fe158fbec4960`.
 - The A2.6C gate samples 200+ generated instances, checks production issuability and secure self-grading, independently verifies negative-b point mapping, graph distances, reciprocal horizontal scale, effective arm slope, reverse parameter recovery, wrong-effect rejection, and public answer-key stripping.
-- Full A2.6C assertion run `33326111449`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.6C** until that run is green.
+- Full A2.6C assertion run `33326111449`: **PASS**.
+- Generated combined-effect analysis, negative-b invariance, point mapping, reciprocal horizontal scale, graph geometry, reverse reasoning, error repair, secure wrong-effect rejection, public-key stripping, and student/runtime build all passed.
+- A2.6C is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.6D**.
 
 
 ### 2026-08-30 — A2.6B audit finding
