@@ -213,7 +213,124 @@
           "r3": "c3-c1",
           "r4": "r2+3*r3"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-nonunit-gaussian-elimination",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "multipleRepresentation",
+          "solutionMethod": "gaussianElimination",
+          "prompt": "Use the stated Gaussian-elimination path on the 3×3 system. Record both reduced rows, eliminate y, then back-substitute for x,y,z: $E_1:x+y+z={{c1}}$, $E_2:3x+2y-z={{c2}}$, $E_3:2x-3y+2z={{c3}}$.",
+          "stimulus": {
+            "kind": "steps",
+            "title": "Required elimination path",
+            "steps": [
+              {
+                "id": "r2",
+                "label": "Remove x from E2",
+                "work": "$R_2\\leftarrow R_2-3R_1$"
+              },
+              {
+                "id": "r3",
+                "label": "Remove x from E3",
+                "work": "$R_3\\leftarrow R_3-2R_1$"
+              },
+              {
+                "id": "r4",
+                "label": "Remove y",
+                "work": "Compute $5R_2-R_3$."
+              }
+            ]
+          },
+          "responseFields": [
+            {
+              "id": "row2",
+              "label": "New R2",
+              "inputProfile": "equation",
+              "expected": "-y-4z={{r2}}"
+            },
+            {
+              "id": "row3",
+              "label": "New R3",
+              "inputProfile": "equation",
+              "expected": "-5y={{r3}}"
+            },
+            {
+              "id": "row4",
+              "label": "Equation after eliminating y",
+              "inputProfile": "equation",
+              "expected": "-20z={{r4}}"
+            },
+            {
+              "id": "x",
+              "label": "x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            },
+            {
+              "id": "y",
+              "label": "y",
+              "inputProfile": "number",
+              "expected": "{{y}}"
+            },
+            {
+              "id": "z",
+              "label": "z",
+              "inputProfile": "number",
+              "expected": "{{z}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Larger row multipliers increase computation, not cognitive demand.",
+            "reasoning": [
+              "R2-3R1 gives -y-4z={{r2}}.",
+              "R3-2R1 gives -5y={{r3}}.",
+              "Then 5R2-R3 gives -20z={{r4}}, followed by back-substitution."
+            ],
+            "answerSummary": "$(x,y,z)=({{x}},{{y}},{{z}})$"
+          },
+          "attemptFeedback": [
+            "Apply each multiplier to every coefficient and the augmented constant."
+          ],
+          "supportHints": [
+            "Keep the reduced rows aligned by x,y,z columns."
+          ],
+          "generator": {
+            "parameters": {
+              "x": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "y": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "z": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            },
+            "derived": {
+              "c1": "x+y+z",
+              "c2": "3*x+2*y-z",
+              "c3": "2*x-3*y+2*z",
+              "r2": "c2-3*c1",
+              "r3": "c3-2*c1",
+              "r4": "5*r2-r3"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_3B_v2_matrix-technology-rref",
