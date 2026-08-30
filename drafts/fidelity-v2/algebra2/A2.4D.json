@@ -313,7 +313,7 @@
               "label": "Maximum"
             }
           ],
-          "expected": "{{extreme}}"
+          "expected": "min"
         }
       ],
       "solutionReview": {
@@ -321,7 +321,8 @@
         "reasoning": [
           "The coefficients give $f(x)={{a}}x^2+({{b}})x+({{c}})$.",
           "Completing the square produces $f(x)={{a}}(x-({{h}}))^2+({{k}})$.",
-          "The vertex is $({{h}},{{k}})$ and the axis is $x={{h}}$."
+          "The vertex is $({{h}},{{k}})$ and the axis is $x={{h}}$.",
+          "Because the generated leading coefficient is positive, the vertex is a minimum."
         ],
         "answerSummary": "Vertex $({{h}},{{k}})$; axis $x={{h}}$."
       },
@@ -336,10 +337,9 @@
           "a": {
             "type": "choice",
             "values": [
-              -2,
-              -1,
               1,
-              2
+              2,
+              3
             ]
           },
           "h": {
@@ -355,8 +355,7 @@
         },
         "derived": {
           "b": "-2*a*h",
-          "c": "a*h*h+k",
-          "extreme": "a>0 ? 0 : 1"
+          "c": "a*h*h+k"
         }
       }
     },
