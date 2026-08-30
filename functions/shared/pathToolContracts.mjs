@@ -46,6 +46,20 @@ import {
   sameValue,
 } from './answerEquivalence.mjs';
 
+import {
+  buildSystemsInequalityPrivateDefinition,
+  gradeSystemsInequalityResponse,
+  sanitizeSystemsInequalityPublicQuestion,
+  systemsInequalityDefinitionIsGradable,
+  validateSystemsInequalityResponse,
+} from './pathSystemsInequalityGrading.mjs';
+import {
+  buildDataModelingPrivateDefinition,
+  dataModelingDefinitionIsGradable,
+  gradeDataModelingResponse,
+  sanitizeDataModelingPublicQuestion,
+} from './pathDataModelingGrading.mjs';
+
 export { asNumber, normalizeAnswer, sameNumber, sameText, sameValue } from './answerEquivalence.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
@@ -503,31 +517,46 @@ const CONTRACTS = {
     },
   },
 
-  // The Systems Workspace, in its linear mode. The two lines are the question;
-  // where they meet is arithmetic the server redoes for itself rather than
-  // taking the workspace's word for it.
+  // The Systems Workspace has two Path-safe modes.
   //
-  // Its other modes (inequalities, linear-quadratic, matrix) collect different
-  // work and are not eligible until each has its own grader here.
+  // Linear mode re-solves the two equations server-side. Inequality mode keeps
+  // the graph data public because it IS the question, but recomputes the marked
+  // test point and the student's candidate point server-side. Other workspace
+  // modes remain fail-closed until they receive equally explicit contracts.
   systemsWorkspace: {
-    serverGradingVersion: 1,
-    responseShape: 'orderedPairWithClassification',
-    sanitizePublicQuestion: (question) => pick(question, [
-      'prompt', 'mode', 'system', 'graph', 'context', 'hint',
-    ]),
-    buildPrivateGradingDefinition: (question) => ({
-      mode: String(question.mode || 'linear'),
-      // The same solve the workspace shows, done again where the browser
-      // cannot reach it.
-      solution: solveTwoLines(question.system),
-      tolerance: Number(question.numericTolerance ?? 0.05),
-    }),
-    validateStudentResponse: (raw) => (
-      raw && typeof raw.classification === 'string' && raw.classification.trim() !== ''
-        ? valid()
-        : invalid('A systems response needs the classification the student chose.')
+    serverGradingVersion: 2,
+    responseShape: 'systemsWorkspace',
+    sanitizePublicQuestion: (question) => (
+      String(question.mode || 'linear') === 'inequalities'
+        ? sanitizeSystemsInequalityPublicQuestion(question)
+        : pick(question, ['prompt', 'mode', 'system', 'graph', 'context', 'hint'])
     ),
+    buildPrivateGradingDefinition: (question) => (
+      String(question.mode || 'linear') === 'inequalities'
+        ? buildSystemsInequalityPrivateDefinition(question)
+        : {
+          mode: 'linear',
+          // The same solve the workspace shows, done again where the browser
+          // cannot reach it.
+          solution: solveTwoLines(question.system),
+          tolerance: Number(question.numericTolerance ?? 0.05),
+        }
+    ),
+    validateStudentResponse: (raw) => {
+      // The response shape identifies the mode without trusting a client-sent
+      // mode flag. The actual grader is still selected from the server's stored
+      // private definition below.
+      if (raw && ('testChoice' in raw || 'candidate' in raw)) {
+        return validateSystemsInequalityResponse(raw);
+      }
+      return raw && typeof raw.classification === 'string' && raw.classification.trim() !== ''
+        ? valid()
+        : invalid('A systems response needs the classification or feasible-region work the student produced.');
+    },
     gradeStudentResponse: (definition, raw) => {
+      if (definition.mode === 'inequalities') {
+        return gradeSystemsInequalityResponse(definition, raw);
+      }
       const { solution, tolerance } = definition;
       const parts = [{ id: 'classification', isCorrect: sameText(raw.classification, solution.type) }];
       if (solution.type === 'one') {
@@ -538,6 +567,23 @@ const CONTRACTS = {
       }
       return graded(parts.every((part) => part.isCorrect), parts);
     },
+  },
+
+  // Data Modeling Lab. The points and requested mode are public; regression
+  // coefficients, correlation, tolerances and the best-model verdict are
+  // recomputed/stored only on the server. The registry tool submits its raw
+  // student work directly, so there is no browser-side correctness authority.
+  dataModelingLab: {
+    serverGradingVersion: 1,
+    responseShape: 'dataModeling',
+    sanitizePublicQuestion: sanitizeDataModelingPublicQuestion,
+    buildPrivateGradingDefinition: buildDataModelingPrivateDefinition,
+    validateStudentResponse: (raw) => (
+      raw && typeof raw === 'object' && !Array.isArray(raw)
+        ? valid()
+        : invalid('A data-modeling response needs the work the student entered in the lab.')
+    ),
+    gradeStudentResponse: (definition, raw) => gradeDataModelingResponse(definition, raw),
   },
 
   // Plot a relation, or read one. The pairs are the question here.
@@ -997,6 +1043,10 @@ export const PATH_TOOL_IDS = Object.freeze(Object.keys(CONTRACTS));
 // does not have.
 const TOOL_ALIASES = Object.freeze({
   functionGraph: 'functionInvestigation',
+  // Existing authoring uses the shorter semantic name while the shared tool
+  // registry renders the component under dataModelingLab. Resolve once here so
+  // the server, simulator and browser all agree on the canonical Path tool id.
+  dataModeling: 'dataModelingLab',
 });
 
 export const getPathToolContract = (toolId) => CONTRACTS[TOOL_ALIASES[toolId] || toolId] || null;
@@ -1039,7 +1089,11 @@ export const hasGradableDefinition = (toolId, definition) => {
       // question belongs to `systemsWorkspace`, which does collect one.
       return definition.solution != null && definition.classification == null;
     case 'systemsWorkspace':
-      return definition.mode === 'linear' && definition.solution.type != null;
+      return definition.mode === 'linear'
+        ? definition.solution.type != null
+        : definition.mode === 'inequalities' && systemsInequalityDefinitionIsGradable(definition);
+    case 'dataModelingLab':
+      return dataModelingDefinitionIsGradable(definition);
     case 'relationMapping':
       return definition.arrows.length > 0;
     case 'intervalNumberLine':
