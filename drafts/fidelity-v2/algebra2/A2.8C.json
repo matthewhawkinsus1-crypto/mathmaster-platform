@@ -1,0 +1,1151 @@
+{
+  "standard": "A2.8C",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-nine-predict-decide-judge-breakouts-linear-quadratic-exponential-data-models",
+  "rationale": "A2.8C contains nine model/action breakouts. Fidelity V2 covers prediction, decision, and critical judgment for linear, quadratic, and exponential models explicitly. Prediction technology may include fitted coefficients as supporting work, but decision and judgment families require a model-based numeric result plus the contextual conclusion.",
+  "documents": [
+    {
+      "id": "mm_A2_8C_v2_prediction-model-variants",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.8C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.8C:v2-prediction-model-variants",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.8C",
+      "taskType": "modeling",
+      "representation": "multipleRepresentation",
+      "dok": 2,
+      "difficultyBand": 3,
+      "type": "dataModelingLab",
+      "prompt": "Use the assigned regression model on the complete data set, then make the requested prediction. The fitted coefficients are supporting work; the assessed A2.8C action is the prediction.",
+      "variants": [
+        {
+          "coverageKey": "predict-linear",
+          "mode": "linearFitPrediction",
+          "points": [
+            [
+              -2,
+              "{{ym2}}"
+            ],
+            [
+              -1,
+              "{{ym1}}"
+            ],
+            [
+              0,
+              "{{y0}}"
+            ],
+            [
+              1,
+              "{{y1}}"
+            ],
+            [
+              2,
+              "{{y2}}"
+            ]
+          ],
+          "predictionX": 4,
+          "slopeTolerance": 0.02,
+          "interceptTolerance": 0.03,
+          "predictionTolerance": 0.08,
+          "prompt": "Use linear regression technology on all five observations, then predict y when x=4. Enter the fitted m and b as supporting work and the model prediction at x=4.",
+          "context": {
+            "title": "Linear prediction from noisy data",
+            "note": "x=4 lies beyond the observed range -2 through 2, so the prediction is an extrapolation."
+          },
+          "solutionReview": {
+            "headline": "Fit first, then use the fitted linear model at the requested input.",
+            "reasoning": [
+              "The balanced noisy data fit y={{m}}x+({{b}}).",
+              "At x=4 the fitted model predicts {{pred}}.",
+              "Because 4 is beyond the observed maximum x=2, this is extrapolation."
+            ],
+            "answerSummary": "Prediction {{pred}} at x=4."
+          },
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -10,
+                "max": 10
+              },
+              "e": {
+                "type": "int",
+                "min": 1,
+                "max": 2
+              }
+            },
+            "derived": {
+              "ym2": "-2*m+b+e",
+              "ym1": "-m+b-2*e",
+              "y0": "b+2*e",
+              "y1": "m+b-2*e",
+              "y2": "2*m+b+e",
+              "pred": "4*m+b"
+            }
+          }
+        },
+        {
+          "coverageKey": "predict-quadratic",
+          "mode": "quadraticFitPrediction",
+          "points": [
+            [
+              -2,
+              "{{ym2}}"
+            ],
+            [
+              -1,
+              "{{ym1}}"
+            ],
+            [
+              0,
+              "{{y0}}"
+            ],
+            [
+              1,
+              "{{y1}}"
+            ],
+            [
+              2,
+              "{{y2}}"
+            ]
+          ],
+          "predictionX": 0.5,
+          "quadraticATolerance": 0.02,
+          "quadraticBTolerance": 0.03,
+          "quadraticCTolerance": 0.04,
+          "predictionTolerance": 0.08,
+          "prompt": "Use quadratic regression technology on all five observations, then predict y when x=0.5. Enter a, b, and c as supporting work and the model prediction.",
+          "context": {
+            "title": "Quadratic interpolation",
+            "note": "x=0.5 lies inside the observed x-range -2 through 2."
+          },
+          "solutionReview": {
+            "headline": "A fitted quadratic can interpolate between observed inputs.",
+            "reasoning": [
+              "The full regression recovers the fitted quadratic coefficients.",
+              "At x=0.5 the model predicts {{pred}}.",
+              "Because 0.5 lies inside the observed range, this is interpolation."
+            ],
+            "answerSummary": "Prediction {{pred}} at x=0.5."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "c": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "e": {
+                "type": "int",
+                "min": 1,
+                "max": 2
+              }
+            },
+            "derived": {
+              "ym2": "4*a-2*b+c+e",
+              "ym1": "a-b+c-2*e",
+              "y0": "c",
+              "y1": "a+b+c+2*e",
+              "y2": "4*a+2*b+c-e",
+              "pred": "0.25*a+0.5*b+c"
+            }
+          }
+        },
+        {
+          "coverageKey": "predict-exponential",
+          "mode": "exponentialFitPrediction",
+          "points": [
+            [
+              -2,
+              "{{ym2}}"
+            ],
+            [
+              -1,
+              "{{ym1}}"
+            ],
+            [
+              0,
+              "{{y0}}"
+            ],
+            [
+              1,
+              "{{y1}}"
+            ],
+            [
+              2,
+              "{{y2}}"
+            ]
+          ],
+          "predictionX": 3,
+          "exponentialATolerance": 0.03,
+          "exponentialBaseTolerance": 0.015,
+          "predictionTolerance": 0.12,
+          "prompt": "Use exponential regression technology on all five positive observations, then predict y when x=3. Enter the fitted a and base as supporting work and the prediction.",
+          "context": {
+            "title": "Exponential prediction",
+            "note": "The data contain multiplicative noise; use the full exponential regression before predicting."
+          },
+          "solutionReview": {
+            "headline": "Exponential prediction uses the fitted multiplicative model.",
+            "reasoning": [
+              "The log-balanced noisy data recover a={{a}} and base {{base}}.",
+              "At x=3 the fitted model predicts {{pred}}.",
+              "x=3 is beyond the observed maximum x=2, so the prediction is extrapolation."
+            ],
+            "answerSummary": "Prediction {{pred}} at x=3."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 5,
+                "max": 20
+              },
+              "base": {
+                "type": "choice",
+                "values": [
+                  1.4,
+                  1.5,
+                  1.8,
+                  2
+                ]
+              },
+              "q": {
+                "type": "choice",
+                "values": [
+                  1.1,
+                  1.2
+                ]
+              }
+            },
+            "derived": {
+              "ym2": "a*pow(base,-2)*q",
+              "ym1": "a*pow(base,-1)/q",
+              "y0": "a",
+              "y1": "a*base/q",
+              "y2": "a*base*base*q",
+              "pred": "a*pow(base,3)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_8C_v2_decision-model-variants",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.8C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.8C:v2-decision-model-variants",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.8C",
+      "taskType": "application",
+      "representation": "context",
+      "dok": 2,
+      "difficultyBand": 3,
+      "prompt": "Use the supplied model and data context to make the requested operational decision. Compute the model prediction before selecting the decision.",
+      "variants": [
+        {
+          "coverageKey": "decide-linear",
+          "prompt": "A staffing model fitted to the observed data is $y={{m}}x+({{b}})$. The table covers x=0 through 3. Management can staff at most {{threshold}} units at x=4. Predict y(4), then decide whether the model says capacity will be exceeded.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Observed staffing data",
+            "table": {
+              "headers": [
+                "x",
+                "observed y"
+              ],
+              "rows": [
+                [
+                  "0",
+                  "{{y0}}"
+                ],
+                [
+                  "1",
+                  "{{y1}}"
+                ],
+                [
+                  "2",
+                  "{{y2}}"
+                ],
+                [
+                  "3",
+                  "{{y3}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "prediction",
+              "label": "Model prediction y(4)",
+              "inputProfile": "number",
+              "expected": "{{pred}}"
+            },
+            {
+              "id": "decision",
+              "label": "Capacity decision",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "exceed",
+                  "label": "Yes. The predicted amount exceeds capacity."
+                },
+                {
+                  "id": "within",
+                  "label": "No. The predicted amount stays within capacity."
+                }
+              ],
+              "expected": "exceed"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A decision should follow the model calculation.",
+            "reasoning": [
+              "The model gives y(4)={{pred}}.",
+              "Capacity is {{threshold}}.",
+              "Since {{pred}}>{{threshold}}, the model says capacity will be exceeded."
+            ],
+            "answerSummary": "Exceed capacity."
+          },
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              },
+              "b": {
+                "type": "int",
+                "min": 10,
+                "max": 40
+              },
+              "margin": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              }
+            },
+            "derived": {
+              "y0": "b",
+              "y1": "m+b",
+              "y2": "2*m+b",
+              "y3": "3*m+b",
+              "pred": "4*m+b",
+              "threshold": "pred-margin"
+            }
+          }
+        },
+        {
+          "coverageKey": "decide-quadratic",
+          "prompt": "A quadratic demand model fitted to the data is $y={{a}}x^2+({{b}})x+{{c}}$. A plan is approved only if predicted demand at x=4 is at least {{threshold}}. Predict y(4), then decide whether the model supports approval.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Observed demand data",
+            "table": {
+              "headers": [
+                "x",
+                "observed y"
+              ],
+              "rows": [
+                [
+                  "0",
+                  "{{y0}}"
+                ],
+                [
+                  "1",
+                  "{{y1}}"
+                ],
+                [
+                  "2",
+                  "{{y2}}"
+                ],
+                [
+                  "3",
+                  "{{y3}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "prediction",
+              "label": "Model prediction y(4)",
+              "inputProfile": "number",
+              "expected": "{{pred}}"
+            },
+            {
+              "id": "decision",
+              "label": "Approval decision",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "approve",
+                  "label": "Approve; predicted demand meets the threshold."
+                },
+                {
+                  "id": "do-not-approve",
+                  "label": "Do not approve; predicted demand is below the threshold."
+                }
+              ],
+              "expected": "do-not-approve"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Compare the model prediction with the stated decision threshold.",
+            "reasoning": [
+              "The quadratic predicts {{pred}} at x=4.",
+              "The approval threshold is {{threshold}}.",
+              "Because {{pred}}<{{threshold}}, the model does not support approval."
+            ],
+            "answerSummary": "Do not approve."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "b": {
+                "type": "int",
+                "min": -2,
+                "max": 5
+              },
+              "c": {
+                "type": "int",
+                "min": 10,
+                "max": 30
+              },
+              "margin": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              }
+            },
+            "derived": {
+              "y0": "c",
+              "y1": "a+b+c",
+              "y2": "4*a+2*b+c",
+              "y3": "9*a+3*b+c",
+              "pred": "16*a+4*b+c",
+              "threshold": "pred+margin"
+            }
+          }
+        },
+        {
+          "coverageKey": "decide-exponential",
+          "prompt": "An exponential growth model fitted to the data is $y={{a}}({{r}})^x$. A facility upgrade is triggered if the predicted amount at x=5 is greater than {{threshold}}. Predict y(5), then decide whether to trigger the upgrade.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Observed growth data",
+            "table": {
+              "headers": [
+                "x",
+                "observed y"
+              ],
+              "rows": [
+                [
+                  "0",
+                  "{{y0}}"
+                ],
+                [
+                  "1",
+                  "{{y1}}"
+                ],
+                [
+                  "2",
+                  "{{y2}}"
+                ],
+                [
+                  "3",
+                  "{{y3}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "prediction",
+              "label": "Model prediction y(5)",
+              "inputProfile": "number",
+              "expected": "{{pred}}"
+            },
+            {
+              "id": "decision",
+              "label": "Upgrade decision",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "upgrade",
+                  "label": "Trigger the upgrade; the prediction exceeds the threshold."
+                },
+                {
+                  "id": "hold",
+                  "label": "Do not trigger; the prediction does not exceed the threshold."
+                }
+              ],
+              "expected": "upgrade"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Use the exponential prediction as the quantitative basis for the decision.",
+            "reasoning": [
+              "The model predicts {{pred}} at x=5.",
+              "The trigger is {{threshold}}.",
+              "Since {{pred}}>{{threshold}}, the model supports the upgrade."
+            ],
+            "answerSummary": "Trigger the upgrade."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "r": {
+                "type": "int",
+                "min": 2,
+                "max": 3
+              },
+              "margin": {
+                "type": "int",
+                "min": 1,
+                "max": 10
+              }
+            },
+            "derived": {
+              "y0": "a",
+              "y1": "a*r",
+              "y2": "a*r*r",
+              "y3": "a*r*r*r",
+              "pred": "a*pow(r,5)",
+              "threshold": "pred-margin"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_8C_v2_critical-judgment-model-variants",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.8C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.8C:v2-critical-judgment-model-variants",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.8C",
+      "taskType": "conceptual",
+      "representation": "multipleRepresentation",
+      "dok": 3,
+      "difficultyBand": 4,
+      "prompt": "Use the model to calculate the requested value, then make a critical judgment about whether that prediction should be trusted in context.",
+      "variants": [
+        {
+          "coverageKey": "judge-linear",
+          "prompt": "A linear model from data observed only for 0≤x≤10 is $y={{m}}x+({{b}})$. Someone uses it at x=80. Compute the model prediction, then judge the claim that the prediction is automatically reliable because the fitted line was strong on the observed interval.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Observed range",
+            "table": {
+              "headers": [
+                "Observed x-range",
+                "Model"
+              ],
+              "rows": [
+                [
+                  "0 to 10",
+                  "y={{m}}x+({{b}})"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "prediction",
+              "label": "Model prediction y(80)",
+              "inputProfile": "number",
+              "expected": "{{pred}}"
+            },
+            {
+              "id": "judgment",
+              "label": "Critical judgment",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "caution",
+                  "label": "Use caution: x=80 is far outside the observed range, so the relationship may not remain linear."
+                },
+                {
+                  "id": "guaranteed",
+                  "label": "Trust it automatically because a fitted linear model is exact outside the data range."
+                }
+              ],
+              "expected": "caution"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A numerical extrapolation can be computed without being equally trustworthy.",
+            "reasoning": [
+              "The model produces {{pred}} at x=80.",
+              "But 80 is far outside the observed range 0 to 10.",
+              "A strong in-range fit does not guarantee the same linear relationship that far beyond the data."
+            ],
+            "answerSummary": "Prediction {{pred}}, but treat it as a distant extrapolation."
+          },
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "b": {
+                "type": "int",
+                "min": 0,
+                "max": 30
+              }
+            },
+            "derived": {
+              "pred": "80*m+b"
+            }
+          }
+        },
+        {
+          "coverageKey": "judge-quadratic",
+          "prompt": "A quadratic model for a nonnegative physical measurement was fitted only for 0≤x≤4: $y=-{{a}}x^2+{{c}}$. Compute the model prediction at x=10, then judge whether a negative predicted measurement should be treated as physically credible.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Observed data range",
+            "table": {
+              "headers": [
+                "x",
+                "model value"
+              ],
+              "rows": [
+                [
+                  "0",
+                  "{{c}}"
+                ],
+                [
+                  "2",
+                  "{{y2}}"
+                ],
+                [
+                  "4",
+                  "{{y4}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "prediction",
+              "label": "Model prediction y(10)",
+              "inputProfile": "number",
+              "expected": "{{pred}}"
+            },
+            {
+              "id": "judgment",
+              "label": "Critical judgment",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "not-credible",
+                  "label": "The negative extrapolation is not physically credible for a nonnegative measurement; the model should not be extended blindly."
+                },
+                {
+                  "id": "credible",
+                  "label": "Any value from a quadratic formula is physically valid, even far outside the observed range."
+                }
+              ],
+              "expected": "not-credible"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Context can make a mathematically computed extrapolation unreasonable.",
+            "reasoning": [
+              "At x=10 the model gives {{pred}}, which is negative.",
+              "The measured quantity cannot be negative.",
+              "The model was fitted only through x=4, so this is evidence not to extend it blindly."
+            ],
+            "answerSummary": "The numerical prediction is {{pred}}, but it is not physically credible."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "c": {
+                "type": "int",
+                "min": 20,
+                "max": 40
+              }
+            },
+            "derived": {
+              "y2": "-4*a+c",
+              "y4": "-16*a+c",
+              "pred": "-100*a+c"
+            },
+            "constraints": [
+              "pred<0"
+            ]
+          }
+        },
+        {
+          "coverageKey": "judge-exponential",
+          "prompt": "An exponential population model fitted only for 0≤x≤4 is $y={{a}}(2)^x$. Compute its prediction at x=15, then judge whether the model alone is enough to claim the population will actually reach that value.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Observed early growth",
+            "table": {
+              "headers": [
+                "x",
+                "model value"
+              ],
+              "rows": [
+                [
+                  "0",
+                  "{{a}}"
+                ],
+                [
+                  "2",
+                  "{{y2}}"
+                ],
+                [
+                  "4",
+                  "{{y4}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "prediction",
+              "label": "Model prediction y(15)",
+              "inputProfile": "number",
+              "expected": "{{pred}}"
+            },
+            {
+              "id": "judgment",
+              "label": "Critical judgment",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "caution",
+                  "label": "No. This is a distant exponential extrapolation; resource limits or changing conditions may invalidate continued doubling."
+                },
+                {
+                  "id": "guaranteed",
+                  "label": "Yes. An exponential fit over 0≤x≤4 guarantees continued doubling through x=15."
+                }
+              ],
+              "expected": "caution"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Exponential extrapolation can grow dramatically faster than the evidence supports.",
+            "reasoning": [
+              "The formula predicts {{pred}} at x=15.",
+              "The observed data cover only x=0 through 4.",
+              "The model does not prove that the same growth mechanism continues unchanged to x=15."
+            ],
+            "answerSummary": "Prediction {{pred}}, with strong extrapolation caution."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              }
+            },
+            "derived": {
+              "y2": "4*a",
+              "y4": "16*a",
+              "pred": "32768*a"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_8C_v2_interpolation-extrapolation-model-variants",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.8C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.8C:v2-interpolation-extrapolation-model-variants",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.8C",
+      "taskType": "interpretation",
+      "representation": "table",
+      "dok": 2,
+      "difficultyBand": 3,
+      "prompt": "Use the supplied model to make the prediction, then classify the prediction as interpolation or extrapolation from the observed x-range.",
+      "variants": [
+        {
+          "coverageKey": "classify-linear-interpolation",
+          "prompt": "Data were observed for 0≤x≤5 and modeled by $y={{m}}x+({{b}})$. Predict at x=2.5 and classify the prediction.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Observed range",
+            "table": {
+              "headers": [
+                "Minimum x",
+                "Maximum x"
+              ],
+              "rows": [
+                [
+                  "0",
+                  "5"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "prediction",
+              "label": "Prediction at x=2.5",
+              "inputProfile": "number",
+              "numericTolerance": 0.001,
+              "expected": "{{pred}}"
+            },
+            {
+              "id": "type",
+              "label": "Prediction type",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "interpolation",
+                  "label": "Interpolation"
+                },
+                {
+                  "id": "extrapolation",
+                  "label": "Extrapolation"
+                }
+              ],
+              "expected": "interpolation"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A target inside the observed input range is interpolation.",
+            "reasoning": [
+              "The model gives {{pred}} at x=2.5.",
+              "2.5 lies between 0 and 5."
+            ],
+            "answerSummary": "{{pred}}, interpolation."
+          },
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -10,
+                "max": 10
+              }
+            },
+            "derived": {
+              "pred": "2.5*m+b"
+            }
+          }
+        },
+        {
+          "coverageKey": "classify-quadratic-extrapolation",
+          "prompt": "Data were observed for -2≤x≤2 and modeled by $y={{a}}x^2+({{b}})x+{{c}}$. Predict at x=5 and classify the prediction.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Observed range",
+            "table": {
+              "headers": [
+                "Minimum x",
+                "Maximum x"
+              ],
+              "rows": [
+                [
+                  "-2",
+                  "2"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "prediction",
+              "label": "Prediction at x=5",
+              "inputProfile": "number",
+              "expected": "{{pred}}"
+            },
+            {
+              "id": "type",
+              "label": "Prediction type",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "interpolation",
+                  "label": "Interpolation"
+                },
+                {
+                  "id": "extrapolation",
+                  "label": "Extrapolation"
+                }
+              ],
+              "expected": "extrapolation"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A target beyond the observed range is extrapolation.",
+            "reasoning": [
+              "The model gives {{pred}} at x=5.",
+              "5 is greater than the largest observed x=2."
+            ],
+            "answerSummary": "{{pred}}, extrapolation."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "c": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "pred": "25*a+5*b+c"
+            }
+          }
+        },
+        {
+          "coverageKey": "classify-exponential-interpolation",
+          "prompt": "Data were observed for 0≤x≤4 and modeled by $y={{a}}({{r}})^x$. Predict at x=1.5 and classify the prediction.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Observed range",
+            "table": {
+              "headers": [
+                "Minimum x",
+                "Maximum x"
+              ],
+              "rows": [
+                [
+                  "0",
+                  "4"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "prediction",
+              "label": "Prediction at x=1.5",
+              "inputProfile": "number",
+              "numericTolerance": 0.02,
+              "expected": "{{pred}}"
+            },
+            {
+              "id": "type",
+              "label": "Prediction type",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "interpolation",
+                  "label": "Interpolation"
+                },
+                {
+                  "id": "extrapolation",
+                  "label": "Extrapolation"
+                }
+              ],
+              "expected": "interpolation"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Interpolation can occur at an input that was not itself observed.",
+            "reasoning": [
+              "The exponential model gives approximately {{pred}} at x=1.5.",
+              "1.5 lies inside the observed interval 0 to 4."
+            ],
+            "answerSummary": "{{pred}}, interpolation."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              },
+              "r": {
+                "type": "choice",
+                "values": [
+                  1.5,
+                  2,
+                  2.5
+                ]
+              }
+            },
+            "derived": {
+              "pred": "a*pow(r,1.5)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_8C_v2_critical-judgment-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.8C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.8C:v2-critical-judgment-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.8C",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "dok": 3,
+      "difficultyBand": 4,
+      "prompt": "A student uses the linear model $y={{m}}x+({{b}})$, fitted to data only for 0≤x≤8, and predicts at x=60. The student says, “The model fit the original data well, so y(60)={{pred}} must be accurate.” Compute the prediction and repair the student's critical judgment.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student claim",
+        "steps": [
+          {
+            "id": "range",
+            "label": "Observed input range",
+            "work": "$0\\le x\\le8$"
+          },
+          {
+            "id": "claim",
+            "label": "Student conclusion",
+            "work": "A strong original fit guarantees the x=60 prediction."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "prediction",
+          "label": "Model prediction y(60)",
+          "inputProfile": "number",
+          "expected": "{{pred}}"
+        },
+        {
+          "id": "diagnosis",
+          "label": "Repair the judgment",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "extrapolation-caution",
+              "label": "The computation may be correct, but x=60 is far outside the data range; a strong in-range fit does not guarantee a reliable distant extrapolation."
+            },
+            {
+              "id": "guaranteed",
+              "label": "The prediction is guaranteed because the original fit was strong."
+            },
+            {
+              "id": "ignore-model",
+              "label": "The numerical model prediction should not be computed at all."
+            }
+          ],
+          "expected": "extrapolation-caution"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Distinguish a correct calculation from a justified real-world conclusion.",
+        "reasoning": [
+          "The model evaluates to {{pred}} at x=60.",
+          "But the observed inputs ended at x=8.",
+          "The student may report the extrapolated model value while explicitly warning that reliability is not established that far outside the data."
+        ],
+        "answerSummary": "{{pred}}, with distant-extrapolation caution."
+      },
+      "attemptFeedback": [
+        "A model value and confidence in that model value are different questions."
+      ],
+      "supportHints": [
+        "Compare the requested x=60 with the observed maximum x=8."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "b": {
+            "type": "int",
+            "min": 0,
+            "max": 30
+          }
+        },
+        "derived": {
+          "pred": "60*m+b"
+        }
+      }
+    }
+  ]
+}
