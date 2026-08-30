@@ -4,7 +4,13 @@ import { readFileSync } from 'node:fs';
 import { REPRESENTATIONS, TASK_TYPES } from '../../functions/shared/pathQuestionQuality.mjs';
 
 const read = (path) => JSON.parse(readFileSync(path, 'utf8'));
-const codes = ['A.2C', 'A.2H', 'A.2I', 'A.3D', 'A.3H', 'A.4A', 'A.4C', 'A.8A', 'A.8B', 'A.9C', 'A.9E', 'A.10A', 'A.10B', 'A.10C', 'A.10D', 'A.10E', 'A.10F', 'A.11B', 'A.12A', 'A.12C', 'A.12D'];
+const codes = [
+  'A.2A', 'A.2B', 'A.2C', 'A.2D', 'A.2E', 'A.2F', 'A.2G', 'A.2H', 'A.2I',
+  'A.3A', 'A.3C', 'A.3D', 'A.3G', 'A.3H',
+  'A.4A', 'A.4C', 'A.5B', 'A.8A', 'A.8B', 'A.9C', 'A.9E',
+  'A.10A', 'A.10B', 'A.10C', 'A.10D', 'A.10E', 'A.10F',
+  'A.11A', 'A.11B', 'A.12A', 'A.12C', 'A.12D',
+];
 const staged = codes.map((code) => read(`drafts/fidelity-v2/algebra1/${code}.json`));
 const codeOf = (doc) => String((doc.alignmentKeys || []).find((key) => String(key).startsWith('texas:')) || '').replace(/^texas:/, '');
 const allStrings = (node, out = []) => {
@@ -79,6 +85,72 @@ test('A.2I requires both equations of the system in every family', () => {
   }
   const graphFamily = entry.documents.find((doc) => doc.representation === 'graph');
   assert.equal(graphFamily?.stimulus?.graph?.lines?.length, 2);
+});
+
+test('A.2A connects symbolic, context, mapping and real-table domain/range evidence', () => {
+  const entry = payload('A.2A');
+  assert.match(entry.certificationStatus, /connected-domain-range-representations/);
+  assert.ok(entry.documents.some((doc) => doc.type === 'relationMapping'));
+  const table = entry.documents.find((doc) => doc.representation === 'table');
+  assert.ok(table?.stimulus?.table?.rows?.length >= 3);
+  assert.equal(table.responseFields?.length, 2);
+  assert.ok(table.responseFields.every((field) => field.inputProfile === 'set'));
+  const context = entry.documents.find((doc) => doc.representation === 'context');
+  assert.equal(context?.responseFields?.length, 2);
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /decreasing/i.test(doc.prompt)));
+});
+
+test('A.2G gives vertical and horizontal lines authentic graph construction plus slope meaning', () => {
+  const entry = payload('A.2G');
+  assert.match(entry.certificationStatus, /vertical-horizontal-graph-and-slope-classification/);
+  const graphDocs = entry.documents.filter((doc) => doc.type === 'graphing2');
+  assert.equal(graphDocs.length, 2);
+  assert.deepEqual(new Set(graphDocs.map((doc) => doc.orientation)), new Set(['vertical', 'horizontal']));
+  assert.ok(graphDocs.every((doc) => doc.mode === 'verticalHorizontal'));
+  const text = JSON.stringify(entry.documents).toLowerCase();
+  assert.match(text, /undefined/);
+  assert.match(text, /slope 0|slope.*0/);
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /slope 0/i.test(doc.prompt)));
+});
+
+test('A.3A measures slope from a real graph, real table, and multiple equation forms', () => {
+  const entry = payload('A.3A');
+  assert.match(entry.certificationStatus, /slope-across-graph-table-and-equation-forms/);
+  assert.ok(entry.documents.some((doc) => doc.type === 'functionInvestigation' && doc.representation === 'graph'));
+  const table = entry.documents.find((doc) => doc.representation === 'table');
+  assert.ok(table?.stimulus?.table?.rows?.length >= 3);
+  const prompts = entry.documents.map((doc) => String(doc.prompt).toLowerCase()).join(' ');
+  assert.match(prompts, /standard-form|standard form/);
+  assert.match(prompts, /point-slope/);
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /run by the rise/i.test(doc.prompt)));
+});
+
+test('A.3C makes graph construction the dominant act across linear forms and connects graph features', () => {
+  const entry = payload('A.3C');
+  assert.match(entry.certificationStatus, /multiple-line-graph-constructions-and-features/);
+  const graphing = entry.documents.filter((doc) => doc.type === 'graphing2');
+  assert.equal(graphing.length, 3);
+  assert.deepEqual(new Set(graphing.map((doc) => doc.mode)), new Set(['slopeIntercept', 'pointSlope', 'standardForm']));
+  const features = entry.documents.find((doc) => doc.type === 'functionInvestigation');
+  assert.equal(features?.pointTasks?.length, 2);
+  assert.ok(features.pointTasks.some((task) => task.id === 'xint'));
+  assert.ok(features.pointTasks.some((task) => task.id === 'yint'));
+  assert.ok(features.analysisRequests?.some((part) => part.id === 'slope'));
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /zero/i.test(doc.prompt)));
+});
+
+test('A.3G makes graphical estimation the primary act in real-world system families', () => {
+  const entry = payload('A.3G');
+  assert.match(entry.certificationStatus, /graphical-estimation-primary-act/);
+  for (const doc of entry.documents) {
+    assert.equal(doc.type, 'systemsWorkspace');
+    assert.equal(doc.mode, 'linear');
+    assert.match(String(doc.prompt), /graph|estimate|workspace/i);
+    assert.ok(Number(doc.numericTolerance) >= 0.1 && Number(doc.numericTolerance) <= 0.2);
+    assert.ok(doc.generator?.parameters?.xstar?.values?.some((value) => !Number.isInteger(value)));
+  }
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis'));
+  assert.ok(entry.documents.some((doc) => doc.dok === 3));
 });
 
 test('A.3D uses real two-variable graph construction in every replacement family', () => {
