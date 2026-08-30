@@ -714,6 +714,13 @@ Resume here. Do not reopen A2.2A–A2.7C unless a failing gate names them.
   - exclude graph-only factor identification from Fidelity V2 because the standard explicitly requires algebraic methods.
 - Generic secure numeric/expression grading is sufficient; no new Path tool is required.
 
+### 2026-08-30 — A2.7D staged
+- Staged five A2.7D Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7D.json` — commit `a1db8ea32e39fa1d09f2b32b57dc3531ec2b5682`.
+- All families start from expanded polynomial functions and use algebraic evidence rather than graph-only factor identification.
+- Coverage includes a cubic with three integer roots, a quartic with four integer roots, a non-monic cubic with a non-integer rational root, a quartic repeated-root/multiplicity case, and complete synthetic-division sign-error repair.
+- Base Algebra II certification run `33331116456`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.7D** until full generated certification is green.
+
 
 ### 2026-08-30 — A2.7C audit finding
 - Official construct: **determine the quotient of a polynomial of degree three and of degree four when divided by a polynomial of degree one and of degree two**.
