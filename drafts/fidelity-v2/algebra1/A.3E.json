@@ -128,6 +128,65 @@
           "inputProfile": "number",
           "expected": "{{newm}}"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "adaptive-d2b2-simple-vertical-stretch-effect",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Let $f(x)={{m}}x{{b|signed}}$ and $g(x)=2f(x)$. Determine the slope of g and the image of the point $(0,{{b}})$ after the vertical stretch.",
+          "responseFields": [
+            {
+              "id": "slope",
+              "label": "Slope of g",
+              "inputProfile": "number",
+              "expected": "{{newm}}"
+            },
+            {
+              "id": "point-y",
+              "label": "New y-coordinate of the image of (0,{{b}})",
+              "inputProfile": "number",
+              "expected": "{{newb}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A vertical stretch multiplies every output, including the slope and y-intercept.",
+            "reasoning": [
+              "Multiplying f by 2 doubles the slope from {{m}} to {{newm}}.",
+              "The point (0,{{b}}) becomes (0,{{newb}})."
+            ],
+            "answerSummary": "Slope {{newm}}; image point (0,{{newb}})."
+          },
+          "attemptFeedback": [
+            "Apply the outside factor to every output feature of the line."
+          ],
+          "supportHints": [
+            "For g=2f, both the rate of change and each y-value are doubled."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "choice",
+                "values": [
+                  -2,
+                  -1,
+                  1,
+                  2
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            },
+            "derived": {
+              "a": "2",
+              "newm": "2*m",
+              "newb": "2*b"
+            }
+          }
+        }
       ]
     },
     {
@@ -251,6 +310,104 @@
           "label": "Answer",
           "inputProfile": "number",
           "expected": "{{newm}}"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "adaptive-d3b3-reflection-plus-shift-feature-analysis",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Let $f(x)={{m}}x{{b|signed}}$ and $g(x)=-f(x)+{{k}}$. A student says the +{{k}} changes the slope. Analyze the reflection and vertical shift separately, determine the final slope and y-intercept, and identify which transformation changes the slope.",
+          "responseFields": [
+            {
+              "id": "slope",
+              "label": "Final slope",
+              "inputProfile": "number",
+              "expected": "{{newm}}"
+            },
+            {
+              "id": "intercept",
+              "label": "Final y-intercept",
+              "inputProfile": "number",
+              "expected": "{{newb}}"
+            },
+            {
+              "id": "slope-change",
+              "label": "Which transformation changes the slope?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "reflection",
+                  "label": "The reflection across the x-axis"
+                },
+                {
+                  "id": "shift",
+                  "label": "The vertical shift +k"
+                }
+              ],
+              "expected": "reflection"
+            },
+            {
+              "id": "shift-effect",
+              "label": "What does +k change?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "intercept",
+                  "label": "It changes the y-intercept but not the slope."
+                },
+                {
+                  "id": "slope",
+                  "label": "It changes the slope but not the intercept."
+                }
+              ],
+              "expected": "intercept"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Separate transformation effects instead of treating the formula as one opaque change.",
+            "reasoning": [
+              "The reflection multiplies all outputs by -1, changing slope {{m}} to {{newm}} and intercept {{b}} to {{negB}}.",
+              "Then +{{k}} shifts every output vertically, changing the intercept to {{newb}} without changing slope."
+            ],
+            "answerSummary": "Slope {{newm}}; y-intercept {{newb}}."
+          },
+          "attemptFeedback": [
+            "Apply the reflection first, then the vertical shift, and track slope and intercept separately."
+          ],
+          "supportHints": [
+            "An outside -1 changes rate sign; adding a constant afterward changes vertical position only."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "newm": "-m",
+              "negB": "-b",
+              "newb": "-b+k"
+            }
+          }
         }
       ]
     },
