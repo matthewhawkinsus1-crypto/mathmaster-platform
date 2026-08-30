@@ -5,9 +5,11 @@ import { matchesNumericAnswer, parseNumericAnswer, solveTwoLines, round } from '
 import { useRevealAnswers } from '../shared/ToolRuntimeContext';
 import {
   feasibleRegionPolygon,
+  matrix3x4Rows,
   samePointSet,
   satisfiesLinearInequality,
   solve2x2System,
+  solve3x3System,
   solveLinearQuadratic,
 } from './systemsMath';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -394,47 +396,151 @@ function LinearQuadraticMode({ questionData, onAction }) {
 
 function MatrixMode({ questionData, onAction }) {
   const matrix = questionData.matrix || DEFAULT_MATRIX;
-  const solution = useMemo(() => solve2x2System(matrix), [matrix]);
+  const isMatrix3 = questionData.mode === 'matrix3' || Boolean(matrix3x4Rows(matrix));
+  const solution = useMemo(
+    () => (isMatrix3 ? solve3x3System(matrix) : solve2x2System(matrix)),
+    [isMatrix3, matrix],
+  );
   const revealAnswers = useRevealAnswers();
   const [classification,setClassification] = useState('one');
   const [x,setX] = useState('');
   const [y,setY] = useState('');
+  const [z,setZ] = useState('');
+  const [technologyUsed,setTechnologyUsed] = useState(false);
   const { feedback, submit } = useToolSubmission(onAction);
+
+  const matrixRows = isMatrix3 ? (matrix3x4Rows(matrix) || []) : [
+    [matrix.a11, matrix.a12, matrix.b1],
+    [matrix.a21, matrix.a22, matrix.b2],
+  ];
+
   const check = () => {
+    if (isMatrix3 && !technologyUsed) return;
     const classCorrect = classification === solution.type;
-    const coordsCorrect = solution.type !== 'one' || (matchesNumericAnswer(x,solution.x,0.05)&&matchesNumericAnswer(y,solution.y,0.05));
-    const parts = solution.type === 'one' ? [classCorrect,coordsCorrect] : [classCorrect];
-    submit({isCorrect:parts.every(Boolean),score:parts.filter(Boolean).length/parts.length},{classification,x,y},{mode:'matrix',expected:solution,checks:{classCorrect,coordsCorrect}});
+    const coordsCorrect = solution.type !== 'one' || (
+      matchesNumericAnswer(x,solution.x,0.05)
+      && matchesNumericAnswer(y,solution.y,0.05)
+      && (!isMatrix3 || matchesNumericAnswer(z,solution.z,0.05))
+    );
+    const technologyCorrect = !isMatrix3 || technologyUsed;
+    const parts = solution.type === 'one'
+      ? [classCorrect,technologyCorrect,coordsCorrect]
+      : [classCorrect,technologyCorrect];
+    submit(
+      {isCorrect:parts.every(Boolean),score:parts.filter(Boolean).length/parts.length},
+      {classification,x,y,...(isMatrix3?{z,technologyUsed}: {})},
+      {mode:isMatrix3?'matrix3':'matrix',checks:{classCorrect,technologyCorrect,coordsCorrect}},
+    );
   };
 
   const message = () => {
-    if (feedback.isCorrect) return 'Correct — the matrix reduces to exactly what you described.';
+    if (feedback.isCorrect) {
+      return isMatrix3
+        ? 'Correct — you used the matrix RREF technology and interpreted the reduced 3×3 system correctly.'
+        : 'Correct — the matrix reduces to exactly what you described.';
+    }
     const checks = feedback.metadata?.checks || {};
-    if (!checks.classCorrect) return 'The classification is off. Compute the determinant a₁₁a₂₂ − a₁₂a₂₁ first: nonzero means exactly one solution.';
-    return 'The classification is right but the values are not. Write each row back out as an equation and substitute your x and y into both.';
+    if (isMatrix3 && !checks.technologyCorrect) return 'Use the RREF technology first. This task is specifically checking the matrix-technology method.';
+    if (!checks.classCorrect) {
+      return isMatrix3
+        ? 'The classification is off. Inspect the RREF: an identity coefficient matrix gives exactly one solution; a contradictory row gives no solution; a free variable gives infinitely many.'
+        : 'The classification is off. Compute the determinant a₁₁a₂₂ − a₁₂a₂₁ first: nonzero means exactly one solution.';
+    }
+    return isMatrix3
+      ? 'The classification is right, but at least one coordinate is off. Read x, y, and z from the RREF rows and check them in the original system.'
+      : 'The classification is right but the values are not. Write each row back out as an equation and substitute your x and y into both.';
   };
 
+  const showRref = isMatrix3 && (technologyUsed || revealAnswers);
+
   return <ToolSplit>
-    <Panel title="Augmented matrix">
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,80px)',justifyContent:'center',gap:8,fontSize:22,fontWeight:800,margin:'24px 0'}}>
-        {[matrix.a11,matrix.a12,matrix.b1,matrix.a21,matrix.a22,matrix.b2].map((value,index)=><div key={index} style={{padding:12,textAlign:'center',background:index%3===2?'#fff5e6':'#eef4ff',borderRadius:8}}>{value}</div>)}
+    <Panel title={isMatrix3 ? "3×3 augmented matrix" : "Augmented matrix"}>
+      <div style={{
+        display:'grid',
+        gridTemplateColumns:`repeat(${isMatrix3 ? 4 : 3},minmax(58px,80px))`,
+        justifyContent:'center',
+        gap:8,
+        fontSize:isMatrix3?19:22,
+        fontWeight:800,
+        margin:'24px 0',
+      }}>
+        {matrixRows.flatMap((row,rowIndex)=>row.map((value,colIndex)=>(
+          <div
+            key={`${rowIndex}-${colIndex}`}
+            style={{
+              padding:12,
+              textAlign:'center',
+              background:colIndex === row.length-1 ? '#fff5e6' : '#eef4ff',
+              borderRadius:8,
+            }}
+          >
+            {value}
+          </div>
+        )))}
       </div>
-      <div style={{textAlign:'center',color:'#5f6b7a'}}>Each row is one equation. The shaded third column holds the constants from the right-hand side.</div>
-      {/* The determinant decides the classification the student is being asked
-          for, so computing it is the task, not a given. */}
-      <div style={{marginTop:18,padding:12,borderRadius:10,background:'#f8fbff',color:'#3c4756'}}>
+      <div style={{textAlign:'center',color:'#5f6b7a'}}>
+        Each row is one equation. The shaded final column is the augmented constant column.
+      </div>
+
+      {isMatrix3 ? <>
+        <button
+          type="button"
+          onClick={()=>setTechnologyUsed(true)}
+          style={{...actionStyle,width:'100%',marginTop:18}}
+        >
+          Use matrix technology · Compute RREF
+        </button>
+        <p style={{fontSize:13,color:'#5f6b7a',lineHeight:1.5}}>
+          This performs the matrix row-reduction command, like an RREF feature on matrix-capable technology. You still have to interpret the result.
+        </p>
+        {showRref ? <div style={{marginTop:16}}>
+          <strong>RREF result</strong>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,minmax(58px,80px))',justifyContent:'center',gap:8,fontSize:18,fontWeight:800,marginTop:10}}>
+            {(solution.rref || []).flatMap((row,rowIndex)=>row.map((value,colIndex)=>(
+              <div
+                key={`rref-${rowIndex}-${colIndex}`}
+                style={{padding:10,textAlign:'center',background:colIndex===3?'#fff5e6':'#eef8f0',borderRadius:8}}
+              >
+                {round(value,4)}
+              </div>
+            )))}
+          </div>
+        </div> : null}
+      </> : <div style={{marginTop:18,padding:12,borderRadius:10,background:'#f8fbff',color:'#3c4756'}}>
         {revealAnswers
           ? <><strong>Determinant:</strong> {round(solution.determinant,2)}. A nonzero determinant guarantees exactly one solution.</>
           : <><strong>Determinant:</strong> compute a₁₁a₂₂ − a₁₂a₂₁ yourself. A nonzero determinant guarantees exactly one solution.</>}
-      </div>
+      </div>}
     </Panel>
-    <Panel title="Row-reduction outcome">
-      <Field label="How many solutions does this system have?"><select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}><option value="one">Exactly one solution</option><option value="none">No solution</option><option value="infinite">Infinitely many solutions</option></select></Field>
-      {classification==='one'?<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:12}}><Field label="x"><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field><Field label="y"><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field></div>:null}
-      <button type="button" onClick={check} style={actionStyle}>Check matrix solution</button>
+
+    <Panel title={isMatrix3 ? "Interpret the RREF" : "Row-reduction outcome"}>
+      <Field label="How many solutions does this system have?">
+        <select value={classification} onChange={(e)=>setClassification(e.target.value)} style={inputStyle}>
+          <option value="one">Exactly one solution</option>
+          <option value="none">No solution</option>
+          <option value="infinite">Infinitely many solutions</option>
+        </select>
+      </Field>
+      {classification==='one'?<div style={{display:'grid',gridTemplateColumns:`repeat(${isMatrix3?3:2},1fr)`,gap:10,marginTop:12}}>
+        <Field label="x"><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field>
+        <Field label="y"><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field>
+        {isMatrix3?<Field label="z"><input type="number" inputMode="decimal" value={z} onChange={(e)=>setZ(e.target.value)} style={inputStyle}/></Field>:null}
+      </div>:null}
+      <button
+        type="button"
+        onClick={check}
+        disabled={isMatrix3 && !technologyUsed}
+        style={{...actionStyle,opacity:isMatrix3&&!technologyUsed?0.5:1}}
+      >
+        {isMatrix3 && !technologyUsed ? 'Use RREF technology first' : 'Check matrix solution'}
+      </button>
       {feedback?<div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div>:null}
       <HintPanel
-        hints={[
+        hints={isMatrix3 ? [
+          'Enter the augmented matrix into matrix-capable technology and run RREF.',
+          'In RREF, a row [1, 0, 0 | a] means x = a; the next pivot rows identify y and z.',
+          'A row [0, 0, 0 | nonzero] is a contradiction. A missing pivot in a consistent system means a free variable.',
+        ] : [
           'Rewrite each row as an ordinary equation before doing anything else.',
           `Row 1 says ${matrix.a11}x + ${matrix.a12}y = ${matrix.b1}. Row 2 says ${matrix.a21}x + ${matrix.a22}y = ${matrix.b2}.`,
           'Compute a₁₁a₂₂ − a₁₂a₂₁. If it is not zero there is one solution — then eliminate one variable to find it.',
@@ -450,6 +556,7 @@ const MODE_TASKS = {
   inequalities: 'Decide whether the marked point is in the feasible region, then find a point of your own that satisfies every inequality.',
   linearQuadratic: 'Find how many times the line meets the parabola, and give the coordinates of each meeting point.',
   matrix: 'Read the augmented matrix as a system, classify it, and solve it if it has exactly one solution.',
+  matrix3: 'Use matrix technology to compute the RREF of a 3×3 augmented matrix, then classify and solve the system.',
 };
 
 const MODE_STEPS = {
@@ -457,19 +564,21 @@ const MODE_STEPS = {
   inequalities: ['Substitute the purple point into every inequality.', 'Pick your own point from well inside the green overlap.', 'Enter both answers, then check.'],
   linearQuadratic: ['Count how many times the two graphs actually meet.', 'Set the expressions equal and solve for each x.', 'Substitute each x back to get its y.'],
   matrix: ['Rewrite each row as an equation.', 'Work out the determinant to decide the number of solutions.', 'Solve for x and y if there is exactly one.'],
+  matrix3: ['Read the 3×4 augmented matrix.', 'Use the matrix-technology RREF command.', 'Interpret the reduced rows to classify the system and read x, y, and z.'],
 };
 
 export default function SystemsWorkspace({ questionData = {}, onAction }) {
   const mode = questionData.mode || 'linear';
   const modeLabel = mode === 'inequalities' ? 'Systems of Inequalities'
     : mode === 'linearQuadratic' ? 'Linear–Quadratic Systems'
-      : mode === 'matrix' ? 'Matrix / Row Reduction'
-        : 'Linear Systems';
+      : mode === 'matrix3' ? '3×3 Matrix Technology / RREF'
+        : mode === 'matrix' ? 'Matrix / Row Reduction'
+          : 'Linear Systems';
   return <ToolShell title="Systems Workspace" subtitle="Solve, classify and interpret a system — graphically and algebraically — in one place." badge={modeLabel}>
     <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.linear} steps={MODE_STEPS[mode] || MODE_STEPS.linear} />
     {mode === 'inequalities' ? <InequalityMode questionData={questionData} onAction={onAction}/>
       : mode === 'linearQuadratic' ? <LinearQuadraticMode questionData={questionData} onAction={onAction}/>
-        : mode === 'matrix' ? <MatrixMode questionData={questionData} onAction={onAction}/>
+        : (mode === 'matrix' || mode === 'matrix3') ? <MatrixMode questionData={questionData} onAction={onAction}/>
           : <LinearMode questionData={questionData} onAction={onAction}/>
     }
   </ToolShell>;
