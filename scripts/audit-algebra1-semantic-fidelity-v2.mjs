@@ -8,6 +8,10 @@
 // high-confidence checks here should become release gates.
 
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const mathPath = require('../functions/lib/mathPath.js');
 
 const argOf = (name, fallback) => {
   const index = process.argv.indexOf(name);
@@ -112,18 +116,42 @@ if (dokBandR !== null && Math.abs(dokBandR) >= 0.75) {
   add('course', 'dok-difficulty-coupling', `DOK/difficulty correlation is ${dokBandR.toFixed(3)}; audit whether one metadata ladder is standing in for two constructs.`);
 }
 
-// Public choice IDs must never encode a universal correct-key convention.
-const choiceDocs = docs.filter((doc) => (doc.choices || []).length && fields(doc).length);
-const expectedIds = new Map();
-choiceDocs.forEach((doc) => {
-  const expected = String(fields(doc)[0]?.expected || '');
-  expectedIds.set(expected, (expectedIds.get(expected) || 0) + 1);
-});
-if (choiceDocs.length) {
-  const [mostCommonId, mostCommonCount] = [...expectedIds.entries()].sort((a, b) => b[1] - a[1])[0];
-  if (mostCommonCount / choiceDocs.length >= 0.8) {
-    add('course', 'choice-id-key-pattern', `${mostCommonCount}/${choiceDocs.length} choice families use expected id "${mostCommonId}". Opaque public IDs must not expose a bank-wide key convention.`);
+// Author choice IDs may follow a stable convention inside the private bank. The
+// security question is whether those IDs survive into the PUBLIC issued
+// question, where a student could inspect them in devtools/network traffic.
+const choiceDocs = docs.filter((doc) => fields(doc).some((field) => String(field.inputProfile || '').toLowerCase() === 'choice'));
+const authoredExpectedIds = new Map();
+const choiceIdLeaks = [];
+choiceDocs.forEach((doc, index) => {
+  fields(doc).filter((field) => String(field.inputProfile || '').toLowerCase() === 'choice').forEach((field) => {
+    const expected = String(field.expected || '');
+    authoredExpectedIds.set(expected, (authoredExpectedIds.get(expected) || 0) + 1);
+  });
+
+  const issued = mathPath.buildSanitizedQuestion(doc, {
+    questionInstanceId: `audit-choice-${index}`,
+    attemptsAllowed: 3,
+  });
+  const publicIds = [
+    ...(issued.choices || []).map((choice) => String(choice.id)),
+    ...(issued.responseFields || []).flatMap((field) => (field.choices || []).map((choice) => String(choice.id))),
+  ];
+  const privateIds = fields(doc)
+    .filter((field) => String(field.inputProfile || '').toLowerCase() === 'choice')
+    .flatMap((field) => [field.expected, ...(field.accepted || [])])
+    .filter((value) => value !== undefined && value !== null)
+    .map(String);
+  if (publicIds.some((id) => privateIds.includes(id)) || publicIds.some((id) => /^opt-\d+$/i.test(id))) {
+    choiceIdLeaks.push(`${codeOf(doc)}/${familyOf(doc)}`);
   }
+});
+if (choiceIdLeaks.length) {
+  add(
+    'course',
+    'choice-id-public-leak',
+    `${choiceIdLeaks.length}/${choiceDocs.length} multiple-choice families expose an author/private choice id in the issued browser payload.`,
+    choiceIdLeaks,
+  );
 }
 
 // -----------------------------------------------------------------------------
