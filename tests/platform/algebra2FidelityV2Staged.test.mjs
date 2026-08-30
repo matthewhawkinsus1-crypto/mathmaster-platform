@@ -2913,3 +2913,166 @@ test('A2.5E judges logarithmic candidates from original-equation and context evi
   assert.ok(representations.has('multipleRepresentation'));
   assert.ok(representations.has('context'));
 });
+
+test('A2.6A analyzes cubic and cube-root transformations through full a-b-h-k effects', async () => {
+  const entry = payload('A2.6A');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /full-cubic-cube-root-transform-analysis-a-b-h-k/);
+
+  const authoredText = stringValues(entry.documents).join(' ').toLowerCase();
+  for (const required of [
+    'cubic',
+    'cube-root',
+    'vertical scale',
+    'horizontal scale',
+    'x-axis reflection',
+    'horizontal reflection',
+    'horizontal stretch',
+    'horizontal compression',
+  ]) {
+    assert.ok(authoredText.includes(required), `A2.6A package is missing required breadth: ${required}`);
+  }
+
+  let generatedCount = 0;
+  let cubicFamilies = 0;
+  let cubeRootFamilies = 0;
+  let negativeAFamilies = 0;
+  let negativeBFamilies = 0;
+  let horizontalStretchFamilies = 0;
+  let horizontalCompressionFamilies = 0;
+  let reverseFamilies = 0;
+  let errorFamilies = 0;
+  let wrongEffectRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const id = String(doc.id);
+    const text = stringValues(doc).join(' ').toLowerCase();
+
+    if (id.includes('cubic') || id.includes('two-negative')) cubicFamilies += 1;
+    if (id.includes('cube-root') || id.includes('two-negative')) cubeRootFamilies += 1;
+    if (/a=-|a<0|x-axis reflection/.test(text)) negativeAFamilies += 1;
+    if (/b=-|b<0|negative inside|horizontal reflection/.test(text)) negativeBFamilies += 1;
+    if (/horizontal stretch/.test(text)) horizontalStretchFamilies += 1;
+    if (/horizontal compression|one fourth|1\/4/.test(text)) horizontalCompressionFamilies += 1;
+    if (doc.taskType === 'reverseReasoning') reverseFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let spoiledChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const fields = Object.fromEntries(
+        (question.responseFields || []).map((field) => [field.id, field]),
+      );
+
+      if (id.includes('cubic-combined-symbolic')) {
+        assert.ok([2,3].includes(Number(fields['vertical-scale']?.expected)));
+        assert.ok([0.5,0.25].includes(Number(fields['horizontal-scale']?.expected)));
+        assert.equal(fields['x-reflection']?.expected, 'yes');
+        assert.equal(fields['horizontal-reflection']?.expected, 'no');
+      }
+
+      if (id.includes('cube-root-negative-b-point-map')) {
+        const center = String(fields.center?.expected).match(/^\((-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\)$/);
+        const leftImage = String(fields['left-parent-image']?.expected).match(/^\((-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\)$/);
+        const rightImage = String(fields['right-parent-image']?.expected).match(/^\((-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\)$/);
+        assert.ok(center && leftImage && rightImage);
+        const h = Number(center[1]);
+        assert.equal(Number(leftImage[1]), h + 2);
+        assert.equal(Number(rightImage[1]), h - 2);
+        assert.equal(Number(fields['horizontal-scale']?.expected), 0.25);
+        assert.equal(fields['horizontal-reflection']?.expected, 'yes');
+      }
+
+      if (id.includes('cubic-graph-horizontal-stretch')) {
+        const center = String(fields.center?.expected).match(/^\((-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\)$/);
+        const left = String(fields.left?.expected).match(/^\((-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\)$/);
+        const right = String(fields.right?.expected).match(/^\((-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)\)$/);
+        assert.ok(center && left && right);
+        const [h,k] = [Number(center[1]),Number(center[2])];
+        assert.equal(Number(left[1]), h - 2);
+        assert.equal(Number(right[1]), h + 2);
+        assert.equal(Number(left[2]), k - 2);
+        assert.equal(Number(right[2]), k + 2);
+        assert.equal(Number(fields['horizontal-scale']?.expected), 2);
+        assert.equal(fields['horizontal-effect']?.expected, 'stretch');
+      }
+
+      if (id.includes('cube-root-reverse-parameters')) {
+        assert.equal(Number(fields.a?.expected), -2);
+        assert.equal(Number(fields.b?.expected), 0.5);
+        assert.equal(fields.effects?.expected, 'correct');
+      }
+
+      if (doc.taskType === 'errorAnalysis') {
+        assert.equal(fields['a-effect']?.expected, 'xaxis');
+        assert.equal(fields['b-effect']?.expected, 'horizontal');
+        assert.equal(Number(fields['vertical-scale']?.expected), 3);
+        assert.equal(Number(fields['horizontal-scale']?.expected), 0.25);
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(correct.fieldResults)}`,
+      );
+
+      if (!spoiledChecked) {
+        const field = grading.fields.find((item) => (
+          ['horizontal-scale','horizontal-reflection','effects','b-effect','right'].includes(item.id)
+        )) || grading.fields[0];
+        assert.ok(field);
+        const expected = field.expected ?? field.accepted?.[0];
+        const wrongValue = Number.isFinite(Number(expected))
+          ? Number(expected) + 1
+          : (String(expected) === 'yes' ? 'no' : '__wrong__');
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, [field.id]:wrongValue },
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted an incorrect transformation effect`);
+        wrongEffectRejected += 1;
+        spoiledChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(cubicFamilies >= 3, 'A2.6A must repeatedly analyze the cubic parent');
+  assert.ok(cubeRootFamilies >= 3, 'A2.6A must repeatedly analyze the cube-root parent');
+  assert.ok(negativeAFamilies >= 2, 'A2.6A must repeatedly analyze negative outside parameters');
+  assert.ok(negativeBFamilies >= 2, 'A2.6A must repeatedly analyze negative inside parameters');
+  assert.ok(horizontalStretchFamilies >= 2, 'A2.6A must include horizontal stretching');
+  assert.ok(horizontalCompressionFamilies >= 2, 'A2.6A must include horizontal compression');
+  assert.ok(reverseFamilies >= 1);
+  assert.ok(errorFamilies >= 1);
+  assert.equal(wrongEffectRejected, entry.documents.length);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('graph'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('verbal'));
+});
+
