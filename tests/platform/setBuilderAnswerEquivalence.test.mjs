@@ -15,7 +15,7 @@ const {
 
 test('set-builder equivalence accepts common MathLive and textbook notation', () => {
   assert.equal(
-    sameSetBuilderNotation('{x|x!=3}', String.raw`\\{x\\in\\mathbb{R}\\mid x\\ne 3\\}`),
+    sameSetBuilderNotation('{x|x!=3}', '\{x\in\mathbb{R}\mid x\ne 3\}'),
     true,
   );
   assert.equal(
@@ -55,7 +55,7 @@ test('private grading uses setBuilder equivalence only when explicitly requested
   assert.equal(grading.fields[0].equivalence, 'setBuilder');
 
   const equivalent = await gradeResponse(grading, {
-    responses: { 'domain-set': String.raw`\\{x\\in\\mathbb{R}\\mid x\\ne 5, x\\ne -2\\}` },
+    responses: { 'domain-set': '\{x\in\mathbb{R}\mid x\ne 5, x\ne -2\}' },
   });
   assert.equal(equivalent.isCorrect, true);
 
