@@ -1,0 +1,529 @@
+{
+  "standard": "A2.3C",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-algebraic-linear-quadratic-system-solving-complete-ordered-pairs",
+  "rationale": "A2.3C requires algebraically solving a system, not counting or recognizing intersections. Fidelity V2 requires the reduced quadratic and every complete ordered-pair solution, while covering two, one, and zero real-solution cases plus factoring, quadratic-formula, and error-analysis pathways.",
+  "documents": [
+    {
+      "id": "mm_A2_3C_v2_factor-two-intersections",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3C:v2-factor-two-intersections",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3C",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "solutionMethod": "factoring",
+      "prompt": "Solve the system algebraically. First set the two expressions for $y$ equal and reduce to one quadratic equation. Then give BOTH complete ordered-pair solutions: $y={{m}}x{{b|signed}}$ and $y=x^2{{A|signed}}x{{B|signed}}$.",
+      "responseFields": [
+        {
+          "id": "reduced",
+          "label": "Reduced quadratic equation",
+          "inputProfile": "equation",
+          "expected": "x^2{{C|signed}}x{{D|signed}}=0"
+        },
+        {
+          "id": "point1",
+          "label": "Solution with the smaller x-value",
+          "inputProfile": "orderedPair",
+          "expected": "({{u}},{{yu}})"
+        },
+        {
+          "id": "point2",
+          "label": "Solution with the larger x-value",
+          "inputProfile": "orderedPair",
+          "expected": "({{v}},{{yv}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A system solution needs both coordinates.",
+        "reasoning": [
+          "Setting the equations equal gives $x^2{{C|signed}}x{{D|signed}}=0=(x-({{u}}))(x-({{v}}))$.",
+          "The roots are $x={{u}}$ and $x={{v}}$.",
+          "Substituting each x-value into the line gives y-values {{yu}} and {{yv}}."
+        ],
+        "answerSummary": "$({{u}},{{yu}})$ and $({{v}},{{yv}})$"
+      },
+      "attemptFeedback": [
+        "Finding the x-roots is not the end of a two-variable system; substitute each root back for y."
+      ],
+      "supportHints": [
+        "Set the line equal to the quadratic, move everything to one side, factor, then substitute each root into the line."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "u": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "v": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          }
+        },
+        "derived": {
+          "A": "m-u-v",
+          "B": "b+u*v",
+          "C": "A-m",
+          "D": "B-b",
+          "yu": "m*u+b",
+          "yv": "m*v+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3C_v2_tangent-repeated-root",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3C:v2-tangent-repeated-root",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3C",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "solutionMethod": "factoring",
+      "prompt": "Solve the linear-quadratic system algebraically. The graph description says the line is tangent, but your algebra must prove the single repeated intersection: $y={{m}}x{{b|signed}}$ and $y=x^2{{A|signed}}x{{B|signed}}$.",
+      "stimulus": {
+        "kind": "expressions",
+        "title": "Tangent system",
+        "expressions": [
+          "$y={{m}}x{{b|signed}}$",
+          "$y=x^2{{A|signed}}x{{B|signed}}$",
+          "The graphs touch at exactly one point."
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "reduced",
+          "label": "Reduced quadratic equation",
+          "inputProfile": "equation",
+          "expected": "x^2{{C|signed}}x{{D|signed}}=0"
+        },
+        {
+          "id": "factor",
+          "label": "Factored equation showing the repeated root",
+          "inputProfile": "equation",
+          "expected": "(x-({{u}}))^2=0"
+        },
+        {
+          "id": "point",
+          "label": "Complete solution point",
+          "inputProfile": "orderedPair",
+          "expected": "({{u}},{{yu}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Tangency appears algebraically as a repeated root.",
+        "reasoning": [
+          "After setting the equations equal, the reduced quadratic is $(x-({{u}}))^2=0$.",
+          "So the only x-value is {{u}}.",
+          "Substitution into the line gives y={{yu}}, producing one ordered pair."
+        ],
+        "answerSummary": "$({{u}},{{yu}})$"
+      },
+      "attemptFeedback": [
+        "Use the repeated root to find x, then still substitute for y."
+      ],
+      "supportHints": [
+        "A tangent line and parabola produce a quadratic equation with discriminant 0."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "u": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          }
+        },
+        "derived": {
+          "A": "m-2*u",
+          "B": "b+u*u",
+          "C": "A-m",
+          "D": "B-b",
+          "yu": "m*u+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3C_v2_no-real-solution",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3C:v2-no-real-solution",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3C",
+      "representation": "symbolic",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "solutionMethod": "discriminant",
+      "prompt": "Solve the system algebraically over the real numbers: $y={{m}}x{{b|signed}}$ and $y=x^2{{A|signed}}x{{B|signed}}$. Reduce to one quadratic and use its discriminant to determine the real solution set.",
+      "responseFields": [
+        {
+          "id": "reduced",
+          "label": "Reduced quadratic equation",
+          "inputProfile": "equation",
+          "expected": "x^2{{C|signed}}x{{D|signed}}=0"
+        },
+        {
+          "id": "discriminant",
+          "label": "Discriminant",
+          "inputProfile": "number",
+          "expected": "{{disc}}"
+        },
+        {
+          "id": "conclusion",
+          "label": "Real solution set",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "none",
+              "label": "No real ordered-pair solutions"
+            },
+            {
+              "id": "one",
+              "label": "Exactly one real ordered-pair solution"
+            },
+            {
+              "id": "two",
+              "label": "Exactly two real ordered-pair solutions"
+            }
+          ],
+          "expected": "none"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A negative discriminant means the line and parabola have no real intersection.",
+        "reasoning": [
+          "Equating the functions gives $x^2{{C|signed}}x{{D|signed}}=0$.",
+          "Its discriminant is {{disc}}, which is negative.",
+          "Therefore there is no real x-value and no real ordered-pair solution to the system."
+        ],
+        "answerSummary": "No real solutions"
+      },
+      "attemptFeedback": [
+        "Do not invent y-values when the reduced quadratic has no real roots."
+      ],
+      "supportHints": [
+        "After reducing the system, compute $b^2-4ac$ for that quadratic equation."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          }
+        },
+        "derived": {
+          "A": "m-2*h",
+          "B": "b+h*h+d",
+          "C": "A-m",
+          "D": "B-b",
+          "disc": "C*C-4*D"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3C_v2_quadratic-formula-exact",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3C:v2-quadratic-formula-exact",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3C",
+      "representation": "symbolic",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "procedural",
+      "solutionMethod": "quadraticFormula",
+      "prompt": "Solve the system algebraically using the quadratic formula after substitution. Give both exact ordered-pair solutions: $y={{m}}x{{b|signed}}$ and $y=x^2{{Q|signed}}x{{R|signed}}$.",
+      "responseFields": [
+        {
+          "id": "reduced",
+          "label": "Reduced quadratic equation",
+          "inputProfile": "equation",
+          "expected": "x^2{{p|signed}}x{{q|signed}}=0"
+        },
+        {
+          "id": "disc",
+          "label": "Discriminant",
+          "inputProfile": "number",
+          "expected": "{{D}}"
+        },
+        {
+          "id": "minus",
+          "label": "Solution using the minus sign in the quadratic formula",
+          "inputProfile": "orderedPair",
+          "expected": "((-({{p}})-sqrt({{D}}))/2,{{m}}*((-({{p}})-sqrt({{D}}))/2)+{{b}})"
+        },
+        {
+          "id": "plus",
+          "label": "Solution using the plus sign in the quadratic formula",
+          "inputProfile": "orderedPair",
+          "expected": "((-({{p}})+sqrt({{D}}))/2,{{m}}*((-({{p}})+sqrt({{D}}))/2)+{{b}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The quadratic formula gives the x-values; substitution completes the system solutions.",
+        "reasoning": [
+          "The reduced equation is $x^2{{p|signed}}x{{q|signed}}=0$ with discriminant {{D}}.",
+          "The two x-values are $\\frac{-({{p}})\\pm\\sqrt{{{D}}}}{2}$.",
+          "Substitute each exact x-value into $y={{m}}x{{b|signed}}$ to obtain the matching y-coordinate."
+        ],
+        "answerSummary": "Two exact ordered pairs from the ± roots and the line equation."
+      },
+      "attemptFeedback": [
+        "A quadratic-formula x-value is only half of a system solution; pair it with the y-value from the line."
+      ],
+      "supportHints": [
+        "Use $x=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}$ on the reduced quadratic, then substitute each x into the linear equation."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "p": {
+            "type": "choice",
+            "values": [
+              -4,
+              -2,
+              0,
+              2,
+              4
+            ]
+          },
+          "D": {
+            "type": "choice",
+            "values": [
+              8,
+              12,
+              20
+            ]
+          }
+        },
+        "derived": {
+          "q": "(p*p-D)/4",
+          "Q": "m+p",
+          "R": "b+q"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3C_v2_error-finish-ordered-pairs",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3C:v2-error-finish-ordered-pairs",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3C",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "solutionMethod": "factoring",
+      "prompt": "A student tries to solve the system $y={{m}}x{{b|signed}}$ and $y=x^2{{A|signed}}x{{B|signed}}$. Diagnose the algebra error, write the corrected reduced quadratic, and finish BOTH ordered-pair solutions.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's algebra",
+        "steps": [
+          {
+            "id": "s1",
+            "label": "Set equal",
+            "work": "${{m}}x{{b|signed}}=x^2{{A|signed}}x{{B|signed}}$"
+          },
+          {
+            "id": "s2",
+            "label": "Student reduction",
+            "work": "$x^2{{C|signed}}x{{B|signed}}=0$"
+          },
+          {
+            "id": "s3",
+            "label": "Student claim",
+            "work": "The line's constant {{b}} does not affect the reduced quadratic."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "Diagnosis",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "constant",
+              "label": "The line's constant must also be moved; the quadratic constant is ${{B}}-({{b}})$, not just {{B}}."
+            },
+            {
+              "id": "slope",
+              "label": "The line's slope should not be moved."
+            },
+            {
+              "id": "cannot",
+              "label": "A linear and quadratic equation cannot be solved algebraically."
+            }
+          ],
+          "expected": "constant"
+        },
+        {
+          "id": "reduced",
+          "label": "Correct reduced quadratic",
+          "inputProfile": "equation",
+          "expected": "x^2{{C|signed}}x{{D|signed}}=0"
+        },
+        {
+          "id": "point1",
+          "label": "First complete solution",
+          "inputProfile": "orderedPair",
+          "expected": "({{u}},{{yu}})"
+        },
+        {
+          "id": "point2",
+          "label": "Second complete solution",
+          "inputProfile": "orderedPair",
+          "expected": "({{v}},{{yv}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Every term must move when the two equations are set equal.",
+        "reasoning": [
+          "Subtracting the line changes both the x-coefficient and the constant term.",
+          "The corrected reduced quadratic factors using roots {{u}} and {{v}}.",
+          "Each root must be substituted back into the line to produce the two ordered-pair solutions."
+        ],
+        "answerSummary": "$({{u}},{{yu}})$ and $({{v}},{{yv}})$"
+      },
+      "attemptFeedback": [
+        "Correct the reduced equation first; then finish the system by finding y for both roots."
+      ],
+      "supportHints": [
+        "When moving the line to the quadratic side, subtract both ${{m}}x$ and {{b}}."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "u": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "v": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          }
+        },
+        "derived": {
+          "A": "m-u-v",
+          "B": "b+u*v",
+          "C": "A-m",
+          "D": "B-b",
+          "yu": "m*u+b",
+          "yv": "m*v+b"
+        }
+      }
+    }
+  ]
+}
