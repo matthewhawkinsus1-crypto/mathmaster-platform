@@ -369,7 +369,168 @@
       },
       "variants": [
         {
-          "coverageKey": "core-d2b4"
+          "coverageKey": "core-d2b4",
+          "dok": 2,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d2b2-simple-gcf-rewrite",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "representationTranslation",
+          "representation": "symbolic",
+          "prompt": "Factor the common monomial {{g}}x from ${{A}}x^2+{{B}}x$ and write the complete equivalent factored expression.",
+          "responseFields": [
+            {
+              "id": "inside-x",
+              "label": "x coefficient inside parentheses",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "inside-constant",
+              "label": "constant inside parentheses",
+              "inputProfile": "number",
+              "expected": "{{b}}"
+            },
+            {
+              "id": "answer",
+              "label": "Factored expression",
+              "inputProfile": "expression",
+              "expected": "{{g}}*x*({{a}}*x+({{b}}))"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Divide each term by the common monomial to build the inside polynomial.",
+            "reasoning": [
+              "${{A}}x^2/({{g}}x)={{a}}x$.",
+              "${{B}}x/({{g}}x)={{b}}$."
+            ],
+            "answerSummary": "${{g}}x({{a}}x+{{b}})$"
+          },
+          "attemptFeedback": [
+            "The GCF is removed from every term, not just the leading term."
+          ],
+          "supportHints": [
+            "Divide coefficients and subtract one power of x."
+          ],
+          "generator": {
+            "parameters": {
+              "g": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "A": "g*a",
+              "B": "g*b"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-candidate-factorization-verification",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student claims ${{A}}x^3+{{B}}x^2+{{C}}x={{g}}x({{a}}x^2+{{b}}x+{{wrongC}})$. Check the claim by redistributing the proposed factorization, identify the incorrect inside constant, and write the correct factorization.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Is the student's inside constant correct?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "wrong",
+                  "label": "No. The constant inside must be the original x-term coefficient divided by g."
+                },
+                {
+                  "id": "correct",
+                  "label": "Yes. The original x-term coefficient should stay unchanged inside."
+                }
+              ],
+              "expected": "wrong"
+            },
+            {
+              "id": "inside-constant",
+              "label": "Correct inside constant",
+              "inputProfile": "number",
+              "expected": "{{c}}"
+            },
+            {
+              "id": "answer",
+              "label": "Correct factorization",
+              "inputProfile": "expression",
+              "expected": "{{g}}*x*({{a}}*x^2+({{b}})*x+({{c}}))"
+            },
+            {
+              "id": "verify",
+              "label": "Recovered x-term coefficient after redistribution",
+              "inputProfile": "number",
+              "expected": "{{C}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Redistribution is a direct test of a proposed GCF factorization.",
+            "reasoning": [
+              "The inside constant must be {{C}}/{{g}}={{c}}.",
+              "Redistributing {{g}}x·{{c}} recovers the original x-term coefficient {{C}}."
+            ],
+            "answerSummary": "Correct factorization verified by redistribution."
+          },
+          "attemptFeedback": [
+            "Test the proposed factorization by multiplying the GCF back into every inside term."
+          ],
+          "supportHints": [
+            "The inside constant is C/g, not C."
+          ],
+          "generator": {
+            "parameters": {
+              "g": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              },
+              "b": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "c": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "A": "g*a",
+              "B": "g*b",
+              "C": "g*c",
+              "wrongC": "C"
+            }
+          }
         },
         {
           "coverageKey": "challenge-d3b4-factor-distribution-error",
