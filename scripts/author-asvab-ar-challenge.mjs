@@ -21,7 +21,7 @@
 // and three sentences, no prompt naming the operation to run. Harder means more
 // to work out, not more to read.
 
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { AR, asvabChallengeItem, assertChallengeVariety, contextParam, money, plain } from './lib/asvabAuthoring.mjs';
 
 const ITEMS = [];
@@ -1655,9 +1655,9 @@ arc('6.14C', 'closing-balance-after-a-fee', {
   feedback: 'Adding the withdrawal moves the balance the wrong way.',
 });
 
-arc('6.14C', 'entry-that-is-missing', {
+arc('6.14C', 'withdrawal-hidden-in-a-closing-balance', {
   difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
-  prompt: 'A register opened at $\$\{{start}}$, took a $\$\{{dep}}$ deposit and one withdrawal, and closed at $\$\{{close}}$. What was the withdrawal?',
+  prompt: 'Opening at $\$\{{start}}$, an account received $\$\{{dep}}$ and paid out once, finishing on $\$\{{close}}$. How large was the payment out?',
   generator: {
     parameters: {
       start: { type: 'int', min: 150, max: 700, step: 10 },
@@ -1720,37 +1720,39 @@ arc('6.14C', 'largest-withdrawal-that-clears', {
 // ================================================================ 7.13A
 // Income tax and deductions.
 
-arc('7.13A', 'take-home-after-tax-and-dues', {
+arc('7.13A', 'tax-charged-only-above-an-allowance', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A {{worker}} earned $\$\{{gross}}$, paid {{p}}% income tax and then $\$\{{dues}}$ in union dues. What was left?',
+  prompt: 'A {{worker}} earned $\$\{{gross}}$. The first $\$\{{allowance}}$ is untaxed and the rest is taxed {{p}}%, then $\$\{{dues}}$ of dues comes off. What is left?',
   generator: {
     parameters: {
       worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
-      hundreds: { type: 'int', min: 8, max: 30 },
+      hundreds: { type: 'int', min: 12, max: 40 },
+      allowance: { type: 'int', min: 200, max: 900, step: 100 },
       p: { type: 'int', min: 10, max: 30, step: 5 },
       dues: { type: 'int', min: 20, max: 120, step: 10 },
-      quoted: { type: 'int', min: 500, max: 2600, step: 20 },
+      quoted: { type: 'int', min: 900, max: 3600, step: 20 },
     },
     derived: {
       gross: 'hundreds*100',
-      tax: 'gross*p/100',
+      taxable: 'gross-allowance',
+      tax: 'taxable*p/100',
       answer: 'gross-tax-dues',
       d_percentNotApplied: 'gross-dues',
-      d_forgotFinalStep: 'gross-tax-dues-dues',
+      d_wrongPercentBase: 'gross-gross*p/100-dues',
       d_usedGivenValue: 'quoted',
     },
-    constraints: ['gross-tax-dues-dues>0', 'quoted!=answer'],
+    constraints: ['gross-allowance>0', 'quoted!=answer'],
   },
   choices: [
     { label: money('{{answer}}'), correct: true },
     { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
-    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['{{p}}% of $\$\{{gross}}$ is $\$\{{tax}}$ in tax.', 'Taking that and the $\$\{{dues}}$ dues leaves $\$\{{answer}}$.'],
-  answerSummary: { headline: 'Tax and dues both come out of the gross.', text: '$\$\{{answer}}$ was left.' },
-  hint: 'The dues are a flat amount, not a percentage.',
-  feedback: 'Taking only the dues leaves the tax unpaid.',
+  reasoning: ['Only $\$\{{taxable}}$ is taxed, so the tax is $\$\{{tax}}$.', 'Taking that and the $\$\{{dues}}$ dues from $\$\{{gross}}$ leaves $\$\{{answer}}$.'],
+  answerSummary: { headline: 'The allowance is not taxed.', text: '$\$\{{answer}}$ is left.' },
+  hint: 'Part of the earnings is free of tax.',
+  feedback: 'Taxing the whole amount ignores the untaxed allowance.',
 });
 
 arc('7.13A', 'gross-behind-a-pay-slip', {
@@ -2149,36 +2151,37 @@ arc('8.12A', 'monthly-payment-on-a-loan', {
 // ================================================================ 8.12B
 // Repaying what is owed.
 
-arc('8.12B', 'card-balance-after-interest-and-payment', {
+arc('8.12B', 'card-balance-across-two-months', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A card balance of $\$\{{balance}}$ is charged {{r}}% interest for the month, then a payment of $\$\{{payment}}$ is made. What is owed?',
+  prompt: 'A card balance of $\$\{{balance}}$ is charged {{r}}% each month. A payment of $\$\{{payment}}$ is made after the first month. What is owed after the second?',
   generator: {
     parameters: {
-      hundreds: { type: 'int', min: 3, max: 18 },
-      r: { type: 'int', min: 2, max: 5 },
-      payment: { type: 'int', min: 50, max: 400, step: 25 },
-      statement: { type: 'int', min: 90, max: 1700, step: 10 },
+      hundreds: { type: 'int', min: 5, max: 20 },
+      r: { type: 'int', min: 10, max: 20, step: 10 },
+      payment: { type: 'int', min: 100, max: 600, step: 100 },
+      statement: { type: 'int', min: 300, max: 2200, step: 100 },
     },
     derived: {
       balance: 'hundreds*100',
-      interest: 'balance*r/100',
-      answer: 'balance+interest-payment',
-      d_operationInverted: 'balance-interest-payment',
-      d_partialTotal: 'balance+interest',
+      month1: 'balance*(100+r)/100',
+      afterPayment: 'month1-payment',
+      answer: 'afterPayment*(100+r)/100',
+      d_partialTotal: 'month1*(100+r)/100',
+      d_percentNotApplied: 'balance-payment',
       d_usedGivenValue: 'statement',
     },
-    constraints: ['balance-interest-payment>0', 'statement!=answer'],
+    constraints: ['month1-payment>0', 'balance-payment>0', 'statement!=answer'],
   },
   choices: [
     { label: money('{{answer}}'), correct: true },
-    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
     { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['{{r}}% of $\$\{{balance}}$ adds $\$\{{interest}}$ of interest.', 'The $\$\{{payment}}$ payment then leaves $\$\{{answer}}$ owing.'],
-  answerSummary: { headline: 'Interest is added before the payment comes off.', text: '$\$\{{answer}}$ is owed.' },
-  hint: 'The interest is charged on the balance before anything is paid.',
-  feedback: 'Interest increases what is owed; it does not reduce it.',
+  reasoning: ['The first month takes the balance to $\$\{{month1}}$, and the payment leaves $\$\{{afterPayment}}$.', 'A second month of {{r}}% brings it to $\$\{{answer}}$.'],
+  answerSummary: { headline: 'The second month charges interest on what is left after paying.', text: '$\$\{{answer}}$ is owed.' },
+  hint: 'The payment lands between the two interest charges.',
+  feedback: 'Charging both months on the opening balance ignores the payment.',
 });
 
 arc('8.12B', 'months-to-clear-a-balance', {
@@ -2253,9 +2256,9 @@ arc('8.12B', 'extra-paid-over-the-amount-borrowed', {
 // ================================================================ 7.4D
 // Percent increase and decrease.
 
-arc('7.4D', 'value-after-two-falls', {
+arc('7.4D', 'worth-once-two-years-of-loss-are-applied', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A {{tool}} worth $\$\{{value}}$ falls {{p}}% in one year, then {{q}}% of its new value the next. What is it worth then?',
+  prompt: 'Bought for $\$\{{value}}$, a {{tool}} sheds {{p}}% over twelve months and a further {{q}}% of whatever remains. Where does its worth end up?',
   generator: {
     parameters: {
       tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
@@ -2538,9 +2541,9 @@ arc('7.3B', 'stock-before-four-adjustments', {
   feedback: 'Taking the net change off twice removes more than the adjustments did.',
 });
 
-arc('7.3B', 'share-of-what-is-left', {
+arc('7.3B', 'two-stages-against-a-shrinking-run', {
   difficultyBand: 5, dok: 3, taskType: 'errorAnalysis', representation: 'context',
-  prompt: 'A {{machine}} finished {{n1}} of every {{d1}} of a run of {{total}} {{item}}, then {{n2}} of every {{d2}} of what was left. The sheet expected {{expected}}. How many remain?',
+  prompt: 'Out of {{total}} {{item}}, a {{machine}} completed {{n1}} in {{d1}}, and later {{n2}} in {{d2}} of the untouched balance. Against a sheet reading {{expected}}, how many stand unfinished?',
   generator: {
     parameters: {
       machine: MACHINES,
@@ -2550,7 +2553,7 @@ arc('7.3B', 'share-of-what-is-left', {
       d1: { type: 'int', min: 3, max: 4 },
       n2: { type: 'int', min: 1, max: 2 },
       d2: { type: 'int', min: 3, max: 4 },
-      expected: { type: 'int', min: 18, max: 96 },
+      expected: { type: 'int', min: 16, max: 84 },
     },
     derived: {
       total: 'base*d1*d2',
@@ -2805,12 +2808,666 @@ arc('A2.6L', 'setting-that-keeps-the-product-fixed', {
   feedback: 'The speed printed against that setting is the error, not the correction.',
 });
 
+// ================================================================ 6.9C
+// One-step relationships in a situation.
+
+arc('6.9C', 'stock-before-an-arrival-and-a-sale', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'After {{add}} more {{item}} arrived and {{sold}} were sold, a {{shop}} held {{now}}. How many were there before?',
+  generator: {
+    parameters: {
+      shop: SHOPS,
+      item: GOODS,
+      before: { type: 'int', min: 60, max: 300, step: 10 },
+      add: { type: 'int', min: 20, max: 120, step: 10 },
+      sold: { type: 'int', min: 20, max: 120, step: 10 },
+      counted: { type: 'int', min: 80, max: 320, step: 10 },
+    },
+    derived: {
+      now: 'before+add-sold',
+      answer: 'before',
+      d_operationInverted: 'now+add+sold',
+      d_signError: 'now-add-sold',
+      d_usedGivenValue: 'counted',
+    },
+    constraints: ['before+add-sold>0', 'now-add-sold>0', 'counted!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The arrival added {{add}} and the sale took {{sold}}, so the stock moved by {{add}}-{{sold}}.', 'Undoing that from {{now}} gives {{answer}}.'],
+  answerSummary: { headline: 'Undo each change in the opposite direction.', text: 'There were ${{answer}}$ before.' },
+  hint: 'An arrival has to be taken back off, and a sale added back on.',
+  feedback: 'Adding both changes moves the stock the wrong way for the sale.',
+});
+
+arc('6.9C', 'how-many-fit-in-each-case', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A {{crew}} packed {{total}} {{item}} into {{groups}} equal cases with {{extra}} left over. The label says {{perCase}}. How many are in each case?',
+  generator: {
+    parameters: {
+      crew: WORKERS,
+      item: GOODS,
+      groups: { type: 'int', min: 4, max: 9 },
+      each: { type: 'int', min: 12, max: 40 },
+      extra: { type: 'int', min: 3, max: 20 },
+      perCase: { type: 'int', min: 10, max: 40 },
+    },
+    derived: {
+      total: 'groups*each+extra',
+      answer: 'each',
+      d_forgotFinalStep: 'round(total/groups)',
+      d_operationInverted: 'groups',
+      d_usedGivenValue: 'perCase',
+    },
+    constraints: ['perCase!=answer', 'round(total/groups)!=each', 'each>groups'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The {{extra}} left over never went into a case, leaving {{groups}}x{{each}} packed.', 'Shared between {{groups}} cases that is {{answer}} each.'],
+  answerSummary: { headline: 'Set the leftovers aside before dividing.', text: 'Each case holds ${{answer}}$.' },
+  hint: 'Not everything counted went into a case.',
+  feedback: 'Dividing the whole count spreads the leftovers into the cases.',
+});
+
+arc('6.9C', 'space-left-on-a-shelf', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'A shelf is described below and stock arrives in boxes of {{per}}. How many more {{item}} fit?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Shelf', 'Amount'],
+    rows: [['Holds at most', '{{limit}}'], ['Already on it', '{{on}}'], ['Ordered', '{{ordered}}']],
+  },
+  generator: {
+    parameters: {
+      item: GOODS,
+      limit: { type: 'int', min: 120, max: 400, step: 20 },
+      on: { type: 'int', min: 30, max: 200, step: 10 },
+      per: { type: 'int', min: 4, max: 12, step: 2 },
+      ordered: { type: 'int', min: 20, max: 300, step: 10 },
+    },
+    derived: {
+      answer: 'limit-on',
+      d_forgotFinalStep: 'limit',
+      d_unitConversion: 'round((limit-on)/per)',
+      d_usedGivenValue: 'ordered',
+    },
+    constraints: ['limit-on>0', 'ordered!=answer', 'round((limit-on)/per)>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The shelf takes {{limit}} and {{on}} are already on it.', 'That leaves room for {{answer}} more.'],
+  answerSummary: { headline: 'Room left is the limit less what is already there.', text: '${{answer}}$ more fit.' },
+  hint: 'The question asks for {{item}}, not for boxes.',
+  feedback: 'Counting boxes answers a different question than the one asked.',
+});
+
+// ================================================================ 7.10C
+// Two-step relationships in a situation.
+
+arc('7.10C', 'bill-with-call-out-labour-and-parts', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{worker}} charges $\$\{{fee}}$ to call out plus $\$\{{rate}}$ an hour, and fitted $\$\{{parts}}$ of parts. What is a {{hours}}-hour bill?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'technician', 'plumber', 'fitter', 'electrician']),
+      fee: { type: 'int', min: 30, max: 90, step: 10 },
+      rate: { type: 'int', min: 25, max: 70, step: 5 },
+      hours: { type: 'int', min: 2, max: 8 },
+      parts: { type: 'int', min: 20, max: 200, step: 10 },
+      estimate: { type: 'int', min: 120, max: 700, step: 10 },
+    },
+    derived: {
+      answer: 'fee+rate*hours+parts',
+      d_partialTotal: 'answer+fee',
+      d_forgotFinalStep: 'rate*hours+parts',
+      d_usedGivenValue: 'estimate',
+    },
+    constraints: ['estimate!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{hours}} hours at $\$\{{rate}}$ is $\$\{{rate}}$x{{hours}}, plus $\$\{{parts}}$ of parts.', 'With the $\$\{{fee}}$ call-out the bill is $\$\{{answer}}$.'],
+  answerSummary: { headline: 'The call-out is charged once, whatever the hours.', text: 'The bill is $\$\{{answer}}$.' },
+  hint: 'Three separate charges make up the bill.',
+  feedback: 'Leaving the call-out out understates the bill.',
+});
+
+arc('7.10C', 'hours-inside-a-bill', {
+  difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A bill of $\$\{{total}}$ covers a $\$\{{fee}}$ call-out, $\$\{{parts}}$ of parts and labour at $\$\{{rate}}$ an hour. How many hours were worked?',
+  generator: {
+    parameters: {
+      fee: { type: 'int', min: 30, max: 90, step: 10 },
+      rate: { type: 'int', min: 25, max: 70, step: 5 },
+      hours: { type: 'int', min: 3, max: 12 },
+      parts: { type: 'int', min: 20, max: 200, step: 10 },
+      booked: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      total: 'fee+rate*hours+parts',
+      answer: 'hours',
+      d_percentNotApplied: 'round(total/rate)',
+      d_operationInverted: 'round(fee/rate)',
+      d_usedGivenValue: 'booked',
+    },
+    constraints: ['booked!=answer', 'round(total/rate)!=hours', 'round(fee/rate)!=hours'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Taking off the call-out and the parts leaves $\$\{{rate}}$x{{hours}} of labour.', 'At $\$\{{rate}}$ an hour that is {{answer}} hours.'],
+  answerSummary: { headline: 'Strip the fixed charges before dividing by the rate.', text: 'It was ${{answer}}$ hours.' },
+  hint: 'Only part of the bill was earned by the hour.',
+  feedback: 'Dividing the whole bill counts the call-out and parts as labour.',
+});
+
+arc('7.10C', 'hours-a-budget-covers', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'A job is costed below. How many whole hours of labour can be paid for?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Item', 'Amount'],
+    rows: [['Budget', '$\$\{{budget}}$'], ['Permit', '$\$\{{permit}}$'], ['Labour', '$\$\{{rate}}$ an hour']],
+  },
+  generator: {
+    parameters: {
+      permit: { type: 'int', min: 40, max: 160, step: 20 },
+      rate: { type: 'int', min: 25, max: 65, step: 5 },
+      hours: { type: 'int', min: 4, max: 16 },
+      slack: { type: 'int', min: 5, max: 20, step: 5 },
+      planned: { type: 'int', min: 3, max: 18 },
+    },
+    derived: {
+      budget: 'permit+rate*hours+slack',
+      answer: 'hours',
+      d_percentNotApplied: 'floor(budget/rate)',
+      d_operationInverted: 'round(permit/rate)',
+      d_usedGivenValue: 'planned',
+    },
+    constraints: ['planned!=answer', 'floor(budget/rate)!=hours', 'round(permit/rate)!=hours'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The permit comes out first, leaving $\$\{{rate}}$x{{hours}} and a little over.', 'That pays for {{answer}} whole hours.'],
+  answerSummary: { headline: 'The permit is paid before any labour.', text: '${{answer}}$ whole hours can be paid for.' },
+  hint: 'Not all of the budget is available for labour.',
+  feedback: 'Spending the whole budget on labour leaves the permit unpaid.',
+});
+
+// ================================================================ 8.8B
+// Two plans, compared.
+
+arc('8.8B', 'cost-of-a-plan-after-a-joining-fee', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'Plan A costs $\$\{{feeA}}$ to join then $\$\{{rateA}}$ a month, and adds a $\$\{{yearly}}$ charge once a year. What does {{months}} months cost?',
+  generator: {
+    parameters: {
+      feeA: { type: 'int', min: 30, max: 120, step: 10 },
+      rateA: { type: 'int', min: 15, max: 60, step: 5 },
+      months: { type: 'int', min: 12, max: 24, step: 12 },
+      yearly: { type: 'int', min: 20, max: 90, step: 10 },
+      offered: { type: 'int', min: 200, max: 1500, step: 20 },
+    },
+    derived: {
+      years: 'months/12',
+      answer: 'feeA+rateA*months+yearly*years',
+      d_partialTotal: 'answer+feeA*months',
+      d_forgotFinalStep: 'feeA+rateA*months',
+      d_usedGivenValue: 'offered',
+    },
+    constraints: ['offered!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{months}} months at $\$\{{rateA}}$ plus the $\$\{{feeA}}$ joining fee is $\$\{{d_forgotFinalStep}}$.', 'The yearly charge applies {{years}} times, giving $\$\{{answer}}$.'],
+  answerSummary: { headline: 'The joining fee is paid once and the yearly charge once a year.', text: 'It costs $\$\{{answer}}$.' },
+  hint: 'Three different charges run on three different clocks.',
+  feedback: 'Leaving the yearly charge out understates the plan.',
+});
+
+arc('8.8B', 'month-the-two-plans-level', {
+  difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'Plan A costs $\$\{{feeA}}$ to join then $\$\{{rateA}}$ a month; plan B costs $\$\{{feeB}}$ then $\$\{{rateB}}$. After how many months do they cost the same?',
+  generator: {
+    parameters: {
+      feeA: { type: 'int', min: 80, max: 320, step: 20 },
+      feeB: { type: 'int', min: 20, max: 60, step: 20 },
+      rateA: { type: 'int', min: 15, max: 40, step: 5 },
+      gap: { type: 'int', min: 5, max: 10, step: 5 },
+      quoted: { type: 'int', min: 4, max: 40 },
+    },
+    derived: {
+      rateB: 'rateA+gap',
+      answer: 'round((feeA-feeB)/gap)',
+      d_percentNotApplied: 'round(feeA/gap)',
+      d_operationInverted: 'round((feeA-feeB)/rateA)',
+      d_usedGivenValue: 'quoted',
+    },
+    // rateA above the monthly gap keeps the second distractor below the key.
+    constraints: ['feeA>feeB', 'rateA>gap', 'round((feeA-feeB)/gap)>0', 'quoted!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Plan B costs $\$\{{gap}}$ more each month, and plan A starts $\$\{{feeA}}$-$\$\{{feeB}}$ ahead on joining.', 'It takes {{answer}} months for the monthly gap to close that.'],
+  answerSummary: { headline: 'The joining fee is closed by the monthly difference.', text: 'They level after ${{answer}}$ months.' },
+  hint: 'Compare the two monthly costs before using the joining fee.',
+  feedback: 'Using plan A\'s whole joining fee ignores what plan B charges to join.',
+});
+
+arc('8.8B', 'total-paid-on-the-better-plan', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Over {{months}} months, which of the two plans below costs less, and what is its total?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Plan', 'Joining', 'Monthly'],
+    rows: [['A', '$\$\{{feeA}}$', '$\$\{{rateA}}$'], ['B', '$\$\{{feeB}}$', '$\$\{{rateB}}$']],
+  },
+  generator: {
+    parameters: {
+      feeA: { type: 'int', min: 60, max: 220, step: 20 },
+      feeB: { type: 'int', min: 0, max: 60, step: 20 },
+      rateA: { type: 'int', min: 10, max: 30, step: 5 },
+      rateB: { type: 'int', min: 10, max: 30, step: 5 },
+      months: { type: 'int', min: 6, max: 18, step: 3 },
+      billed: { type: 'int', min: 100, max: 400, step: 20 },
+    },
+    derived: {
+      costA: 'feeA+rateA*months',
+      costB: 'feeB+rateB*months',
+      answer: 'min(costA,costB)',
+      d_partialTotal: 'max(costA,costB)',
+      d_forgotFinalStep: 'min(rateA,rateB)*months',
+      d_usedGivenValue: 'billed',
+    },
+    constraints: ['costA!=costB', 'billed!=answer', 'min(rateA,rateB)*months<min(costA,costB)'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Over {{months}} months plan A costs $\$\{{costA}}$ and plan B costs $\$\{{costB}}$.', 'The cheaper of the two is $\$\{{answer}}$.'],
+  answerSummary: { headline: 'A lower joining fee does not always mean a lower total.', text: 'The cheaper plan costs $\$\{{answer}}$.' },
+  hint: 'Total each plan over the whole period before comparing.',
+  feedback: 'The monthly payments alone leave the joining fee unpaid.',
+});
+
+// ================================================================ 8.12C
+// Saving towards a target.
+
+arc('8.12C', 'total-saved-with-a-raise-partway', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{worker}} has $\$\{{start}}$ saved, puts away $\$\{{monthly}}$ a month for {{m1}} months, then $\$\{{higher}}$ a month for {{m2}} more. What is saved?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
+      start: { type: 'int', min: 200, max: 1200, step: 50 },
+      monthly: { type: 'int', min: 40, max: 150, step: 10 },
+      bump: { type: 'int', min: 20, max: 80, step: 10 },
+      m1: { type: 'int', min: 4, max: 12 },
+      m2: { type: 'int', min: 4, max: 12 },
+      posted: { type: 'int', min: 1400, max: 3900, step: 50 },
+    },
+    derived: {
+      higher: 'monthly+bump',
+      answer: 'start+monthly*m1+higher*m2',
+      d_partialTotal: 'answer+start',
+      d_forgotFinalStep: 'start+monthly*(m1+m2)',
+      d_usedGivenValue: 'posted',
+    },
+    constraints: ['posted!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{m1}} months at $\$\{{monthly}}$ then {{m2}} at $\$\{{higher}}$ adds to the $\$\{{start}}$ already saved.', 'That comes to $\$\{{answer}}$.'],
+  answerSummary: { headline: 'The two stretches save at different rates.', text: '$\$\{{answer}}$ is saved.' },
+  hint: 'Only the later months earn the higher amount.',
+  feedback: 'Using the lower amount throughout misses the increase.',
+});
+
+arc('8.12C', 'monthly-amount-a-target-needs', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A {{worker}} wants $\$\{{target}}$ in {{years}} years and has $\$\{{start}}$ now. How much must be put away each month?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
+      start: { type: 'int', min: 200, max: 1500, step: 100 },
+      monthly: { type: 'int', min: 30, max: 160, step: 10 },
+      years: { type: 'int', min: 2, max: 5 },
+      planned: { type: 'int', min: 20, max: 180, step: 10 },
+    },
+    derived: {
+      months: 'years*12',
+      target: 'start+monthly*months',
+      answer: 'monthly',
+      d_percentNotApplied: 'round(target/months)',
+      d_operationInverted: 'round((target-start)/(months+months))',
+      d_usedGivenValue: 'planned',
+    },
+    constraints: ['planned!=answer', 'round(target/months)!=monthly'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The $\$\{{start}}$ already saved leaves $\$\{{target}}$-$\$\{{start}}$ to find over {{months}} months.', 'That is $\$\{{answer}}$ a month.'],
+  answerSummary: { headline: 'What is already saved reduces what must be found.', text: 'It is $\$\{{answer}}$ a month.' },
+  hint: 'The target is not all still to be saved.',
+  feedback: 'Spreading the whole target ignores the money already put by.',
+});
+
+arc('8.12C', 'months-still-to-go', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'A savings plan stands as below. How many more months until the target is reached?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Item', 'Amount'],
+    rows: [['Target', '$\$\{{target}}$'], ['Saved so far', '$\$\{{saved}}$'], ['Each month', '$\$\{{monthly}}$']],
+  },
+  generator: {
+    parameters: {
+      saved: { type: 'int', min: 200, max: 1600, step: 100 },
+      monthly: { type: 'int', min: 40, max: 160, step: 20 },
+      months: { type: 'int', min: 5, max: 20 },
+      listed: { type: 'int', min: 7, max: 21 },
+    },
+    derived: {
+      target: 'saved+monthly*months',
+      answer: 'months',
+      d_percentNotApplied: 'round(target/monthly)',
+      d_operationInverted: 'round(saved/monthly)',
+      d_usedGivenValue: 'listed',
+    },
+    // saved below the amount still to save keeps round(saved/monthly) a
+    // dependable undershoot instead of a second crosser.
+    constraints: ['listed!=answer', 'saved<monthly*months', 'round(target/monthly)!=months'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['$\$\{{target}}$ less the $\$\{{saved}}$ already put by leaves $\$\{{monthly}}$x{{months}}.', 'At $\$\{{monthly}}$ a month that is {{answer}} months.'],
+  answerSummary: { headline: 'Only the shortfall still takes months.', text: 'It takes ${{answer}}$ more months.' },
+  hint: 'Part of the target is already met.',
+  feedback: 'Dividing the whole target ignores what is already saved.',
+});
+
+// ================================================================ 8.12D
+// Compound growth.
+
+arc('8.12D', 'compounding-around-a-mid-term-withdrawal', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'An investment of $\$\{{principal}}$ grows {{r}}% a year. $\$\{{wd}}$ is drawn out once year one has been credited. Where does it stand a year later?',
+  generator: {
+    parameters: {
+      hundreds: { type: 'int', min: 10, max: 40 },
+      // 10 or 20 per cent on hundreds, and a withdrawal in hundreds, keeps every
+      // balance a whole number of dollars through two years of compounding.
+      r: { type: 'int', min: 10, max: 20, step: 10 },
+      wd: { type: 'int', min: 100, max: 500, step: 100 },
+      posted: { type: 'int', min: 1600, max: 5200, step: 100 },
+    },
+    derived: {
+      principal: 'hundreds*100',
+      year1: 'principal*(100+r)/100',
+      afterWd: 'year1-wd',
+      answer: 'afterWd*(100+r)/100',
+      d_partialTotal: 'year1*(100+r)/100',
+      d_simpleForCompound: 'principal+2*principal*r/100-wd',
+      d_usedGivenValue: 'posted',
+    },
+    // principal*r/100 above the withdrawal keeps the simple-interest reading
+    // dependably below the compound one.
+    constraints: ['year1-wd>0', 'posted!=answer', 'principal*r/100>wd'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_simpleForCompound}}'), error: 'simpleForCompound' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Year one leaves $\$\{{year1}}$, and the withdrawal brings it to $\$\{{afterWd}}$.', 'Year two pays {{r}}% on that, giving $\$\{{answer}}$.'],
+  answerSummary: { headline: 'The second year earns on what is left after the withdrawal.', text: 'It holds $\$\{{answer}}$.' },
+  hint: 'The money taken out stops earning.',
+  feedback: 'Ignoring the withdrawal leaves it earning interest it never earned.',
+});
+
+arc('8.12D', 'deposit-behind-a-two-year-balance', {
+  difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'An account compounding yearly at {{r}}% holds $\$\{{balance}}$ after two years. The statement listed $\$\{{listed}}$. What was deposited?',
+  generator: {
+    parameters: {
+      hundreds: { type: 'int', min: 8, max: 40 },
+      r: { type: 'int', min: 10, max: 20, step: 10 },
+      listed: { type: 'int', min: 800, max: 4000, step: 100 },
+    },
+    derived: {
+      answer: 'hundreds*100',
+      year1: 'answer*(100+r)/100',
+      balance: 'year1*(100+r)/100',
+      d_forgotFinalStep: 'year1',
+      d_offByOneStep: 'round(answer*100/(100+r))',
+      d_usedGivenValue: 'listed',
+    },
+    constraints: ['listed!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Undoing one year of {{r}}% growth from $\$\{{balance}}$ gives $\$\{{year1}}$.', 'Undoing a second year gives $\$\{{answer}}$.'],
+  answerSummary: { headline: 'Two years of growth take two years of undoing.', text: '$\$\{{answer}}$ was deposited.' },
+  hint: 'Each year multiplied the balance, so each year has to be divided out.',
+  feedback: 'Undoing a third year strips growth the account never had.',
+});
+
+arc('8.12D', 'what-compounding-adds-over-simple', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Two accounts each hold $\$\{{principal}}$ at {{r}}% for two years, as shown. What does the compound account hold?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Account', 'Interest'],
+    rows: [['X', 'simple'], ['Y', 'compounded yearly']],
+  },
+  generator: {
+    parameters: {
+      hundreds: { type: 'int', min: 10, max: 45 },
+      r: { type: 'int', min: 10, max: 20, step: 10 },
+      quoted: { type: 'int', min: 1200, max: 6400, step: 100 },
+    },
+    derived: {
+      principal: 'hundreds*100',
+      simple: 'principal+2*principal*r/100',
+      year1: 'principal*(100+r)/100',
+      answer: 'year1*(100+r)/100',
+      d_partialTotal: 'answer+principal*r/100',
+      d_simpleForCompound: 'simple',
+      d_usedGivenValue: 'quoted',
+    },
+    constraints: ['quoted!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_simpleForCompound}}'), error: 'simpleForCompound' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Account Y reaches $\$\{{year1}}$ after one year and earns {{r}}% on that in year two.', 'That gives $\$\{{answer}}$, against $\$\{{simple}}$ for the simple account.'],
+  answerSummary: { headline: 'Compounding pays on interest already earned.', text: 'It holds $\$\{{answer}}$.' },
+  hint: 'The second year of compounding works on a bigger balance.',
+  feedback: 'Two equal years of interest describes the simple account, not the compound one.',
+});
+
+// ================================================================ 8.12G
+// Paying for study.
+
+arc('8.12G', 'four-year-cost-with-a-rise', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'College costs $\$\{{perYear}}$ a year for tuition and $\$\{{living}}$ a year to live on, and tuition rises $\$\{{rise}}$ each year after the first. What do four years cost?',
+  generator: {
+    parameters: {
+      perYear: { type: 'int', min: 3000, max: 9000, step: 500 },
+      living: { type: 'int', min: 4000, max: 10000, step: 500 },
+      rise: { type: 'int', min: 200, max: 800, step: 100 },
+      quoted: { type: 'int', min: 30000, max: 78000, step: 500 },
+    },
+    derived: {
+      tuition: '4*perYear+6*rise',
+      answer: 'tuition+4*living',
+      d_partialTotal: 'answer+4*living',
+      d_forgotFinalStep: '4*perYear+4*living',
+      d_usedGivenValue: 'quoted',
+    },
+    constraints: ['quoted!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Tuition over four years is $\$\{{tuition}}$ once the yearly rises are counted.', 'With four years of living costs the total is $\$\{{answer}}$.'],
+  answerSummary: { headline: 'The rise applies in each year after the first.', text: 'Four years cost $\$\{{answer}}$.' },
+  hint: 'Only the first year is charged at the opening tuition figure.',
+  feedback: 'Charging the opening tuition every year misses the rises.',
+});
+
+arc('8.12G', 'monthly-saving-to-close-a-gap', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'Four years of college cost $\$\{{total}}$. A family can contribute $\$\{{contribution}}$ and has {{years}} years to save the rest. How much a month is that?',
+  generator: {
+    parameters: {
+      contribution: { type: 'int', min: 5000, max: 20000, step: 1000 },
+      monthly: { type: 'int', min: 100, max: 500, step: 25 },
+      years: { type: 'int', min: 3, max: 6 },
+      planned: { type: 'int', min: 80, max: 560, step: 20 },
+    },
+    derived: {
+      months: 'years*12',
+      gap: 'monthly*months',
+      total: 'contribution+gap',
+      answer: 'monthly',
+      d_percentNotApplied: 'round(total/months)',
+      d_operationInverted: 'round(gap/(months+months))',
+      d_usedGivenValue: 'planned',
+    },
+    constraints: ['planned!=answer', 'round(total/months)!=monthly'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The contribution leaves $\$\{{gap}}$ to find over {{months}} months.', 'That is $\$\{{answer}}$ a month.'],
+  answerSummary: { headline: 'The contribution reduces what has to be saved.', text: 'It is $\$\{{answer}}$ a month.' },
+  hint: 'Not all of the cost has to come from monthly saving.',
+  feedback: 'Spreading the whole cost ignores what the family can already put in.',
+});
+
+arc('8.12G', 'cost-of-the-cheaper-route', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Two routes to the same degree are costed below. What does the cheaper route cost in all?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Route', 'Years', 'Cost a year'],
+    rows: [['Direct', '4', '$\$\{{costA}}$'], ['Transfer', '2 then 2', '$\$\{{costB1}}$ then $\$\{{costB2}}$']],
+  },
+  generator: {
+    parameters: {
+      costA: { type: 'int', min: 8000, max: 20000, step: 500 },
+      costB1: { type: 'int', min: 3000, max: 8000, step: 500 },
+      costB2: { type: 'int', min: 8000, max: 20000, step: 500 },
+      filed: { type: 'int', min: 25000, max: 50000, step: 500 },
+    },
+    derived: {
+      totalA: '4*costA',
+      totalB: '2*costB1+2*costB2',
+      answer: 'min(totalA,totalB)',
+      d_partialTotal: 'max(totalA,totalB)',
+      d_forgotFinalStep: 'min(2*costA, 2*costB1)',
+      d_usedGivenValue: 'filed',
+    },
+    constraints: ['totalA!=totalB', 'filed!=answer', 'min(2*costA,2*costB1)<min(totalA,totalB)'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The direct route costs $\$\{{totalA}}$ and the transfer route $\$\{{totalB}}$.', 'The cheaper of the two is $\$\{{answer}}$.'],
+  answerSummary: { headline: 'Total every year of each route before comparing.', text: 'The cheaper route costs $\$\{{answer}}$.' },
+  hint: 'The transfer route is charged at two different yearly rates.',
+  feedback: 'Costing only the first two years leaves half the degree unpaid.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
   if (seen.has(item.id)) throw new Error(`Duplicate ASVAB challenge id: ${item.id}`);
   seen.add(item.id);
 }
+
+// Against the direct tier as well as against itself.
+//
+// Three families here were first written with the same slug as an existing
+// direct family, which produced the same id AND the same familyId. The id
+// collision would have been caught later by the bank build, but the familyId
+// collision is the dangerous one: familyId is what repeat-avoidance and mastery
+// attribution key on, so answering the challenge family would have counted as
+// having already seen the direct one. Checked at authoring time now, where the
+// message can name the slug to change.
+const direct = JSON.parse(readFileSync(new URL('../drafts/asvab-ar.json', import.meta.url), 'utf8')).documents;
+const directIds = new Set(direct.map((item) => item.id));
+const directFamilies = new Set(direct.map((item) => item.familyId));
+for (const item of ITEMS) {
+  if (directIds.has(item.id)) throw new Error(`Challenge id collides with a direct family: ${item.id}`);
+  if (directFamilies.has(item.familyId)) throw new Error(`Challenge familyId collides with a direct family: ${item.familyId}`);
+}
+
 assertChallengeVariety(ITEMS);
 writeFileSync(new URL('../drafts/asvab-ar-challenge.json', import.meta.url), `${JSON.stringify({ documents: ITEMS }, null, 1)}\n`);
 console.log(`Arithmetic Reasoning challenge: ${ITEMS.length} families across ${new Set(ITEMS.map((i) => i.assessedConstruct)).size} standards.`);
