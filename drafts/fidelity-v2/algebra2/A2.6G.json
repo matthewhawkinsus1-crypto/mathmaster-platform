@@ -197,6 +197,18 @@
           "label": "Equivalent coefficient a/b",
           "inputProfile": "number",
           "expected": "-1.5"
+        },
+        {
+          "id": "va",
+          "label": "Vertical asymptote x=",
+          "inputProfile": "number",
+          "expected": "{{h}}"
+        },
+        {
+          "id": "ha",
+          "label": "Horizontal asymptote y=",
+          "inputProfile": "number",
+          "expected": "{{k}}"
         }
       ],
       "generator": {
