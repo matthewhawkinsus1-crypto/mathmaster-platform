@@ -2768,6 +2768,760 @@ mkc('7.4A', 'claim-about-two-machines-together', {
   feedback: 'The combined rate really is the total of the two.',
 });
 
+// ================================================================ 7.5A
+// Similar figures and the factor that links them.
+
+mkc('7.5A', 'perimeter-after-a-fractional-scaling', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A rectangle ${{a}}$ by ${{b}}$ cm is scaled by a factor of $\\frac{{{k}}}{{{m}}}$. What is its new perimeter?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 6 },
+      u: { type: 'int', min: 3, max: 15 },
+      k: { type: 'int', min: 2, max: 7 },
+      a: { type: 'int', min: 3, max: 30 },
+    },
+    derived: {
+      b: 'm*u-a',
+      answer: '2*u*k',
+      // Scaled up but never divided back down.
+      d_forgotFinalStep: '2*m*u*k',
+      // Scaled one length and one width, not two of each.
+      d_partialTotal: 'u*k',
+      // Answered the perimeter it started with.
+      d_usedGivenValue: '2*m*u',
+    },
+    constraints: ['m*u-a>2', 'a>2', 'k!=m', 'abs(m-k)>0', '2*u*k>9', 'abs(2*m*u-2*u*k)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The original perimeter is $2({{a}} + {{b}})$, which is $2 \\times {{m}} \\times {{u}}$.', 'Scaling by $\\frac{{{k}}}{{{m}}}$ leaves ${{answer}}$.'],
+  answerSummary: { headline: 'Perimeter scales by the same factor as each length.', text: 'It is ${{answer}}$ cm.' },
+  hint: 'Total the four sides first, then apply the factor once.',
+  feedback: 'Scaling up without scaling back down applies only half the factor.',
+});
+
+mkc('7.5A', 'matching-side-from-two-areas', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'Similar triangles cover ${{A}}$ and ${{A2}}$ square cm, and the smaller has a side of ${{s}}$ cm. What is the matching side?',
+  generator: {
+    parameters: {
+      A: { type: 'int', min: 8, max: 60 },
+      k: { type: 'int', min: 2, max: 9 },
+      s: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      A2: 'A*k*k',
+      answer: 's*k',
+      // Scaled the side by the area factor.
+      d_exponentError: 's*k*k',
+      // Answered the side that was given.
+      d_usedGivenValue: 's',
+      // Answered the area factor rather than a length.
+      d_ratioReversed: 'k*k',
+    },
+    constraints: ['s*k>7', 'abs(k*k-s*k)>3', 'abs(s*k-s)>3', 'A<4*s*s', 'A>s*s/2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The areas are in the ratio ${{k}}^{2}$, so the lengths are in the ratio ${{k}}$.', 'The matching side is ${{s}} \\times {{k}} = {{answer}}$ cm.'],
+  answerSummary: { headline: 'Areas scale by the square of the length factor.', text: 'It is ${{answer}}$ cm.' },
+  hint: 'Take the square root of the area ratio before touching the side.',
+  feedback: 'The area factor is too large to apply to a length.',
+});
+
+mkc('7.5A', 'pair-that-must-be-similar', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade7',
+  prompt: 'Which pair of triangles must be similar?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 25, max: 75 },
+      b: { type: 'int', min: 20, max: 70 },
+      s: { type: 'int', min: 3, max: 25 },
+    },
+    constraints: ['a+b<170', 'a!=b'],
+  },
+  choices: [
+    { label: 'Both have an angle of ${{a}}^\\circ$ and an angle of ${{b}}^\\circ$.', correct: true },
+    { label: 'Both cover the same area.', error: 'usedGivenValue' },
+    { label: 'Both have a side of ${{s}}$ cm.', error: 'partialTotal' },
+    { label: 'Both have a right angle.', error: 'incompleteFactoring' },
+  ],
+  reasoning: ['Two matching angles fix the third, so the triangles have the same shape.', 'Equal areas, one equal side or one equal angle leave the shape free to differ.'],
+  answerSummary: { headline: 'Two pairs of equal angles are enough for similarity.', text: 'The pair sharing ${{a}}^\\circ$ and ${{b}}^\\circ$.' },
+  hint: 'Ask which condition fixes every angle.',
+  feedback: 'A single shared right angle still leaves the other two angles free.',
+});
+
+// ================================================================ 7.5B
+// Pi as the ratio of circumference to diameter.
+
+mkc('7.5B', 'extra-roll-of-the-larger-wheel', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'Wheels have diameters ${{d}}$ and ${{d2}}$ cm. Taking $\\pi$ as $\\frac{22}{7}$, how much farther does the larger roll in one turn?',
+  generator: {
+    parameters: {
+      u: { type: 'int', min: 2, max: 12 },
+      v: { type: 'int', min: 4, max: 16 },
+    },
+    derived: {
+      d: '7*u',
+      d2: '7*v',
+      answer: '22*(v-u)',
+      // Added the two circumferences instead of comparing them.
+      d_operationInverted: '22*(v+u)',
+      // Answered the smaller wheel's circumference.
+      d_partialTotal: '22*u',
+      // Compared the diameters and left pi out.
+      d_usedGivenValue: '7*(v-u)',
+    },
+    constraints: ['v>u', 'v-u>1', 'abs(u-(v-u))>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Each circumference is $\\frac{22}{7}$ times its diameter, giving ${{answer}}+22 \\times {{u}}$ and $22 \\times {{u}}$.', 'The gap is ${{answer}}$ cm.'],
+  answerSummary: { headline: 'One turn covers the circumference.', text: 'It rolls ${{answer}}$ cm farther.' },
+  hint: 'The difference in circumference is $\\pi$ times the difference in diameter.',
+  feedback: 'Comparing diameters alone leaves the factor of $\\pi$ out.',
+});
+
+mkc('7.5B', 'diameter-behind-a-measured-roll', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A wheel rolls ${{L}}$ cm in ${{n}}$ full turns. Taking $\\pi$ as $\\frac{22}{7}$, what is its diameter?',
+  generator: {
+    parameters: {
+      u: { type: 'int', min: 2, max: 12, step: 2 },
+      n: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      L: '22*n*u',
+      answer: '7*u',
+      // Answered the distance covered in one turn.
+      d_forgotFinalStep: '22*u',
+      // Answered the radius.
+      d_diameterForRadius: '7*u/2',
+      // Multiplied by the turns where a division belonged.
+      d_orderOfOperations: 'n*u',
+    },
+    constraints: ['abs(n*u-7*u)>3', 'abs(7-n)>1', '7*u>9'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_diameterForRadius}}'), error: 'diameterForRadius' },
+    { label: plain('{{d_orderOfOperations}}'), error: 'orderOfOperations' },
+  ],
+  reasoning: ['One turn covers ${{L}} \\div {{n}}$ cm, which is the circumference.', 'Dividing that by $\\frac{22}{7}$ gives a diameter of ${{answer}}$ cm.'],
+  answerSummary: { headline: 'Circumference first, diameter second.', text: 'The diameter is ${{answer}}$ cm.' },
+  hint: 'Find how far one turn carries the wheel before touching $\\pi$.',
+  feedback: 'The distance in one turn is the circumference, not the diameter.',
+});
+
+mkc('7.5B', 'row-that-measures-from-the-radius', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'table', courseId: 'grade7',
+  prompt: 'Each row records how far a wheel rolls in one turn, with $\\pi$ as $\\frac{22}{7}$. Which row is wrong?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Row', 'Diameter (cm)', 'One turn (cm)'],
+    rows: [
+      ['$1$', '${{d1}}$', '${{c1}}$'],
+      ['$2$', '${{d2}}$', '${{c2}}$'],
+      ['$3$', '${{d3}}$', '${{cBad}}$'],
+      ['$4$', '${{d4}}$', '${{c4}}$'],
+    ],
+  },
+  generator: {
+    parameters: {
+      u1: { type: 'int', min: 1, max: 9 },
+      u2: { type: 'int', min: 1, max: 9 },
+      u3: { type: 'int', min: 2, max: 10, step: 2 },
+      u4: { type: 'int', min: 1, max: 9 },
+    },
+    derived: {
+      d1: '7*u1', c1: '22*u1',
+      d2: '7*u2', c2: '22*u2',
+      d3: '7*u3', cBad: '11*u3',
+      d4: '7*u4', c4: '22*u4',
+    },
+    constraints: ['u1!=u2', 'u2!=u4', 'u1!=u4', 'u3>1'],
+  },
+  choices: [
+    { label: 'Row $3$', correct: true },
+    { label: 'Row $1$', error: 'usedGivenValue' },
+    { label: 'Row $2$', error: 'diameterForRadius' },
+    { label: 'Row $4$', error: 'operationInverted' },
+  ],
+  reasoning: ['One turn covers $\\frac{22}{7}$ times the diameter.', 'Row $3$ records $\\frac{22}{7}$ times the radius instead, which is half as far.'],
+  answerSummary: { headline: '$\\pi$ multiplies the diameter, not the radius.', text: 'Row $3$ is wrong.' },
+  hint: 'Divide each recorded distance by its diameter and see what you get.',
+  feedback: 'The other rows all give $\\frac{22}{7}$ when divided through.',
+});
+
+// ================================================================ 7.5C
+// Scale drawings, and how area behaves under scaling.
+
+mkc('7.5C', 'real-perimeter-from-a-plan', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A plan at $1$ cm to ${{s}}$ m shows a rectangle ${{c}}$ cm by ${{c2}}$ cm. What is its real perimeter in metres?',
+  generator: {
+    parameters: {
+      s: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 2, max: 7 },
+      c2: { type: 'int', min: 2, max: 7 },
+    },
+    derived: {
+      answer: '2*s*(c+c2)',
+      // Read the perimeter off the plan without scaling.
+      d_forgotFinalStep: '2*(c+c2)',
+      // Scaled as though a perimeter behaved like an area.
+      d_exponentError: '2*s*s*(c+c2)',
+      // Worked out an area instead of a perimeter.
+      d_usedGivenValue: 's*c*c2',
+    },
+    constraints: ['c!=c2', 'abs(s*c*c2-2*s*(c+c2))>3', 's>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['On the plan the perimeter is $2({{c}} + {{c2}})$ cm.', 'Each centimetre stands for ${{s}}$ m, so the real perimeter is ${{answer}}$ m.'],
+  answerSummary: { headline: 'A perimeter is a length, so it scales once.', text: 'It is ${{answer}}$ m.' },
+  hint: 'Total the plan lengths first, then convert.',
+  feedback: 'Squaring the scale belongs to areas, not to perimeters.',
+});
+
+mkc('7.5C', 'plan-area-behind-a-real-one', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A plan is drawn at $1$ cm to ${{s}}$ m. A room of real area ${{A}}$ square metres covers what area on the plan?',
+  generator: {
+    parameters: {
+      s: { type: 'int', min: 2, max: 7 },
+      z: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      A: 's*s*s*z',
+      answer: 's*z',
+      // Divided by the scale once instead of twice.
+      d_exponentError: 's*s*z',
+      // Answered the square of the scale.
+      d_ratioReversed: 's*s',
+      // Divided twice by the scale and once more by mistake.
+      d_forgotFinalStep: 'z',
+    },
+    constraints: ['abs(s*s-s*z)>3', 's*z>7', 'abs(s*z-z)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['One square centimetre on the plan stands for ${{s}}^{2}$ square metres.', 'So ${{A}}$ square metres cover ${{A}} \\div {{s}}^{2} = {{answer}}$ square centimetres.'],
+  answerSummary: { headline: 'Area divides by the square of the scale.', text: 'It covers ${{answer}}$ square centimetres.' },
+  hint: 'Work out what one square centimetre of plan represents.',
+  feedback: 'Dividing by the scale once treats the area like a length.',
+});
+
+mkc('7.5C', 'claim-about-redrawing-at-half-scale', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade7',
+  prompt: 'A plan of a ${{c}}$ cm by ${{c2}}$ cm rectangle is redrawn at half its scale. Which statement is wrong?',
+  generator: {
+    parameters: {
+      c: { type: 'int', min: 4, max: 24, step: 2 },
+      c2: { type: 'int', min: 4, max: 24, step: 2 },
+    },
+    constraints: ['c!=c2'],
+  },
+  choices: [
+    { label: 'The area it covers is halved.', correct: true },
+    { label: 'Every length on it is halved.', error: 'partialTotal' },
+    { label: 'The area it covers is quartered.', error: 'exponentError' },
+    { label: 'Its perimeter is halved.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Halving both sides multiplies the area by $\\frac{1}{2} \\times \\frac{1}{2}$.', 'That is a quarter, not a half.'],
+  answerSummary: { headline: 'Lengths halve; areas quarter.', text: 'The claim that the area halves is wrong.' },
+  hint: 'Work out the new area from the two halved sides.',
+  feedback: 'The perimeter really does halve, because it is a length.',
+});
+
+// ================================================================ 7.7
+// Straight-line relationships between two quantities.
+
+mkc('7.7', 'value-further-along-a-line', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A line of slope ${{m}}$ passes through $({{x1}}, {{y1}})$. What is $y$ when $x = {{x2}}$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 4, max: 20 },
+      x1: { type: 'int', min: 2, max: 12 },
+      y1: { type: 'int', min: 3, max: 80 },
+      gap: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      x2: 'x1+gap',
+      answer: 'y1+m*gap',
+      // Added the slope times the new input, not the change in input.
+      d_orderOfOperations: 'y1+m*x2',
+      // Left the point out and used the slope alone.
+      d_usedGivenValue: 'm*x2',
+      // Ran the change the wrong way.
+      d_operationInverted: 'y1-m*gap',
+    },
+    constraints: ['abs(y1-m*x1)>3', 'y1-m*gap>0', 'abs(m*x2-y1-m*gap)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_orderOfOperations}}'), error: 'orderOfOperations' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['From ${{x1}}$ to ${{x2}}$ is a change of ${{gap}}$, and each step of $1$ raises $y$ by ${{m}}$.', 'So $y$ reaches ${{answer}}$.'],
+  answerSummary: { headline: 'Slope multiplies the change in $x$, not $x$ itself.', text: '$y = {{answer}}$.' },
+  hint: 'Find how far $x$ has moved before applying the slope.',
+  feedback: 'Multiplying the slope by ${{x2}}$ measures from zero, not from the given point.',
+});
+
+mkc('7.7', 'value-at-zero-from-two-points', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A line passes through $({{x1}}, {{y1}})$ and $({{xt}}, {{yt}})$. What is its value at $x = 0$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 24 },
+      x1: { type: 'int', min: 2, max: 12 },
+      gap: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 4, max: 20 },
+    },
+    derived: {
+      y1: 'm*x1+b',
+      xt: 'x1+gap',
+      yt: 'm*x1+m*gap+b',
+      answer: 'b',
+      // Answered the first output.
+      d_usedGivenValue: 'y1',
+      // Answered the slope.
+      d_ratioReversed: 'm',
+      // Worked back from the wrong point.
+      d_operationInverted: 'y1-m*xt',
+    },
+    constraints: ['abs(b-m)>3', 'abs(y1-b)>3', 'abs(y1-m*xt-b)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The slope is $\\frac{{{yt}} - {{y1}}}{{{xt}} - {{x1}}} = {{m}}$.', 'Working back ${{x1}}$ steps from $({{x1}}, {{y1}})$ gives ${{answer}}$.'],
+  answerSummary: { headline: 'Find the slope, then walk back to zero.', text: 'It is ${{answer}}$.' },
+  hint: 'The first point is ${{x1}}$ steps from the axis.',
+  feedback: 'Stepping back from the second point needs the second point\'s own input.',
+});
+
+mkc('7.7', 'slope-written-upside-down', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal', courseId: 'grade7',
+  prompt: 'From $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$ a student writes the slope as $\\frac{{{x2}} - {{x1}}}{{{y2}} - {{y1}}}$. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      x1: { type: 'int', min: 1, max: 9 },
+      gap: { type: 'int', min: 2, max: 10 },
+      b: { type: 'int', min: 2, max: 30 },
+    },
+    derived: {
+      y1: 'm*x1+b',
+      x2: 'x1+gap',
+      y2: 'm*x1+m*gap+b',
+    },
+    constraints: ['m>1', 'gap>1'],
+  },
+  choices: [
+    { label: 'The change in $y$ belongs on top.', correct: true },
+    { label: 'The two points were taken in the wrong order.', error: 'signError' },
+    { label: 'A third point is needed before a slope can be found.', error: 'partialTotal' },
+    { label: 'The two differences should be added, not divided.', error: 'operationInverted' },
+  ],
+  reasoning: ['Slope measures rise per unit of run, so the change in $y$ is the numerator.', 'Written this way the value is $\\frac{1}{{{m}}}$ rather than ${{m}}$.'],
+  answerSummary: { headline: 'Rise over run, in that order.', text: 'The fraction is upside down.' },
+  hint: 'Ask what the slope is meant to measure per unit.',
+  feedback: 'Taking the points in the other order changes both signs and leaves the value unchanged.',
+});
+
+// ================================================================ 7.8A
+// Pyramids and prisms that share a base and a height.
+
+mkc('7.8A', 'extra-room-in-the-larger-pyramid', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'One pyramid has base ${{B}}$ square cm and height ${{h}}$ cm; another has base ${{B2}}$ and height ${{h2}}$. How much more does the second hold?',
+  generator: {
+    parameters: {
+      B: { type: 'int', min: 6, max: 60, step: 3 },
+      h: { type: 'int', min: 2, max: 14 },
+      B2: { type: 'int', min: 6, max: 60, step: 3 },
+      h2: { type: 'int', min: 2, max: 16 },
+    },
+    derived: {
+      answer: '(B2*h2-B*h)/3',
+      // Never divided either volume by three.
+      d_forgotFinalStep: 'B2*h2-B*h',
+      // Answered the first pyramid's volume.
+      d_partialTotal: 'B*h/3',
+      // Compared the two the other way round.
+      d_signError: '(B*h-B2*h2)/3',
+    },
+    constraints: ['B2*h2-B*h>9', 'abs(B*h-(B2*h2-B*h))>6', 'B*h>9'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['A pyramid holds a third of base times height.', 'The two volumes are $\\frac{{{B}} \\times {{h}}}{3}$ and $\\frac{{{B2}} \\times {{h2}}}{3}$, a gap of ${{answer}}$.'],
+  answerSummary: { headline: 'Thirding each volume before comparing keeps the units right.', text: 'It holds ${{answer}}$ cubic cm more.' },
+  hint: 'Work out each volume in full first.',
+  feedback: 'Comparing base times height leaves both volumes three times too large.',
+});
+
+mkc('7.8A', 'prism-height-from-a-shared-base', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A pyramid ${{h}}$ cm tall holds ${{V}}$ cubic cm, and a prism on the same base holds ${{V2}}$. How tall is the prism?',
+  generator: {
+    parameters: {
+      B: { type: 'int', min: 6, max: 60, step: 3 },
+      h: { type: 'int', min: 3, max: 30 },
+      z: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      V: 'B*h/3',
+      V2: 'B*3*z',
+      answer: '3*z',
+      // Answered the pyramid's height.
+      d_usedGivenValue: 'h',
+      // Applied the thirding the wrong way round.
+      d_forgotFinalStep: '9*z',
+      // Thirded a height that was already a prism height.
+      d_operationInverted: 'z',
+    },
+    constraints: ['abs(h-3*z)>3', '3*z>5', 'B*h%3==0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The pyramid gives the base as $3 \\times {{V}} \\div {{h}}$ square cm.', 'Dividing ${{V2}}$ by that base leaves a height of ${{answer}}$ cm.'],
+  answerSummary: { headline: 'Recover the shared base before touching the second solid.', text: 'The prism is ${{answer}}$ cm tall.' },
+  hint: 'A pyramid holds a third of base times height.',
+  feedback: 'A prism holds base times height with no thirding at all.',
+});
+
+mkc('7.8A', 'pyramid-three-times-as-tall', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'grade7',
+  prompt: 'A pyramid and a prism share a base of ${{B}}$ square cm, and the pyramid is three times as tall. How do their volumes compare?',
+  generator: {
+    parameters: {
+      B: { type: 'int', min: 6, max: 60, step: 3 },
+      h: { type: 'int', min: 2, max: 16 },
+    },
+    derived: { prism: 'B*h', pyramid: 'B*3*h/3' },
+    constraints: ['B>5'],
+  },
+  choices: [
+    { label: 'They hold the same.', correct: true },
+    { label: 'The pyramid holds three times as much.', error: 'operationInverted' },
+    { label: 'The prism holds three times as much.', error: 'ratioReversed' },
+    { label: 'The pyramid holds a third as much.', error: 'partialTotal' },
+  ],
+  reasoning: ['The pyramid holds a third of ${{B}} \\times 3{{h}}$, which is ${{B}} \\times {{h}}$.', 'That is exactly what the prism holds.'],
+  answerSummary: { headline: 'Tripling the height cancels the thirding.', text: 'They hold the same.' },
+  hint: 'Write both volumes in terms of the shared base.',
+  feedback: 'The thirding applies to the pyramid only after its own height is used.',
+});
+
+// ================================================================ 7.8B
+// Triangular prisms and pyramids.
+
+mkc('7.8B', 'prism-against-a-shorter-pyramid', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A triangular prism has end base ${{b}}$ cm, end height ${{ht}}$ cm and length ${{L}}$ cm. How much more does it hold than a pyramid on that end, ${{L2}}$ cm long?',
+  generator: {
+    parameters: {
+      g: { type: 'int', min: 1, max: 12 },
+      b: { type: 'int', min: 2, max: 12 },
+      L: { type: 'int', min: 3, max: 18 },
+      L2: { type: 'int', min: 2, max: 40 },
+    },
+    derived: {
+      ht: '6*g/b',
+      answer: 'g*(3*L-L2)',
+      // Left the triangle's halving out of both solids.
+      d_forgotFinalStep: '2*g*(3*L-L2)',
+      // Answered the pyramid's volume.
+      d_partialTotal: 'g*L2',
+      // Treated the pyramid as a second prism.
+      d_operationInverted: '3*g*(L-L2)',
+    },
+    constraints: ['6*g%b==0', '6*g/b>1', '3*L-L2>2', 'abs(L2-(3*L-L2))>2', 'g*(3*L-L2)>8'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The end triangle covers $\\frac{{{b}} \\times {{ht}}}{2}$ square cm.', 'The prism holds that times ${{L}}$; the pyramid holds a third of it times ${{L2}}$, leaving ${{answer}}$.'],
+  answerSummary: { headline: 'The triangle is halved once, and only the pyramid is thirded.', text: 'It holds ${{answer}}$ cubic cm more.' },
+  hint: 'Work out the end area before either solid.',
+  feedback: 'The pyramid holds a third of what a prism of the same length would.',
+});
+
+mkc('7.8B', 'end-height-from-a-known-prism', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A triangular prism holds ${{V}}$ cubic cm, is ${{L}}$ cm long, and its end triangle has base ${{b}}$ cm. How tall is that triangle?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 3, max: 16 },
+      L: { type: 'int', min: 2, max: 30 },
+      z: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      ht: '2*z',
+      V: 'b*z*L',
+      answer: '2*z',
+      // Left the triangle's halving out.
+      d_forgotFinalStep: 'z',
+      // Answered the length that was given.
+      d_usedGivenValue: 'L',
+      // Halved where a doubling belonged.
+      d_exponentError: '4*z',
+    },
+    constraints: ['abs(L-2*z)>3', '2*z>5', 'abs(2*z-z)>2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+  ],
+  reasoning: ['The end triangle covers ${{V}} \\div {{L}}$ square cm.', 'That area is half of ${{b}} \\times$ the height, so the height is ${{answer}}$ cm.'],
+  answerSummary: { headline: 'Divide out the length, then undo the triangle\'s halving.', text: 'It is ${{answer}}$ cm tall.' },
+  hint: 'Find the area of the end face first.',
+  feedback: 'A triangle covers half its base times its height, so undoing it doubles.',
+});
+
+mkc('7.8B', 'stretching-a-prism-in-two-directions', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade7',
+  prompt: 'A triangular prism has its end base doubled, its end height halved, and its length doubled. How does its volume change?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 4, max: 20, step: 2 },
+      ht: { type: 'int', min: 4, max: 20, step: 2 },
+      L: { type: 'int', min: 2, max: 16 },
+    },
+    derived: { before: 'b*ht*L/2', after: '2*b*ht/2*2*L/2' },
+    constraints: ['b*ht%2==0'],
+  },
+  choices: [
+    { label: 'It doubles.', correct: true },
+    { label: 'It stays the same.', error: 'partialTotal' },
+    { label: 'It is four times as much.', error: 'exponentError' },
+    { label: 'It halves.', error: 'operationInverted' },
+  ],
+  reasoning: ['Doubling the base and halving the height leave the end triangle covering the same area.', 'Only the doubled length is left, so the volume doubles.'],
+  answerSummary: { headline: 'Track each factor separately, then multiply them.', text: 'It doubles.' },
+  hint: 'Deal with the end face before the length.',
+  feedback: 'The two changes to the end face cancel; the length change does not.',
+});
+
+// ================================================================ 7.8C
+// The area of a circle.
+
+mkc('7.8C', 'extra-cover-of-the-larger-disc', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'Discs have radii ${{r}}$ and ${{r2}}$ cm. Taking $\\pi$ as $\\frac{22}{7}$, how much more does the larger cover?',
+  generator: {
+    parameters: {
+      u: { type: 'int', min: 2, max: 8 },
+      w: { type: 'int', min: 1, max: 3 },
+    },
+    derived: {
+      v: 'u+w',
+      r: '7*u',
+      r2: '7*v',
+      answer: '154*(v*v-u*u)',
+      // Used the diameters in place of the radii.
+      d_diameterForRadius: '616*(v*v-u*u)',
+      // Answered the smaller disc's area.
+      d_partialTotal: '154*u*u',
+      // Compared the two the other way round.
+      d_signError: '154*(u*u-v*v)',
+    },
+    constraints: ['w>0', 'abs(u*u-(v*v-u*u))>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_diameterForRadius}}'), error: 'diameterForRadius' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['Each disc covers $\\frac{22}{7}r^{2}$, giving $154 \\times {{u}}^{2}$ and $154 \\times {{v}}^{2}$.', 'The difference is ${{answer}}$ square cm.'],
+  answerSummary: { headline: 'Square each radius before multiplying by $\\pi$.', text: 'It covers ${{answer}}$ square cm more.' },
+  hint: 'Work out each area separately.',
+  feedback: 'Putting a diameter where a radius belongs makes every area four times too large.',
+});
+
+mkc('7.8C', 'circumference-expression-from-an-area', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A disc covers ${{A}}$ square cm. Which expression gives its circumference?',
+  generator: {
+    parameters: {
+      A: { type: 'int', min: 12, max: 400 },
+    },
+    constraints: ['A>10'],
+  },
+  choices: [
+    { label: plain('2\\sqrt{\\pi \\times {{A}}}'), correct: true },
+    { label: plain('\\sqrt{\\pi \\times {{A}}}'), error: 'diameterForRadius' },
+    { label: plain('\\frac{2 \\times {{A}}}{\\pi}'), error: 'operationInverted' },
+    { label: plain('2\\pi\\sqrt{{{A}}}'), error: 'exponentError' },
+  ],
+  reasoning: ['From $A = \\pi r^{2}$ the radius is $\\sqrt{\\frac{A}{\\pi}}$.', 'Its circumference is $2\\pi r$, which simplifies to $2\\sqrt{\\pi A}$.'],
+  answerSummary: { headline: 'Recover the radius from the area before finding the circumference.', text: 'It is $2\\sqrt{\\pi \\times {{A}}}$.' },
+  hint: 'Solve $A = \\pi r^{2}$ for $r$ first.',
+  feedback: 'Leaving the square root off treats an area as though it were a length.',
+});
+
+mkc('7.8C', 'claim-about-discs-in-a-ratio', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade7',
+  prompt: 'Two discs have radii in the ratio $1$ to ${{k}}$. Which statement is wrong?',
+  generator: {
+    parameters: { k: { type: 'int', min: 2, max: 9 } },
+    derived: { k2: 'k*k' },
+    constraints: ['k>1'],
+  },
+  choices: [
+    { label: 'The larger disc covers ${{k}}$ times the area.', correct: true },
+    { label: 'The larger disc has ${{k}}$ times the circumference.', error: 'partialTotal' },
+    { label: 'The larger disc covers ${{k2}}$ times the area.', error: 'exponentError' },
+    { label: 'Halving both radii leaves the ratio unchanged.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Circumference is a length, so it scales by ${{k}}$.', 'Area carries the square, so it scales by ${{k2}}$.'],
+  answerSummary: { headline: 'Lengths scale by the factor; areas scale by its square.', text: 'The claim about ${{k}}$ times the area is wrong.' },
+  hint: 'Compare $\\pi r^{2}$ for the two radii.',
+  feedback: 'Scaling both radii by the same amount really does leave the ratio alone.',
+});
+
+// ================================================================ 7.9A
+// Volume of prisms and pyramids in use.
+
+mkc('7.9A', 'cubes-that-fill-a-crate', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A crate ${{l}}$ by ${{w}}$ by ${{h}}$ cm is packed with cubes of edge ${{e}}$ cm. How many cubes fit?',
+  generator: {
+    parameters: {
+      e: { type: 'int', min: 2, max: 8 },
+      p: { type: 'int', min: 2, max: 8 },
+      q: { type: 'int', min: 2, max: 8 },
+      r: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      l: 'e*p',
+      w: 'e*q',
+      h: 'e*r',
+      answer: 'p*q*r',
+      // Divided the crate's volume by the cube's edge, not its volume.
+      d_exponentError: 'e*e*p*q*r',
+      // Counted only one layer.
+      d_partialTotal: 'p*q',
+      // Answered the volume of one cube.
+      d_orderOfOperations: 'e*e*e',
+    },
+    constraints: ['abs(e*e*e-p*q*r)>3', 'p*q*r>9', 'abs(p*q-p*q*r)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_orderOfOperations}}'), error: 'orderOfOperations' },
+  ],
+  reasoning: ['Along each edge the crate takes ${{p}}$, ${{q}}$ and ${{r}}$ cubes.', 'That is ${{answer}}$ cubes in all.'],
+  answerSummary: { headline: 'Count cubes along each edge, then multiply.', text: 'It takes ${{answer}}$ cubes.' },
+  hint: 'Divide each edge of the crate by ${{e}}$ first.',
+  feedback: 'Dividing the crate volume by the edge leaves two dimensions unconverted.',
+});
+
+mkc('7.9A', 'height-of-a-rectangular-pyramid', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A pyramid with a rectangular base ${{l}}$ by ${{w}}$ cm holds ${{V}}$ cubic cm. How tall is it?',
+  generator: {
+    parameters: {
+      l: { type: 'int', min: 3, max: 34 },
+      w: { type: 'int', min: 2, max: 18 },
+      z: { type: 'int', min: 2, max: 10 },
+    },
+    derived: {
+      V: 'l*w*z',
+      answer: '3*z',
+      // Never undid the thirding.
+      d_forgotFinalStep: 'z',
+      // Answered a base edge.
+      d_usedGivenValue: 'l',
+      // Applied the factor of three twice.
+      d_operationInverted: '9*z',
+    },
+    constraints: ['abs(l-3*z)>3', '3*z>5', 'abs(3*z-z)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['A pyramid holds a third of base times height, so ${{V}} = \\frac{{{l}} \\times {{w}} \\times h}{3}$.', 'That gives $h = {{answer}}$ cm.'],
+  answerSummary: { headline: 'Undo the thirding before dividing by the base.', text: 'It is ${{answer}}$ cm tall.' },
+  hint: 'Multiply the volume by three first.',
+  feedback: 'Dividing the volume by the base alone gives a prism height, not a pyramid one.',
+});
+
+mkc('7.9A', 'change-that-leaves-a-crate-holding-the-same', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade7',
+  prompt: 'A crate measures ${{l}}$ by ${{w}}$ by ${{h}}$ cm. Which change leaves its volume unchanged?',
+  generator: {
+    parameters: {
+      l: { type: 'int', min: 4, max: 30, step: 2 },
+      w: { type: 'int', min: 4, max: 24, step: 2 },
+      h: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { V: 'l*w*h' },
+    constraints: ['l!=w'],
+  },
+  choices: [
+    { label: 'Doubling the length and halving the width.', correct: true },
+    { label: 'Doubling the length and the width.', error: 'operationInverted' },
+    { label: 'Halving the length and the width.', error: 'partialTotal' },
+    { label: 'Doubling every edge.', error: 'exponentError' },
+  ],
+  reasoning: ['Volume is the product of the three edges, so a factor of $2$ and a factor of $\\frac{1}{2}$ cancel.', 'Every other change alters the product.'],
+  answerSummary: { headline: 'Volume changes by the product of the factors applied.', text: 'Doubling the length and halving the width.' },
+  hint: 'Multiply the three factors together and look for $1$.',
+  feedback: 'Doubling every edge multiplies the volume by eight.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
