@@ -54,15 +54,16 @@ test('every Digital SAT multiple-choice family keys a choice that exists', () =>
 // gate the ASVAB rebuild added after 476 of 730 families were found building
 // every distractor as key + 1, + 2, + 3.
 // The certification sweep found 177 families answerable this way. Geometry and
-// Trigonometry has been repaired and is asserted clean outright. The other three
-// domains are pinned to their exact remaining counts so the number can only fall:
+// Trigonometry and Problem-Solving and Data Analysis have been repaired and are
+// asserted clean outright. The other two are pinned to their exact remaining
+// counts so the number can only fall:
 // repairing families fails this test and forces the ceiling down, and any new
 // family that regresses fails it too. See DIGITAL_SAT_V2_1_CERTIFICATION_AUDIT.md.
 const MAGNITUDE_ANSWERABLE_CEILING = Object.freeze({
   geometryTrigonometry: 0,
+  problemSolvingData: 0,
   advancedMath: 91,
-  algebra: 37,
-  problemSolvingData: 28,
+  algebra: 35,
 });
 
 test('no Digital SAT family is answerable by the size of its options alone', () => {

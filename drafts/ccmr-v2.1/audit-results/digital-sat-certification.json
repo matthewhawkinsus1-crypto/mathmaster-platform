@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-30T20:49:14.781Z",
+  "generatedAt": "2026-08-30T21:36:08.132Z",
   "source": "drafts/digitalSAT.v2.1.json",
   "samplesPerFamily": 400,
   "totals": {
@@ -401,9 +401,9 @@
     }
   },
   "verdicts": {
-    "keep": 508,
+    "keep": 538,
     "revise": 0,
-    "replace": 156
+    "replace": 126
   },
   "findings": [
     {
@@ -1434,24 +1434,6 @@
     },
     {
       "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_A_3B_3_temperature-altitude-rate_v21",
-      "detail": "the key is the 2nd smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_A_3B_challenge_1_unit-converted-rate_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_A_3B_challenge_1_unit-converted-rate_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
       "code": "answerKeyExtremeBias",
       "id": "mm_sat_A_3C_challenge_1_parameter-from-x-intercept_v21",
       "detail": "the key is the smallest of the four in 50% of draws"
@@ -1581,246 +1563,6 @@
       "code": "answerKeyMagnitudeBias",
       "id": "mm_sat_A2_3G_2_possible-y-value_v21",
       "detail": "the key is the 2nd smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_A_3B_psda_2_model-predicted-change_v21",
-      "detail": "the key is the smallest of the four in 58% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_A_3B_psda_3_compare-fitted-trends_v21",
-      "detail": "the key is the smallest of the four in 78% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_A_3B_psda_3_compare-fitted-trends_v21",
-      "detail": "the key is the smallest of the four in 78% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_A_3B_psda_ch1_recover-trend-change_v21",
-      "detail": "the key is the smallest of the four in 56% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_A_4C_5_context_extrapolation_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_A_4C_5_context_extrapolation_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_A_4C_ch1_recover_rate_and_predict_v21",
-      "detail": "the key is the largest of the four in 51% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_A_8B_2_predict-from-quadratic-model_v21",
-      "detail": "the key is the 2nd largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_A_8B_ch1_symmetric-model-prediction_v21",
-      "detail": "the key is the largest of the four in 48% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_A_9E_2_predict-from-exponential-model_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_A_9E_2_predict-from-exponential-model_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_A_9E_ch1_separated-observations-predict_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_A_9E_ch1_separated-observations-predict_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_A2_6L_context-recover-new-output_v21",
-      "detail": "the key is the 2nd smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_inf_1_plausible-population-percent_v21",
-      "detail": "the key is the 2nd largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_inf_2_lower-bound_v21",
-      "detail": "the key is the 2nd smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_inf_5_margin-from-interval_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_inf_5_margin-from-interval_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_inf_ch2_recover-estimate-midpoint_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_inf_ch2_recover-estimate-midpoint_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_inf_ch3_population-count-upper_v21",
-      "detail": "the key is the 2nd largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_1vd_2_median-ordered-data_v21",
-      "detail": "the key is the 2nd smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "fixedOffsetDistractors",
-      "id": "mm_sat_native_1vd_2_median-ordered-data_v21",
-      "detail": "every distractor sits within 3 of the key in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_1vd_3_range-data_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_1vd_3_range-data_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_1vd_ch3_interquartile-range_v21",
-      "detail": "the key is the 2nd smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_pct_2_percent-increase-value_v21",
-      "detail": "the key is the 2nd largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_pct_4_percent-change_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_pct_4_percent-change_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_pct_5_part-whole-percent_v21",
-      "detail": "the key is the 2nd smallest of the four in 70% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_pct_ch1_successive-changes_v21",
-      "detail": "the key is the 2nd smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_pct_ch3_percent-vs-points_v21",
-      "detail": "the key is the 2nd smallest of the four in 77% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_prob_3_joint-two-way-table_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_prob_3_joint-two-way-table_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_prob_5_expected-count_v21",
-      "detail": "the key is the 2nd smallest of the four in 63% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_rru_ch1_mph-feet-second_v21",
-      "detail": "the key is the 2nd smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_rru_ch2_total-mixture_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_rru_ch2_total-mixture_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_rru_ch3_trip-fuel-cost_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_rru_ch3_trip-fuel-cost_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
     },
     {
       "severity": "revise",

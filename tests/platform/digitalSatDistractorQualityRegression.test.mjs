@@ -34,7 +34,11 @@ const EXPECTED = Object.freeze({
   // `dWhole` is 4*k*k, which is exactly the r*r this line used to pin - the whole
   // circle's area coefficient, the same misconception under a readable name.
   'mathmaster:sat:native:circles:ccmr-challenge-sector-area-coefficient': ['dWhole', '4*k*k'],
-  'mathmaster:sat:native:inferenceMarginOfError:lower-bound': ['satDistractor3', 'margin'],
+  // Renamed, not weakened. This family was rebuilt during the V2.1 certification
+  // sweep. "Answered the margin" is still one of its options - it is now one arm
+  // of a distractor that swings between the margin and the estimate, which is
+  // what stops the key sitting at a fixed rank among the four.
+  'mathmaster:sat:native:inferenceMarginOfError:lower-bound': ['dSwing', 'hi*estimate+(1-hi)*margin'],
   // Same rename. `dAdjacent` is 180-a-b, which is the 180-answer this line used to
   // pin, written out now that `answer` is a+b: the adjacent interior angle.
   'mathmaster:sat:native:linesAnglesTriangles:triangle-exterior-angle': ['dAdjacent', '180-a-b'],

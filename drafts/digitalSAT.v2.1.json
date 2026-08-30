@@ -46246,17 +46246,28 @@
             "type": "int",
             "min": 35,
             "max": 75
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "e2": "e1+de",
           "T2": "T1+rate*de",
-          "d1": "-rate",
-          "d2": "rate+1",
-          "d3": "rate-1"
+          "dNegated": "0-rate",
+          "dTotal": "rate*de",
+          "dSwing": "rate+(2*hi-1)*de"
         },
         "constraints": [
-          "T1+rate*de>-20"
+          "T1+rate*de>-20",
+          "rate!=dNegated",
+          "rate!=dTotal",
+          "rate!=dSwing",
+          "dNegated!=dTotal",
+          "dNegated!=dSwing",
+          "dTotal!=dSwing"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -46270,20 +46281,20 @@
       ],
       "choices": [
         {
+          "id": "choice-a",
+          "label": "${{dTotal}}$"
+        },
+        {
+          "id": "choice-b",
+          "label": "${{dSwing}}$"
+        },
+        {
           "id": "choice-c",
           "label": "${{rate}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d1}}$"
-        },
-        {
-          "id": "choice-a",
-          "label": "${{d2}}$"
-        },
-        {
-          "id": "choice-b",
-          "label": "${{d3}}$"
+          "label": "${{dNegated}}$"
         }
       ],
       "attemptFeedback": [
@@ -46578,22 +46589,27 @@
             "type": "int",
             "min": 3,
             "max": 18
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "per15": "q*15",
           "answer": "q*60",
-          "satDistractor1": "(q+60)",
-          "satDistractor2": "q",
-          "satDistractor3": "60"
+          "dTimes60": "q*15*60",
+          "dPerMinute": "q",
+          "dSwing": "hi*(q*15*15)+(1-hi)*(q*15)"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dTimes60",
+          "answer!=dPerMinute",
+          "answer!=dSwing",
+          "dTimes60!=dPerMinute",
+          "dTimes60!=dSwing",
+          "dPerMinute!=dSwing"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -46625,15 +46641,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dPerMinute}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dSwing}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dTimes60}}"
         }
       ]
     },
@@ -60953,17 +60969,17 @@
         },
         "derived": {
           "answer": "m*dx",
-          "satDistractor1": "(m+dx)",
-          "satDistractor2": "m",
-          "satDistractor3": "dx"
+          "dSlopeOnly": "m",
+          "dAdded": "m+dx",
+          "dDoubled": "2*m*dx"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dSlopeOnly",
+          "answer!=dAdded",
+          "answer!=dDoubled",
+          "dSlopeOnly!=dAdded",
+          "dSlopeOnly!=dDoubled",
+          "dAdded!=dDoubled"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -60982,15 +60998,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSlopeOnly}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dAdded}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dDoubled}}"
         }
       ]
     },
@@ -61061,35 +61077,43 @@
           },
           "delta": {
             "type": "int",
-            "min": 1,
-            "max": 6
+            "min": 2,
+            "max": 9
           }
         },
         "derived": {
           "m2": "m1+delta",
-          "sum": "m1+m2"
+          "dReversed": "m1-m2",
+          "dOther": "m2",
+          "dFirst": "m1"
         },
         "constraints": [
-          "delta!=m1"
+          "delta!=m1",
+          "delta!=dReversed",
+          "delta!=dOther",
+          "delta!=dFirst",
+          "dReversed!=dOther",
+          "dReversed!=dFirst",
+          "dOther!=dFirst"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
         {
-          "id": "choice-d",
-          "label": "${{delta}}$"
-        },
-        {
           "id": "choice-a",
-          "label": "${{m1}}$"
+          "label": "${{dFirst}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{m2}}$"
+          "label": "${{dReversed}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{sum}}$"
+          "label": "${{dOther}}$"
+        },
+        {
+          "id": "choice-d",
+          "label": "${{delta}}$"
         }
       ],
       "responseFields": [
@@ -61416,17 +61440,17 @@
           "y1": "m*x1+b",
           "y2": "m*x2+b",
           "answer": "m*extra",
-          "satDistractor1": "(m+extra)",
-          "satDistractor2": "m",
-          "satDistractor3": "extra"
+          "dSlopeOnly": "m",
+          "dAdded": "m+extra",
+          "dDoubled": "2*m*extra"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dSlopeOnly",
+          "answer!=dAdded",
+          "answer!=dDoubled",
+          "dSlopeOnly!=dAdded",
+          "dSlopeOnly!=dDoubled",
+          "dAdded!=dDoubled"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -61440,20 +61464,20 @@
       ],
       "choices": [
         {
+          "id": "choice-a",
+          "label": "{{dSlopeOnly}}"
+        },
+        {
+          "id": "choice-b",
+          "label": "{{dAdded}}"
+        },
+        {
           "id": "choice-c",
           "label": "{{answer}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
-        },
-        {
-          "id": "choice-a",
-          "label": "{{satDistractor2}}"
-        },
-        {
-          "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dDoubled}}"
         }
       ]
     },
@@ -61734,27 +61758,35 @@
           "b": {
             "type": "int",
             "min": -20,
-            "max": 20
+            "max": 20,
+            "exclude": [
+              0
+            ]
           },
           "x0": {
             "type": "int",
             "min": 4,
             "max": 18
+          },
+          "step": {
+            "type": "int",
+            "min": 2,
+            "max": 5
           }
         },
         "derived": {
           "answer": "m*x0+b",
-          "satDistractor1": "m*x0-b",
-          "satDistractor2": "m*x0",
-          "satDistractor3": "m+x0+b"
+          "dNoIntercept": "m*x0",
+          "dOverStep": "m*(x0+step)+b",
+          "dAdded": "m+x0+b"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dNoIntercept",
+          "answer!=dOverStep",
+          "answer!=dAdded",
+          "dNoIntercept!=dOverStep",
+          "dNoIntercept!=dAdded",
+          "dOverStep!=dAdded"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -61768,20 +61800,20 @@
       ],
       "choices": [
         {
+          "id": "choice-a",
+          "label": "{{dAdded}}"
+        },
+        {
           "id": "choice-b",
           "label": "{{answer}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dNoIntercept}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
-        },
-        {
-          "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dOverStep}}"
         }
       ]
     },
@@ -62196,22 +62228,27 @@
             "type": "int",
             "min": 6,
             "max": 15
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "answer": "b-m*t0",
-          "satDistractor1": "b+m*t0",
-          "satDistractor2": "b",
-          "satDistractor3": "b-m+t0"
+          "dAdded": "b+m*t0",
+          "dTwice": "b-2*m*t0",
+          "dSwing": "hi*b+(1-hi)*(b-m*t0-m)"
         },
         "constraints": [
-          "b-m*t0>20",
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "b-2*m*t0>10",
+          "answer!=dAdded",
+          "answer!=dTwice",
+          "answer!=dSwing",
+          "dAdded!=dTwice",
+          "dAdded!=dSwing",
+          "dTwice!=dSwing"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -62225,20 +62262,20 @@
       ],
       "choices": [
         {
-          "id": "choice-d",
-          "label": "{{answer}}"
-        },
-        {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dAdded}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dTwice}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSwing}}"
+        },
+        {
+          "id": "choice-d",
+          "label": "{{answer}}"
         }
       ]
     },
@@ -62312,14 +62349,17 @@
           "b": {
             "type": "int",
             "min": -15,
-            "max": 15
+            "max": 15,
+            "exclude": [
+              0
+            ]
           },
           "x1": {
             "type": "int",
             "min": 1,
             "max": 4
           },
-          "d": {
+          "dd": {
             "type": "int",
             "min": 2,
             "max": 5
@@ -62331,22 +62371,22 @@
           }
         },
         "derived": {
-          "x2": "x1+d",
+          "x2": "x1+dd",
           "x3": "x2+extra",
           "y1": "m*x1+b",
           "y2": "m*x2+b",
           "answer": "m*x3+b",
-          "satDistractor1": "m*x3-b",
-          "satDistractor2": "m*x3",
-          "satDistractor3": "m+x3+b"
+          "dNoIntercept": "m*x3",
+          "dOverStep": "m*(x3+dd)+b",
+          "dAdded": "m+x3+b"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dNoIntercept",
+          "answer!=dOverStep",
+          "answer!=dAdded",
+          "dNoIntercept!=dOverStep",
+          "dNoIntercept!=dAdded",
+          "dOverStep!=dAdded"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -62360,20 +62400,20 @@
       ],
       "choices": [
         {
+          "id": "choice-a",
+          "label": "{{dAdded}}"
+        },
+        {
           "id": "choice-b",
           "label": "{{answer}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dNoIntercept}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
-        },
-        {
-          "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dOverStep}}"
         }
       ]
     },
@@ -62819,27 +62859,32 @@
             "min": 40,
             "max": 120
           },
-          "d": {
+          "dv": {
             "type": "int",
             "min": 1,
             "max": 3
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
-          "t0": "h+d",
-          "answer": "a*d*d+k",
-          "satDistractor1": "a*d*d-k",
-          "satDistractor2": "a*d*d",
-          "satDistractor3": "a+d*d+k"
+          "t0": "h+dv",
+          "answer": "a*dv*dv+k",
+          "dNegated": "a*dv*dv-k",
+          "dAdded": "a+dv*dv+k",
+          "dSwing": "hi*(k-a*dv*dv)+(1-hi)*(a*dv*dv)"
         },
         "constraints": [
-          "a*d*d+k>0",
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "a*dv*dv+k>0",
+          "answer!=dNegated",
+          "answer!=dAdded",
+          "answer!=dSwing",
+          "dNegated!=dAdded",
+          "dNegated!=dSwing",
+          "dAdded!=dSwing"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -62853,20 +62898,20 @@
       ],
       "choices": [
         {
+          "id": "choice-a",
+          "label": "{{dAdded}}"
+        },
+        {
           "id": "choice-b",
           "label": "{{answer}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dNegated}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
-        },
-        {
-          "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSwing}}"
         }
       ]
     },
@@ -63252,8 +63297,11 @@
           },
           "k": {
             "type": "int",
-            "min": -8,
-            "max": 15
+            "min": -12,
+            "max": 12,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -63262,17 +63310,17 @@
           "hp3": "h+3",
           "y2": "4*a+k",
           "answer": "9*a+k",
-          "satDistractor1": "9*a-k",
-          "satDistractor2": "9*a",
-          "satDistractor3": "9+a+k"
+          "dGiven": "4*a+k",
+          "dFar": "16*a+k",
+          "dNoK": "9*a"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dGiven",
+          "answer!=dFar",
+          "answer!=dNoK",
+          "dGiven!=dFar",
+          "dGiven!=dNoK",
+          "dFar!=dNoK"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -63286,20 +63334,20 @@
       ],
       "choices": [
         {
+          "id": "choice-a",
+          "label": "{{dGiven}}"
+        },
+        {
           "id": "choice-b",
           "label": "{{answer}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dNoK}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
-        },
-        {
-          "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dFar}}"
         }
       ]
     },
@@ -63725,23 +63773,27 @@
           },
           "t0": {
             "type": "int",
-            "min": 2,
-            "max": 5
+            "min": 3,
+            "max": 5,
+            "exclude": [
+              4
+            ]
           }
         },
         "derived": {
           "answer": "A*b^t0",
-          "satDistractor1": "A*b*t0",
-          "satDistractor2": "A+b^t0",
-          "satDistractor3": "A*b^(t0-1)"
+          "dOneMore": "A*b^(t0+1)",
+          "dLinear": "A*b*t0",
+          "dSwapped": "A*t0^b"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "b^t0!=t0^b",
+          "answer!=dOneMore",
+          "answer!=dLinear",
+          "answer!=dSwapped",
+          "dOneMore!=dLinear",
+          "dOneMore!=dSwapped",
+          "dLinear!=dSwapped"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -63755,20 +63807,20 @@
       ],
       "choices": [
         {
+          "id": "choice-a",
+          "label": "{{dLinear}}"
+        },
+        {
+          "id": "choice-b",
+          "label": "{{dSwapped}}"
+        },
+        {
           "id": "choice-c",
           "label": "{{answer}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
-        },
-        {
-          "id": "choice-a",
-          "label": "{{satDistractor2}}"
-        },
-        {
-          "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dOneMore}}"
         }
       ]
     },
@@ -64135,23 +64187,31 @@
           "b": {
             "type": "int",
             "min": 2,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              3
+            ]
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "v2": "A*b^2",
           "answer": "A*b^3",
-          "satDistractor1": "A*b*3",
-          "satDistractor2": "A+b^3",
-          "satDistractor3": "A*b^(3-1)"
+          "dOneMore": "A*b^4",
+          "dOneLess": "A*b^2",
+          "dSwing": "hi*(A*3^b)+(1-hi)*(A*b*3)"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dOneMore",
+          "answer!=dOneLess",
+          "answer!=dSwing",
+          "dOneMore!=dOneLess",
+          "dOneMore!=dSwing",
+          "dOneLess!=dSwing"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -64165,20 +64225,20 @@
       ],
       "choices": [
         {
+          "id": "choice-a",
+          "label": "{{dOneLess}}"
+        },
+        {
           "id": "choice-b",
           "label": "{{answer}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSwing}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
-        },
-        {
-          "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dOneMore}}"
         }
       ]
     },
@@ -65032,37 +65092,44 @@
       "prompt": "The time $t$ needed to process a fixed amount of work varies inversely with a positive rate $r$. At rate {{r0}}, the work takes {{t0}} minutes. At rate {{r1}}, how many minutes will the work take?",
       "generator": {
         "parameters": {
+          "factor": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "w": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
           "r0": {
             "type": "int",
             "min": 2,
             "max": 8
           },
-          "t0": {
+          "hi": {
             "type": "int",
-            "min": 4,
-            "max": 12
-          },
-          "factor": {
-            "type": "int",
-            "min": 2,
-            "max": 4
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
+          "q": "factor*w",
+          "t0": "factor*factor*w",
           "r1": "r0*factor",
-          "answer": "t0/factor",
-          "satDistractor1": "t0*factor",
-          "satDistractor2": "factor/t0",
-          "satDistractor3": "t0-factor"
+          "answer": "factor*w",
+          "dOriginal": "factor*factor*w",
+          "dTwice": "w",
+          "dSwing": "hi*(factor*factor*w-factor)+(1-hi)*(factor*w-factor)"
         },
         "constraints": [
-          "t0%factor==0",
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "factor*w-factor>0",
+          "answer!=dOriginal",
+          "answer!=dTwice",
+          "answer!=dSwing",
+          "dOriginal!=dTwice",
+          "dOriginal!=dSwing",
+          "dTwice!=dSwing"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -65076,20 +65143,20 @@
       ],
       "choices": [
         {
+          "id": "choice-a",
+          "label": "{{dTwice}}"
+        },
+        {
           "id": "choice-b",
           "label": "{{answer}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSwing}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
-        },
-        {
-          "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dOriginal}}"
         }
       ]
     },
@@ -68654,6 +68721,11 @@
             "type": "int",
             "min": 20,
             "max": 70
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
@@ -68664,15 +68736,11 @@
           "v5": "m+3",
           "v6": "m+7",
           "v7": "m+11",
-          "midpair": "m+0.5"
+          "dSwing": "hi*(m+7)+(1-hi)*(m-5)"
         }
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
-        {
-          "id": "choice-d",
-          "label": "${{m}}$"
-        },
         {
           "id": "choice-a",
           "label": "${{v3}}$"
@@ -68683,7 +68751,11 @@
         },
         {
           "id": "choice-c",
-          "label": "${{midpair}}$"
+          "label": "${{dSwing}}$"
+        },
+        {
+          "id": "choice-d",
+          "label": "${{m}}$"
         }
       ],
       "responseFields": [
@@ -68760,32 +68832,46 @@
             "type": "int",
             "min": 10,
             "max": 20
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "high": "low+span",
           "v2": "low+3",
-          "v3": "high-4",
-          "d3": "span+5"
-        }
+          "v3": "low+span-4",
+          "dWrongEnd": "span-3",
+          "dSwing": "hi*(low)+(1-hi)*(span-7)"
+        },
+        "constraints": [
+          "span!=dWrongEnd",
+          "span!=dSwing",
+          "dWrongEnd!=dSwing",
+          "high!=span",
+          "high!=dWrongEnd",
+          "high!=dSwing"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
+        {
+          "id": "choice-a",
+          "label": "${{dWrongEnd}}$"
+        },
         {
           "id": "choice-b",
           "label": "${{span}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{low}}$"
+          "label": "${{dSwing}}$"
         },
         {
           "id": "choice-d",
           "label": "${{high}}$"
-        },
-        {
-          "id": "choice-a",
-          "label": "${{d3}}$"
         }
       ],
       "responseFields": [
@@ -69251,44 +69337,49 @@
             "min": 30,
             "max": 70
           },
-          "d": {
+          "dd": {
             "type": "int",
             "min": 2,
             "max": 6
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
-          "v1": "m-5*d",
-          "v2": "m-3*d",
-          "v3": "m-2*d",
-          "v4": "m-d",
-          "v5": "m+d",
-          "v6": "m+2*d",
-          "v7": "m+3*d",
-          "v8": "m+5*d",
-          "answer": "5*d",
-          "d1": "10*d",
-          "d2": "4*d",
-          "d3": "6*d"
+          "v1": "m-5*dd",
+          "v2": "m-3*dd",
+          "v3": "m-2*dd",
+          "v4": "m-dd",
+          "v5": "m+dd",
+          "v6": "m+2*dd",
+          "v7": "m+3*dd",
+          "v8": "m+5*dd",
+          "answer": "5*dd",
+          "dRange": "10*dd",
+          "dNarrow": "4*dd",
+          "dSwing": "hi*(6*dd)+(1-hi)*(3*dd)"
         }
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
+        {
+          "id": "choice-a",
+          "label": "${{dNarrow}}$"
+        },
         {
           "id": "choice-b",
           "label": "${{answer}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d1}}$"
+          "label": "${{dSwing}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d2}}$"
-        },
-        {
-          "id": "choice-a",
-          "label": "${{d3}}$"
+          "label": "${{dRange}}$"
         }
       ],
       "responseFields": [
@@ -70287,32 +70378,32 @@
             "max": 30
           }
         },
+        "derived": {
+          "notFav": "total-fav"
+        },
         "constraints": [
           "total>2*fav",
           "total!=fav*fav",
           "total!=fav*fav+fav"
-        ],
-        "derived": {
-          "notFav": "total-fav"
-        }
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
-        {
-          "id": "choice-d",
-          "label": "$\\dfrac{{{fav}}}{{{total}}}$"
-        },
         {
           "id": "choice-a",
           "label": "$\\dfrac{{{notFav}}}{{{total}}}$"
         },
         {
           "id": "choice-b",
-          "label": "$\\dfrac{{{fav}}}{{{notFav}}}$"
+          "label": "$\\dfrac{1}{{{total}}}$"
         },
         {
           "id": "choice-c",
           "label": "$\\dfrac{1}{{{fav}}}$"
+        },
+        {
+          "id": "choice-d",
+          "label": "$\\dfrac{{{fav}}}{{{total}}}$"
         }
       ],
       "responseFields": [
@@ -70500,12 +70591,20 @@
         },
         "constraints": [
           "b!=c",
+          "a!=b",
+          "a!=c",
+          "a+b!=c",
+          "a+b!=b",
           "(a+b)*(a+b)!=a*(a+b+c+d)",
           "(a+c)*(a+b)!=a*(a+b+c+d)"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
+        {
+          "id": "choice-a",
+          "label": "$\\dfrac{{{b}}}{{{total}}}$"
+        },
         {
           "id": "choice-b",
           "label": "$\\dfrac{{{a}}}{{{total}}}$"
@@ -70516,11 +70615,7 @@
         },
         {
           "id": "choice-d",
-          "label": "$\\dfrac{{{colYes}}}{{{total}}}$"
-        },
-        {
-          "id": "choice-a",
-          "label": "$\\dfrac{{{a}}}{{{rowA}}}$"
+          "label": "$\\dfrac{{{c}}}{{{total}}}$"
         }
       ],
       "responseFields": [
@@ -70698,35 +70793,34 @@
             "values": [
               10,
               20,
-              25,
               30,
               40,
-              50,
               60,
-              75,
-              80
+              70,
+              80,
+              90
             ]
           },
           "k": {
             "type": "int",
-            "min": 5,
-            "max": 30
+            "min": 1,
+            "max": 20
           }
         },
         "derived": {
-          "trials": "20*k",
-          "answer": "p*trials/100",
-          "satDistractor1": "p*trials",
-          "satDistractor2": "(100-p)*trials/100",
-          "satDistractor3": "trials/100"
+          "trials": "100*k",
+          "answer": "p*k",
+          "dTimesPercent": "100*p*k",
+          "dPerHundred": "k",
+          "dComplement": "(100-p)*k"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dTimesPercent",
+          "answer!=dPerHundred",
+          "answer!=dComplement",
+          "dTimesPercent!=dPerHundred",
+          "dTimesPercent!=dComplement",
+          "dPerHundred!=dComplement"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -70747,20 +70841,20 @@
       },
       "choices": [
         {
+          "id": "choice-a",
+          "label": "{{dPerHundred}}"
+        },
+        {
+          "id": "choice-b",
+          "label": "{{dComplement}}"
+        },
+        {
           "id": "choice-c",
           "label": "{{answer}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
-        },
-        {
-          "id": "choice-a",
-          "label": "{{satDistractor2}}"
-        },
-        {
-          "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dTimesPercent}}"
         }
       ]
     },
@@ -71199,20 +71293,22 @@
             "min": 3,
             "max": 12
           },
-          "unit": {
+          "u": {
             "type": "int",
-            "min": 2,
-            "max": 15
+            "min": 1,
+            "max": 7
           }
         },
         "derived": {
-          "total": "count*unit",
-          "double": "2*unit",
-          "plus": "unit+count"
+          "unit": "2*u",
+          "total": "count*2*u",
+          "dDouble": "4*u",
+          "dHalf": "u"
         },
         "constraints": [
-          "count!=unit",
-          "count!=2*unit"
+          "count!=2*u",
+          "count!=4*u",
+          "count!=u"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -71227,11 +71323,11 @@
         },
         {
           "id": "choice-c",
-          "label": "${{double}}$"
+          "label": "${{dDouble}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{plus}}$"
+          "label": "${{dHalf}}$"
         }
       ],
       "responseFields": [
@@ -71511,14 +71607,19 @@
             "type": "int",
             "min": 2,
             "max": 8
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "mph": "15*q",
           "answer": "22*q",
-          "d1": "15*q",
-          "d2": "88*q",
-          "d3": "22*q+1"
+          "dMph": "15*q",
+          "dQuadruple": "88*q",
+          "dSwing": "hi*(44*q)+(1-hi)*(11*q)"
         }
       },
       "assessmentItemFormat": "multipleChoice",
@@ -71529,15 +71630,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{d1}}$"
+          "label": "${{dMph}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d2}}$"
+          "label": "${{dQuadruple}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d3}}$"
+          "label": "${{dSwing}}$"
         }
       ],
       "responseFields": [
@@ -71601,8 +71702,8 @@
           },
           "b": {
             "type": "int",
-            "min": 3,
-            "max": 9
+            "min": 2,
+            "max": 7
           },
           "k": {
             "type": "int",
@@ -71613,18 +71714,18 @@
         "derived": {
           "total": "(a+b)*k",
           "answer": "a*k",
-          "satDistractor1": "(a+k)",
-          "satDistractor2": "a",
-          "satDistractor3": "k"
+          "dOther": "b*k",
+          "dTotal": "(a+b)*k",
+          "dRatioOnly": "a"
         },
         "constraints": [
           "a!=b",
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "answer!=dOther",
+          "answer!=dTotal",
+          "answer!=dRatioOnly",
+          "dOther!=dTotal",
+          "dOther!=dRatioOnly",
+          "dTotal!=dRatioOnly"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -71643,15 +71744,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dOther}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dTotal}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dRatioOnly}}"
         }
       ]
     },
@@ -71711,19 +71812,24 @@
           },
           "gallons": {
             "type": "int",
-            "min": 4,
-            "max": 15
+            "min": 8,
+            "max": 38
           }
         },
         "derived": {
           "distance": "mpg*gallons",
           "answer": "price*gallons",
-          "d1": "price*distance",
-          "d2": "mpg*gallons",
-          "d3": "answer+price"
+          "dDistanceCost": "price*mpg*gallons",
+          "dGallons": "gallons",
+          "dPerMile": "price*mpg"
         },
         "constraints": [
-          "price*gallons!=mpg*gallons"
+          "answer!=dDistanceCost",
+          "answer!=dGallons",
+          "answer!=dPerMile",
+          "dDistanceCost!=dGallons",
+          "dDistanceCost!=dPerMile",
+          "dGallons!=dPerMile"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -71734,15 +71840,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{d1}}$"
+          "label": "${{dGallons}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d2}}$"
+          "label": "${{dPerMile}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d3}}$"
+          "label": "${{dDistanceCost}}$"
         }
       ],
       "responseFields": [
