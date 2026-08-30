@@ -143,17 +143,35 @@ Certification result:
 
 Do **not** re-audit A2.3A unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.3B
 
-### A2.3B — ENHANCE — STAGED / CERTIFICATION RUNNING
+### A2.3B — ENHANCE — CERTIFIED
 
 Official construct: **Solve systems of three linear equations in three variables using Gaussian elimination, technology with matrices, and substitution.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- substitution, Gaussian elimination, and matrix technology are all explicitly represented;
+- matrix technology is authentic 3×3 RREF, not a disguised 2×2 or answer-choice task;
+- Gaussian-elimination families collect intermediate row evidence;
+- the substitution family collects actual substituted equations;
+- complete error analysis repairs the row operation and still solves x, y, z;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- secure matrix grading recomputes the 3×3 solution server-side and requires the RREF technology action;
+- targeted Algebra II Fidelity V2 Certification run `33318007307`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.3B unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.3C — PENDING AUDIT
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.3B
+### A2.3C
 
-Resume here. Do not reopen A2.2A–A2.3A unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.3B unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.3B audit finding
@@ -217,7 +235,10 @@ Resume here. Do not reopen A2.2A–A2.3A unless a failing gate names them.
 - Added A2.3B-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `f70f511fe975afaa5540745641c2eff425f60695`.
 - The A2.3B gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public answer-key stripping, explicit substitution evidence, at least three Gaussian-elimination families with row evidence, a real matrix-technology family, client/server 3×3 solution parity, mandatory RREF-technology use, and a complete error-analysis solve.
 - Full A2.3B assertion run `33318007307`: **QUEUED/RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.3B** until that run is green.
+- Full A2.3B assertion run `33318007307`: **PASS**.
+- Generated content, production issue gate, secure self-grading, public-key stripping, substitution evidence, Gaussian row evidence, matrix-technology enforcement, client/server 3×3 parity, complete error analysis, and student/runtime build all passed.
+- A2.3B is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.3C**.
 
 
 ### 2026-08-30 — A2.3A audit finding
