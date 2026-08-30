@@ -333,3 +333,127 @@ The ACT and TSIA2 choice-id leak is recorded in §3 and left alone.
 Items 1–5 are repairs to existing content and are in scope for this branch.
 Item 6 is new authoring at a scale that deserves its own decision. Item 7 is out
 of scope here.
+
+
+---
+
+# Part II — repairs made on this branch
+
+Everything below was done after the audit above, on
+`claude/digital-sat-v2-1-deep-certification`. Repairs touch the Digital SAT
+drafts under `drafts/ccmr-v2.1/digitalSAT/**` and Digital-SAT-specific tooling
+and tests only. **The production seed mirrors, the coverage manifests and the
+release constants are deliberately untouched**, so every measurement below is
+taken against the compiled draft:
+
+```
+node scripts/build-digital-sat-v2-1.mjs --release          # -> drafts/digitalSAT.v2.1.json
+node scripts/audit-digital-sat-certification.mjs --source drafts/digitalSAT.v2.1.json \
+  --samples 400 --yield 2000 --json drafts/ccmr-v2.1/audit-results/digital-sat-certification.json
+```
+
+## Verdicts, before and after
+
+| Verdict | Audited | After repairs |
+| --- | ---: | ---: |
+| KEEP | 165 | **508** |
+| REVISE | 320 | **0** |
+| REPLACE | 179 | **156** |
+
+## What is fixed
+
+| Defect | Before | After |
+| --- | ---: | ---: |
+| Multiple-choice families leaking the key through `sat-correct` | 498 | **0** |
+| Families failing to generate on some seeds | 1 | **0** |
+| Families rendering duplicate options | 1 | **0** |
+| Magnitude-answerable families, Geometry and Trigonometry | 21 | **0** |
+| Magnitude-answerable families, all domains | 177 | 156 |
+| Genuine unreduced-fraction items | 3 | **1** |
+| Cross-framework contamination | 0 | 0 |
+| Generator clones | 0 | 0 |
+
+The answer key is now spread across choice ids — a 123, b 127, c 119, d 129 —
+rather than sitting on one, and every multiple-choice family still keys a choice
+that exists and carries its answer variable.
+
+Geometry and Trigonometry is the one domain fully certified: all 21 flagged
+families now bracket their key with an overshoot, an undershoot and a genuine
+straddle, verified at 800 draws each and read by hand.
+
+## What is not fixed
+
+**156 families remain answerable by the size of their options**, all outside
+Geometry and Trigonometry:
+
+| Domain | Remaining | Of which challenge |
+| --- | ---: | ---: |
+| Advanced Math | 91 | ~60 |
+| Algebra | 37 | ~20 |
+| Problem-Solving and Data Analysis | 28 | ~10 |
+
+These are pinned in `tests/platform/digitalSatAnswerKeyIntegrity.test.mjs` as
+`MAGNITUDE_ANSWERABLE_CEILING`, asserted exactly, so the count can only fall:
+repairing families fails the test and forces the ceiling down, and a regression
+fails it too.
+
+The 165 clone findings (87 frame, 46 prompt overlap, 31 task, 17 cross-tier)
+are unchanged. Section 7 explains why the cross-tier figure is largely an
+artifact of a task fingerprint tuned to the ASVAB register; the frame and
+overlap findings are real but cosmetic, and were not worth churning content for
+ahead of the distractor work.
+
+Domain weighting is unchanged and still off blueprint — Advanced Math +18
+points, Geometry and Trigonometry −10. Raising Geometry and Trigonometry toward
+its real weight is new authoring at a scale that deserves its own decision, as
+section 12 said.
+
+## One expected test failure
+
+`tests/platform/ccmrV21ProductionReleaseContent.test.mjs` fails with exactly two
+entries, both Digital SAT:
+
+```
+root-drift       seed/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json
+functions-drift  functions/seeds/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json
+```
+
+This is the instructed state, not a defect. The drafts are repaired and the
+production mirrors are not, because refreshing them was explicitly out of scope.
+The test goes green the moment a seed regeneration is authorised. ACT, TSIA2 and
+the three course banks show no drift.
+
+The test was not modified to accommodate this. Two fixtures in
+`digitalSatDistractorQualityRegression.test.mjs` were re-pointed, and only
+because the two families they pin were rebuilt here: `satDistractor3: 'r*r'`
+became `dWhole: '4*k*k'` and `satDistractor3: '180-answer'` became
+`dAdjacent: '180-a-b'`. Both are the same quantity under a name that says what
+the misconception is.
+
+## Verification
+
+| Check | Result |
+| --- | --- |
+| `node --test "tests/platform/*.test.mjs"` | 2,659 tests, 2,658 pass, **1 fail** (the mirror drift above) |
+| `node --test tests/platform/digitalSat*.test.mjs` | 18 tests, **18 pass** |
+| `npm run build` | clean |
+| `npm run lint` | **0 errors** |
+| Compiled draft | 664 documents, 415 direct / 249 challenge, unchanged |
+| Generation yield | **0 failures** across 664 families at 2,000 draws |
+| Cross-framework contamination | **0** |
+
+## Two bugs in the audit tooling, found and fixed
+
+Recorded because they changed reported numbers:
+
+* Choice labels arrive as numbers as often as strings, and the local numeric
+  parser returned null for every numeric label — which silently reduced the
+  ladder and fixed-offset checks to LaTeX-labelled families only. The ladder
+  count moved 11 → 13 once fixed. The shared rank analyzer was never affected.
+* The distractor profile mistook the `--draws` value for a family filter and
+  profiled nothing.
+
+Two defects I introduced while repairing, both caught by the verification loop
+that is now committed as `scripts/digital-sat-verify-file.mjs`: reordering a
+choices array without moving `expected` left five families grading the wrong
+option, and one retuned family rendered `1:4` twice.

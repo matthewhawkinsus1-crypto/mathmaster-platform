@@ -29,9 +29,15 @@ const EXPECTED = Object.freeze({
   'mathmaster:sat:A2.5D:ccmr-challenge-exponent-parameter-from-solution': ['satDistractor3', 'p'],
   'mathmaster:sat:A2.7F:ccmr-challenge-numerator-coefficient-parameter': ['satDistractor3', 'c'],
   'mathmaster:sat:A2.7G:ccmr-challenge-radical-quotient-variable': ['satDistractor2', 'xval*xval'],
-  'mathmaster:sat:native:circles:ccmr-challenge-sector-area-coefficient': ['satDistractor3', 'r*r'],
+  // Renamed, not weakened: the sector-area challenge was rebuilt during the V2.1
+  // certification sweep and its distractors now carry meaning-bearing names.
+  // `dWhole` is 4*k*k, which is exactly the r*r this line used to pin - the whole
+  // circle's area coefficient, the same misconception under a readable name.
+  'mathmaster:sat:native:circles:ccmr-challenge-sector-area-coefficient': ['dWhole', '4*k*k'],
   'mathmaster:sat:native:inferenceMarginOfError:lower-bound': ['satDistractor3', 'margin'],
-  'mathmaster:sat:native:linesAnglesTriangles:triangle-exterior-angle': ['satDistractor3', '180-answer'],
+  // Same rename. `dAdjacent` is 180-a-b, which is the 180-answer this line used to
+  // pin, written out now that `answer` is a+b: the adjacent interior angle.
+  'mathmaster:sat:native:linesAnglesTriangles:triangle-exterior-angle': ['dAdjacent', '180-a-b'],
 });
 
 const KEEP = Object.freeze({

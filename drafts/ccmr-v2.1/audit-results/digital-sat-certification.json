@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-30T18:53:04.415Z",
+  "generatedAt": "2026-08-30T20:49:14.781Z",
   "source": "drafts/digitalSAT.v2.1.json",
   "samplesPerFamily": 400,
   "totals": {
@@ -401,9 +401,9 @@
     }
   },
   "verdicts": {
-    "keep": 487,
+    "keep": 508,
     "revise": 0,
-    "replace": 177
+    "replace": 156
   },
   "findings": [
     {
@@ -1581,222 +1581,6 @@
       "code": "answerKeyMagnitudeBias",
       "id": "mm_sat_A2_3G_2_possible-y-value_v21",
       "detail": "the key is the 2nd smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_areaVolume_1_rectangular-prism-volume_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_areaVolume_1_rectangular-prism-volume_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_areaVolume_2_triangle-area_v21",
-      "detail": "the key is the 2nd smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_areaVolume_3_cylinder-volume-coefficient_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_areaVolume_3_cylinder-volume-coefficient_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_areaVolume_4_rectangular-prism-surface-area_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_areaVolume_4_rectangular-prism-surface-area_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_areaVolume_5_area-scale-factor_v21",
-      "detail": "the key is the 2nd largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_areaVolume_ch1_area-ratio-length_v21",
-      "detail": "the key is the 2nd largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_areaVolume_ch2_volume-ratio-scale_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_areaVolume_ch2_volume-ratio-scale_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_areaVolume_ch3_composite-prism-volume_v21",
-      "detail": "the key is the 2nd smallest of the four in 99% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_circles_1_inscribed-angle_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_circles_1_inscribed-angle_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_circles_3_arc-length-coefficient_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_circles_3_arc-length-coefficient_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_circles_5_radians-to-degrees_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_circles_5_radians-to-degrees_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_circles_ch2_sector-area-coefficient_v21",
-      "detail": "the key is the 2nd largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_linesAnglesTriangles_1_triangle-angle-sum_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_linesAnglesTriangles_1_triangle-angle-sum_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_linesAnglesTriangles_4_triangle-exterior-angle_v21",
-      "detail": "the key is the largest of the four in 62% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_linesAnglesTriangles_4_triangle-exterior-angle_v21",
-      "detail": "the key is the largest of the four in 62% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_linesAnglesTriangles_ch2_similar-triangle-side_v21",
-      "detail": "the key is the 2nd largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_linesAnglesTriangles_ch3_similarity-from-perimeters_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_linesAnglesTriangles_ch3_similarity-from-perimeters_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_rightTrig_4_sine-from-sides_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_rightTrig_4_sine-from-sides_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_rightTrig_5_complementary-sine-cosine_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_rightTrig_5_complementary-sine-cosine_v21",
-      "detail": "the key is the smallest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_rightTrig_ch1_tangent-height_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_rightTrig_ch1_tangent-height_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_rightTrig_ch2_cosine-find-opposite_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_rightTrig_ch2_cosine-find-opposite_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyMagnitudeBias",
-      "id": "mm_sat_native_rightTrig_ch3_similar-right-triangles_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
-    },
-    {
-      "severity": "replace",
-      "code": "answerKeyExtremeBias",
-      "id": "mm_sat_native_rightTrig_ch3_similar-right-triangles_v21",
-      "detail": "the key is the largest of the four in 100% of draws"
     },
     {
       "severity": "replace",
@@ -2984,13 +2768,7 @@
       "severity": "revise",
       "code": "taskClone",
       "id": "",
-      "detail": "mm_sat_native_circles_1_inscribed-angle_v21 + mm_sat_native_circles_3_arc-length-coefficient_v21 + mm_sat_native_rightTrig_ch1_tangent-height_v21 + mm_sat_native_rightTrig_ch2_cosine-find-opposite_v21 share one task structure"
-    },
-    {
-      "severity": "revise",
-      "code": "taskClone",
-      "id": "",
-      "detail": "mm_sat_native_circles_2_tangent-radius-distance_v21 + mm_sat_native_rightTrig_1_pythagorean-hypotenuse_v21 + mm_sat_native_rightTrig_5_complementary-sine-cosine_v21 share one task structure"
+      "detail": "mm_sat_native_circles_2_tangent-radius-distance_v21 + mm_sat_native_rightTrig_1_pythagorean-hypotenuse_v21 share one task structure"
     },
     {
       "severity": "revise",
@@ -3115,18 +2893,6 @@
     {
       "severity": "replace",
       "code": "crossTierTaskClone",
-      "id": "mm_sat_native_rightTrig_ch1_tangent-height_v21",
-      "detail": "challenge family shares its task structure with direct mm_sat_native_circles_1_inscribed-angle_v21"
-    },
-    {
-      "severity": "replace",
-      "code": "crossTierTaskClone",
-      "id": "mm_sat_native_rightTrig_ch2_cosine-find-opposite_v21",
-      "detail": "challenge family shares its task structure with direct mm_sat_native_circles_1_inscribed-angle_v21"
-    },
-    {
-      "severity": "replace",
-      "code": "crossTierTaskClone",
       "id": "mm_sat_native_claim_ch1_random-sample-and-assignment_v21",
       "detail": "challenge family shares its task structure with direct mm_sat_native_claim_1_observational-association_v21"
     },
@@ -3144,10 +2910,10 @@
     }
   ],
   "cloneCounts": {
-    "taskClone": 32,
+    "taskClone": 31,
     "frameClone": 87,
     "promptOverlap": 46,
-    "crossTierTaskClone": 19,
+    "crossTierTaskClone": 17,
     "generatorClone": 0
   },
   "crossFrameworkMatches": [],

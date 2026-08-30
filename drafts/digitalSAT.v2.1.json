@@ -57614,12 +57614,12 @@
           "k": {
             "type": "int",
             "min": 2,
-            "max": 8
+            "max": 9
           },
           "h": {
             "type": "int",
             "min": 3,
-            "max": 11
+            "max": 13
           }
         },
         "derived": {
@@ -57627,7 +57627,7 @@
           "area": "k*h",
           "d1": "2*k*h",
           "d2": "2*(2*k+h)",
-          "d3": "k+h"
+          "d3": "2*k+h"
         },
         "constraints": [
           "area!=d1",
