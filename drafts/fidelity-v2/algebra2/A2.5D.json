@@ -123,13 +123,6 @@
           "label": "Exact solution for x",
           "inputProfile": "expression",
           "expected": "ln({{ratio}})/ln(2)"
-        },
-        {
-          "id": "approx",
-          "label": "Decimal x (nearest thousandth)",
-          "inputProfile": "number",
-          "numericTolerance": 0.0015,
-          "expected": "{{approx}}"
         }
       ],
       "solutionReview": {
@@ -137,9 +130,9 @@
         "reasoning": [
           "Divide by {{a}} to get $2^x={{ratio}}$.",
           "Taking natural logs gives $x\\ln2=\\ln({{ratio}})$.",
-          "So $x=\\ln({{ratio}})/\\ln2\\approx{{approx}}$."
+          "Therefore $x=\\ln({{ratio}})/\\ln2$ exactly; a calculator may be used afterward if a decimal is desired."
         ],
-        "answerSummary": "$x=\\frac{\\ln({{ratio}})}{\\ln2}\\approx{{approx}}$"
+        "answerSummary": "$x=\\frac{\\ln({{ratio}})}{\\ln2}$"
       },
       "attemptFeedback": [
         "Do not round before writing the exact logarithmic solution."
@@ -166,8 +159,7 @@
           }
         },
         "derived": {
-          "target": "a*ratio",
-          "approx": "round(log(ratio)/log(2),3)"
+          "target": "a*ratio"
         }
       }
     },
@@ -393,13 +385,6 @@
           "label": "Correct exact x",
           "inputProfile": "expression",
           "expected": "ln({{ratio}})/ln(2)"
-        },
-        {
-          "id": "approx",
-          "label": "Decimal x (nearest thousandth)",
-          "inputProfile": "number",
-          "numericTolerance": 0.0015,
-          "expected": "{{approx}}"
         }
       ],
       "solutionReview": {
@@ -407,9 +392,9 @@
         "reasoning": [
           "Divide by {{a}} first to obtain $2^x={{ratio}}$.",
           "Then $x=\\ln({{ratio}})/\\ln2$.",
-          "Numerically, $x\\approx{{approx}}$."
+          "The repaired work finishes with an exact logarithmic solution rather than the student's incorrect direct-log step."
         ],
-        "answerSummary": "$x=\\frac{\\ln({{ratio}})}{\\ln2}\\approx{{approx}}$"
+        "answerSummary": "$x=\\frac{\\ln({{ratio}})}{\\ln2}$"
       },
       "attemptFeedback": [
         "Repair the structural error first; do not simply adjust the student's final decimal."
@@ -436,8 +421,7 @@
           }
         },
         "derived": {
-          "target": "a*ratio",
-          "approx": "round(log(ratio)/log(2),3)"
+          "target": "a*ratio"
         }
       }
     }
