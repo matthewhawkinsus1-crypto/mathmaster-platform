@@ -37468,7 +37468,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "For $y = {{a}}(x - {{h}})^2 + {{k}}$ on ${{lo}} \\le x \\le {{hi}}$, with ${{lo}}$ above ${{h}}$, what is the range?",
+   "prompt": "For $y = {{a}}(x - {{h}})^2 + {{k}}$ on ${{lo}} \\le x \\le {{hi}}$, what is the range?",
    "solutionReview": {
     "headline": "A domain clear of the vertex gives a range between the two endpoints.",
     "reasoning": [
@@ -37569,7 +37569,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:mk:A.6A:range-over-a-domain-past-the-vertex",
-    "sourcePrompt": "For $y = {{a}}(x - {{h}})^2 + {{k}}$ on ${{lo}} \\le x \\le {{hi}}$, with ${{lo}}$ above ${{h}}$, what is the range?"
+    "sourcePrompt": "For $y = {{a}}(x - {{h}})^2 + {{k}}$ on ${{lo}} \\le x \\le {{hi}}$, what is the range?"
    }
   },
   {
@@ -38162,7 +38162,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "For $y = {{a}}(x - {{h}})^2 + {{k}}$ with ${{a}}$ positive, which statement is wrong?",
+   "prompt": "The parabola $y = {{a}}(x - {{h}})^2 + {{k}}$ opens upwards. Which statement is wrong?",
    "solutionReview": {
     "headline": "Vertex form shows the axis directly, sign included.",
     "reasoning": [
@@ -38249,7 +38249,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:mk:A.7A:claim-about-a-parabola-in-vertex-form",
-    "sourcePrompt": "For $y = {{a}}(x - {{h}})^2 + {{k}}$ with ${{a}}$ positive, which statement is wrong?"
+    "sourcePrompt": "The parabola $y = {{a}}(x - {{h}})^2 + {{k}}$ opens upwards. Which statement is wrong?"
    }
   },
   {

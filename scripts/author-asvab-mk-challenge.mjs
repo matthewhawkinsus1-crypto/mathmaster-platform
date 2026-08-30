@@ -8224,7 +8224,7 @@ mkc('A.5C', 'equation-substitution-leaves-behind', {
 
 mkc('A.6A', 'range-over-a-domain-past-the-vertex', {
   difficultyBand: 4, dok: 2, taskType: 'interpretation', representation: 'symbolic', courseId: 'algebra1',
-  prompt: 'For $y = {{a}}(x - {{h}})^2 + {{k}}$ on ${{lo}} \\le x \\le {{hi}}$, with ${{lo}}$ above ${{h}}$, what is the range?',
+  prompt: 'For $y = {{a}}(x - {{h}})^2 + {{k}}$ on ${{lo}} \\le x \\le {{hi}}$, what is the range?',
   generator: {
     parameters: {
       a: { type: 'int', min: 1, max: 6 },
@@ -8374,7 +8374,7 @@ mkc('A.7A', 'coefficient-behind-a-known-axis', {
 
 mkc('A.7A', 'claim-about-a-parabola-in-vertex-form', {
   difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
-  prompt: 'For $y = {{a}}(x - {{h}})^2 + {{k}}$ with ${{a}}$ positive, which statement is wrong?',
+  prompt: 'The parabola $y = {{a}}(x - {{h}})^2 + {{k}}$ opens upwards. Which statement is wrong?',
   generator: {
     parameters: {
       a: { type: 'int', min: 1, max: 8 },
