@@ -642,7 +642,104 @@
           "r3": "c3-c1",
           "r4": "r2+3*r3"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-integer-row-error-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "solutionMethod": "gaussianElimination",
+          "prompt": "A student solves $x+y+z={{c1}}$, $2x-y+z={{c2}}$, $x+2y-z={{c3}}$ and writes $R_2-2R_1$ as $-3y+z={{r2}}$. Diagnose the z-sign error, write the corrected row, and finish the 3×3 solution.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Error",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "z",
+                  "label": "The z coefficient is 1-2=-1, so the term must be -z."
+                },
+                {
+                  "id": "none",
+                  "label": "The student's row is correct."
+                }
+              ],
+              "expected": "z"
+            },
+            {
+              "id": "row2",
+              "label": "Corrected R2",
+              "inputProfile": "equation",
+              "expected": "-3y-z={{r2}}"
+            },
+            {
+              "id": "x",
+              "label": "x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            },
+            {
+              "id": "y",
+              "label": "y",
+              "inputProfile": "number",
+              "expected": "{{y}}"
+            },
+            {
+              "id": "z",
+              "label": "z",
+              "inputProfile": "number",
+              "expected": "{{z}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Repair the row operation, then complete the solve.",
+            "reasoning": [
+              "The z entry becomes -1, not +1.",
+              "Using the corrected row with the third equation leads to the generated integer solution."
+            ],
+            "answerSummary": "Corrected row and full solution."
+          },
+          "attemptFeedback": [
+            "A diagnosis alone is not enough; finish all three variables."
+          ],
+          "supportHints": [
+            "Recompute R2-2R1 column by column."
+          ],
+          "generator": {
+            "parameters": {
+              "x": {
+                "type": "int",
+                "min": -2,
+                "max": 3
+              },
+              "y": {
+                "type": "int",
+                "min": -2,
+                "max": 3
+              },
+              "z": {
+                "type": "int",
+                "min": -2,
+                "max": 3
+              }
+            },
+            "derived": {
+              "c1": "x+y+z",
+              "c2": "2*x-y+z",
+              "c3": "x+2*y-z",
+              "r2": "c2-2*c1"
+            }
+          }
+        }
+      ]
     }
   ]
 }
