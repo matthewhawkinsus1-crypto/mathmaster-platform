@@ -16,10 +16,10 @@ test('Fidelity V2 challenge and DOK/difficulty audit protects the current cross-
   assert.equal(result.algebra2.familyCount, 240);
   assert.deepEqual(TARGET_ADAPTIVE_PAIRS, ['2:2', '2:3', '2:4', '3:3', '3:4']);
 
-  // This test is intentionally monotonic while the upgrade pass is active:
-  // Challenge readiness may increase and gap counts may decrease, but neither
-  // course is allowed to regress below the audited baseline.
-  assert.ok(result.algebra1.challengeReadyCount >= 14);
+  // Algebra I has completed the preferred adaptive target; Algebra II remains
+  // monotonic while its independent-axis upgrade pass is active.
+  assert.equal(result.algebra1.challengeReadyCount, 49);
+  assert.equal(result.algebra1.strictFailureCount, 0);
   assert.equal(result.algebra2.challengeReadyCount, 48);
   assert.equal(result.algebra2.challengeMissingCount, 0);
 
@@ -39,9 +39,11 @@ test('Fidelity V2 challenge and DOK/difficulty audit protects the current cross-
   }
 });
 
-test('strict readiness remains explicit until every preferred cell is present or excepted', () => {
+test('Algebra I is strictly ready while Algebra II remains explicit until its preferred cells are complete', () => {
   const result = runAudit();
-  assert.ok(result.algebra1.strictFailureCount > 0);
+  assert.equal(result.algebra1.strictFailureCount, 0);
+  assert.equal(result.algebra1.fullPreferredTargetCount, 49);
+  assert.equal(result.algebra1.challengeReadyCount, 49);
   assert.ok(result.algebra2.strictFailureCount > 0);
 
   for (const course of [result.algebra1, result.algebra2]) {
