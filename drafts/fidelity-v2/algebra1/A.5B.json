@@ -230,7 +230,7 @@
       "assessedConstruct": "A.5B",
       "taskType": "application",
       "representation": "context",
-      "prompt": "A service charges a fixed fee of {{fee}} dollars plus {{rate}} dollars per hour. A customer can spend at most ${{budget}} dollars. Let $h$ be the number of hours. Write and solve the inequality that describes the possible hours.",
+      "prompt": "A service charges a fixed fee of {{fee}} dollars plus {{rate}} dollars per hour. A customer can spend at most {{budget}} dollars. Let $h$ be the number of hours. Write and solve the inequality that describes the possible hours.",
       "responseFields": [
         {
           "id": "model",
