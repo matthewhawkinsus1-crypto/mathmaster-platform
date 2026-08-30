@@ -341,7 +341,170 @@
       },
       "variants": [
         {
-          "coverageKey": "core-2b4"
+          "coverageKey": "core-2b4",
+          "dok": 2,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d2b2-single-square-factor-extraction",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "representationTranslation",
+          "representation": "symbolic",
+          "prompt": "Simplify $\\sqrt{{{sq}}\\cdot{{r}}}$ by extracting the perfect-square factor. Report the outside coefficient and the completely simplified radical.",
+          "responseFields": [
+            {
+              "id": "outside",
+              "label": "Coefficient outside the radical",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "inside",
+              "label": "Radicand remaining",
+              "inputProfile": "number",
+              "expected": "{{r}}"
+            },
+            {
+              "id": "answer",
+              "label": "Simplified radical",
+              "inputProfile": "expression",
+              "expected": "{{k}}*sqrt({{r}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Separate one perfect-square factor from the remaining non-square radicand.",
+            "reasoning": [
+              "${{sq}}={{k}}^2$.",
+              "Therefore $\\sqrt{{{sq}}\\cdot{{r}}}={{k}}\\sqrt{{{r}}}$."
+            ],
+            "answerSummary": "${{k}}\\sqrt{{{r}}}$"
+          },
+          "attemptFeedback": [
+            "Take the square root of the perfect-square factor only."
+          ],
+          "supportHints": [
+            "Look for k² inside the radicand."
+          ],
+          "generator": {
+            "parameters": {
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "r": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  5,
+                  6,
+                  7,
+                  10
+                ]
+              }
+            },
+            "derived": {
+              "sq": "k*k"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-simplify-then-combine-claim-check",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student says $\\sqrt{{{n1}}}+\\sqrt{{{n2}}}$ cannot be combined because the radicands are different. Simplify BOTH radicals, identify the common radical part, decide whether the claim is correct, and write the combined result.",
+          "responseFields": [
+            {
+              "id": "first-coef",
+              "label": "Coefficient after simplifying the first radical",
+              "inputProfile": "number",
+              "expected": "{{p}}"
+            },
+            {
+              "id": "second-coef",
+              "label": "Coefficient after simplifying the second radical",
+              "inputProfile": "number",
+              "expected": "{{q}}"
+            },
+            {
+              "id": "common",
+              "label": "Common simplified radicand",
+              "inputProfile": "number",
+              "expected": "{{r}}"
+            },
+            {
+              "id": "diagnosis",
+              "label": "Evaluate the student's claim",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "combine",
+                  "label": "The claim is false; after simplification the radicals are like terms and can be combined."
+                },
+                {
+                  "id": "cannot",
+                  "label": "The claim is true because the original radicands differ."
+                }
+              ],
+              "expected": "combine"
+            },
+            {
+              "id": "answer",
+              "label": "Combined simplified result",
+              "inputProfile": "expression",
+              "expected": "{{sum}}*sqrt({{r}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Radicals that look unlike can become like terms after complete simplification.",
+            "reasoning": [
+              "$\\sqrt{{{n1}}}={{p}}\\sqrt{{{r}}}$ and $\\sqrt{{{n2}}}={{q}}\\sqrt{{{r}}}$.",
+              "The common radical part is $\\sqrt{{{r}}}$, so the coefficients add to {{sum}}."
+            ],
+            "answerSummary": "${{sum}}\\sqrt{{{r}}}$"
+          },
+          "attemptFeedback": [
+            "Simplify each radical completely before deciding whether the terms are like."
+          ],
+          "supportHints": [
+            "Factor each radicand into a perfect square times the same square-free r."
+          ],
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "q": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "r": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            },
+            "derived": {
+              "n1": "p*p*r",
+              "n2": "q*q*r",
+              "sum": "p+q"
+            },
+            "constraints": [
+              "p!=q"
+            ]
+          }
         },
         {
           "coverageKey": "challenge-d3b4-simplify-before-combining-error",
