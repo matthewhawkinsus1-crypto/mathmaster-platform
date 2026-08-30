@@ -174,7 +174,97 @@
         "constraints": [
           "newb != b"
         ]
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d2b2-simple-parallel-from-table",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "The two table rows lie on a line. Find the reference slope, then write the equation of a parallel line through $({{px}},{{py}})$.",
+          "stimulus": {
+            "kind": "table",
+            "table": {
+              "headers": [
+                "x",
+                "y"
+              ],
+              "rows": [
+                [
+                  "{{x1}}",
+                  "{{y1}}"
+                ],
+                [
+                  "{{x2}}",
+                  "{{y2}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "slope",
+              "label": "Reference-line slope",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "equation",
+              "label": "Parallel-line equation",
+              "inputProfile": "equation",
+              "expected": "y={{m}}x{{newb|signed}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "x1": {
+                "type": "int",
+                "min": -3,
+                "max": 1
+              },
+              "span": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "refb": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "px": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "newb": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              }
+            },
+            "derived": {
+              "x2": "x1+span",
+              "y1": "m*x1+refb",
+              "y2": "m*x2+refb",
+              "py": "m*px+newb"
+            },
+            "constraints": [
+              "newb!=refb"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_2E_v2_standard-form-reference",
@@ -329,7 +419,100 @@
         "constraints": [
           "newb != b"
         ]
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d3b3-compare-parallel-candidates",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A reference line is $y={{m}}x{{refb|signed}}$. The required line must be parallel to it and pass through $({{px}},{{py}})$. Candidate A uses the correct slope but the wrong intercept {{wrongb}}. Candidate B passes through the point but uses slope {{altm}}. Evaluate both conditions and write the correct line.",
+          "responseFields": [
+            {
+              "id": "candidate-a",
+              "label": "Why does Candidate A fail?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "misses-point",
+                  "label": "It is parallel but does not pass through the required point."
+                },
+                {
+                  "id": "wrong-slope",
+                  "label": "Its slope is not parallel to the reference line."
+                }
+              ],
+              "expected": "misses-point"
+            },
+            {
+              "id": "candidate-b",
+              "label": "Why does Candidate B fail?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "wrong-slope",
+                  "label": "It passes through the point but is not parallel."
+                },
+                {
+                  "id": "misses-point",
+                  "label": "It is parallel but misses the point."
+                }
+              ],
+              "expected": "wrong-slope"
+            },
+            {
+              "id": "equation",
+              "label": "Correct parallel-line equation",
+              "inputProfile": "equation",
+              "expected": "y={{m}}x{{newb|signed}}"
+            },
+            {
+              "id": "verify",
+              "label": "y-value from the correct line at x={{px}}",
+              "inputProfile": "number",
+              "expected": "{{py}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "refb": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "px": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "newb": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              }
+            },
+            "derived": {
+              "py": "m*px+newb",
+              "wrongb": "newb+1",
+              "altm": "m+1"
+            },
+            "constraints": [
+              "newb!=refb",
+              "altm!=m"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_2E_v2_two-point-reference",
