@@ -1,3 +1,5 @@
+> **Audit status note (superseded for shipping-bank verdicts):** This review was produced from the older Algebra I authoring modules before the audit confirmed that those 245 source families have **0/245 code+slug overlap** with the 245-family shipping Adaptive V2 seed. Keep this file as pedagogical/source-history evidence only. The authoritative current-bank verdict is `TEKS_FIDELITY_V2_ALGEBRA1_49_STANDARD_MATRIX.md`.
+
 # TEKS Fidelity V2 — Algebra I Strand Review 2
 
 Scope: systems/data, quadratics, and exponentials. Read-only audit; no student bank changes in this commit.
