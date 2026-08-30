@@ -308,7 +308,7 @@ export const createTeacherPathRuntime = ({
     // or private grading definition, otherwise a teacher sees literal {{n}}
     // placeholders while a student receives a concrete server-generated item.
     const generated = hasPathGenerator(chosen.question)
-      ? generatePathInstanceWithRetries(chosen.question, `${session.sessionId}|${questionInstanceId}`, {
+      ? generatePathInstanceWithRetries(chosen.question, `${session.sessionId}|${questionInstanceId}`, 4, {
         preferredDok: session.preferredDok || 2,
         preferredDifficultyBand: session.preferredBand || 3,
       })
