@@ -70,8 +70,8 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const forcedModelId = FIT_PREDICTION_MODELS[mode] || null;
   const startingModel = questionData.startingModel || {};
 
-  const [m, setM] = useState(questionData.startingModel?.m ?? round(regression.m * 0.75, 2));
-  const [b, setB] = useState(questionData.startingModel?.b ?? round(regression.b + 1, 2));
+  const [m, setM] = useState(questionData.startingModel?.m ?? (forcedModelId === 'linear' ? 1 : round(regression.m * 0.75, 2)));
+  const [b, setB] = useState(questionData.startingModel?.b ?? (forcedModelId === 'linear' ? 0 : round(regression.b + 1, 2)));
   const [direction, setDirection] = useState('positive');
   const [strength, setStrength] = useState('moderate');
   const [causation, setCausation] = useState('association');
