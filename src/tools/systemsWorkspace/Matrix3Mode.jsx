@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Panel, ToolSplit, ResultPill, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
-import { applyMatrix3RowOperation, normalizeMatrix3, rref3x4 } from './systemsMath';
+import { applyMatrix3RowOperationToMatrix, normalizeMatrix3, rref3x4 } from './systemsMath';
 
 const inputStyle = {
   width: '100%', boxSizing: 'border-box', padding: '9px 8px',
@@ -25,11 +25,15 @@ const close = (left, right, tolerance = 0.02) => (
   && Math.abs(Number(left) - Number(right)) <= tolerance
 );
 
-const sameRow = (left, right, tolerance = 0.02) => (
-  Array.isArray(left) && Array.isArray(right) && left.length === 4 && right.length === 4
-  && left.every((entry, index) => close(entry, right[index], tolerance))
+const rowArray = (row = {}) => (
+  Array.isArray(row) ? row.slice(0, 4) : [row.a, row.b, row.c, row.d]
 );
-
+const rowObject = (row = []) => ({ a:Number(row[0]), b:Number(row[1]), c:Number(row[2]), d:Number(row[3]) });
+const sameRow = (left, right, tolerance = 0.02) => {
+  const a = rowArray(left);
+  const b = rowArray(right);
+  return a.length === 4 && b.length === 4 && a.every((entry, index) => close(entry, b[index], tolerance));
+};
 const sameMatrix = (left, right, tolerance = 0.02) => (
   Array.isArray(left) && Array.isArray(right) && left.length === 3 && right.length === 3
   && left.every((row, index) => sameRow(row, right[index], tolerance))
@@ -71,22 +75,37 @@ export default function Matrix3Mode({ questionData = {}, onAction }) {
   const rows = useMemo(() => normalizeMatrix3(matrix), [matrix]);
   const solved = useMemo(() => rref3x4(matrix), [matrix]);
   const method = questionData.method === 'rref' ? 'rref' : 'gaussian';
-  const operation = questionData.rowOperation || { targetRow: 1, sourceRow: 0, factor: 1 };
-  const expectedCheckpoint = useMemo(
-    () => (method === 'gaussian' ? applyMatrix3RowOperation(matrix, operation) : null),
-    [method, matrix, operation],
-  );
+  const rowOperations = useMemo(() => {
+    const authored = Array.isArray(questionData.rowOperations)
+      ? questionData.rowOperations
+      : (questionData.rowOperation ? [questionData.rowOperation] : []);
+    return authored.length ? authored : [{ targetRow: 1, sourceRow: 0, factor: 1 }];
+  }, [questionData.rowOperations, questionData.rowOperation]);
+  const expectedCheckpoints = useMemo(() => {
+    if (method !== 'gaussian') return [];
+    let working = rows.map((row) => [...row]);
+    const checkpoints = [];
+    rowOperations.forEach((operation) => {
+      const next = applyMatrix3RowOperationToMatrix({ rows: working }, operation);
+      if (!next) return;
+      working = next;
+      checkpoints.push([...working[Number(operation.targetRow)]]);
+    });
+    return checkpoints;
+  }, [method, rows, rowOperations]);
   const [classification, setClassification] = useState('');
   const [x, setX] = useState('');
   const [y, setY] = useState('');
   const [z, setZ] = useState('');
-  const [checkpoint, setCheckpoint] = useState(['', '', '', '']);
+  const [checkpoints, setCheckpoints] = useState(() => rowOperations.map(() => ['', '', '', '']));
   const [rref, setRref] = useState(Array.from({ length: 3 }, () => ['', '', '', '']));
   const { feedback, submit } = useToolSubmission(onAction);
   const tolerance = Number(questionData.numericTolerance ?? 0.02);
 
-  const setCheckpointValue = (index, value) => {
-    setCheckpoint((current) => current.map((entry, i) => (i === index ? value : entry)));
+  const setCheckpointValue = (rowIndex, colIndex, value) => {
+    setCheckpoints((current) => current.map((row, r) => (
+      r === rowIndex ? row.map((entry, c) => (c === colIndex ? value : entry)) : row
+    )));
   };
   const setRrefValue = (rowIndex, colIndex, value) => {
     setRref((current) => current.map((row, r) => (
@@ -97,7 +116,8 @@ export default function Matrix3Mode({ questionData = {}, onAction }) {
   const check = () => {
     const classCorrect = classification === solved.type;
     const proofCorrect = method === 'gaussian'
-      ? sameRow(checkpoint, expectedCheckpoint, tolerance)
+      ? checkpoints.length === expectedCheckpoints.length
+        && checkpoints.every((row, index) => sameRow(row, expectedCheckpoints[index], tolerance))
       : sameMatrix(rref, solved.matrix, tolerance);
     const solutionCorrect = solved.type !== 'one'
       || (close(x, solved.x, tolerance) && close(y, solved.y, tolerance) && close(z, solved.z, tolerance));
@@ -108,8 +128,8 @@ export default function Matrix3Mode({ questionData = {}, onAction }) {
       y: Number(y),
       z: Number(z),
       ...(method === 'gaussian'
-        ? { checkpoint: checkpoint.map(Number) }
-        : { rref: rref.map((row) => row.map(Number)) }),
+        ? { checkpoints: checkpoints.map((row) => rowObject(row)) }
+        : { rref: rref.map((row) => rowObject(row)) }),
     };
     submit(
       { isCorrect: parts.every(Boolean), score: parts.filter(Boolean).length / parts.length },
@@ -130,10 +150,6 @@ export default function Matrix3Mode({ questionData = {}, onAction }) {
     return 'The row work and classification are right. Recheck x, y, and z against the reduced rows.';
   };
 
-  const target = Number(operation.targetRow ?? 1);
-  const source = Number(operation.sourceRow ?? 0);
-  const factor = Number(operation.factor ?? 1);
-
   return (
     <ToolSplit>
       <Panel title="3×3 augmented matrix">
@@ -143,8 +159,8 @@ export default function Matrix3Mode({ questionData = {}, onAction }) {
         </p>
         {method === 'gaussian' ? (
           <div style={{ marginTop: 16, padding: 12, borderRadius: 10, background: '#f8fbff', color: '#344563' }}>
-            <strong>Gaussian checkpoint:</strong>{' '}
-            compute R{target + 1} ← R{target + 1} − ({display(factor)})R{source + 1}, then enter the new R{target + 1}.
+            <strong>Gaussian checkpoints:</strong>{' '}
+            complete each listed row operation in order. Enter the resulting target row after every operation.
           </div>
         ) : (
           <div style={{ marginTop: 16, padding: 12, borderRadius: 10, background: '#f8fbff', color: '#344563' }}>
@@ -156,20 +172,34 @@ export default function Matrix3Mode({ questionData = {}, onAction }) {
       <Panel title={method === 'gaussian' ? 'Gaussian elimination evidence' : 'Technology RREF evidence'}>
         {method === 'gaussian' ? (
           <>
-            <p style={{ marginTop: 0, color: '#5f6b7a' }}>Enter the four entries of the new row after the required row operation.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
-              {checkpoint.map((value, index) => (
-                <input
-                  key={index}
-                  type="number"
-                  inputMode="decimal"
-                  step="any"
-                  aria-label={`Gaussian checkpoint entry ${index + 1}`}
-                  value={value}
-                  onChange={(event) => setCheckpointValue(index, event.target.value)}
-                  style={inputStyle}
-                />
-              ))}
+            <p style={{ marginTop: 0, color: '#5f6b7a' }}>Apply each operation in order and enter the resulting target row.</p>
+            <div style={{ display:'grid', gap:14 }}>
+              {rowOperations.map((operation, rowIndex) => {
+                const target = Number(operation.targetRow ?? 1);
+                const source = Number(operation.sourceRow ?? 0);
+                const factor = Number(operation.factor ?? 1);
+                return (
+                  <div key={rowIndex} style={{ padding:10, border:'1px solid #e3e8f0', borderRadius:9 }}>
+                    <div style={{ marginBottom:8, fontSize:13, fontWeight:800, color:'#344563' }}>
+                      {rowIndex + 1}. R{target + 1} ← R{target + 1} − ({display(factor)})R{source + 1}
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(4, minmax(0, 1fr))', gap:8 }}>
+                      {checkpoints[rowIndex].map((value, colIndex) => (
+                        <input
+                          key={colIndex}
+                          type="number"
+                          inputMode="decimal"
+                          step="any"
+                          aria-label={`Gaussian checkpoint ${rowIndex + 1} entry ${colIndex + 1}`}
+                          value={value}
+                          onChange={(event) => setCheckpointValue(rowIndex, colIndex, event.target.value)}
+                          style={inputStyle}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </>
         ) : (
