@@ -205,6 +205,7 @@ export const pathPredictionKind = (points = [], x) => {
 };
 
 const FIT_ONLY_MODES = Object.freeze({
+  linearFit: 'linear',
   quadraticFit: 'quadratic',
   exponentialFit: 'exponential',
 });
