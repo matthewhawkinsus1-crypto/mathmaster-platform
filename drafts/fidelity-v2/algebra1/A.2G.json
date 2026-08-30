@@ -292,7 +292,117 @@
             "max": 7
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b3"
+        },
+        {
+          "coverageKey": "challenge-d3b4-horizontal-vertical-cross-analysis",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "A student examines a vertical line through $({{vx}},{{vy1}})$ and $({{vx}},{{vy2}})$ and a horizontal line through $({{hx1}},{{hy}})$ and $({{hx2}},{{hy}})$. The student says both slopes are 0 because each line has one coordinate that does not change. Repair the claim by writing both equations, classifying both slopes, and identifying where the two lines intersect.",
+          "responseFields": [
+            {
+              "id": "vertical-equation",
+              "label": "Vertical-line equation",
+              "inputProfile": "equation",
+              "expected": "x={{vx}}"
+            },
+            {
+              "id": "vertical-slope",
+              "label": "Vertical-line slope",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "undefined",
+                  "label": "Undefined"
+                },
+                {
+                  "id": "zero",
+                  "label": "0"
+                }
+              ],
+              "expected": "undefined"
+            },
+            {
+              "id": "horizontal-equation",
+              "label": "Horizontal-line equation",
+              "inputProfile": "equation",
+              "expected": "y={{hy}}"
+            },
+            {
+              "id": "horizontal-slope",
+              "label": "Horizontal-line slope",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "intersection-x",
+              "label": "Intersection x-coordinate",
+              "inputProfile": "number",
+              "expected": "{{vx}}"
+            },
+            {
+              "id": "intersection-y",
+              "label": "Intersection y-coordinate",
+              "inputProfile": "number",
+              "expected": "{{hy}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Which coordinate is constant determines both the equation form and the slope behavior.",
+            "reasoning": [
+              "The vertical line keeps x={{vx}} fixed, so its equation is x={{vx}} and its slope is undefined.",
+              "The horizontal line keeps y={{hy}} fixed, so its equation is y={{hy}} and its slope is 0.",
+              "Both conditions hold at the intersection $({{vx}},{{hy}})$."
+            ],
+            "answerSummary": "Vertical: x={{vx}}, undefined slope. Horizontal: y={{hy}}, slope 0."
+          },
+          "attemptFeedback": [
+            "For slope, ask whether the horizontal change Δx is zero or the vertical change Δy is zero."
+          ],
+          "supportHints": [
+            "A vertical line has Δx=0, so its slope denominator is zero."
+          ],
+          "generator": {
+            "parameters": {
+              "vx": {
+                "type": "int",
+                "min": -7,
+                "max": 7
+              },
+              "vy1": {
+                "type": "int",
+                "min": -7,
+                "max": -1
+              },
+              "vy2": {
+                "type": "int",
+                "min": 1,
+                "max": 7
+              },
+              "hx1": {
+                "type": "int",
+                "min": -7,
+                "max": -1
+              },
+              "hx2": {
+                "type": "int",
+                "min": 1,
+                "max": 7
+              },
+              "hy": {
+                "type": "int",
+                "min": -7,
+                "max": 7
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }
