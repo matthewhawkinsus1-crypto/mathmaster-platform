@@ -80,7 +80,7 @@ if (fakeTables.length) {
 }
 
 const graphLabelled = docs.filter((doc) => String(doc.representation || '').toLowerCase() === 'graph');
-const graphTools = new Set(['functionInvestigation', 'systemsWorkspace', 'graphing2', 'dataModelingLab']);
+const graphTools = new Set(['functionInvestigation', 'systemsWorkspace', 'graphing2', 'dataModelingLab', 'intervalNumberLine']);
 const fakeGraphs = graphLabelled.filter((doc) => !hasStimulusKind(doc, 'graph') && !graphTools.has(String(doc.type || '')));
 if (fakeGraphs.length) {
   add(
