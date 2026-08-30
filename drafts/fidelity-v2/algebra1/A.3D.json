@@ -208,6 +208,11 @@
       },
       "variants": [
         {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
           "coverageKey": "adaptive-d2b4-fractional-boundary-construction",
           "dok": 2,
           "difficultyBand": 4,
@@ -411,6 +416,11 @@
         }
       },
       "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
         {
           "coverageKey": "adaptive-d3b3-feasibility-test-plus-construction",
           "dok": 3,
