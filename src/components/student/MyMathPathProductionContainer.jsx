@@ -30,6 +30,9 @@ export const MyMathPathProductionContainer = ({
   weekKey = null,
   weeklySlotKey = null,
   weeklySlot = null,
+  intendedDok = null,
+  intendedDifficultyBand = null,
+  weeklyPurpose = null,
   weeklyGoalRequired = null,
   completesWeeklyGoal = false,
   studentProfile,
@@ -86,7 +89,13 @@ export const MyMathPathProductionContainer = ({
     weekKey,
     weeklySlotKey,
     weeklySlot,
-  }), [targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot]);
+    // Synthetic Teacher Path Runtime consumes these. The live service
+    // deliberately does not forward them to Firebase; production resolves
+    // rigor from the frozen server weekly snapshot.
+    intendedDok,
+    intendedDifficultyBand,
+    weeklyPurpose,
+  }), [targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot, intendedDok, intendedDifficultyBand, weeklyPurpose]);
 
   const contentRefreshNotice = {
     headline: 'Practice updated',
