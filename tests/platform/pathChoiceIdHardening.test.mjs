@@ -1,8 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { readFileSync, readdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const mathPath = require('../../functions/lib/mathPath.js');
 
 const TEMPLATE = {
@@ -164,4 +168,57 @@ test('top-level and field-level choices share the same protected ids', async () 
     assert.equal(choice.id, topByLabel.get(choice.label), `${choice.label} drifted between choice surfaces`);
   });
   assert.ok(question.choices.some((choice) => choice.id === question.responseFields[0].expected));
+});
+
+
+test('every deployed Path choice key can be remapped without changing what is correct', () => {
+  const seedDir = resolve(root, 'seed/pathQuestionBank');
+  const files = readdirSync(seedDir).filter((name) => name.endsWith('_pathQuestionBank_seed.json')).sort();
+  let checked = 0;
+
+  for (const file of files) {
+    const payload = JSON.parse(readFileSync(resolve(seedDir, file), 'utf8'));
+    for (const question of payload.documents || []) {
+      const choiceFields = (question.responseFields || []).filter((field) => field.inputProfile === 'choice');
+      if (!choiceFields.length) continue;
+
+      const protectedQuestion = mathPath.protectIssuedChoiceIds(question, `bank-audit|${file}|${question.id}`);
+      for (const field of choiceFields) {
+        const originalChoices = Array.isArray(field.choices) && field.choices.length
+          ? field.choices
+          : (question.choices || []);
+        const originalAliases = new Set();
+        originalChoices.forEach((choice) => {
+          if (choice && typeof choice === 'object') {
+            if (choice.id != null) originalAliases.add(String(choice.id));
+            if (choice.value != null) originalAliases.add(String(choice.value));
+          } else {
+            originalAliases.add(String(choice));
+          }
+        });
+        assert.ok(
+          originalAliases.has(String(field.expected)),
+          `${file}/${question.id}: choice key "${field.expected}" is not one of the authored choice ids/values`,
+        );
+
+        const protectedField = protectedQuestion.responseFields.find((candidate) => candidate.id === field.id);
+        const protectedChoices = Array.isArray(protectedField?.choices) && protectedField.choices.length
+          ? protectedField.choices
+          : (protectedQuestion.choices || []);
+        const protectedIds = new Set(protectedChoices.map((choice) => String(choice.id)));
+        assert.ok(
+          protectedIds.has(String(protectedField?.expected)),
+          `${file}/${question.id}: protected key no longer points at an issued choice`,
+        );
+        assert.notEqual(
+          String(protectedField?.expected),
+          String(field.expected),
+          `${file}/${question.id}: authored key leaked through protection unchanged`,
+        );
+        checked += 1;
+      }
+    }
+  }
+
+  assert.ok(checked > 100, `only checked ${checked} deployed choice fields`);
 });
