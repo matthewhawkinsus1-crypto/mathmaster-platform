@@ -865,6 +865,7 @@ test('A2.3F securely constructs and solves two- and three-inequality regions', a
   let mixedFamilies = 0;
   let contextFamilies = 0;
   let errorRepairFamilies = 0;
+  let noSolutionFamilies = 0;
   let wrongWorkRejected = 0;
 
   for (const doc of entry.documents) {
@@ -886,6 +887,8 @@ test('A2.3F securely constructs and solves two- and three-inequality regions', a
     if (hasStrict && hasInclusive) mixedFamilies += 1;
     if (doc.representation === 'context') contextFamilies += 1;
     if (doc.taskType === 'errorAnalysis') errorRepairFamilies += 1;
+    const expectsNoSolution = doc.id.includes('no-solution');
+    if (expectsNoSolution) noSolutionFamilies += 1;
 
     const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
     assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
@@ -927,6 +930,11 @@ test('A2.3F securely constructs and solves two- and three-inequality regions', a
         `${doc.id} must grade boundary location, boundary style, and shade for every inequality`,
       );
 
+      if (expectsNoSolution) {
+        const polygon = feasibleRegionPolygon(question.inequalities, question.graph || {});
+        assert.equal(polygon.length, 0, `${doc.id} promised no common region but generated a feasible polygon`);
+      }
+
       if (!spoiledOne) {
         const wrong = structuredClone(raw);
         wrong.construction[0].shade = wrong.construction[0].shade === 'above' ? 'below' : 'above';
@@ -944,7 +952,8 @@ test('A2.3F securely constructs and solves two- and three-inequality regions', a
   assert.ok(strictFamilies >= 3, 'A2.3F must repeatedly solve systems with excluded boundaries');
   assert.ok(inclusiveFamilies >= 4, 'A2.3F must repeatedly solve systems with included boundaries');
   assert.ok(mixedFamilies >= 3, 'A2.3F must repeatedly distinguish mixed solid/dashed boundary systems');
-  assert.ok(contextFamilies >= 1, 'A2.3F must solve an authentic contextual feasible region');
+  assert.ok(contextFamilies >= 1, 'A2.3F must transfer inequality-system solving into a context');
+  assert.ok(noSolutionFamilies >= 1, 'A2.3F must include a correctly constructed system with no common solution region');
   assert.ok(errorRepairFamilies >= 1, 'A2.3F error analysis must repair the graph by constructing the actual intersection');
   assert.equal(wrongWorkRejected, entry.documents.length);
   assert.ok(representations.has('graph'));
@@ -958,111 +967,3 @@ test('A2.3F securely constructs and solves two- and three-inequality regions', a
   assert.match(workspaceSource, /INEQUALITY_COLORS/);
   assert.match(workspaceSource, /INEQUALITY_COLORS\[index % INEQUALITY_COLORS\.length\]/);
 });
-
-test('A2.3F solves inequality systems by constructing secure two- and three-boundary solution regions', async () => {
-  const entry = payload('A2.3F');
-  assert.ok(entry);
-  assert.equal(entry.verdict, 'REBUILD');
-  assert.match(entry.certificationStatus, /secure-construction-of-two-and-three-inequality-solution-regions/);
-
-  let generatedCount = 0;
-  let threeConstraintFamilies = 0;
-  let strictFamilies = 0;
-  let mixedBoundaryFamilies = 0;
-  let noSolutionFamilies = 0;
-  let contextFamilies = 0;
-  let errorFamilies = 0;
-  const representations = new Set();
-
-  const correctConstruction = (question) => ({
-    construction: (question.inequalities || []).map((ineq) => ({
-      points: [
-        { x: 0, y: Number(ineq.b) },
-        { x: 1, y: Number(ineq.m) + Number(ineq.b) },
-      ],
-      boundaryStyle: String(ineq.relation).includes('=') ? 'solid' : 'dashed',
-      shade: String(ineq.relation).includes('>') ? 'above' : 'below',
-    })),
-  });
-
-  for (const doc of entry.documents) {
-    representations.add(doc.representation);
-    assert.equal(doc.type, 'systemsWorkspace');
-    assert.equal(doc.mode, 'inequalities');
-    assert.equal(doc.interaction, 'construct');
-    assert.deepEqual(doc.ask, ['construction'], `${doc.id} drifted into A2.3G candidate-point testing`);
-    assert.ok((doc.inequalities || []).length >= 2);
-
-    if ((doc.inequalities || []).length >= 3) threeConstraintFamilies += 1;
-    const relations = (doc.inequalities || []).map((ineq) => String(ineq.relation));
-    if (relations.some((relation) => !relation.includes('='))) strictFamilies += 1;
-    if (relations.some((relation) => relation.includes('=')) && relations.some((relation) => !relation.includes('='))) mixedBoundaryFamilies += 1;
-    if (doc.representation === 'context') contextFamilies += 1;
-    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
-
-    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
-    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
-
-    let familyNoSolution = false;
-    let spoiledChecked = false;
-
-    for (const generated of samplePathInstances(doc, 40)) {
-      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
-      const question = generated.question;
-      generatedCount += 1;
-      assert.deepEqual([...placeholdersUsed(question)], []);
-      assert.equal(isPathEligible(question), true, `${doc.id} produced a Path-ineligible inequality construction`);
-
-      const publicPayload = buildPublicToolPayload(question);
-      assert.equal(publicPayload.pathToolId, 'systemsWorkspace');
-      assert.equal(publicPayload.tool.mode, 'inequalities');
-      assert.equal(publicPayload.tool.interaction, 'construct');
-      assert.deepEqual(publicPayload.tool.ask, ['construction']);
-      assert.equal(publicPayload.tool.inequalities.length, question.inequalities.length);
-
-      const privateGrading = buildPrivateToolGrading(question);
-      const correct = gradePathResponse({
-        privateGrading,
-        raw: correctConstruction(question),
-      });
-      assert.equal(correct.rejected, false, `${doc.id} rejected correctly shaped graph construction`);
-      assert.equal(
-        correct.isCorrect,
-        true,
-        `${doc.id} failed secure correct-construction self-acceptance: ${JSON.stringify(correct.parts)}`,
-      );
-      assert.equal(
-        correct.parts.length,
-        question.inequalities.length * 3,
-        `${doc.id} must grade boundary points, boundary style, and shading for every inequality`,
-      );
-
-      if (!spoiledChecked) {
-        const spoiled = correctConstruction(question);
-        spoiled.construction[0].shade = spoiled.construction[0].shade === 'above' ? 'below' : 'above';
-        const wrong = gradePathResponse({ privateGrading, raw: spoiled });
-        assert.equal(wrong.rejected, false);
-        assert.equal(wrong.isCorrect, false, `${doc.id} accepted an incorrect half-plane direction`);
-        spoiledChecked = true;
-      }
-
-      if (doc.id.includes('no-solution')) {
-        const polygon = feasibleRegionPolygon(question.inequalities, question.graph || {});
-        assert.equal(polygon.length, 0, `${doc.id} promised no common region but generated a visible feasible polygon`);
-        familyNoSolution = true;
-      }
-    }
-
-    if (familyNoSolution) noSolutionFamilies += 1;
-  }
-
-  assert.ok(generatedCount >= 200);
-  assert.ok(threeConstraintFamilies >= 2, 'A2.3F must make “two or more” real by repeatedly solving three-inequality systems');
-  assert.ok(strictFamilies >= 2, 'A2.3F must repeatedly solve systems with strict boundaries');
-  assert.ok(mixedBoundaryFamilies >= 1, 'A2.3F must distinguish strict and inclusive boundaries inside the same system');
-  assert.ok(noSolutionFamilies >= 1, 'A2.3F must include a correctly constructed system with no common solution region');
-  assert.ok(contextFamilies >= 1, 'A2.3F must transfer solution-region construction into a context');
-  assert.ok(errorFamilies >= 1, 'A2.3F must repair a union-vs-intersection error by constructing the actual intersection');
-  assert.ok(representations.size >= 3);
-});
-
