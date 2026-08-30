@@ -314,7 +314,22 @@ Resume here. Do not reopen A2.2A–A2.4A unless a failing gate names them.
   - include at least one family where the vertex must be inferred as the midpoint between focus and directrix;
   - include a table/attribute representation and a genuine error-analysis family;
   - error analysis must diagnose the orientation/sign mistake and still write the corrected complete equation.
-- Generic secure equation fields are sufficient. Prompts will explicitly request **standard conic form**, so form-sensitive grading is appropriate rather than silently accepting an expanded polynomial that bypasses the attribute-to-conic-form skill.
+- The response remains a secure generic equation field, but A2.4B exposed a grading-fairness issue: a student can write the same parabola relation with the sides reversed or solved for y/x. Those are mathematically the same equation even though they are not the same printed conic arrangement.
+- Added **opt-in** polynomial-relation equation equivalence rather than weakening equation grading platform-wide. Only fields explicitly marked `equivalence: "polynomialRelation"` use it; ordinary form-specific algebra questions remain form-sensitive.
+
+
+### 2026-08-30 — A2.4B staged / relation-grading dependency
+- Staged five A2.4B Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4B.json` — commit `107a71f70b69c733977d88d98ea7a34d51d4e500`.
+- Package/build run `33319412078`: **PASS**.
+- A concurrent audit correctly caught that generic form-preserving grading would reject mathematically identical parabola relations such as reversed sides or a correctly solved-for-variable form.
+- Added opt-in `samePolynomialEquationRelation` support — commit `938d3ef4e32e20298c702e2209e8d3644f7de203`.
+- Routed explicit response fields through `equivalence: "polynomialRelation"` in the secure generic grader — commit `a134a3655f5c7f41dcb19660764c4f6757079949`.
+- Correct Answer Acceptance Audit passed on both relation-grading commits.
+- Added dedicated relation-equivalence regression tests — commit `0fd178ed4db65886e5a2fa03a81bf603b59ee789`.
+- Added those grading files/tests to the Algebra II certification workflow — commit `26c3ff88196744081d45c88ce191b5c784ad2092`.
+- Marked every A2.4B parabola-equation response with the opt-in relation equivalence — commit `dfd6861e5f197ba1afd95d0c9f2465a5fbff6fd3`.
+- This preserves the instructional request for standard conic form while avoiding a false-negative grade when a student's equation is algebraically the identical parabola relation.
+- FIRST UNFINISHED STANDARD remains **A2.4B**. Next gate must certify the generated geometry, orientation breadth, secure answer acceptance, and public-key stripping before advancing.
 
 
 ### 2026-08-30 — A2.4A audit finding
