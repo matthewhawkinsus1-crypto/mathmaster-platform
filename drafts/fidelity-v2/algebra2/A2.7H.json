@@ -484,7 +484,35 @@
           "s": "1-r",
           "c": "r*(r-1)"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-extraneous-root-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student solves a square-root equation and keeps both algebraic candidates after squaring. Diagnose why one candidate is extraneous, test the candidates in the original equation, and report the valid solution.",
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              }
+            },
+            "derived": {
+              "s": "1-r",
+              "c": "r*(r-1)"
+            }
+          }
+        }
+      ]
     }
   ]
 }
