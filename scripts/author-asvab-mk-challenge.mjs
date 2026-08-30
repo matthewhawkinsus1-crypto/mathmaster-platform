@@ -120,7 +120,7 @@ mkc('6.2B', 'scaling-a-difference-of-absolute-values', {
   generator: {
     parameters: {
       p: { type: 'int', min: 12, max: 40 },
-      q: { type: 'int', min: 3, max: 30 },
+      q: { type: 'int', min: 4, max: 28 },
       c: { type: 'int', min: 2, max: 9 },
     },
     derived: {
@@ -2018,6 +2018,754 @@ mkc('6.8B', 'claim-linking-two-shapes-that-share-a-base', {
   answerSummary: { headline: 'Sharing a measurement is not the same as being linked.', text: 'The claim about the triangle\'s height is wrong.' },
   hint: 'Ask which measurements the two shapes genuinely have in common.',
   feedback: 'The half-area relationship does hold whenever the base and height match.',
+});
+
+// ================================================================ 6.7B
+// Expressions and equations, and what each one lets you do.
+
+mkc('6.7B', 'evaluate-a-grouped-expression-then-reduce', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What is $\\frac{{{a}}x + {{b}}}{{{c}}} - {{d}}$ when $x = {{v}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      v: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 2, max: 9 },
+      u: { type: 'int', min: 8, max: 40 },
+      d: { type: 'int', min: 2, max: 30 },
+    },
+    derived: {
+      b: 'c*u-a*v',
+      answer: 'u-d',
+      // Stopped after the division.
+      d_forgotFinalStep: 'u',
+      // Answered the amount that was taken off.
+      d_usedGivenValue: 'd',
+      // Took the difference the other way round.
+      d_signError: 'd-u',
+    },
+    constraints: ['c*u-a*v>0', 'u-d>4', 'abs(2*d-u)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['At $x = {{v}}$ the numerator is ${{a}} \\times {{v}} + {{b}}$, which divides by ${{c}}$ to give ${{u}}$.', 'Taking ${{d}}$ off leaves ${{answer}}$.'],
+  answerSummary: { headline: 'The fraction bar groups the whole numerator.', text: 'It is ${{answer}}$.' },
+  hint: 'Substitute first, then divide, then subtract.',
+  feedback: 'The subtraction sits outside the fraction, so it comes last.',
+});
+
+mkc('6.7B', 'which-line-can-be-solved-for-a-value', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'Which line can be solved for $x$ and has ${{v}}$ as its solution?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 40 },
+      v: { type: 'int', min: 2, max: 20 },
+      off: { type: 'int', min: 3, max: 20 },
+    },
+    derived: { t: 'a*v+b', t2: 'a*v+b+off' },
+    constraints: ['off>2'],
+  },
+  choices: [
+    { label: plain('{{a}}x + {{b}} = {{t}}'), correct: true },
+    { label: plain('{{a}}x + {{b}}'), error: 'usedGivenValue' },
+    { label: plain('{{a}}x + {{b}} = {{t2}}'), error: 'operationInverted' },
+    { label: plain('{{a}}x - {{b}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Only a line with an equals sign states a condition that $x$ can satisfy.', 'Of the two equations, ${{a}} \\times {{v}} + {{b}}$ comes to ${{t}}$.'],
+  answerSummary: { headline: 'An expression names a value; an equation makes a claim.', text: 'It is ${{a}}x + {{b}} = {{t}}$.' },
+  hint: 'Rule out the lines with nothing to satisfy, then test the rest.',
+  feedback: 'An expression alone has no solution to find.',
+});
+
+mkc('6.7B', 'calling-an-evaluation-a-solution', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'Asked for the value of ${{a}}x + {{b}}$ at $x = {{v}}$, a student answers "$x = {{res}}$". What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 3, max: 40 },
+      v: { type: 'int', min: 2, max: 20 },
+    },
+    derived: { res: 'a*v+b' },
+    constraints: ['a>1'],
+  },
+  choices: [
+    { label: 'The result is the value of the expression, not a new value of $x$.', correct: true },
+    { label: 'The value ${{v}}$ belongs in place of ${{b}}$.', error: 'usedGivenValue' },
+    { label: 'The expression cannot be evaluated without an equals sign.', error: 'operationInverted' },
+    { label: 'The addition should be carried out before the multiplication.', error: 'orderOfOperations' },
+  ],
+  reasoning: ['$x$ was already fixed at ${{v}}$, so it cannot also be ${{res}}$.', 'The number ${{res}}$ is what the expression comes to.'],
+  answerSummary: { headline: 'Evaluating answers with a value, not with a new $x$.', text: 'The answer was labelled as $x$ by mistake.' },
+  hint: 'Ask what ${{res}}$ actually measures.',
+  feedback: 'The arithmetic is right; it is the label on the answer that is wrong.',
+});
+
+// ================================================================ 6.7C
+// Equivalent expressions and the distributive property.
+
+mkc('6.7C', 'expanding-across-a-subtraction', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Simplify ${{a}}(x + {{b}}) - {{c}}(x - {{d}})$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 12 },
+      b: { type: 'int', min: 2, max: 12 },
+      c: { type: 'int', min: 2, max: 9 },
+      d: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      coef: 'a-c',
+      con: 'a*b+c*d',
+      conBad: 'a*b-c*d',
+      coefBad: 'a+c',
+      conFlat: 'b+d',
+    },
+    constraints: ['a>c', 'a*b-c*d!=a*b+c*d', 'b+d!=a*b+c*d', 'b+d!=a*b-c*d', 'a-c>1'],
+  },
+  choices: [
+    { label: plain('{{coef}}x + {{con}}'), correct: true },
+    { label: plain('{{coef}}x + {{conBad}}'), error: 'signError' },
+    { label: plain('{{coefBad}}x + {{con}}'), error: 'operationInverted' },
+    { label: plain('{{coef}}x + {{conFlat}}'), error: 'incompleteFactoring' },
+  ],
+  reasoning: ['The first bracket gives ${{a}}x + {{a}} \\times {{b}}$ and the second takes off ${{c}}x - {{c}} \\times {{d}}$.', 'Combining leaves ${{coef}}x + {{con}}$.'],
+  answerSummary: { headline: 'The minus sign reaches both terms inside the bracket.', text: 'It is ${{coef}}x + {{con}}$.' },
+  hint: 'Expand each bracket separately before combining.',
+  feedback: 'Subtracting $-{{c}} \\times {{d}}$ adds, so the constant grows.',
+});
+
+mkc('6.7C', 'constant-behind-a-simplified-pair', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: '${{a}}(x + b) + (x - {{cd}})$ simplifies to ${{coef}}x + {{k}}$. What is $b$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 7 },
+      j: { type: 'int', min: 1, max: 6 },
+      b: { type: 'int', min: 4, max: 22 },
+    },
+    derived: {
+      cd: 'a*j',
+      coef: 'a+1',
+      k: 'a*b-a*j',
+      // Divided the constant by the coefficient and stopped.
+      d_forgotFinalStep: 'b-j',
+      // Answered the simplified constant.
+      d_usedGivenValue: 'k',
+      // Answered the constant inside the second bracket.
+      d_ratioReversed: 'cd',
+    },
+    constraints: ['b>j+3', 'abs(a*j-b)>3', 'abs(k-b)>3', 'k>2'],
+  },
+  choices: [
+    { label: plain('{{b}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Expanding gives $({{a}}+1)x + {{a}}b - {{cd}}$.', 'Setting ${{a}}b - {{cd}} = {{k}}$ gives $b = {{b}}$.'],
+  answerSummary: { headline: 'Match the constant terms once both brackets are expanded.', text: '$b = {{b}}$.' },
+  hint: 'Only the first bracket contributes ${{a}}$ copies of $b$.',
+  feedback: 'The simplified constant still has ${{cd}}$ subtracted from it.',
+});
+
+mkc('6.7C', 'what-a-table-of-values-settles', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'The table evaluates $E$ and $F$ at three inputs. What does it show?',
+  stimulus: {
+    kind: 'table',
+    columns: ['x', 'E', 'F'],
+    rows: [['{{x1}}', '{{e1}}', '{{e1}}'], ['{{x2}}', '{{e2}}', '{{e2}}'], ['{{x3}}', '{{e3}}', '{{f3}}']],
+  },
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 20 },
+      x1: { type: 'int', min: 1, max: 4 },
+      x2: { type: 'int', min: 5, max: 9 },
+      x3: { type: 'int', min: 10, max: 16 },
+      off: { type: 'int', min: 3, max: 15 },
+    },
+    derived: {
+      e1: 'k*x1+c',
+      e2: 'k*x2+c',
+      e3: 'k*x3+c',
+      f3: 'k*x3+c+off',
+    },
+    constraints: ['off>2'],
+  },
+  choices: [
+    { label: 'They are not equivalent, because they part company at ${{x3}}$.', correct: true },
+    { label: 'They are equivalent, because they agree at ${{x1}}$ and ${{x2}}$.', error: 'partialTotal' },
+    { label: 'They are equivalent for positive inputs only.', error: 'usedGivenValue' },
+    { label: 'Neither expression can be simplified any further.', error: 'operationInverted' },
+  ],
+  reasoning: ['Equivalent expressions agree at every input, not merely at some.', 'One disagreement is enough to settle it.'],
+  answerSummary: { headline: 'Agreement on a few inputs proves nothing; one disagreement proves a lot.', text: 'They are not equivalent.' },
+  hint: 'Look for a row where the two columns differ.',
+  feedback: 'Two matching rows leave every other input untested.',
+});
+
+// ================================================================ 6.7D
+// Properties of operations: regrouping, distributing, factoring.
+
+mkc('6.7D', 'subtracting-a-bracket-and-collecting', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Simplify ${{a}} - ({{b}}x - {{c}}) + {{d}}x$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 30 },
+      b: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 20 },
+      d: { type: 'int', min: 3, max: 14 },
+    },
+    derived: {
+      coef: 'd-b',
+      con: 'a+c',
+      coefBad: 'd+b',
+      conBad: 'a-c',
+    },
+    constraints: ['d>b', 'd-b>1', 'a>c', 'a-c>1'],
+  },
+  choices: [
+    { label: plain('{{coef}}x + {{con}}'), correct: true },
+    { label: plain('{{coefBad}}x + {{conBad}}'), error: 'signError' },
+    { label: plain('{{coef}}x + {{conBad}}'), error: 'partialTotal' },
+    { label: plain('{{coefBad}}x + {{con}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The minus in front of the bracket flips both terms, giving $-{{b}}x + {{c}}$.', 'Collecting leaves ${{coef}}x + {{con}}$.'],
+  answerSummary: { headline: 'A minus outside a bracket changes every sign inside it.', text: 'It is ${{coef}}x + {{con}}$.' },
+  hint: 'Rewrite the bracket with its signs changed before collecting.',
+  feedback: 'Changing only the $x$ term leaves the constant with the wrong sign.',
+});
+
+mkc('6.7D', 'largest-common-factor-of-a-pair', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'The expression ${{k}}x + {{c}}$ factors as $g({{p}}x + {{q}})$ with $g$ as large as possible. What is $g$?',
+  generator: {
+    parameters: {
+      g: { type: 'int', min: 4, max: 20 },
+      p: { type: 'int', min: 2, max: 7 },
+      q: { type: 'int', min: 3, max: 24 },
+    },
+    derived: {
+      k: 'g*p',
+      c: 'g*q',
+      answer: 'g',
+      // Answered the coefficient left inside the bracket.
+      d_forgotFinalStep: 'p',
+      // Answered the constant left inside the bracket.
+      d_partialTotal: 'q',
+      // Answered the coefficient that was factored.
+      d_usedGivenValue: 'k',
+    },
+    constraints: ['gcd(p,q)==1', 'abs(g-q)>3', 'abs(g-p)>2', 'g*p!=g'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['${{k}}$ and ${{c}}$ share the factor ${{g}}$, and what is left inside shares nothing further.', 'So $g = {{answer}}$.'],
+  answerSummary: { headline: 'The largest common factor leaves a bracket with nothing left to take out.', text: '$g = {{answer}}$.' },
+  hint: 'Check that the two numbers inside the bracket share no factor.',
+  feedback: 'A factor that leaves a common factor behind was not the largest one.',
+});
+
+mkc('6.7D', 'row-that-misuses-a-property', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'Three rows rewrite an expression correctly and one does not. Which row is wrong?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Row', 'Rewritten as'],
+    rows: [
+      ['$1$', '${{a}} + (x + {{b}}) = ({{a}} + x) + {{b}}$'],
+      ['$2$', '${{a}}(x + {{b}}) = {{a}}x + {{ab}}$'],
+      ['$3$', '${{a}} \\times ({{b}} \\times x) = ({{a}} \\times {{b}}) \\times ({{a}} \\times x)$'],
+      ['$4$', '${{a}}x + {{b}}x = ({{a}} + {{b}})x$'],
+    ],
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 9 },
+      b: { type: 'int', min: 2, max: 12 },
+    },
+    derived: { ab: 'a*b' },
+    constraints: ['a!=b', 'a>1'],
+  },
+  choices: [
+    { label: 'Row $3$', correct: true },
+    { label: 'Row $1$', error: 'orderOfOperations' },
+    { label: 'Row $2$', error: 'incompleteFactoring' },
+    { label: 'Row $4$', error: 'operationInverted' },
+  ],
+  reasoning: ['Multiplication distributes over addition, not over another multiplication.', 'Row $3$ multiplies by ${{a}}$ twice, so it is ${{a}}$ times too large.'],
+  answerSummary: { headline: 'Distributing works across a sum, never across a product.', text: 'Row $3$ is wrong.' },
+  hint: 'Try each rewrite with a small value of $x$.',
+  feedback: 'Regrouping a sum and collecting like terms are both sound.',
+});
+
+// ================================================================ 6.8C
+// Equations that describe area and volume.
+
+mkc('6.8C', 'equation-for-a-missing-parallel-edge', {
+  difficultyBand: 4, dok: 2, taskType: 'representationTranslation', representation: 'symbolic',
+  prompt: 'A trapezoid with parallel edges ${{a}}$ and $b$ units and height ${{h}}$ units covers ${{A}}$ square units. Which equation gives $b$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 20 },
+      b: { type: 'int', min: 4, max: 24 },
+      h: { type: 'int', min: 2, max: 16, step: 2 },
+    },
+    derived: { A: '(a+b)*h/2' },
+    constraints: ['a!=b', 'A>6'],
+  },
+  choices: [
+    { label: plain('\\frac{({{a}} + b) \\times {{h}}}{2} = {{A}}'), correct: true },
+    { label: plain('({{a}} + b) \\times {{h}} = {{A}}'), error: 'forgotFinalStep' },
+    { label: plain('\\frac{{{a}} \\times b \\times {{h}}}{2} = {{A}}'), error: 'operationInverted' },
+    { label: plain('\\frac{{{a}} + b}{2 \\times {{h}}} = {{A}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['A trapezoid covers the average of its parallel edges times its height.', 'That is $\\frac{({{a}} + b) \\times {{h}}}{2}$, and it equals ${{A}}$.'],
+  answerSummary: { headline: 'Average the parallel edges before multiplying by the height.', text: 'It is $\\frac{({{a}} + b) \\times {{h}}}{2} = {{A}}$.' },
+  hint: 'Ask what the halving is being applied to.',
+  feedback: 'The two parallel edges are added, not multiplied.',
+});
+
+mkc('6.8C', 'equation-linking-two-shapes-of-equal-area', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'A triangle and a rectangle share a base of ${{b}}$ units and cover the same area, and the rectangle is ${{h}}$ units tall. Which equation gives height $t$?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 3, max: 20 },
+      h: { type: 'int', min: 2, max: 15 },
+    },
+    constraints: ['b!=h'],
+  },
+  choices: [
+    { label: plain('\\frac{{{b}}t}{2} = {{b}} \\times {{h}}'), correct: true },
+    { label: plain('{{b}}t = {{b}} \\times {{h}}'), error: 'forgotFinalStep' },
+    { label: plain('\\frac{{{b}}t}{2} = \\frac{{{b}} \\times {{h}}}{2}'), error: 'operationInverted' },
+    { label: plain('\\frac{{{b}} + t}{2} = {{b}} \\times {{h}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The triangle covers $\\frac{{{b}}t}{2}$ and the rectangle covers ${{b}} \\times {{h}}$.', 'Equal areas means those two expressions are equal.'],
+  answerSummary: { headline: 'Only the triangle carries the halving.', text: 'It is $\\frac{{{b}}t}{2} = {{b}} \\times {{h}}$.' },
+  hint: 'Write each area separately before setting them equal.',
+  feedback: 'Halving both sides leaves the two shapes with the same formula, which they do not have.',
+});
+
+mkc('6.8C', 'trapezoid-formula-without-the-halving', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'For a trapezoid of parallel edges ${{a}}$ and ${{b}}$ and height ${{h}}$ a student writes $A = ({{a}} + {{b}}) \\times {{h}}$. What is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 20 },
+      b: { type: 'int', min: 4, max: 24 },
+      h: { type: 'int', min: 2, max: 14 },
+    },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: 'The sum of the parallel edges has to be halved.', correct: true },
+    { label: 'The two parallel edges should be multiplied, not added.', error: 'operationInverted' },
+    { label: 'The height should be halved rather than used whole.', error: 'ratioReversed' },
+    { label: 'The slanted edges belong in the formula too.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['A trapezoid covers the average of its parallel edges times its height.', 'Without the halving the answer is twice the true area.'],
+  answerSummary: { headline: 'The average of the edges, not their total, multiplies the height.', text: 'The halving is missing.' },
+  hint: 'Compare the formula with a rectangle whose two edges are equal.',
+  feedback: 'Halving the height instead would give the same number here, but not the right reason.',
+});
+
+// ================================================================ 6.8D
+// Solving area and volume problems.
+
+mkc('6.8D', 'how-much-more-the-second-plate-covers', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'table',
+  prompt: 'The table lists two trapezoidal plates. How much more does the second cover?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Plate', 'Parallel edges (cm)', 'Height (cm)'],
+    rows: [['first', '${{a1}}$ and ${{b1}}$', '${{h1}}$'], ['second', '${{a2}}$ and ${{b2}}$', '${{h2}}$']],
+  },
+  generator: {
+    parameters: {
+      a1: { type: 'int', min: 3, max: 16 },
+      b1: { type: 'int', min: 4, max: 20 },
+      h1: { type: 'int', min: 2, max: 12, step: 2 },
+      a2: { type: 'int', min: 3, max: 16 },
+      b2: { type: 'int', min: 4, max: 20 },
+      h2: { type: 'int', min: 2, max: 12, step: 2 },
+    },
+    derived: {
+      A1: '(a1+b1)*h1/2',
+      A2: '(a2+b2)*h2/2',
+      answer: 'A2-A1',
+      // Never halved either plate.
+      d_forgotFinalStep: '(a2+b2)*h2-(a1+b1)*h1',
+      // Answered the first plate\'s area.
+      d_partialTotal: 'A1',
+      // Compared the two the other way round.
+      d_signError: 'A1-A2',
+    },
+    constraints: ['A2-A1>4', 'abs(A2-2*A1)>4', 'A1>5'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The first plate covers ${{A1}}$ and the second covers ${{A2}}$ square centimetres.', 'The difference is ${{answer}}$.'],
+  answerSummary: { headline: 'Work out each area in full before comparing.', text: 'It covers ${{answer}}$ square centimetres more.' },
+  hint: 'Average each pair of parallel edges before multiplying.',
+  feedback: 'Leaving the halving out doubles both areas and so doubles the gap.',
+});
+
+mkc('6.8D', 'second-base-from-a-combined-area', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'Two triangles of height ${{h}}$ units, one with base ${{b1}}$, together cover ${{A}}$ square units. What is the other base?',
+  generator: {
+    parameters: {
+      h: { type: 'int', min: 4, max: 36 },
+      b1: { type: 'int', min: 3, max: 24 },
+      b2: { type: 'int', min: 3, max: 26 },
+    },
+    derived: {
+      A: 'h*(b1+b2)/2',
+      answer: 'b2',
+      // Never took the given base off the total.
+      d_operationInverted: 'b1+b2',
+      // Answered the average of the two bases.
+      d_ratioReversed: '(b1+b2)/2',
+      // Answered the height that was given.
+      d_usedGivenValue: 'h',
+    },
+    constraints: ['(b1+b2)%2==0', 'b2-b1>3', 'b1>4', 'abs(h-b2)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Together the two triangles cover $\\frac{{{h}}({{b1}} + b_2)}{2}$, which is ${{A}}$.', 'So ${{b1}} + b_2 = {{b1}}+{{b2}}$, leaving $b_2 = {{answer}}$.'],
+  answerSummary: { headline: 'The shared height lets both triangles be handled as one.', text: 'The other base is ${{answer}}$.' },
+  hint: 'Two triangles of the same height combine into one with the total base.',
+  feedback: 'The total of the bases still has the given one to come off.',
+});
+
+mkc('6.8D', 'halving-then-doubling-a-plate', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal',
+  prompt: 'A parallelogram plate of base ${{b}}$ cm and height ${{h}}$ cm is cut along a diagonal, and one half has its height doubled. How does its area compare?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 4, max: 24 },
+      h: { type: 'int', min: 3, max: 18 },
+    },
+    derived: { full: 'b*h', half: 'b*h/2' },
+    constraints: ['b*h%2==0', 'b!=h'],
+  },
+  choices: [
+    { label: 'It matches the original plate.', correct: true },
+    { label: 'It is half of the original plate.', error: 'partialTotal' },
+    { label: 'It is twice the original plate.', error: 'operationInverted' },
+    { label: 'It is four times the original plate.', error: 'exponentError' },
+  ],
+  reasoning: ['The diagonal leaves a triangle covering half of ${{b}} \\times {{h}}$.', 'Doubling its height doubles that half, which brings it back to ${{full}}$.'],
+  answerSummary: { headline: 'Halving and then doubling cancel out.', text: 'It matches the original.' },
+  hint: 'Work out the half first, then apply the doubling to it.',
+  feedback: 'Doubling the height doubles the area once, not twice.',
+});
+
+// ================================================================ 7.2
+// The sets rational numbers belong to.
+
+mkc('7.2', 'property-of-integers-alone', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Which statement holds for every integer but not for every rational number?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 20 },
+      d: { type: 'int', min: 3, max: 9 },
+    },
+    derived: { half: 'a' },
+    constraints: ['d>2'],
+  },
+  choices: [
+    { label: 'Written as a decimal it has nothing after the point.', correct: true },
+    { label: 'It can be written as one integer over another.', error: 'usedGivenValue' },
+    { label: 'It has a definite place on the number line.', error: 'partialTotal' },
+    { label: 'It may be negative.', error: 'signError' },
+  ],
+  reasoning: ['Every integer is a rational number, so the shared properties cannot separate them.', 'Only $\\frac{1}{{{d}}}$ and its kind carry something after the decimal point.'],
+  answerSummary: { headline: 'Look for what the wider set allows that the narrower one does not.', text: 'Integers have no decimal part.' },
+  hint: 'Test each claim on $\\frac{1}{{{d}}}$.',
+  feedback: 'Being placeable on the number line is true of every rational number.',
+});
+
+mkc('7.2', 'value-fitting-three-conditions', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'A number is rational, negative, and not an integer. Which could it be?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 2, max: 11 },
+      d: { type: 'int', min: 3, max: 13 },
+      a: { type: 'int', min: 2, max: 20 },
+      p: { type: 'int', min: 2, max: 20 },
+    },
+    constraints: ['gcd(n,d)==1', 'n<d', 'p!=4', 'p!=9', 'p!=16'],
+  },
+  choices: [
+    { label: plain('-\\frac{{{n}}}{{{d}}}'), correct: true },
+    { label: plain('-{{a}}'), error: 'usedGivenValue' },
+    { label: plain('\\frac{{{n}}}{{{d}}}'), error: 'signError' },
+    { label: plain('-\\sqrt{{{p}}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['$-{{a}}$ is an integer and $\\frac{{{n}}}{{{d}}}$ is positive, so neither fits.', '$-\\sqrt{{{p}}}$ is not rational, which leaves $-\\frac{{{n}}}{{{d}}}$.'],
+  answerSummary: { headline: 'Each condition rules out one of thechoices.', text: 'It is $-\\frac{{{n}}}{{{d}}}$.' },
+  hint: 'Apply the three conditions one at a time.',
+  feedback: 'A square root of a non-square is irrational, so it is not rational at all.',
+});
+
+mkc('7.2', 'row-that-sorts-a-value-wrongly', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'Each row claims the smallest set a value belongs to. Which row is wrong?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Row', 'Value', 'Smallest set claimed'],
+    rows: [
+      ['$1$', '${{w}}$', 'whole numbers'],
+      ['$2$', '$-{{a}}$', 'integers'],
+      ['$3$', '$\\frac{{{n}}}{{{d}}}$', 'integers'],
+      ['$4$', '$-\\frac{{{n}}}{{{d}}}$', 'rational numbers'],
+    ],
+  },
+  generator: {
+    parameters: {
+      w: { type: 'int', min: 1, max: 30 },
+      a: { type: 'int', min: 2, max: 20 },
+      n: { type: 'int', min: 2, max: 11 },
+      d: { type: 'int', min: 3, max: 13 },
+    },
+    constraints: ['gcd(n,d)==1', 'n<d'],
+  },
+  choices: [
+    { label: 'Row $3$', correct: true },
+    { label: 'Row $1$', error: 'usedGivenValue' },
+    { label: 'Row $2$', error: 'signError' },
+    { label: 'Row $4$', error: 'partialTotal' },
+  ],
+  reasoning: ['$\\frac{{{n}}}{{{d}}}$ is not a whole number of units, so it is not an integer.', 'The smallest set it belongs to is the rational numbers.'],
+  answerSummary: { headline: 'A fraction in lowest terms with a denominator above one is never an integer.', text: 'Row $3$ is wrong.' },
+  hint: 'Ask whether each value could be written without a fraction bar.',
+  feedback: 'A negative whole number really is an integer, so that row is sound.',
+});
+
+// ================================================================ 7.3A
+// Adding, subtracting, multiplying and dividing rational numbers.
+
+mkc('7.3A', 'sum-across-unlike-denominators', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Work out $-\\frac{{{a}}}{{{d}}} + \\frac{{{b}}}{{{e}}}$.',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 11 },
+      d: { type: 'int', min: 3, max: 9 },
+      b: { type: 'int', min: 2, max: 11 },
+      e: { type: 'int', min: 3, max: 9 },
+    },
+    derived: {
+      den0: 'd*e',
+      raw: 'b*d-a*e',
+      negRaw: 'a*e-b*d',
+      swap: 'b*e-a*d',
+      flat: 'b-a',
+      flatDen: 'd+e',
+    },
+    constraints: ['d!=e', 'gcd(abs(b*d-a*e),d*e)==1', 'b*d-a*e!=0', 'b*e-a*d!=b*d-a*e', 'b*e-a*d!=a*e-b*d'],
+  },
+  choices: [
+    { label: plain('\\frac{{{raw}}}{{{den0}}}'), correct: true },
+    { label: plain('\\frac{{{negRaw}}}{{{den0}}}'), error: 'signError' },
+    { label: plain('\\frac{{{swap}}}{{{den0}}}'), error: 'ratioReversed' },
+    { label: plain('\\frac{{{flat}}}{{{flatDen}}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['Over the common denominator ${{den0}}$ the two parts are $-{{a}} \\times {{e}}$ and ${{b}} \\times {{d}}$.', 'Their total is ${{raw}}$.'],
+  answerSummary: { headline: 'Each numerator is scaled by the other denominator.', text: 'It is $\\frac{{{raw}}}{{{den0}}}$.' },
+  hint: 'Rewrite both fractions over ${{d}} \\times {{e}}$ first.',
+  feedback: 'Adding the denominators changes the size of every part.',
+});
+
+mkc('7.3A', 'number-behind-a-negative-fraction-product', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'Multiplying a number by $-\\frac{{{a}}}{{{b}}}$ gives ${{v}}$. What is the number?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 3, max: 13 },
+      t: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      v: '0-a*t',
+      answer: 'b*t',
+      // Multiplied by the fraction instead of by its reciprocal.
+      d_operationInverted: 'a*b*t',
+      // Used the fraction the right way up but the wrong way round.
+      d_ratioReversed: 'a*t',
+      // Answered the product that was given.
+      d_usedGivenValue: 'v',
+    },
+    constraints: ['gcd(a,b)==1', 'abs(a*t-b*t)>3', 'b*t>8'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Undoing the multiplication means multiplying ${{v}}$ by $-\\frac{{{b}}}{{{a}}}$.', 'That gives ${{answer}}$.'],
+  answerSummary: { headline: 'The reciprocal carries the negative sign with it.', text: 'The number is ${{answer}}$.' },
+  hint: 'Two negatives make the answer positive here.',
+  feedback: 'Multiplying by the same fraction again moves the value further from where it started.',
+});
+
+mkc('7.3A', 'which-calculation-lands-highest', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Which of the listed calculations has the greatest value?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Calculation'],
+    rows: [
+      ['$-\\frac{{{a}}}{{{b}}} \\div {{c}}$'],
+      ['$-\\frac{{{a}}}{{{b}}} \\times {{c}}$'],
+      ['$-\\frac{{{a}}}{{{b}}} - {{c}}$'],
+      ['$-\\frac{{{a}}}{{{b}}} \\times {{c}} \\times {{c}}$'],
+    ],
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 11 },
+      b: { type: 'int', min: 3, max: 12 },
+      c: { type: 'int', min: 2, max: 9 },
+    },
+    constraints: ['gcd(a,b)==1', 'c>1'],
+  },
+  choices: [
+    { label: plain('-\\frac{{{a}}}{{{b}}} \\div {{c}}'), correct: true },
+    { label: plain('-\\frac{{{a}}}{{{b}}} \\times {{c}}'), error: 'operationInverted' },
+    { label: plain('-\\frac{{{a}}}{{{b}}} - {{c}}'), error: 'signError' },
+    { label: plain('-\\frac{{{a}}}{{{b}}} \\times {{c}} \\times {{c}}'), error: 'exponentError' },
+  ],
+  reasoning: ['Every calculation is negative, so the greatest is the one closest to zero.', 'Dividing by ${{c}}$ shrinks the size of $-\\frac{{{a}}}{{{b}}}$; the others enlarge it.'],
+  answerSummary: { headline: 'Among negatives, smaller size means greater value.', text: 'It is $-\\frac{{{a}}}{{{b}}} \\div {{c}}$.' },
+  hint: 'Ask which result sits nearest zero.',
+  feedback: 'Multiplying a negative by a number above one drives it further down.',
+});
+
+// ================================================================ 7.4A
+// Constant rates and proportional relationships.
+
+mkc('7.4A', 'average-rate-across-two-stretches', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'table',
+  prompt: 'The table records one machine working at two rates. What was its average rate?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Stretch', 'Crates an hour', 'Hours'],
+    rows: [['first', '${{a}}$', '${{t1}}$'], ['second', '${{b}}$', '${{t2}}$']],
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 4, max: 20 },
+      b: { type: 'int', min: 6, max: 34 },
+      t1: { type: 'int', min: 2, max: 9 },
+      t2: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      answer: '(a*t1+b*t2)/(t1+t2)',
+      // Averaged the two rates without weighting them.
+      d_forgotFinalStep: '(a+b)/2',
+      // Answered the total number of crates.
+      d_partialTotal: 'a*t1+b*t2',
+      // Answered the first rate.
+      d_usedGivenValue: 'a',
+    },
+    constraints: ['a<b', '(a+b)%2==0', '(a*t1+b*t2)%(t1+t2)==0', 't1!=t2', 'abs((a+b)/2-(a*t1+b*t2)/(t1+t2))>2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['In all it makes ${{a}} \\times {{t1}} + {{b}} \\times {{t2}}$ crates over ${{t1}}+{{t2}}$ hours.', 'That is ${{answer}}$ an hour.'],
+  answerSummary: { headline: 'An average rate divides the total by the total time.', text: 'It averaged ${{answer}}$ an hour.' },
+  hint: 'Total the output and the time separately.',
+  feedback: 'Averaging the two rates ignores how long each one lasted.',
+});
+
+mkc('7.4A', 'time-for-a-faster-machine', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'A machine fills ${{n}}$ crates in ${{t}}$ hours. How long does a machine ${{k}}$ times as fast take to fill ${{m}}$ crates?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 3, max: 12 },
+      t: { type: 'int', min: 2, max: 8 },
+      k: { type: 'int', min: 3, max: 8 },
+      z: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      m: 'k*n*z',
+      answer: 't*z',
+      // Never applied the speed multiplier.
+      d_forgotFinalStep: 'k*t*z',
+      // Answered the time the first machine took.
+      d_usedGivenValue: 't',
+      // Divided by the hours instead of multiplying.
+      d_ratioReversed: 'k*z',
+    },
+    constraints: ['t*z>7', 'abs(k*z-t*z)>3', 'abs(t*z-t)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The faster machine fills ${{k}} \\times {{n}}$ crates an hour\'s worth of the original in the same time.', '${{m}}$ crates therefore take ${{answer}}$ hours.'],
+  answerSummary: { headline: 'Scale the rate first, then divide the new total by it.', text: 'It takes ${{answer}}$ hours.' },
+  hint: 'Work out what the faster machine does in ${{t}}$ hours.',
+  feedback: 'A machine ${{k}}$ times as fast needs less time, not more.',
+});
+
+mkc('7.4A', 'claim-about-two-machines-together', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'One machine fills ${{a}}$ crates an hour and another fills ${{b}}$. Which statement about the pair is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 4, max: 20 },
+      b: { type: 'int', min: 6, max: 34 },
+    },
+    derived: { sum: 'a+b' },
+    constraints: ['a<b'],
+  },
+  choices: [
+    { label: 'For a fixed order the pair takes the average of their two separate times.', correct: true },
+    { label: 'Working together they fill ${{sum}}$ crates an hour.', error: 'partialTotal' },
+    { label: 'The pair finishes a fixed order sooner than either machine alone.', error: 'usedGivenValue' },
+    { label: 'Doubling both rates halves the time for a fixed order.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Rates add, so the pair works at ${{sum}}$ an hour and finishes faster than either alone.', 'Times do not average; the combined time is shorter than both.'],
+  answerSummary: { headline: 'Rates add; times do not.', text: 'The claim about averaging the times is wrong.' },
+  hint: 'Compare the pair\'s time with the faster machine\'s time.',
+  feedback: 'The combined rate really is the total of the two.',
 });
 
 // ---------------------------------------------------------------- emit
