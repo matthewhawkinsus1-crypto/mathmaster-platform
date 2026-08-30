@@ -336,6 +336,30 @@
               "baseY0": "(-r1)*(-r2)",
               "y0": "a*baseY0"
             }
+          },
+          "stimulus": {
+            "kind": "table",
+            "title": "Evidence for the quadratic",
+            "table": {
+              "headers": [
+                "Evidence",
+                "Value"
+              ],
+              "rows": [
+                [
+                  "First zero",
+                  "x={{r1}}"
+                ],
+                [
+                  "Second zero",
+                  "x={{r2}}"
+                ],
+                [
+                  "Additional point",
+                  "(0, {{y0}})"
+                ]
+              ]
+            }
           }
         }
       ]
