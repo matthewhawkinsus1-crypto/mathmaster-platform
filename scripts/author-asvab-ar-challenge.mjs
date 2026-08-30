@@ -1274,6 +1274,229 @@ arc('7.4B', 'which-quote-is-cheapest-per-unit', {
   feedback: 'Adding two of the quotes prices their samples, not this order.',
 });
 
+// ================================================================ 7.4C
+// Constant of proportionality.
+
+arc('7.4C', 'two-machines-running-together', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'One {{machine}} makes {{k1}} {{item}} an hour and a second makes {{k2}}. Running together for {{hours}} hours, how many do they make?',
+  generator: {
+    parameters: {
+      machine: MACHINES,
+      item: GOODS,
+      k1: { type: 'int', min: 8, max: 30 },
+      k2: { type: 'int', min: 8, max: 30 },
+      hours: { type: 'int', min: 3, max: 12 },
+      ordered: { type: 'int', min: 60, max: 520 },
+    },
+    derived: {
+      answer: '(k1+k2)*hours',
+      d_partialTotal: 'answer+k1*hours',
+      d_forgotFinalStep: 'k1*hours',
+      d_usedGivenValue: 'ordered',
+    },
+    constraints: ['k1!=k2', 'ordered!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Together they make {{k1}}+{{k2}} {{item}} an hour.', 'Over {{hours}} hours that is {{answer}}.'],
+  answerSummary: { headline: 'Add the two rates before multiplying by the time.', text: 'They make ${{answer}}$.' },
+  hint: 'Both machines run for the whole time.',
+  feedback: 'One machine alone accounts for only part of the output.',
+});
+
+arc('7.4C', 'time-to-finish-with-a-head-start', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'An order of {{order}} {{item}} is due. {{already}} are done and a {{machine}} adds {{k}} an hour. How many more hours are needed?',
+  generator: {
+    parameters: {
+      machine: MACHINES,
+      item: GOODS,
+      k: { type: 'int', min: 9, max: 28 },
+      hours: { type: 'int', min: 4, max: 15 },
+      already: { type: 'int', min: 20, max: 260 },
+      shift: { type: 'int', min: 3, max: 20 },
+    },
+    derived: {
+      order: 'already+k*hours',
+      answer: 'hours',
+      d_operationInverted: 'round(order/k)',
+      d_forgotFinalStep: 'round(already/k)',
+      d_usedGivenValue: 'shift',
+    },
+    constraints: ['shift!=answer', 'already<k*hours', 'round(order/k)!=hours', 'round(already/k)!=hours'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{order}} less the {{already}} done leaves {{k}}x{{hours}} still to make.', 'At {{k}} an hour that is {{answer}} hours.'],
+  answerSummary: { headline: 'Only the unfinished part still takes time.', text: 'It needs ${{answer}}$ more hours.' },
+  hint: 'Part of the order is already behind you.',
+  feedback: 'Dividing the whole order by the rate ignores what is already done.',
+});
+
+arc('7.4C', 'steady-rate-row-that-fails', {
+  difficultyBand: 5, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'A pump is supposed to move a steady number of litres a minute. One reading does not fit. What should it read?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Minutes', 'Litres'],
+    rows: [['{{m1}}', '{{l1}}'], ['{{m2}}', '{{l2}}'], ['{{m3}}', '{{lBad}}'], ['{{m4}}', '{{l4}}']],
+  },
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 6, max: 24 },
+      m1: { type: 'int', min: 3, max: 6 },
+      m3: { type: 'int', min: 10, max: 20 },
+      off: { type: 'int', min: 5, max: 33 },
+      gauge: { type: 'int', min: 50, max: 420 },
+    },
+    derived: {
+      m2: 'm1+3',
+      m4: 'm1+5',
+      l1: 'm1*k',
+      l2: 'm2*k',
+      l4: 'm4*k',
+      answer: 'm3*k',
+      lBad: 'answer+off',
+      d_forgotFinalStep: 'lBad',
+      d_offByOneStep: 'l2',
+      d_usedGivenValue: 'gauge',
+    },
+    constraints: ['off!=k', 'm3>m1+5', 'gauge!=answer', 'lBad!=l4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The readings that agree give {{k}} litres a minute.', '{{m3}} minutes should read {{answer}} litres, not {{lBad}}.'],
+  answerSummary: { headline: 'Recover the rate from the readings that agree.', text: 'It should read ${{answer}}$ litres.' },
+  hint: 'Three readings share one rate. Use them to test the fourth.',
+  feedback: 'The reading on the gauge is not what this row should show.',
+});
+
+// ================================================================ 6.12C
+// Measures of centre and spread.
+
+arc('6.12C', 'average-across-two-weeks', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{crew}} averaged {{m1}} {{item}} a day over {{d1}} days, then {{m2}} a day over {{d2}} days. What is the average over all the days?',
+  generator: {
+    parameters: {
+      crew: WORKERS,
+      item: GOODS,
+      m1: { type: 'int', min: 20, max: 60, step: 5 },
+      m2: { type: 'int', min: 20, max: 60, step: 5 },
+      d1: { type: 'int', min: 2, max: 8 },
+      d2: { type: 'int', min: 2, max: 8 },
+    },
+    derived: {
+      total: 'm1*d1+m2*d2',
+      answer: 'round(total/(d1+d2))',
+      d_partialTotal: 'total',
+      d_meanMedianSwap: 'round((m1+m2)/2)',
+      d_usedGivenValue: 'min(m1,m2)',
+    },
+    constraints: ['d1!=d2', 'm1!=m2', 'min(m1,m2)!=answer', 'round((m1+m2)/2)!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_meanMedianSwap}}'), error: 'meanMedianSwap' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The two stretches made {{total}} {{item}} over {{d1}}+{{d2}} days.', 'That averages {{answer}} a day.'],
+  answerSummary: { headline: 'Average over the days, not over the two averages.', text: 'The average is ${{answer}}$.' },
+  hint: 'The two stretches are different lengths, so they do not weigh the same.',
+  feedback: 'The lower of the two stretch averages is not the average of all the days.',
+});
+
+arc('6.12C', 'run-needed-to-lift-an-average', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: '{{n}} runs averaged {{mean}} minutes and {{posted}} was posted as the next target. To lift the average of all {{np1}} runs to {{goal}}, how long must the next run take?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 3, max: 7 },
+      mean: { type: 'int', min: 20, max: 45 },
+      rise: { type: 'int', min: 1, max: 4 },
+      posted: { type: 'int', min: 22, max: 66 },
+    },
+    derived: {
+      np1: 'n+1',
+      goal: 'mean+rise',
+      answer: 'goal*np1-mean*n',
+      d_forgotFinalStep: 'goal',
+      d_operationInverted: 'mean*np1',
+      d_usedGivenValue: 'posted',
+    },
+    constraints: ['posted!=answer', 'goal!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{np1}} runs at {{goal}} minutes need {{goal}}x{{np1}} minutes in total.', 'The first {{n}} used {{mean}}x{{n}}, so the next must take {{answer}}.'],
+  answerSummary: { headline: 'Work with the totals the averages stand for.', text: 'It must take ${{answer}}$ minutes.' },
+  hint: 'An average is a total shared out, so start from the totals.',
+  feedback: 'The posted target is what was asked for, not what the arithmetic requires.',
+});
+
+arc('6.12C', 'average-pulled-by-one-large-load', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Five loads were logged as shown and {{logged}} was entered as the average. What is the average really?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Load', '{{item}}'],
+    rows: [['1', '{{v1}}'], ['2', '{{v2}}'], ['3', '{{v3}}'], ['4', '{{v4}}'], ['5', '{{v5}}']],
+  },
+  generator: {
+    parameters: {
+      item: GOODS,
+      base: { type: 'int', min: 10, max: 30 },
+      s2: { type: 'int', min: 2, max: 8 },
+      s3: { type: 'int', min: 9, max: 16 },
+      s4: { type: 'int', min: 17, max: 24 },
+      big: { type: 'int', min: 40, max: 90, step: 5 },
+      logged: { type: 'int', min: 18, max: 62 },
+    },
+    derived: {
+      v1: 'base',
+      v2: 'base+s2',
+      v3: 'base+s3',
+      v4: 'base+s4',
+      v5: 'base+big',
+      total: 'v1+v2+v3+v4+v5',
+      answer: 'round(total/5)',
+      mean: 'answer',
+      d_partialTotal: 'total',
+      d_meanMedianSwap: 'v3',
+      d_usedGivenValue: 'logged',
+    },
+    constraints: ['answer>v3', 'logged!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_meanMedianSwap}}'), error: 'meanMedianSwap' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The five loads total {{total}}, so the average is {{answer}}.', 'The middle value is {{v3}}, which the large last load pulls the average above.'],
+  answerSummary: { headline: 'One large load pulls the average above the middle value.', text: 'The average is ${{answer}}$.' },
+  hint: 'The middle value and the average are not the same thing here.',
+  feedback: 'The middle of the five loads is not what they average.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

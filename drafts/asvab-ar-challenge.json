@@ -5712,6 +5712,1056 @@
     "sourceFamilyId": "mathmaster:asvab:ar:7.4B:which-quote-is-cheapest-per-unit",
     "sourcePrompt": "Three suppliers quote as shown. What does the cheapest one charge for {{want}} {{item}}?"
    }
+  },
+  {
+   "id": "mm_asvab_ar_7_4C_two_machines_running_together",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.4C:two-machines-running-together",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "One {{machine}} makes {{k1}} {{item}} an hour and a second makes {{k2}}. Running together for {{hours}} hours, how many do they make?",
+   "solutionReview": {
+    "headline": "Add the two rates before multiplying by the time.",
+    "reasoning": [
+     "Together they make {{k1}}+{{k2}} {{item}} an hour.",
+     "Over {{hours}} hours that is {{answer}}."
+    ],
+    "answerSummary": "They make ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "One machine alone accounts for only part of the output."
+   ],
+   "supportHints": [
+    "Both machines run for the whole time."
+   ],
+   "generator": {
+    "parameters": {
+     "machine": {
+      "type": "choice",
+      "values": [
+       "press",
+       "labeler",
+       "sorter",
+       "stamping machine",
+       "conveyor"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "k1": {
+      "type": "int",
+      "min": 8,
+      "max": 30
+     },
+     "k2": {
+      "type": "int",
+      "min": 8,
+      "max": 30
+     },
+     "hours": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "ordered": {
+      "type": "int",
+      "min": 60,
+      "max": 520
+     }
+    },
+    "derived": {
+     "answer": "(k1+k2)*hours",
+     "d_partialTotal": "answer+k1*hours",
+     "d_forgotFinalStep": "k1*hours",
+     "d_usedGivenValue": "ordered"
+    },
+    "constraints": [
+     "k1!=k2",
+     "ordered!=answer",
+     "answer!=d_partialTotal",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=d_forgotFinalStep",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.4C:two-machines-running-together",
+    "sourcePrompt": "One {{machine}} makes {{k1}} {{item}} an hour and a second makes {{k2}}. Running together for {{hours}} hours, how many do they make?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_7_4C_time_to_finish_with_a_head_start",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.4C:time-to-finish-with-a-head-start",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4C",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "An order of {{order}} {{item}} is due. {{already}} are done and a {{machine}} adds {{k}} an hour. How many more hours are needed?",
+   "solutionReview": {
+    "headline": "Only the unfinished part still takes time.",
+    "reasoning": [
+     "{{order}} less the {{already}} done leaves {{k}}x{{hours}} still to make.",
+     "At {{k}} an hour that is {{answer}} hours."
+    ],
+    "answerSummary": "It needs ${{answer}}$ more hours."
+   },
+   "attemptFeedback": [
+    "Dividing the whole order by the rate ignores what is already done."
+   ],
+   "supportHints": [
+    "Part of the order is already behind you."
+   ],
+   "generator": {
+    "parameters": {
+     "machine": {
+      "type": "choice",
+      "values": [
+       "press",
+       "labeler",
+       "sorter",
+       "stamping machine",
+       "conveyor"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "k": {
+      "type": "int",
+      "min": 9,
+      "max": 28
+     },
+     "hours": {
+      "type": "int",
+      "min": 4,
+      "max": 15
+     },
+     "already": {
+      "type": "int",
+      "min": 20,
+      "max": 260
+     },
+     "shift": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "order": "already+k*hours",
+     "answer": "hours",
+     "d_operationInverted": "round(order/k)",
+     "d_forgotFinalStep": "round(already/k)",
+     "d_usedGivenValue": "shift"
+    },
+    "constraints": [
+     "shift!=answer",
+     "already<k*hours",
+     "round(order/k)!=hours",
+     "round(already/k)!=hours",
+     "answer!=d_operationInverted",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_forgotFinalStep",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.4C:time-to-finish-with-a-head-start",
+    "sourcePrompt": "An order of {{order}} {{item}} is due. {{already}} are done and a {{machine}} adds {{k}} an hour. How many more hours are needed?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_7_4C_steady_rate_row_that_fails",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.4C:steady-rate-row-that-fails",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4C",
+   "taskType": "errorAnalysis",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A pump is supposed to move a steady number of litres a minute. One reading does not fit. What should it read?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Minutes",
+     "Litres"
+    ],
+    "rows": [
+     [
+      "{{m1}}",
+      "{{l1}}"
+     ],
+     [
+      "{{m2}}",
+      "{{l2}}"
+     ],
+     [
+      "{{m3}}",
+      "{{lBad}}"
+     ],
+     [
+      "{{m4}}",
+      "{{l4}}"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "Recover the rate from the readings that agree.",
+    "reasoning": [
+     "The readings that agree give {{k}} litres a minute.",
+     "{{m3}} minutes should read {{answer}} litres, not {{lBad}}."
+    ],
+    "answerSummary": "It should read ${{answer}}$ litres."
+   },
+   "attemptFeedback": [
+    "The reading on the gauge is not what this row should show."
+   ],
+   "supportHints": [
+    "Three readings share one rate. Use them to test the fourth."
+   ],
+   "generator": {
+    "parameters": {
+     "k": {
+      "type": "int",
+      "min": 6,
+      "max": 24
+     },
+     "m1": {
+      "type": "int",
+      "min": 3,
+      "max": 6
+     },
+     "m3": {
+      "type": "int",
+      "min": 10,
+      "max": 20
+     },
+     "off": {
+      "type": "int",
+      "min": 5,
+      "max": 33
+     },
+     "gauge": {
+      "type": "int",
+      "min": 50,
+      "max": 420
+     }
+    },
+    "derived": {
+     "m2": "m1+3",
+     "m4": "m1+5",
+     "l1": "m1*k",
+     "l2": "m2*k",
+     "l4": "m4*k",
+     "answer": "m3*k",
+     "lBad": "answer+off",
+     "d_forgotFinalStep": "lBad",
+     "d_offByOneStep": "l2",
+     "d_usedGivenValue": "gauge"
+    },
+    "constraints": [
+     "off!=k",
+     "m3>m1+5",
+     "gauge!=answer",
+     "lBad!=l4",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_offByOneStep",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_offByOneStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.4C:steady-rate-row-that-fails",
+    "sourcePrompt": "A pump is supposed to move a steady number of litres a minute. One reading does not fit. What should it read?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_12C_average_across_two_weeks",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.12C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.12C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.12C:average-across-two-weeks",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.12C",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{crew}} averaged {{m1}} {{item}} a day over {{d1}} days, then {{m2}} a day over {{d2}} days. What is the average over all the days?",
+   "solutionReview": {
+    "headline": "Average over the days, not over the two averages.",
+    "reasoning": [
+     "The two stretches made {{total}} {{item}} over {{d1}}+{{d2}} days.",
+     "That averages {{answer}} a day."
+    ],
+    "answerSummary": "The average is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The lower of the two stretch averages is not the average of all the days."
+   ],
+   "supportHints": [
+    "The two stretches are different lengths, so they do not weigh the same."
+   ],
+   "generator": {
+    "parameters": {
+     "crew": {
+      "type": "choice",
+      "values": [
+       "crew",
+       "shift",
+       "team",
+       "work detail"
+      ]
+     },
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "m1": {
+      "type": "int",
+      "min": 20,
+      "max": 60,
+      "step": 5
+     },
+     "m2": {
+      "type": "int",
+      "min": 20,
+      "max": 60,
+      "step": 5
+     },
+     "d1": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "d2": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     }
+    },
+    "derived": {
+     "total": "m1*d1+m2*d2",
+     "answer": "round(total/(d1+d2))",
+     "d_partialTotal": "total",
+     "d_meanMedianSwap": "round((m1+m2)/2)",
+     "d_usedGivenValue": "min(m1,m2)"
+    },
+    "constraints": [
+     "d1!=d2",
+     "m1!=m2",
+     "min(m1,m2)!=answer",
+     "round((m1+m2)/2)!=answer",
+     "answer!=d_partialTotal",
+     "answer!=d_meanMedianSwap",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=d_meanMedianSwap",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_meanMedianSwap!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_meanMedianSwap}}$",
+     "error": "meanMedianSwap"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.12C:average-across-two-weeks",
+    "sourcePrompt": "A {{crew}} averaged {{m1}} {{item}} a day over {{d1}} days, then {{m2}} a day over {{d2}} days. What is the average over all the days?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_12C_run_needed_to_lift_an_average",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.12C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.12C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.12C:run-needed-to-lift-an-average",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.12C",
+   "taskType": "reverseReasoning",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "{{n}} runs averaged {{mean}} minutes and {{posted}} was posted as the next target. To lift the average of all {{np1}} runs to {{goal}}, how long must the next run take?",
+   "solutionReview": {
+    "headline": "Work with the totals the averages stand for.",
+    "reasoning": [
+     "{{np1}} runs at {{goal}} minutes need {{goal}}x{{np1}} minutes in total.",
+     "The first {{n}} used {{mean}}x{{n}}, so the next must take {{answer}}."
+    ],
+    "answerSummary": "It must take ${{answer}}$ minutes."
+   },
+   "attemptFeedback": [
+    "The posted target is what was asked for, not what the arithmetic requires."
+   ],
+   "supportHints": [
+    "An average is a total shared out, so start from the totals."
+   ],
+   "generator": {
+    "parameters": {
+     "n": {
+      "type": "int",
+      "min": 3,
+      "max": 7
+     },
+     "mean": {
+      "type": "int",
+      "min": 20,
+      "max": 45
+     },
+     "rise": {
+      "type": "int",
+      "min": 1,
+      "max": 4
+     },
+     "posted": {
+      "type": "int",
+      "min": 22,
+      "max": 66
+     }
+    },
+    "derived": {
+     "np1": "n+1",
+     "goal": "mean+rise",
+     "answer": "goal*np1-mean*n",
+     "d_forgotFinalStep": "goal",
+     "d_operationInverted": "mean*np1",
+     "d_usedGivenValue": "posted"
+    },
+    "constraints": [
+     "posted!=answer",
+     "goal!=answer",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.12C:run-needed-to-lift-an-average",
+    "sourcePrompt": "{{n}} runs averaged {{mean}} minutes and {{posted}} was posted as the next target. To lift the average of all {{np1}} runs to {{goal}}, how long must the next run take?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_6_12C_average_pulled_by_one_large_load",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.12C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.12C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:6.12C:average-pulled-by-one-large-load",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.12C",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Five loads were logged as shown and {{logged}} was entered as the average. What is the average really?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Load",
+     "{{item}}"
+    ],
+    "rows": [
+     [
+      "1",
+      "{{v1}}"
+     ],
+     [
+      "2",
+      "{{v2}}"
+     ],
+     [
+      "3",
+      "{{v3}}"
+     ],
+     [
+      "4",
+      "{{v4}}"
+     ],
+     [
+      "5",
+      "{{v5}}"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "One large load pulls the average above the middle value.",
+    "reasoning": [
+     "The five loads total {{total}}, so the average is {{answer}}.",
+     "The middle value is {{v3}}, which the large last load pulls the average above."
+    ],
+    "answerSummary": "The average is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The middle of the five loads is not what they average."
+   ],
+   "supportHints": [
+    "The middle value and the average are not the same thing here."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "base": {
+      "type": "int",
+      "min": 10,
+      "max": 30
+     },
+     "s2": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "s3": {
+      "type": "int",
+      "min": 9,
+      "max": 16
+     },
+     "s4": {
+      "type": "int",
+      "min": 17,
+      "max": 24
+     },
+     "big": {
+      "type": "int",
+      "min": 40,
+      "max": 90,
+      "step": 5
+     },
+     "logged": {
+      "type": "int",
+      "min": 18,
+      "max": 62
+     }
+    },
+    "derived": {
+     "v1": "base",
+     "v2": "base+s2",
+     "v3": "base+s3",
+     "v4": "base+s4",
+     "v5": "base+big",
+     "total": "v1+v2+v3+v4+v5",
+     "answer": "round(total/5)",
+     "mean": "answer",
+     "d_partialTotal": "total",
+     "d_meanMedianSwap": "v3",
+     "d_usedGivenValue": "logged"
+    },
+    "constraints": [
+     "answer>v3",
+     "logged!=answer",
+     "answer!=d_partialTotal",
+     "answer!=d_meanMedianSwap",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=d_meanMedianSwap",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_meanMedianSwap!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_meanMedianSwap}}$",
+     "error": "meanMedianSwap"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:6.12C:average-pulled-by-one-large-load",
+    "sourcePrompt": "Five loads were logged as shown and {{logged}} was entered as the average. What is the average really?"
+   }
   }
  ]
 }
