@@ -26,6 +26,7 @@ const DEFAULT_LINEAR_QUADRATIC = {
 const DEFAULT_MATRIX = { a11: 2, a12: 1, b1: 7, a21: 1, a22: -1, b2: 2 };
 const inputStyle = { width:'100%', boxSizing:'border-box', padding:'11px 12px', border:'1px solid #cfd8e6', borderRadius:9, background:'#fff', fontSize:15, minHeight:44 };
 const actionStyle = { marginTop:16, padding:'11px 18px', border:0, borderRadius:9, background:'#1a73e8', color:'#fff', fontWeight:800, cursor:'pointer', minHeight:44 };
+const INEQUALITY_COLORS = ['#1a73e8', '#d93025', '#188038', '#9334e6', '#b06000'];
 
 const Field = ({ label, children }) => <label style={{ display:'block', fontSize:13, fontWeight:700, color:'#465267' }}>{label}<div style={{marginTop:5}}>{children}</div></label>;
 const formatLine = (line) => `y = ${line.m}x ${Number(line.b)>=0?'+':'−'} ${Math.abs(Number(line.b))}`;
@@ -150,13 +151,13 @@ function InequalityMode({ questionData, onAction }) {
     ? constructedLines.filter(Boolean).map((line, index) => ({
         m:line.m,
         b:line.b,
-        stroke:index===0?'#1a73e8':'#d93025',
+        stroke:INEQUALITY_COLORS[index % INEQUALITY_COLORS.length],
         dash:line.boundaryStyle === 'dashed' ? '10 6' : undefined,
       }))
     : inequalities.map((ineq,index)=>({
         m:ineq.m,
         b:ineq.b,
-        stroke:index===0?'#1a73e8':'#d93025',
+        stroke:INEQUALITY_COLORS[index % INEQUALITY_COLORS.length],
         dash:String(ineq.relation).includes('=') ? undefined : '10 6',
       }));
 
