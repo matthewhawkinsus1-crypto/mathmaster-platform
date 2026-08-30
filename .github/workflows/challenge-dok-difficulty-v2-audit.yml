@@ -6,7 +6,9 @@ on:
       - "drafts/fidelity-v2/algebra1/**"
       - "drafts/fidelity-v2/algebra2/**"
       - "scripts/audit-challenge-dok-difficulty-v2.mjs"
+      - "scripts/audit-challenge-quality-v2.mjs"
       - "tests/platform/challengeDokDifficultyV2Audit.test.mjs"
+      - "tests/platform/challengeQualityV2Audit.test.mjs"
       - "ALGEBRA1_2_CHALLENGE_DOK_DIFFICULTY_FOLLOWUP.md"
       - ".github/workflows/challenge-dok-difficulty-v2-audit.yml"
   pull_request:
@@ -14,7 +16,9 @@ on:
       - "drafts/fidelity-v2/algebra1/**"
       - "drafts/fidelity-v2/algebra2/**"
       - "scripts/audit-challenge-dok-difficulty-v2.mjs"
+      - "scripts/audit-challenge-quality-v2.mjs"
       - "tests/platform/challengeDokDifficultyV2Audit.test.mjs"
+      - "tests/platform/challengeQualityV2Audit.test.mjs"
       - "ALGEBRA1_2_CHALLENGE_DOK_DIFFICULTY_FOLLOWUP.md"
       - ".github/workflows/challenge-dok-difficulty-v2-audit.yml"
   workflow_dispatch:
@@ -29,11 +33,9 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Run adaptive coverage non-regression tests
-        run: node --test tests/platform/challengeDokDifficultyV2Audit.test.mjs
-      - name: Print variant-aware Challenge and DOK/difficulty report
-        run: node scripts/audit-challenge-dok-difficulty-v2.mjs
-      # Strict mode is intentionally NOT enabled until the current upgrade pass
-      # closes every preferred adaptive cell or records a justified exception.
-      # Final completion gate:
-      # node scripts/audit-challenge-dok-difficulty-v2.mjs --strict
+      - name: Run adaptive coverage and Challenge-quality regression tests
+        run: node --test tests/platform/challengeDokDifficultyV2Audit.test.mjs tests/platform/challengeQualityV2Audit.test.mjs
+      - name: Enforce complete variant-aware DOK/difficulty coverage
+        run: node scripts/audit-challenge-dok-difficulty-v2.mjs --strict
+      - name: Enforce authentic Challenge quality
+        run: node scripts/audit-challenge-quality-v2.mjs --strict
