@@ -670,3 +670,88 @@ test('A2.3C algebraically solves linear-quadratic systems through complete order
   );
 });
 
+test('A2.3D judges proposed linear-quadratic solutions from concrete algebraic and contextual evidence', async () => {
+  const entry = payload('A2.3D');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /evidence-based-reasonableness/);
+
+  const representations = new Set();
+  const taskTypes = new Set();
+  let generatedCount = 0;
+  let keepFamilies = 0;
+  let rejectFamilies = 0;
+  let contextRestrictionFamilies = 0;
+  let approximateFamilies = 0;
+  let errorFamilies = 0;
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    taskTypes.add(doc.taskType);
+    const text = stringValues(doc).join(' ');
+
+    assert.ok((doc.responseFields || []).length >= 3, `${doc.id} must collect evidence plus a reasonableness decision`);
+    assert.equal((doc.responseFields || []).some((field) => field.id === 'reduced'), false, `${doc.id} drifted back into A2.3C full-system solving`);
+    assert.ok(
+      (doc.responseFields || []).some((field) => /output|residual/.test(String(field.id))),
+      `${doc.id} must make the student perform a concrete candidate check`,
+    );
+
+    const decisionText = stringValues((doc.responseFields || []).filter((field) => /decision|context/.test(String(field.id)))).join(' ');
+    if (/Keep it|reasonable approximation/i.test(decisionText)) keepFamilies += 1;
+    if (/Reject/i.test(decisionText)) rejectFamilies += 1;
+    if (/time|domain|context/i.test(text) && /negative|x\\ge 0/.test(text)) contextRestrictionFamilies += 1;
+    if (/residual of at most 0\.05|tolerance/i.test(text)) approximateFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const result = await gradeResponse(grading, { responses });
+      assert.equal(
+        result.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(result.fieldResults)}`,
+      );
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+
+      if (doc.id.includes('rounded-residual-tolerance')) {
+        const residual = Number(question.responseFields.find((field) => field.id === 'quad-residual')?.expected);
+        assert.ok(residual > 0 && residual <= 0.05, `rounded candidate residual ${residual} is outside the promised tolerance`);
+      }
+      if (doc.id.includes('table-invalid') || doc.id.includes('error-perform')) {
+        const residual = Number(question.responseFields.find((field) => /residual/.test(field.id))?.expected);
+        assert.ok(residual > 0, `${doc.id} generated an allegedly invalid candidate with zero residual`);
+      }
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(keepFamilies >= 2, 'A2.3D must include reasonable exact/numerical candidates');
+  assert.ok(rejectFamilies >= 3, 'A2.3D must repeatedly reject candidates for concrete reasons');
+  assert.ok(contextRestrictionFamilies >= 1, 'A2.3D must distinguish algebraic validity from contextual reasonableness');
+  assert.ok(approximateFamilies >= 1, 'A2.3D must include tolerance-aware numerical reasonableness');
+  assert.ok(errorFamilies >= 1, 'A2.3D must perform the missing check in a genuine error-analysis family');
+  assert.ok(representations.size >= 5, 'A2.3D reasonableness must transfer across symbolic, table, context, numerical, and verbal evidence');
+  assert.ok(taskTypes.has('interpretation'));
+  assert.ok(taskTypes.has('application'));
+  assert.ok(taskTypes.has('errorAnalysis'));
+});
+
