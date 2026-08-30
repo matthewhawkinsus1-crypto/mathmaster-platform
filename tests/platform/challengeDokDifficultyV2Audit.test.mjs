@@ -16,8 +16,7 @@ test('Fidelity V2 challenge and DOK/difficulty audit protects the current cross-
   assert.equal(result.algebra2.familyCount, 240);
   assert.deepEqual(TARGET_ADAPTIVE_PAIRS, ['2:2', '2:3', '2:4', '3:3', '3:4']);
 
-  // Algebra I has completed the preferred adaptive target; Algebra II remains
-  // monotonic while its independent-axis upgrade pass is active.
+  // Both Algebra courses have completed the preferred adaptive target.
   assert.equal(result.algebra1.challengeReadyCount, 49);
   assert.equal(result.algebra1.strictFailureCount, 0);
   assert.equal(result.algebra2.challengeReadyCount, 48);
@@ -39,20 +38,21 @@ test('Fidelity V2 challenge and DOK/difficulty audit protects the current cross-
   }
 });
 
-test('Algebra I is strictly ready while Algebra II remains explicit until its preferred cells are complete', () => {
+test('Algebra I and Algebra II are strictly ready across all five preferred adaptive cells', () => {
   const result = runAudit();
+
   assert.equal(result.algebra1.strictFailureCount, 0);
   assert.equal(result.algebra1.fullPreferredTargetCount, 49);
   assert.equal(result.algebra1.challengeReadyCount, 49);
-  assert.ok(result.algebra2.strictFailureCount > 0);
+
+  assert.equal(result.algebra2.strictFailureCount, 0);
+  assert.equal(result.algebra2.fullPreferredTargetCount, 48);
+  assert.equal(result.algebra2.challengeReadyCount, 48);
 
   for (const course of [result.algebra1, result.algebra2]) {
     for (const row of course.standards) {
-      assert.deepEqual(
-        row.undocumentedMissingTargets,
-        row.missingTargets,
-        'No adaptive exceptions have been declared yet for ' + row.standard,
-      );
+      assert.deepEqual(row.missingTargets, [], row.standard + ' still has a preferred adaptive gap');
+      assert.deepEqual(row.undocumentedMissingTargets, [], row.standard + ' has an undocumented adaptive gap');
     }
   }
 });
@@ -77,6 +77,30 @@ test('variant-bearing Algebra I families preserve their original core cell', () 
         preservesCore,
         true,
         doc.id + ' has variants but no explicit core variant preserving original DOK/difficulty ' + originalPair,
+      );
+    }
+  }
+});
+
+
+test('variant-bearing Algebra II families preserve their original DOK/difficulty cell', () => {
+  const dir = 'drafts/fidelity-v2/algebra2';
+  const files = readdirSync(dir).filter((name) => name.endsWith('.json'));
+
+  for (const name of files) {
+    const entry = JSON.parse(readFileSync(dir + '/' + name, 'utf8'));
+    for (const doc of entry.documents || []) {
+      if (!Array.isArray(doc.variants) || doc.variants.length === 0) continue;
+      const originalPair = String(doc.dok) + ':' + String(doc.difficultyBand);
+      const preservesCore = doc.variants.some((variant) => {
+        const dok = Number(variant.dok ?? doc.dok);
+        const band = Number(variant.difficultyBand ?? doc.difficultyBand);
+        return String(dok) + ':' + String(band) === originalPair;
+      });
+      assert.equal(
+        preservesCore,
+        true,
+        doc.id + ' variants lost the original DOK/difficulty cell ' + originalPair,
       );
     }
   }
