@@ -230,7 +230,112 @@
           "power": "pow(10,n)",
           "c": "power-m*x"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-negative-affine-common-log-verification",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "table",
+          "prompt": "A solver proposes x={{x}} for $\\log({{m}}x{{c|signed}})={{n}}$, where log means base 10 and the x-coefficient is negative. Check the ORIGINAL argument, verify the base-10 log value, rewrite the original equality exponentially, and decide whether the candidate is reasonable.",
+          "responseFields": [
+            {
+              "id": "argument",
+              "label": "Original log argument",
+              "inputProfile": "number",
+              "expected": "{{power}}"
+            },
+            {
+              "id": "domain",
+              "label": "Domain check",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "valid",
+                  "label": "Argument is positive"
+                },
+                {
+                  "id": "invalid",
+                  "label": "Argument is not positive"
+                }
+              ],
+              "expected": "valid"
+            },
+            {
+              "id": "log-value",
+              "label": "log({{power}})",
+              "inputProfile": "number",
+              "expected": "{{n}}"
+            },
+            {
+              "id": "exponential-check",
+              "label": "Equivalent exponential statement",
+              "inputProfile": "equation",
+              "expected": "10^{{n}}={{power}}"
+            },
+            {
+              "id": "verdict",
+              "label": "Reasonableness verdict",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "keep",
+                  "label": "Reasonable — the original equation is true."
+                },
+                {
+                  "id": "reject",
+                  "label": "Unreasonable — the original equation is false."
+                }
+              ],
+              "expected": "keep"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A more complicated affine argument still requires the same original-equation evidence.",
+            "reasoning": [
+              "Substitution gives the positive argument {{power}}.",
+              "Because $\\log({{power}})={{n}}$, the logarithmic equality is true.",
+              "The exponential check $10^{{n}}={{power}}$ confirms the same relationship."
+            ],
+            "answerSummary": "Keep x={{x}}."
+          },
+          "attemptFeedback": [
+            "Evaluate the entire affine log argument before deciding whether the candidate works."
+          ],
+          "supportHints": [
+            "For common log, $\\log(A)=n$ is equivalent to $10^n=A$."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -7,
+                "max": -2
+              },
+              "x": {
+                "type": "int",
+                "min": 1,
+                "max": 8
+              },
+              "n": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              }
+            },
+            "derived": {
+              "power": "pow(10,n)",
+              "c": "power-m*x"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_5E_v2_positive-domain-but-wrong-value",
@@ -584,152 +689,7 @@
           "h2": "x-p2",
           "sum": "r+s"
         }
-      },
-      "variants": [
-        {
-          "coverageKey": "core-d3b4",
-          "dok": 3,
-          "difficultyBand": 4
-        },
-        {
-          "coverageKey": "adaptive-d2b4-three-log-original-check",
-          "dok": 2,
-          "difficultyBand": 4,
-          "taskType": "procedural",
-          "representation": "multipleRepresentation",
-          "prompt": "A candidate x={{x}} is proposed for a THREE-log equation. Substitute into all three original logarithm arguments, verify each log value, add the three left-side values, and decide whether the candidate satisfies the original equation.",
-          "responseFields": [
-            {
-              "id": "arg1",
-              "label": "First log argument",
-              "inputProfile": "number",
-              "expected": "{{p1}}"
-            },
-            {
-              "id": "arg2",
-              "label": "Second log argument",
-              "inputProfile": "number",
-              "expected": "{{p2}}"
-            },
-            {
-              "id": "arg3",
-              "label": "Third log argument",
-              "inputProfile": "number",
-              "expected": "{{p3}}"
-            },
-            {
-              "id": "domain",
-              "label": "Are all three logarithms defined?",
-              "inputProfile": "choice",
-              "choices": [
-                {
-                  "id": "yes",
-                  "label": "Yes — all arguments are positive."
-                },
-                {
-                  "id": "no",
-                  "label": "No — at least one argument is not positive."
-                }
-              ],
-              "expected": "yes"
-            },
-            {
-              "id": "log1",
-              "label": "First logarithm value",
-              "inputProfile": "number",
-              "expected": "{{r}}"
-            },
-            {
-              "id": "log2",
-              "label": "Second logarithm value",
-              "inputProfile": "number",
-              "expected": "{{s}}"
-            },
-            {
-              "id": "log3",
-              "label": "Third logarithm value",
-              "inputProfile": "number",
-              "expected": "{{t}}"
-            },
-            {
-              "id": "lhs",
-              "label": "Original left side total",
-              "inputProfile": "number",
-              "expected": "{{sum}}"
-            },
-            {
-              "id": "verdict",
-              "label": "Reasonableness verdict",
-              "inputProfile": "choice",
-              "choices": [
-                {
-                  "id": "keep",
-                  "label": "Reasonable"
-                },
-                {
-                  "id": "reject",
-                  "label": "Unreasonable"
-                }
-              ],
-              "expected": "keep"
-            }
-          ],
-          "solutionReview": {
-            "headline": "A longer original equation still uses routine substitution evidence.",
-            "reasoning": [
-              "All three generated arguments are positive.",
-              "Their base-2 log values are {{r}}, {{s}}, and {{t}}.",
-              "The sum is {{sum}}, so the proposed candidate satisfies the original equation."
-            ],
-            "answerSummary": "Keep x={{x}}."
-          },
-          "attemptFeedback": [
-            "Check every original logarithm, not just one or two of them."
-          ],
-          "supportHints": [
-            "Each logarithm requires a positive argument and the total left side must equal the stated right side."
-          ],
-          "generator": {
-            "parameters": {
-              "x": {
-                "type": "int",
-                "min": -2,
-                "max": 6
-              },
-              "r": {
-                "type": "choice",
-                "values": [
-                  1,
-                  2
-                ]
-              },
-              "s": {
-                "type": "choice",
-                "values": [
-                  2,
-                  3
-                ]
-              },
-              "t": {
-                "type": "choice",
-                "values": [
-                  3,
-                  4
-                ]
-              }
-            },
-            "derived": {
-              "p1": "pow(2,r)",
-              "p2": "pow(2,s)",
-              "p3": "pow(2,t)",
-              "h1": "x-p1",
-              "h2": "x-p2",
-              "h3": "x-p3",
-              "sum": "r+s+t"
-            }
-          }
-        }
-      ]
+      }
     },
     {
       "id": "mm_A2_5E_v2_context-error-algebra-valid-time-invalid",
