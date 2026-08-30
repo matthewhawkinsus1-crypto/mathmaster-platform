@@ -235,7 +235,160 @@
           "ft": "a*t+b",
           "gof": "(ft-b)/a+d"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-two-input-composition-counterexample",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "interpretation",
+          "representation": "table",
+          "prompt": "Use the table to evaluate BOTH composition orders at two different starting inputs. Decide whether the proposed functions can be inverses. A single failed composition is enough to reject the claim, but calculate all four values.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Two-input composition evidence",
+            "table": {
+              "headers": [
+                "Start",
+                "Composition",
+                "Result"
+              ],
+              "rows": [
+                [
+                  "{{t}}",
+                  "f(g({{t}}))",
+                  "{{fogT}}"
+                ],
+                [
+                  "{{t}}",
+                  "g(f({{t}}))",
+                  "{{gofT}}"
+                ],
+                [
+                  "{{u}}",
+                  "f(g({{u}}))",
+                  "{{fogU}}"
+                ],
+                [
+                  "{{u}}",
+                  "g(f({{u}}))",
+                  "{{gofU}}"
+                ]
+              ]
+            },
+            "note": "Inverse functions must return the starting input in both composition orders."
+          },
+          "responseFields": [
+            {
+              "id": "fog-t",
+              "label": "f(g(t))",
+              "inputProfile": "number",
+              "expected": "{{fogT}}"
+            },
+            {
+              "id": "gof-t",
+              "label": "g(f(t))",
+              "inputProfile": "number",
+              "expected": "{{gofT}}"
+            },
+            {
+              "id": "fog-u",
+              "label": "f(g(u))",
+              "inputProfile": "number",
+              "expected": "{{fogU}}"
+            },
+            {
+              "id": "gof-u",
+              "label": "g(f(u))",
+              "inputProfile": "number",
+              "expected": "{{gofU}}"
+            },
+            {
+              "id": "conclusion",
+              "label": "Conclusion",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "not",
+                  "label": "They are not inverses because the compositions do not return the starting inputs."
+                },
+                {
+                  "id": "yes",
+                  "label": "They are inverses because both formulas are linear."
+                }
+              ],
+              "expected": "not"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Inverse verification is a two-sided identity test, not a similarity test.",
+            "reasoning": [
+              "At t={{t}}, the compositions return {{fogT}} and {{gofT}} rather than both returning {{t}}.",
+              "At u={{u}}, they return {{fogU}} and {{gofU}} rather than both returning {{u}}.",
+              "The proposed pair therefore fails the inverse test."
+            ],
+            "answerSummary": "Not inverses."
+          },
+          "attemptFeedback": [
+            "Compare each composition result with its own starting input."
+          ],
+          "supportHints": [
+            "For inverse functions, both f(g(x)) and g(f(x)) must equal x."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -4,
+                  -3,
+                  -2,
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "d": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "t": {
+                "type": "int",
+                "min": -4,
+                "max": 0
+              },
+              "u": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              }
+            },
+            "derived": {
+              "fogT": "t+a*d",
+              "gofT": "t+d",
+              "fogU": "u+a*d",
+              "gofU": "u+d"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_2D_v2_right-quadratic-root-composition",
@@ -366,7 +519,108 @@
             "max": 5
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-parent-quadratic-composition-claim",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "A student claims $f(x)=x^2$ on ALL real x and $g(x)=\\sqrt{x}$ are inverses because $f(g(x))=x$ for x≥0. Analyze the missing composition $g(f(x))$, use x=-2 as a counterexample, and identify the restriction that repairs the inverse pair.",
+          "stimulus": {
+            "kind": "expressions",
+            "title": "Proposed inverse pair",
+            "expressions": [
+              "$f(x)=x^2$ on all real x",
+              "$g(x)=\\sqrt{x}$",
+              "$f(g(x))=x$ for x≥0"
+            ]
+          },
+          "responseFields": [
+            {
+              "id": "fog",
+              "label": "f(g(x)) on x≥0",
+              "inputProfile": "expression",
+              "expected": "x"
+            },
+            {
+              "id": "gof",
+              "label": "Simplify g(f(x)) before restricting f",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "abs",
+                  "label": "|x|"
+                },
+                {
+                  "id": "x",
+                  "label": "x for every real x"
+                }
+              ],
+              "expected": "abs"
+            },
+            {
+              "id": "counterexample",
+              "label": "g(f(-2))",
+              "inputProfile": "number",
+              "expected": "2"
+            },
+            {
+              "id": "diagnosis",
+              "label": "Evaluate the student's claim",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "fails",
+                  "label": "The all-real claim fails because g(f(x))=|x|, not x for negative x."
+                },
+                {
+                  "id": "works",
+                  "label": "One successful composition is enough to prove the all-real inverse claim."
+                }
+              ],
+              "expected": "fails"
+            },
+            {
+              "id": "repair",
+              "label": "Restriction that repairs the pair",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "right",
+                  "label": "Restrict f to x≥0."
+                },
+                {
+                  "id": "all",
+                  "label": "Keep all real x."
+                }
+              ],
+              "expected": "right"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Both composition orders must return the original input on the stated domains.",
+            "reasoning": [
+              "$g(f(x))=\\sqrt{x^2}=|x|$.",
+              "At x=-2, the composition returns 2 rather than -2.",
+              "Restricting f to x≥0 makes |x|=x and repairs the inverse relationship."
+            ],
+            "answerSummary": "The unrestricted pair is not inverse; restrict f to x≥0."
+          },
+          "attemptFeedback": [
+            "Check the composition in the direction the student skipped."
+          ],
+          "supportHints": [
+            "Remember that $\\sqrt{x^2}=|x|$ for real x."
+          ]
+        }
+      ]
     },
     {
       "id": "mm_A2_2D_v2_left-quadratic-root-composition",
