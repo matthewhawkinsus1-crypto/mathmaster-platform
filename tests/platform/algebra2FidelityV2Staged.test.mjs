@@ -1810,3 +1810,121 @@ test('A2.4E formulates quadratic and square-root equations with authentic regres
   assert.ok(representations.has('verbal'));
 });
 
+test('A2.4F solves quadratic and square-root equations through complete multi-step work', async () => {
+  const entry = payload('A2.4F');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /complete-quadratic-and-square-root-solving/);
+
+  let generatedCount = 0;
+  let quadraticFamilies = 0;
+  let squareRootFamilies = 0;
+  let factoringFamilies = 0;
+  let irrationalFormulaFamilies = 0;
+  let multistepRadicalFamilies = 0;
+  let contextFamilies = 0;
+  let errorRepairFamilies = 0;
+  let wrongFinalRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const id = String(doc.id);
+    if (id.includes('quadratic') || id.includes('factoring')) quadraticFamilies += 1;
+    if (id.includes('square-root') || id.includes('radical') || id.includes('isolation-error')) squareRootFamilies += 1;
+    if (id.includes('factoring')) factoringFamilies += 1;
+    if (id.includes('exact-quadratic-formula')) irrationalFormulaFamilies += 1;
+    if ((doc.responseFields || []).some((field) => field.id === 'isolated')
+        && (doc.responseFields || []).some((field) => field.id === 'squared')) multistepRadicalFamilies += 1;
+    if (doc.representation === 'context') contextFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorRepairFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let spoiledChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const result = await gradeResponse(grading, { responses });
+      assert.equal(
+        result.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(result.fieldResults)}`,
+      );
+
+      if (id.includes('exact-quadratic-formula')) {
+        const discriminant = Number(question.responseFields.find((field) => field.id === 'discriminant')?.expected);
+        assert.ok(Number.isFinite(discriminant) && discriminant > 0);
+        assert.ok(
+          Math.abs(Math.sqrt(discriminant) - Math.round(Math.sqrt(discriminant))) > 1e-9,
+          `${doc.id} generated a perfect-square discriminant and no longer requires an irrational exact solve`,
+        );
+        const minus = String(question.responseFields.find((field) => field.id === 'minus-root')?.expected || '');
+        const plus = String(question.responseFields.find((field) => field.id === 'plus-root')?.expected || '');
+        assert.match(minus, /sqrt\(/);
+        assert.match(plus, /sqrt\(/);
+        assert.equal(question.responseFields.find((field) => field.id === 'minus-root')?.inputProfile, 'expression');
+        assert.equal(question.responseFields.find((field) => field.id === 'plus-root')?.inputProfile, 'expression');
+      }
+
+      if (id.includes('factoring')) {
+        assert.ok(question.responseFields.some((field) => field.id === 'factored'));
+        assert.ok(question.responseFields.some((field) => field.id === 'r1'));
+        assert.ok(question.responseFields.some((field) => field.id === 'r2'));
+      }
+
+      if (id.includes('square-root') || id.includes('radical') || id.includes('isolation-error')) {
+        assert.ok(
+          question.responseFields.some((field) => ['solution', 'time'].includes(field.id)),
+          `${doc.id} must finish the square-root solve, not stop after a method step`,
+        );
+      }
+
+      if (!spoiledChecked) {
+        const finalField = grading.fields.find((field) => ['r2', 'plus-root', 'solution', 'time'].includes(field.id));
+        assert.ok(finalField, `${doc.id} has no final solution field to spoil`);
+        const expected = finalField.expected ?? finalField.accepted?.[0];
+        const wrongValue = Number.isFinite(Number(expected)) ? Number(expected) + 1 : '0';
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, [finalField.id]:wrongValue },
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted a wrong final solution`);
+        wrongFinalRejected += 1;
+        spoiledChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(quadraticFamilies >= 2, 'A2.4F must repeatedly solve quadratic equations');
+  assert.ok(squareRootFamilies >= 3, 'A2.4F must repeatedly solve square-root equations');
+  assert.ok(factoringFamilies >= 1, 'A2.4F must include a complete factoring solve');
+  assert.ok(irrationalFormulaFamilies >= 1, 'A2.4F must include a genuine non-perfect-square quadratic-formula solve');
+  assert.ok(multistepRadicalFamilies >= 3, 'A2.4F square-root work must repeatedly isolate, square, and finish the linear solve');
+  assert.ok(contextFamilies >= 1);
+  assert.ok(errorRepairFamilies >= 1, 'A2.4F must repair a solving error and still finish the equation');
+  assert.equal(wrongFinalRejected, entry.documents.length);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('context'));
+  assert.ok(representations.has('verbal'));
+});
+
