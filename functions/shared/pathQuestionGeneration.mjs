@@ -460,6 +460,11 @@ const hasDirectPathGenerator = (question) => Boolean(
   && Object.keys(question.generator.parameters).length > 0
 );
 
+export const hasPathVariants = (question) => (
+  Array.isArray(question?.variants)
+  && question.variants.some((variant) => variant && typeof variant === 'object')
+);
+
 export const hasPathGenerator = (question) => Boolean(
   hasDirectPathGenerator(question)
   || (Array.isArray(question?.variants) && question.variants.some((variant) => hasDirectPathGenerator(variant)))
