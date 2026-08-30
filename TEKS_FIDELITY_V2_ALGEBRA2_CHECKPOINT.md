@@ -655,17 +655,54 @@ Certification result:
 
 Do **not** re-audit A2.6F unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.6G
 
-### A2.6G — REBUILD — STAGED / CERTIFICATION RUNNING
+### A2.6G — REBUILD — CERTIFIED
 
 Official construct: **Analyze transformations of the reciprocal parent function for specified positive and negative real parameter values.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- supplied a/b/h/k values are analyzed separately while the equivalent final coefficient a/b is also recognized;
+- vertical and reciprocal horizontal scales, x-axis/horizontal reflections, mapped points, asymptotes, and branch orientation are explicit;
+- positive and negative a/b values plus horizontal stretch/compression are represented;
+- the odd-parent fact that horizontal and vertical reflection are visually equivalent for 1/x is handled correctly;
+- the bank does not falsely claim a and b are separately recoverable from the final reciprocal graph alone;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect transformation effects are rejected and public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33326836793`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.6G unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.6H — REBUILD — AUDITED / AUTHORING
+
+Official construct: **Formulate rational equations that model real-world situations.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.6G
+### A2.6H
 
-Resume here. Do not reopen A2.2A–A2.6F unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.6G unless a failing gate names them.
+
+
+### 2026-08-30 — A2.6H audit finding
+- Official construct: **formulate rational equations that model real-world situations**.
+- Verdict: **REBUILD**.
+- Legacy weaknesses:
+  - all five families are recognition/selection rather than student-authored formulation;
+  - average-speed and concentration families ask for a rational expression, not an equation with an unknown;
+  - the inverse-variation family belongs more naturally to A2.6L, which explicitly owns formulating/solving inverse variation;
+  - the work-rate error family diagnoses “add rates” but does not require the corrected rational equation.
+- Fidelity V2 requirements:
+  - every family must make the student author a rational **equation** from a real-world situation;
+  - use several authentic structures rather than repeating $k/x$: combined work rates, average-speed/time, round-trip motion with current/wind, concentration/dilution, and complete model-error repair;
+  - identify the unknown and units in the context before building the equation;
+  - keep the task formulation-focused: A2.6I will own solving the resulting rational equations;
+  - avoid using pure inverse variation as a substitute because A2.6L owns that construct.
+- Generic secure equation grading is sufficient for the deliberately structured formulation frames; no new Path tool is required.
 
 
 ### 2026-08-30 — A2.6G audit finding
@@ -716,7 +753,10 @@ Resume here. Do not reopen A2.2A–A2.6F unless a failing gate names them.
 - Repaired the gate to inspect authored b choices and explicit graded b values in addition to textual evidence — commit `4a7dfa0bcca2b9ba339531666f0a729130be919b`.
 - This is a certification-selector repair, not a lowered requirement; the package still has at least three independently authored negative-b families.
 - Replacement certification is triggered.
-- FIRST UNFINISHED STANDARD remains **A2.6G** until the replacement run is green.
+- Replacement certification run `33326836793`: **PASS**.
+- Generated point mapping, asymptotes, a/b reasoning, positive/negative parameter breadth, stretch/compression, secure wrong-effect rejection, public-key stripping, and student/runtime build all passed.
+- A2.6G is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.6H**.
 
 
 ### 2026-08-30 — A2.6F audit finding
