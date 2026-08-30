@@ -1201,9 +1201,25 @@ test('A2.4A requires a complete quadratic authored from exactly three specified 
       const points = sourcePoints(question);
       assert.equal(points.length, 3, `${doc.id} lost one of its three source points after generation`);
       assert.ok(points.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)));
+      assert.equal(new Set(points.map((point) => point.x)).size, 3, `${doc.id} must use three distinct x-values`);
+
+      const coefficientSolution = solve3x3System({
+        rows: points.map((point) => [point.x * point.x, point.x, 1, point.y]),
+      });
+      assert.equal(
+        coefficientSolution.type,
+        'one',
+        `${doc.id} generated three points that do not determine a unique quadratic`,
+      );
 
       const quadraticKey = question.responseFields?.find((field) => field.id === 'quadratic')?.expected;
       assert.ok(quadraticKey);
+      const independentlySolved = `y=${coefficientSolution.x}x^2+(${coefficientSolution.y})x+(${coefficientSolution.z})`;
+      assert.equal(
+        sameValue(quadraticKey, independentlySolved),
+        true,
+        `${doc.id} private key disagrees with the independently solved three-point quadratic: ${quadraticKey} vs ${independentlySolved}`,
+      );
       points.forEach((point) => {
         assert.ok(
           Math.abs(evaluateQuadraticAnswerAt(quadraticKey, point.x) - point.y) <= 1e-8,
@@ -1248,115 +1264,3 @@ test('A2.4A requires a complete quadratic authored from exactly three specified 
   assert.ok(taskTypes.has('modeling'));
   assert.ok(taskTypes.has('errorAnalysis'));
 });
-
-const a24aSpecifiedPoints = (question) => {
-  const stimulus = question.stimulus || {};
-  if (Array.isArray(stimulus.orderedPairs)) {
-    return stimulus.orderedPairs.map((point) => ({ x:Number(point.x), y:Number(point.y) }));
-  }
-  if (Array.isArray(stimulus.graph?.points)) {
-    return stimulus.graph.points.map((point) => ({ x:Number(point.x), y:Number(point.y) }));
-  }
-  if (Array.isArray(stimulus.table?.rows) && stimulus.table.rows.length) {
-    return stimulus.table.rows.map((row) => ({ x:Number(row[0]), y:Number(row[1]) }));
-  }
-  return [];
-};
-
-test('A2.4A writes the unique quadratic determined by exactly three specified points', async () => {
-  const entry = payload('A2.4A');
-  assert.ok(entry);
-  assert.equal(entry.verdict, 'REBUILD');
-  assert.match(entry.certificationStatus, /student-authored-quadratic-functions-from-exactly-three-specified-points/);
-
-  const representations = new Set();
-  let generatedCount = 0;
-  let nonzeroXFamilies = 0;
-  let coefficientSystemFamilies = 0;
-  let errorRepairFamilies = 0;
-
-  for (const doc of entry.documents) {
-    representations.add(doc.representation);
-    const publicEvidence = JSON.stringify({ prompt:doc.prompt, stimulus:doc.stimulus });
-    assert.equal(
-      publicEvidence.includes('{{a}}'),
-      false,
-      `${doc.id} gives away the generated leading coefficient in the three-point data`,
-    );
-
-    const quadraticFields = (doc.responseFields || []).filter((field) => (
-      field.inputProfile === 'equation' && String(field.id).includes('quadratic')
-    ));
-    assert.equal(quadraticFields.length, 1, `${doc.id} must require one complete authored quadratic function`);
-
-    const setupFields = (doc.responseFields || []).filter((field) => (
-      field.inputProfile === 'equation' && !String(field.id).includes('quadratic')
-    ));
-    if (setupFields.length >= 3) coefficientSystemFamilies += 1;
-    if (doc.taskType === 'errorAnalysis' && setupFields.length >= 3) errorRepairFamilies += 1;
-
-    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
-    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
-
-    let familyHasOnlyNonzeroX = true;
-
-    for (const generated of samplePathInstances(doc, 40)) {
-      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
-      const question = generated.question;
-      generatedCount += 1;
-      assert.deepEqual([...placeholdersUsed(question)], []);
-
-      const points = a24aSpecifiedPoints(question);
-      assert.equal(points.length, 3, `${doc.id} must expose exactly three specified points`);
-      assert.ok(points.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)));
-      assert.equal(new Set(points.map((point) => point.x)).size, 3, `${doc.id} must use three distinct x-values`);
-      if (points.some((point) => Math.abs(point.x) <= 1e-9)) familyHasOnlyNonzeroX = false;
-
-      const solved = solve3x3System({
-        rows: points.map((point) => [point.x * point.x, point.x, 1, point.y]),
-      });
-      assert.equal(solved.type, 'one', `${doc.id} generated three points that do not determine a unique quadratic`);
-
-      const quadratic = (question.responseFields || []).find((field) => String(field.id).includes('quadratic'));
-      assert.ok(quadratic?.expected, `${doc.id} generated no private quadratic key`);
-      const independentlySolved = `y=${solved.x}x^2+(${solved.y})x+(${solved.z})`;
-      assert.equal(
-        sameValue(quadratic.expected, independentlySolved),
-        true,
-        `${doc.id} private quadratic key does not fit the independently solved three-point coefficients: ${quadratic.expected} vs ${independentlySolved}`,
-      );
-
-      const grading = privateGradingDefinition(question);
-      const responses = Object.fromEntries(
-        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
-      );
-      const result = await gradeResponse(grading, { responses });
-      assert.equal(
-        result.isCorrect,
-        true,
-        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(result.fieldResults)}`,
-      );
-
-      const publicQuestion = buildSanitizedQuestion(question, {
-        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
-        attemptsAllowed: 3,
-      });
-      const publicText = JSON.stringify(publicQuestion);
-      assert.equal(publicText.includes('"expected"'), false);
-      assert.equal(publicText.includes('"acceptedAnswers"'), false);
-    }
-
-    if (familyHasOnlyNonzeroX) nonzeroXFamilies += 1;
-  }
-
-  assert.ok(generatedCount >= 200);
-  assert.ok(nonzeroXFamilies >= 2, 'A2.4A must repeatedly require solving c rather than always reading it from x=0');
-  assert.ok(coefficientSystemFamilies >= 2, 'A2.4A must repeatedly expose the three substitution equations for a, b, and c');
-  assert.ok(errorRepairFamilies >= 1, 'A2.4A error analysis must repair the coefficient system and still finish the quadratic');
-  assert.ok(representations.has('table'));
-  assert.ok(representations.has('orderedPairs'));
-  assert.ok(representations.has('graph'));
-  assert.ok(representations.has('context'));
-  assert.ok(representations.has('verbal'));
-});
-
