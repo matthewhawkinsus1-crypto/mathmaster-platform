@@ -1,0 +1,534 @@
+{
+  "standard": "A2.4A",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-student-authored-quadratic-functions-from-exactly-three-specified-points",
+  "rationale": "A2.4A requires writing the quadratic function determined by three points. Fidelity V2 removes recognition shortcuts and leading-coefficient giveaways: every family supplies exactly three points and requires the complete function, with harder families also collecting the coefficient system or repairing it.",
+  "documents": [
+    {
+      "id": "mm_A2_4A_v2_table-write-standard-form",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4A:v2-table-write-standard-form",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4A",
+      "representation": "table",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "The table gives THREE points on one quadratic. Write the complete function in standard form $y=ax^2+bx+c$. No coefficient is given in advance.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Three points",
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "0",
+              "{{y0}}"
+            ],
+            [
+              "1",
+              "{{y1}}"
+            ],
+            [
+              "2",
+              "{{y2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "quadratic",
+          "label": "Quadratic function in standard form",
+          "inputProfile": "equation",
+          "expected": "y={{a}}x^2{{b|signed}}x{{c|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Three independent points determine a, b, and c.",
+        "reasoning": [
+          "At x=0, c={{c}}.",
+          "Using x=1 and x=2 with that value determines a={{a}} and b={{b}}.",
+          "Substitute all three coefficients into standard form."
+        ],
+        "answerSummary": "$y={{a}}x^2{{b|signed}}x{{c|signed}}$"
+      },
+      "attemptFeedback": [
+        "Do not guess from one or two rows; the function must fit all three points."
+      ],
+      "supportHints": [
+        "Substitute each point into $y=ax^2+bx+c$ to create equations for a, b, and c."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "c": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y0": "c",
+          "y1": "a+b+c",
+          "y2": "4*a+2*b+c"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4A_v2_nonzero-x-coefficient-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4A:v2-nonzero-x-coefficient-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4A",
+      "representation": "orderedPairs",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "reverseReasoning",
+      "prompt": "The points $(-2,{{ym2}})$, $(1,{{y1}})$, and $(3,{{y3}})$ lie on one quadratic. None has x=0. Write the THREE substitution equations for $a,b,c$, solve them, and write the complete quadratic in standard form.",
+      "stimulus": {
+        "kind": "orderedPairs",
+        "title": "Specified points",
+        "pairs": [
+          [
+            -2,
+            "{{ym2}}"
+          ],
+          [
+            1,
+            "{{y1}}"
+          ],
+          [
+            3,
+            "{{y3}}"
+          ]
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "eq-neg2",
+          "label": "Equation from $(-2,{{ym2}})$",
+          "inputProfile": "equation",
+          "expected": "4a-2b+c={{ym2}}"
+        },
+        {
+          "id": "eq-one",
+          "label": "Equation from $(1,{{y1}})$",
+          "inputProfile": "equation",
+          "expected": "a+b+c={{y1}}"
+        },
+        {
+          "id": "eq-three",
+          "label": "Equation from $(3,{{y3}})$",
+          "inputProfile": "equation",
+          "expected": "9a+3b+c={{y3}}"
+        },
+        {
+          "id": "quadratic",
+          "label": "Quadratic function in standard form",
+          "inputProfile": "equation",
+          "expected": "y={{a}}x^2{{b|signed}}x{{c|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "When x=0 is absent, c must be solved rather than read directly.",
+        "reasoning": [
+          "Substitute all three ordered pairs into $y=ax^2+bx+c$.",
+          "The resulting three linear equations determine a={{a}}, b={{b}}, and c={{c}}.",
+          "Write those coefficients in the quadratic."
+        ],
+        "answerSummary": "$y={{a}}x^2{{b|signed}}x{{c|signed}}$"
+      },
+      "attemptFeedback": [
+        "Keep each point's x and y together when building the coefficient equations."
+      ],
+      "supportHints": [
+        "For x=-2, the squared term contributes 4a and the linear term contributes -2b."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "c": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        },
+        "derived": {
+          "ym2": "4*a-2*b+c",
+          "y1": "a+b+c",
+          "y3": "9*a+3*b+c"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4A_v2_graph-three-points-standard-form",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4A:v2-graph-three-points-standard-form",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4A",
+      "representation": "graph",
+      "difficultyBand": 3,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "The graph marks exactly THREE points on a quadratic. Use the coordinates to write the quadratic function in standard form $y=ax^2+bx+c$.",
+      "stimulus": {
+        "kind": "graph",
+        "title": "Three specified points",
+        "graph": {
+          "xMin": -7,
+          "xMax": 7,
+          "yMin": -12,
+          "yMax": 14,
+          "ariaLabel": "Coordinate graph with three labeled points on a quadratic",
+          "points": [
+            {
+              "x": "{{xl}}",
+              "y": "{{yl}}",
+              "label": "P1"
+            },
+            {
+              "x": "{{h}}",
+              "y": "{{k}}",
+              "label": "P2"
+            },
+            {
+              "x": "{{xr}}",
+              "y": "{{yl}}",
+              "label": "P3"
+            }
+          ]
+        },
+        "note": "Read the exact labeled coordinates; the curve itself is not drawn."
+      },
+      "responseFields": [
+        {
+          "id": "quadratic",
+          "label": "Quadratic function in standard form",
+          "inputProfile": "equation",
+          "expected": "y={{a}}x^2{{b|signed}}x{{c|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Symmetric points reveal structure, but the final answer is still determined by all three points.",
+        "reasoning": [
+          "The two outside points have the same y-value, so their midpoint x={{h}} is the axis of symmetry.",
+          "The middle point is $({{h}},{{k}})$ and the generated scale is a={{a}}.",
+          "Expanding the resulting quadratic gives b={{b}} and c={{c}}."
+        ],
+        "answerSummary": "$y={{a}}x^2{{b|signed}}x{{c|signed}}$"
+      },
+      "attemptFeedback": [
+        "Use all three plotted coordinates; do not assume the parent parabola."
+      ],
+      "supportHints": [
+        "Equal y-values at symmetric x-values identify the axis halfway between them."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 2
+          }
+        },
+        "derived": {
+          "xl": "h-d",
+          "xr": "h+d",
+          "yl": "a*d*d+k",
+          "b": "-2*a*h",
+          "c": "a*h*h+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4A_v2_context-three-measurements",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4A:v2-context-three-measurements",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4A",
+      "representation": "context",
+      "difficultyBand": 3,
+      "dok": 3,
+      "taskType": "modeling",
+      "prompt": "A motion experiment records three exact points $(1,{{y1}})$, $(2,{{y2}})$, and $(3,{{y3}})$, where x is time and y is position. Assume the data follow a quadratic. Write the model in standard form $y=ax^2+bx+c$.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Motion measurements",
+        "table": {
+          "headers": [
+            "Time x",
+            "Position y"
+          ],
+          "rows": [
+            [
+              "1",
+              "{{y1}}"
+            ],
+            [
+              "2",
+              "{{y2}}"
+            ],
+            [
+              "3",
+              "{{y3}}"
+            ]
+          ]
+        },
+        "note": "All three measurements must lie on the same quadratic model."
+      },
+      "responseFields": [
+        {
+          "id": "quadratic",
+          "label": "Quadratic model",
+          "inputProfile": "equation",
+          "expected": "y={{a}}x^2{{b|signed}}x{{c|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A quadratic model through three exact measurements is determined by three coefficients.",
+        "reasoning": [
+          "Substitute x=1,2,3 into $y=ax^2+bx+c$.",
+          "Solve the three-equation coefficient system to obtain a={{a}}, b={{b}}, c={{c}}."
+        ],
+        "answerSummary": "$y={{a}}x^2{{b|signed}}x{{c|signed}}$"
+      },
+      "attemptFeedback": [
+        "The context does not change the algebra: each measurement is one ordered pair on the model."
+      ],
+      "supportHints": [
+        "Create one equation for each measurement, then solve for a, b, and c."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              -2,
+              -1,
+              1,
+              2
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": 3,
+            "max": 9
+          },
+          "c": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y1": "a+b+c",
+          "y2": "4*a+2*b+c",
+          "y3": "9*a+3*b+c"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4A_v2_error-repair-coefficient-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4A:v2-error-repair-coefficient-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4A",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student is writing the quadratic through the THREE points $(0,{{y0}})$, $(1,{{y1}})$, and $(2,{{y2}})$. Diagnose the setup error, repair all three coefficient equations, and finish the complete quadratic.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's coefficient setup",
+        "steps": [
+          {
+            "id": "p0",
+            "label": "From x=0",
+            "work": "$c={{y0}}$"
+          },
+          {
+            "id": "p1",
+            "label": "From x=1",
+            "work": "$a+b={{y1}}$"
+          },
+          {
+            "id": "p2",
+            "label": "From x=2",
+            "work": "$4a+2b+c={{y2}}$"
+          }
+        ],
+        "note": "One substitution equation omitted a term."
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "Diagnosis",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "omit-c",
+              "label": "The x=1 equation omitted the constant term c."
+            },
+            {
+              "id": "square",
+              "label": "The x=2 equation should use 2a instead of 4a."
+            },
+            {
+              "id": "drop-b",
+              "label": "The linear term b should be removed from every equation."
+            }
+          ],
+          "expected": "omit-c"
+        },
+        {
+          "id": "eq-zero",
+          "label": "Correct equation from x=0",
+          "inputProfile": "equation",
+          "expected": "c={{y0}}"
+        },
+        {
+          "id": "eq-one",
+          "label": "Correct equation from x=1",
+          "inputProfile": "equation",
+          "expected": "a+b+c={{y1}}"
+        },
+        {
+          "id": "eq-two",
+          "label": "Correct equation from x=2",
+          "inputProfile": "equation",
+          "expected": "4a+2b+c={{y2}}"
+        },
+        {
+          "id": "quadratic",
+          "label": "Complete quadratic function",
+          "inputProfile": "equation",
+          "expected": "y={{a}}x^2{{b|signed}}x{{c|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Repair the setup and finish the function.",
+        "reasoning": [
+          "At x=1, every term remains: a+b+c={{y1}}.",
+          "The three corrected equations determine a={{a}}, b={{b}}, c={{c}}.",
+          "The final function must fit all three specified points."
+        ],
+        "answerSummary": "$y={{a}}x^2{{b|signed}}x{{c|signed}}$"
+      },
+      "attemptFeedback": [
+        "Do not stop after identifying the omitted c; the TEKS requires the complete quadratic function."
+      ],
+      "supportHints": [
+        "Substitute each point into all three terms of $ax^2+bx+c$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "c": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y0": "c",
+          "y1": "a+b+c",
+          "y2": "4*a+2*b+c"
+        }
+      }
+    }
+  ]
+}
