@@ -283,6 +283,120 @@
           "inputProfile": "number",
           "expected": "{{r2}}"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-root-sum-product-consistency-audit",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "A monic quadratic is known only through two facts about its zeros: their sum is {{sumr}} and their product is {{product}}. A student proposes the zeros {{r1}} and {{wrongR2}}. Test the proposal against BOTH conditions, recover the correct second zero, and write the corresponding factored quadratic equation.",
+          "responseFields": [
+            {
+              "id": "proposed-sum",
+              "label": "Sum of the student's proposed zeros",
+              "inputProfile": "number",
+              "expected": "{{wrongSum}}"
+            },
+            {
+              "id": "proposed-product",
+              "label": "Product of the student's proposed zeros",
+              "inputProfile": "number",
+              "expected": "{{wrongProduct}}"
+            },
+            {
+              "id": "verdict",
+              "label": "Is the student's pair consistent with both facts?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "no",
+                  "label": "No; at least one required relationship fails."
+                },
+                {
+                  "id": "yes",
+                  "label": "Yes; matching either the sum or product is sufficient."
+                }
+              ],
+              "expected": "no"
+            },
+            {
+              "id": "correct-second-zero",
+              "label": "Correct second zero",
+              "inputProfile": "number",
+              "expected": "{{r2}}"
+            },
+            {
+              "id": "zero-set",
+              "label": "Complete zero set",
+              "inputProfile": "expression",
+              "expected": "{ {{r1}}, {{r2}} }"
+            },
+            {
+              "id": "equation",
+              "label": "Corresponding monic factored equation",
+              "inputProfile": "equation",
+              "expected": "y=(x{{nr1|signed}})(x{{nr2|signed}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A valid pair of roots must satisfy both the sum and product relationships.",
+            "reasoning": [
+              "The required sum is {{sumr}} and product is {{product}}.",
+              "The proposed second zero {{wrongR2}} produces sum {{wrongSum}} and product {{wrongProduct}}, so the pair is inconsistent.",
+              "The correct second zero is {{r2}}, giving $y=(x{{nr1|signed}})(x{{nr2|signed}})$."
+            ],
+            "answerSummary": "Zeros { {{r1}}, {{r2}} }; $y=(x{{nr1|signed}})(x{{nr2|signed}})$."
+          },
+          "attemptFeedback": [
+            "Check both the sum and product before accepting a proposed pair of roots."
+          ],
+          "supportHints": [
+            "For a monic quadratic with roots r1 and r2, the factored form is (x-r1)(x-r2)."
+          ],
+          "generator": {
+            "parameters": {
+              "r1": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "r2": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "offset": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            },
+            "derived": {
+              "sumr": "r1+r2",
+              "product": "r1*r2",
+              "wrongR2": "r2+offset",
+              "wrongSum": "r1+wrongR2",
+              "wrongProduct": "r1*wrongR2",
+              "nr1": "-r1",
+              "nr2": "-r2"
+            },
+            "constraints": [
+              "r1!=r2",
+              "wrongR2!=r1"
+            ]
+          }
+        }
       ]
     }
   ]
