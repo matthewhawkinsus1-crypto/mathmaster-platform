@@ -117,3 +117,17 @@ test('weekly assigned sessions show their frozen purpose instead of a numbered c
   assert.match(container, /!weeklyPurposeLabel && !directAssessment/);
   assert.match(container, /weeklyPurposeLabel[\s\S]*complete/);
 });
+
+
+test('free-choice Challenge is shown as Challenge rather than a numbered pass', () => {
+  const container = readFileSync('src/components/student/MyMathPathProductionContainer.jsx', 'utf8');
+
+  assert.match(player, /courseChallengeIntent/);
+  assert.match(player, /MY MATH PATH · Challenge · Ahead of your class, and earned/);
+  assert.match(player, /!courseChallengeIntent && !weeklyPurposeLabel/);
+
+  assert.match(container, /courseChallengeIntent/);
+  assert.match(container, /'Challenge complete'/);
+  assert.match(container, /Ahead-of-class Challenge complete/);
+  assert.match(container, /does not advance the numbered Foundation/);
+});
