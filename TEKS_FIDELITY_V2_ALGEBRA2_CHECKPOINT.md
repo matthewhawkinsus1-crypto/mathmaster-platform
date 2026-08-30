@@ -389,7 +389,7 @@ Do **not** re-audit A2.4F unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4G — REBUILD — AUDITED / AUTHORING
+### A2.4G — REBUILD — STAGED / CERTIFICATION AUTHORING
 
 Official construct: **Identify extraneous solutions of square root equations.**
 
@@ -418,6 +418,18 @@ Resume here. Do not reopen A2.2A–A2.4F unless a failing gate names them.
   - include contextual transfer and genuine error analysis where a student keeps all roots of the squared equation and must repair that conclusion.
 - A2.4G stays distinct from A2.4F: A2.4F owns solving the equation; A2.4G owns deciding which squared-equation candidates survive the original equation.
 - Generic secure multi-response grading is sufficient; no new Path tool capability is required.
+
+
+### 2026-08-30 — A2.4G staged
+- Staged five A2.4G Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4G.json` — commit `d693824a3eb1d5f340bbc5dd0774f86ca7a96cf4`.
+- Coverage includes:
+  - direct substitution of both squared-equation candidates into the original radical equation;
+  - a no-extraneous case where both candidates actually survive;
+  - a case proving radical-domain membership alone is insufficient because the original right side is negative;
+  - contextual candidate verification where both candidate times are contextually allowed but one is algebraically extraneous;
+  - complete error repair for the misconception that every root of the squared equation is automatically valid.
+- Package/build run `33323815028`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.4G** until generated certification is added and green.
 
 
 ### 2026-08-30 — A2.4F audit finding
