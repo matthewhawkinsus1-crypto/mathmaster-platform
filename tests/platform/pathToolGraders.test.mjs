@@ -126,7 +126,11 @@ test('every contracted tool grades its own correct answer as correct', () => {
     const definition = buildPrivateToolGrading(spec.question);
     const result = gradePathResponse({ privateGrading: definition, raw: spec.correct });
     assert.ok(!result.rejected, `${toolId} rejected its own correct answer: ${result.reason}`);
-    assert.equal(result.isCorrect, true, `${toolId} marked its own correct answer wrong`);
+    assert.equal(
+      result.isCorrect,
+      true,
+      `${toolId} marked its own correct answer wrong: ${JSON.stringify({ privateGrading: definition, raw: spec.correct, result })}`,
+    );
   });
 });
 
