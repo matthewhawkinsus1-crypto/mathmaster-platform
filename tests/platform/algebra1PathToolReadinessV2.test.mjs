@@ -28,6 +28,19 @@ const inequalitySystemQuestion = {
   graph: { xMin: -6, xMax: 8, yMin: -4, yMax: 10 },
 };
 
+const inequalityConstructionQuestion = {
+  type: 'systemsWorkspace',
+  mode: 'inequalities',
+  interaction: 'construct',
+  ask: ['construction'],
+  prompt: 'Construct the graph of the system.',
+  inequalities: [
+    { m: 1, b: 1, relation: '>=' },
+    { m: -0.5, b: 6, relation: '<' },
+  ],
+  graph: { xMin: -6, xMax: 8, yMin: -4, yMax: 10 },
+};
+
 const dataModelingQuestion = {
   // Authoring may use the semantic alias; the Path contract resolves it to the
   // registry's canonical dataModelingLab id.
@@ -46,6 +59,7 @@ test('Path Tool Adapter V2 makes the proved Algebra I modes securely eligible', 
   assert.ok(getPathToolContract('dataModeling'));
   assert.equal(isPathEligible(linearSystemQuestion), true);
   assert.equal(isPathEligible(inequalitySystemQuestion), true);
+  assert.equal(isPathEligible(inequalityConstructionQuestion), true);
   assert.equal(isPathEligible(dataModelingQuestion), true);
 });
 
@@ -65,6 +79,33 @@ test('systems inequality work is graded from the server-held definition', () => 
   });
   assert.equal(forged.isCorrect, false);
   assert.equal(forged.score, 0.5);
+});
+
+test('construction mode grades the graph the student built, not a pre-shaded answer', () => {
+  const privateGrading = buildPrivateToolGrading(inequalityConstructionQuestion);
+  const result = gradePathResponse({
+    privateGrading,
+    raw: {
+      construction: [
+        {
+          points: [{ x: 0, y: 1 }, { x: 2, y: 3 }],
+          boundaryStyle: 'solid',
+          shade: 'above',
+        },
+        {
+          points: [{ x: 0, y: 6 }, { x: 2, y: 5 }],
+          boundaryStyle: 'dashed',
+          shade: 'below',
+        },
+      ],
+      isCorrect: false,
+      score: 0,
+    },
+  });
+  assert.equal(result.rejected, false);
+  assert.equal(result.isCorrect, true);
+  assert.equal(result.score, 1);
+  assert.equal(result.parts.length, 6);
 });
 
 test('correlation mode requires the student to supply r and its interpretation', () => {
