@@ -286,7 +286,126 @@
           "q": "pow(2,t)",
           "n": "pow(10,r)"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b3",
+          "dok": 3,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b3-two-routine-rewrites",
+          "dok": 2,
+          "difficultyBand": 3,
+          "taskType": "procedural",
+          "representation": "table",
+          "prompt": "Complete BOTH equivalent-form rewrites. Rewrite $e^t={{q}}$ in logarithmic form and rewrite $\\log_{10}({{n}})=r$ in exponential form. No solving is required.",
+          "responseFields": [
+            {
+              "id": "natural",
+              "label": "Logarithmic form of e^t={{q}}",
+              "inputProfile": "equation",
+              "expected": "ln({{q}})=t"
+            },
+            {
+              "id": "common",
+              "label": "Exponential form of log_10({{n}})=r",
+              "inputProfile": "equation",
+              "expected": "10^r={{n}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Preserve the base–exponent–result roles in both directions.",
+            "reasoning": [
+              "For $e^t={{q}}$, the exponent becomes the natural-log value: ln({{q}})=t.",
+              "For $\\log_{10}({{n}})=r$, the equivalent exponential form is 10^r={{n}}."
+            ]
+          },
+          "generator": {
+            "parameters": {
+              "t": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "r": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              }
+            },
+            "derived": {
+              "q": "pow(2,t)",
+              "n": "pow(10,r)"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d2b4-four-role-preservation-rewrites",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "table",
+          "prompt": "Complete FOUR equivalent-form rewrites without solving the variables: two exponential-to-logarithmic and two logarithmic-to-exponential relationships. Preserve each entire exponent expression as one logarithm value.",
+          "responseFields": [
+            {
+              "id": "natural",
+              "label": "Rewrite $e^{2t-1}={{q}}$ logarithmically",
+              "inputProfile": "equation",
+              "expected": "ln({{q}})=2t-1"
+            },
+            {
+              "id": "common",
+              "label": "Rewrite $\\log_{10}({{n}})=r$ exponentially",
+              "inputProfile": "equation",
+              "expected": "10^r={{n}}"
+            },
+            {
+              "id": "extra-log",
+              "label": "Rewrite ${{b}}^{x+2}=y$ logarithmically",
+              "inputProfile": "equation",
+              "expected": "log_{{b}}(y)=x+2"
+            },
+            {
+              "id": "extra-exp",
+              "label": "Rewrite $\\log_{{b}}(z)=u-1$ exponentially",
+              "inputProfile": "equation",
+              "expected": "{{b}}^(u-1)=z"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Harder routine work comes from preserving roles across several symbolic relationships.",
+            "reasoning": [
+              "The exponent expression remains intact as the logarithm value.",
+              "The logarithm base becomes the exponential base in the reverse direction.",
+              "No variable needs to be solved to establish equivalence."
+            ]
+          },
+          "generator": {
+            "parameters": {
+              "t": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "r": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "b": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              }
+            },
+            "derived": {
+              "q": "pow(2,2*t-1)",
+              "n": "pow(10,r)"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_5C_v2_role-error-repair-both-directions",
