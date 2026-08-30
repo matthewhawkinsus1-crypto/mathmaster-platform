@@ -1,0 +1,430 @@
+{
+  "standard": "A.8B",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-quadratic-regression-equation-and-prediction",
+  "documents": [
+    {
+      "id": "mm_A_8B_v2_quadratic-regression-upward",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8B:v2-quadratic-regression-upward",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.8B",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "The quadratic data set includes $(0,{{y2}})$. Use quadratic-regression technology to WRITE $y=ax^2+bx+c$, then predict $y$ at $x=3$.",
+      "type": "dataModelingLab",
+      "mode": "quadraticFitPrediction",
+      "points": [
+        {
+          "x": -2,
+          "y": "{{y0}}"
+        },
+        {
+          "x": -1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 0,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 3,
+      "solutionReview": {
+        "headline": "Quadratic regression must produce a complete three-coefficient model.",
+        "reasoning": [
+          "Use quadratic regression on every data point and write $y=ax^2+bx+c$ with all three fitted coefficients.",
+          "Use that fitted model at the requested input and classify the prediction from the observed x-range."
+        ]
+      },
+      "attemptFeedback": [
+        "Record $a$, $b$, and $c$ from the regression before making the prediction."
+      ],
+      "supportHints": [
+        "Choose quadratic regression rather than fitting a line or reading one supplied equation."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "c": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          }
+        },
+        "derived": {
+          "y0": "4*a-2*b+c",
+          "y1": "a-b+c",
+          "y2": "c",
+          "y3": "a+b+c",
+          "y4": "4*a+2*b+c"
+        }
+      }
+    },
+    {
+      "id": "mm_A_8B_v2_quadratic-regression-downward",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8B:v2-quadratic-regression-downward",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.8B",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "A downward-opening data set has value {{y2}} at $x=0$. Use quadratic regression to WRITE the fitted equation and predict at $x=3$.",
+      "type": "dataModelingLab",
+      "mode": "quadraticFitPrediction",
+      "points": [
+        {
+          "x": -2,
+          "y": "{{y0}}"
+        },
+        {
+          "x": -1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 0,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 3,
+      "solutionReview": {
+        "headline": "Quadratic regression must produce a complete three-coefficient model.",
+        "reasoning": [
+          "Use quadratic regression on every data point and write $y=ax^2+bx+c$ with all three fitted coefficients.",
+          "Use that fitted model at the requested input and classify the prediction from the observed x-range."
+        ]
+      },
+      "attemptFeedback": [
+        "Record $a$, $b$, and $c$ from the regression before making the prediction."
+      ],
+      "supportHints": [
+        "Choose quadratic regression rather than fitting a line or reading one supplied equation."
+      ],
+      "generator": {
+        "parameters": {
+          "aMag": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "b": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "c": {
+            "type": "int",
+            "min": 18,
+            "max": 40
+          }
+        },
+        "derived": {
+          "a": "-aMag",
+          "y0": "4*a-2*b+c",
+          "y1": "a-b+c",
+          "y2": "c",
+          "y3": "a+b+c",
+          "y4": "4*a+2*b+c"
+        }
+      }
+    },
+    {
+      "id": "mm_A_8B_v2_quadratic-regression-interpolation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8B:v2-quadratic-regression-interpolation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.8B",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A curved-response experiment has generated middle value {{y2}}. Use quadratic regression to WRITE the model, then estimate the response at $x=1.5$.",
+      "type": "dataModelingLab",
+      "mode": "quadraticFitPrediction",
+      "points": [
+        {
+          "x": -2,
+          "y": "{{y0}}"
+        },
+        {
+          "x": -1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 0,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 1.5,
+      "context": {
+        "title": "Curved-response experiment"
+      },
+      "solutionReview": {
+        "headline": "Quadratic regression must produce a complete three-coefficient model.",
+        "reasoning": [
+          "Use quadratic regression on every data point and write $y=ax^2+bx+c$ with all three fitted coefficients.",
+          "Use that fitted model at the requested input and classify the prediction from the observed x-range."
+        ]
+      },
+      "attemptFeedback": [
+        "Record $a$, $b$, and $c$ from the regression before making the prediction."
+      ],
+      "supportHints": [
+        "Choose quadratic regression rather than fitting a line or reading one supplied equation."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "b": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "c": {
+            "type": "int",
+            "min": 5,
+            "max": 20
+          }
+        },
+        "derived": {
+          "y0": "4*a-2*b+c",
+          "y1": "a-b+c",
+          "y2": "c",
+          "y3": "a+b+c",
+          "y4": "4*a+2*b+c"
+        }
+      }
+    },
+    {
+      "id": "mm_A_8B_v2_quadratic-regression-context-projectile",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8B:v2-quadratic-regression-context-projectile",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.8B",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A measured path is modeled from data, not from a supplied formula; at $x=0$ the recorded value is {{y2}}. Use quadratic regression to WRITE the model and predict the value at $x=3$.",
+      "type": "dataModelingLab",
+      "mode": "quadraticFitPrediction",
+      "points": [
+        {
+          "x": -2,
+          "y": "{{y0}}"
+        },
+        {
+          "x": -1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 0,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 3,
+      "context": {
+        "title": "Measured trajectory"
+      },
+      "solutionReview": {
+        "headline": "Quadratic regression must produce a complete three-coefficient model.",
+        "reasoning": [
+          "Use quadratic regression on every data point and write $y=ax^2+bx+c$ with all three fitted coefficients.",
+          "Use that fitted model at the requested input and classify the prediction from the observed x-range."
+        ]
+      },
+      "attemptFeedback": [
+        "Record $a$, $b$, and $c$ from the regression before making the prediction."
+      ],
+      "supportHints": [
+        "Choose quadratic regression rather than fitting a line or reading one supplied equation."
+      ],
+      "generator": {
+        "parameters": {
+          "aMag": {
+            "type": "int",
+            "min": 1,
+            "max": 2
+          },
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "c": {
+            "type": "int",
+            "min": 20,
+            "max": 45
+          }
+        },
+        "derived": {
+          "a": "-aMag",
+          "y0": "4*a-2*b+c",
+          "y1": "a-b+c",
+          "y2": "c",
+          "y3": "a+b+c",
+          "y4": "4*a+2*b+c"
+        }
+      }
+    },
+    {
+      "id": "mm_A_8B_v2_quadratic-regression-error-linear-fit",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8B:v2-quadratic-regression-error-linear-fit",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.8B",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student sees the first data value {{y2}} at $x=0$ and fits a LINE to the curved data. Correct the method: use quadratic regression to WRITE $y=ax^2+bx+c$ and predict at $x=3$.",
+      "type": "dataModelingLab",
+      "mode": "quadraticFitPrediction",
+      "points": [
+        {
+          "x": -2,
+          "y": "{{y0}}"
+        },
+        {
+          "x": -1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 0,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 3,
+      "solutionReview": {
+        "headline": "Quadratic regression must produce a complete three-coefficient model.",
+        "reasoning": [
+          "Use quadratic regression on every data point and write $y=ax^2+bx+c$ with all three fitted coefficients.",
+          "Use that fitted model at the requested input and classify the prediction from the observed x-range."
+        ]
+      },
+      "attemptFeedback": [
+        "Record $a$, $b$, and $c$ from the regression before making the prediction."
+      ],
+      "supportHints": [
+        "Choose quadratic regression rather than fitting a line or reading one supplied equation."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "b": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "c": {
+            "type": "int",
+            "min": 6,
+            "max": 20
+          }
+        },
+        "derived": {
+          "y0": "4*a-2*b+c",
+          "y1": "a-b+c",
+          "y2": "c",
+          "y3": "a+b+c",
+          "y4": "4*a+2*b+c"
+        }
+      }
+    }
+  ]
+}
