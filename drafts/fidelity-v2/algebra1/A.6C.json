@@ -133,7 +133,74 @@
           "nr1": "-r1",
           "nr2": "-r2"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-simple-scaled-factored-form",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "A quadratic has zeros {{r1}} and {{r2}} and leading coefficient 2. Write the complete equation in factored form, including the scale factor.",
+          "responseFields": [
+            {
+              "id": "factor1",
+              "label": "Factor from zero {{r1}}",
+              "inputProfile": "expression",
+              "expected": "x{{nr1|signed}}"
+            },
+            {
+              "id": "factor2",
+              "label": "Factor from zero {{r2}}",
+              "inputProfile": "expression",
+              "expected": "x{{nr2|signed}}"
+            },
+            {
+              "id": "answer",
+              "label": "Complete factored equation",
+              "inputProfile": "equation",
+              "expected": "y=2(x{{nr1|signed}})(x{{nr2|signed}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Each zero becomes a factor, while the leading coefficient scales the complete product.",
+            "reasoning": [
+              "Zero {{r1}} gives factor x{{nr1|signed}} and zero {{r2}} gives factor x{{nr2|signed}}.",
+              "The stated leading coefficient 2 stays outside the product."
+            ],
+            "answerSummary": "$y=2(x{{nr1|signed}})(x{{nr2|signed}})$"
+          },
+          "attemptFeedback": [
+            "Use x-r for each zero and keep the leading coefficient outside both factors."
+          ],
+          "supportHints": [
+            "The sign inside each factor is opposite the zero."
+          ],
+          "generator": {
+            "parameters": {
+              "r1": {
+                "type": "int",
+                "min": -3,
+                "max": -1
+              },
+              "r2": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              }
+            },
+            "derived": {
+              "a": "2",
+              "gap": "r2-r1",
+              "nr1": "-r1",
+              "nr2": "-r2"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_6C_v2_graph-to-factored-equation",
@@ -421,7 +488,92 @@
           "nr": "-r",
           "y1": "a*(1-r)"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-compare-scaled-root-models",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A projectile is on the ground at x=0 and x={{r}} and passes through $(1,{{y1}})$. Student A writes the monic model $y=x(x-{{r}})$. Student B says the zeros determine the factors but the extra point is needed to determine the scale. Decide which reasoning is valid, compute the scale a, and write the complete factored model.",
+          "responseFields": [
+            {
+              "id": "reasoning",
+              "label": "Which student's reasoning is valid?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "b",
+                  "label": "Student B; the zeros fix the factors but not the vertical scale."
+                },
+                {
+                  "id": "a",
+                  "label": "Student A; zeros always force a monic quadratic."
+                }
+              ],
+              "expected": "b"
+            },
+            {
+              "id": "a",
+              "label": "Scale coefficient a",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "equation",
+              "label": "Complete factored model",
+              "inputProfile": "equation",
+              "expected": "y={{a}}x(x{{nr|signed}})"
+            },
+            {
+              "id": "verify",
+              "label": "Model output at x=1",
+              "inputProfile": "number",
+              "expected": "{{y1}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Two zeros determine factor locations, but an additional point determines vertical scale.",
+            "reasoning": [
+              "The zeros give the structure y=ax(x-{{r}}).",
+              "Using (1,{{y1}}) gives a={{a}}.",
+              "The completed model reproduces the extra point, confirming the scale."
+            ],
+            "answerSummary": "Student B is correct; model $y={{a}}x(x{{nr|signed}})$."
+          },
+          "attemptFeedback": [
+            "Do not assume a=1 unless monic behavior is actually given."
+          ],
+          "supportHints": [
+            "Substitute x=1 and y={{y1}} into ax(x-r) to determine a."
+          ],
+          "generator": {
+            "parameters": {
+              "mag": {
+                "type": "choice",
+                "values": [
+                  1,
+                  2
+                ]
+              },
+              "r": {
+                "type": "int",
+                "min": 3,
+                "max": 6
+              }
+            },
+            "derived": {
+              "a": "-mag",
+              "nr": "-r",
+              "y1": "a*(1-r)"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_6C_v2_error-signs-from-zeros",
