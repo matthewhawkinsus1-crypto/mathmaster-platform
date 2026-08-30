@@ -227,7 +227,11 @@ Resume here. Do not reopen A2.2A–A2.3C unless a failing gate names them.
 - Added A2.3D-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `ae9e58b0571d6c84a005bc1258f949a014a8f329`.
 - The A2.3D gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public-key stripping, both keep/reject cases, algebraic-vs-context reasonableness, tolerance-aware numerical evidence, nonzero residuals for invalid candidates, and complete error-analysis correction.
 - Full A2.3D assertion run `33318316744`: **QUEUED/RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.3D** until that run is green.
+- Full A2.3D assertion run `33318316744` reached generated/issuability/self-grading checks and failed on the certification test's invalid-candidate residual selector. The test asked for the first field whose id contained “residual,” which selected the intentionally zero **line residual** instead of the nonzero **quadratic residual**.
+- Corrected the gate to inspect the explicit `quad-residual` field — commit `42cbb3b7ce812504275136816dcda422883e5bdd`.
+- No content was weakened; the invalid-candidate family still must have a nonzero quadratic residual.
+- Replacement certification is triggered from the corrected gate.
+- FIRST UNFINISHED STANDARD remains **A2.3D** until the replacement run is green.
 
 
 ### 2026-08-30 — A2.3C audit finding
