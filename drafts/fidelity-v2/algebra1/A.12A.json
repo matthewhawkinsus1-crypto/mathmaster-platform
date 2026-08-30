@@ -323,13 +323,13 @@
       "assessedConstruct": "A.12A",
       "taskType": "application",
       "representation": "context",
-      "prompt": "A school relation uses student ID as the input and assigned locker number as the output. ID {{id}} is recorded with locker {{locker1}} and also locker {{locker2}}. Under this rule, is the recorded relation a function? Enter FUNCTION or NOT A FUNCTION.",
+      "prompt": "A school relation uses student ID as the input and assigned locker number as the output. ID {{id}} is recorded with locker {{locker1}} and also locker {{locker2}}. Under this rule, how should the recorded relation be classified?",
       "responseFields": [
         {
           "id": "answer",
           "label": "Classification",
-          "inputProfile": "text",
-          "expected": "not a function"
+          "inputProfile": "choice",
+          "expected": "not-function"
         }
       ],
       "solutionReview": {
@@ -367,7 +367,17 @@
         "constraints": [
           "locker1 != locker2"
         ]
-      }
+      },
+      "choices": [
+        {
+          "id": "function",
+          "label": "FUNCTION"
+        },
+        {
+          "id": "not-function",
+          "label": "NOT A FUNCTION"
+        }
+      ]
     },
     {
       "id": "mm_A_12A_v2_error-repeated-output",
