@@ -683,9 +683,37 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.6K
+### A2.6L
 
-Resume here. Do not reopen A2.2A–A2.6J unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.6K unless a failing gate names them.
+
+
+### 2026-08-30 — A2.6L audit finding
+- Official construct: **formulate and solve equations involving inverse variation**.
+- TEA breakout separates the expectation into two required actions:
+  - formulate equations involving inverse variation;
+  - solve equations involving inverse variation.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - the five families correctly recognize the basic inverse-variation relationship (xy=k) / (y=k/x);
+  - constant-of-variation, table, symbolic, context, and direct-vs-inverse misconception frames are represented;
+  - generated values are generally simple and mathematically valid.
+- Legacy limitations:
+  - the bank fragments the TEKS: some items find (k), some evaluate a supplied equation, and some merely choose the inverse-variation form;
+  - no legacy family repeatedly requires the student to **formulate the equation and then solve it** within the same task;
+  - the context families hand students the model structure instead of requiring them to infer a constant product from the situation;
+  - the table family has only one row, so it does not meaningfully establish inverse variation through constant-product evidence;
+  - the error-analysis family is multiple-choice and stops at correcting (y=kx) to (y=k/x) without using the corrected model to solve;
+  - representation depth is narrow and does not test whether students can move among context, table, equation, constant of variation, and prediction.
+- Fidelity V2 requirements:
+  - every family must require both formulation and solving evidence, even when one verb is the primary emphasis;
+  - include a data/table family with multiple ordered pairs whose constant product supports the inverse-variation model;
+  - include at least two authentic real-world contexts where students infer the inverse relationship, determine the constant, write the equation, and solve a new case;
+  - include a symbolic family that starts from one known pair, requires (k), the inverse-variation equation, and a new value;
+  - include complete error analysis that diagnoses a direct-variation mistake, repairs the model, and solves the requested value;
+  - preserve the distinction from A2.6H: A2.6L must explicitly establish/use inverse variation and finish a prediction, whereas A2.6H handles broader rational-equation formulation;
+  - preserve the distinction from A2.6I: A2.6L is model-building plus prediction, not a general rational-equation solving exercise.
+- Generic secure multi-response grading plus the existing opt-in model-equation equivalence is sufficient; no new Path tool is required.
 
 
 ### 2026-08-30 — A2.6K audit finding
@@ -731,8 +759,10 @@ Resume here. Do not reopen A2.2A–A2.6J unless a failing gate names them.
 - Base production/build Algebra II certification run `33329780646`: **PASS**.
 - Added A2.6K-specific generated certification — commit `79e3d4abc93bd10322ca4976b787c97f0f14cd81`.
 - The dedicated gate samples 200+ instances, checks production issuability, generated asymptote/domain/range mathematics, DOK-vs-difficulty discipline, secure correct-answer self-acceptance, semantic acceptance of equivalent textbook set-builder forms, wrong set restrictions, public key stripping, and notation/representation breadth.
-- Full A2.6K certification run `33329842560`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.6K** until the full run is green.
+- Full A2.6K certification run `33329842560`: **PASS**.
+- Generated asymptote/domain/range mathematics, production issuability, DOK-vs-difficulty discipline, secure self-grading, semantic set-builder acceptance, wrong-restriction rejection, notation breadth, public key stripping, and student/runtime build all passed.
+- A2.6K is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.6L**.
 
 
 ### 2026-08-30 — A2.6J audit finding
