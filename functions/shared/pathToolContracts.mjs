@@ -552,31 +552,43 @@ const CONTRACTS = {
     },
   },
 
-  // The Systems Workspace has two Path-safe modes.
+  // The Systems Workspace has three Path-safe modes.
   //
   // Linear mode re-solves the two equations server-side. Inequality mode keeps
   // the graph data public because it IS the question, but recomputes the marked
-  // test point and the student's candidate point server-side. Other workspace
-  // modes remain fail-closed until they receive equally explicit contracts.
+  // test point and the student's candidate point server-side. Matrix3 mode
+  // exposes only the 3x4 augmented matrix and recomputes its RREF/solution on
+  // the server; the browser never supplies the authoritative answer.
   systemsWorkspace: {
-    serverGradingVersion: 2,
+    serverGradingVersion: 3,
     responseShape: 'systemsWorkspace',
-    sanitizePublicQuestion: (question) => (
-      String(question.mode || 'linear') === 'inequalities'
-        ? sanitizeSystemsInequalityPublicQuestion(question)
-        : pick(question, ['prompt', 'mode', 'system', 'graph', 'context', 'hint'])
-    ),
-    buildPrivateGradingDefinition: (question) => (
-      String(question.mode || 'linear') === 'inequalities'
-        ? buildSystemsInequalityPrivateDefinition(question)
-        : {
-          mode: 'linear',
-          // The same solve the workspace shows, done again where the browser
-          // cannot reach it.
-          solution: solveTwoLines(question.system),
+    sanitizePublicQuestion: (question) => {
+      const mode = String(question.mode || 'linear');
+      if (mode === 'inequalities') return sanitizeSystemsInequalityPublicQuestion(question);
+      if (mode === 'matrix3') {
+        return pick(question, ['prompt', 'mode', 'matrix', 'context', 'hint', 'requireTechnology']);
+      }
+      return pick(question, ['prompt', 'mode', 'system', 'graph', 'context', 'hint']);
+    },
+    buildPrivateGradingDefinition: (question) => {
+      const mode = String(question.mode || 'linear');
+      if (mode === 'inequalities') return buildSystemsInequalityPrivateDefinition(question);
+      if (mode === 'matrix3') {
+        return {
+          mode: 'matrix3',
+          solution: solveThreeVariableMatrix(question.matrix),
           tolerance: Number(question.numericTolerance ?? 0.05),
-        }
-    ),
+          requireTechnology: question.requireTechnology !== false,
+        };
+      }
+      return {
+        mode: 'linear',
+        // The same solve the workspace shows, done again where the browser
+        // cannot reach it.
+        solution: solveTwoLines(question.system),
+        tolerance: Number(question.numericTolerance ?? 0.05),
+      };
+    },
     validateStudentResponse: (raw, definition) => {
       // The grader is selected from the server-held definition, never from a
       // client-sent mode flag. Inequality validation also needs that definition
@@ -584,6 +596,18 @@ const CONTRACTS = {
       // test-point task.
       if (definition?.mode === 'inequalities') {
         return validateSystemsInequalityResponse(raw, definition);
+      }
+      if (definition?.mode === 'matrix3') {
+        if (!raw || typeof raw.classification !== 'string' || !raw.classification.trim()) {
+          return invalid('A 3x3 matrix response needs the solution classification.');
+        }
+        if (definition.requireTechnology && raw.technologyUsed !== true) {
+          return invalid('Use the matrix RREF technology before submitting this matrix-method problem.');
+        }
+        if (definition.solution?.type === 'one' && ![raw.x, raw.y, raw.z].every((value) => Number.isFinite(Number(value)))) {
+          return invalid('A one-solution 3x3 matrix response needs x, y, and z.');
+        }
+        return valid();
       }
       return raw && typeof raw.classification === 'string' && raw.classification.trim() !== ''
         ? valid()
@@ -595,10 +619,15 @@ const CONTRACTS = {
       }
       const { solution, tolerance } = definition;
       const parts = [{ id: 'classification', isCorrect: sameText(raw.classification, solution.type) }];
+      if (definition.mode === 'matrix3' && definition.requireTechnology) {
+        parts.push({ id: 'matrix-technology', isCorrect: raw.technologyUsed === true });
+      }
       if (solution.type === 'one') {
         parts.push({
           id: 'solution',
-          isCorrect: sameNumber(raw.x, solution.x, tolerance) && sameNumber(raw.y, solution.y, tolerance),
+          isCorrect: sameNumber(raw.x, solution.x, tolerance)
+            && sameNumber(raw.y, solution.y, tolerance)
+            && (definition.mode !== 'matrix3' || sameNumber(raw.z, solution.z, tolerance)),
         });
       }
       return graded(parts.every((part) => part.isCorrect), parts);
@@ -985,6 +1014,53 @@ const solveTwoLines = (system) => {
   return { type: 'one', x, y: a * x + c };
 };
 
+const threeVariableMatrixRows = (matrix = {}) => {
+  if (Array.isArray(matrix?.rows) && matrix.rows.length === 3) {
+    const rows = matrix.rows.map((row) => (Array.isArray(row) ? row.slice(0, 4).map(Number) : []));
+    return rows.every((row) => row.length === 4 && row.every(Number.isFinite)) ? rows : null;
+  }
+  const rows = [
+    [matrix?.a11, matrix?.a12, matrix?.a13, matrix?.b1],
+    [matrix?.a21, matrix?.a22, matrix?.a23, matrix?.b2],
+    [matrix?.a31, matrix?.a32, matrix?.a33, matrix?.b3],
+  ].map((row) => row.map(Number));
+  return rows.every((row) => row.every(Number.isFinite)) ? rows : null;
+};
+
+const solveThreeVariableMatrix = (matrix = {}) => {
+  const source = threeVariableMatrixRows(matrix);
+  if (!source) return { type: null, rref: [] };
+  const rows = source.map((row) => [...row]);
+  const epsilon = 1e-9;
+  let pivotRow = 0;
+
+  for (let col = 0; col < 3 && pivotRow < 3; col += 1) {
+    let best = pivotRow;
+    for (let row = pivotRow + 1; row < 3; row += 1) {
+      if (Math.abs(rows[row][col]) > Math.abs(rows[best][col])) best = row;
+    }
+    if (Math.abs(rows[best][col]) <= epsilon) continue;
+    if (best !== pivotRow) [rows[pivotRow], rows[best]] = [rows[best], rows[pivotRow]];
+
+    const pivot = rows[pivotRow][col];
+    rows[pivotRow] = rows[pivotRow].map((value) => value / pivot);
+    for (let row = 0; row < 3; row += 1) {
+      if (row === pivotRow) continue;
+      const factor = rows[row][col];
+      if (Math.abs(factor) <= epsilon) continue;
+      rows[row] = rows[row].map((value, index) => value - factor * rows[pivotRow][index]);
+    }
+    pivotRow += 1;
+  }
+
+  const rref = rows.map((row) => row.map((value) => (Math.abs(value) <= epsilon ? 0 : value)));
+  const coefficientRank = rref.filter((row) => row.slice(0, 3).some((value) => Math.abs(value) > epsilon)).length;
+  const augmentedRank = rref.filter((row) => row.some((value) => Math.abs(value) > epsilon)).length;
+  if (augmentedRank > coefficientRank) return { type: 'none', rref };
+  if (coefficientRank < 3) return { type: 'infinite', rref };
+  return { type: 'one', x: rref[0][3], y: rref[1][3], z: rref[2][3], rref };
+};
+
 /** The response fields of a multi-part question, under either authoring name. */
 const answerFieldsOf = (question) => (
   list(question?.answerFields).length ? list(question.answerFields) : list(question?.parts)
@@ -1141,9 +1217,10 @@ export const hasGradableDefinition = (toolId, definition) => {
       // question belongs to `systemsWorkspace`, which does collect one.
       return definition.solution != null && definition.classification == null;
     case 'systemsWorkspace':
-      return definition.mode === 'linear'
-        ? definition.solution.type != null
-        : definition.mode === 'inequalities' && systemsInequalityDefinitionIsGradable(definition);
+      if (definition.mode === 'linear' || definition.mode === 'matrix3') {
+        return definition.solution?.type != null;
+      }
+      return definition.mode === 'inequalities' && systemsInequalityDefinitionIsGradable(definition);
     case 'dataModelingLab':
       return dataModelingDefinitionIsGradable(definition);
     case 'graphing2':
