@@ -1,0 +1,485 @@
+{
+  "standard": "A2.7E",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-linear-quadratic-factors-cubes-cubic-grouping-quartic-grouping-error-repair",
+  "rationale": "The legacy bank has correct cube identities and cubic grouping, but misses quartic grouping and does not separately verify the linear/quadratic factors required by the TEA breakout. Fidelity V2 preserves the sound core and fills those exact gaps.",
+  "documents": [
+    {
+      "id": "mm_A2_7E_v2_difference-cubes-linear-quadratic",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7E:v2-difference-cubes-linear-quadratic",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7E",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Factor ${{m3}}x^3-{{n3}}$ using the difference-of-cubes identity. Identify the linear factor and the quadratic factor separately.",
+      "responseFields": [
+        {
+          "id": "cube-a",
+          "label": "Cube root of {{m3}}x^3",
+          "inputProfile": "expression",
+          "expected": "{{m}}*x"
+        },
+        {
+          "id": "cube-b",
+          "label": "Cube root of {{n3}}",
+          "inputProfile": "number",
+          "expected": "{{n}}"
+        },
+        {
+          "id": "linear-factor",
+          "label": "Linear factor",
+          "inputProfile": "expression",
+          "expected": "{{m}}*x-{{n}}"
+        },
+        {
+          "id": "quadratic-factor",
+          "label": "Quadratic factor",
+          "inputProfile": "expression",
+          "expected": "{{m2}}*x^2+({{mn}})*x+{{n2}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Difference of cubes gives one linear and one quadratic factor.",
+        "reasoning": [
+          "Write {{m3}}x^3=({{m}}x)^3 and {{n3}}={{n}}^3.",
+          "Use a^3-b^3=(a-b)(a^2+ab+b^2).",
+          "The factors are {{m}}x-{{n}} and {{m2}}x^2+{{mn}}x+{{n2}}."
+        ],
+        "answerSummary": "Linear: {{m}}x-{{n}}; quadratic: {{m2}}x^2+{{mn}}x+{{n2}}."
+      },
+      "attemptFeedback": [
+        "Identify the two cube roots first; then apply the sign pattern of the difference-of-cubes identity."
+      ],
+      "supportHints": [
+        "For a^3-b^3, the quadratic factor uses all positive terms: a^2+ab+b^2."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "n": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        },
+        "derived": {
+          "m2": "m*m",
+          "m3": "m*m*m",
+          "n2": "n*n",
+          "n3": "n*n*n",
+          "mn": "m*n"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7E_v2_sum-cubes-linear-quadratic",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7E:v2-sum-cubes-linear-quadratic",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7E",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Factor ${{m3}}x^3+{{n3}}$ using the sum-of-cubes identity. Give the required linear factor and quadratic factor separately.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Cube identity sign pattern",
+        "table": {
+          "headers": [
+            "Expression",
+            "Linear factor",
+            "Quadratic sign pattern"
+          ],
+          "rows": [
+            [
+              "a^3+b^3",
+              "a+b",
+              "a^2-ab+b^2"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "linear-factor",
+          "label": "Linear factor",
+          "inputProfile": "expression",
+          "expected": "{{m}}*x+{{n}}"
+        },
+        {
+          "id": "quadratic-factor",
+          "label": "Quadratic factor",
+          "inputProfile": "expression",
+          "expected": "{{m2}}*x^2-({{mn}})*x+{{n2}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Sum of cubes uses a positive linear factor and a negative middle term in the quadratic.",
+        "reasoning": [
+          "The cube roots are {{m}}x and {{n}}.",
+          "Use a^3+b^3=(a+b)(a^2-ab+b^2).",
+          "That gives the required linear and quadratic factors."
+        ],
+        "answerSummary": "Linear: {{m}}x+{{n}}; quadratic: {{m2}}x^2-{{mn}}x+{{n2}}."
+      },
+      "attemptFeedback": [
+        "The sign in the quadratic middle term is opposite the sign between the original cubes."
+      ],
+      "supportHints": [
+        "Remember SOAP: Same sign, Opposite middle sign, Always Positive last term."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "n": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        },
+        "derived": {
+          "m2": "m*m",
+          "m3": "m*m*m",
+          "n2": "n*n",
+          "n3": "n*n*n",
+          "mn": "m*n"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7E_v2_cubic-grouping-linear-quadratic",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7E:v2-cubic-grouping-linear-quadratic",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7E",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "Factor ${{a}}x^3+{{ac}}x^2+{{b}}x+{{bc}}$ by grouping. Show the common binomial and identify the resulting linear factor and quadratic factor.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Grouping setup",
+        "table": {
+          "headers": [
+            "Group",
+            "Greatest factor"
+          ],
+          "rows": [
+            [
+              "{{a}}x^3+{{ac}}x^2",
+              "{{a}}x^2"
+            ],
+            [
+              "{{b}}x+{{bc}}",
+              "{{b}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "common-binomial",
+          "label": "Common binomial after grouping",
+          "inputProfile": "expression",
+          "expected": "x+{{c}}"
+        },
+        {
+          "id": "linear-factor",
+          "label": "Linear factor",
+          "inputProfile": "expression",
+          "expected": "x+{{c}}"
+        },
+        {
+          "id": "quadratic-factor",
+          "label": "Quadratic factor",
+          "inputProfile": "expression",
+          "expected": "{{a}}*x^2+{{b}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Grouping reveals a shared binomial factor.",
+        "reasoning": [
+          "Factor {{a}}x^2 from the first group and {{b}} from the second.",
+          "Both groups become multiples of x+{{c}}.",
+          "The factorization contains linear factor x+{{c}} and quadratic factor {{a}}x^2+{{b}}."
+        ],
+        "answerSummary": "Linear: x+{{c}}; quadratic: {{a}}x^2+{{b}}."
+      },
+      "attemptFeedback": [
+        "The two groups must reveal exactly the same binomial before you factor it out."
+      ],
+      "supportHints": [
+        "Factor the GCF from each pair separately and compare what remains."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "c": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          }
+        },
+        "derived": {
+          "ac": "a*c",
+          "bc": "b*c"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7E_v2_quartic-grouping-difference-cubes",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7E:v2-quartic-grouping-difference-cubes",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7E",
+      "representation": "symbolic",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "application",
+      "prompt": "Factor $x^4+{{c}}x^3-{{n3}}x-{{cn3}}$ completely. First factor the quartic by grouping, then factor the remaining difference of cubes. Report the two linear factors and the quadratic factor.",
+      "responseFields": [
+        {
+          "id": "group-factor",
+          "label": "Common binomial from grouping",
+          "inputProfile": "expression",
+          "expected": "x+{{c}}"
+        },
+        {
+          "id": "cubic-after-grouping",
+          "label": "Other factor after grouping",
+          "inputProfile": "expression",
+          "expected": "x^3-{{n3}}"
+        },
+        {
+          "id": "linear-factor-1",
+          "label": "Linear factor from grouping",
+          "inputProfile": "expression",
+          "expected": "x+{{c}}"
+        },
+        {
+          "id": "linear-factor-2",
+          "label": "Linear factor from difference of cubes",
+          "inputProfile": "expression",
+          "expected": "x-{{n}}"
+        },
+        {
+          "id": "quadratic-factor",
+          "label": "Quadratic factor from difference of cubes",
+          "inputProfile": "expression",
+          "expected": "x^2+{{n}}*x+{{n2}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Grouping can expose a cubic that then uses a cube identity.",
+        "reasoning": [
+          "Group x^3(x+{{c}})-{{n3}}(x+{{c}}) to get (x+{{c}})(x^3-{{n3}}).",
+          "Then x^3-{{n}}^3=(x-{{n}})(x^2+{{n}}x+{{n2}}).",
+          "The quartic therefore has two linear factors and one quadratic factor."
+        ],
+        "answerSummary": "Linear factors x+{{c}} and x-{{n}}; quadratic factor x^2+{{n}}x+{{n2}}."
+      },
+      "attemptFeedback": [
+        "Complete the grouping step first; then inspect the remaining cubic for a special pattern."
+      ],
+      "supportHints": [
+        "The first/second pair should both reveal x+{{c}}."
+      ],
+      "generator": {
+        "parameters": {
+          "c": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          },
+          "n": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          }
+        },
+        "derived": {
+          "n2": "n*n",
+          "n3": "n*n*n",
+          "cn3": "c*n3"
+        },
+        "constraints": [
+          "c!=n"
+        ]
+      }
+    },
+    {
+      "id": "mm_A2_7E_v2_quartic-grouping-sign-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7E:v2-quartic-grouping-sign-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7E",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student factors $x^4+{{c}}x^3+{{n3}}x+{{cn3}}$ by grouping but rewrites the second pair as $-{{n3}}(x+{{c}})$, changing its sign. Diagnose the grouping error, repair the grouped factorization, then factor the remaining sum of cubes and report the required linear and quadratic factors.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student grouping",
+        "steps": [
+          {
+            "id": "first",
+            "label": "First group",
+            "work": "$x^3(x+{{c}})$"
+          },
+          {
+            "id": "wrong",
+            "label": "Incorrect second group",
+            "work": "$-{{n3}}(x+{{c}})$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What is the error?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "sign",
+              "label": "The second group is positive {{n3}}(x+{{c}}); the student changed the original signs."
+            },
+            {
+              "id": "negative",
+              "label": "The negative grouping is correct."
+            },
+            {
+              "id": "no-group",
+              "label": "This quartic cannot be factored by grouping."
+            }
+          ],
+          "expected": "sign"
+        },
+        {
+          "id": "group-factor",
+          "label": "Correct common binomial",
+          "inputProfile": "expression",
+          "expected": "x+{{c}}"
+        },
+        {
+          "id": "cubic-after-grouping",
+          "label": "Correct cubic factor after grouping",
+          "inputProfile": "expression",
+          "expected": "x^3+{{n3}}"
+        },
+        {
+          "id": "linear-factor-1",
+          "label": "Linear factor from grouping",
+          "inputProfile": "expression",
+          "expected": "x+{{c}}"
+        },
+        {
+          "id": "linear-factor-2",
+          "label": "Linear factor from sum of cubes",
+          "inputProfile": "expression",
+          "expected": "x+{{n}}"
+        },
+        {
+          "id": "quadratic-factor",
+          "label": "Quadratic factor from sum of cubes",
+          "inputProfile": "expression",
+          "expected": "x^2-{{n}}*x+{{n2}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Preserve the original signs when extracting the common binomial.",
+        "reasoning": [
+          "The second pair is +{{n3}}x+{{cn3}}, so it factors as +{{n3}}(x+{{c}}).",
+          "Grouping gives (x+{{c}})(x^3+{{n3}}).",
+          "The sum of cubes then gives x+{{n}} and x^2-{{n}}x+{{n2}}."
+        ],
+        "answerSummary": "Repair to (x+{{c}})(x^3+{{n3}}), then use the sum-of-cubes factors."
+      },
+      "attemptFeedback": [
+        "A grouping GCF cannot change the signs of the original terms."
+      ],
+      "supportHints": [
+        "Expand the student's second group to see whether it reproduces the original +{{n3}}x+{{cn3}}."
+      ],
+      "generator": {
+        "parameters": {
+          "c": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          },
+          "n": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          }
+        },
+        "derived": {
+          "n2": "n*n",
+          "n3": "n*n*n",
+          "cn3": "c*n3"
+        },
+        "constraints": [
+          "c!=n"
+        ]
+      }
+    }
+  ]
+}
