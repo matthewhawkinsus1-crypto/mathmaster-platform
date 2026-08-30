@@ -99,6 +99,60 @@ export const solve2x2System = (matrix = {}) => {
   return { type: consistent1 && consistent2 ? 'infinite' : 'none', determinant: det };
 };
 
+
+const matrix3Row = (row = {}) => (
+  Array.isArray(row) ? row.slice(0, 4).map(Number) : [row.a, row.b, row.c, row.d].map(Number)
+);
+
+export const normalizeMatrix3 = (matrix = {}) => {
+  const rows = Array.isArray(matrix) ? matrix : (Array.isArray(matrix.rows) ? matrix.rows : []);
+  if (rows.length !== 3) return [];
+  const normalized = rows.map(matrix3Row);
+  return normalized.every((row) => row.length === 4 && row.every(Number.isFinite)) ? normalized : [];
+};
+
+export const rref3x4 = (matrix = {}) => {
+  const rows = normalizeMatrix3(matrix);
+  if (!rows.length) return { type: null, matrix: [] };
+  const a = rows.map((row) => [...row]);
+  let pivotRow = 0;
+  const pivotColumns = [];
+  for (let col = 0; col < 3 && pivotRow < 3; col += 1) {
+    let best = pivotRow;
+    for (let row = pivotRow + 1; row < 3; row += 1) {
+      if (Math.abs(a[row][col]) > Math.abs(a[best][col])) best = row;
+    }
+    if (Math.abs(a[best][col]) <= EPS) continue;
+    [a[pivotRow], a[best]] = [a[best], a[pivotRow]];
+    const pivot = a[pivotRow][col];
+    a[pivotRow] = a[pivotRow].map((entry) => entry / pivot);
+    for (let row = 0; row < 3; row += 1) {
+      if (row === pivotRow) continue;
+      const factor = a[row][col];
+      if (Math.abs(factor) <= EPS) continue;
+      a[row] = a[row].map((entry, index) => entry - factor * a[pivotRow][index]);
+    }
+    pivotColumns.push(col);
+    pivotRow += 1;
+  }
+  const reduced = a.map((row) => row.map((entry) => (Math.abs(entry) <= EPS ? 0 : entry)));
+  if (reduced.some((row) => row.slice(0, 3).every((entry) => Math.abs(entry) <= EPS) && Math.abs(row[3]) > EPS)) {
+    return { type: 'none', matrix: reduced };
+  }
+  if (pivotColumns.length < 3) return { type: 'infinite', matrix: reduced };
+  return { type: 'one', matrix: reduced, x: reduced[0][3], y: reduced[1][3], z: reduced[2][3] };
+};
+
+export const applyMatrix3RowOperation = (matrix = {}, operation = {}) => {
+  const rows = normalizeMatrix3(matrix);
+  if (!rows.length) return null;
+  const target = Number(operation.targetRow);
+  const source = Number(operation.sourceRow);
+  const factor = Number(operation.factor);
+  if (![target, source, factor].every(Number.isFinite) || target < 0 || target > 2 || source < 0 || source > 2 || target === source) return null;
+  return rows[target].map((entry, index) => entry - factor * rows[source][index]);
+};
+
 export const samePointSet = (studentPoints = [], expectedPoints = [], tolerance = 0.08) => {
   if (studentPoints.length !== expectedPoints.length) return false;
   const remaining = expectedPoints.map((point) => ({ ...point }));
