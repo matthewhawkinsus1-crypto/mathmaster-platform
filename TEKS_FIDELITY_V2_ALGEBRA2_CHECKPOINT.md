@@ -599,7 +599,7 @@ Do **not** re-audit A2.6C unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.6D — PENDING AUDIT
+### A2.6D — ENHANCE — AUDITED / CAPABILITY WORK
 
 Official construct: **Formulate absolute value linear equations.**
 
@@ -608,6 +608,33 @@ Official construct: **Formulate absolute value linear equations.**
 ### A2.6D
 
 Resume here. Do not reopen A2.2A–A2.6C unless a failing gate names them.
+
+
+### 2026-08-30 — A2.6D audit finding
+- Official construct: **formulate absolute value linear equations**.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - direct distance-from-target formulation and symmetric-table formulation are mathematically aligned;
+  - midpoint/distance reverse reasoning and a distance-model error frame are present.
+- Legacy limitations:
+  - only two of five families actually make the student write the equation; the rest are recognition/selection;
+  - nearly every model collapses to the easiest canonical form $|x-h|=d$;
+  - nontrivial linear expressions inside the absolute value, such as $|mx+b|=d$, are absent;
+  - contexts do not require students to distinguish the measured linear quantity from the underlying independent variable;
+  - error analysis identifies that absolute value is missing but does not make the student author the repaired complete model.
+- Fidelity V2 requirements:
+  - every family must require the student to **author** an absolute-value linear equation;
+  - include canonical distance form, paired-solution/midpoint reverse formulation, and nontrivial linear-inside models;
+  - include context, table/number-line evidence, reverse reasoning, and complete error repair;
+  - remain formulation-focused: A2.6E owns solving these equations.
+- Correct-answer acceptance gap found before authoring:
+  - mathematically equivalent models such as $|x-5|=3$, $|-x+5|=3$, $|2x-10|=6$, or the same equation with sides reversed represent the same solution set;
+  - generic equation grading intentionally preserves form and can reject those equivalent model equations.
+- Added opt-in `sameAbsoluteValueLinearEquation` relation grading — commit `e0681fddbb1dba0110b48b66892ba6cf61763861`.
+- Routed private fields through `equivalence: "absoluteLinearRelation"` without changing default equation grading — commit `8aa1d34a0e51d556c9bd27661f6c09e84e0e0bfe`.
+- Added regression tests for sign reversal, scaled equivalents, side reversal, and wrong-model rejection — commit `226aa126e59ac79240963078ec50395c7f54cfda`.
+- Added the new gate to the dedicated Algebra II workflow — commit `9a3f8cc7d8173f227a7f9e889f1e0e0fdf361679`.
+- A2.6D remains FIRST UNFINISHED until this answer-equivalence capability is green and the five formulation families are staged/certified.
 
 
 ### 2026-08-30 — A2.6C audit finding
