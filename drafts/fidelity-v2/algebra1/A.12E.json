@@ -279,6 +279,96 @@
             "Y/({{a}}+{{b}})"
           ]
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-literal-factor-and-isolate-error",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "Solve $Y={{a}}X+{{b}}X+{{c}}$ for X. A student divides the two X-terms separately and writes $X=Y/{{a}}+Y/{{b}}-{{c}}$. Diagnose the structural error, isolate the X-terms, factor X, and give the correct formula.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What should happen before dividing?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "factor-first",
+                  "label": "Subtract the constant term, combine/factor the X-terms as (a+b)X, then divide once by a+b."
+                },
+                {
+                  "id": "divide-separately",
+                  "label": "Divide each X-term separately because both contain X."
+                },
+                {
+                  "id": "subtract-x",
+                  "label": "Subtract X from both sides before combining coefficients."
+                }
+              ],
+              "expected": "factor-first"
+            },
+            {
+              "id": "isolated-right",
+              "label": "Right side after subtracting the constant term",
+              "inputProfile": "expression",
+              "expected": "Y-{{c}}"
+            },
+            {
+              "id": "combined-coefficient",
+              "label": "Coefficient multiplying X after factoring",
+              "inputProfile": "number",
+              "expected": "{{sum}}"
+            },
+            {
+              "id": "answer",
+              "label": "Correct formula for X",
+              "inputProfile": "expression",
+              "expected": "(Y-{{c}})/{{sum}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A target variable appearing in multiple terms must be combined before division.",
+            "reasoning": [
+              "Subtract {{c}}: $Y-{{c}}={{a}}X+{{b}}X$.",
+              "Factor X: $Y-{{c}}=({{a}}+{{b}})X={{sum}}X$.",
+              "Divide once by {{sum}} to obtain $X=(Y-{{c}})/{{sum}}$."
+            ],
+            "answerSummary": "$X=(Y-{{c}})/{{sum}}$"
+          },
+          "attemptFeedback": [
+            "Treat the two X-terms as like terms after moving the constant."
+          ],
+          "supportHints": [
+            "Factor X from aX+bX before dividing."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 7
+              },
+              "b": {
+                "type": "int",
+                "min": 1,
+                "max": 7
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 12
+              }
+            },
+            "derived": {
+              "sum": "a+b"
+            }
+          }
+        }
       ]
     }
   ]
