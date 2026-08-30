@@ -126,7 +126,7 @@ Do **not** re-audit A2.2D unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.3A — REBUILD — AUDITED / AUTHORING
+### A2.3A — REBUILD — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Formulate systems of equations, including three linear equations in three variables and systems with one linear and one quadratic equation.**
 
@@ -151,6 +151,22 @@ Resume here. Do not reopen A2.2A–A2.2D unless a failing gate names them.
 - At least two families must formulate 3×3 linear systems from authentic contextual/tabular information, and at least two must formulate linear-quadratic systems from independently supplied line/parabola information.
 - One genuine error-analysis family must diagnose a flawed model and then write the corrected system, so “error analysis” is not a label on a multiple-choice recognition item.
 - Secure generic equation fields are sufficient; no new Path tool contract is needed because the assessed evidence is the equations the student formulates, not a graphical manipulation or elimination procedure.
+
+
+### 2026-08-30 — A2.3A staged and gated
+- Staged five A2.3A Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.3A.json` — commit `d3f0949db4f190837108cacd631a6709893d1bc4`.
+- Students now author equations rather than choose a prewritten system.
+- Coverage includes:
+  - school-store 3×3 contextual formulation;
+  - shipment count/weight/volume 3×3 contextual formulation;
+  - table-to-3×3 system translation;
+  - graph-to-linear/quadratic system formulation using exact line and parabola features;
+  - genuine linear/quadratic error analysis that requires both corrected equations after diagnosing the vertex-form error.
+- Package-only Algebra II certification run `33316398426`: **PASS**, including student/runtime build.
+- Added A2.3A generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `e3f778df433dacb522273902c90914b29c1b9c89`.
+- The A2.3A gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public-key stripping, at least two 3-equation families, at least two linear/quadratic formulation families, a corrected-system error-analysis family, and four or more representations.
+- Full A2.3A assertion run `33316415151`: **QUEUED/RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.3A** until that run is green.
 
 
 ### 2026-08-30 — A2.2D audit finding
