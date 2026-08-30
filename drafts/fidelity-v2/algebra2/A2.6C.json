@@ -1,0 +1,475 @@
+{
+  "standard": "A2.6C",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-full-absolute-value-transform-analysis-a-b-h-k-even-parent-negative-b-invariance",
+  "rationale": "Analyze y=a|b(x-h)|+k using |a|, reciprocal horizontal scale 1/|b|, x-axis reflection from a<0, vertex (h,k), and the special fact that b<0 creates no distinct visible reflection because |x| is even.",
+  "documents": [
+    {
+      "id": "mm_A2_6C_v2_combined-effects",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6C:v2-combined-effects",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6C",
+      "representation": "symbolic",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "Analyze $g(x)={{a}}|{{b}}(x-({{h}}))|{{k|signed}}$ relative to $y=|x|$.",
+      "responseFields": [
+        {
+          "id": "vertical-scale",
+          "label": "Vertical scale factor",
+          "inputProfile": "number",
+          "expected": "{{va}}"
+        },
+        {
+          "id": "horizontal-scale",
+          "label": "Horizontal scale factor",
+          "inputProfile": "number",
+          "expected": "{{hb}}"
+        },
+        {
+          "id": "x-reflection",
+          "label": "x-axis reflection?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "yes",
+              "label": "Yes"
+            },
+            {
+              "id": "no",
+              "label": "No"
+            }
+          ],
+          "expected": "yes"
+        },
+        {
+          "id": "vertex",
+          "label": "Vertex",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{k}})"
+        },
+        {
+          "id": "opening",
+          "label": "Opening",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "down",
+              "label": "Down"
+            },
+            {
+              "id": "up",
+              "label": "Up"
+            }
+          ],
+          "expected": "down"
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "inputProfile": "inequality",
+          "expected": "y<={{k}}"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              -3,
+              -2,
+              -1.5
+            ]
+          },
+          "b": {
+            "type": "choice",
+            "values": [
+              2,
+              4
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "va": "abs(a)",
+          "hb": "1/abs(b)"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6C_v2_negative-b-point-map",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6C:v2-negative-b-point-map",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6C",
+      "representation": "table",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "Map parent points through $g(x)=2|-4(x-({{h}}))|{{k|signed}}$ and analyze b=-4.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Parent",
+            "Image"
+          ],
+          "rows": [
+            [
+              "(-4,4)",
+              "?"
+            ],
+            [
+              "(0,0)",
+              "?"
+            ],
+            [
+              "(4,4)",
+              "?"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "left",
+          "label": "Image of (-4,4)",
+          "inputProfile": "orderedPair",
+          "expected": "({{hp1}},{{ay}})"
+        },
+        {
+          "id": "vertex",
+          "label": "Vertex image",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{k}})"
+        },
+        {
+          "id": "right",
+          "label": "Image of (4,4)",
+          "inputProfile": "orderedPair",
+          "expected": "({{hm1}},{{ay}})"
+        },
+        {
+          "id": "horizontal-scale",
+          "label": "Horizontal scale",
+          "inputProfile": "number",
+          "expected": "0.25"
+        },
+        {
+          "id": "negative-b-effect",
+          "label": "Visible effect of b<0",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "same",
+              "label": "No distinct reflection; symmetric arms swap."
+            },
+            {
+              "id": "new",
+              "label": "A new reflected V appears."
+            }
+          ],
+          "expected": "same"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "hp1": "h+1",
+          "hm1": "h-1",
+          "ay": "k+8"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6C_v2_graph-horizontal-stretch",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6C:v2-graph-horizontal-stretch",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6C",
+      "representation": "graph",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "For $g(x)=0.5|0.5(x-({{h}}))|{{k|signed}}$, analyze the horizontal stretch and vertical compression.",
+      "stimulus": {
+        "kind": "graph",
+        "graph": {
+          "xMin": -10,
+          "xMax": 10,
+          "yMin": -6,
+          "yMax": 10,
+          "points": [
+            {
+              "x": "{{lx}}",
+              "y": "{{ay}}"
+            },
+            {
+              "x": "{{h}}",
+              "y": "{{k}}"
+            },
+            {
+              "x": "{{rx}}",
+              "y": "{{ay}}"
+            }
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "horizontal-scale",
+          "label": "Horizontal scale",
+          "inputProfile": "number",
+          "expected": "2"
+        },
+        {
+          "id": "vertical-scale",
+          "label": "Vertical scale",
+          "inputProfile": "number",
+          "expected": "0.5"
+        },
+        {
+          "id": "vertex",
+          "label": "Vertex",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{k}})"
+        },
+        {
+          "id": "effective-slope",
+          "label": "Arm slope magnitude |ab|",
+          "inputProfile": "number",
+          "expected": "0.25"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -2,
+            "max": 2
+          },
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          }
+        },
+        "derived": {
+          "lx": "h-4",
+          "rx": "h+4",
+          "ay": "k+1"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6C_v2_reverse-sequence",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6C:v2-reverse-sequence",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6C",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "reverseReasoning",
+      "prompt": "A supplied sequence says vertical stretch 3 with x-axis reflection, horizontal compression 1/2, negative inside parameter, and vertex $({{h}},{{k}})$. Recover a and b and analyze the V.",
+      "responseFields": [
+        {
+          "id": "a",
+          "label": "a",
+          "inputProfile": "number",
+          "expected": "-3"
+        },
+        {
+          "id": "b",
+          "label": "b",
+          "inputProfile": "number",
+          "expected": "-2"
+        },
+        {
+          "id": "vertex",
+          "label": "Vertex",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{k}})"
+        },
+        {
+          "id": "effective-slope",
+          "label": "Arm slope magnitude",
+          "inputProfile": "number",
+          "expected": "6"
+        },
+        {
+          "id": "negative-b-effect",
+          "label": "Visible effect of negative b",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "none",
+              "label": "No distinct visible reflection"
+            },
+            {
+              "id": "reflect",
+              "label": "A distinct y-axis reflection"
+            }
+          ],
+          "expected": "none"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6C_v2_negative-b-error",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6C:v2-negative-b-error",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6C",
+      "representation": "verbal",
+      "difficultyBand": 5,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student says $g(x)=-2|-3(x-({{h}}))|{{k|signed}}$ has two visible reflections that cancel and a horizontal stretch by 3. Repair the analysis.",
+      "responseFields": [
+        {
+          "id": "reflection",
+          "label": "Correct reflection analysis",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "correct",
+              "label": "Only a<0 changes the visible opening; b<0 gives no distinct reflection."
+            },
+            {
+              "id": "cancel",
+              "label": "The two reflections cancel."
+            }
+          ],
+          "expected": "correct"
+        },
+        {
+          "id": "horizontal-scale",
+          "label": "Horizontal scale",
+          "inputProfile": "number",
+          "expected": "0.3333333333333333",
+          "numericTolerance": 0.000001
+        },
+        {
+          "id": "vertical-scale",
+          "label": "Vertical scale",
+          "inputProfile": "number",
+          "expected": "2"
+        },
+        {
+          "id": "effective-slope",
+          "label": "Arm slope magnitude",
+          "inputProfile": "number",
+          "expected": "6"
+        },
+        {
+          "id": "opening",
+          "label": "Opening",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "down",
+              "label": "Down"
+            },
+            {
+              "id": "up",
+              "label": "Up"
+            }
+          ],
+          "expected": "down"
+        },
+        {
+          "id": "vertex",
+          "label": "Vertex",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{k}})"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    }
+  ]
+}
