@@ -6103,7 +6103,14 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     const tentativeQuestion = tentative.question;
 
     try {
-      const draw = await mathPath.instantiateQuestion(tentativeQuestion, `${sessionId}|${questionInstanceId}|${tentativeQuestion.id}`);
+      const draw = await mathPath.instantiateQuestion(
+        tentativeQuestion,
+        `${sessionId}|${questionInstanceId}|${tentativeQuestion.id}`,
+        {
+          preferredDok,
+          preferredDifficultyBand,
+        },
+      );
       if (!draw?.question) {
         preparationFailures.push({ questionId: tentativeQuestion.id, reason: draw?.reason || "generator_failed" });
         remainingCandidates = remainingCandidates.filter((candidate) => candidate.id !== tentativeQuestion.id);
@@ -6193,6 +6200,10 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     // Teacher/QA metadata. `buildSanitizedQuestion` does not copy these onto the
     // student payload; the Path Simulator reads them from the session document.
     selectionReason: choice.reason,
+    selectedCoverageKey: choice.effectiveCoverageKey || null,
+    selectedVariantIndex: Number.isInteger(choice.effectiveVariantIndex) ? choice.effectiveVariantIndex : null,
+    requestedDok: preferredDok,
+    requestedDifficultyBand: preferredDifficultyBand,
     contentQuality: choice.quality,
     // Which authorized supports actually apply to THIS question. Authorized is
     // not the same as applicable: a calculator accommodation does not apply to
