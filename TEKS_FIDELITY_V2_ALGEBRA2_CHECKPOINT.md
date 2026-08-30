@@ -515,18 +515,68 @@ Certification result:
 
 Do **not** re-audit A2.5D unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.5E
 
-### A2.5E — REBUILD — AUDITED / AUTHORING
+### A2.5E — REBUILD — CERTIFIED
 
 Official construct: **Determine the reasonableness of a solution to a logarithmic equation.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- every family begins with a proposed solution and evaluates the original logarithmic equation rather than re-solving from scratch;
+- both reasonable and unreasonable candidates are represented;
+- domain-invalid and equation-invalid candidates are distinguished;
+- one family proves that a positive logarithm argument is not sufficient if the original equality is false;
+- a two-log family checks both original arguments and the combined original LHS;
+- contextual error analysis separates algebraic validity from a real-world time restriction;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect reasonableness verdicts are rejected and public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33325685959`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.5E unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.6A — REBUILD — AUDITED / AUTHORING
+
+Official construct: **Analyze transformations of cubic and cube root parent functions for specified positive and negative real parameter values.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.5E
+### A2.6A
 
-Resume here. Do not reopen A2.2A–A2.5D unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.5E unless a failing gate names them.
 
+
+### 2026-08-30 — A2.6A audit finding
+- Official construct: **analyze transformations of cubic and cube root parent functions for specified positive and negative real parameter values**.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - one cube-root graph construction is present;
+  - cubic translation, vertical scaling, and x-axis reflection appear;
+  - center/inflection-point translation is recognized.
+- Legacy gaps are substantial:
+  - four of five families are cubic, so cube-root transformation analysis is far too thin;
+  - the interactive family uses only the a/h/k model and omits the inside factor b;
+  - horizontal scaling by the reciprocal inside factor and horizontal reflection from b<0 are absent;
+  - positive and negative parameter values are not treated systematically across a, b, h, and k;
+  - several families are recognition/evaluation tasks instead of analyzing the combined graph effect.
+- Fidelity V2 will reason from the full transformation model **y = a·f(b(x-h))+k** for both parent functions:
+  - vertical scale factor |a|;
+  - horizontal scale factor 1/|b|;
+  - x-axis reflection when a<0;
+  - horizontal reflection when b<0;
+  - center/inflection point translated to (h,k);
+  - parent points map by x = h + u/b and y = k + a·f(u).
+- Required breadth:
+  - cubic and cube-root families must both appear repeatedly;
+  - positive and negative a and b values must be represented, including both reflections;
+  - horizontal stretch and compression must both appear, not just vertical scaling;
+  - graph/point-mapping evidence, symbolic combined-effect analysis, reverse reasoning, and genuine error analysis must be present;
+  - at least one family must compare several effects simultaneously so students cannot answer by isolated vocabulary.
+- The current Function Investigation tool intentionally lacks b. No risky tool expansion is required: secure generic multi-response fields plus generated table/graph point mappings can directly assess the missing horizontal effects.
+- Generic secure response grading is sufficient; no new Path capability is required.
 
 ### 2026-08-30 — A2.5E audit finding
 - Official construct: **determine the reasonableness of a solution to a logarithmic equation**.
