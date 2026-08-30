@@ -712,6 +712,10 @@ Resume here. Do not reopen A2.2A–A2.6F unless a failing gate names them.
 - Updated the certification to require the corresponding horizontal reflection and positive effective coefficient — commit `bea36f527b3805475d87098e53064f1588b462d4`.
 - Again, the gate was not weakened; content breadth was increased to meet it.
 - Replacement certification is triggered.
+- Replacement run `33326754196` still reported the negative-b breadth assertion even though the combined family had been strengthened. Inspection showed the gate was counting negative b only from prompt text, not from the actual generator parameter values or graded b field.
+- Repaired the gate to inspect authored b choices and explicit graded b values in addition to textual evidence — commit `4a7dfa0bcca2b9ba339531666f0a729130be919b`.
+- This is a certification-selector repair, not a lowered requirement; the package still has at least three independently authored negative-b families.
+- Replacement certification is triggered.
 - FIRST UNFINISHED STANDARD remains **A2.6G** until the replacement run is green.
 
 
