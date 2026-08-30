@@ -5324,6 +5324,18 @@ function ccmrSessionPasses(summary = {}, requiredQuestions = 5) {
   return accuracy >= 0.8 && independentRate >= 0.6;
 }
 
+function courseChallengeEarned(profile = {}) {
+  const status = String(
+    profile?.mastery?.status
+    || profile?.performance?.key
+    || profile?.status
+    || "",
+  ).trim().toLowerCase();
+  const estimate = Number(profile?.mastery?.estimate ?? profile?.score ?? 0);
+  return ["mastered", "masters"].includes(status)
+    || (Number.isFinite(estimate) && estimate >= 90);
+}
+
 // Course Path progress is separate from mastery.
 //
 // "I finished this Path" means a student completed a full server-owned practice
@@ -6100,6 +6112,13 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     && activeDisplayCode === targetDisplayCode
     && !session.diagnosing
   ) {
+    if (!courseChallengeEarned(masteryProfile)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Challenge is not unlocked for this skill yet.",
+        { reason: "course-challenge-not-earned" },
+      );
+    }
     preferredDifficultyBand = 4;
     preferredDok = 3;
   }
