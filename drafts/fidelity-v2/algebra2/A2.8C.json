@@ -96,7 +96,8 @@
               "y2": "2*m+b+e",
               "pred": "4*m+b"
             }
-          }
+          },
+          "difficultyBand": 2
         },
         {
           "coverageKey": "predict-quadratic",
@@ -176,7 +177,8 @@
               "y2": "4*a+2*b+c-e",
               "pred": "0.25*a+0.5*b+c"
             }
-          }
+          },
+          "difficultyBand": 3
         },
         {
           "coverageKey": "predict-exponential",
@@ -253,7 +255,8 @@
               "y2": "a*base*base*q",
               "pred": "a*pow(base,3)"
             }
-          }
+          },
+          "difficultyBand": 4
         }
       ]
     },
@@ -646,7 +649,8 @@
             "derived": {
               "pred": "80*m+b"
             }
-          }
+          },
+          "difficultyBand": 3
         },
         {
           "coverageKey": "judge-quadratic",
@@ -729,7 +733,8 @@
             "constraints": [
               "pred<0"
             ]
-          }
+          },
+          "difficultyBand": 4
         },
         {
           "coverageKey": "judge-exponential",
@@ -804,7 +809,8 @@
               "y4": "16*a",
               "pred": "32768*a"
             }
-          }
+          },
+          "difficultyBand": 4
         }
       ]
     },
