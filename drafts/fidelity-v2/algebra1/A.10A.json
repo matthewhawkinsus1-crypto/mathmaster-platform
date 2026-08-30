@@ -410,7 +410,126 @@
           "B!=0",
           "C!=0"
         ]
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-polynomial-reconstruction-error",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A polynomial $P(x)={{a1}}x^2{{b1|signed}}x{{c1|signed}}$ is added to an unknown $Q(x)$ and the sum is ${{A}}x^2{{B|signed}}x{{C|signed}}$. A student claims $Q(x)={{a2}}x^2{{wrongB2|signed}}x{{c2|signed}}$. Analyze the claim coefficient by coefficient, identify the error, and write the correct complete $Q(x)$.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Which part of the student's reconstruction is wrong?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "linear",
+                  "label": "The linear coefficient has the wrong sign/value."
+                },
+                {
+                  "id": "quadratic",
+                  "label": "The quadratic coefficient is wrong."
+                },
+                {
+                  "id": "constant",
+                  "label": "The constant term is wrong."
+                },
+                {
+                  "id": "none",
+                  "label": "The student's polynomial is correct."
+                }
+              ],
+              "expected": "linear"
+            },
+            {
+              "id": "correct-linear",
+              "label": "Correct linear coefficient of Q(x)",
+              "inputProfile": "number",
+              "expected": "{{b2}}"
+            },
+            {
+              "id": "check-linear",
+              "label": "Linear coefficient recovered in P(x)+Q(x)",
+              "inputProfile": "number",
+              "expected": "{{B}}"
+            },
+            {
+              "id": "answer",
+              "label": "Correct complete Q(x)",
+              "inputProfile": "expression",
+              "expected": "{{a2}}x^2{{b2|signed}}x{{c2|signed}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A reverse polynomial sum must work in every coefficient column.",
+            "reasoning": [
+              "The quadratic and constant coefficients in the student's Q match the required missing addends.",
+              "The claimed linear coefficient {{wrongB2}} gives the wrong sum with {{b1}}.",
+              "The correct linear coefficient is {{b2}}, because {{b1}}+{{b2}}={{B}}."
+            ],
+            "answerSummary": "$Q(x)={{a2}}x^2{{b2|signed}}x{{c2|signed}}$."
+          },
+          "attemptFeedback": [
+            "Check the quadratic, linear, and constant columns separately before accepting a reconstructed polynomial."
+          ],
+          "supportHints": [
+            "If P+Q=S, each coefficient of Q is the corresponding coefficient of S minus P."
+          ],
+          "generator": {
+            "parameters": {
+              "a1": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "a2": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "b1": {
+                "type": "int",
+                "min": -7,
+                "max": 7
+              },
+              "b2": {
+                "type": "int",
+                "min": -7,
+                "max": 7
+              },
+              "c1": {
+                "type": "int",
+                "min": -9,
+                "max": 9
+              },
+              "c2": {
+                "type": "int",
+                "min": -9,
+                "max": 9
+              }
+            },
+            "derived": {
+              "A": "a1+a2",
+              "B": "b1+b2",
+              "C": "c1+c2",
+              "wrongB2": "-b2"
+            },
+            "constraints": [
+              "b2!=0",
+              "c2!=0",
+              "B!=0",
+              "C!=0",
+              "wrongB2!=b2"
+            ]
+          }
+        }
+      ]
     }
   ]
 }
