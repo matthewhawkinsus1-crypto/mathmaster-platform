@@ -126,7 +126,7 @@ Do **not** re-audit A2.2D unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.3A — PENDING AUDIT
+### A2.3A — REBUILD — AUDITED / AUTHORING
 
 Official construct: **Formulate systems of equations, including three linear equations in three variables and systems with one linear and one quadratic equation.**
 
@@ -135,6 +135,22 @@ Official construct: **Formulate systems of equations, including three linear equ
 ### A2.3A
 
 Resume here. Do not reopen A2.2A–A2.2D unless a failing gate names them.
+
+
+### 2026-08-30 — A2.3A audit finding
+- Official construct: **formulate systems of equations**, specifically including systems of three linear equations in three variables and systems containing one linear and one quadratic equation.
+- Verdict: **REBUILD**.
+- Core fidelity issue: all five legacy families are primarily recognition tasks. Students choose a prewritten system or identify a modeling error; they rarely formulate the equations themselves.
+- Legacy details:
+  - the store context has a legitimate 3-variable situation but asks which system matches instead of requiring the student to write the three equations;
+  - the line/parabola family asks students to select a prewritten pair;
+  - the table family provides only one row and asks which prewritten rules fit, so it does not formulate a system from sufficient evidence;
+  - the three-equation family simply repeats equations already stated in the prompt;
+  - the error-analysis family diagnoses a sign in vertex form but still does not require a complete corrected system.
+- Fidelity V2 requirement: every family must make the student **author the system**. Three-variable families must collect three equations; linear-quadratic families must collect both equations.
+- At least two families must formulate 3×3 linear systems from authentic contextual/tabular information, and at least two must formulate linear-quadratic systems from independently supplied line/parabola information.
+- One genuine error-analysis family must diagnose a flawed model and then write the corrected system, so “error analysis” is not a label on a multiple-choice recognition item.
+- Secure generic equation fields are sufficient; no new Path tool contract is needed because the assessed evidence is the equations the student formulates, not a graphical manipulation or elimination procedure.
 
 
 ### 2026-08-30 — A2.2D audit finding
