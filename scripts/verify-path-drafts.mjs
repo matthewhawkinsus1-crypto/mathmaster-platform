@@ -116,10 +116,26 @@ const verifyDocument = async (document, seenIds) => {
   // what this check is for.
   const rendered = new Set();
   generated.forEach((instance) => {
+    // Generator variety is the STUDENT-VISIBLE mathematical surface, not only
+    // prose. Interactive questions often keep the directions fixed while the
+    // mapping pairs, system equations, data points, function, or inequality
+    // changes. Ignoring those fields falsely reports a healthy generator as
+    // "one question."
+    //
+    // Keep this an allowlist: expected answers and grading-only fields must not
+    // be able to manufacture apparent variety.
     rendered.add(JSON.stringify({
       prompt: instance.prompt ?? '',
       choices: (instance.choices || []).map((choice) => choice?.label ?? ''),
       stimulus: instance.stimulus ?? null,
+      context: instance.context ?? null,
+      equationLatex: instance.equationLatex ?? null,
+      equationsLatex: instance.equationsLatex ?? null,
+      pairs: instance.pairs ?? null,
+      system: instance.system ?? null,
+      inequalities: instance.inequalities ?? null,
+      points: instance.points ?? null,
+      functionSpec: instance.functionSpec ?? null,
     }));
     everyString(instance).forEach((text) => {
       if (unbalancedMath(text)) problems.push(`unbalanced_math:${text.slice(0, 60)}`);
