@@ -49,7 +49,10 @@
           "id": "answer",
           "label": "Answer",
           "inputProfile": "expression",
-          "expected": "P/{{a}}-w"
+          "expected": "P/{{a}}-w",
+          "accepted": [
+            "(P-{{a}}w)/{{a}}"
+          ]
         }
       ]
     },
@@ -99,7 +102,10 @@
           "id": "answer",
           "label": "Answer",
           "inputProfile": "expression",
-          "expected": "d/({{a}}r)"
+          "expected": "d/({{a}}r)",
+          "accepted": [
+            "d/{{a}}/r"
+          ]
         }
       ]
     },
@@ -154,7 +160,10 @@
           "id": "answer",
           "label": "F =",
           "inputProfile": "expression",
-          "expected": "{{a}}C+{{b}}"
+          "expected": "{{a}}C+{{b}}",
+          "accepted": [
+            "{{b}}+{{a}}C"
+          ]
         }
       ]
     },
@@ -204,7 +213,10 @@
           "id": "answer",
           "label": "Answer",
           "inputProfile": "expression",
-          "expected": "A/({{k}}b)"
+          "expected": "A/({{k}}b)",
+          "accepted": [
+            "A/{{k}}/b"
+          ]
         }
       ]
     },
@@ -262,7 +274,10 @@
           "id": "answer",
           "label": "X =",
           "inputProfile": "expression",
-          "expected": "Y/{{sum}}"
+          "expected": "Y/{{sum}}",
+          "accepted": [
+            "Y/({{a}}+{{b}})"
+          ]
         }
       ]
     }
