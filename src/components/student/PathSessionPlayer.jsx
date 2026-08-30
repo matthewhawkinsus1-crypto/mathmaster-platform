@@ -21,6 +21,7 @@ import { assessmentItemTypeLabel, describeChallengeTier, frameworkExperience } f
 import { ENTER_TO_CONTINUE_HINT, shouldAdvanceOnEnter } from '../../platform/interaction/answerEntryUx.js';
 import { gradingClosesQuestion, latestAttemptCount } from '../../platform/path/pathProgression.js';
 import { coursePathLevelName } from '../../platform/path/pathPassPresentation.js';
+import { PURPOSE_LABEL } from '../../platform/path/recommendationV2.js';
 
 // Three ways a path question can arrive, in order of preference.
 //
@@ -123,8 +124,11 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
   const challengeTier = Number(questionInstance?.ccmrChallengeTier || session?.ccmrChallengeTier || 1);
   const challenge = describeChallengeTier(challengeTier, directFramework);
   const experience = directFramework ? frameworkExperience(directFramework) : null;
+  const weeklyPurposeLabel = session?.weeklySlotKey
+    ? (PURPOSE_LABEL[session?.weeklyPurpose] || String(session?.weeklyPurpose || 'Weekly Path'))
+    : null;
   const rawCoursePassLevel = Number(questionInstance?.coursePassLevel || session?.coursePassLevel || 0);
-  const coursePassLevel = !directFramework && !bridgeFramework && !isRetention && Number.isFinite(rawCoursePassLevel) && rawCoursePassLevel > 0
+  const coursePassLevel = !weeklyPurposeLabel && !directFramework && !bridgeFramework && !isRetention && Number.isFinite(rawCoursePassLevel) && rawCoursePassLevel > 0
     ? Math.max(1, Math.min(3, Math.floor(rawCoursePassLevel)))
     : 0;
   const assessmentReferences = directFramework && questionCode
@@ -170,7 +174,7 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
       </div>
       {session?.weeklySlotKey && (
         <div role="status" style={{ marginTop: 8, padding: '9px 11px', borderRadius: 9, background: '#e6f4ea', border: '1px solid #b7e0c4', color: '#12633a', fontSize: 12.5, fontWeight: 850, lineHeight: 1.45 }}>
-          WEEKLY PATH · Session {session?.weeklySlot || '?'}{weeklyGoalRequired ? ` of ${weeklyGoalRequired}` : ''} · Completing this session counts toward your weekly target.
+          WEEKLY PATH · {weeklyPurposeLabel || 'Assigned practice'} · Session {session?.weeklySlot || '?'}{weeklyGoalRequired ? ` of ${weeklyGoalRequired}` : ''} · Completing this session counts toward your weekly target.
         </div>
       )}
       {coursePassLevel > 0 && (
