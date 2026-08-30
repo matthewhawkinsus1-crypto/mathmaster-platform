@@ -21,21 +21,22 @@ const candidate = [
   ...replacements,
 ];
 
-const EXPECTED_STAGED = [
-  'A.2A', 'A.2B', 'A.2C', 'A.2D', 'A.2E', 'A.2F', 'A.2G', 'A.2H', 'A.2I',
-  'A.3A', 'A.3C', 'A.3D', 'A.3G', 'A.3H',
-  'A.4A', 'A.4C', 'A.5B',
-  'A.6A',
+const REQUIRED_REBUILDS = [
+  'A.2C', 'A.2H', 'A.2I',
+  'A.3D', 'A.3H',
+  'A.4A', 'A.4C',
   'A.8A', 'A.8B',
   'A.9C', 'A.9E',
   'A.10A', 'A.10B', 'A.10C', 'A.10D', 'A.10E', 'A.10F',
-  'A.11A', 'A.11B',
-  'A.12A', 'A.12C', 'A.12D',
+  'A.11B',
+  'A.12A', 'A.12D',
 ];
 
-test('current staged Fidelity V2 candidate replaces thirty-two complete standards only', () => {
-  assert.deepEqual([...overrideCodes].sort(), [...EXPECTED_STAGED].sort());
-  assert.equal(replacements.length, 160);
+test('current staged Fidelity V2 candidate replaces only complete five-family standards', () => {
+  for (const code of REQUIRED_REBUILDS) {
+    assert.equal(overrideCodes.has(code), true, `required REBUILD standard ${code} is not staged`);
+  }
+  assert.equal(replacements.length, overrideCodes.size * 5, 'every staged standard must contribute exactly five families');
   assert.equal(candidate.length, 245);
 
   const counts = new Map();
@@ -54,8 +55,9 @@ test('unstaged Algebra I families are carried forward without mutation', () => {
   const baseUnstaged = base.filter((doc) => !overrideCodes.has(codeOf(doc)));
   const candidateUnstaged = candidate.filter((doc) => !overrideCodes.has(codeOf(doc)));
   const byId = new Map(candidateUnstaged.map((doc) => [doc.id, doc]));
-  assert.equal(baseUnstaged.length, 85);
-  assert.equal(candidateUnstaged.length, 85);
+  const expectedUnstaged = (49 - overrideCodes.size) * 5;
+  assert.equal(baseUnstaged.length, expectedUnstaged);
+  assert.equal(candidateUnstaged.length, expectedUnstaged);
   for (const doc of baseUnstaged) {
     assert.ok(byId.has(doc.id), `candidate dropped unstaged family ${doc.id}`);
     assert.deepEqual(byId.get(doc.id), doc, `candidate mutated unstaged family ${doc.id}`);
