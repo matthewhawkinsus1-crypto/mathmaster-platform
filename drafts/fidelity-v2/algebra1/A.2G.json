@@ -168,7 +168,58 @@
             "max": 7
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d2b2-vertical-equation-and-slope",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "The points $({{x}},{{y1}})$ and $({{x}},{{y2}})$ lie on one vertical line. Write the line equation and classify its slope.",
+          "responseFields": [
+            {
+              "id": "equation",
+              "label": "Line equation",
+              "inputProfile": "equation",
+              "expected": "x={{x}}"
+            },
+            {
+              "id": "slope",
+              "label": "Slope classification",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "undefined",
+                  "label": "Undefined"
+                },
+                {
+                  "id": "zero",
+                  "label": "0"
+                }
+              ],
+              "expected": "undefined"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "x": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "y1": {
+                "type": "int",
+                "min": -6,
+                "max": -1
+              },
+              "y2": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              }
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_2G_v2_horizontal-equation-slope",
@@ -233,7 +284,97 @@
             "max": 7
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d2b4-two-special-lines-and-intersection",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "One line passes through $({{vx}},{{vy1}})$ and $({{vx}},{{vy2}})$. A second line passes through $({{hx1}},{{hy}})$ and $({{hx2}},{{hy}})$. Write both special-line equations, give both slope classifications, and determine their intersection.",
+          "responseFields": [
+            {
+              "id": "vertical-equation",
+              "label": "Vertical-line equation",
+              "inputProfile": "equation",
+              "expected": "x={{vx}}"
+            },
+            {
+              "id": "vertical-slope",
+              "label": "Vertical-line slope",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "undefined",
+                  "label": "Undefined"
+                },
+                {
+                  "id": "zero",
+                  "label": "0"
+                }
+              ],
+              "expected": "undefined"
+            },
+            {
+              "id": "horizontal-equation",
+              "label": "Horizontal-line equation",
+              "inputProfile": "equation",
+              "expected": "y={{hy}}"
+            },
+            {
+              "id": "horizontal-slope",
+              "label": "Horizontal-line slope",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "intersection-x",
+              "label": "Intersection x-coordinate",
+              "inputProfile": "number",
+              "expected": "{{vx}}"
+            },
+            {
+              "id": "intersection-y",
+              "label": "Intersection y-coordinate",
+              "inputProfile": "number",
+              "expected": "{{hy}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "vx": {
+                "type": "int",
+                "min": -7,
+                "max": 7
+              },
+              "vy1": {
+                "type": "int",
+                "min": -7,
+                "max": -1
+              },
+              "vy2": {
+                "type": "int",
+                "min": 1,
+                "max": 7
+              },
+              "hx1": {
+                "type": "int",
+                "min": -7,
+                "max": -1
+              },
+              "hx2": {
+                "type": "int",
+                "min": 1,
+                "max": 7
+              },
+              "hy": {
+                "type": "int",
+                "min": -7,
+                "max": 7
+              }
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_2G_v2_error-vertical-zero-slope",
@@ -399,6 +540,70 @@
                 "min": -7,
                 "max": 7
               }
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-slope-formula-denominator-reasoning",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A student applies $m=(y_2-y_1)/(x_2-x_1)$ to the vertical line through $({{x}},{{y1}})$ and $({{x}},{{y2}})$ and says the slope is 0 because the x-values are equal. Analyze the numerator and denominator of the slope ratio, explain why the slope is not 0, and write the line equation.",
+          "responseFields": [
+            {
+              "id": "numerator",
+              "label": "y₂-y₁",
+              "inputProfile": "number",
+              "expected": "{{dy}}"
+            },
+            {
+              "id": "denominator",
+              "label": "x₂-x₁",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "reasoning",
+              "label": "What does the zero denominator mean?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "undefined",
+                  "label": "Division by 0 is undefined, so the vertical line has undefined slope."
+                },
+                {
+                  "id": "zero",
+                  "label": "A zero denominator makes the slope equal to 0."
+                }
+              ],
+              "expected": "undefined"
+            },
+            {
+              "id": "equation",
+              "label": "Vertical-line equation",
+              "inputProfile": "equation",
+              "expected": "x={{x}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "x": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "y1": {
+                "type": "int",
+                "min": -6,
+                "max": -1
+              },
+              "y2": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              }
+            },
+            "derived": {
+              "dy": "y2-y1"
             }
           }
         }
