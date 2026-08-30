@@ -87,6 +87,79 @@ test('server grader ignores client correctness claims and grades both parts itse
   assert.equal(wrongCandidate.score, 0.5);
 });
 
+test('A.3D construction mode grades boundary points, line style and shading instead of showing the answer', () => {
+  const definition = buildSystemsInequalityPrivateDefinition({
+    mode: 'inequalities',
+    interaction: 'construct',
+    ask: ['construction'],
+    inequalities: [{ m: 2, b: -1, relation: '>' }],
+    graph: { xMin: -5, xMax: 5, yMin: -6, yMax: 8 },
+  });
+  assert.equal(systemsInequalityDefinitionIsGradable(definition), true);
+
+  const right = gradeSystemsInequalityResponse(definition, {
+    construction: [{
+      points: [{ x: 0, y: -1 }, { x: 2, y: 3 }],
+      boundaryStyle: 'dashed',
+      shade: 'above',
+    }],
+    isCorrect: false,
+    score: 0,
+  });
+  assert.equal(right.isCorrect, true);
+  assert.equal(right.score, 1);
+  assert.deepEqual(right.parts, [
+    { id: 'boundary-1', isCorrect: true },
+    { id: 'boundary-style-1', isCorrect: true },
+    { id: 'shade-1', isCorrect: true },
+  ]);
+
+  const wrongStyle = gradeSystemsInequalityResponse(definition, {
+    construction: [{
+      points: [{ x: 0, y: -1 }, { x: 2, y: 3 }],
+      boundaryStyle: 'solid',
+      shade: 'above',
+    }],
+  });
+  assert.equal(wrongStyle.isCorrect, false);
+  assert.equal(wrongStyle.score, 2 / 3);
+});
+
+test('A.3H construction mode requires every boundary before the overlap can be correct', () => {
+  const definition = buildSystemsInequalityPrivateDefinition({
+    interaction: 'construct',
+    ask: ['construction'],
+    inequalities,
+  });
+  const right = gradeSystemsInequalityResponse(definition, {
+    construction: [
+      {
+        points: [{ x: 0, y: 1 }, { x: 2, y: 3 }],
+        boundaryStyle: 'solid',
+        shade: 'above',
+      },
+      {
+        points: [{ x: 0, y: 6 }, { x: 2, y: 5 }],
+        boundaryStyle: 'solid',
+        shade: 'below',
+      },
+    ],
+  });
+  assert.equal(right.isCorrect, true);
+  assert.equal(right.score, 1);
+  assert.equal(right.parts.length, 6);
+
+  const missingSecond = gradeSystemsInequalityResponse(definition, {
+    construction: [{
+      points: [{ x: 0, y: 1 }, { x: 2, y: 3 }],
+      boundaryStyle: 'solid',
+      shade: 'above',
+    }],
+  });
+  assert.equal(missingSecond.rejected, true);
+  assert.equal(missingSecond.reason, 'malformed_response');
+});
+
 test('malformed inequality responses fail closed', () => {
   assert.equal(validateSystemsInequalityResponse(null).valid, false);
   assert.equal(validateSystemsInequalityResponse({ testChoice: 'maybe', candidate: { x: 2, y: 4 } }).valid, false);
@@ -101,6 +174,8 @@ test('malformed inequality responses fail closed', () => {
 test('public inequality payload contains the question but no answer/verdict data', () => {
   const publicQuestion = sanitizeSystemsInequalityPublicQuestion(question);
   assert.equal(publicQuestion.mode, 'inequalities');
+  assert.equal(publicQuestion.interaction, 'analyze');
+  assert.deepEqual(publicQuestion.ask, ['testPoint', 'candidate']);
   assert.deepEqual(publicQuestion.inequalities, inequalities);
   assert.deepEqual(publicQuestion.testPoint, { x: 2, y: 4 });
   assert.deepEqual(publicQuestion.graph, { xMin: -6, xMax: 8, yMin: -4, yMax: 10 });
