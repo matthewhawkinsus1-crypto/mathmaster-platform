@@ -297,6 +297,12 @@ const SPOILED = {
   }),
   dataModelingLab: (work) => ({ ...work, r: 0 }),
   systemsWorkspace: (work) => ({ ...work, classification: 'none' }),
+  dataModelingLab: (work) => ({ ...work, r: 0.25 }),
+  graphing2: (work) => ({
+    ...work,
+    points: [[0, 1], [2, 6]],
+    studentLine: { kind: 'slopeIntercept', m: 2.5, b: 1 },
+  }),
   stepAlgebra: (work) => ({ ...work, finalEquation: ' x = 9' }),
   functionInvestigation: (work) => ({ ...work, placements: { ...work.placements, p2: [2, 9] } }),
 };
