@@ -431,7 +431,7 @@ Do **not** re-audit A2.4H unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.5A — REBUILD — AUDITED / AUTHORING
+### A2.5A — REBUILD — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Determine effects on key attributes of exponential and logarithmic graphs when they are vertically scaled/reflected or translated.**
 
@@ -462,6 +462,21 @@ Resume here. Do not reopen A2.2A–A2.4H unless a failing gate names them.
   - include combined transformations where several effects must be determined together;
   - include genuine error analysis that repairs the reflection/translation/attribute reasoning and finishes the corrected attribute set.
 - Existing secure `functionInvestigation` supports transformed exponential/logarithmic specs with a/base/h/k, point tasks, and attribute requests. Use it where graph construction is valuable; secure generic multi-response fields are sufficient for the remaining analysis families.
+
+
+### 2026-08-30 — A2.5A staged and gated
+- Staged five A2.5A Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.5A.json` — commit `b896615efeb833658c5eefa85c411b697dd9af48`.
+- Package/build run `33324866842`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - secure construction of a reflected/vertically scaled/translated exponential graph with asymptote, domain, range, and behavior;
+  - secure construction of a vertically scaled/translated logarithmic graph with asymptote, domain, range, and behavior;
+  - exponential vertical compression plus horizontal/vertical translation and anchor/asymptote/range analysis;
+  - logarithmic vertical stretch/reflection plus translated asymptote/domain/range/anchor behavior;
+  - complete error repair for parameter-role confusion on a reflected logarithmic graph.
+- Added A2.5A-specific generated certification — commit `0fed9f04149a99f4d2f3493058baaad7e0beb167`.
+- The gate samples 200+ generated instances, independently checks transformed exponential/logarithmic function features and point placements against the function specification, exercises secure Function Investigation grading, requires repeated exponential/logarithmic/reflection breadth plus compression and error repair, rejects an incorrect point/attribute in every family, and checks public answer-key stripping.
+- Full A2.5A assertion run `33324924406`: **QUEUED/RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.5A** until that run is green.
 
 
 ### 2026-08-30 — A2.4H audit finding
