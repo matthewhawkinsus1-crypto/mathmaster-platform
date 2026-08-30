@@ -10,6 +10,7 @@ import {
   isPathEligible,
 } from '../../functions/shared/pathToolContracts.mjs';
 import { REPRESENTATIONS, TASK_TYPES } from '../../functions/shared/pathQuestionQuality.mjs';
+import { solve3x3System } from '../../src/tools/systemsWorkspace/systemsMath.js';
 
 const require = createRequire(import.meta.url);
 const {
@@ -454,5 +455,131 @@ test('A2.3A requires students to author three-variable and linear-quadratic syst
   assert.ok(threeEquationDocs.every((doc) => (
     (doc.responseFields || []).filter((field) => field.inputProfile === 'equation').every((field) => field.expected)
   )));
+});
+
+test('A2.3B certifies substitution, Gaussian elimination, and matrix technology on complete 3x3 solves', async () => {
+  const entry = payload('A2.3B');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /substitution-gaussian-elimination-matrix-technology/);
+
+  const representations = new Set();
+  const methods = new Map();
+  let generatedCount = 0;
+  let matrixTechnologyInstances = 0;
+  let gaussianEvidenceFamilies = 0;
+  let substitutionEvidenceFamilies = 0;
+  let completeErrorFamilies = 0;
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    methods.set(doc.solutionMethod, (methods.get(doc.solutionMethod) || 0) + 1);
+
+    const fieldIds = new Set((doc.responseFields || []).map((field) => String(field.id)));
+    if (doc.solutionMethod === 'gaussianElimination') {
+      const hasIntermediateRow = [...fieldIds].some((id) => /row|elim|correct-row/.test(id));
+      assert.equal(hasIntermediateRow, true, `${doc.id} labels Gaussian elimination but collects no row-reduction evidence`);
+      gaussianEvidenceFamilies += 1;
+    }
+    if (doc.solutionMethod === 'substitution') {
+      assert.ok(fieldIds.has('sub-y') && fieldIds.has('sub-x'), `${doc.id} must collect actual substitution equations`);
+      substitutionEvidenceFamilies += 1;
+    }
+    if (doc.taskType === 'errorAnalysis') {
+      assert.ok(fieldIds.has('diagnosis'));
+      assert.ok(fieldIds.has('x') && fieldIds.has('y') && fieldIds.has('z'));
+      completeErrorFamilies += 1;
+    }
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      if (doc.type === 'systemsWorkspace') {
+        matrixTechnologyInstances += 1;
+        assert.equal(question.mode, 'matrix3');
+        assert.equal(question.requireTechnology, true);
+        assert.equal(isPathEligible(question), true, `${doc.id} produced a Path-ineligible matrix3 question`);
+
+        const publicPayload = buildPublicToolPayload(question);
+        assert.equal(publicPayload.serverGradingVersion, 3);
+        assert.equal(publicPayload.tool.mode, 'matrix3');
+        assert.equal(publicPayload.tool.requireTechnology, true);
+        const publicText = JSON.stringify(publicPayload.tool);
+        assert.equal(publicText.includes('"solution"'), false);
+        assert.equal(publicText.includes('"rref"'), false);
+
+        const privateGrading = buildPrivateToolGrading(question);
+        const serverSolution = privateGrading.definition.solution;
+        const clientSolution = solve3x3System(question.matrix);
+        assert.equal(serverSolution.type, 'one');
+        assert.equal(clientSolution.type, 'one');
+        assert.ok(Math.abs(serverSolution.x - clientSolution.x) < 1e-9);
+        assert.ok(Math.abs(serverSolution.y - clientSolution.y) < 1e-9);
+        assert.ok(Math.abs(serverSolution.z - clientSolution.z) < 1e-9);
+
+        const correct = gradePathResponse({
+          privateGrading,
+          raw: {
+            classification: 'one',
+            x: serverSolution.x,
+            y: serverSolution.y,
+            z: serverSolution.z,
+            technologyUsed: true,
+          },
+        });
+        assert.equal(correct.rejected, false);
+        assert.equal(correct.isCorrect, true, `${doc.id} failed secure matrix3 correct-answer self-acceptance`);
+
+        const skippedTechnology = gradePathResponse({
+          privateGrading,
+          raw: {
+            classification: 'one',
+            x: serverSolution.x,
+            y: serverSolution.y,
+            z: serverSolution.z,
+            technologyUsed: false,
+          },
+        });
+        assert.equal(skippedTechnology.rejected, true, `${doc.id} allowed a matrix-technology problem to bypass the technology action`);
+        continue;
+      }
+
+      assert.ok(question.responseFields?.length >= 5, `${doc.id} must collect method evidence and the complete x,y,z solution`);
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const result = await gradeResponse(grading, { responses });
+      assert.equal(
+        result.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(result.fieldResults)}`,
+      );
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(matrixTechnologyInstances >= 40, 'A2.3B must contain a real secure 3x3 matrix-technology family');
+  assert.ok(substitutionEvidenceFamilies >= 1, 'A2.3B must explicitly solve a 3x3 system by substitution');
+  assert.ok(gaussianEvidenceFamilies >= 3, 'A2.3B must repeatedly solve 3x3 systems through Gaussian elimination evidence');
+  assert.ok(completeErrorFamilies >= 1, 'A2.3B error analysis must repair the row operation and finish the full 3x3 solve');
+  assert.ok((methods.get('matrixTechnology') || 0) >= 1);
+  assert.ok((methods.get('substitution') || 0) >= 1);
+  assert.ok((methods.get('gaussianElimination') || 0) >= 3);
+  assert.ok(representations.size >= 5, 'A2.3B method coverage must transfer across symbolic, table, context, and error-analysis representations');
 });
 
