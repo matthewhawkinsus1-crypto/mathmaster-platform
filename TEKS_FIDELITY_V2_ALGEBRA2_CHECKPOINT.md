@@ -125,3 +125,10 @@ For each standard:
 - Confirmed the certified Algebra I base and the current Algebra II continuation branch.
 - Confirmed A2.2A is staged and the first unfinished standard is A2.2B.
 - Added the mandatory per-standard logging rule so a streaming/chat interruption cannot send the audit back to A2.2A.
+
+### 2026-08-30 — A2.2B architecture discovery
+- The secure `functionInvestigation` contract can grade the full inverse reflection chain and its sketch validator already reflects the actual sampled curve, so nonlinear inverse graphs are supported.
+- The current secure sanitizer does **not** pass a question `stimulus` into `functionInvestigation`, and `InteractiveGraphWorkspace` does not render one. Therefore a true table → graph → reflect → write-inverse family would silently lose its table in Path.
+- Required fix before A2.2B certification: add a safe public table-stimulus projection to the secure function-investigation payload and render that stimulus inside the graph workspace.
+- Also replace the remaining UI copy that says “inverse line” with “inverse graph”; nonlinear inverse families make “line” mathematically false.
+- This is an A2.2B capability dependency, not a reason to reopen A2.2A.
