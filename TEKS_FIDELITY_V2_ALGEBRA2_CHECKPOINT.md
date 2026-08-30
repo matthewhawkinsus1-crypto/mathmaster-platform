@@ -70,32 +70,34 @@ Do **not** re-audit A2.2A unless its certification test fails.
 
 ---
 
-## Active standard
+## Completed: A2.2B
 
-### A2.2B — ENHANCE — STAGED / CERTIFICATION RUNNING
+### A2.2B — ENHANCE — CERTIFIED
 
 Official construct: **Graph and write the inverse of a function using inverse-function notation.**
 
-Known starting evidence:
-- the existing linear inverse-reflection Path workflow is strong and server graded;
-- the legacy table item now has a real table stimulus;
-- the remaining weakness is breadth: only one family performs the complete graph → reflect across `y=x` → inverse graph → inverse equation chain;
-- the staged upgrade must preserve the secure inverse-reflection contract rather than replace it with answer-box recognition.
+Certification result:
+- five Fidelity V2 families staged;
+- graph → reflect across `y=x` → inverse graph → inverse equation is the recurring assessed action;
+- secure table → graph workflow is preserved in the public Path payload without leaking private keys;
+- nonlinear breadth includes restricted quadratic, square-root, and rational inverse construction;
+- generated secure instances self-grade their own correct work through the server contract;
+- targeted Algebra II Fidelity V2 Certification run `33315723037`: **PASS**;
+- student/runtime build in the same run: **PASS**.
 
-Immediate implementation target:
-- stage exactly 5 Fidelity V2 families;
-- make graph-and-write the dominant student action;
-- include at least one nonlinear invertible family and one authentic table-to-inverse construction family;
-- keep domain-restriction reasoning only as supporting evidence, not a substitute for graphing/writing the inverse;
-- extend `tests/platform/algebra2FidelityV2Staged.test.mjs` to certify generated secure instances and the complete inverse-action chain.
+Do **not** re-audit A2.2B unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.2C — ENHANCE — IN PROGRESS
+
+Official construct: **Describe and analyze relationships between functions and their inverses, including quadratic/square root and logarithmic/exponential pairs and required domain restrictions.**
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.2B
+### A2.2C
 
-Resume here until the targeted Algebra II Fidelity V2 certification run is green. The staged package and certification gate are now committed.
-
-After A2.2B passes, advance immediately to **A2.2C** and update this file first.
+Resume here. Do not reopen A2.2A or A2.2B unless a failing gate names them.
 
 ---
 
@@ -150,5 +152,7 @@ For each standard:
   - the A2.2B self-grade helper read `privateGrading.points` instead of `privateGrading.definition.points`, so it submitted empty “correct” work.
 - Repaired the secure-table regression test — commit `ed752fb9f8c412992911181645c66e266697dbee`.
 - Repaired the private grading fixture shape and added detailed part output on any future self-acceptance failure — commit `88745d34479fb7ef4147815713b41e0372c9f6c6`.
-- Replacement Algebra II certification run for head `88745d34479fb7ef4147815713b41e0372c9f6c6`: GitHub Actions run `33315723037` — **PENDING/RUNNING when this checkpoint was written**.
-- Do **not** advance FIRST UNFINISHED STANDARD to A2.2C until the replacement run is green.
+- Replacement Algebra II certification run for head `88745d34479fb7ef4147815713b41e0372c9f6c6`: GitHub Actions run `33315723037` — **PASS**.
+- Targeted generated-instance/inverse-contract tests: **PASS**.
+- Student/runtime bundle build in the same certification run: **PASS**.
+- A2.2B is now locked as certified; FIRST UNFINISHED STANDARD advanced to **A2.2C**.
