@@ -311,6 +311,106 @@
               "x!=y"
             ]
           }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-nearby-candidate-system-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "context",
+          "prompt": "A purchase contains {{n}} items of two types costing {{a}} and {{b}} dollars each for a total of {{total}} dollars. A student proposes {{wrongX}} of the first type and {{wrongY}} of the second. The proposal still has the correct total number of items. Test it against BOTH equations, decide whether it is a system solution, and give the actual counts.",
+          "responseFields": [
+            {
+              "id": "candidate-count",
+              "label": "Total items in the student's proposal",
+              "inputProfile": "number",
+              "expected": "{{n}}"
+            },
+            {
+              "id": "candidate-cost",
+              "label": "Cost of the student's proposal",
+              "inputProfile": "number",
+              "expected": "{{wrongTotal}}"
+            },
+            {
+              "id": "verdict",
+              "label": "Is the proposal a solution?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "no",
+                  "label": "No; satisfying the count equation alone is insufficient."
+                },
+                {
+                  "id": "yes",
+                  "label": "Yes; the correct item count makes it a system solution."
+                }
+              ],
+              "expected": "no"
+            },
+            {
+              "id": "actual-x",
+              "label": "Actual first-type count",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            },
+            {
+              "id": "actual-y",
+              "label": "Actual second-type count",
+              "inputProfile": "number",
+              "expected": "{{y}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A candidate ordered pair must satisfy both equations simultaneously.",
+            "reasoning": [
+              "The nearby proposal still totals {{n}} items, so it passes the count constraint.",
+              "Its cost is {{wrongTotal}}, not {{total}}, so it fails the cost equation.",
+              "The actual pair ({{x}},{{y}}) satisfies both constraints."
+            ],
+            "answerSummary": "Reject the proposal; actual counts {{x}} and {{y}}."
+          },
+          "attemptFeedback": [
+            "Checking only x+y=n cannot establish that an ordered pair solves a two-equation system."
+          ],
+          "supportHints": [
+            "Substitute the candidate into both the count equation and the cost equation."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "b": {
+                "type": "int",
+                "min": 7,
+                "max": 10
+              },
+              "x": {
+                "type": "int",
+                "min": 3,
+                "max": 10
+              },
+              "y": {
+                "type": "int",
+                "min": 3,
+                "max": 10
+              }
+            },
+            "derived": {
+              "n": "x+y",
+              "total": "a*x+b*y",
+              "wrongX": "x+1",
+              "wrongY": "y-1",
+              "wrongTotal": "a*wrongX+b*wrongY"
+            },
+            "constraints": [
+              "a!=b",
+              "y>1"
+            ]
+          }
         }
       ]
     },
