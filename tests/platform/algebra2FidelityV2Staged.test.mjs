@@ -81,3 +81,63 @@ test('A2.2A covers every required parent family through authentic secure graph c
   assert.ok(allGenerated.some((q) => q.functionSpec?.type === 'absolute' && q.analysisRequests?.some((p) => /symmetry/i.test(p.label || ''))));
   assert.ok(allGenerated.some((q) => q.functionSpec?.type === 'logarithmic' && q.taskType === 'errorAnalysis'));
 });
+
+
+test('A2.2B makes complete inverse writing the dominant evidence across five representations', () => {
+  const entry = payload('A2.2B');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /inverse-equation-writing-graph-reflection-table-and-domain-restriction/);
+  assert.equal(entry.documents.length, 5);
+
+  let generatedCount = 0;
+  let sawGraphReflection = false;
+  let sawTable = false;
+  let sawCubic = false;
+  let sawCubeRoot = false;
+  let sawRestriction = false;
+
+  for (const doc of entry.documents) {
+    for (const generated of samplePathInstances(doc, 80)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+      assert.equal(isPathEligible(question), true, `${doc.id} produced a Path-ineligible inverse question`);
+
+      if (question.type === 'functionInvestigation' && question.inverseReflection?.enabled) {
+        sawGraphReflection = true;
+        assert.equal(question.inverseReflection.requireInverseSketch, true);
+        assert.equal(question.inverseReflection.requireInverseEquation, true);
+        assert.ok(question.pointTasks?.length >= 2);
+      }
+
+      if (question.table?.rows?.length >= 3) sawTable = true;
+
+      const prompt = String(question.prompt || '').toLowerCase();
+      if (prompt.includes(')^3') || prompt.includes(')^3')) sawCubic = true;
+      if (prompt.includes('cube-root') || prompt.includes('\\sqrt[3]')) sawCubeRoot = true;
+
+      const fields = question.answerFields || [];
+      if (fields.some((field) => field.id === 'restriction')) {
+        sawRestriction = true;
+        assert.ok(fields.some((field) => field.id === 'inverseEquation'));
+      }
+
+      if (question.type === 'multiAnswer') {
+        assert.ok(fields.length >= 1);
+        assert.ok(fields.some((field) => /inverse/i.test(field.id || field.label || '')));
+      }
+    }
+  }
+
+  assert.ok(generatedCount >= 400);
+  assert.equal(sawGraphReflection, true);
+  assert.equal(sawTable, true);
+  assert.equal(sawCubic, true);
+  assert.equal(sawCubeRoot, true);
+  assert.equal(sawRestriction, true);
+
+  const legacyChoiceOnly = entry.documents.some((doc) => Array.isArray(doc.choices) && doc.choices.length > 0);
+  assert.equal(legacyChoiceOnly, false, 'A2.2B V2 must not fall back to inverse-equation multiple choice');
+});
