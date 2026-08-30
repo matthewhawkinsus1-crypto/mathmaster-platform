@@ -403,6 +403,907 @@
     "sourceFamilyId": "mathmaster:asvab:mk:6.2A:which-set-claim-holds",
     "sourcePrompt": "Which statement is true of every rational number?"
    }
+  },
+  {
+   "id": "mm_asvab_mk_6_2B_scaling_a_difference_of_absolute_values",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.2B:scaling-a-difference-of-absolute-values",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "What is $\\left(\\left|-{{p}}\\right| - \\left|{{q}}\\right|\\right) \\times {{c}}$?",
+   "solutionReview": {
+    "headline": "Absolute value strips the sign before the subtraction.",
+    "reasoning": [
+     "Both absolute values are positive, so the bracket is ${{p}}-{{q}}$.",
+     "Multiplying by ${{c}}$ gives ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Adding the two magnitudes treats the subtraction as an addition."
+   ],
+   "supportHints": [
+    "Evaluate inside the bracket first."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 12,
+      "max": 40
+     },
+     "q": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     }
+    },
+    "derived": {
+     "answer": "(p-q)*c",
+     "d_signError": "(p+q)*c",
+     "d_forgotFinalStep": "p-q",
+     "d_usedGivenValue": "q*c"
+    },
+    "constraints": [
+     "p>q",
+     "p-q>2",
+     "q*c!=(p-q)*c",
+     "answer!=d_signError",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_signError!=d_forgotFinalStep",
+     "d_signError!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.2B:scaling-a-difference-of-absolute-values",
+    "sourcePrompt": "What is $\\left(\\left|-{{p}}\\right| - \\left|{{q}}\\right|\\right) \\times {{c}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_2B_value_inside_an_absolute_equation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.2B:value-inside-an-absolute-equation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2B",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "$\\left|x - {{b}}\\right| = {{d}}$ and $x < {{b}}$. What is $x$?",
+   "solutionReview": {
+    "headline": "An absolute equation has two roots; the condition picks one.",
+    "reasoning": [
+     "The absolute value gives $x-{{b}}={{d}}$ or $x-{{b}}=-{{d}}$.",
+     "Only the second satisfies $x<{{b}}$, so $x={{answer}}$."
+    ],
+    "answerSummary": "$x={{answer}}$."
+   },
+   "attemptFeedback": [
+    "Adding the distance gives the root that sits above the centre."
+   ],
+   "supportHints": [
+    "The condition rules out one of the two solutions."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 14,
+      "max": 60
+     },
+     "d": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     }
+    },
+    "derived": {
+     "answer": "b-d",
+     "d_signError": "b+d",
+     "d_operationInverted": "d-b",
+     "d_usedGivenValue": "d"
+    },
+    "constraints": [
+     "b>d",
+     "b-d>2",
+     "d!=b-d",
+     "answer!=d_signError",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_signError!=d_operationInverted",
+     "d_signError!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.2B:value-inside-an-absolute-equation",
+    "sourcePrompt": "$\\left|x - {{b}}\\right| = {{d}}$ and $x < {{b}}$. What is $x$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_2B_absolute_value_row_that_fails",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.2B:absolute-value-row-that-fails",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2B",
+   "taskType": "errorAnalysis",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "One row below does not record $\\left|a\\right| + \\left|b\\right|$ correctly. What should it read?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "a",
+     "b",
+     "Recorded"
+    ],
+    "rows": [
+     [
+      "-{{a1}}",
+      "{{b1}}",
+      "{{r1}}"
+     ],
+     [
+      "-{{a2}}",
+      "-{{b2}}",
+      "{{rBad}}"
+     ],
+     [
+      "{{a3}}",
+      "-{{b3}}",
+      "{{r3}}"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "Absolute value makes every entry positive before adding.",
+    "reasoning": [
+     "Both entries in row two are negative, so both absolute values are positive.",
+     "The row should read ${{a2}}+{{b2}}={{answer}}$."
+    ],
+    "answerSummary": "It should read ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Subtracting treats the second negative as if it stayed negative."
+   ],
+   "supportHints": [
+    "Two negatives do not cancel inside separate absolute values."
+   ],
+   "generator": {
+    "parameters": {
+     "a1": {
+      "type": "int",
+      "min": 6,
+      "max": 30
+     },
+     "b1": {
+      "type": "int",
+      "min": 6,
+      "max": 30
+     },
+     "a2": {
+      "type": "int",
+      "min": 6,
+      "max": 30
+     },
+     "b2": {
+      "type": "int",
+      "min": 6,
+      "max": 30
+     },
+     "a3": {
+      "type": "int",
+      "min": 4,
+      "max": 20
+     },
+     "b3": {
+      "type": "int",
+      "min": 4,
+      "max": 20
+     }
+    },
+    "derived": {
+     "r1": "a1+b1",
+     "r3": "a3+b3",
+     "answer": "a2+b2",
+     "rBad": "a2-b2",
+     "d_signError": "rBad",
+     "d_partialTotal": "r1+a2+b2",
+     "d_usedGivenValue": "r1"
+    },
+    "constraints": [
+     "a2>b2",
+     "a2-b2>2",
+     "r1!=a2+b2",
+     "answer!=d_signError",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_signError!=d_partialTotal",
+     "d_signError!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.2B:absolute-value-row-that-fails",
+    "sourcePrompt": "One row below does not record $\\left|a\\right| + \\left|b\\right|$ correctly. What should it read?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_2C_value_at_a_step_along_a_line",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.2C:value-at-a-step-along-a-line",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2C",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A line runs from $-{{a}}$ to ${{b}}$ in ${{steps}}$ equal steps. What value sits ${{k}}$ steps from the left end?",
+   "solutionReview": {
+    "headline": "Count the steps from the left end, not from zero.",
+    "reasoning": [
+     "The line covers ${{a}}+{{b}}$ over ${{steps}}$ steps, so each step is ${{stepSize}}$.",
+     "From $-{{a}}$, ${{k}}$ steps reach ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Counting from zero ignores where the line begins."
+   ],
+   "supportHints": [
+    "Find the size of one step before counting along."
+   ],
+   "generator": {
+    "parameters": {
+     "stepSize": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "steps": {
+      "type": "int",
+      "min": 4,
+      "max": 10
+     },
+     "ka": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "k": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     }
+    },
+    "derived": {
+     "a": "stepSize*ka",
+     "b": "stepSize*(steps-ka)",
+     "answer": "stepSize*k-a",
+     "d_forgotFinalStep": "stepSize*k",
+     "d_signError": "a-stepSize*k",
+     "d_usedGivenValue": "b-stepSize*k"
+    },
+    "constraints": [
+     "k<steps",
+     "steps>ka",
+     "stepSize*k-a!=stepSize*k",
+     "b-stepSize*k!=stepSize*k-a",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_signError",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_signError",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_signError!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.2C:value-at-a-step-along-a-line",
+    "sourcePrompt": "A line runs from $-{{a}}$ to ${{b}}$ in ${{steps}}$ equal steps. What value sits ${{k}}$ steps from the left end?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_2C_step_count_to_reach_a_value",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.2C:step-count-to-reach-a-value",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2C",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A line runs from $-{{a}}$ to ${{b}}$ in ${{steps}}$ equal steps. How many steps reach ${{target}}$?",
+   "solutionReview": {
+    "headline": "Measure from the left end of the line.",
+    "reasoning": [
+     "Each step is ${{stepSize}}$, and ${{target}}$ sits ${{target}}+{{a}}$ above the left end.",
+     "That is ${{answer}}$ steps."
+    ],
+    "answerSummary": "It is ${{answer}}$ steps."
+   },
+   "attemptFeedback": [
+    "Dividing the target itself counts from zero, not from the left end."
+   ],
+   "supportHints": [
+    "The distance travelled is measured from the starting value."
+   ],
+   "generator": {
+    "parameters": {
+     "stepSize": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "steps": {
+      "type": "int",
+      "min": 6,
+      "max": 14
+     },
+     "ka": {
+      "type": "int",
+      "min": 2,
+      "max": 4
+     },
+     "k": {
+      "type": "int",
+      "min": 3,
+      "max": 8
+     }
+    },
+    "derived": {
+     "a": "stepSize*ka",
+     "b": "stepSize*(steps-ka)",
+     "target": "stepSize*k-a",
+     "answer": "k",
+     "d_partialTotal": "k+ka",
+     "d_forgotFinalStep": "round(target/stepSize)",
+     "d_usedGivenValue": "steps-k"
+    },
+    "constraints": [
+     "k<steps",
+     "steps>ka",
+     "round(target/stepSize)!=k",
+     "steps-k!=k",
+     "answer!=d_partialTotal",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=d_forgotFinalStep",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.2C:step-count-to-reach-a-value",
+    "sourcePrompt": "A line runs from $-{{a}}$ to ${{b}}$ in ${{steps}}$ equal steps. How many steps reach ${{target}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_6_2C_which_ordering_of_signed_values_holds",
+   "active": true,
+   "alignmentKeys": [
+    "texas:6.2C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "6.2C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:mk:6.2C:which-ordering-of-signed-values-holds",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "6.2C",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which ordering runs from least to greatest?",
+   "solutionReview": {
+    "headline": "Bigger magnitude means smaller value once the sign is negative.",
+    "reasoning": [
+     "Among negatives, the one with the largest magnitude is the least.",
+     "So $-{{c}}$ comes first and the positive value comes last."
+    ],
+    "answerSummary": "$-{{c}} < -{{b}} < -{{a}} < {{a}}$."
+   },
+   "attemptFeedback": [
+    "Ordering the negatives by magnitude alone reverses them."
+   ],
+   "supportHints": [
+    "On a number line, further left is less."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 9
+     },
+     "b": {
+      "type": "int",
+      "min": 11,
+      "max": 19
+     },
+     "c": {
+      "type": "int",
+      "min": 21,
+      "max": 29
+     }
+    },
+    "derived": {
+     "negB": "b",
+     "negC": "c"
+    },
+    "constraints": []
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$-{{a}} < -{{b}} < -{{c}} < {{a}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{a}} < -{{a}} < -{{b}} < -{{c}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "$-{{b}} < -{{c}} < -{{a}} < {{a}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-d",
+     "label": "$-{{c}} < -{{b}} < -{{a}} < {{a}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:6.2C:which-ordering-of-signed-values-holds",
+    "sourcePrompt": "Which ordering runs from least to greatest?"
+   }
   }
  ]
 }

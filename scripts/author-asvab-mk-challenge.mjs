@@ -111,6 +111,198 @@ mkc('6.2A', 'which-set-claim-holds', {
   feedback: 'A non-repeating, non-terminating decimal is irrational, not rational.',
 });
 
+// ================================================================ 6.2B
+// Absolute value.
+
+mkc('6.2B', 'scaling-a-difference-of-absolute-values', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What is $\\left(\\left|-{{p}}\\right| - \\left|{{q}}\\right|\\right) \\times {{c}}$?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 12, max: 40 },
+      q: { type: 'int', min: 3, max: 30 },
+      c: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      answer: '(p-q)*c',
+      d_signError: '(p+q)*c',
+      d_forgotFinalStep: 'p-q',
+      d_usedGivenValue: 'q*c',
+    },
+    constraints: ['p>q', 'p-q>2', 'q*c!=(p-q)*c'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Both absolute values are positive, so the bracket is ${{p}}-{{q}}$.', 'Multiplying by ${{c}}$ gives ${{answer}}$.'],
+  answerSummary: { headline: 'Absolute value strips the sign before the subtraction.', text: 'It is ${{answer}}$.' },
+  hint: 'Evaluate inside the bracket first.',
+  feedback: 'Adding the two magnitudes treats the subtraction as an addition.',
+});
+
+mkc('6.2B', 'value-inside-an-absolute-equation', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: '$\\left|x - {{b}}\\right| = {{d}}$ and $x < {{b}}$. What is $x$?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 14, max: 60 },
+      d: { type: 'int', min: 5, max: 40 },
+    },
+    derived: {
+      answer: 'b-d',
+      d_signError: 'b+d',
+      d_operationInverted: 'd-b',
+      d_usedGivenValue: 'd',
+    },
+    constraints: ['b>d', 'b-d>2', 'd!=b-d'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The absolute value gives $x-{{b}}={{d}}$ or $x-{{b}}=-{{d}}$.', 'Only the second satisfies $x<{{b}}$, so $x={{answer}}$.'],
+  answerSummary: { headline: 'An absolute equation has two roots; the condition picks one.', text: '$x={{answer}}$.' },
+  hint: 'The condition rules out one of the two solutions.',
+  feedback: 'Adding the distance gives the root that sits above the centre.',
+});
+
+mkc('6.2B', 'absolute-value-row-that-fails', {
+  difficultyBand: 5, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'One row below does not record $\\left|a\\right| + \\left|b\\right|$ correctly. What should it read?',
+  stimulus: {
+    kind: 'table',
+    columns: ['a', 'b', 'Recorded'],
+    rows: [['-{{a1}}', '{{b1}}', '{{r1}}'], ['-{{a2}}', '-{{b2}}', '{{rBad}}'], ['{{a3}}', '-{{b3}}', '{{r3}}']],
+  },
+  generator: {
+    parameters: {
+      a1: { type: 'int', min: 6, max: 30 },
+      b1: { type: 'int', min: 6, max: 30 },
+      a2: { type: 'int', min: 6, max: 30 },
+      b2: { type: 'int', min: 6, max: 30 },
+      a3: { type: 'int', min: 4, max: 20 },
+      b3: { type: 'int', min: 4, max: 20 },
+    },
+    derived: {
+      r1: 'a1+b1',
+      r3: 'a3+b3',
+      answer: 'a2+b2',
+      rBad: 'a2-b2',
+      d_signError: 'rBad',
+      d_partialTotal: 'r1+a2+b2',
+      d_usedGivenValue: 'r1',
+    },
+    constraints: ['a2>b2', 'a2-b2>2', 'r1!=a2+b2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Both entries in row two are negative, so both absolute values are positive.', 'The row should read ${{a2}}+{{b2}}={{answer}}$.'],
+  answerSummary: { headline: 'Absolute value makes every entry positive before adding.', text: 'It should read ${{answer}}$.' },
+  hint: 'Two negatives do not cancel inside separate absolute values.',
+  feedback: 'Subtracting treats the second negative as if it stayed negative.',
+});
+
+// ================================================================ 6.2C
+// Position and distance on a number line.
+
+mkc('6.2C', 'value-at-a-step-along-a-line', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'A line runs from $-{{a}}$ to ${{b}}$ in ${{steps}}$ equal steps. What value sits ${{k}}$ steps from the left end?',
+  generator: {
+    parameters: {
+      stepSize: { type: 'int', min: 2, max: 9 },
+      steps: { type: 'int', min: 4, max: 10 },
+      ka: { type: 'int', min: 1, max: 5 },
+      k: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      a: 'stepSize*ka',
+      b: 'stepSize*(steps-ka)',
+      answer: 'stepSize*k-a',
+      d_forgotFinalStep: 'stepSize*k',
+      d_signError: 'a-stepSize*k',
+      d_usedGivenValue: 'b-stepSize*k',
+    },
+    constraints: ['k<steps', 'steps>ka', 'stepSize*k-a!=stepSize*k', 'b-stepSize*k!=stepSize*k-a'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The line covers ${{a}}+{{b}}$ over ${{steps}}$ steps, so each step is ${{stepSize}}$.', 'From $-{{a}}$, ${{k}}$ steps reach ${{answer}}$.'],
+  answerSummary: { headline: 'Count the steps from the left end, not from zero.', text: 'It is ${{answer}}$.' },
+  hint: 'Find the size of one step before counting along.',
+  feedback: 'Counting from zero ignores where the line begins.',
+});
+
+mkc('6.2C', 'step-count-to-reach-a-value', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'A line runs from $-{{a}}$ to ${{b}}$ in ${{steps}}$ equal steps. How many steps reach ${{target}}$?',
+  generator: {
+    parameters: {
+      stepSize: { type: 'int', min: 2, max: 9 },
+      steps: { type: 'int', min: 6, max: 14 },
+      ka: { type: 'int', min: 2, max: 4 },
+      k: { type: 'int', min: 3, max: 8 },
+    },
+    derived: {
+      a: 'stepSize*ka',
+      b: 'stepSize*(steps-ka)',
+      target: 'stepSize*k-a',
+      answer: 'k',
+      d_partialTotal: 'k+ka',
+      d_forgotFinalStep: 'round(target/stepSize)',
+      d_usedGivenValue: 'steps-k',
+    },
+    constraints: ['k<steps', 'steps>ka', 'round(target/stepSize)!=k', 'steps-k!=k'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Each step is ${{stepSize}}$, and ${{target}}$ sits ${{target}}+{{a}}$ above the left end.', 'That is ${{answer}}$ steps.'],
+  answerSummary: { headline: 'Measure from the left end of the line.', text: 'It is ${{answer}}$ steps.' },
+  hint: 'The distance travelled is measured from the starting value.',
+  feedback: 'Dividing the target itself counts from zero, not from the left end.',
+});
+
+mkc('6.2C', 'which-ordering-of-signed-values-holds', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'Which ordering runs from least to greatest?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 9 },
+      b: { type: 'int', min: 11, max: 19 },
+      c: { type: 'int', min: 21, max: 29 },
+    },
+    derived: { negB: 'b', negC: 'c' },
+  },
+  choices: [
+    { label: plain('-{{c}} < -{{b}} < -{{a}} < {{a}}'), correct: true },
+    { label: plain('-{{a}} < -{{b}} < -{{c}} < {{a}}'), error: 'signError' },
+    { label: plain('{{a}} < -{{a}} < -{{b}} < -{{c}}'), error: 'operationInverted' },
+    { label: plain('-{{b}} < -{{c}} < -{{a}} < {{a}}'), error: 'orderOfOperations' },
+  ],
+  rankAnalysisNotApplicable: false,
+  reasoning: ['Among negatives, the one with the largest magnitude is the least.', 'So $-{{c}}$ comes first and the positive value comes last.'],
+  answerSummary: { headline: 'Bigger magnitude means smaller value once the sign is negative.', text: '$-{{c}} < -{{b}} < -{{a}} < {{a}}$.' },
+  hint: 'On a number line, further left is less.',
+  feedback: 'Ordering the negatives by magnitude alone reverses them.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
