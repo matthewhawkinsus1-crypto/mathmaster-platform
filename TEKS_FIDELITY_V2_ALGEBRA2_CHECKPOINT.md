@@ -720,6 +720,21 @@ Resume here. Do not reopen A2.2A–A2.6J unless a failing gate names them.
 - The initial parser-insertion failures were isolated pre-staging capability regressions and were repaired before any A2.6K package was authored.
 
 
+### 2026-08-30 — A2.6K staged and gated
+- Staged five A2.6K Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6K.json` — commit `66106b4db1cc54616202f5a8588c312bfa6beb24`.
+- Coverage now includes:
+  - translated reciprocal domain/range with vertical/horizontal asymptotes and all three required notation systems;
+  - two distinct vertical asymptotes from denominator factors, producing three domain regions plus set-builder exclusions;
+  - positive reciprocal-square range (y>k);
+  - negative reciprocal-square range (y<k);
+  - complete error repair of both domain and range across interval, inequality, and set-builder notation.
+- Base production/build Algebra II certification run `33329780646`: **PASS**.
+- Added A2.6K-specific generated certification — commit `79e3d4abc93bd10322ca4976b787c97f0f14cd81`.
+- The dedicated gate samples 200+ instances, checks production issuability, generated asymptote/domain/range mathematics, DOK-vs-difficulty discipline, secure correct-answer self-acceptance, semantic acceptance of equivalent textbook set-builder forms, wrong set restrictions, public key stripping, and notation/representation breadth.
+- Full A2.6K certification run `33329842560`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.6K** until the full run is green.
+
+
 ### 2026-08-30 — A2.6J audit finding
 - Official construct: **determine the reasonableness of a solution to a rational equation**.
 - Verdict: **REBUILD**.
