@@ -1,0 +1,636 @@
+{
+  "standard": "A2.7C",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-four-degree-combinations-polynomial-quotients-linear-quadratic-divisors-remainders-error-repair",
+  "rationale": "TEA explicitly breaks A2.7C into four dividend/divisor degree combinations. Fidelity V2 directly exercises each combination, including quadratic-divisor long division and nonzero remainders, instead of substituting remainder/factor theorem questions.",
+  "documents": [
+    {
+      "id": "mm_A2_7C_v2_cubic-linear-exact",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7C:v2-cubic-linear-exact",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7C",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Determine the quotient when ${{A3}}x^3+({{A2}})x^2+({{A1}})x+({{A0}})$ is divided by $x-({{d}})$. The division is exact. Use synthetic or polynomial long division, record the quotient coefficients, and write the quotient.",
+      "responseFields": [
+        {
+          "id": "q2",
+          "label": "x^2 coefficient of quotient",
+          "inputProfile": "number",
+          "expected": "{{q2}}"
+        },
+        {
+          "id": "q1",
+          "label": "x coefficient of quotient",
+          "inputProfile": "number",
+          "expected": "{{q1}}"
+        },
+        {
+          "id": "q0",
+          "label": "constant of quotient",
+          "inputProfile": "number",
+          "expected": "{{q0}}"
+        },
+        {
+          "id": "remainder",
+          "label": "Remainder",
+          "inputProfile": "number",
+          "expected": "0"
+        },
+        {
+          "id": "quotient",
+          "label": "Quotient polynomial",
+          "inputProfile": "expression",
+          "expected": "{{q2}}*x^2+({{q1}})*x+({{q0}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A cubic divided by a linear polynomial has a quadratic quotient.",
+        "reasoning": [
+          "The generated dividend equals $(x-({{d}}))({{q2}}x^2+({{q1}})x+({{q0}}))$.",
+          "Division therefore gives quotient coefficients {{q2}}, {{q1}}, and {{q0}}.",
+          "The remainder is 0."
+        ],
+        "answerSummary": "Quotient $={{q2}}x^2+({{q1}})x+({{q0}})$."
+      },
+      "attemptFeedback": [
+        "Carry each coefficient through the synthetic/long-division steps; do not stop after the leading term."
+      ],
+      "supportHints": [
+        "A degree-3 dividend divided by degree 1 should leave a degree-2 quotient."
+      ],
+      "generator": {
+        "parameters": {
+          "d": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "q2": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "q1": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "q0": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        },
+        "derived": {
+          "A3": "q2",
+          "A2": "q1-d*q2",
+          "A1": "q0-d*q1",
+          "A0": "-d*q0"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7C_v2_cubic-quadratic-exact",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7C:v2-cubic-quadratic-exact",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7C",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Use polynomial long division to determine the quotient of ${{A3}}x^3+({{A2}})x^2+({{A1}})x+({{A0}})$ divided by $x^2+({{p}})x+({{q}})$. The division is exact.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Degree check",
+        "table": {
+          "headers": [
+            "Expression",
+            "Degree"
+          ],
+          "rows": [
+            [
+              "Dividend",
+              "3"
+            ],
+            [
+              "Divisor",
+              "2"
+            ],
+            [
+              "Expected quotient degree",
+              "1"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "q1",
+          "label": "x coefficient of quotient",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        },
+        {
+          "id": "q0",
+          "label": "constant of quotient",
+          "inputProfile": "number",
+          "expected": "{{n}}"
+        },
+        {
+          "id": "remainder",
+          "label": "Remainder",
+          "inputProfile": "number",
+          "expected": "0"
+        },
+        {
+          "id": "quotient",
+          "label": "Quotient polynomial",
+          "inputProfile": "expression",
+          "expected": "{{m}}*x+({{n}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Degree 3 divided by degree 2 produces a linear quotient.",
+        "reasoning": [
+          "The first quotient term is {{m}}x.",
+          "After subtracting that product, the remaining quotient term is {{n}}.",
+          "The generated dividend is exactly the divisor times {{m}}x+({{n}}), so the remainder is 0."
+        ],
+        "answerSummary": "Quotient $={{m}}x+({{n}})$."
+      },
+      "attemptFeedback": [
+        "With a quadratic divisor, use polynomial long division rather than synthetic division."
+      ],
+      "supportHints": [
+        "Divide leading terms first: {{A3}}x^3 ÷ x^2 gives the first quotient term."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "q": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "n": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        },
+        "derived": {
+          "A3": "m",
+          "A2": "n+p*m",
+          "A1": "m*q+n*p",
+          "A0": "n*q"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7C_v2_quartic-linear-remainder",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7C:v2-quartic-linear-remainder",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7C",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Divide ${{A4}}x^4+({{A3}})x^3+({{A2}})x^2+({{A1}})x+({{A0}})$ by $x-({{d}})$. Determine the cubic quotient and the nonzero remainder.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Division goal",
+        "steps": [
+          {
+            "id": "degree",
+            "label": "Quotient degree",
+            "work": "4-1=3, so the quotient must be cubic."
+          },
+          {
+            "id": "remainder",
+            "label": "Remainder rule",
+            "work": "A linear divisor leaves a constant remainder."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "q3",
+          "label": "x^3 quotient coefficient",
+          "inputProfile": "number",
+          "expected": "{{q3}}"
+        },
+        {
+          "id": "q2",
+          "label": "x^2 quotient coefficient",
+          "inputProfile": "number",
+          "expected": "{{q2}}"
+        },
+        {
+          "id": "q1",
+          "label": "x quotient coefficient",
+          "inputProfile": "number",
+          "expected": "{{q1}}"
+        },
+        {
+          "id": "q0",
+          "label": "constant quotient coefficient",
+          "inputProfile": "number",
+          "expected": "{{q0}}"
+        },
+        {
+          "id": "remainder",
+          "label": "Remainder",
+          "inputProfile": "number",
+          "expected": "{{rem}}"
+        },
+        {
+          "id": "quotient",
+          "label": "Quotient polynomial",
+          "inputProfile": "expression",
+          "expected": "{{q3}}*x^3+({{q2}})*x^2+({{q1}})*x+({{q0}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A quartic divided by a linear divisor gives a cubic quotient plus a constant remainder.",
+        "reasoning": [
+          "The quotient coefficients are {{q3}}, {{q2}}, {{q1}}, and {{q0}}.",
+          "Multiplying the divisor by that quotient reconstructs every dividend term except the final remainder.",
+          "The leftover constant is {{rem}}."
+        ],
+        "answerSummary": "Quotient $={{q3}}x^3+({{q2}})x^2+({{q1}})x+({{q0}})$; remainder {{rem}}."
+      },
+      "attemptFeedback": [
+        "Continue division through the constant term; a nonzero remainder does not invalidate the quotient."
+      ],
+      "supportHints": [
+        "The remainder after division by a linear polynomial must be a constant."
+      ],
+      "generator": {
+        "parameters": {
+          "d": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "q3": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "q2": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "q1": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "q0": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "rem": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "A4": "q3",
+          "A3": "q2-d*q3",
+          "A2": "q1-d*q2",
+          "A1": "q0-d*q1",
+          "A0": "-d*q0+rem"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7C_v2_quartic-quadratic-linear-remainder",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7C:v2-quartic-quadratic-linear-remainder",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7C",
+      "representation": "symbolic",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "application",
+      "prompt": "Use polynomial long division to divide ${{A4}}x^4+({{A3}})x^3+({{A2}})x^2+({{A1}})x+({{A0}})$ by $x^2+({{p}})x+({{q}})$. Report the quadratic quotient and the linear remainder.",
+      "responseFields": [
+        {
+          "id": "q2",
+          "label": "x^2 quotient coefficient",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        },
+        {
+          "id": "q1",
+          "label": "x quotient coefficient",
+          "inputProfile": "number",
+          "expected": "{{n}}"
+        },
+        {
+          "id": "q0",
+          "label": "constant quotient coefficient",
+          "inputProfile": "number",
+          "expected": "{{r}}"
+        },
+        {
+          "id": "rem-x",
+          "label": "x coefficient of remainder",
+          "inputProfile": "number",
+          "expected": "{{s}}"
+        },
+        {
+          "id": "rem-0",
+          "label": "constant of remainder",
+          "inputProfile": "number",
+          "expected": "{{t}}"
+        },
+        {
+          "id": "quotient",
+          "label": "Quotient polynomial",
+          "inputProfile": "expression",
+          "expected": "{{m}}*x^2+({{n}})*x+({{r}})"
+        },
+        {
+          "id": "remainder",
+          "label": "Remainder polynomial",
+          "inputProfile": "expression",
+          "expected": "{{s}}*x+({{t}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The remainder degree must be less than the quadratic divisor degree.",
+        "reasoning": [
+          "Long division produces quotient {{m}}x^2+({{n}})x+({{r}}).",
+          "After subtracting the divisor times that quotient, the leftover is {{s}}x+({{t}}).",
+          "Its degree is 1, which is less than the divisor degree 2, so division is complete."
+        ],
+        "answerSummary": "Quotient $={{m}}x^2+({{n}})x+({{r}})$; remainder $={{s}}x+({{t}})$."
+      },
+      "attemptFeedback": [
+        "Do not try synthetic division with a quadratic divisor; use long division and stop only when the remainder degree is below 2."
+      ],
+      "supportHints": [
+        "A quadratic divisor may leave a linear or constant remainder."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "q": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "n": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "r": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "s": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "t": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "A4": "m",
+          "A3": "n+p*m",
+          "A2": "r+p*n+q*m",
+          "A1": "p*r+q*n+s",
+          "A0": "q*r+t"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7C_v2_quartic-quadratic-premature-stop-error",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7C:v2-quartic-quadratic-premature-stop-error",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7C",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student divides ${{A4}}x^4+({{A3}})x^3+({{A2}})x^2+({{A1}})x+({{A0}})$ by $x^2+({{p}})x+({{q}})$. The student correctly gets the first quotient term {{m}}x^2, then stops and calls the rest a remainder even though the remaining polynomial still has degree at least 2. Diagnose the error and finish the exact division.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student work",
+        "steps": [
+          {
+            "id": "first",
+            "label": "First quotient term",
+            "work": "${{m}}x^2$"
+          },
+          {
+            "id": "stop",
+            "label": "Student decision",
+            "work": "Stops before the remaining degree is less than the divisor degree."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "Why is stopping incorrect?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "continue",
+              "label": "Division must continue because the current remainder still has degree at least 2, the same as or higher than the divisor."
+            },
+            {
+              "id": "stop",
+              "label": "Any nonzero remainder means division must stop immediately."
+            },
+            {
+              "id": "synthetic",
+              "label": "Quadratic divisors always require synthetic division instead."
+            }
+          ],
+          "expected": "continue"
+        },
+        {
+          "id": "q2",
+          "label": "x^2 quotient coefficient",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        },
+        {
+          "id": "q1",
+          "label": "x quotient coefficient",
+          "inputProfile": "number",
+          "expected": "{{n}}"
+        },
+        {
+          "id": "q0",
+          "label": "constant quotient coefficient",
+          "inputProfile": "number",
+          "expected": "{{r}}"
+        },
+        {
+          "id": "remainder",
+          "label": "Final remainder",
+          "inputProfile": "number",
+          "expected": "0"
+        },
+        {
+          "id": "quotient",
+          "label": "Correct complete quotient",
+          "inputProfile": "expression",
+          "expected": "{{m}}*x^2+({{n}})*x+({{r}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Polynomial division is complete only when the remainder degree is below the divisor degree.",
+        "reasoning": [
+          "After the first term {{m}}x^2, the remaining polynomial still requires division by the quadratic divisor.",
+          "Continuing produces quotient terms {{n}}x and {{r}}.",
+          "The generated dividend is exactly divisor times quotient, so the final remainder is 0."
+        ],
+        "answerSummary": "Complete quotient $={{m}}x^2+({{n}})x+({{r}})$; remainder 0."
+      },
+      "attemptFeedback": [
+        "Use the degree of the current remainder—not whether it is nonzero—to decide whether division is finished."
+      ],
+      "supportHints": [
+        "Keep dividing while the current remainder degree is at least the divisor degree."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "q": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "n": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "r": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "A4": "m",
+          "A3": "n+p*m",
+          "A2": "r+p*n+q*m",
+          "A1": "p*r+q*n",
+          "A0": "q*r"
+        }
+      }
+    }
+  ]
+}
