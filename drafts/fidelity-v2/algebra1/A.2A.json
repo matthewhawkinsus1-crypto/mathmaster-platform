@@ -352,7 +352,85 @@
           "y2": "m*x2+b",
           "y3": "m*x3+b"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b3"
+        },
+        {
+          "coverageKey": "challenge-d3b4-discrete-versus-interval-range-error",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "The table and coordinate graph show ONLY the four displayed points of a discrete linear function. A student writes the domain and range as continuous intervals from the smallest value to the largest value. Diagnose why that adds inputs and outputs that are not in the function, then give the correct domain and range as finite sets.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Why are intervals incorrect here?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "discrete-only",
+                  "label": "The function is defined only at the displayed discrete points; an interval would add unlisted inputs and outputs."
+                },
+                {
+                  "id": "linear-always-continuous",
+                  "label": "Every linear pattern automatically includes all real values between the displayed points."
+                },
+                {
+                  "id": "range-only-interval",
+                  "label": "Only the range must be continuous; the domain can stay discrete."
+                }
+              ],
+              "expected": "discrete-only"
+            },
+            {
+              "id": "domain",
+              "label": "Correct domain set",
+              "inputProfile": "expression",
+              "expected": "{ {{x0}}, {{x1}}, {{x2}}, {{x3}} }"
+            },
+            {
+              "id": "range",
+              "label": "Correct range set",
+              "inputProfile": "expression",
+              "expected": "{ {{y0}}, {{y1}}, {{y2}}, {{y3}} }"
+            },
+            {
+              "id": "extra-input",
+              "label": "Does the function include every real x between {{x0}} and {{x3}}?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "no",
+                  "label": "No"
+                },
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                }
+              ],
+              "expected": "no"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A linear pattern can still be a discrete function when only specific inputs are defined.",
+            "reasoning": [
+              "The displayed inputs are exactly {{x0}}, {{x1}}, {{x2}}, and {{x3}}.",
+              "Only their corresponding outputs belong to the range.",
+              "Writing intervals would invent unlisted points between the displayed coordinates."
+            ],
+            "answerSummary": "Use finite domain and range sets, not intervals."
+          },
+          "attemptFeedback": [
+            "Decide whether the relation is defined between the displayed x-values before choosing interval notation."
+          ],
+          "supportHints": [
+            "A straight-line pattern among points does not by itself make a discrete relation continuous."
+          ]
+        }
+      ]
     },
     {
       "id": "mm_A_2A_v2_decreasing-range-error",
