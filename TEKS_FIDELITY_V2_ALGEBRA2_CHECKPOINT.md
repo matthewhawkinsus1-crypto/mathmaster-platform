@@ -222,7 +222,7 @@ Do **not** re-audit A2.3E unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.3F — PENDING AUDIT
+### A2.3F — REBUILD — AUDITED / AUTHORING
 
 Official construct: **Solve systems of two or more linear inequalities in two variables.**
 
@@ -231,6 +231,21 @@ Official construct: **Solve systems of two or more linear inequalities in two va
 ### A2.3F
 
 Resume here. Do not reopen A2.2A–A2.3E unless a failing gate names them.
+
+
+### 2026-08-30 — A2.3F audit finding
+- Official construct: **solve systems of two or more linear inequalities in two variables**.
+- Verdict: **REBUILD**.
+- The legacy bank is almost entirely interpretation/recognition: test a point, read a vertical interval from a table, identify boundary inclusion, identify a shading error, or choose a prewritten system. None requires the student to construct the full solution region.
+- This platform already has the correct secure capability from Algebra I Fidelity V2: `systemsWorkspace` inequality **construction** mode grades two boundary points, solid/dashed style, and shading direction for every inequality, then the workspace computes/displays only the overlap.
+- A2.3F should reuse that tested secure contract rather than create a parallel inequality graph tool.
+- Fidelity V2 requirements:
+  - all five families must construct/solve the actual system graph, not answer a recognition prompt;
+  - include two-constraint and three-constraint systems;
+  - include inclusive, strict, and mixed boundary styles;
+  - include contextual feasible-region solving;
+  - include error analysis where a union/incorrect half-plane is repaired by constructing the correct intersection;
+  - at least one family should require three inequalities so “two or more” is real rather than nominal.
 
 
 ### 2026-08-30 — A2.3E audit finding
