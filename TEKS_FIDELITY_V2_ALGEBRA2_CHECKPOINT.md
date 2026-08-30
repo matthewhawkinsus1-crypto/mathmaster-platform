@@ -579,7 +579,7 @@ Do **not** re-audit A2.6B unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.6C — REBUILD — AUDITED / AUTHORING
+### A2.6C — REBUILD — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Analyze transformations of the absolute value parent function for specified positive and negative real parameter values.**
 
@@ -612,6 +612,21 @@ Resume here. Do not reopen A2.2A–A2.6B unless a failing gate names them.
   - include positive and negative real parameter values, combined-effect analysis, exact point mapping, graph evidence, reverse reasoning from a supplied transformation sequence, and genuine error analysis;
   - never pretend a and b can be recovered separately from the final V-shape alone.
 - The existing Function Investigation tool supports the reduced a/h/k absolute-value form, not a separate b. No risky tool expansion is needed: generic secure response fields and generated point/graph evidence can assess the full parameter reasoning, while any graph rendering can use the mathematically equivalent effective outside scale $a|b|$.
+
+
+### 2026-08-30 — A2.6C staged and gated
+- Staged five A2.6C Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6C.json` — commit `db03b9528b371ec863bb909d096ee6e4a83a249b`.
+- Package/build run `33326082648`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - combined a/b/h/k symbolic analysis with negative a and reciprocal horizontal scale;
+  - exact point mapping under b=-4 showing the symmetric arms swap but no distinct visible reflection appears;
+  - graph evidence for horizontal stretch 2 plus vertical compression 1/2 and final arm slope 1/4;
+  - reverse reasoning from an explicitly supplied transform sequence so a and b are not falsely inferred from the final V alone;
+  - error analysis correcting both “two reflections cancel” and “inside factor 3 means horizontal stretch 3.”
+- Added A2.6C-specific generated certification — commit `db0596df11a413fb4fb561c7be2fe158fbec4960`.
+- The A2.6C gate samples 200+ generated instances, checks production issuability and secure self-grading, independently verifies negative-b point mapping, graph distances, reciprocal horizontal scale, effective arm slope, reverse parameter recovery, wrong-effect rejection, and public answer-key stripping.
+- Full A2.6C assertion run `33326111449`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.6C** until that run is green.
 
 
 ### 2026-08-30 — A2.6B audit finding
