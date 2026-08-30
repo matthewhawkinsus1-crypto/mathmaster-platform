@@ -306,3 +306,50 @@ test('weekly sessions are not promoted into numbered course Path passes', () => 
     'issued weekly questions must not carry a numbered course Path level',
   );
 });
+
+
+test('earned free-choice Challenge is a one-way DOK3 Band4 intent and not a numbered pass', () => {
+  const server = readFileSync('functions/index.js', 'utf8');
+  const app = readFileSync('src/components/student/MyMathPathApp.jsx', 'utf8');
+  const service = readFileSync('src/services/pathSessionService.js', 'utf8');
+
+  assert.match(
+    app,
+    /card\.status === 'extension' \? 'challenge' : null/,
+    'the visible Challenge card must carry a semantic challenge intent',
+  );
+  assert.match(
+    service,
+    /coursePracticeIntent: coursePracticeIntent === 'challenge' \? 'challenge' : null/,
+    'the client service may forward only the named challenge intent, never raw rigor',
+  );
+  assert.match(
+    server,
+    /requestedCoursePracticeIntent[\s\S]*=== "challenge"[\s\S]*\? "challenge"[\s\S]*: null/,
+  );
+  assert.match(
+    server,
+    /const coursePracticeIntent = requestedCoursePracticeIntent[\s\S]*!assessmentFramework[\s\S]*sessionKind !== "retentionProbe"[\s\S]*!requestedWeeklySlotKey/,
+    'Challenge intent must be ordinary free-choice course practice only',
+  );
+
+  const challengeBlock = /if \(\s*session\.coursePracticeIntent === "challenge"([\s\S]*?)\n  \) \{([\s\S]*?)\n  \}/.exec(server);
+  assert.ok(challengeBlock, 'server Challenge rigor block is missing');
+  assert.match(challengeBlock[1], /!session\.weeklySlotKey/);
+  assert.match(challengeBlock[1], /activeDisplayCode === targetDisplayCode/);
+  assert.match(challengeBlock[1], /!session\.diagnosing/);
+  assert.match(challengeBlock[2], /preferredDifficultyBand = 4;/);
+  assert.match(challengeBlock[2], /preferredDok = 3;/);
+
+  const progressBlock = /async function loadCoursePathPassProgress[\s\S]*?return \{[\s\S]*?totalCompletedPasses:[\s\S]*?\n  \};\n\}/.exec(server);
+  assert.ok(progressBlock);
+  assert.match(
+    progressBlock[0],
+    /if \(session\.coursePracticeIntent === "challenge"\) return;/,
+    'ahead-of-class Challenge must not counterfeit numbered course pass history',
+  );
+  assert.match(
+    server,
+    /coursePassLevel: session\.assessmentFramework \|\| session\.weeklySlotKey \|\| session\.coursePracticeIntent === "challenge"[\s\S]*?\? null/,
+  );
+});
