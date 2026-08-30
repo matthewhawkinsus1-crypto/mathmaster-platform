@@ -372,7 +372,22 @@
                 "max": 7
               }
             }
-          }
+          },
+          "solutionReview": {
+            "headline": "Vertical and horizontal lines keep different coordinates constant.",
+            "reasoning": [
+              "The vertical pair has constant x={{vx}}, so its equation is x={{vx}} and its slope is undefined.",
+              "The horizontal pair has constant y={{hy}}, so its equation is y={{hy}} and its slope is 0.",
+              "Those lines meet at ({{vx}},{{hy}})."
+            ],
+            "answerSummary": "Vertical x={{vx}}; horizontal y={{hy}}; intersection ({{vx}},{{hy}})."
+          },
+          "attemptFeedback": [
+            "Identify which coordinate stays constant in each pair before classifying the slope."
+          ],
+          "supportHints": [
+            "A vertical line fixes x; a horizontal line fixes y."
+          ]
         }
       ]
     },
