@@ -137,7 +137,84 @@
           "a": "c+delta",
           "d": "b+delta*bound"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-negative-result-after-combining",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Solve ${{a}}x{{b|signed}}\\le {{c}}x{{d|signed}}$. After collecting variable terms, the coefficient of x is negative, so continue through the inequality reversal and write the final solution.",
+          "responseFields": [
+            {
+              "id": "combined",
+              "label": "Inequality after subtracting {{c}}x from both sides",
+              "inputProfile": "expression",
+              "expected": "-{{g}}x{{b|signed}}<={{d}}"
+            },
+            {
+              "id": "isolated",
+              "label": "Inequality after subtracting {{b}}",
+              "inputProfile": "expression",
+              "expected": "-{{g}}x<={{rhs2}}"
+            },
+            {
+              "id": "answer",
+              "label": "Final solution inequality",
+              "inputProfile": "inequality",
+              "expected": "x>={{bound}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A multi-step inequality can require reversal only at the final negative division.",
+            "reasoning": [
+              "Subtracting {{c}}x gives $-{{g}}x{{b|signed}}\\le{{d}}$.",
+              "Subtracting {{b}} gives $-{{g}}x\\le{{rhs2}}$.",
+              "Dividing by -{{g}} reverses the inequality, producing x≥{{bound}}."
+            ],
+            "answerSummary": "$x\\ge{{bound}}$"
+          },
+          "attemptFeedback": [
+            "Do not reverse the symbol when adding or subtracting; reverse it only when dividing by the negative coefficient."
+          ],
+          "supportHints": [
+            "Track the sign of the coefficient on x after combining the variable terms."
+          ],
+          "generator": {
+            "parameters": {
+              "c": {
+                "type": "int",
+                "min": -3,
+                "max": 5
+              },
+              "g": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "b": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "bound": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              }
+            },
+            "derived": {
+              "a": "c-g",
+              "rhs2": "-g*bound",
+              "d": "b+rhs2"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_5B_v2_negative-coefficient-number-line",
@@ -446,6 +523,98 @@
               "rhs": "b+isolatedRhs",
               "test": "bound+step",
               "testLeft": "-g*test+b"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-reversal-test-point-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A student solves $-{{g}}x\\le{{rhs}}$ and writes $x\\le{{correct}}$. Diagnose the direction error, write the correct solution, then use x={{test}} to verify which side of the boundary satisfies the ORIGINAL inequality.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What must happen when dividing by -{{g}}?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "reverse",
+                  "label": "Reverse ≤ to ≥ because the divisor is negative."
+                },
+                {
+                  "id": "same",
+                  "label": "Keep ≤ unchanged."
+                }
+              ],
+              "expected": "reverse"
+            },
+            {
+              "id": "solution",
+              "label": "Correct solution",
+              "inputProfile": "inequality",
+              "expected": "x>={{correct}}"
+            },
+            {
+              "id": "test-left",
+              "label": "Original left side at x={{test}}",
+              "inputProfile": "number",
+              "expected": "{{testLeft}}"
+            },
+            {
+              "id": "test-verdict",
+              "label": "Does x={{test}} satisfy the original inequality?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "yes"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The reversal rule is supported by direct substitution into the original inequality.",
+            "reasoning": [
+              "Dividing by -{{g}} reverses the relation, so x≥{{correct}}.",
+              "The test point {{test}} lies on the ≥ side.",
+              "Substitution gives left side {{testLeft}}, which is ≤ {{rhs}}, confirming that side of the boundary."
+            ],
+            "answerSummary": "$x\\ge{{correct}}$; test point {{test}} verifies the direction."
+          },
+          "attemptFeedback": [
+            "After correcting the symbol, verify a value from that side in the original inequality."
+          ],
+          "supportHints": [
+            "Choose a value greater than the boundary and compare the original left and right sides."
+          ],
+          "generator": {
+            "parameters": {
+              "g": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "correct": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "step": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              }
+            },
+            "derived": {
+              "rhs": "-g*correct",
+              "wrong": "correct",
+              "test": "correct+step",
+              "testLeft": "-g*test"
             }
           }
         }
