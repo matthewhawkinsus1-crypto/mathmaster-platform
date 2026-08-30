@@ -33,6 +33,7 @@
 // Secure and server-side: nothing the browser sends selects a question.
 
 import { QUESTION_QUALITY, auditPathQuestionQuality } from './pathQuestionQuality.mjs';
+import { bestPathVariantForTarget } from './pathQuestionGeneration.mjs';
 
 const bandOf = (question) => {
   const band = Number(question?.difficultyBand);
@@ -87,13 +88,26 @@ export const rankCandidates = (candidates = [], {
   return [...candidates].map((question, index) => {
     const timesUsed = Number(usage[question.id]?.timesUsed ?? usage[question.id] ?? 0) || 0;
     const lastUsedAt = Number(usage[question.id]?.lastUsedAt ?? 0) || 0;
-    const band = bandOf(question);
+    // A variant-bearing family is ranked by the effective row it would issue
+    // for THIS target, not by the base family's metadata. Without this, a
+    // family whose base is 2:3 but whose Challenge variant is 3:4 looks like a
+    // 2:3 family during selection and only becomes 3:4 (or, previously,
+    // randomly something else) after it has already won or lost.
+    const variantMatch = bestPathVariantForTarget(question, {
+      preferredDok: wantsDok ? Number(preferredDok) : null,
+      preferredDifficultyBand: preferredBand,
+    });
+    const effectiveQuestion = variantMatch.template || question;
+    const band = bandOf(effectiveQuestion);
     const distance = Math.abs(band - preferredBand);
-    const dok = dokOf(question);
+    const dok = dokOf(effectiveQuestion);
     const dokDistance = wantsDok ? Math.abs(dok - Number(preferredDok)) : 0;
-    const audit = auditPathQuestionQuality(question);
+    const audit = auditPathQuestionQuality(effectiveQuestion);
     return {
       question,
+      effectiveQuestion,
+      effectiveVariantIndex: variantMatch.variantIndex,
+      effectiveCoverageKey: variantMatch.variant?.coverageKey || null,
       index,
       band,
       distance,
@@ -175,6 +189,8 @@ export const selectNextFamily = (candidates = [], {
     quality: chosen.quality,
     representation: chosen.representation,
     taskType: chosen.taskType,
+    effectiveVariantIndex: chosen.effectiveVariantIndex,
+    effectiveCoverageKey: chosen.effectiveCoverageKey,
     // Why, in terms a teacher-facing explanation can use directly.
     reason,
     distanceFromPreferred: chosen.distance,
