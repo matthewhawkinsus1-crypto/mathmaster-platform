@@ -1,0 +1,3939 @@
+{
+  "documents": [
+    {
+      "id": "mm_A_2A_v2_bounded-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:v2-bounded-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "For $f(x)={{m}}x{{b|signed}}$ on the domain $[{{lo}},{{hi}}]$, write the range in interval notation.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Range",
+          "inputProfile": "interval",
+          "expected": "[{{ylo}},{{yhi}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A positive-slope line preserves the endpoint order.",
+        "reasoning": [
+          "Evaluate the function at both domain endpoints.",
+          "Because $m={{m}}>0$, the smaller input gives the smaller output, so the range runs from {{ylo}} to {{yhi}}."
+        ],
+        "answerSummary": "$[{{ylo}},{{yhi}}]$"
+      },
+      "attemptFeedback": [
+        "Evaluate both ends of the stated domain before writing the output interval."
+      ],
+      "supportHints": [
+        "For an increasing line, the minimum and maximum outputs occur at the left and right domain endpoints."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "lo": {
+            "type": "int",
+            "min": -5,
+            "max": 0
+          },
+          "span": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          }
+        },
+        "derived": {
+          "hi": "lo+span",
+          "ylo": "m*lo+b",
+          "yhi": "m*hi+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2A_v2_context-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:v2-context-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A service charges ${{fee}} dollars plus ${{rate}} dollars per hour and can be booked from 0 through {{maxh}} hours. Write BOTH the reasonable domain of $h$ and the corresponding range of the cost $C$ in interval notation.",
+      "responseFields": [
+        {
+          "id": "domain",
+          "label": "Reasonable domain of h",
+          "inputProfile": "interval",
+          "expected": "[0,{{maxh}}]"
+        },
+        {
+          "id": "range",
+          "label": "Corresponding range of C",
+          "inputProfile": "interval",
+          "expected": "[{{fee}},{{maxcost}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The context restricts the inputs, and the linear model carries those restrictions to the outputs.",
+        "reasoning": [
+          "Hours can range from 0 through {{maxh}}, so the reasonable domain is $[0,{{maxh}}]$.",
+          "The cost starts at the fixed fee {{fee}} and reaches {{maxcost}} at {{maxh}} hours, giving range $[{{fee}},{{maxcost}}]$."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after finding the input interval; use the endpoints to find the output interval too."
+      ],
+      "supportHints": [
+        "The fixed fee is the cost when $h=0$."
+      ],
+      "generator": {
+        "parameters": {
+          "fee": {
+            "type": "int",
+            "min": 5,
+            "max": 30
+          },
+          "rate": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "maxh": {
+            "type": "int",
+            "min": 3,
+            "max": 12
+          }
+        },
+        "derived": {
+          "maxcost": "fee+rate*maxh"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2A_v2_decreasing-range-error",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:v2-decreasing-range-error",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "For $p(x)=-{{mag}}x{{b|signed}}$ on $[{{lo}},{{hi}}]$, a student writes the range as $[{{yleft}},{{yright}}]$ in that same left-to-right order. Correct the range in interval notation.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct range",
+          "inputProfile": "interval",
+          "expected": "[{{rlo}},{{rhi}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A decreasing function reverses which endpoint produces the minimum and maximum output.",
+        "reasoning": [
+          "Evaluate both endpoints: $p({{lo}})={{yleft}}$ and $p({{hi}})={{yright}}$.",
+          "Interval notation must list the smaller output first, so the range is $[{{rlo}},{{rhi}}]$."
+        ]
+      },
+      "attemptFeedback": [
+        "The domain order does not automatically become the range order for a decreasing function."
+      ],
+      "supportHints": [
+        "Compare the two endpoint outputs numerically before writing the interval."
+      ],
+      "generator": {
+        "parameters": {
+          "mag": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "lo": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "span": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "hi": "lo+span",
+          "yleft": "-mag*lo+b",
+          "yright": "-mag*hi+b",
+          "rlo": "min(yleft,yright)",
+          "rhi": "max(yleft,yright)"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2A_v2_discrete-mapping-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:v2-discrete-mapping-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "representationTranslation",
+      "representation": "orderedPairs",
+      "type": "relationMapping",
+      "prompt": "This DISCRETE linear function is defined only by the displayed ordered pairs. Use the mapping to identify its domain and range.",
+      "pairs": [
+        {
+          "x": "{{x0}}",
+          "y": "{{y0}}"
+        },
+        {
+          "x": "{{x1}}",
+          "y": "{{y1}}"
+        },
+        {
+          "x": "{{x2}}",
+          "y": "{{y2}}"
+        },
+        {
+          "x": "{{x3}}",
+          "y": "{{y3}}"
+        }
+      ],
+      "ask": [
+        "domain",
+        "range",
+        "isFunction"
+      ],
+      "solutionReview": {
+        "headline": "For a discrete function, the listed input values are the domain and the listed outputs are the range.",
+        "reasoning": [
+          "Read the first coordinate of each ordered pair to build the domain.",
+          "Read the second coordinates for the range; each listed input has exactly one output, so this relation is a function."
+        ]
+      },
+      "attemptFeedback": [
+        "Keep inputs and outputs separate: domain comes from x-values, range from y-values."
+      ],
+      "supportHints": [
+        "A discrete relation has only the listed points; do not fill in values between them."
+      ],
+      "generator": {
+        "parameters": {
+          "x0": {
+            "type": "int",
+            "min": -4,
+            "max": -1
+          },
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        },
+        "derived": {
+          "x1": "x0+1",
+          "x2": "x0+2",
+          "x3": "x0+3",
+          "y0": "m*x0+b",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b",
+          "y3": "m*x3+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2A_v2_table-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:v2-table-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "representationTranslation",
+      "representation": "multipleRepresentation",
+      "prompt": "The table and coordinate graph show the SAME discrete linear function. Write its domain and range as sets.",
+      "stimulus": {
+        "kind": "multipleRepresentation",
+        "title": "Discrete linear function",
+        "graph": {
+          "xMin": -6,
+          "xMax": 6,
+          "yMin": -12,
+          "yMax": 12,
+          "ariaLabel": "Four discrete points from the same linear function shown in the table",
+          "points": [
+            {
+              "x": "{{x0}}",
+              "y": "{{y0}}"
+            },
+            {
+              "x": "{{x1}}",
+              "y": "{{y1}}"
+            },
+            {
+              "x": "{{x2}}",
+              "y": "{{y2}}"
+            },
+            {
+              "x": "{{x3}}",
+              "y": "{{y3}}"
+            }
+          ]
+        },
+        "table": {
+          "headers": [
+            "Input $x$",
+            "Output $f(x)$"
+          ],
+          "rows": [
+            [
+              "{{x0}}",
+              "{{y0}}"
+            ],
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ],
+            [
+              "{{x3}}",
+              "{{y3}}"
+            ]
+          ]
+        },
+        "note": "Because the function is discrete, only the four plotted/table inputs and outputs belong to this relation."
+      },
+      "responseFields": [
+        {
+          "id": "domain",
+          "label": "Domain",
+          "inputProfile": "set",
+          "expected": "{ {{x0}}, {{x1}}, {{x2}}, {{x3}} }"
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "inputProfile": "set",
+          "expected": "{ {{y0}}, {{y1}}, {{y2}}, {{y3}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The table and graph encode the same finite input-output set.",
+        "reasoning": [
+          "The domain is the set of x-values shown in the input column and as horizontal coordinates: {{x0}}, {{x1}}, {{x2}}, and {{x3}}.",
+          "The range is the set of corresponding y-values shown in the output column and as vertical coordinates: {{y0}}, {{y1}}, {{y2}}, and {{y3}}."
+        ],
+        "answerSummary": "Domain $=\\{ {{x0}}, {{x1}}, {{x2}}, {{x3}} \\}$; range $=\\{ {{y0}}, {{y1}}, {{y2}}, {{y3}} \\}$."
+      },
+      "attemptFeedback": [
+        "Use x-coordinates for the domain and y-coordinates for the range; do not fill in values between the discrete points."
+      ],
+      "supportHints": [
+        "A discrete graph contains only its plotted points, so read the domain horizontally and the range vertically."
+      ],
+      "generator": {
+        "parameters": {
+          "x0": {
+            "type": "int",
+            "min": -3,
+            "max": 0
+          },
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "x1": "x0+1",
+          "x2": "x0+2",
+          "x3": "x0+3",
+          "y0": "m*x0+b",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b",
+          "y3": "m*x3+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2B_v2_error-point-slope-sign",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2B:v2-error-point-slope-sign",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2B",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student says that a line with slope ${{m}}$ through $({{x1}},{{y1}})$ can be written as $y{{y1|signed}}={{m}}(x{{x1|signed}})$. The student used the coordinate signs directly instead of subtracting the coordinates. Write the correct point-slope equation.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Correct point-slope equation",
+          "inputProfile": "equation",
+          "expected": "y{{negy1|signed}}={{m}}(x{{negx1|signed}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Point-slope form subtracts the coordinates.",
+        "reasoning": [
+          "The template is $y-y_1=m(x-x_1)$, so the signs inside the equation are opposites of the coordinate signs.",
+          "Using the given point produces the corrected equation."
+        ],
+        "answerSummary": "$y{{negy1|signed}}={{m}}(x{{negx1|signed}})$"
+      },
+      "attemptFeedback": [
+        "Check whether substituting the given point makes both sides equal."
+      ],
+      "supportHints": [
+        "Coordinates are inserted into subtraction, not copied as signs."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "x1": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "y1": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "negx1": "-x1",
+          "negy1": "-y1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2B_v2_point-slope-form",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2B:v2-point-slope-form",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "A line has slope ${{m}}$ and passes through $({{x1}},{{y1}})$. Write its equation in point-slope form using the given point.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Point-slope equation",
+          "inputProfile": "equation",
+          "expected": "y{{negy1|signed}}={{m}}(x{{negx1|signed}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Point-slope form keeps the given point visible.",
+        "reasoning": [
+          "Use $y-y_1=m(x-x_1)$.",
+          "Substitute slope {{m}} and the point $({{x1}},{{y1}})$ without changing the point's signs."
+        ],
+        "answerSummary": "$y{{negy1|signed}}={{m}}(x{{negx1|signed}})$"
+      },
+      "attemptFeedback": [
+        "Match each coordinate to the subtraction structure in point-slope form."
+      ],
+      "supportHints": [
+        "A negative coordinate creates addition because subtracting a negative changes the sign."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "x1": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "y1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "negx1": "-x1",
+          "negy1": "-y1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2B_v2_standard-form-from-point-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2B:v2-standard-form-from-point-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2B",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "A line has slope ${{m}}$ and passes through $({{x1}},{{y1}})$. Write an equation for the line in standard form $Ax+By=C$ with integer coefficients.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Standard-form equation",
+          "inputProfile": "equation",
+          "expected": "{{A}}x-y={{C}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Convert the point-and-slope information into standard form.",
+        "reasoning": [
+          "Start from point-slope form and distribute the slope.",
+          "Move the variable terms to the left; one valid standard form is ${{A}}x-y={{C}}$."
+        ],
+        "answerSummary": "${{A}}x-y={{C}}$"
+      },
+      "attemptFeedback": [
+        "Build the line first, then collect x and y terms on the same side."
+      ],
+      "supportHints": [
+        "Equivalent integer multiples describe the same line, but keep the equation in $Ax+By=C$ form."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "x1": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "y1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "A": "m",
+          "C": "m*x1-y1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2B_v2_table-to-slope-intercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2B:v2-table-to-slope-intercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2B",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table shows points on a line. Write the equation in slope-intercept form.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ],
+            [
+              "{{x3}}",
+              "{{y3}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Slope-intercept equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Use the table to recover both slope and intercept.",
+        "reasoning": [
+          "The y-values change by {{m}} whenever x increases by 1, so the slope is {{m}}.",
+          "Substitute any table point to determine the intercept {{b}}."
+        ],
+        "answerSummary": "$y={{m}}x{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "Find the constant rate of change before solving for the intercept."
+      ],
+      "supportHints": [
+        "Do not assume the first listed y-value is the y-intercept unless its x-value is 0."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -4,
+            "max": 2
+          },
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "x2": "x1+1",
+          "x3": "x1+2",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b",
+          "y3": "m*x3+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2B_v2_two-points-transfer",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2B:v2-two-points-transfer",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2B",
+      "taskType": "reverseReasoning",
+      "representation": "orderedPairs",
+      "prompt": "A line passes through $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. Write its equation in slope-intercept form. The x-values are not consecutive, so determine the rate of change from the full change in y over the full change in x.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Line equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Reconstruct the line from two nonconsecutive points.",
+        "reasoning": [
+          "The change in x is {{span}} and the change in y is {{dy}}, giving slope {{m}}.",
+          "Substitute either point into $y=mx+b$ to recover intercept {{b}}."
+        ],
+        "answerSummary": "$y={{m}}x{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "Use the entire horizontal and vertical changes between the points."
+      ],
+      "supportHints": [
+        "After finding slope, you still need one point to determine the intercept."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -5,
+            "max": 1
+          },
+          "span": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "x2": "x1+span",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b",
+          "dy": "y2-y1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2C_v2_error-analysis-table-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2C:v2-error-analysis-table-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2C",
+      "taskType": "errorAnalysis",
+      "representation": "table",
+      "prompt": "A student says the table is modeled by $y={{wrongm}}x{{b|signed}}$ because they used the change in $y$ without dividing by the change in $x$. Write the correct equation.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Slope is change in output divided by change in input.",
+        "reasoning": [
+          "The student's {{wrongm}} is only $\\Delta y$. The run is {{dx}}, so the slope is ${{wrongm}}/{{dx}}={{m}}$.",
+          "Using the correct slope with either table point gives the intercept {{b}}."
+        ],
+        "answerSummary": "$y={{m}}x{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "Check whether the student's number is a rise or a slope."
+      ],
+      "supportHints": [
+        "A slope needs both a numerator and a denominator: $\\Delta y/\\Delta x$."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x1": {
+            "type": "int",
+            "min": -3,
+            "max": 1
+          },
+          "dx": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          }
+        },
+        "derived": {
+          "x2": "x1+dx",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b",
+          "wrongm": "m*dx"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2C_v2_nonconsecutive-points-model",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2C:v2-nonconsecutive-points-model",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2C",
+      "taskType": "reverseReasoning",
+      "representation": "multipleRepresentation",
+      "prompt": "A linear relationship has $f({{x1}})={{y1}}$ and $f({{x2}})={{y2}}$. A third point $({{x3}},{{y3}})$ is also on the same line. Use the information together to write the equation for $f(x)$.",
+      "stimulus": {
+        "kind": "orderedPairs",
+        "orderedPairs": [
+          {
+            "x": "{{x1}}",
+            "y": "{{y1}}"
+          },
+          {
+            "x": "{{x2}}",
+            "y": "{{y2}}"
+          },
+          {
+            "x": "{{x3}}",
+            "y": "{{y3}}"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Function equation",
+          "inputProfile": "equation",
+          "expected": "f(x)={{m}}x{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Use the repeated structure, not just one pair.",
+        "reasoning": [
+          "The slope from the first two points is {{m}}, and the third point confirms the same rate.",
+          "Substitute a point into $f(x)=mx+b$ to obtain $b={{b}}$."
+        ],
+        "answerSummary": "$f(x)={{m}}x{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "Use at least two points to determine the rate, then use another point as a check."
+      ],
+      "supportHints": [
+        "Find slope first; after that, only the intercept is unknown."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "x1": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "gap1": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "gap2": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "x2": "x1+gap1",
+          "x3": "x2+gap2",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b",
+          "y3": "m*x3+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2C_v2_points-to-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2C:v2-points-to-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "The graph shows a linear function. Write its equation in slope-intercept form.",
+      "stimulus": {
+        "kind": "graph",
+        "title": "Linear function",
+        "graph": {
+          "xMin": -6,
+          "xMax": 6,
+          "yMin": -10,
+          "yMax": 10,
+          "ariaLabel": "Graph of one linear function",
+          "lines": [
+            {
+              "label": "Linear function",
+              "boundaryStyle": "solid",
+              "points": [
+                {
+                  "x": -2,
+                  "y": "{{yLeft}}"
+                },
+                {
+                  "x": 2,
+                  "y": "{{yRight}}"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Read both slope and intercept from the graph before writing the equation.",
+        "reasoning": [
+          "The line crosses the $y$-axis at {{b}}, so the intercept is $b={{b}}$.",
+          "Using two grid points on the line gives slope {{m}}, so the equation is $y={{m}}x{{b|signed}}$."
+        ],
+        "answerSummary": "$y={{m}}x{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "Use the graph to identify the $y$-intercept and the rise/run between two clear grid points."
+      ],
+      "supportHints": [
+        "In $y=mx+b$, $b$ is where the line crosses the $y$-axis and $m$ is rise over run."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "yLeft": "-2*m+b",
+          "yRight": "2*m+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2C_v2_table-to-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2C:v2-table-to-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2C",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table represents a linear function. Write its equation in slope-intercept form.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "{{x0}}",
+              "{{y0}}"
+            ],
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Linear equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Turn the table into rate of change and initial value.",
+        "reasoning": [
+          "The slope is the constant ratio $\\Delta y/\\Delta x={{m}}$.",
+          "Use any table point in $y=mx+b$ to recover the intercept $b={{b}}$."
+        ],
+        "answerSummary": "$y={{m}}x{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "Find the change in $y$ for one change in $x$, then determine the value when $x=0$."
+      ],
+      "supportHints": [
+        "Start with two consecutive rows and calculate $\\Delta y/\\Delta x$."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "x0": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          },
+          "step": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "x1": "x0+step",
+          "x2": "x0+2*step",
+          "y0": "m*x0+b",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2C_v2_verbal-rate-start-to-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2C:v2-verbal-rate-start-to-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2C",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A tank starts with {{b}} liters of water and changes by {{m}} liters each minute. Let $t$ be minutes and $W$ be liters of water. Write the linear equation relating $W$ and $t$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Equation",
+          "inputProfile": "equation",
+          "expected": "W={{m}}t{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A linear situation needs a starting value and a rate.",
+        "reasoning": [
+          "At $t=0$, the tank contains {{b}} liters, so {{b}} is the intercept.",
+          "The amount changes by {{m}} liters per minute, so {{m}} is the slope."
+        ],
+        "answerSummary": "$W={{m}}t{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "Identify what the amount is at time zero and how much it changes each minute."
+      ],
+      "supportHints": [
+        "Use the structure output = rate(input) + starting value."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": 20,
+            "max": 100
+          }
+        },
+        "constraints": [
+          "b + 5*m > 0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2D_v2_context-model-and-solve",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2D:v2-context-model-and-solve",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2D",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A machine produces {{rate}} parts per minute at a constant rate, starting from zero parts. Let $p$ be parts and $m$ be minutes. Write the direct-variation equation and use it to find the number of parts after {{time}} minutes.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Model equation",
+          "inputProfile": "equation",
+          "expected": "p={{rate}}m"
+        },
+        {
+          "id": "value",
+          "label": "Parts after {{time}} minutes",
+          "inputProfile": "number",
+          "expected": "{{total}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Constant rate from zero is direct variation.",
+        "reasoning": [
+          "The constant of variation is {{rate}} parts per minute, so $p={{rate}}m$.",
+          "Substitute $m={{time}}$ to get $p={{total}}$."
+        ],
+        "answerSummary": "$p={{rate}}m$ and {{total}} parts."
+      },
+      "attemptFeedback": [
+        "Write the model first, then substitute the requested input."
+      ],
+      "supportHints": [
+        "There is no starting amount, so the intercept is zero."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": 2,
+            "max": 20
+          },
+          "time": {
+            "type": "int",
+            "min": 3,
+            "max": 15
+          }
+        },
+        "derived": {
+          "total": "rate*time"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2D_v2_error-added-intercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2D:v2-error-added-intercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2D",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A direct variation contains the point $({{x}},{{y}})$. A student writes $y={{k}}x+{{b}}$. Correct the student's model by writing the direct-variation equation.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Correct equation",
+          "inputProfile": "equation",
+          "expected": "y={{k}}x"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A direct variation cannot have a nonzero intercept.",
+        "reasoning": [
+          "The ratio $y/x$ gives $k={{k}}$.",
+          "Direct variation must pass through $(0,0)$, so the added intercept {{b}} must be removed."
+        ],
+        "answerSummary": "$y={{k}}x$"
+      },
+      "attemptFeedback": [
+        "Check whether the student's equation passes through the origin."
+      ],
+      "supportHints": [
+        "Direct variation always has the form $y=kx$."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          },
+          "k": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          }
+        },
+        "derived": {
+          "y": "k*x"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2D_v2_point-to-direct-variation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2D:v2-point-to-direct-variation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2D",
+      "taskType": "procedural",
+      "representation": "orderedPairs",
+      "prompt": "A direct variation passes through $({{x}},{{y}})$. Write its complete equation in the form $y=kx$.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Direct-variation equation",
+          "inputProfile": "equation",
+          "expected": "y={{k}}x"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Direct variation has zero intercept.",
+        "reasoning": [
+          "Use $k=y/x={{y}}/{{x}}={{k}}$.",
+          "Substitute the constant of variation into $y=kx$."
+        ],
+        "answerSummary": "$y={{k}}x$"
+      },
+      "attemptFeedback": [
+        "Find the constant ratio $y/x$ before writing the equation."
+      ],
+      "supportHints": [
+        "A direct-variation graph passes through the origin, so there is no added constant."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 10
+          },
+          "k": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "y": "k*x"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2D_v2_reverse-constant-and-prediction",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2D:v2-reverse-constant-and-prediction",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2D",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "In a direct variation, $y={{y1}}$ when $x={{x1}}$. Write the complete equation, then use the same model to find $y$ when $x={{x2}}$.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Direct-variation equation",
+          "inputProfile": "equation",
+          "expected": "y={{k}}x"
+        },
+        {
+          "id": "value",
+          "label": "New $y$ value",
+          "inputProfile": "number",
+          "expected": "{{y2}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Recover the constant of variation before predicting.",
+        "reasoning": [
+          "Compute $k={{y1}}/{{x1}}={{k}}$.",
+          "The equation $y={{k}}x$ then gives $y={{y2}}$ at $x={{x2}}$."
+        ],
+        "answerSummary": "$y={{k}}x$; new value ${{y2}}$."
+      },
+      "attemptFeedback": [
+        "Do not scale by an additive difference; recover the multiplicative constant $k$."
+      ],
+      "supportHints": [
+        "Use $k=y/x$ from the known pair."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "x2": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          }
+        },
+        "derived": {
+          "y1": "k*x1",
+          "y2": "k*x2"
+        },
+        "constraints": [
+          "x1 != x2"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2D_v2_table-to-direct-variation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2D:v2-table-to-direct-variation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2D",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table represents a direct variation. Write the complete equation $y=kx$.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "1",
+              "{{y1}}"
+            ],
+            [
+              "2",
+              "{{y2}}"
+            ],
+            [
+              "4",
+              "{{y4}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Direct-variation equation",
+          "inputProfile": "equation",
+          "expected": "y={{k}}x"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A direct-variation table has a constant output-to-input ratio.",
+        "reasoning": [
+          "Each row gives $y/x={{k}}$.",
+          "That constant ratio is the coefficient in $y=kx$."
+        ],
+        "answerSummary": "$y={{k}}x$"
+      },
+      "attemptFeedback": [
+        "Divide each output by its input and look for the constant ratio."
+      ],
+      "supportHints": [
+        "Do not use consecutive differences; direct variation is multiplicative."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y1": "k",
+          "y2": "2*k",
+          "y4": "4*k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2E_v2_error-copies-intercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2E:v2-error-copies-intercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2E",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student is asked for a line parallel to $y={{m}}x{{b|signed}}$ through $({{x}},{{y}})$ and copies the entire equation $y={{m}}x{{b|signed}}$. Correct the student's work by writing the required line.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Correct parallel line",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Parallel lines share slope, not necessarily intercept.",
+        "reasoning": [
+          "The slope {{m}} should be copied because the lines are parallel.",
+          "The given point requires intercept {{newb}}, not the reference intercept {{b}}."
+        ],
+        "answerSummary": "$y={{m}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Check whether the copied equation actually passes through the required point."
+      ],
+      "supportHints": [
+        "Keep the slope; recompute the intercept from the point."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y": "m*x+newb"
+        },
+        "constraints": [
+          "newb != b"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2E_v2_parallel-through-point",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2E:v2-parallel-through-point",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2E",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Write the equation of the line parallel to $y={{m}}x{{b|signed}}$ that passes through $({{x}},{{y}})$.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Parallel-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Parallel lines keep the same slope.",
+        "reasoning": [
+          "The new line must have slope {{m}}.",
+          "Substitute the given point to find the new intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{m}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Keep the slope and use the point to determine a new intercept."
+      ],
+      "supportHints": [
+        "Parallel lines have equal slopes but different intercepts unless they are the same line."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y": "m*x+newb"
+        },
+        "constraints": [
+          "newb != b"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2E_v2_standard-form-reference",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2E:v2-standard-form-reference",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2E",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "The line ${{A}}x+{{B}}y={{C}}$ has slope ${{m}}$. Write the equation of the parallel line through $({{x}},{{y}})$ in slope-intercept form.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Parallel-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Equivalent forms do not change the slope relationship.",
+        "reasoning": [
+          "A parallel line must use the reference slope {{m}}.",
+          "Substituting the point gives the new intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{m}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Use the stated slope from the standard-form line, then solve for the new intercept."
+      ],
+      "supportHints": [
+        "Parallelism depends on slope, not on the equation form used to display the reference line."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "B": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "refb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "A": "-m*B",
+          "C": "refb*B",
+          "y": "m*x+newb"
+        },
+        "constraints": [
+          "newb != refb"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2E_v2_table-reference-parallel",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2E:v2-table-reference-parallel",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2E",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table lies on a line. Write the equation of a parallel line passing through $({{px}},{{py}})$.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "0",
+              "{{b}}"
+            ],
+            [
+              "1",
+              "{{y1}}"
+            ],
+            [
+              "2",
+              "{{y2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Parallel-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Use the table to recover the reference slope.",
+        "reasoning": [
+          "The table outputs change by {{m}} when x increases by 1, so the reference slope is {{m}}.",
+          "A parallel line uses that slope; the supplied point gives intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{m}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Find the table's rate of change before using the new point."
+      ],
+      "supportHints": [
+        "The new line must match the table's slope, not its intercept."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "px": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y1": "m+b",
+          "y2": "2*m+b",
+          "py": "m*px+newb"
+        },
+        "constraints": [
+          "newb != b"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2E_v2_two-point-reference",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2E:v2-two-point-reference",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2E",
+      "taskType": "reverseReasoning",
+      "representation": "orderedPairs",
+      "prompt": "A reference line passes through $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. Write the equation of the line parallel to it that passes through $({{px}},{{py}})$.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Parallel-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Recover the reference slope, then construct a new line.",
+        "reasoning": [
+          "The slope through the two reference points is {{m}}.",
+          "Use that same slope with the required point to obtain intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{m}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Find the reference slope from the two points before using the target point."
+      ],
+      "supportHints": [
+        "Parallel lines preserve rise-over-run."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "span": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "refb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "px": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "x2": "x1+span",
+          "y1": "m*x1+refb",
+          "y2": "m*x2+refb",
+          "py": "m*px+newb"
+        },
+        "constraints": [
+          "newb != refb"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2F_v2_error-keeps-same-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2F:v2-error-keeps-same-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2F",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student needs a line perpendicular to $y={{m}}x{{b|signed}}$ through $({{x}},{{y}})$ but uses slope {{m}} again. Correct the student's work by writing the perpendicular line.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Correct perpendicular line",
+          "inputProfile": "equation",
+          "expected": "y={{pm}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Keeping the same slope creates a parallel line, not a perpendicular one.",
+        "reasoning": [
+          "Replace {{m}} with its negative reciprocal {{pm}}.",
+          "Using the required point with slope {{pm}} gives intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{pm}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Check the product of the two slopes."
+      ],
+      "supportHints": [
+        "For perpendicular nonvertical lines, the slope product is -1."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "choice",
+            "values": [
+              1,
+              -1,
+              2,
+              -2,
+              0.5,
+              -0.5
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "pm": "-1/m",
+          "y": "pm*x+newb"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2F_v2_perpendicular-through-point",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2F:v2-perpendicular-through-point",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2F",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Write the equation of the line perpendicular to $y={{m}}x{{b|signed}}$ that passes through $({{x}},{{y}})$. The perpendicular slope is ${{pm}}$.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Perpendicular-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{pm}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Perpendicular slopes are negative reciprocals.",
+        "reasoning": [
+          "The required slope is {{pm}}.",
+          "Use the given point with that slope to obtain intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{pm}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Use the perpendicular slope with the point; do not keep the original slope."
+      ],
+      "supportHints": [
+        "After choosing the new slope, substitute the point to solve for the intercept."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "choice",
+            "values": [
+              1,
+              -1,
+              2,
+              -2,
+              0.5,
+              -0.5
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "pm": "-1/m",
+          "y": "pm*x+newb"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2F_v2_standard-form-reference",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2F:v2-standard-form-reference",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2F",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "The line ${{A}}x+{{B}}y={{C}}$ has slope ${{m}}$. Write the equation of the perpendicular line through $({{x}},{{y}})$ in slope-intercept form.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Perpendicular-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{pm}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Perpendicularity is determined by slope, even when the reference line is in standard form.",
+        "reasoning": [
+          "The reference slope is {{m}}, so the perpendicular slope is {{pm}}.",
+          "Substitute the target point to get intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{pm}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Transform the reference slope before using the target point."
+      ],
+      "supportHints": [
+        "Use the negative reciprocal, then solve for the new intercept."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "choice",
+            "values": [
+              1,
+              -1,
+              2,
+              -2
+            ]
+          },
+          "B": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "refb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "pm": "-1/m",
+          "A": "-m*B",
+          "C": "refb*B",
+          "y": "pm*x+newb"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2F_v2_table-reference-perpendicular",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2F:v2-table-reference-perpendicular",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2F",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table lies on a line. Write the equation of a perpendicular line through $({{px}},{{py}})$.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "0",
+              "{{b}}"
+            ],
+            [
+              "1",
+              "{{y1}}"
+            ],
+            [
+              "2",
+              "{{y2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Perpendicular-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{pm}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Read the reference slope, then take its negative reciprocal.",
+        "reasoning": [
+          "The table changes by {{m}} in y for each increase of 1 in x, so its slope is {{m}}.",
+          "The perpendicular slope is {{pm}}; the target point gives intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{pm}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Find the table's slope first, then transform it to the perpendicular slope."
+      ],
+      "supportHints": [
+        "Perpendicular slopes multiply to -1 when both are finite and nonzero."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "choice",
+            "values": [
+              1,
+              -1,
+              2,
+              -2,
+              0.5,
+              -0.5
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "px": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "pm": "-1/m",
+          "y1": "m+b",
+          "y2": "2*m+b",
+          "py": "pm*px+newb"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2F_v2_two-point-reference",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2F:v2-two-point-reference",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2F",
+      "taskType": "reverseReasoning",
+      "representation": "orderedPairs",
+      "prompt": "A reference line passes through $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. Write the equation of the line perpendicular to it that passes through $({{px}},{{py}})$.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Perpendicular-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{pm}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Recover a slope, transform it, then construct the new line.",
+        "reasoning": [
+          "The reference points give slope {{m}}.",
+          "Its negative reciprocal is {{pm}}, and the target point determines intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{pm}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "This task has two slope steps: find the reference slope, then take the negative reciprocal."
+      ],
+      "supportHints": [
+        "Do not use the reference line's intercept; the target point determines the new one."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "span": {
+            "type": "choice",
+            "values": [
+              1,
+              2
+            ]
+          },
+          "m": {
+            "type": "choice",
+            "values": [
+              1,
+              -1,
+              2,
+              -2
+            ]
+          },
+          "refb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "px": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "pm": "-1/m",
+          "x2": "x1+span",
+          "y1": "m*x1+refb",
+          "y2": "m*x2+refb",
+          "py": "pm*px+newb"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2G_v2_error-vertical-zero-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2G:v2-error-vertical-zero-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2G",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student says, “The line through $({{x}},{{y1}})$ and $({{x}},{{y2}})$ has slope 0 because one coordinate does not change.” Correct the student's claim by entering the actual slope classification.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Actual slope classification",
+          "inputProfile": "text",
+          "expected": "undefined"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The student confused zero rise with zero run.",
+        "reasoning": [
+          "Here x does not change, so the run is 0.",
+          "Slope is rise divided by run; division by 0 is undefined, so the vertical line's slope is undefined."
+        ]
+      },
+      "attemptFeedback": [
+        "Check whether the unchanging coordinate causes the numerator or denominator of rise/run to be zero."
+      ],
+      "supportHints": [
+        "Zero rise gives slope 0; zero run gives undefined slope."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "y1": {
+            "type": "int",
+            "min": -7,
+            "max": -1
+          },
+          "y2": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_2G_v2_horizontal-equation-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2G:v2-horizontal-equation-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2G",
+      "taskType": "conceptual",
+      "representation": "orderedPairs",
+      "prompt": "The points $({{x1}},{{y}})$ and $({{x2}},{{y}})$ lie on the same line. Write the line's equation and give its slope.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Equation",
+          "inputProfile": "equation",
+          "expected": "y={{y}}"
+        },
+        {
+          "id": "slope",
+          "label": "Slope",
+          "inputProfile": "number",
+          "expected": "0"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Matching y-values make a horizontal line.",
+        "reasoning": [
+          "Both points have y={{y}}, so the equation is $y={{y}}$.",
+          "The rise is 0 while the run is nonzero, so the slope is 0."
+        ]
+      },
+      "attemptFeedback": [
+        "Identify the constant coordinate, then compute rise over run."
+      ],
+      "supportHints": [
+        "Horizontal means y is constant."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -7,
+            "max": -1
+          },
+          "x2": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          },
+          "y": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_2G_v2_horizontal-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2G:v2-horizontal-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2G",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "graphing2",
+      "mode": "verticalHorizontal",
+      "orientation": "horizontal",
+      "value": "{{c}}",
+      "prompt": "Graph the horizontal line $y={{c}}$ by plotting two points that have the same y-coordinate.",
+      "graphBounds": {
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -7,
+        "yMax": 7
+      },
+      "solutionReview": {
+        "headline": "Every point on a horizontal line has the same y-coordinate.",
+        "reasoning": [
+          "For $y={{c}}$, choose any two different x-values while keeping y fixed at {{c}}.",
+          "The rise between any two points is 0, so a horizontal line has slope 0."
+        ]
+      },
+      "attemptFeedback": [
+        "Keep y={{c}} for both points and change only x."
+      ],
+      "supportHints": [
+        "Try $(0,{{c}})$ and $(2,{{c}})$."
+      ],
+      "generator": {
+        "parameters": {
+          "c": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_2G_v2_vertical-equation-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2G:v2-vertical-equation-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2G",
+      "taskType": "conceptual",
+      "representation": "orderedPairs",
+      "prompt": "The points $({{x}},{{y1}})$ and $({{x}},{{y2}})$ lie on the same line. Write the line's equation and classify its slope.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Equation",
+          "inputProfile": "equation",
+          "expected": "x={{x}}"
+        },
+        {
+          "id": "slope",
+          "label": "Slope classification",
+          "inputProfile": "text",
+          "expected": "undefined"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Matching x-values make a vertical line.",
+        "reasoning": [
+          "Both points have x={{x}}, so every point on the line satisfies $x={{x}}$.",
+          "The run between the two points is 0, so the slope ratio would divide by zero; the slope is undefined."
+        ]
+      },
+      "attemptFeedback": [
+        "Look at which coordinate stays constant before using the slope formula."
+      ],
+      "supportHints": [
+        "Vertical means x is constant."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "y1": {
+            "type": "int",
+            "min": -7,
+            "max": -1
+          },
+          "y2": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_2G_v2_vertical-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2G:v2-vertical-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2G",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "graphing2",
+      "mode": "verticalHorizontal",
+      "orientation": "vertical",
+      "value": "{{c}}",
+      "prompt": "Graph the vertical line $x={{c}}$ by plotting two points that have the same x-coordinate.",
+      "graphBounds": {
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -7,
+        "yMax": 7
+      },
+      "solutionReview": {
+        "headline": "Every point on a vertical line has the same x-coordinate.",
+        "reasoning": [
+          "For $x={{c}}$, choose any two different y-values while keeping x fixed at {{c}}.",
+          "The line through those points is vertical; its slope is undefined because its run is 0."
+        ]
+      },
+      "attemptFeedback": [
+        "Both plotted points must have x={{c}}, but they must be different points."
+      ],
+      "supportHints": [
+        "Try $({{c}},0)$ and $({{c}},2)$."
+      ],
+      "generator": {
+        "parameters": {
+          "c": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_2H_v2_boundary-points-shading-to-inequality",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2H:v2-boundary-points-shading-to-inequality",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2H",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "The graph shows a DASHED boundary line with the region ABOVE the line shaded. Write the two-variable inequality represented by the graph.",
+      "stimulus": {
+        "kind": "graph",
+        "title": "Linear inequality graph",
+        "graph": {
+          "xMin": -6,
+          "xMax": 6,
+          "yMin": -10,
+          "yMax": 10,
+          "ariaLabel": "Dashed linear boundary with the half-plane above it shaded",
+          "lines": [
+            {
+              "label": "Boundary",
+              "boundaryStyle": "dashed",
+              "points": [
+                {
+                  "x": -2,
+                  "y": "{{yLeft}}"
+                },
+                {
+                  "x": 2,
+                  "y": "{{yRight}}"
+                }
+              ]
+            }
+          ],
+          "shading": [
+            {
+              "lineIndex": 0,
+              "side": "above"
+            }
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Inequality",
+          "inputProfile": "inequality",
+          "expected": "y>{{m}}x{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A graph communicates the boundary equation, inclusion, and shaded side.",
+        "reasoning": [
+          "The boundary line has slope {{m}} and $y$-intercept {{b}}, so its equation is $y={{m}}x{{b|signed}}$.",
+          "The boundary is dashed, so equality is excluded; the region above the line gives $y>{{m}}x{{b|signed}}$."
+        ],
+        "answerSummary": "$y>{{m}}x{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "Read three separate features: boundary slope/intercept, dashed versus solid, and which side is shaded."
+      ],
+      "supportHints": [
+        "Dashed means strict; shading above a boundary written as $y=mx+b$ uses $>$."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "yLeft": "-2*m+b",
+          "yRight": "2*m+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2H_v2_context-budget-to-inequality",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2H:v2-context-budget-to-inequality",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2H",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A club can spend at most {{budget}} dollars on shirts and hats. Shirts cost {{s}} dollars each and hats cost {{h}} dollars each. Let $x$ be shirts and $y$ be hats. Write the linear inequality that models the spending limit.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Inequality",
+          "inputProfile": "inequality",
+          "expected": "{{s}}x+{{h}}y<={{budget}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Translate the total cost and the limiting phrase separately.",
+        "reasoning": [
+          "The total cost is ${{s}}x+{{h}}y$.",
+          "At most means the total may equal {{budget}} but cannot exceed it, so use $\\le$."
+        ],
+        "answerSummary": "${{s}}x+{{h}}y \\le {{budget}}$"
+      },
+      "attemptFeedback": [
+        "Build the total cost first, then translate the phrase ‘at most’."
+      ],
+      "supportHints": [
+        "Does spending exactly the full budget still satisfy the situation?"
+      ],
+      "generator": {
+        "parameters": {
+          "s": {
+            "type": "int",
+            "min": 6,
+            "max": 18
+          },
+          "h": {
+            "type": "int",
+            "min": 4,
+            "max": 15
+          },
+          "budget": {
+            "type": "int",
+            "min": 80,
+            "max": 240
+          }
+        },
+        "constraints": [
+          "s != h"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2H_v2_error-analysis-symbol-and-boundary",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2H:v2-error-analysis-symbol-and-boundary",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2H",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A graph has a SOLID boundary $y={{m}}x{{b|signed}}$ and the region ABOVE the line is shaded. A student writes $y>{{m}}x{{b|signed}}$. Correct the student's inequality.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct inequality",
+          "inputProfile": "inequality",
+          "expected": "y>={{m}}x{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The student's direction is right but the boundary inclusion is wrong.",
+        "reasoning": [
+          "Above the line means $y$ is greater than the boundary value.",
+          "A solid line includes points on the boundary, so equality must be included."
+        ],
+        "answerSummary": "$y \\ge {{m}}x{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "Check both the direction of shading and whether the boundary itself is part of the solution."
+      ],
+      "supportHints": [
+        "Solid means include equality."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_2H_v2_table-boundary-to-inequality",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2H:v2-table-boundary-to-inequality",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2H",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table lists points on the boundary of a linear inequality. The solution includes the boundary and lies BELOW the line. Write the inequality in slope-intercept form.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "Boundary $y$"
+          ],
+          "rows": [
+            [
+              "{{x0}}",
+              "{{y0}}"
+            ],
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Inequality",
+          "inputProfile": "inequality",
+          "expected": "y<={{m}}x{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Find the boundary equation, then use the shading information.",
+        "reasoning": [
+          "The table has constant slope {{m}}, so its boundary is $y={{m}}x{{b|signed}}$.",
+          "Below means $y$ is less than the boundary, and includes the boundary means $\\le$."
+        ],
+        "answerSummary": "$y \\le {{m}}x{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "First write the equation of the boundary line. Then decide whether equality is included."
+      ],
+      "supportHints": [
+        "Below corresponds to less than; an included boundary adds equality."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x0": {
+            "type": "int",
+            "min": -3,
+            "max": 0
+          },
+          "step": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "x1": "x0+step",
+          "x2": "x0+2*step",
+          "y0": "m*x0+b",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2H_v2_two-constraints-model-choice",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2H:v2-two-constraints-model-choice",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2H",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A fundraiser sells adult tickets for {{a}} dollars and student tickets for {{s}} dollars. The room can hold at most {{cap}} people, and ticket revenue must be at least {{goal}} dollars. Let $x$ be adult tickets and $y$ be student tickets. Write the REVENUE inequality only.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Revenue inequality",
+          "inputProfile": "inequality",
+          "expected": "{{a}}x+{{s}}y>={{goal}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Decide which quantities belong in the requested constraint.",
+        "reasoning": [
+          "Capacity uses counts, but the requested revenue constraint uses ticket prices times ticket counts.",
+          "Must be at least {{goal}} means the revenue is greater than or equal to {{goal}}."
+        ],
+        "answerSummary": "${{a}}x+{{s}}y \\ge {{goal}}$"
+      },
+      "attemptFeedback": [
+        "Do not mix the capacity constraint with the revenue constraint; identify what each coefficient represents."
+      ],
+      "supportHints": [
+        "Revenue is price times quantity for each ticket type."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 18
+          },
+          "s": {
+            "type": "int",
+            "min": 4,
+            "max": 12
+          },
+          "cap": {
+            "type": "int",
+            "min": 80,
+            "max": 250
+          },
+          "goal": {
+            "type": "int",
+            "min": 500,
+            "max": 2200,
+            "step": 50
+          }
+        },
+        "constraints": [
+          "a > s"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2I_v2_error-analysis-mixed-variables",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2I"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2I:v2-error-analysis-mixed-variables",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2I",
+      "taskType": "errorAnalysis",
+      "representation": "context",
+      "prompt": "A group buys {{n}} sandwiches: turkey sandwiches cost {{t}} dollars and veggie sandwiches cost {{v}} dollars. Let $x$ be turkey and $y$ be veggie. A student writes the cost equation ${{t}}y+{{v}}x={{total}}$. Write the CORRECT system.",
+      "responseFields": [
+        {
+          "id": "count",
+          "label": "Count equation",
+          "inputProfile": "equation",
+          "expected": "x+y={{n}}"
+        },
+        {
+          "id": "cost",
+          "label": "Correct cost equation",
+          "inputProfile": "equation",
+          "expected": "{{t}}x+{{v}}y={{total}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Coefficients must stay attached to the quantities they price.",
+        "reasoning": [
+          "$x$ counts turkey sandwiches, so its coefficient must be the turkey price {{t}}.",
+          "$y$ counts veggie sandwiches, so its coefficient must be the veggie price {{v}}."
+        ],
+        "answerSummary": "$x+y={{n}}$ and ${{t}}x+{{v}}y={{total}}$"
+      },
+      "attemptFeedback": [
+        "Read the variable definitions before attaching prices to variables."
+      ],
+      "supportHints": [
+        "Turkey price multiplies turkey count; veggie price multiplies veggie count."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 8,
+            "max": 30
+          },
+          "y": {
+            "type": "int",
+            "min": 8,
+            "max": 30
+          },
+          "t": {
+            "type": "int",
+            "min": 7,
+            "max": 13
+          },
+          "v": {
+            "type": "int",
+            "min": 4,
+            "max": 9
+          }
+        },
+        "derived": {
+          "n": "x+y",
+          "total": "t*x+v*y"
+        },
+        "constraints": [
+          "t!=v"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2I_v2_mixture-context-to-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2I"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2I:v2-mixture-context-to-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2I",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A blend contains {{n}} liters total. Liquid A costs {{a}} dollars per liter and liquid B costs {{b}} dollars per liter. The blend costs {{total}} dollars. Let $x$ be liters of A and $y$ be liters of B. Write the system.",
+      "responseFields": [
+        {
+          "id": "volume",
+          "label": "Total-volume equation",
+          "inputProfile": "equation",
+          "expected": "x+y={{n}}"
+        },
+        {
+          "id": "cost",
+          "label": "Total-cost equation",
+          "inputProfile": "equation",
+          "expected": "{{a}}x+{{b}}y={{total}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Model quantity and cost with separate equations.",
+        "reasoning": [
+          "The liters must add to {{n}}, so $x+y={{n}}$.",
+          "The cost contributions add to {{total}}, so ${{a}}x+{{b}}y={{total}}$."
+        ],
+        "answerSummary": "$x+y={{n}}$ and ${{a}}x+{{b}}y={{total}}$"
+      },
+      "attemptFeedback": [
+        "Do not multiply the total liters by one price; each liquid has its own price."
+      ],
+      "supportHints": [
+        "Write one equation for liters and a second for dollars."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 4,
+            "max": 18
+          },
+          "y": {
+            "type": "int",
+            "min": 4,
+            "max": 18
+          },
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "b": {
+            "type": "int",
+            "min": 9,
+            "max": 16
+          }
+        },
+        "derived": {
+          "n": "x+y",
+          "total": "a*x+b*y"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2I_v2_reverse-build-system-from-solution",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2I"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2I:v2-reverse-build-system-from-solution",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2I",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "The graph shows two linear models, A and B. Write BOTH equations in slope-intercept form.",
+      "responseFields": [
+        {
+          "id": "modelA",
+          "label": "Model A equation",
+          "inputProfile": "equation",
+          "expected": "y={{m1}}x{{b1|signed}}"
+        },
+        {
+          "id": "modelB",
+          "label": "Model B equation",
+          "inputProfile": "equation",
+          "expected": "y={{m2}}x{{b2|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Each graphed line contributes one equation to the system.",
+        "reasoning": [
+          "Model A has slope {{m1}} and $y$-intercept {{b1}}, so $y={{m1}}x{{b1|signed}}$.",
+          "Model B has slope {{m2}} and $y$-intercept {{b2}}, so $y={{m2}}x{{b2|signed}}$."
+        ],
+        "answerSummary": "The system is $y={{m1}}x{{b1|signed}}$ and $y={{m2}}x{{b2|signed}}$."
+      },
+      "attemptFeedback": [
+        "Treat the two lines separately: read each slope and each $y$-intercept, then write two equations."
+      ],
+      "supportHints": [
+        "The solid/dashed styling distinguishes the two models here; it does not change either equation."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": -2,
+            "max": 2
+          },
+          "y": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "m1": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "b1": "y-m1*x",
+          "b2": "y-m2*x",
+          "a2y": "2*m1+b1",
+          "b2y": "2*m2+b2"
+        },
+        "constraints": [
+          "m1!=m2",
+          "abs(b1)<=7",
+          "abs(b2)<=7"
+        ]
+      },
+      "stimulus": {
+        "kind": "graph",
+        "title": "Two linear models",
+        "graph": {
+          "xMin": -6,
+          "xMax": 6,
+          "yMin": -10,
+          "yMax": 10,
+          "ariaLabel": "Graph of two intersecting linear models labelled A and B",
+          "lines": [
+            {
+              "label": "Model A",
+              "boundaryStyle": "solid",
+              "points": [
+                {
+                  "x": 0,
+                  "y": "{{b1}}"
+                },
+                {
+                  "x": 2,
+                  "y": "{{a2y}}"
+                }
+              ]
+            },
+            {
+              "label": "Model B",
+              "boundaryStyle": "dashed",
+              "points": [
+                {
+                  "x": 0,
+                  "y": "{{b2}}"
+                },
+                {
+                  "x": 2,
+                  "y": "{{b2y}}"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "mm_A_2I_v2_table-two-plans-to-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2I"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2I:v2-table-two-plans-to-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2I",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table shows the cost of two linear plans for the same input $x$. Write a system with equations $y=$ for Plan A and Plan B.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "Plan A",
+            "Plan B"
+          ],
+          "rows": [
+            [
+              "0",
+              "{{a0}}",
+              "{{b0}}"
+            ],
+            [
+              "{{step}}",
+              "{{a1}}",
+              "{{b1}}"
+            ],
+            [
+              "{{step2}}",
+              "{{a2}}",
+              "{{b2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "planA",
+          "label": "Plan A equation",
+          "inputProfile": "equation",
+          "expected": "y={{ar}}x{{a0|signed}}"
+        },
+        {
+          "id": "planB",
+          "label": "Plan B equation",
+          "inputProfile": "equation",
+          "expected": "y={{br}}x{{b0|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Each column defines its own linear function.",
+        "reasoning": [
+          "Plan A begins at {{a0}} and changes at rate {{ar}}, giving $y={{ar}}x{{a0|signed}}$.",
+          "Plan B begins at {{b0}} and changes at rate {{br}}, giving $y={{br}}x{{b0|signed}}$."
+        ],
+        "answerSummary": "$y={{ar}}x{{a0|signed}}$ and $y={{br}}x{{b0|signed}}$"
+      },
+      "attemptFeedback": [
+        "Treat each plan column as its own table-to-equation problem."
+      ],
+      "supportHints": [
+        "The row with $x=0$ gives each intercept. Use another row to find each slope."
+      ],
+      "generator": {
+        "parameters": {
+          "ar": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "br": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "a0": {
+            "type": "int",
+            "min": 5,
+            "max": 30
+          },
+          "b0": {
+            "type": "int",
+            "min": 5,
+            "max": 30
+          },
+          "step": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          }
+        },
+        "derived": {
+          "step2": "2*step",
+          "a1": "ar*step+a0",
+          "a2": "ar*step2+a0",
+          "b1": "br*step+b0",
+          "b2": "br*step2+b0"
+        },
+        "constraints": [
+          "ar!=br",
+          "a0!=b0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2I_v2_ticket-context-to-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2I"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2I:v2-ticket-context-to-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2I",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A school sells {{n}} tickets. Adult tickets cost {{a}} dollars and student tickets cost {{s}} dollars. Total revenue is {{total}} dollars. Let $x$ be adult tickets and $y$ be student tickets. Write the system that models the situation.",
+      "responseFields": [
+        {
+          "id": "count",
+          "label": "Ticket-count equation",
+          "inputProfile": "equation",
+          "expected": "x+y={{n}}"
+        },
+        {
+          "id": "revenue",
+          "label": "Revenue equation",
+          "inputProfile": "equation",
+          "expected": "{{a}}x+{{s}}y={{total}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Each sentence contributes a different equation.",
+        "reasoning": [
+          "The total number of tickets gives $x+y={{n}}$.",
+          "Price times quantity gives the revenue equation ${{a}}x+{{s}}y={{total}}$."
+        ],
+        "answerSummary": "$x+y={{n}}$ and ${{a}}x+{{s}}y={{total}}$"
+      },
+      "attemptFeedback": [
+        "Separate the information about number of tickets from the information about money."
+      ],
+      "supportHints": [
+        "One equation counts tickets; the other counts dollars."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 12,
+            "max": 60
+          },
+          "y": {
+            "type": "int",
+            "min": 12,
+            "max": 60
+          },
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 18
+          },
+          "s": {
+            "type": "int",
+            "min": 4,
+            "max": 10
+          }
+        },
+        "derived": {
+          "n": "x+y",
+          "total": "a*x+s*y"
+        },
+        "constraints": [
+          "a>s"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_3A_v2_error-reciprocal-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3A:v2-error-reciprocal-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3A",
+      "taskType": "errorAnalysis",
+      "representation": "orderedPairs",
+      "prompt": "Between $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$, a student divides the run by the rise and reports slope ${{wrong}}$. Correct the student's slope.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct slope",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Slope is rise over run, not run over rise.",
+        "reasoning": [
+          "The run is {{run}} and the rise is {{rise}}.",
+          "The correct ratio is ${{rise}}/{{run}}={{m}}$."
+        ]
+      },
+      "attemptFeedback": [
+        "Write change in y on top and change in x on the bottom."
+      ],
+      "supportHints": [
+        "Slope = $\\frac{y_2-y_1}{x_2-x_1}$."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
+          },
+          "run": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "x1": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          },
+          "y1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "x2": "x1+run",
+          "rise": "m*run",
+          "y2": "y1+rise",
+          "wrong": "run/rise"
+        }
+      }
+    },
+    {
+      "id": "mm_A_3A_v2_graph-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3A:v2-graph-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Plot two points on $y={{m}}x{{b|signed}}$, then determine the slope from the graph.",
+      "functionSpec": {
+        "type": "linear",
+        "m": "{{m}}",
+        "b": "{{b}}"
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot the y-intercept",
+          "x": 0,
+          "expected": [
+            0,
+            "{{b}}"
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Plot the point where x = 2",
+          "x": 2,
+          "expected": [
+            2,
+            "{{y2}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "slope",
+          "label": "Slope",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{m}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Slope is the constant rise/run between any two points on a line.",
+        "reasoning": [
+          "The plotted points are $(0,{{b}})$ and $(2,{{y2}})$.",
+          "Their rise divided by run simplifies to {{m}}."
+        ]
+      },
+      "attemptFeedback": [
+        "Use the same two plotted points to measure vertical change over horizontal change."
+      ],
+      "supportHints": [
+        "Slope = rise/run."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        },
+        "derived": {
+          "y2": "2*m+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_3A_v2_point-slope-read",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3A:v2-point-slope-read",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3A",
+      "taskType": "conceptual",
+      "representation": "symbolic",
+      "prompt": "The line is written in point-slope form $y-({{y1}})={{m}}(x-({{x1}}))$. What is its slope?",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Slope",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Point-slope form names the slope directly.",
+        "reasoning": [
+          "In $y-y_1=m(x-x_1)$, the multiplier of the parenthesis is m.",
+          "Here that multiplier is {{m}}, so the slope is {{m}}."
+        ]
+      },
+      "attemptFeedback": [
+        "Match the equation to $y-y_1=m(x-x_1)$."
+      ],
+      "supportHints": [
+        "Do not confuse the point coordinates with the slope multiplier."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "x1": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "y1": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3A_v2_standard-form-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3A:v2-standard-form-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3A",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "The line is written in standard form ${{A}}x+{{B}}y={{C}}$. Determine its slope without graphing it.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Slope",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Standard form can be rearranged to reveal slope.",
+        "reasoning": [
+          "Solving ${{A}}x+{{B}}y={{C}}$ for y gives a coefficient of x equal to $-{{A}}/{{B}}$.",
+          "Because ${{A}}=-({{m}})({{B}})$, that quotient simplifies to {{m}}."
+        ]
+      },
+      "attemptFeedback": [
+        "Isolate y and read the coefficient multiplying x."
+      ],
+      "supportHints": [
+        "For $Ax+By=C$, slope is $-A/B$."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "B": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "c0": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        },
+        "derived": {
+          "A": "-m*B",
+          "C": "c0*B"
+        }
+      }
+    },
+    {
+      "id": "mm_A_3A_v2_table-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3A:v2-table-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3A",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "Use the table to determine the slope of the linear function.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "{{x0}}",
+              "{{y0}}"
+            ],
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Slope",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A table gives slope as change in output divided by change in input.",
+        "reasoning": [
+          "From one row to the next, x changes by {{step}}.",
+          "Over the same move, y changes by {{rise}}, so the slope is ${{rise}}/{{step}}={{m}}$."
+        ]
+      },
+      "attemptFeedback": [
+        "Compare the same pair of rows in both columns."
+      ],
+      "supportHints": [
+        "Compute $\\Delta y/\\Delta x$."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x0": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          },
+          "step": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "x1": "x0+step",
+          "x2": "x0+2*step",
+          "y0": "m*x0+b",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b",
+          "rise": "m*step"
+        }
+      }
+    }
+  ]
+}
