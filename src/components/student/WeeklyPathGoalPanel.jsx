@@ -1,5 +1,6 @@
 import React from 'react';
 import { PURPOSE } from '../../platform/path/recommendationV2.js';
+import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 
 // The student's week is a commitment the platform can count, not a vague list
 // of topics. This panel is intentionally shared by Path and Mastery Overview so
@@ -16,6 +17,13 @@ const PURPOSE_TONE = {
 
 const CARD = { border: '1px solid #e3e6eb', borderRadius: 16, background: '#fff', padding: 18 };
 const MUTED = { color: '#5f6368', fontSize: 13, lineHeight: 1.6 };
+
+const weeklyPurposeLabel = (session = {}) => {
+  if (session.purpose !== PURPOSE.TRANSFER) return session.purposeLabel || 'Path practice';
+  const framework = String(session.context || session.assessmentFramework || '').trim();
+  const frameworkLabel = FRAMEWORK_LABELS[framework] || '';
+  return frameworkLabel ? `${frameworkLabel} transfer` : (session.purposeLabel || 'CCMR transfer');
+};
 
 function ProgressDots({ required, completed }) {
   return (
@@ -56,7 +64,7 @@ function SessionCard({ session, done, onStart, disabled, total }) {
               fontSize: 11, fontWeight: 900, letterSpacing: '.02em',
               background: tone.bg, color: tone.fg, border: `1px solid ${tone.border}`,
             }}>
-              {session.purposeLabel}
+              {weeklyPurposeLabel(session)}
             </span>
             <span style={{ color: '#5f6368', fontSize: 11.5, fontWeight: 800 }}>
               Weekly session {session.slot} of {total}
@@ -194,6 +202,17 @@ export default function WeeklyPathGoalPanel({
         <div style={{ ...CARD, background: '#f8fbff', borderColor: '#c9daf8' }}>
           <div style={{ fontSize: 10.5, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase', color: '#174ea6' }}>
             Do this next · weekly session {next.slot} of {required}
+          </div>
+          <div style={{ marginTop: 7 }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', padding: '3px 10px', borderRadius: 999,
+              fontSize: 11, fontWeight: 900, letterSpacing: '.02em',
+              background: (PURPOSE_TONE[next.purpose] || PURPOSE_TONE[PURPOSE.CURRENT_LEARNING]).bg,
+              color: (PURPOSE_TONE[next.purpose] || PURPOSE_TONE[PURPOSE.CURRENT_LEARNING]).fg,
+              border: `1px solid ${(PURPOSE_TONE[next.purpose] || PURPOSE_TONE[PURPOSE.CURRENT_LEARNING]).border}`,
+            }}>
+              {weeklyPurposeLabel(next)}
+            </span>
           </div>
           <div style={{ fontSize: 16, fontWeight: 900, color: '#202124', marginTop: 5 }}>
             {next.studentLabel || next.teksCode}
