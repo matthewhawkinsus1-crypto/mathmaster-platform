@@ -480,6 +480,7 @@ function privateGradingDefinition(question) {
       ].map(remap),
       numericTolerance: Number(field?.numericTolerance ?? explicit.numericTolerance ?? 1e-6),
       caseSensitive: Boolean(field?.caseSensitive ?? explicit.caseSensitive),
+      equivalence: field?.equivalence ? String(field.equivalence) : null,
     };
   });
   return { ...explicit, fields };
@@ -554,7 +555,11 @@ async function valuesEquivalent(actual, field) {
     if (field.caseSensitive && !Number.isFinite(Number(actual)) && !Number.isFinite(Number(expected))) {
       return left === right;
     }
-    return equivalence.sameValue(actual, expected, Math.max(0, Number(field.numericTolerance) || 0));
+    const tolerance = Math.max(0, Number(field.numericTolerance) || 0);
+    if (field.equivalence === 'polynomialRelation') {
+      return equivalence.samePolynomialEquationRelation(actual, expected, tolerance);
+    }
+    return equivalence.sameValue(actual, expected, tolerance);
   });
 }
 
