@@ -579,7 +579,7 @@ Do **not** re-audit A2.6B unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.6C — PENDING AUDIT
+### A2.6C — REBUILD — AUDITED / AUTHORING
 
 Official construct: **Analyze transformations of the absolute value parent function for specified positive and negative real parameter values.**
 
@@ -588,6 +588,30 @@ Official construct: **Analyze transformations of the absolute value parent funct
 ### A2.6C
 
 Resume here. Do not reopen A2.2A–A2.6B unless a failing gate names them.
+
+
+### 2026-08-30 — A2.6C audit finding
+- Official construct: **analyze transformations of the absolute value parent function for specified positive and negative real parameter values**.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - vertex translation, vertical scaling, x-axis reflection, graphing, range, and reverse recognition are present;
+  - one interactive graph family authentically plots the V-shape.
+- Legacy gaps:
+  - the bank effectively uses only the reduced form $y=a|x-h|+k$ and never makes students reason about an inside factor b;
+  - positive/negative parameter breadth is thin: most generated a-values are positive and negative values appear mainly as one outside reflection example;
+  - several families are isolated recognition/range questions instead of analyzing a combined transformation;
+  - error analysis only repairs the sign of h and does not compare the different roles of inside/outside parameters.
+- Important mathematical distinction from A2.6A:
+  - for the absolute value parent, $|b(x-h)|=|b|\,|x-h|$;
+  - therefore the **magnitude** of b creates reciprocal horizontal scaling in the transformation mapping, but a negative b produces no visually distinct horizontal reflection because the parent is even;
+  - the final arm steepness is $|ab|$, so a and |b| are not separately identifiable from the final graph alone unless the parameters/transformation sequence are supplied.
+- Fidelity V2 requirements:
+  - use the full reasoning model $y=a|b(x-h)|+k$ when parameters are supplied;
+  - analyze vertical scale $|a|$, reciprocal horizontal scale $1/|b|$, x-axis reflection when a<0, translation to vertex $(h,k)$, and opening/range;
+  - explicitly teach/test the special fact that **b<0 does not create a new visible reflection for an absolute-value graph**;
+  - include positive and negative real parameter values, combined-effect analysis, exact point mapping, graph evidence, reverse reasoning from a supplied transformation sequence, and genuine error analysis;
+  - never pretend a and b can be recovered separately from the final V-shape alone.
+- The existing Function Investigation tool supports the reduced a/h/k absolute-value form, not a separate b. No risky tool expansion is needed: generic secure response fields and generated point/graph evidence can assess the full parameter reasoning, while any graph rendering can use the mathematically equivalent effective outside scale $a|b|$.
 
 
 ### 2026-08-30 — A2.6B audit finding
