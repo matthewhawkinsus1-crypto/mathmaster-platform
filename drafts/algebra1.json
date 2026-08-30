@@ -2818,30 +2818,30 @@
       "dok": 2,
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A.12A",
-      "taskType": "representationTranslation",
+      "taskType": "errorAnalysis",
       "representation": "graph",
-      "prompt": "Use the displayed graph and the vertical-line test to classify the relation. Enter FUNCTION or NOT A FUNCTION.",
+      "prompt": "A student says, “This relation is NOT a function because two plotted points have the same output.” Use the displayed graph and the vertical-line test to classify the relation and correct the student's claim.",
       "responseFields": [
         {
           "id": "answer",
           "label": "Classification",
-          "inputProfile": "text",
+          "inputProfile": "choice",
           "expected": "function"
         }
       ],
       "solutionReview": {
-        "headline": "A repeated output does not make a relation fail the vertical-line test.",
+        "headline": "Repeated outputs are allowed; repeated inputs with different outputs are not.",
         "reasoning": [
-          "The plotted inputs {{x1}}, {{x2}}, and {{x3}} are all different, even though two points share output {{y}}.",
-          "No vertical line hits more than one plotted point, so each input has exactly one output."
+          "The plotted inputs {{x1}}, {{x2}}, and {{x3}} are all different even though two points share output {{y}}.",
+          "No vertical line hits more than one plotted point, so each input has exactly one output and the relation is a function."
         ],
         "answerSummary": "FUNCTION"
       },
       "attemptFeedback": [
-        "Move an imaginary vertical line from left to right and check whether it ever hits two points at the same $x$-value."
+        "Apply the vertical-line test to the x-values. Sharing a y-value does not violate the function rule."
       ],
       "supportHints": [
-        "The vertical-line test asks whether any single x-value is paired with more than one y-value."
+        "Different x-values may share the same y-value. Look only for whether one x-value is paired with two different y-values."
       ],
       "generator": {
         "parameters": {
@@ -2899,7 +2899,17 @@
             }
           ]
         }
-      }
+      },
+      "choices": [
+        {
+          "id": "function",
+          "label": "FUNCTION"
+        },
+        {
+          "id": "not-function",
+          "label": "NOT A FUNCTION"
+        }
+      ]
     },
     {
       "id": "mm_A_12A_v2_mapping-nonfunction",
