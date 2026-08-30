@@ -1,0 +1,554 @@
+{
+  "standard": "A.9A",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-growth-decay-domain-range-connected-to-graphs",
+  "documents": [
+    {
+      "id": "mm_A_9A_v2_growth-graph-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9A:v2-growth-graph-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9A",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "interpretation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Graph $y={{a}}({{base}})^x{{k|signed}}$ by plotting the requested points. Then use the graph and horizontal asymptote to state the domain and range.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": "{{k}}",
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 5,
+        "yMin": -8,
+        "yMax": 30,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot the y-intercept",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot x = 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "asym",
+          "label": "Horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "domain",
+          "label": "Domain",
+          "kind": "domain",
+          "notation": "interval",
+          "expected": [
+            "(-∞,∞)"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "kind": "range",
+          "notation": "interval",
+          "expected": [
+            "({{k}},∞)"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Growth still has all real inputs; the asymptote controls the range.",
+        "reasoning": [
+          "An exponential with positive multiplier is defined for every real $x$, so its domain is $(-\\infty,\\infty)$.",
+          "Because the graph stays above and approaches $y={{k}}$ without reaching it, the range is $({{k}},\\infty)$."
+        ],
+        "answerSummary": "Domain $(-\\infty,\\infty)$; range $({{k}},\\infty)$."
+      },
+      "attemptFeedback": [
+        "Use the horizontal asymptote to decide the open endpoint of the range; the base does not restrict the domain."
+      ],
+      "supportHints": [
+        "For a positive exponential shifted by $k$, every output lies above $y=k$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              2,
+              3
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          }
+        },
+        "derived": {
+          "y0": "a+k",
+          "y1": "a*base+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9A_v2_decay-graph-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9A:v2-decay-graph-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9A",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Graph the exponential decay function $y={{a}}({{base}})^x{{k|signed}}$. Plot the requested points, identify the asymptote, and state the domain and range.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": "{{k}}",
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 6,
+        "yMin": -8,
+        "yMax": 35,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot the y-intercept",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot x = 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "asym",
+          "label": "Horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "domain",
+          "label": "Domain",
+          "kind": "domain",
+          "notation": "interval",
+          "expected": [
+            "(-∞,∞)"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "kind": "range",
+          "notation": "interval",
+          "expected": [
+            "({{k}},∞)"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A base between 0 and 1 changes direction of change, not domain or the side of the asymptote.",
+        "reasoning": [
+          "Since $0<{{base}}<1$, the graph decreases as $x$ increases, but the exponential expression is still defined for every real input.",
+          "The positive multiplier keeps the graph above $y={{k}}$, so the range remains $({{k}},\\infty)$."
+        ],
+        "answerSummary": "Domain $(-\\infty,\\infty)$; range $({{k}},\\infty)$."
+      },
+      "attemptFeedback": [
+        "Decay means the outputs move toward the asymptote as x increases; it does not mean the domain stops."
+      ],
+      "supportHints": [
+        "The base is positive, so $({{base}})^x$ is positive for every real $x$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              4,
+              6,
+              8,
+              10
+            ]
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.75
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          }
+        },
+        "derived": {
+          "y0": "a+k",
+          "y1": "a*base+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9A_v2_context-restricted-domain",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9A:v2-context-restricted-domain",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9A",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A quantity is modeled by $Q(t)={{a}}({{base}})^t$ only during the first {{years}} years after measurement begins. Write the CONTEXTUAL domain of $t$ in interval notation.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Contextual domain",
+          "inputProfile": "interval",
+          "expected": "[0,{{years}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The algebraic domain and the contextual domain are different questions.",
+        "reasoning": [
+          "The exponential rule itself accepts every real input, but elapsed time in this situation begins at $t=0$.",
+          "The model is stated to apply only through year {{years}}, so the contextual domain is $[0,{{years}}]$."
+        ],
+        "answerSummary": "$[0,{{years}}]$"
+      },
+      "attemptFeedback": [
+        "Use the time interval in the situation rather than the unrestricted algebraic domain."
+      ],
+      "supportHints": [
+        "Elapsed time cannot be negative in this model, and the stated observation window has an endpoint."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 50,
+            "max": 500
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.8,
+              0.9,
+              1.1,
+              1.2
+            ]
+          },
+          "years": {
+            "type": "int",
+            "min": 3,
+            "max": 12
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_9A_v2_reflected-range-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9A:v2-reflected-range-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9A",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Graph $y=-{{a}}({{base}})^x{{k|signed}}$ using the requested points. Then state its domain and range.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{negA}}",
+        "k": "{{k}}",
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 5,
+        "yMin": -30,
+        "yMax": 12,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot the y-intercept",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot x = 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "asym",
+          "label": "Horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "domain",
+          "label": "Domain",
+          "kind": "domain",
+          "notation": "interval",
+          "expected": [
+            "(-∞,∞)"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "kind": "range",
+          "notation": "interval",
+          "expected": [
+            "(-∞,{{k}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A negative multiplier reflects the exponential across the x-axis before the vertical shift.",
+        "reasoning": [
+          "The reflected exponential is still defined for every real input.",
+          "Its outputs stay below the horizontal asymptote $y={{k}}$, so the range is $(-\\infty,{{k}})$."
+        ],
+        "answerSummary": "Domain $(-\\infty,\\infty)$; range $(-\\infty,{{k}})$."
+      },
+      "attemptFeedback": [
+        "The sign of the leading multiplier decides whether the graph lies above or below its asymptote."
+      ],
+      "supportHints": [
+        "A negative multiplier makes the exponential contribution negative for every x."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              2,
+              3
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 5
+          }
+        },
+        "derived": {
+          "negA": "-a",
+          "y0": "-a+k",
+          "y1": "-a*base+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9A_v2_error-decay-domain",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9A:v2-error-decay-domain",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9A",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "type": "functionInvestigation",
+      "prompt": "A student claims, “Because $y={{a}}({{base}})^x{{k|signed}}$ is decay, its domain is $x\\ge0$.” Use the graph to correct the claim and report the true domain and range.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": "{{k}}",
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -5,
+        "xMax": 6,
+        "yMin": -8,
+        "yMax": 40,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "pneg",
+          "label": "Plot x = -1 to test a negative input",
+          "x": -1,
+          "expected": [
+            -1,
+            "{{yNeg}}"
+          ]
+        },
+        {
+          "id": "p0",
+          "label": "Plot x = 0",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "domain",
+          "label": "True domain",
+          "kind": "domain",
+          "notation": "interval",
+          "expected": [
+            "(-∞,∞)"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "kind": "range",
+          "notation": "interval",
+          "expected": [
+            "({{k}},∞)"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Decay describes behavior, not an algebraic input restriction.",
+        "reasoning": [
+          "The point at $x=-1$ is valid, demonstrating directly that negative inputs belong to the algebraic domain.",
+          "The function has domain $(-\\infty,\\infty)$ and, with positive multiplier, range $({{k}},\\infty)$."
+        ],
+        "answerSummary": "Domain $(-\\infty,\\infty)$; range $({{k}},\\infty)$."
+      },
+      "attemptFeedback": [
+        "Test the student's claimed boundary by substituting a negative x-value."
+      ],
+      "supportHints": [
+        "A positive base can be raised to negative real exponents."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              2,
+              4,
+              6
+            ]
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.75
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          }
+        },
+        "derived": {
+          "yNeg": "a/base+k",
+          "y0": "a+k"
+        }
+      }
+    }
+  ]
+}

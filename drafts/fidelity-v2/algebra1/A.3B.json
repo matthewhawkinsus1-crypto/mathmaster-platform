@@ -1,0 +1,336 @@
+{
+  "standard": "A.3B",
+  "verdict": "KEEP",
+  "certificationStatus": "candidate-keep-math-rate-of-change-metadata-certified",
+  "documents": [
+    {
+      "id": "mm_A_3B_v2_unit-rate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:v2-unit-rate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "A machine makes {{items}} parts in {{minutes}} minutes at a constant rate. How many parts per minute?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "A constant rate is output divided by elapsed input.",
+          "Divide {{items}} by {{minutes}}."
+        ],
+        "answerSummary": "The rate is ${{rate}}$ parts per minute."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          },
+          "minutes": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        },
+        "derived": {
+          "items": "rate*minutes"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{rate}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3B_v2_table-rate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:v2-table-rate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "Use the table to find the constant rate of change.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Compare the difference in outputs to the difference in inputs.",
+          "The ratio is the same constant rate used to generate the table."
+        ],
+        "answerSummary": "The rate is ${{rate}}$."
+      },
+      "attemptFeedback": [
+        "Compute change in output divided by change in input using the two displayed rows."
+      ],
+      "supportHints": [
+        "Rate of change is $(y_2-y_1)/(x_2-x_1)$."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "x0": {
+            "type": "int",
+            "min": 0,
+            "max": 4
+          },
+          "step": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "y0": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          }
+        },
+        "derived": {
+          "x1": "x0+step",
+          "y1": "y0+rate*step"
+        }
+      },
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "x",
+            "y"
+          ],
+          "rows": [
+            [
+              "{{x0}}",
+              "{{y0}}"
+            ],
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{rate}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3B_v2_distance-rate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:v2-distance-rate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A traveler covers {{distance}} miles in {{hours}} hours at a constant speed. Find the speed in miles per hour.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Speed is distance divided by time.",
+          "The generated distance is a whole-number multiple of the hours."
+        ],
+        "answerSummary": "The speed is ${{speed}}$ miles per hour."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "speed": {
+            "type": "int",
+            "min": 20,
+            "max": 70
+          },
+          "hours": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "distance": "speed*hours"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{speed}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3B_v2_temperature-rate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:v2-temperature-rate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "interpretation",
+      "representation": "verbal",
+      "prompt": "A temperature changes by {{change}} degrees over {{hours}} hours. What is the hourly rate of change?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Average rate of change divides the total change by elapsed time.",
+          "The sign tells whether the quantity increased or decreased."
+        ],
+        "answerSummary": "The rate is ${{rate}}$ degrees per hour."
+      },
+      "attemptFeedback": [
+        "Keep the sign of the total temperature change when dividing by elapsed hours."
+      ],
+      "supportHints": [
+        "A negative rate means the temperature decreases each hour."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "hours": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "change": "rate*hours"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{rate}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3B_v2_recover-change",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:v2-recover-change",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "reverseReasoning",
+      "representation": "context",
+      "prompt": "A quantity changes at {{rate}} units per hour for {{hours}} hours. What is the total change?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Rate times elapsed input gives total change.",
+          "Multiply {{rate}} by {{hours}}."
+        ],
+        "answerSummary": "The total change is ${{change}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          },
+          "hours": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          }
+        },
+        "derived": {
+          "change": "rate*hours"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{change}}"
+        }
+      ]
+    }
+  ]
+}

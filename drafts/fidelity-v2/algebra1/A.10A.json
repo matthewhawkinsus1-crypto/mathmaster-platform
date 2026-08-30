@@ -1,0 +1,416 @@
+{
+  "standard": "A.10A",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-expanded-polynomial-expression-grading",
+  "documents": [
+    {
+      "id": "mm_A_10A_v2_add-quadratics",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10A:v2-add-quadratics",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Add the polynomials and write the complete simplified result: $({{a1}}x^2{{b1|signed}}x{{c1|signed}})+({{a2}}x^2{{b2|signed}}x{{c2|signed}})$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified polynomial",
+          "inputProfile": "expression",
+          "expected": "{{A}}x^2{{B|signed}}x{{C|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Combine like terms by degree.",
+        "reasoning": [
+          "Add the $x^2$ coefficients: {{a1}}+{{a2}}={{A}}, and the $x$ coefficients: {{b1}}+{{b2}}={{B}}.",
+          "Add the constants: {{c1}}+{{c2}}={{C}}."
+        ],
+        "answerSummary": "${{A}}x^2{{B|signed}}x{{C|signed}}$"
+      },
+      "attemptFeedback": [
+        "Line up quadratic terms, linear terms, and constants before combining."
+      ],
+      "supportHints": [
+        "Only terms with the same variable power are like terms."
+      ],
+      "generator": {
+        "parameters": {
+          "a1": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "a2": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "b2": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "c1": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "c2": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          }
+        },
+        "derived": {
+          "A": "a1+a2",
+          "B": "b1+b2",
+          "C": "c1+c2"
+        },
+        "constraints": [
+          "B!=0",
+          "C!=0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10A_v2_subtract-quadratics",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10A:v2-subtract-quadratics",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Subtract and simplify completely: $({{a1}}x^2{{b1|signed}}x{{c1|signed}})-({{a2}}x^2{{b2|signed}}x{{c2|signed}})$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified polynomial",
+          "inputProfile": "expression",
+          "expected": "{{A}}x^2{{B|signed}}x{{C|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Subtract every term in the second polynomial.",
+        "reasoning": [
+          "The difference in quadratic coefficients is {{a1}}-{{a2}}={{A}} and in linear coefficients is {{b1}}-{{b2}}={{B}}.",
+          "The constant is {{c1}}-{{c2}}={{C}}."
+        ],
+        "answerSummary": "${{A}}x^2{{B|signed}}x{{C|signed}}$"
+      },
+      "attemptFeedback": [
+        "Distribute the subtraction sign to all three terms of the second polynomial."
+      ],
+      "supportHints": [
+        "Rewrite subtraction as adding the opposite polynomial."
+      ],
+      "generator": {
+        "parameters": {
+          "a1": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "a2": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "b2": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "c1": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "c2": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          }
+        },
+        "derived": {
+          "A": "a1-a2",
+          "B": "b1-b2",
+          "C": "c1-c2"
+        },
+        "constraints": [
+          "A!=0",
+          "B!=0",
+          "C!=0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10A_v2_perimeter-polynomials",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10A:v2-perimeter-polynomials",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10A",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A rectangular garden has length ${{a}}x{{b|signed}}$ meters and width ${{c}}x{{d|signed}}$ meters. Write a simplified polynomial for its perimeter.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Perimeter polynomial",
+          "inputProfile": "expression",
+          "expected": "{{P}}x{{Q|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Perimeter adds two copies of each dimension.",
+        "reasoning": [
+          "Use $P=2L+2W$ and distribute the 2 to both expressions.",
+          "The linear coefficient is $2({{a}}+{{c}})={{P}}$ and the constant is $2({{b}}+{{d}})={{Q}}$."
+        ],
+        "answerSummary": "${{P}}x{{Q|signed}}$"
+      },
+      "attemptFeedback": [
+        "Write two lengths plus two widths before combining like terms."
+      ],
+      "supportHints": [
+        "Perimeter is addition, not multiplication of length and width."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "c": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 10
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 10
+          }
+        },
+        "derived": {
+          "P": "2*(a+c)",
+          "Q": "2*(b+d)"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10A_v2_error-analysis-subtraction",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10A:v2-error-analysis-subtraction",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10A",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student subtracts $({{a1}}x^2+{{b1}}x+{{c1}})-({{a2}}x^2+{{b2}}x+{{c2}})$ but changes the sign of only the first term of the second polynomial. Write the correct complete result.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct polynomial",
+          "inputProfile": "expression",
+          "expected": "{{A}}x^2{{B|signed}}x{{C|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The subtraction sign applies to the entire second polynomial.",
+        "reasoning": [
+          "Each coefficient in the second polynomial must be subtracted: {{a1}}-{{a2}}, {{b1}}-{{b2}}, and {{c1}}-{{c2}}.",
+          "That gives coefficients {{A}}, {{B}}, and {{C}}."
+        ],
+        "answerSummary": "${{A}}x^2{{B|signed}}x{{C|signed}}$"
+      },
+      "attemptFeedback": [
+        "Check whether all three signs in the subtracted polynomial were handled."
+      ],
+      "supportHints": [
+        "Place parentheses around the whole second polynomial and distribute a negative one."
+      ],
+      "generator": {
+        "parameters": {
+          "a1": {
+            "type": "int",
+            "min": 3,
+            "max": 9
+          },
+          "a2": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "b2": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          },
+          "c1": {
+            "type": "int",
+            "min": 2,
+            "max": 10
+          },
+          "c2": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "A": "a1-a2",
+          "B": "b1-b2",
+          "C": "c1-c2"
+        },
+        "constraints": [
+          "A!=0",
+          "B!=0",
+          "C!=0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10A_v2_reverse-missing-polynomial",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10A:v2-reverse-missing-polynomial",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10A",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "A polynomial $P(x)={{a1}}x^2{{b1|signed}}x{{c1|signed}}$ is added to an unknown polynomial $Q(x)$. Their sum is ${{A}}x^2{{B|signed}}x{{C|signed}}$. Write the complete polynomial $Q(x)$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "$Q(x)$",
+          "inputProfile": "expression",
+          "expected": "{{a2}}x^2{{b2|signed}}x{{c2|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Recover the missing addend coefficient by coefficient.",
+        "reasoning": [
+          "Subtract the known polynomial from the sum for each degree.",
+          "The missing coefficients are {{A}}-{{a1}}={{a2}}, {{B}}-{{b1}}={{b2}}, and {{C}}-{{c1}}={{c2}}."
+        ],
+        "answerSummary": "$Q(x)={{a2}}x^2{{b2|signed}}x{{c2|signed}}$"
+      },
+      "attemptFeedback": [
+        "Treat the quadratic, linear, and constant coefficients as three linked missing-addend problems."
+      ],
+      "supportHints": [
+        "If $P+Q=S$, then $Q=S-P$."
+      ],
+      "generator": {
+        "parameters": {
+          "a1": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "a2": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "b2": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "c1": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          },
+          "c2": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          }
+        },
+        "derived": {
+          "A": "a1+a2",
+          "B": "b1+b2",
+          "C": "c1+c2"
+        },
+        "constraints": [
+          "b2!=0",
+          "c2!=0",
+          "B!=0",
+          "C!=0"
+        ]
+      }
+    }
+  ]
+}

@@ -102,47 +102,227 @@ function LinearMode({ questionData, onAction }) {
 function InequalityMode({ questionData, onAction }) {
   const inequalities = questionData.inequalities || DEFAULT_INEQUALITIES;
   const bounds = questionData.graph || { xMin:-6, xMax:8, yMin:-4, yMax:10 };
-  const polygon = useMemo(() => feasibleRegionPolygon(inequalities, bounds), [inequalities, bounds]);
+  const ask = Array.isArray(questionData.ask) && questionData.ask.length
+    ? questionData.ask
+    : questionData.interaction === 'construct' ? ['construction'] : ['testPoint', 'candidate'];
+  const requiresConstruction = ask.includes('construction');
+  const correctPolygon = useMemo(() => feasibleRegionPolygon(inequalities, bounds), [inequalities, bounds]);
   const testPoint = questionData.testPoint || { x:2, y:4 };
   const expectedTestPoint = inequalities.every((ineq) => satisfiesLinearInequality(ineq, testPoint.x, testPoint.y));
   const [x, setX] = useState('');
   const [y, setY] = useState('');
-  const [testChoice, setTestChoice] = useState('yes');
+  const [testChoice, setTestChoice] = useState('');
+  const [construction, setConstruction] = useState(() => inequalities.map(() => ({
+    x1:'', y1:'', x2:'', y2:'', boundaryStyle:'', shade:'',
+  })));
   const { feedback, submit } = useToolSubmission(onAction);
 
+  const updateConstruction = (index, key, value) => {
+    setConstruction((current) => current.map((entry, entryIndex) => (
+      entryIndex === index ? { ...entry, [key]:value } : entry
+    )));
+  };
+
+  const constructedLines = construction.map((entry) => {
+    const x1 = parseNumericAnswer(entry.x1);
+    const y1 = parseNumericAnswer(entry.y1);
+    const x2 = parseNumericAnswer(entry.x2);
+    const y2 = parseNumericAnswer(entry.y2);
+    if ([x1, y1, x2, y2].some((value) => value == null) || Math.abs(x2 - x1) <= 1e-9) return null;
+    const m = (y2 - y1) / (x2 - x1);
+    const b = y1 - m * x1;
+    return { m, b, boundaryStyle:entry.boundaryStyle, shade:entry.shade };
+  });
+
+  const studentInequalities = constructedLines.map((line) => {
+    if (!line || !['above', 'below'].includes(line.shade) || !['solid', 'dashed'].includes(line.boundaryStyle)) return null;
+    const relation = line.shade === 'above'
+      ? line.boundaryStyle === 'solid' ? '>=' : '>'
+      : line.boundaryStyle === 'solid' ? '<=' : '<';
+    return { m:line.m, b:line.b, relation };
+  });
+  const constructionComplete = studentInequalities.length === inequalities.length && studentInequalities.every(Boolean);
+  const studentPolygon = constructionComplete ? feasibleRegionPolygon(studentInequalities, bounds) : [];
+
+  const graphLines = requiresConstruction
+    ? constructedLines.filter(Boolean).map((line, index) => ({
+        m:line.m,
+        b:line.b,
+        stroke:index===0?'#1a73e8':'#d93025',
+        dash:line.boundaryStyle === 'dashed' ? '10 6' : undefined,
+      }))
+    : inequalities.map((ineq,index)=>({
+        m:ineq.m,
+        b:ineq.b,
+        stroke:index===0?'#1a73e8':'#d93025',
+        dash:String(ineq.relation).includes('=') ? undefined : '10 6',
+      }));
+
+  const plottedPoints = [
+    ...(ask.includes('testPoint') ? [{0:testPoint.x,1:testPoint.y,label:'test point',fill:'#8a3ffc'}] : []),
+    ...(requiresConstruction ? construction.flatMap((entry, index) => {
+      const points = [
+        [parseNumericAnswer(entry.x1), parseNumericAnswer(entry.y1)],
+        [parseNumericAnswer(entry.x2), parseNumericAnswer(entry.y2)],
+      ];
+      return points
+        .filter(([px, py]) => px != null && py != null)
+        .map(([px, py], pointIndex) => ({ 0:px, 1:py, label:`B${index + 1} P${pointIndex + 1}` }));
+    }) : []),
+  ];
+
   const check = () => {
+    const parts = [];
+    const responseConstruction = construction.map((entry) => ({
+      points: [
+        { x:parseNumericAnswer(entry.x1), y:parseNumericAnswer(entry.y1) },
+        { x:parseNumericAnswer(entry.x2), y:parseNumericAnswer(entry.y2) },
+      ],
+      boundaryStyle:entry.boundaryStyle,
+      shade:entry.shade,
+    }));
+
+    if (requiresConstruction) {
+      inequalities.forEach((ineq, index) => {
+        const entry = responseConstruction[index];
+        const [first, second] = entry.points;
+        const boundaryCorrect = [first, second].every((point) => (
+          point.x != null && point.y != null
+          && Math.abs(point.y - (Number(ineq.m) * point.x + Number(ineq.b))) <= 0.08
+        )) && first.x != null && second.x != null
+          && Math.hypot(first.x - second.x, first.y - second.y) > 0.08;
+        const styleCorrect = entry.boundaryStyle === (String(ineq.relation).includes('=') ? 'solid' : 'dashed');
+        const shadeCorrect = entry.shade === (String(ineq.relation).includes('>') ? 'above' : 'below');
+        parts.push(boundaryCorrect, styleCorrect, shadeCorrect);
+      });
+    }
+
     const candidate = { x:parseNumericAnswer(x), y:parseNumericAnswer(y) };
     const candidateFeasible = candidate.x != null && candidate.y != null && inequalities.every((ineq)=>satisfiesLinearInequality(ineq,candidate.x,candidate.y));
     const testCorrect = (testChoice === 'yes') === expectedTestPoint;
-    submit({ isCorrect:candidateFeasible && testCorrect, score:[candidateFeasible,testCorrect].filter(Boolean).length/2 }, { candidate, testChoice }, { mode:'inequalities', expectedTestPoint, polygonVertices:polygon, checks:{ candidateFeasible, testCorrect } });
+    if (ask.includes('testPoint')) parts.push(testCorrect);
+    if (ask.includes('candidate')) parts.push(candidateFeasible);
+
+    const score = parts.length ? parts.filter(Boolean).length / parts.length : 0;
+    submit(
+      { isCorrect:parts.length > 0 && parts.every(Boolean), score },
+      {
+        construction:responseConstruction,
+        ...(ask.includes('testPoint') ? { testChoice } : {}),
+        ...(ask.includes('candidate') ? { candidate } : {}),
+      },
+      { mode:'inequalities', checks:{ construction:parts, candidateFeasible, testCorrect } },
+    );
   };
 
   const message = () => {
-    if (feedback.isCorrect) return 'Correct — the purple point is classified right and your own point satisfies every inequality.';
+    if (feedback.isCorrect) {
+      return requiresConstruction
+        ? 'Correct — every boundary, boundary style, and shading direction builds the right solution region.'
+        : 'Correct — the marked point is classified right and your own point satisfies every inequality.';
+    }
+    if (requiresConstruction) {
+      return 'At least one graph feature needs revision. Check that both points lie on the boundary equation, use a solid line for ≤ or ≥ and a dashed line for < or >, then shade above for > / ≥ or below for < / ≤.';
+    }
     const checks = feedback.metadata?.checks || {};
     if (checks.testCorrect && !checks.candidateFeasible) return 'Your judgement about the test point is right, but the point you entered is outside the shaded overlap. Substitute it into each inequality and find the one it fails.';
     if (!checks.testCorrect && checks.candidateFeasible) return 'Your own point works. Re-check the purple test point: substitute its coordinates into each inequality separately.';
     return 'Neither part is right yet. A point is feasible only when it satisfies every inequality at the same time, not just one of them.';
   };
 
+  const shownPolygon = requiresConstruction ? studentPolygon : correctPolygon;
+
   return <ToolSplit>
-    <Panel title="Feasible region">
-      <CoordinatePlane xMin={bounds.xMin ?? -6} xMax={bounds.xMax ?? 8} yMin={bounds.yMin ?? -4} yMax={bounds.yMax ?? 10}
-        lines={inequalities.map((ineq,index)=>({m:ineq.m,b:ineq.b,stroke:index===0?'#1a73e8':'#d93025',dash:index===0?undefined:'10 6'}))}
-        points={[{0:testPoint.x,1:testPoint.y,label:'test point',fill:'#8a3ffc'}]}
-        ariaLabel="Graph of the system of inequalities with its shaded feasible region">
-        {({sx,sy}) => polygon.length >= 3 ? <polygon points={polygon.map(([px,py])=>`${sx(px)},${sy(py)}`).join(' ')} fill="rgba(31, 157, 85, 0.16)" stroke="#16884b" strokeWidth="2" /> : null}
+    <Panel title={requiresConstruction ? 'Your inequality graph' : 'Feasible region'}>
+      <CoordinatePlane
+        xMin={bounds.xMin ?? -6} xMax={bounds.xMax ?? 8}
+        yMin={bounds.yMin ?? -4} yMax={bounds.yMax ?? 10}
+        lines={graphLines}
+        points={plottedPoints}
+        ariaLabel={requiresConstruction ? 'Student-constructed graph of the inequality solution region' : 'Graph of the system of inequalities with its shaded feasible region'}
+      >
+        {({sx,sy}) => shownPolygon.length >= 3 ? (
+          <polygon
+            points={shownPolygon.map(([px,py])=>`${sx(px)},${sy(py)}`).join(' ')}
+            fill="rgba(31, 157, 85, 0.16)"
+            stroke="#16884b"
+            strokeWidth="2"
+          />
+        ) : null}
       </CoordinatePlane>
-      <div style={{display:'grid',gap:6,marginTop:12}}>{inequalities.map((ineq,index)=><div key={index}><strong>{index+1}.</strong> {formatInequality(ineq)}</div>)}</div>
-      <p style={{fontSize:13,color:'#5f6b7a'}}>The green shaded overlap is the feasible region: every point inside it satisfies every inequality at once.</p>
+      <div style={{display:'grid',gap:6,marginTop:12}}>
+        {inequalities.map((ineq,index)=><div key={index}><strong>{index+1}.</strong> {formatInequality(ineq)}</div>)}
+      </div>
+      <p style={{fontSize:13,color:'#5f6b7a'}}>
+        {requiresConstruction
+          ? 'Your graph above is built from the two boundary points, boundary style, and shading direction you enter. No correct region is drawn for you.'
+          : 'The green shaded overlap is the feasible region: every point inside it satisfies every inequality at once.'}
+      </p>
     </Panel>
-    <Panel title="Test a point, then find your own">
-      <Field label={`Is the purple point (${testPoint.x}, ${testPoint.y}) in the feasible region?`}><select value={testChoice} onChange={(e)=>setTestChoice(e.target.value)} style={inputStyle}><option value="yes">Yes</option><option value="no">No</option></select></Field>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:14}}><Field label="Your own feasible x"><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field><Field label="Your own feasible y"><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field></div>
-      <button type="button" onClick={check} style={actionStyle}>Check feasible region</button>
+
+    <Panel title={requiresConstruction ? 'Construct each boundary and shade' : 'Test a point, then find your own'}>
+      {requiresConstruction ? (
+        <div style={{display:'grid',gap:14}}>
+          {inequalities.map((ineq, index) => {
+            const entry = construction[index] || {};
+            return (
+              <div key={index} style={{padding:12,border:'1px solid #dbe3ef',borderRadius:10,background:'#f8fbff'}}>
+                <strong style={{display:'block',marginBottom:9}}>Inequality {index + 1}: {formatInequality(ineq)}</strong>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(2, minmax(0, 1fr))',gap:9}}>
+                  <Field label="Boundary point 1: x"><input type="number" inputMode="decimal" value={entry.x1} onChange={(e)=>updateConstruction(index,'x1',e.target.value)} style={inputStyle}/></Field>
+                  <Field label="Boundary point 1: y"><input type="number" inputMode="decimal" value={entry.y1} onChange={(e)=>updateConstruction(index,'y1',e.target.value)} style={inputStyle}/></Field>
+                  <Field label="Boundary point 2: x"><input type="number" inputMode="decimal" value={entry.x2} onChange={(e)=>updateConstruction(index,'x2',e.target.value)} style={inputStyle}/></Field>
+                  <Field label="Boundary point 2: y"><input type="number" inputMode="decimal" value={entry.y2} onChange={(e)=>updateConstruction(index,'y2',e.target.value)} style={inputStyle}/></Field>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9,marginTop:9}}>
+                  <Field label="Boundary style">
+                    <select value={entry.boundaryStyle} onChange={(e)=>updateConstruction(index,'boundaryStyle',e.target.value)} style={inputStyle}>
+                      <option value="">Choose…</option>
+                      <option value="solid">Solid</option>
+                      <option value="dashed">Dashed</option>
+                    </select>
+                  </Field>
+                  <Field label="Shade">
+                    <select value={entry.shade} onChange={(e)=>updateConstruction(index,'shade',e.target.value)} style={inputStyle}>
+                      <option value="">Choose…</option>
+                      <option value="above">Above the boundary</option>
+                      <option value="below">Below the boundary</option>
+                    </select>
+                  </Field>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {ask.includes('testPoint') ? (
+        <div style={{marginTop:requiresConstruction?14:0}}>
+          <Field label={`Is the purple point (${testPoint.x}, ${testPoint.y}) in the feasible region?`}>
+            <select value={testChoice} onChange={(e)=>setTestChoice(e.target.value)} style={inputStyle}>
+              <option value="">Choose…</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </Field>
+        </div>
+      ) : null}
+
+      {ask.includes('candidate') ? (
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginTop:14}}>
+          <Field label="Your own feasible x"><input type="number" inputMode="decimal" value={x} onChange={(e)=>setX(e.target.value)} style={inputStyle}/></Field>
+          <Field label="Your own feasible y"><input type="number" inputMode="decimal" value={y} onChange={(e)=>setY(e.target.value)} style={inputStyle}/></Field>
+        </div>
+      ) : null}
+
+      <button type="button" onClick={check} style={actionStyle}>{requiresConstruction ? 'Check inequality graph' : 'Check feasible region'}</button>
       {feedback ? <div style={{marginTop:14}}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill><p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p></div> : null}
       <HintPanel
-        hints={[
+        hints={requiresConstruction ? [
+          'Replace the inequality symbol with = to get the boundary line. Choose any two x-values and calculate the matching y-values.',
+          'Use a solid boundary when equality is included (≤ or ≥). Use a dashed boundary for < or >.',
+          'For y > mx + b or y ≥ mx + b, shade above the line. For y < mx + b or y ≤ mx + b, shade below it. With a system, only the overlap survives.',
+        ] : [
           'To test a point, substitute its x and y into each inequality and see whether the statement is true.',
           'A point has to satisfy every inequality. Failing even one puts it outside the feasible region.',
           'For your own point, pick coordinates well inside the green shaded area rather than on a boundary line.',

@@ -1,0 +1,397 @@
+{
+  "standard": "A.3A",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-slope-across-graph-table-and-equation-forms",
+  "documents": [
+    {
+      "id": "mm_A_3A_v2_graph-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3A:v2-graph-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Plot two points on $y={{m}}x{{b|signed}}$, then determine the slope from the graph.",
+      "functionSpec": {
+        "type": "linear",
+        "m": "{{m}}",
+        "b": "{{b}}"
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot the y-intercept",
+          "x": 0,
+          "expected": [
+            0,
+            "{{b}}"
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Plot the point where x = 2",
+          "x": 2,
+          "expected": [
+            2,
+            "{{y2}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "slope",
+          "label": "Slope",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{m}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Slope is the constant rise/run between any two points on a line.",
+        "reasoning": [
+          "The plotted points are $(0,{{b}})$ and $(2,{{y2}})$.",
+          "Their rise divided by run simplifies to {{m}}."
+        ]
+      },
+      "attemptFeedback": [
+        "Use the same two plotted points to measure vertical change over horizontal change."
+      ],
+      "supportHints": [
+        "Slope = rise/run."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        },
+        "derived": {
+          "y2": "2*m+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_3A_v2_table-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3A:v2-table-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3A",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "Use the table to determine the slope of the linear function.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "{{x0}}",
+              "{{y0}}"
+            ],
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Slope",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A table gives slope as change in output divided by change in input.",
+        "reasoning": [
+          "From one row to the next, x changes by {{step}}.",
+          "Over the same move, y changes by {{rise}}, so the slope is ${{rise}}/{{step}}={{m}}$."
+        ]
+      },
+      "attemptFeedback": [
+        "Compare the same pair of rows in both columns."
+      ],
+      "supportHints": [
+        "Compute $\\Delta y/\\Delta x$."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x0": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          },
+          "step": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "x1": "x0+step",
+          "x2": "x0+2*step",
+          "y0": "m*x0+b",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b",
+          "rise": "m*step"
+        }
+      }
+    },
+    {
+      "id": "mm_A_3A_v2_standard-form-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3A:v2-standard-form-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3A",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "The line is written in standard form ${{A}}x+{{B}}y={{C}}$. Determine its slope without graphing it.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Slope",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Standard form can be rearranged to reveal slope.",
+        "reasoning": [
+          "Solving ${{A}}x+{{B}}y={{C}}$ for y gives a coefficient of x equal to $-{{A}}/{{B}}$.",
+          "Because ${{A}}=-({{m}})({{B}})$, that quotient simplifies to {{m}}."
+        ]
+      },
+      "attemptFeedback": [
+        "Isolate y and read the coefficient multiplying x."
+      ],
+      "supportHints": [
+        "For $Ax+By=C$, slope is $-A/B$."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "B": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "c0": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        },
+        "derived": {
+          "A": "-m*B",
+          "C": "c0*B"
+        }
+      }
+    },
+    {
+      "id": "mm_A_3A_v2_point-slope-read",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3A:v2-point-slope-read",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3A",
+      "taskType": "conceptual",
+      "representation": "symbolic",
+      "prompt": "The line is written in point-slope form $y-({{y1}})={{m}}(x-({{x1}}))$. What is its slope?",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Slope",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Point-slope form names the slope directly.",
+        "reasoning": [
+          "In $y-y_1=m(x-x_1)$, the multiplier of the parenthesis is m.",
+          "Here that multiplier is {{m}}, so the slope is {{m}}."
+        ]
+      },
+      "attemptFeedback": [
+        "Match the equation to $y-y_1=m(x-x_1)$."
+      ],
+      "supportHints": [
+        "Do not confuse the point coordinates with the slope multiplier."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "x1": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "y1": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3A_v2_error-reciprocal-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3A:v2-error-reciprocal-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3A",
+      "taskType": "errorAnalysis",
+      "representation": "orderedPairs",
+      "prompt": "Between $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$, a student divides the run by the rise and reports slope ${{wrong}}$. Correct the student's slope.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct slope",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Slope is rise over run, not run over rise.",
+        "reasoning": [
+          "The run is {{run}} and the rise is {{rise}}.",
+          "The correct ratio is ${{rise}}/{{run}}={{m}}$."
+        ]
+      },
+      "attemptFeedback": [
+        "Write change in y on top and change in x on the bottom."
+      ],
+      "supportHints": [
+        "Slope = $\\frac{y_2-y_1}{x_2-x_1}$."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
+          },
+          "run": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "x1": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          },
+          "y1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "x2": "x1+run",
+          "rise": "m*run",
+          "y2": "y1+rise",
+          "wrong": "run/rise"
+        }
+      }
+    }
+  ]
+}

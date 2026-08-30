@@ -1,0 +1,350 @@
+{
+  "standard": "A.3D",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-real-two-variable-graph-construction",
+  "documents": [
+    {
+      "id": "mm_A_3D_v2_graph-solid-above",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3D:v2-graph-solid-above",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3D",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Graph the solution set of $y\\ge {{m}}x{{b|signed}}$ by constructing its boundary and shading the correct half-plane.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m}}",
+          "b": "{{b}}",
+          "relation": ">="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 10
+      },
+      "solutionReview": {
+        "headline": "A two-variable inequality graph has three decisions.",
+        "reasoning": [
+          "Graph the boundary equation using two points.",
+          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
+        ]
+      },
+      "attemptFeedback": [
+        "Check the boundary points first, then line style, then which side is shaded."
+      ],
+      "supportHints": [
+        "For $y>mx+b$ or $y\\ge mx+b$, shade above; for $y<mx+b$ or $y\\le mx+b$, shade below."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3D_v2_graph-dashed-below",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3D:v2-graph-dashed-below",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3D",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Graph the solution set of $y<{{m}}x{{b|signed}}$. Construct the boundary yourself and shade the solution region.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m}}",
+          "b": "{{b}}",
+          "relation": "<"
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 10
+      },
+      "solutionReview": {
+        "headline": "A two-variable inequality graph has three decisions.",
+        "reasoning": [
+          "Graph the boundary equation using two points.",
+          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
+        ]
+      },
+      "attemptFeedback": [
+        "Check the boundary points first, then line style, then which side is shaded."
+      ],
+      "supportHints": [
+        "For $y>mx+b$ or $y\\ge mx+b$, shade above; for $y<mx+b$ or $y\\le mx+b$, shade below."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3D_v2_graph-solid-below",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3D:v2-graph-solid-below",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3D",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Construct the complete graph of $y\\le {{m}}x{{b|signed}}$, including boundary style and shading.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m}}",
+          "b": "{{b}}",
+          "relation": "<="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 10
+      },
+      "solutionReview": {
+        "headline": "A two-variable inequality graph has three decisions.",
+        "reasoning": [
+          "Graph the boundary equation using two points.",
+          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
+        ]
+      },
+      "attemptFeedback": [
+        "Check the boundary points first, then line style, then which side is shaded."
+      ],
+      "supportHints": [
+        "For $y>mx+b$ or $y\\ge mx+b$, shade above; for $y<mx+b$ or $y\\le mx+b$, shade below."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3D_v2_graph-dashed-above",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3D:v2-graph-dashed-above",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3D",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Construct the complete solution graph for $y>{{m}}x{{b|signed}}$.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m}}",
+          "b": "{{b}}",
+          "relation": ">"
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 10
+      },
+      "solutionReview": {
+        "headline": "A two-variable inequality graph has three decisions.",
+        "reasoning": [
+          "Graph the boundary equation using two points.",
+          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
+        ]
+      },
+      "attemptFeedback": [
+        "Check the boundary points first, then line style, then which side is shaded."
+      ],
+      "supportHints": [
+        "For $y>mx+b$ or $y\\ge mx+b$, shade above; for $y<mx+b$ or $y\\le mx+b$, shade below."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3D_v2_graph-context-constraint",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3D:v2-graph-context-constraint",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3D",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A feasible plan is represented by $y\\le {{m}}x{{b|signed}}$. Construct the TWO-VARIABLE solution graph that shows every feasible ordered pair.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m}}",
+          "b": "{{b}}",
+          "relation": "<="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 10
+      },
+      "context": {
+        "title": "Feasible-plan constraint"
+      },
+      "solutionReview": {
+        "headline": "Every point in a half-plane can be a solution.",
+        "reasoning": [
+          "Use the equation $y={{m}}x{{b|signed}}$ for the boundary.",
+          "Because the inequality is inclusive and uses $\\le$, draw a solid boundary and shade below it."
+        ]
+      },
+      "attemptFeedback": [
+        "A two-variable inequality solution is a region, not one number or one interval on a number line."
+      ],
+      "supportHints": [
+        "Pick two x-values to construct the boundary line, then apply the inequality symbol."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -4,
+            "max": 6
+          }
+        }
+      }
+    }
+  ]
+}

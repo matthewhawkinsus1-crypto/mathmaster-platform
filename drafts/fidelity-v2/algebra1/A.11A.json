@@ -1,0 +1,344 @@
+{
+  "standard": "A.11A",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-full-radical-simplification",
+  "documents": [
+    {
+      "id": "mm_A_11A_v2_extract-square-factor",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.11A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.11A:v2-extract-square-factor",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.11A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Simplify $\\sqrt{{{n}}}$ completely.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified radical",
+          "inputProfile": "expression",
+          "expected": "{{k}}sqrt({{r}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Extract the greatest perfect-square factor.",
+        "reasoning": [
+          "Write {{n}} as ${{k2}}\\cdot{{r}}$, where {{k2}} is a perfect square.",
+          "$\\sqrt{{{k2}}}={{k}}$, leaving $\\sqrt{{{r}}}$ inside the radical."
+        ],
+        "answerSummary": "${{k}}\\sqrt{{{r}}}$"
+      },
+      "attemptFeedback": [
+        "Look for the largest perfect-square factor of the radicand."
+      ],
+      "supportHints": [
+        "A square factor can leave the radical as its positive square root."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 7,
+            "exclude": [
+              4
+            ]
+          }
+        },
+        "derived": {
+          "k2": "k*k",
+          "n": "k2*r"
+        }
+      }
+    },
+    {
+      "id": "mm_A_11A_v2_coefficient-times-radical",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.11A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.11A:v2-coefficient-times-radical",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.11A",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "The coefficient {{c}} is already outside the radical. Simplify ${{c}}\\sqrt{{{n}}}$ completely.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified radical",
+          "inputProfile": "expression",
+          "expected": "{{ck}}sqrt({{r}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Simplify the radical, then multiply outside coefficients.",
+        "reasoning": [
+          "$\\sqrt{{{n}}}={{k}}\\sqrt{{{r}}}$ because {{n}}={{k2}}\\cdot{{r}}.",
+          "Multiply the outside coefficient {{c}} by {{k}} to get {{ck}}."
+        ],
+        "answerSummary": "${{ck}}\\sqrt{{{r}}}$"
+      },
+      "attemptFeedback": [
+        "Do not forget to multiply the extracted square root by the coefficient already outside."
+      ],
+      "supportHints": [
+        "Simplify the square root first, then combine outside factors."
+      ],
+      "generator": {
+        "parameters": {
+          "c": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 7,
+            "exclude": [
+              4
+            ]
+          }
+        },
+        "derived": {
+          "k2": "k*k",
+          "n": "k2*r",
+          "ck": "c*k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_11A_v2_add-like-radicals",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.11A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.11A:v2-add-like-radicals",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.11A",
+      "taskType": "application",
+      "representation": "symbolic",
+      "prompt": "Simplify $\\sqrt{{{n1}}}+\\sqrt{{{n2}}}$ completely.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified expression",
+          "inputProfile": "expression",
+          "expected": "{{sum}}sqrt({{r}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Simplify each radical before combining like radicals.",
+        "reasoning": [
+          "The first radical becomes ${{a}}\\sqrt{{{r}}}$ and the second becomes ${{b}}\\sqrt{{{r}}}$.",
+          "Because the remaining radicals match, add the coefficients: {{a}}+{{b}}={{sum}}."
+        ],
+        "answerSummary": "${{sum}}\\sqrt{{{r}}}$"
+      },
+      "attemptFeedback": [
+        "Simplify both square roots first; only then decide whether they are like radicals."
+      ],
+      "supportHints": [
+        "Like radicals have the same simplified radicand."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 7,
+            "exclude": [
+              4
+            ]
+          }
+        },
+        "derived": {
+          "n1": "a*a*r",
+          "n2": "b*b*r",
+          "sum": "a+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_11A_v2_error-partial-extraction",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.11A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.11A:v2-error-partial-extraction",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.11A",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student simplifies $\\sqrt{{{n}}}$ as ${{wrong}}\\sqrt{{{inside}}}$ by extracting only part of the available perfect-square factor. Write the expression in completely simplified radical form.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct simplified radical",
+          "inputProfile": "expression",
+          "expected": "{{k}}sqrt({{r}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A radical is not fully simplified while another square factor remains inside.",
+        "reasoning": [
+          "The student's radicand {{inside}} still contains the square factor {{leftSquare}}.",
+          "Extracting that factor gives the complete simplification ${{k}}\\sqrt{{{r}}}$."
+        ],
+        "answerSummary": "${{k}}\\sqrt{{{r}}}$"
+      },
+      "attemptFeedback": [
+        "Check whether the number left inside the radical still has a perfect-square factor greater than 1."
+      ],
+      "supportHints": [
+        "Continue extracting square factors until the remaining radicand is square-free."
+      ],
+      "generator": {
+        "parameters": {
+          "u": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "v": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 7,
+            "exclude": [
+              4
+            ]
+          }
+        },
+        "derived": {
+          "wrong": "u",
+          "leftSquare": "v*v",
+          "inside": "leftSquare*r",
+          "k": "u*v",
+          "n": "u*u*inside"
+        }
+      }
+    },
+    {
+      "id": "mm_A_11A_v2_difference-like-radicals",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.11A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.11A:v2-difference-like-radicals",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.11A",
+      "taskType": "reverseReasoning",
+      "representation": "symbolic",
+      "prompt": "Simplify $\\sqrt{{{n1}}}-\\sqrt{{{n2}}}$ completely. The two radicals do not look alike at first.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified expression",
+          "inputProfile": "expression",
+          "expected": "{{diff}}sqrt({{r}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Hidden like radicals appear after simplification.",
+        "reasoning": [
+          "The radicals simplify to ${{a}}\\sqrt{{{r}}}$ and ${{b}}\\sqrt{{{r}}}$.",
+          "Subtract the coefficients to get {{diff}} while keeping the common radical factor."
+        ],
+        "answerSummary": "${{diff}}\\sqrt{{{r}}}$"
+      },
+      "attemptFeedback": [
+        "Simplify each radical separately before subtracting."
+      ],
+      "supportHints": [
+        "Different original radicands can reduce to the same square-free radicand."
+      ],
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "gap": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 7,
+            "exclude": [
+              4
+            ]
+          }
+        },
+        "derived": {
+          "a": "b+gap",
+          "n1": "a*a*r",
+          "n2": "b*b*r",
+          "diff": "gap"
+        }
+      }
+    }
+  ]
+}

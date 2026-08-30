@@ -1,0 +1,403 @@
+{
+  "standard": "A.4C",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-linear-regression-equation-and-prediction",
+  "documents": [
+    {
+      "id": "mm_A_4C_v2_linear-regression-clean",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4C:v2-linear-regression-clean",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "The generated data include $(0,{{y0}})$. Use linear-regression technology to WRITE the fitted function $y=mx+b$, then predict $y$ when $x=6$.",
+      "type": "dataModelingLab",
+      "mode": "linearFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 6,
+      "solutionReview": {
+        "headline": "Regression produces the equation before the prediction.",
+        "reasoning": [
+          "Use linear regression on all five points and record both the slope and intercept in $y=mx+b$.",
+          "Substitute the requested input into that fitted equation, then decide whether the prediction is interpolation or extrapolation."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not predict until you have written both regression coefficients."
+      ],
+      "supportHints": [
+        "Use all data points in the regression; a line through only two selected points is not the requested fitted model."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 12
+          }
+        },
+        "derived": {
+          "y0": "b",
+          "y1": "b+m",
+          "y2": "b+2*m",
+          "y3": "b+3*m",
+          "y4": "b+4*m"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4C_v2_linear-regression-noisy",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4C:v2-linear-regression-noisy",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "A noisy data set begins at $(0,{{y0}})$. Use linear regression to WRITE a best-fit function and use it to predict the response at $x=7$.",
+      "type": "dataModelingLab",
+      "mode": "linearFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 7,
+      "solutionReview": {
+        "headline": "Regression produces the equation before the prediction.",
+        "reasoning": [
+          "Use linear regression on all five points and record both the slope and intercept in $y=mx+b$.",
+          "Substitute the requested input into that fitted equation, then decide whether the prediction is interpolation or extrapolation."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not predict until you have written both regression coefficients."
+      ],
+      "supportHints": [
+        "Use all data points in the regression; a line through only two selected points is not the requested fitted model."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "b": {
+            "type": "int",
+            "min": 5,
+            "max": 20
+          }
+        },
+        "derived": {
+          "y0": "b",
+          "y1": "b+m+1",
+          "y2": "b+2*m-1",
+          "y3": "b+3*m+2",
+          "y4": "b+4*m-1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4C_v2_linear-regression-interpolation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4C:v2-linear-regression-interpolation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4C",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A calibration data set has first measurement {{y0}} at $x=0$. Use regression technology to WRITE the fitted linear function, then estimate the response at $x=2.5$.",
+      "type": "dataModelingLab",
+      "mode": "linearFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 2.5,
+      "context": {
+        "title": "Calibration data"
+      },
+      "solutionReview": {
+        "headline": "Regression produces the equation before the prediction.",
+        "reasoning": [
+          "Use linear regression on all five points and record both the slope and intercept in $y=mx+b$.",
+          "Substitute the requested input into that fitted equation, then decide whether the prediction is interpolation or extrapolation."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not predict until you have written both regression coefficients."
+      ],
+      "supportHints": [
+        "Use all data points in the regression; a line through only two selected points is not the requested fitted model."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          },
+          "b": {
+            "type": "int",
+            "min": 10,
+            "max": 30
+          }
+        },
+        "derived": {
+          "y0": "b",
+          "y1": "b+m-1",
+          "y2": "b+2*m+1",
+          "y3": "b+3*m",
+          "y4": "b+4*m-1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4C_v2_linear-regression-context-extrapolation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4C:v2-linear-regression-context-extrapolation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4C",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A school tracks an input $x$ and an outcome $y$; the generated set starts at $(0,{{y0}})$. Use technology to WRITE the linear regression model and predict the outcome at $x=8$.",
+      "type": "dataModelingLab",
+      "mode": "linearFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 8,
+      "context": {
+        "title": "School trend data"
+      },
+      "solutionReview": {
+        "headline": "Regression produces the equation before the prediction.",
+        "reasoning": [
+          "Use linear regression on all five points and record both the slope and intercept in $y=mx+b$.",
+          "Substitute the requested input into that fitted equation, then decide whether the prediction is interpolation or extrapolation."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not predict until you have written both regression coefficients."
+      ],
+      "supportHints": [
+        "Use all data points in the regression; a line through only two selected points is not the requested fitted model."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": 40,
+            "max": 75
+          }
+        },
+        "derived": {
+          "y0": "b",
+          "y1": "b+m+2",
+          "y2": "b+2*m-1",
+          "y3": "b+3*m+1",
+          "y4": "b+4*m"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4C_v2_linear-regression-error-two-points",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4C:v2-linear-regression-error-two-points",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4C",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student uses only the first and last data points (the first response is {{y0}}) and calls that line “the regression model.” Use ALL the data with technology to WRITE the fitted linear function and predict at $x=6$.",
+      "type": "dataModelingLab",
+      "mode": "linearFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 6,
+      "solutionReview": {
+        "headline": "Regression produces the equation before the prediction.",
+        "reasoning": [
+          "Use linear regression on all five points and record both the slope and intercept in $y=mx+b$.",
+          "Substitute the requested input into that fitted equation, then decide whether the prediction is interpolation or extrapolation."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not predict until you have written both regression coefficients."
+      ],
+      "supportHints": [
+        "Use all data points in the regression; a line through only two selected points is not the requested fitted model."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "b": {
+            "type": "int",
+            "min": 8,
+            "max": 25
+          }
+        },
+        "derived": {
+          "y0": "b",
+          "y1": "b+m+3",
+          "y2": "b+2*m-2",
+          "y3": "b+3*m+1",
+          "y4": "b+4*m"
+        }
+      }
+    }
+  ]
+}

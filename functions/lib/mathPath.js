@@ -151,19 +151,68 @@ function runtimeId(prefix) {
 // author writing `choices: [{ id: 'a', label: '…', correct: true }]` would
 // otherwise have shipped the answer key inside a field the allowlist had just
 // admitted, which is the exact hole the tool contract exists to close.
-function normalizeChoices(choices) {
-  return (Array.isArray(choices) ? choices : []).slice(0, 12).map((choice, index) => {
-    if (choice && typeof choice === 'object') {
-      return {
-        id: String(choice.id || choice.value || `choice-${index + 1}`),
-        label: String(choice.label ?? choice.text ?? choice.value ?? ''),
-      };
-    }
-    return { id: String(choice), label: String(choice) };
-  }).filter((choice) => choice.label !== '');
+const authoredChoiceId = (choice, index) => (
+  choice && typeof choice === 'object'
+    ? String(choice.id || choice.value || `choice-${index + 1}`)
+    : String(choice)
+);
+
+const authoredChoiceLabel = (choice) => (
+  choice && typeof choice === 'object'
+    ? String(choice.label ?? choice.text ?? choice.value ?? '')
+    : String(choice)
+);
+
+// Author IDs such as "opt-1" are useful inside the bank, but must never become
+// the browser's answer vocabulary. Otherwise a bank-wide convention where
+// opt-1 is usually correct can be discovered from the network payload even
+// after the buttons are shuffled.
+//
+// The runtime id is deterministic from the CONCRETE issued question and the
+// visible choice list. A reload of the same question therefore keeps its ids,
+// while a different generated instance gets a different namespace. Nothing in
+// this hash depends on which choice is correct.
+function choiceRuntimeNamespace(question = {}, sourceKey = 'question', choices = []) {
+  const visibleSignature = (Array.isArray(choices) ? choices : [])
+    .slice(0, 12)
+    .map((choice) => authoredChoiceLabel(choice))
+    .join('\u241f');
+  return [
+    question.id || question.familyId || question.questionType || 'path-question',
+    question.prompt || '',
+    sourceKey,
+    visibleSignature,
+  ].join('|');
 }
 
-function normalizeResponseFields(fields = []) {
+function choiceRuntimeId(question, sourceKey, choices, choice, index) {
+  return opaqueId(
+    'choice',
+    choiceRuntimeNamespace(question, sourceKey, choices),
+    authoredChoiceId(choice, index),
+    String(index),
+  );
+}
+
+function choiceIdMap(question, sourceKey, choices) {
+  const map = new Map();
+  (Array.isArray(choices) ? choices : []).slice(0, 12).forEach((choice, index) => {
+    map.set(
+      authoredChoiceId(choice, index),
+      choiceRuntimeId(question, sourceKey, choices, choice, index),
+    );
+  });
+  return map;
+}
+
+function normalizeChoices(choices, question = {}, sourceKey = 'question') {
+  return (Array.isArray(choices) ? choices : []).slice(0, 12).map((choice, index) => ({
+    id: choiceRuntimeId(question, sourceKey, choices, choice, index),
+    label: authoredChoiceLabel(choice),
+  })).filter((choice) => choice.label !== '');
+}
+
+function normalizeResponseFields(fields = [], question = {}) {
   const safeSymbols = (value) => (Array.isArray(value) ? value : [])
     .map((symbol) => String(symbol || '').trim())
     .filter(Boolean)
@@ -189,7 +238,7 @@ function normalizeResponseFields(fields = []) {
       // notation"). Presentation only.
       responseHint: field?.responseHint ? String(field.responseHint).slice(0, 160) : null,
       placeholder: field?.placeholder ? String(field.placeholder).slice(0, 60) : null,
-      ...(Array.isArray(field?.choices) ? { choices: normalizeChoices(field.choices) } : {}),
+      ...(Array.isArray(field?.choices) ? { choices: normalizeChoices(field.choices, question, `field:${String(field?.id || `response-${index + 1}`)}`) } : {}),
     };
   });
 }
@@ -205,6 +254,54 @@ function sanitizeStimulus(stimulus) {
     title: stimulus.title ? String(stimulus.title).slice(0, 140) : null,
     note: stimulus.note ? String(stimulus.note).slice(0, 300) : null,
   };
+  if (stimulus.graph && typeof stimulus.graph === 'object') {
+    const graph = stimulus.graph;
+    const finiteNumber = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+    const visiblePoint = (point) => {
+      const x = Number(Array.isArray(point) ? point[0] : point?.x);
+      const y = Number(Array.isArray(point) ? point[1] : point?.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+      return {
+        x,
+        y,
+        ...(point && !Array.isArray(point) && point.label ? { label:String(point.label).slice(0, 40) } : {}),
+      };
+    };
+    clean.graph = {
+      xMin: finiteNumber(graph.xMin, -6),
+      xMax: finiteNumber(graph.xMax, 6),
+      yMin: finiteNumber(graph.yMin, -6),
+      yMax: finiteNumber(graph.yMax, 6),
+      ariaLabel: graph.ariaLabel ? String(graph.ariaLabel).slice(0, 160) : null,
+      points: (Array.isArray(graph.points) ? graph.points : []).slice(0, 24)
+        .map(visiblePoint).filter(Boolean),
+      lines: (Array.isArray(graph.lines) ? graph.lines : []).slice(0, 4)
+        .map((line, index) => ({
+          label: String(line?.label || `Line ${index + 1}`).slice(0, 60),
+          boundaryStyle: String(line?.boundaryStyle || 'solid') === 'dashed' ? 'dashed' : 'solid',
+          points: (Array.isArray(line?.points) ? line.points : []).slice(0, 2)
+            .map(visiblePoint).filter(Boolean),
+        }))
+        .filter((line) => line.points.length === 2),
+      // Curves are sent only as sampled visible coordinates. No function
+      // coefficients/equation are admitted here, which lets a graph be the
+      // stimulus for "write the equation" without shipping that answer in a
+      // hidden functionSpec.
+      curves: (Array.isArray(graph.curves) ? graph.curves : []).slice(0, 4)
+        .map((curve, index) => ({
+          label: String(curve?.label || `Curve ${index + 1}`).slice(0, 60),
+          points: (Array.isArray(curve?.points) ? curve.points : []).slice(0, 32)
+            .map(visiblePoint).filter(Boolean),
+        }))
+        .filter((curve) => curve.points.length >= 2),
+      shading: (Array.isArray(graph.shading) ? graph.shading : []).slice(0, 4)
+        .map((shade) => ({
+          lineIndex: Math.max(0, Math.trunc(Number(shade?.lineIndex) || 0)),
+          side: String(shade?.side || '') === 'above' ? 'above' : String(shade?.side || '') === 'below' ? 'below' : null,
+        }))
+        .filter((shade) => shade.side),
+    };
+  }
   if (stimulus.table && typeof stimulus.table === 'object') {
     clean.table = {
       headers: (Array.isArray(stimulus.table.headers) ? stimulus.table.headers : []).slice(0, 8).map((value) => String(value)),
@@ -336,9 +433,9 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
         : [],
     } : null,
     prompt: String(question.prompt || ''),
-    choices: normalizeChoices(question.choices),
+    choices: normalizeChoices(question.choices, question, 'question'),
     formulaLatex: question.formulaLatex ? String(question.formulaLatex) : null,
-    responseFields: normalizeResponseFields(question.responseFields),
+    responseFields: normalizeResponseFields(question.responseFields, question),
     // What the student has to look at to answer. Never anything they have to
     // work out.
     stimulus: sanitizeStimulus(question.stimulus),
@@ -358,13 +455,33 @@ function buildSanitizedQuestion(question, { questionInstanceId, attemptsAllowed,
 
 function privateGradingDefinition(question) {
   const explicit = question.grading && typeof question.grading === 'object' ? question.grading : {};
-  const fields = (Array.isArray(question.responseFields) ? question.responseFields : []).map((field, index) => ({
-    id: String(field?.id || `response-${index + 1}`),
-    expected: field?.expected,
-    accepted: Array.isArray(field?.accepted) ? field.accepted : null,
-    numericTolerance: Number(field?.numericTolerance ?? explicit.numericTolerance ?? 1e-6),
-    caseSensitive: Boolean(field?.caseSensitive ?? explicit.caseSensitive),
-  }));
+  const fields = (Array.isArray(question.responseFields) ? question.responseFields : []).map((field, index) => {
+    const id = String(field?.id || `response-${index + 1}`);
+    const isChoice = String(field?.inputProfile || '').toLowerCase() === 'choice';
+    const hasFieldChoices = Array.isArray(field?.choices) && field.choices.length > 0;
+    const sourceChoices = hasFieldChoices
+      ? field.choices
+      : (isChoice && Array.isArray(question.choices) ? question.choices : []);
+    const sourceKey = hasFieldChoices ? `field:${id}` : 'question';
+    const runtimeIds = isChoice && sourceChoices.length
+      ? choiceIdMap(question, sourceKey, sourceChoices)
+      : null;
+    const remap = (value) => (
+      runtimeIds && runtimeIds.has(String(value))
+        ? runtimeIds.get(String(value))
+        : value
+    );
+    return {
+      id,
+      expected: remap(field?.expected ?? field?.answer),
+      accepted: [
+        ...(Array.isArray(field?.accepted) ? field.accepted : []),
+        ...(Array.isArray(field?.acceptedAnswers) ? field.acceptedAnswers : []),
+      ].map(remap),
+      numericTolerance: Number(field?.numericTolerance ?? explicit.numericTolerance ?? 1e-6),
+      caseSensitive: Boolean(field?.caseSensitive ?? explicit.caseSensitive),
+    };
+  });
   return { ...explicit, fields };
 }
 
@@ -427,7 +544,9 @@ async function buildIssuePlan(question) {
 }
 
 async function valuesEquivalent(actual, field) {
-  const candidates = field.accepted?.length ? field.accepted : [field.expected];
+  // Alternatives supplement the primary key; they never replace it.
+  const candidates = [field.expected, ...(Array.isArray(field.accepted) ? field.accepted : [])]
+    .filter((value) => value !== undefined && value !== null);
   const equivalence = await answerEquivalence();
   return candidates.some((expected) => {
     const left = String(actual ?? '').trim();

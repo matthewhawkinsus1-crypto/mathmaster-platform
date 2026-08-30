@@ -1,0 +1,338 @@
+{
+  "standard": "A.5C",
+  "verdict": "KEEP",
+  "certificationStatus": "candidate-keep-math-system-solving-and-classification-certified",
+  "documents": [
+    {
+      "id": "mm_A_5C_v2_systems-workspace",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5C:v2-systems-workspace",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5C",
+      "taskType": "procedural",
+      "representation": "graph",
+      "prompt": "Solve the system $y={{m1}}x {{b1|signed}}$ and $y={{m2}}x {{b2|signed}}$ using the workspace.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The solution must satisfy both equations at the same time.",
+          "The two generated lines meet at $({{x}},{{y}})$."
+        ],
+        "answerSummary": "$({{x}},{{y}})$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "m2": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y": "m1*x+b1",
+          "b2": "y-m2*x"
+        }
+      },
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "system": {
+        "m1": "{{m1}}",
+        "b1": "{{b1}}",
+        "m2": "{{m2}}",
+        "b2": "{{b2}}"
+      }
+    },
+    {
+      "id": "mm_A_5C_v2_substitution-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5C:v2-substitution-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5C",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "Solve $y={{m1}}x {{b1|signed}}$ and $y={{m2}}x {{b2|signed}}$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Set the right-hand sides equal because both equal $y$.",
+          "Solve for $x$, then substitute back for $y$."
+        ],
+        "answerSummary": "$({{x}},{{y}})$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "m2": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y": "m1*x+b1",
+          "b2": "y-m2*x"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "orderedPair",
+          "expected": "({{x}},{{y}})"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_5C_v2_context-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5C:v2-context-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5C",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A total of {{n}} items consists of two types costing {{a}} and {{b}} dollars each. The total cost is {{total}} dollars. How many of the first type were bought?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Use one equation for the item count and one for total cost.",
+          "Elimination or substitution gives the generated first-type count."
+        ],
+        "answerSummary": "{{x}} of the first type were bought."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "b": {
+            "type": "int",
+            "min": 8,
+            "max": 15
+          },
+          "x": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          },
+          "y": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          }
+        },
+        "derived": {
+          "n": "x+y",
+          "total": "a*x+b*y"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_5C_v2_classify-identical",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5C:v2-classify-identical",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5C",
+      "taskType": "errorAnalysis",
+      "representation": "graph",
+      "prompt": "A student says that because the same line is written twice, the system has exactly two solutions. Use the workspace to classify the system $y={{m}}x{{b|signed}}$ and $y={{m}}x{{b|signed}}$ and correct the claim.",
+      "solutionReview": {
+        "headline": "Identical equations describe one line, so every point on that line solves the system.",
+        "reasoning": [
+          "Both equations have the same slope and the same intercept, so their graphs coincide.",
+          "A coincident pair of lines has infinitely many solutions, not two solutions."
+        ],
+        "answerSummary": "Infinitely many solutions."
+      },
+      "attemptFeedback": [
+        "Check whether the two equations describe distinct lines or exactly the same line."
+      ],
+      "supportHints": [
+        "Same slope AND same intercept means the lines coincide."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        }
+      },
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "system": {
+        "m1": "{{m}}",
+        "b1": "{{b}}",
+        "m2": "{{m}}",
+        "b2": "{{b}}"
+      }
+    },
+    {
+      "id": "mm_A_5C_v2_recover-second-intercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5C:v2-recover-second-intercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5C",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "A system has solution $({{x}},{{y}})$. One line is $y={{m}}x+b$. Find $b$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "A system solution lies on each equation.",
+          "Substitute the known solution point into the line and solve for its intercept."
+        ],
+        "answerSummary": "$b={{b}}$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          }
+        },
+        "derived": {
+          "y": "m*x+b"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{b}}"
+        }
+      ]
+    }
+  ]
+}

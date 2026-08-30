@@ -1,0 +1,289 @@
+{
+  "standard": "A.7B",
+  "verdict": "KEEP",
+  "certificationStatus": "candidate-keep-mathematics-certified-and-metadata-hardened",
+  "documents": [
+    {
+      "id": "mm_A_7B_v2_zeros-from-factors",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7B:v2-zeros-from-factors",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Find the greater zero of $(x-{{r1}})(x-{{r2}})=0$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Set each factor equal to zero.",
+          "The two zeros are {{r1}} and {{r2}}, and {{r2}} is greater."
+        ],
+        "answerSummary": "The greater zero is ${{r2}}$."
+      },
+      "attemptFeedback": [
+        "Connect each linear factor to the x-value that makes that factor equal zero."
+      ],
+      "supportHints": [
+        "A factor x-r produces the zero x=r; the sign inside the factor is opposite the zero's sign."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -6,
+            "max": 0
+          },
+          "r2": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{r2}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7B_v2_factor-from-zeros",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7B:v2-factor-from-zeros",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7B",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "A monic quadratic has zeros {{r1}} and {{r2}}. What is its constant term?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The factored form is $(x-r_1)(x-r_2)$.",
+          "The constant term is the product of the zeros."
+        ],
+        "answerSummary": "The constant term is ${{c}}$."
+      },
+      "attemptFeedback": [
+        "Connect each linear factor to the x-value that makes that factor equal zero."
+      ],
+      "supportHints": [
+        "A factor x-r produces the zero x=r; the sign inside the factor is opposite the zero's sign."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "r2": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        },
+        "derived": {
+          "c": "r1*r2"
+        },
+        "constraints": [
+          "r1!=r2"
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{c}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7B_v2_context-roots",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7B:v2-context-roots",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7B",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A height function is $h(t)=-{{a}}t(t-{{r}})$. At what positive time does the object return to height 0?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The object is on the ground when the height equals zero.",
+          "The factored model has zeros at 0 and {{r}}."
+        ],
+        "answerSummary": "It returns at $t={{r}}$."
+      },
+      "attemptFeedback": [
+        "Connect each linear factor to the x-value that makes that factor equal zero."
+      ],
+      "supportHints": [
+        "A factor x-r produces the zero x=r; the sign inside the factor is opposite the zero's sign."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{r}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7B_v2_check-factor",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7B:v2-check-factor",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7B",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student says the factor $x-{{r}}$ produces the zero $x=-{{r}}$. Correct the sign error: what zero does the factor actually produce?",
+      "solutionReview": {
+        "headline": "Set the factor equal to zero instead of copying its visible sign.",
+        "reasoning": [
+          "Solve $x-{{r}}=0$.",
+          "Adding {{r}} to both sides gives the zero $x={{r}}$."
+        ],
+        "answerSummary": "Zero {{r}}."
+      },
+      "attemptFeedback": [
+        "Connect each linear factor to the x-value that makes that factor equal zero."
+      ],
+      "supportHints": [
+        "A factor x-r produces the zero x=r; the sign inside the factor is opposite the zero's sign."
+      ],
+      "generator": {
+        "parameters": {
+          "r": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{r}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7B_v2_missing-root-from-sum",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7B:v2-missing-root-from-sum",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7B",
+      "taskType": "reverseReasoning",
+      "representation": "symbolic",
+      "prompt": "The sum of the zeros of a monic quadratic is {{sumr}}. One zero is {{r1}}. Find the other zero.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The two zeros must add to the stated sum.",
+          "Subtract the known zero from the sum."
+        ],
+        "answerSummary": "The other zero is ${{r2}}$."
+      },
+      "attemptFeedback": [
+        "Connect each linear factor to the x-value that makes that factor equal zero."
+      ],
+      "supportHints": [
+        "A factor x-r produces the zero x=r; the sign inside the factor is opposite the zero's sign."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "r2": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "sumr": "r1+r2"
+        },
+        "constraints": [
+          "r1!=r2"
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{r2}}"
+        }
+      ]
+    }
+  ]
+}

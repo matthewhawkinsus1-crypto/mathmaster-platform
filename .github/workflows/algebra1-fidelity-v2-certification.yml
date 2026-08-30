@@ -1,0 +1,99 @@
+name: Algebra I Fidelity V2 Certification
+
+on:
+  pull_request:
+    paths:
+      - "drafts/fidelity-v2/algebra1/**"
+      - "scripts/build-algebra1-fidelity-v2-candidate.mjs"
+      - "scripts/verify-path-drafts.mjs"
+      - "scripts/audit-algebra1-semantic-fidelity-v2.mjs"
+      - "scripts/audit-algebra1-cognitive-fidelity-v2.mjs"
+      - "scripts/audit-generator-health.mjs"
+      - "scripts/audit-algebra1-path-tool-readiness-v2.mjs"
+      - "functions/lib/mathPath.js"
+      - "functions/shared/pathToolContracts.mjs"
+      - "functions/shared/pathDataModelingGrading.mjs"
+      - "functions/shared/pathSystemsInequalityGrading.mjs"
+      - "tests/platform/algebra1FidelityV2*.test.mjs"
+      - ".github/workflows/algebra1-fidelity-v2-certification.yml"
+
+jobs:
+  certify-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Assemble the 245-family candidate
+        run: node scripts/build-algebra1-fidelity-v2-candidate.mjs
+
+      - name: Verify candidate schema, generators, ids, and solutions
+        run: node scripts/verify-path-drafts.mjs drafts/algebra1.fidelity-v2.candidate.json --allow-existing-ids
+
+      - name: Run Algebra I Fidelity V2 structural and issuability tests
+        run: |
+          node --test \
+            tests/platform/algebra1FidelityV2CandidateAssembly.test.mjs \
+            tests/platform/algebra1FidelityV2Staged.test.mjs \
+            tests/platform/algebra1FidelityV2StagedIssuability.test.mjs \
+            tests/platform/algebra1FidelityV2A11AEnhancement.test.mjs \
+            tests/platform/algebra1FidelityV2A5BEnhancement.test.mjs \
+            tests/platform/algebra1FidelityV2ExponentialEnhancements.test.mjs \
+            tests/platform/algebra1FidelityV2KeepCertification.test.mjs \
+            tests/platform/algebra1FidelityV2LinearWritingEnhancements.test.mjs \
+            tests/platform/algebra1FidelityV2FinalCertification.test.mjs
+
+      - name: Stress generated candidate instances
+        run: |
+          set -o pipefail
+          node scripts/audit-generator-health.mjs \
+            --bank drafts/algebra1.fidelity-v2.candidate.json \
+            --samples 36 \
+            --strict | tee /tmp/algebra1-generator-health.txt
+
+      - name: Verify secure Path tool readiness
+        run: |
+          set -o pipefail
+          node scripts/audit-algebra1-path-tool-readiness-v2.mjs | tee /tmp/algebra1-tool-readiness.txt
+
+      - name: Run semantic fidelity audit
+        run: |
+          set -o pipefail
+          node scripts/audit-algebra1-semantic-fidelity-v2.mjs --bank drafts/algebra1.fidelity-v2.candidate.json | tee /tmp/algebra1-semantic.txt
+
+      - name: Require zero semantic fidelity findings
+        run: |
+          grep -Fx "Findings: 0" /tmp/algebra1-semantic.txt
+
+      - name: Run cognitive/DOK audit
+        run: |
+          set -o pipefail
+          node scripts/audit-algebra1-cognitive-fidelity-v2.mjs --bank drafts/algebra1.fidelity-v2.candidate.json | tee /tmp/algebra1-cognitive.txt
+
+      - name: Require zero high-confidence cognitive contradictions
+        run: |
+          grep -Fx "High-confidence label contradictions: 0" /tmp/algebra1-cognitive.txt
+
+      - name: Preserve audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: algebra1-fidelity-v2-certification-evidence
+          path: |
+            drafts/algebra1.fidelity-v2.candidate.json
+            /tmp/algebra1-semantic.txt
+            /tmp/algebra1-cognitive.txt
+            /tmp/algebra1-generator-health.txt
+            /tmp/algebra1-tool-readiness.txt
+          if-no-files-found: warn

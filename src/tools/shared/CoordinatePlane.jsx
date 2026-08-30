@@ -50,7 +50,7 @@ const formatCoordinate = (point) => { const [x, y] = pointXY(point); return `(${
 export default function CoordinatePlane({
   xMin = -10, xMax = 10, yMin = -10, yMax = 10,
   width = 560, height = 380,
-  points = [], lines = [], functions = [], polylines = [], verticalLines = [], horizontalLines = [],
+  points = [], lines = [], functions = [], polylines = [], regions = [], verticalLines = [], horizontalLines = [],
   onPlot = null,
   // Whole numbers by default: an Algebra I student asked to plot (3, -2) should
   // never be able to land on (3, -1.5). Tools pass 0.5/0.25 only when the
@@ -224,6 +224,25 @@ export default function CoordinatePlane({
         {yMinor.map((y) => <line key={`my${y}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} stroke="#eef3f9" strokeWidth="1" />)}
         {xTicks.map((x) => <line key={`gx${x}`} x1={sx(x)} x2={sx(x)} y1={pad} y2={height - pad} stroke="#d5dfec" strokeWidth="1" />)}
         {yTicks.map((y) => <line key={`gy${y}`} x1={pad} x2={width - pad} y1={sy(y)} y2={sy(y)} stroke="#d5dfec" strokeWidth="1" />)}
+
+        {regions.map((region, index) => {
+          const rawPoints = Array.isArray(region) ? region : region?.points;
+          const svgPoints = (Array.isArray(rawPoints) ? rawPoints : [])
+            .map((point) => pointXY(point))
+            .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y))
+            .map(([x, y]) => `${sx(x)},${sy(y)}`)
+            .join(' ');
+          if (!svgPoints) return null;
+          return (
+            <polygon
+              key={`region${index}`}
+              points={svgPoints}
+              fill={region?.fill || (index === 0 ? '#dce9ff' : '#fde2df')}
+              fillOpacity={Number.isFinite(Number(region?.opacity)) ? Number(region.opacity) : 0.42}
+              stroke="none"
+            />
+          );
+        })}
 
         {xMin <= 0 && xMax >= 0 ? <line x1={sx(0)} x2={sx(0)} y1={pad} y2={height - pad} stroke="#5f6b7a" strokeWidth="2" /> : null}
         {yMin <= 0 && yMax >= 0 ? <line x1={pad} x2={width - pad} y1={sy(0)} y2={sy(0)} stroke="#5f6b7a" strokeWidth="2" /> : null}

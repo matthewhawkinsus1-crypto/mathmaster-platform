@@ -1,0 +1,355 @@
+{
+  "standard": "A.6A",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-connected-quadratic-domain-range",
+  "documents": [
+    {
+      "id": "mm_A_6A_v2_graph-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6A:v2-graph-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Graph $f(x)={{a}}(x-{{h}})^2{{k|signed}}$ by plotting its vertex, then write the domain and range.",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": "{{a}}",
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "pointTasks": [
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": "{{h}}",
+          "expected": [
+            "{{h}}",
+            "{{k}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "domain",
+          "label": "Domain",
+          "kind": "domain",
+          "notation": "interval",
+          "responseMode": "text",
+          "expected": [
+            "(-inf,inf)"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "kind": "range",
+          "notation": "interval",
+          "responseMode": "text",
+          "expected": [
+            "[{{k}},inf)"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "An upward-opening quadratic extends forever left and right but has a lowest output.",
+        "reasoning": [
+          "There is no restriction on x, so the domain is all real numbers.",
+          "The vertex $({{h}},{{k}})$ is the minimum, so the range is $[{{k}},\\infty)$."
+        ]
+      },
+      "attemptFeedback": [
+        "Separate horizontal extent (domain) from vertical extent (range)."
+      ],
+      "supportHints": [
+        "The vertex gives the range endpoint; the parabola continues indefinitely in both x-directions."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_6A_v2_projectile-context-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6A:v2-projectile-context-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6A",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A projectile is modeled by $h(t)=-{{a}}(t-{{v}})^2+{{maxh}}$ only from launch until it returns to the ground. Write the reasonable domain of time and the corresponding range of height in interval notation.",
+      "responseFields": [
+        {
+          "id": "domain",
+          "label": "Reasonable time domain",
+          "inputProfile": "interval",
+          "expected": "[0,{{end}}]"
+        },
+        {
+          "id": "range",
+          "label": "Height range",
+          "inputProfile": "interval",
+          "expected": "[0,{{maxh}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Context can restrict a quadratic that is mathematically defined for every real input.",
+        "reasoning": [
+          "Because {{maxh}}={{a}}({{v}})^2, the model reaches ground level at t=0 and t={{end}}.",
+          "During the physical flight, time runs from 0 to {{end}} and height runs from 0 to the vertex height {{maxh}}."
+        ]
+      },
+      "attemptFeedback": [
+        "Use the physical interval of flight, not the unrestricted algebraic domain of the formula."
+      ],
+      "supportHints": [
+        "The vertex occurs halfway between the two ground times."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "v": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "maxh": "a*v*v",
+          "end": "2*v"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6A_v2_restricted-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6A:v2-restricted-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6A",
+      "taskType": "application",
+      "representation": "symbolic",
+      "prompt": "For $q(x)={{a}}(x-{{h}})^2{{k|signed}}$ restricted to ${{h}}\\le x\\le {{hi}}$, write BOTH the domain and range in interval notation.",
+      "responseFields": [
+        {
+          "id": "domain",
+          "label": "Domain",
+          "inputProfile": "interval",
+          "expected": "[{{h}},{{hi}}]"
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "inputProfile": "interval",
+          "expected": "[{{k}},{{top}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A restricted domain changes the range because only part of the parabola is allowed.",
+        "reasoning": [
+          "The domain starts at the vertex x={{h}} and ends at {{hi}}.",
+          "On this right-hand branch the function increases from {{k}} to {{top}}, so the range is $[{{k}},{{top}}]$."
+        ]
+      },
+      "attemptFeedback": [
+        "Evaluate the function at the restricted endpoint as well as at the vertex."
+      ],
+      "supportHints": [
+        "Because the domain begins at the vertex and moves right, the outputs increase."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 2
+          },
+          "k": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "span": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          }
+        },
+        "derived": {
+          "hi": "h+span",
+          "top": "a*span*span+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6A_v2_downward-range-error",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6A:v2-downward-range-error",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6A",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "For $g(x)=-{{a}}(x-{{h}})^2{{k|signed}}$, a student writes the range as $[{{k}},\\infty)$ because the vertex y-value is {{k}}. Correct the range in interval notation.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct range",
+          "inputProfile": "interval",
+          "expected": "(-inf,{{k}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The vertex is a maximum when the parabola opens downward.",
+        "reasoning": [
+          "The negative leading coefficient makes every other output less than or equal to {{k}}.",
+          "Therefore the range extends downward without bound and includes {{k}}: $(-\\infty,{{k}}]$."
+        ]
+      },
+      "attemptFeedback": [
+        "First decide whether the vertex is a minimum or maximum."
+      ],
+      "supportHints": [
+        "Opening downward means the vertex is the greatest y-value."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_6A_v2_translate-inequality-to-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6A:v2-translate-inequality-to-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6A",
+      "taskType": "transfer",
+      "representation": "multipleRepresentation",
+      "prompt": "A quadratic has domain all real numbers, opens upward, and has vertex $({{h}},{{k}})$. Write its range in interval notation and give the inequality statement that describes the same y-values.",
+      "responseFields": [
+        {
+          "id": "interval",
+          "label": "Range in interval notation",
+          "inputProfile": "interval",
+          "expected": "[{{k}},inf)"
+        },
+        {
+          "id": "inequality",
+          "label": "Equivalent range inequality",
+          "inputProfile": "inequality",
+          "expected": "y>={{k}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The same range can be represented as an interval or as an inequality.",
+        "reasoning": [
+          "Opening upward makes {{k}} the minimum output.",
+          "The vertex is included, so the range is $[{{k}},\\infty)$, equivalently $y\\ge {{k}}$."
+        ]
+      },
+      "attemptFeedback": [
+        "Both representations must say that y is greater than or equal to the vertex output."
+      ],
+      "supportHints": [
+        "Upward-opening quadratics have a minimum at the vertex."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        }
+      }
+    }
+  ]
+}

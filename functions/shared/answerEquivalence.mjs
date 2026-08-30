@@ -15,6 +15,7 @@ import {
   splitEquationSides,
 } from './algebraicForm.mjs';
 import { stackDivisions } from './stackDivisions.mjs';
+import { sameExpandedPolynomialExpression } from './expandedPolynomialExpressionEquivalence.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
 
@@ -309,6 +310,10 @@ const normalizeFormPreservingSide = (value) => {
   //   x-(-5) -> x+5
   //   x+(-5) -> x-5
   let radicalReady = String(value ?? '')
+    // Adjacency to a numeric parenthesis is multiplication, not digit
+    // concatenation: 96(0.5) means 96*(0.5). Insert that operator BEFORE
+    // removing generator bookkeeping parentheses.
+    .replace(/([0-9A-Za-z)\]])(?=\((-?\d+(?:\.\d+)?)\))/g, '$1*')
     .replace(/\((-?\d+(?:\.\d+)?)\)/g, '$1');
 
   for (let guard = 0; guard < 4; guard += 1) {
@@ -337,7 +342,11 @@ const normalizeFormPreservingSide = (value) => {
   //   x-(-2) -> x--2 -> x+2
   //   +(-3) -> +-3 -> -3
   // They are not algebraic grouping around a variable expression.
-  text = text.replace(/\((-?\d+(?:\.\d+)?)\)/g, '$1');
+  text = text
+    // MathLive may introduce \left/\right around the numeric group after the
+    // first pass. Preserve the same implicit-multiplication meaning here too.
+    .replace(/([0-9A-Za-z)\]])(?=\((-?\d+(?:\.\d+)?)\))/g, '$1*')
+    .replace(/\((-?\d+(?:\.\d+)?)\)/g, '$1');
 
   // Settle adjacent signs created by removing numeric bookkeeping parentheses.
   for (let guard = 0; guard < 4; guard += 1) {
@@ -461,6 +470,12 @@ export const sameValue = (left, right, tolerance = 1e-6) => {
   if (sameSimpleInequality(left, right, tolerance)) return true;
   if (sameFormPreservingEquation(left, right)) return true;
   if (sameFormPreservingExpression(left, right)) return true;
+  // Expanded polynomial answers are mathematical expressions, so harmless
+  // term order and coefficient arithmetic must not make a correct student
+  // response wrong. The comparator is deliberately form-specific: if either
+  // side contains a grouped variable expression such as (x+2)(x+3), it
+  // refuses rather than silently turning a factoring task into expansion.
+  if (sameExpandedPolynomialExpression(left, right, tolerance)) return true;
   if (sameInverseFunctionEquation(left, right, tolerance)) return true;
   if (sameExpandedPolynomialEquation(left, right, tolerance)) return true;
   // LAST RESORT, and only for equations. Text equality already handled every

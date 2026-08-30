@@ -1,0 +1,286 @@
+{
+  "standard": "A.9B",
+  "verdict": "KEEP",
+  "certificationStatus": "candidate-keep-mathematics-certified-and-metadata-hardened",
+  "documents": [
+    {
+      "id": "mm_A_9B_v2_growth-rate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9B:v2-growth-rate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "A population model is $P={{a}}(1+{{p}}/100)^t$. What is the percent growth rate?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "In a growth model, the base is $1+r$ where $r$ is the decimal growth rate.",
+          "The expression explicitly uses {{p}}/100, which corresponds to {{p}} percent."
+        ],
+        "answerSummary": "The growth rate is ${{p}}$%."
+      },
+      "attemptFeedback": [
+        "Separate the initial value from the multiplicative factor, then convert between growth/decay factor and percent change."
+      ],
+      "supportHints": [
+        "In a(b)^x, a is the initial value and b is the multiplicative factor; growth percent is b-1 and decay percent is 1-b."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 100,
+            "max": 900
+          },
+          "p": {
+            "type": "int",
+            "min": 2,
+            "max": 25
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{p}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_9B_v2_initial-value",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9B:v2-initial-value",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9B",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "For $y={{a}}({{b}})^x$, what is the initial value $y(0)$?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Any nonzero base to the zero power equals 1.",
+          "So $y(0)={{a}}(1)={{a}}$."
+        ],
+        "answerSummary": "The initial value is ${{a}}$."
+      },
+      "attemptFeedback": [
+        "Separate the initial value from the multiplicative factor, then convert between growth/decay factor and percent change."
+      ],
+      "supportHints": [
+        "In a(b)^x, a is the initial value and b is the multiplicative factor; growth percent is b-1 and decay percent is 1-b."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 20,
+            "max": 500
+          },
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{a}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_9B_v2_decay-percent",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9B:v2-decay-percent",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9B",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A value is modeled by $V={{a}}(1-{{p}}/100)^t$. What percent does it lose each period?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "A decay factor has the form $1-r$.",
+          "The subtracted portion here is {{p}}/100, or {{p}} percent."
+        ],
+        "answerSummary": "It loses ${{p}}$% each period."
+      },
+      "attemptFeedback": [
+        "Separate the initial value from the multiplicative factor, then convert between growth/decay factor and percent change."
+      ],
+      "supportHints": [
+        "In a(b)^x, a is the initial value and b is the multiplicative factor; growth percent is b-1 and decay percent is 1-b."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 100,
+            "max": 1000
+          },
+          "p": {
+            "type": "int",
+            "min": 5,
+            "max": 40
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{p}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_9B_v2_growth-factor",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9B:v2-growth-factor",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9B",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student says a model that multiplies by {{b}} each period has a growth factor of {{b}}%. Correct the interpretation: what MULTIPLICATIVE growth factor belongs in the exponential model?",
+      "solutionReview": {
+        "headline": "A multiplicative factor and a percent rate are not the same parameter.",
+        "reasoning": [
+          "The factor is the number multiplied by the previous value each period.",
+          "Because the quantity is multiplied by {{b}}, the model's growth factor is {{b}}."
+        ],
+        "answerSummary": "Growth factor {{b}}."
+      },
+      "attemptFeedback": [
+        "Separate the initial value from the multiplicative factor, then convert between growth/decay factor and percent change."
+      ],
+      "supportHints": [
+        "In a(b)^x, a is the initial value and b is the multiplicative factor; growth percent is b-1 and decay percent is 1-b."
+      ],
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "choice",
+            "values": [
+              2,
+              3,
+              4,
+              5
+            ]
+          },
+          "a": {
+            "type": "int",
+            "min": 20,
+            "max": 200
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{b}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_9B_v2_recover-start",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9B:v2-recover-start",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9B",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "An exponential model $y=a({{b}})^x$ has $y(0)={{a}}$. Find the parameter $a$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "At $x=0$, the exponential factor equals 1.",
+          "Therefore the model output at zero is exactly its leading parameter $a$."
+        ],
+        "answerSummary": "$a={{a}}$"
+      },
+      "attemptFeedback": [
+        "Separate the initial value from the multiplicative factor, then convert between growth/decay factor and percent change."
+      ],
+      "supportHints": [
+        "In a(b)^x, a is the initial value and b is the multiplicative factor; growth percent is b-1 and decay percent is 1-b."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 20,
+            "max": 500
+          },
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{a}}"
+        }
+      ]
+    }
+  ]
+}

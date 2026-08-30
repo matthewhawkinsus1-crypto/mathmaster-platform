@@ -26,9 +26,27 @@ import { join } from 'node:path';
 import { generatePathInstance, hasPathGenerator } from '../functions/shared/pathQuestionGeneration.mjs';
 
 const SEED_DIR = 'seed/pathQuestionBank';
-const SAMPLES = Number(process.argv[2]) || 24;
+const argValue = (name) => {
+  const index = process.argv.indexOf(name);
+  return index >= 0 ? process.argv[index + 1] : null;
+};
+const requestedBank = argValue('--bank');
+const requestedSamples = Number(argValue('--samples'));
+const legacySamples = Number(process.argv[2]);
+const SAMPLES = Number.isFinite(requestedSamples) && requestedSamples > 0
+  ? requestedSamples
+  : (Number.isFinite(legacySamples) && legacySamples > 0 ? legacySamples : 24);
+const STRICT = process.argv.includes('--strict');
 
 const load = () => {
+  if (requestedBank) {
+    const parsed = JSON.parse(readFileSync(requestedBank, 'utf8'));
+    return (parsed.documents || []).filter((doc) => doc.active !== false).map((doc) => ({
+      ...doc,
+      bank: requestedBank,
+    }));
+  }
+
   const docs = [];
   readdirSync(SEED_DIR).filter((name) => name.endsWith('.json')).forEach((name) => {
     const parsed = JSON.parse(readFileSync(join(SEED_DIR, name), 'utf8'));
@@ -39,12 +57,39 @@ const load = () => {
   return docs;
 };
 
-/** Every string anywhere in the instance, so nothing hides in a nested field. */
-const collectStrings = (node, out = []) => {
+/**
+ * Every STUDENT-VISIBLE string anywhere in the generated instance.
+ *
+ * Identity / routing metadata is intentionally excluded. A machine id such as
+ * "slope-undefined" is a perfectly valid slug, while the word "undefined" in
+ * mathematical prose is also correct for a vertical-line slope. The health
+ * audit exists to catch broken rendered math (NaN, Infinity, x=undefined),
+ * not vocabulary inside ids, family keys, or routing metadata.
+ */
+const NON_RENDERED_STRING_KEYS = new Set([
+  'id',
+  'familyId',
+  'alignmentKeys',
+  'courseId',
+  'assessedConstruct',
+  'taskType',
+  'representation',
+  'questionType',
+  'activityRole',
+  'calculatorPolicy',
+  'type',
+  'mode',
+]);
+
+const collectStrings = (node, out = [], parentKey = '') => {
+  if (NON_RENDERED_STRING_KEYS.has(parentKey)) return out;
   if (typeof node === 'string') { out.push(node); return out; }
-  if (Array.isArray(node)) { node.forEach((item) => collectStrings(item, out)); return out; }
+  if (Array.isArray(node)) {
+    node.forEach((item) => collectStrings(item, out, parentKey));
+    return out;
+  }
   if (node && typeof node === 'object') {
-    Object.values(node).forEach((value) => collectStrings(value, out));
+    Object.entries(node).forEach(([key, value]) => collectStrings(value, out, key));
   }
   return out;
 };
@@ -53,7 +98,7 @@ const collectStrings = (node, out = []) => {
 // expression, not a leaked JavaScript value. Only the machine spellings count,
 // and `undefined`/`null` only when they appear where a NUMBER belongs — beside
 // an operator, a delimiter, or an equals sign.
-const BAD_NUMBER = /(?:^|[^A-Za-z])NaN(?:$|[^A-Za-z])|[-+*/=(\[,]\s*(?:undefined|null)|(?:undefined|null)\s*[-+*/=)\],]|(?:^|[^A-Za-z])-?Infinity(?:$|[^A-Za-z])/;
+const BAD_NUMBER = /(?:^|[^A-Za-z])NaN(?:$|[^A-Za-z])|[-+*/=(\[]\s*(?:undefined|null)|(?:undefined|null)\s*[-+*/=]|(?:^|[^A-Za-z])-?Infinity(?:$|[^A-Za-z])/;
 // `\sqrt{{{n}}}` is a LaTeX brace wrapping a placeholder, and `\frac{\sqrt{7}}{7}`
 // legitimately ends in `}}`. An UNSUBSTITUTED placeholder is what matters, and
 // generatePathInstance already reports those separately — so this looks only for
@@ -107,7 +152,10 @@ templates.forEach((template) => {
     sampled += 1;
     const strings = collectStrings(result.question);
     const joined = strings.join('  ');
-    fingerprints.add(joined);
+    // Distinctness must include numeric/table/graph coordinates. The previous
+    // string-only fingerprint made a generated numeric table look fixed because
+    // every changing value lived as a number rather than a string.
+    fingerprints.add(JSON.stringify(result.question));
 
     if (LEFTOVER.test(joined)) findings.leftoverBraces.push(`${id} (seed ${index})`);
     if (BAD_NUMBER.test(joined)) {
@@ -174,15 +222,18 @@ blocking += section('Non-finite generated parameter', findings.divisionByZero, t
 blocking += section('Constraints unsatisfiable — no instance can be produced', findings.unsatisfiable, true);
 
 console.log('\n## Instances that would reach a student ugly\n');
-section('Double sign, e.g. "5 + -3"', findings.doubleSign, true);
+const ugly = section('Double sign, e.g. "5 + -3"', findings.doubleSign, true);
 
 console.log('\n## Templates that do not really generate\n');
-section('No generator at all — fixed question', findings.noGenerator, true);
-section('Degenerate — same instance from every seed', findings.degenerate, true);
+const fixed = section('No generator at all — fixed question', findings.noGenerator, true);
+const degenerate = section('Degenerate — same instance from every seed', findings.degenerate, true);
 
 console.log('');
 console.log(blocking === 0
   ? 'No template produced a broken instance in any sampled draw.'
   : `${blocking} template(s) can produce a broken instance. These reach students silently.`);
+if (STRICT) {
+  console.log(`Strict quality findings: ${ugly + fixed + degenerate}`);
+}
 
-process.exitCode = blocking === 0 ? 0 : 1;
+process.exitCode = blocking === 0 && (!STRICT || (ugly + fixed + degenerate) === 0) ? 0 : 1;

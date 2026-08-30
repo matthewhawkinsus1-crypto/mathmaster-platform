@@ -1,0 +1,671 @@
+{
+  "standard": "A.7A",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-quadratic-graph-construction-and-full-attribute-analysis",
+  "documents": [
+    {
+      "id": "mm_A_7A_v2_vertex-form-construct-and-analyze",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7A:v2-vertex-form-construct-and-analyze",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Graph $y={{a}}(x-({{h}}))^2{{k|signed}}$ by plotting the three requested points and sketching the parabola. Then report the axis of symmetry and whether the vertex is a minimum or maximum.",
+      "equationLatex": "y={{a}}(x-({{h}}))^2{{k|signed}}",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": "{{a}}",
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "graph": {
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -10,
+        "yMax": 12,
+        "snapStep": 1
+      },
+      "pointTasks": [
+        {
+          "id": "left",
+          "label": "Plot the point one unit left of the vertex",
+          "x": "{{xl}}",
+          "expected": [
+            "{{xl}}",
+            "{{yl}}"
+          ]
+        },
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": "{{h}}",
+          "expected": [
+            "{{h}}",
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "right",
+          "label": "Plot the point one unit right of the vertex",
+          "x": "{{xr}}",
+          "expected": [
+            "{{xr}}",
+            "{{yr}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "axis",
+          "label": "Axis of symmetry x-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{h}}"
+          ]
+        },
+        {
+          "id": "extremumType",
+          "label": "Enter MINIMUM",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "minimum"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Vertex form gives both the center of the graph and its symmetry.",
+        "reasoning": [
+          "The vertex is $({{h}},{{k}})$. Points one unit to either side have the same output, so they anchor the symmetric parabola.",
+          "The axis of symmetry is $x={{h}}$. Because $a>0$ in this family, the parabola opens upward and the vertex is a minimum."
+        ],
+        "answerSummary": "Axis $x={{h}}$; vertex type: minimum."
+      },
+      "attemptFeedback": [
+        "Check the vertex first, then use symmetry to compare the left and right points."
+      ],
+      "supportHints": [
+        "In $y=a(x-h)^2+k$, the vertex is $(h,k)$ and the sign of $a$ controls opening direction."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              1,
+              2,
+              3
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "xl": "h-1",
+          "xr": "h+1",
+          "yl": "a+k",
+          "yr": "a+k",
+          "extremum": "1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_7A_v2_zeros-intercepts-full-attributes",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7A:v2-zeros-intercepts-full-attributes",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7A",
+      "taskType": "interpretation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Construct the graph of $y={{a}}(x-({{h}}))^2{{k|signed}}$. After the sketch is complete, identify BOTH zeros, the $y$-intercept, the vertex, and the axis of symmetry.",
+      "equationLatex": "y={{a}}(x-({{h}}))^2{{k|signed}}",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": "{{a}}",
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "graph": {
+        "xMin": -9,
+        "xMax": 9,
+        "yMin": -24,
+        "yMax": 24,
+        "snapStep": 1
+      },
+      "pointTasks": [
+        {
+          "id": "p1",
+          "label": "Plot a point left of the vertex",
+          "x": "{{xl}}",
+          "expected": [
+            "{{xl}}",
+            "{{yl}}"
+          ]
+        },
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": "{{h}}",
+          "expected": [
+            "{{h}}",
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Plot a point right of the vertex",
+          "x": "{{xr}}",
+          "expected": [
+            "{{xr}}",
+            "{{yr}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "zeros",
+          "label": "List both zero x-values, separated by a comma",
+          "kind": "value",
+          "responseMode": "text",
+          "acceptedAnswers": [
+            "{{r1}},{{r2}}",
+            "{{r2}},{{r1}}"
+          ]
+        },
+        {
+          "id": "yint",
+          "label": "y-intercept value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{yint}}"
+          ]
+        },
+        {
+          "id": "vertexPair",
+          "label": "Vertex ordered pair",
+          "kind": "value",
+          "responseMode": "text",
+          "acceptedAnswers": [
+            "({{h}},{{k}})",
+            "{{h}},{{k}}"
+          ]
+        },
+        {
+          "id": "axis",
+          "label": "Axis of symmetry x-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{h}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The key quadratic features all come from the same graph.",
+        "reasoning": [
+          "The generated value $k=-a s^2$ makes the zeros exactly $x={{r1}}$ and $x={{r2}}$, symmetric around $x={{h}}$.",
+          "Substituting $x=0$ gives the $y$-intercept {{yint}}, while the vertex remains $({{h}},{{k}})$."
+        ],
+        "answerSummary": "Zeros {{r1}}, {{r2}}; y-intercept {{yint}}; vertex $({{h}},{{k}})$; axis $x={{h}}$."
+      },
+      "attemptFeedback": [
+        "Use symmetry: the two zeros must be the same horizontal distance from the axis."
+      ],
+      "supportHints": [
+        "Set $y=0$ to find zeros and set $x=0$ to find the y-intercept."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              1,
+              2,
+              -1,
+              -2
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "s": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "k": "-a*s*s",
+          "r1": "h-s",
+          "r2": "h+s",
+          "xl": "h-1",
+          "xr": "h+1",
+          "yl": "a+k",
+          "yr": "a+k",
+          "yint": "a*h*h+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_7A_v2_standard-form-to-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7A:v2-standard-form-to-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Graph $y={{A}}x^2{{B|signed}}x{{C|signed}}$. Use the equation to construct the parabola, then identify the vertex and axis of symmetry.",
+      "equationLatex": "y={{A}}x^2{{B|signed}}x{{C|signed}}",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": "{{A}}",
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "graph": {
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -12,
+        "yMax": 12,
+        "snapStep": 1
+      },
+      "pointTasks": [
+        {
+          "id": "left",
+          "label": "Plot the point at x = {{xl}}",
+          "x": "{{xl}}",
+          "expected": [
+            "{{xl}}",
+            "{{yl}}"
+          ]
+        },
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": "{{h}}",
+          "expected": [
+            "{{h}}",
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "right",
+          "label": "Plot the point at x = {{xr}}",
+          "x": "{{xr}}",
+          "expected": [
+            "{{xr}}",
+            "{{yr}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "vertexPair",
+          "label": "Vertex ordered pair",
+          "kind": "value",
+          "responseMode": "text",
+          "acceptedAnswers": [
+            "({{h}},{{k}})",
+            "{{h}},{{k}}"
+          ]
+        },
+        {
+          "id": "axis",
+          "label": "Axis of symmetry x-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{h}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Standard form and vertex form describe the same parabola.",
+        "reasoning": [
+          "For $Ax^2+Bx+C$, the axis is $x=-B/(2A)={{h}}$; evaluating there gives vertex output {{k}}.",
+          "Points one unit to either side of the axis have equal outputs {{yl}}, which anchors the symmetric sketch."
+        ],
+        "answerSummary": "Vertex $({{h}},{{k}})$; axis $x={{h}}$."
+      },
+      "attemptFeedback": [
+        "Find the axis with $-B/(2A)$ before trying to sketch the curve."
+      ],
+      "supportHints": [
+        "Once the vertex is known, use symmetry to generate a matching point on each side."
+      ],
+      "generator": {
+        "parameters": {
+          "A": {
+            "type": "choice",
+            "values": [
+              -2,
+              -1,
+              1,
+              2
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "B": "-2*A*h",
+          "C": "A*h*h+k",
+          "xl": "h-1",
+          "xr": "h+1",
+          "yl": "A+k",
+          "yr": "A+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_7A_v2_error-vertex-is-yintercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7A:v2-error-vertex-is-yintercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7A",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "type": "functionInvestigation",
+      "prompt": "A student says, “The vertex of $y={{a}}(x-({{h}}))^2{{k|signed}}$ must also be the $y$-intercept.” Correct the claim by constructing the graph, then report the actual vertex and $y$-intercept value.",
+      "equationLatex": "y={{a}}(x-({{h}}))^2{{k|signed}}",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": "{{a}}",
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "graph": {
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -36,
+        "yMax": 36,
+        "snapStep": 1
+      },
+      "pointTasks": [
+        {
+          "id": "yintPoint",
+          "label": "Plot the y-intercept",
+          "x": 0,
+          "expected": [
+            0,
+            "{{yint}}"
+          ]
+        },
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": "{{h}}",
+          "expected": [
+            "{{h}}",
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "mirror",
+          "label": "Plot a point symmetric to the y-intercept across the axis",
+          "x": "{{mirrorX}}",
+          "expected": [
+            "{{mirrorX}}",
+            "{{yint}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "vertexPair",
+          "label": "Actual vertex ordered pair",
+          "kind": "value",
+          "responseMode": "text",
+          "acceptedAnswers": [
+            "({{h}},{{k}})",
+            "{{h}},{{k}}"
+          ]
+        },
+        {
+          "id": "yint",
+          "label": "Actual y-intercept value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{yint}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The vertex is the turning point; the y-intercept is where x equals zero.",
+        "reasoning": [
+          "The vertex is $({{h}},{{k}})$ from vertex form.",
+          "The y-intercept is found by substituting $x=0$, which gives {{yint}}. They coincide only when the vertex lies on the y-axis."
+        ],
+        "answerSummary": "Vertex $({{h}},{{k}})$; y-intercept {{yint}}."
+      },
+      "attemptFeedback": [
+        "Use the definitions: vertex means turning point; y-intercept means x=0."
+      ],
+      "supportHints": [
+        "Substitute x=0 into the function for the y-intercept."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              -3,
+              -2,
+              -1,
+              1,
+              2,
+              3
+            ]
+          },
+          "h": {
+            "type": "choice",
+            "values": [
+              -3,
+              -2,
+              -1,
+              1,
+              2,
+              3
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "yint": "a*h*h+k",
+          "mirrorX": "2*h"
+        }
+      }
+    },
+    {
+      "id": "mm_A_7A_v2_projectile-context-full-features",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7A:v2-projectile-context-full-features",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7A",
+      "taskType": "application",
+      "representation": "context",
+      "type": "functionInvestigation",
+      "prompt": "A projectile's height is modeled by $h(t)=-{{a}}(t-{{v}})^2+{{maxh}}$. Construct the graph for the relevant time interval, then identify the maximum point and the axis of symmetry.",
+      "equationLatex": "h(t)=-{{a}}(t-{{v}})^2+{{maxh}}",
+      "context": {
+        "scenario": "Projectile height over time"
+      },
+      "functionSpec": {
+        "type": "quadratic",
+        "a": "{{negA}}",
+        "h": "{{v}}",
+        "k": "{{maxh}}"
+      },
+      "graph": {
+        "xMin": -1,
+        "xMax": 12,
+        "yMin": -5,
+        "yMax": 45,
+        "snapStep": 1
+      },
+      "pointTasks": [
+        {
+          "id": "before",
+          "label": "Plot the height one second before the maximum",
+          "x": "{{leftT}}",
+          "expected": [
+            "{{leftT}}",
+            "{{sideH}}"
+          ]
+        },
+        {
+          "id": "vertex",
+          "label": "Plot the maximum point",
+          "x": "{{v}}",
+          "expected": [
+            "{{v}}",
+            "{{maxh}}"
+          ]
+        },
+        {
+          "id": "after",
+          "label": "Plot the height one second after the maximum",
+          "x": "{{rightT}}",
+          "expected": [
+            "{{rightT}}",
+            "{{sideH}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "maxPoint",
+          "label": "Maximum ordered pair",
+          "kind": "value",
+          "responseMode": "text",
+          "acceptedAnswers": [
+            "({{v}},{{maxh}})",
+            "{{v}},{{maxh}}"
+          ]
+        },
+        {
+          "id": "axis",
+          "label": "Axis of symmetry t-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{v}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The maximum of a downward-opening projectile model is its vertex.",
+        "reasoning": [
+          "The vertex is $({{v}},{{maxh}})$, so the projectile reaches its maximum height {{maxh}} at time {{v}}.",
+          "The graph is symmetric about $t={{v}}$; one second before and after the maximum, the height is {{sideH}}."
+        ],
+        "answerSummary": "Maximum $({{v}},{{maxh}})$; axis $t={{v}}$."
+      },
+      "attemptFeedback": [
+        "The negative leading coefficient guarantees a maximum rather than a minimum."
+      ],
+      "supportHints": [
+        "In $-a(t-v)^2+H$, the vertex is $(v,H)$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "v": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "maxh": {
+            "type": "int",
+            "min": 18,
+            "max": 38
+          }
+        },
+        "derived": {
+          "negA": "-a",
+          "leftT": "v-1",
+          "rightT": "v+1",
+          "sideH": "maxh-a"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,325 @@
+{
+  "standard": "A.9C",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-full-equation-writing",
+  "documents": [
+    {
+      "id": "mm_A_9C_v2_context-growth-model",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9C:v2-context-growth-model",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9C",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A quantity starts at {{a}} and grows by {{pct}}% each period. Write the exponential model in the form $y=ab^t$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Exponential equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}({{base}})^t"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Growth percent becomes a multiplier greater than 1.",
+        "reasoning": [
+          "The initial value is {{a}}, so $a={{a}}$.",
+          "A growth rate of {{pct}}% gives multiplier $1+{{pct}}/100={{base}}$, so the model is $y={{a}}({{base}})^t$."
+        ],
+        "answerSummary": "$y={{a}}({{base}})^t$"
+      },
+      "attemptFeedback": [
+        "Separate the initial value from the growth multiplier."
+      ],
+      "supportHints": [
+        "Growth uses $1+r$, where $r$ is written as a decimal."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 20,
+            "max": 500
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              1.05,
+              1.1,
+              1.2,
+              1.25,
+              1.5
+            ]
+          }
+        },
+        "derived": {
+          "pct": "round((base-1)*100)"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9C_v2_context-decay-model",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9C:v2-context-decay-model",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9C",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A value starts at {{a}} and decreases by {{pct}}% each period. Write the exponential model in the form $y=ab^t$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Exponential equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}({{base}})^t"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Decay percent becomes a multiplier between 0 and 1.",
+        "reasoning": [
+          "The initial value is {{a}}.",
+          "A decrease of {{pct}}% leaves {{base}} of the quantity each period, so the model is $y={{a}}({{base}})^t$."
+        ],
+        "answerSummary": "$y={{a}}({{base}})^t$"
+      },
+      "attemptFeedback": [
+        "For decay, subtract the rate from 1 rather than adding it."
+      ],
+      "supportHints": [
+        "A decay multiplier must be between 0 and 1."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 50,
+            "max": 800
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.6,
+              0.75,
+              0.8,
+              0.9,
+              0.95
+            ]
+          }
+        },
+        "derived": {
+          "pct": "round((1-base)*100)"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9C_v2_table-to-exponential",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9C:v2-table-to-exponential",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9C",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table follows an exponential pattern. Write the complete equation in the form $y=ab^x$.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "0",
+              "{{a}}"
+            ],
+            [
+              "1",
+              "{{y1}}"
+            ],
+            [
+              "2",
+              "{{y2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Exponential equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}({{b}})^x"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The value at zero is the initial value and consecutive-output ratios give the base.",
+        "reasoning": [
+          "At $x=0$, $y={{a}}$, so the initial value is {{a}}.",
+          "Each output is multiplied by {{b}}, so the exponential base is {{b}}."
+        ],
+        "answerSummary": "$y={{a}}({{b}})^x$"
+      },
+      "attemptFeedback": [
+        "Find the output at zero, then compare consecutive outputs multiplicatively."
+      ],
+      "supportHints": [
+        "For an exponential table, divide one output by the previous output."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 25
+          },
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          }
+        },
+        "derived": {
+          "y1": "a*b",
+          "y2": "a*b*b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9C_v2_error-linear-instead-exponential",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9C:v2-error-linear-instead-exponential",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9C",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A quantity starts at {{a}} and DOUBLES each period. A student writes the linear model $y={{a}}+2t$. Correct the student's model by writing the exponential equation.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct exponential equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}(2)^t"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Doubling is repeated multiplication, not repeated addition.",
+        "reasoning": [
+          "The initial value {{a}} is multiplied by 2 each period.",
+          "Repeated multiplication is modeled with an exponent, giving $y={{a}}(2)^t$."
+        ],
+        "answerSummary": "$y={{a}}(2)^t$"
+      },
+      "attemptFeedback": [
+        "Ask whether the change is additive or multiplicative each period."
+      ],
+      "supportHints": [
+        "Doubling means multiply by 2 again and again."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 3,
+            "max": 200
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_9C_v2_nonconsecutive-data-model",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9C:v2-nonconsecutive-data-model",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9C",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "An exponential function has $y(0)={{a}}$ and $y(2)={{y2}}$. Its base is positive. Write the complete equation $y=ab^x$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Exponential equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}({{b}})^x"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Nonconsecutive data require recovering the per-step multiplier.",
+        "reasoning": [
+          "From $y(2)=a b^2$, the ratio ${{y2}}/{{a}}={{bsq}}$ equals $b^2$.",
+          "The positive base is therefore {{b}}, giving $y={{a}}({{b}})^x$."
+        ],
+        "answerSummary": "$y={{a}}({{b}})^x$"
+      },
+      "attemptFeedback": [
+        "Use the two-step ratio to find $b^2$, then recover the positive per-step base."
+      ],
+      "supportHints": [
+        "Because the second point is two input units away, its multiplier is $b^2$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 30
+          },
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          }
+        },
+        "derived": {
+          "bsq": "b*b",
+          "y2": "a*bsq"
+        }
+      }
+    }
+  ]
+}

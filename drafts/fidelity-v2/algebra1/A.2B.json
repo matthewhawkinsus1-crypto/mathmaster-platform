@@ -1,0 +1,372 @@
+{
+  "standard": "A.2B",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-multiple-linear-forms",
+  "documents": [
+    {
+      "id": "mm_A_2B_v2_point-slope-form",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2B:v2-point-slope-form",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "A line has slope ${{m}}$ and passes through $({{x1}},{{y1}})$. Write its equation in point-slope form using the given point.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Point-slope equation",
+          "inputProfile": "equation",
+          "expected": "y{{negy1|signed}}={{m}}(x{{negx1|signed}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Point-slope form keeps the given point visible.",
+        "reasoning": [
+          "Use $y-y_1=m(x-x_1)$.",
+          "Substitute slope {{m}} and the point $({{x1}},{{y1}})$ without changing the point's signs."
+        ],
+        "answerSummary": "$y{{negy1|signed}}={{m}}(x{{negx1|signed}})$"
+      },
+      "attemptFeedback": [
+        "Match each coordinate to the subtraction structure in point-slope form."
+      ],
+      "supportHints": [
+        "A negative coordinate creates addition because subtracting a negative changes the sign."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "x1": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "y1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "negx1": "-x1",
+          "negy1": "-y1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2B_v2_standard-form-from-point-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2B:v2-standard-form-from-point-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2B",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "A line has slope ${{m}}$ and passes through $({{x1}},{{y1}})$. Write an equation for the line in standard form $Ax+By=C$ with integer coefficients.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Standard-form equation",
+          "inputProfile": "equation",
+          "expected": "{{A}}x-y={{C}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Convert the point-and-slope information into standard form.",
+        "reasoning": [
+          "Start from point-slope form and distribute the slope.",
+          "Move the variable terms to the left; one valid standard form is ${{A}}x-y={{C}}$."
+        ],
+        "answerSummary": "${{A}}x-y={{C}}$"
+      },
+      "attemptFeedback": [
+        "Build the line first, then collect x and y terms on the same side."
+      ],
+      "supportHints": [
+        "Equivalent integer multiples describe the same line, but keep the equation in $Ax+By=C$ form."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "x1": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "y1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "A": "m",
+          "C": "m*x1-y1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2B_v2_table-to-slope-intercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2B:v2-table-to-slope-intercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2B",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table shows points on a line. Write the equation in slope-intercept form.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ],
+            [
+              "{{x3}}",
+              "{{y3}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Slope-intercept equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Use the table to recover both slope and intercept.",
+        "reasoning": [
+          "The y-values change by {{m}} whenever x increases by 1, so the slope is {{m}}.",
+          "Substitute any table point to determine the intercept {{b}}."
+        ],
+        "answerSummary": "$y={{m}}x{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "Find the constant rate of change before solving for the intercept."
+      ],
+      "supportHints": [
+        "Do not assume the first listed y-value is the y-intercept unless its x-value is 0."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -4,
+            "max": 2
+          },
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "x2": "x1+1",
+          "x3": "x1+2",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b",
+          "y3": "m*x3+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2B_v2_error-point-slope-sign",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2B:v2-error-point-slope-sign",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2B",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student says that a line with slope ${{m}}$ through $({{x1}},{{y1}})$ can be written as $y{{y1|signed}}={{m}}(x{{x1|signed}})$. The student used the coordinate signs directly instead of subtracting the coordinates. Write the correct point-slope equation.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Correct point-slope equation",
+          "inputProfile": "equation",
+          "expected": "y{{negy1|signed}}={{m}}(x{{negx1|signed}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Point-slope form subtracts the coordinates.",
+        "reasoning": [
+          "The template is $y-y_1=m(x-x_1)$, so the signs inside the equation are opposites of the coordinate signs.",
+          "Using the given point produces the corrected equation."
+        ],
+        "answerSummary": "$y{{negy1|signed}}={{m}}(x{{negx1|signed}})$"
+      },
+      "attemptFeedback": [
+        "Check whether substituting the given point makes both sides equal."
+      ],
+      "supportHints": [
+        "Coordinates are inserted into subtraction, not copied as signs."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "x1": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "y1": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "negx1": "-x1",
+          "negy1": "-y1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2B_v2_two-points-transfer",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2B:v2-two-points-transfer",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2B",
+      "taskType": "reverseReasoning",
+      "representation": "orderedPairs",
+      "prompt": "A line passes through $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. Write its equation in slope-intercept form. The x-values are not consecutive, so determine the rate of change from the full change in y over the full change in x.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Line equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Reconstruct the line from two nonconsecutive points.",
+        "reasoning": [
+          "The change in x is {{span}} and the change in y is {{dy}}, giving slope {{m}}.",
+          "Substitute either point into $y=mx+b$ to recover intercept {{b}}."
+        ],
+        "answerSummary": "$y={{m}}x{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "Use the entire horizontal and vertical changes between the points."
+      ],
+      "supportHints": [
+        "After finding slope, you still need one point to determine the intercept."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -5,
+            "max": 1
+          },
+          "span": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "x2": "x1+span",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b",
+          "dy": "y2-y1"
+        }
+      }
+    }
+  ]
+}

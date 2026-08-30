@@ -1,0 +1,316 @@
+{
+  "standard": "A.2G",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-vertical-horizontal-graph-and-slope-classification",
+  "documents": [
+    {
+      "id": "mm_A_2G_v2_vertical-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2G:v2-vertical-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2G",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "graphing2",
+      "mode": "verticalHorizontal",
+      "orientation": "vertical",
+      "value": "{{c}}",
+      "prompt": "Graph the vertical line $x={{c}}$ by plotting two points that have the same x-coordinate.",
+      "graphBounds": {
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -7,
+        "yMax": 7
+      },
+      "solutionReview": {
+        "headline": "Every point on a vertical line has the same x-coordinate.",
+        "reasoning": [
+          "For $x={{c}}$, choose any two different y-values while keeping x fixed at {{c}}.",
+          "The line through those points is vertical; its slope is undefined because its run is 0."
+        ]
+      },
+      "attemptFeedback": [
+        "Both plotted points must have x={{c}}, but they must be different points."
+      ],
+      "supportHints": [
+        "Try $({{c}},0)$ and $({{c}},2)$."
+      ],
+      "generator": {
+        "parameters": {
+          "c": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_2G_v2_horizontal-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2G:v2-horizontal-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2G",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "graphing2",
+      "mode": "verticalHorizontal",
+      "orientation": "horizontal",
+      "value": "{{c}}",
+      "prompt": "Graph the horizontal line $y={{c}}$ by plotting two points that have the same y-coordinate.",
+      "graphBounds": {
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -7,
+        "yMax": 7
+      },
+      "solutionReview": {
+        "headline": "Every point on a horizontal line has the same y-coordinate.",
+        "reasoning": [
+          "For $y={{c}}$, choose any two different x-values while keeping y fixed at {{c}}.",
+          "The rise between any two points is 0, so a horizontal line has slope 0."
+        ]
+      },
+      "attemptFeedback": [
+        "Keep y={{c}} for both points and change only x."
+      ],
+      "supportHints": [
+        "Try $(0,{{c}})$ and $(2,{{c}})$."
+      ],
+      "generator": {
+        "parameters": {
+          "c": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_2G_v2_vertical-equation-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2G:v2-vertical-equation-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2G",
+      "taskType": "conceptual",
+      "representation": "orderedPairs",
+      "prompt": "The points $({{x}},{{y1}})$ and $({{x}},{{y2}})$ lie on the same line. Write the line's equation and classify its slope.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Equation",
+          "inputProfile": "equation",
+          "expected": "x={{x}}"
+        },
+        {
+          "id": "slope",
+          "label": "Slope classification",
+          "inputProfile": "text",
+          "expected": "undefined"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Matching x-values make a vertical line.",
+        "reasoning": [
+          "Both points have x={{x}}, so every point on the line satisfies $x={{x}}$.",
+          "The run between the two points is 0, so the slope ratio would divide by zero; the slope is undefined."
+        ]
+      },
+      "attemptFeedback": [
+        "Look at which coordinate stays constant before using the slope formula."
+      ],
+      "supportHints": [
+        "Vertical means x is constant."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "y1": {
+            "type": "int",
+            "min": -7,
+            "max": -1
+          },
+          "y2": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_2G_v2_horizontal-equation-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2G:v2-horizontal-equation-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2G",
+      "taskType": "conceptual",
+      "representation": "orderedPairs",
+      "prompt": "The points $({{x1}},{{y}})$ and $({{x2}},{{y}})$ lie on the same line. Write the line's equation and give its slope.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Equation",
+          "inputProfile": "equation",
+          "expected": "y={{y}}"
+        },
+        {
+          "id": "slope",
+          "label": "Slope",
+          "inputProfile": "number",
+          "expected": "0"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Matching y-values make a horizontal line.",
+        "reasoning": [
+          "Both points have y={{y}}, so the equation is $y={{y}}$.",
+          "The rise is 0 while the run is nonzero, so the slope is 0."
+        ]
+      },
+      "attemptFeedback": [
+        "Identify the constant coordinate, then compute rise over run."
+      ],
+      "supportHints": [
+        "Horizontal means y is constant."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -7,
+            "max": -1
+          },
+          "x2": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          },
+          "y": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_2G_v2_error-vertical-zero-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2G:v2-error-vertical-zero-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2G",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student says, “The line through $({{x}},{{y1}})$ and $({{x}},{{y2}})$ has slope 0 because one coordinate does not change.” Which classification correctly fixes the student's claim?",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct slope classification",
+          "inputProfile": "choice",
+          "expected": "vertical-slope-correct"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The student confused zero rise with zero run.",
+        "reasoning": [
+          "Here x does not change, so the run is 0.",
+          "Slope is rise divided by run; division by 0 is undefined, so the vertical line's slope is undefined."
+        ]
+      },
+      "attemptFeedback": [
+        "Check whether the unchanging coordinate causes the numerator or denominator of rise/run to be zero."
+      ],
+      "supportHints": [
+        "Zero rise gives slope 0; zero run gives undefined slope."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "y1": {
+            "type": "int",
+            "min": -7,
+            "max": -1
+          },
+          "y2": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          }
+        }
+      },
+      "choices": [
+        {
+          "id": "vertical-slope-correct",
+          "label": "The slope is undefined because the run is 0."
+        },
+        {
+          "id": "slope-zero",
+          "label": "The slope is 0 because the rise is 0."
+        },
+        {
+          "id": "slope-positive",
+          "label": "The slope is positive because y increases."
+        },
+        {
+          "id": "slope-negative",
+          "label": "The slope is negative because x does not change."
+        }
+      ]
+    }
+  ]
+}

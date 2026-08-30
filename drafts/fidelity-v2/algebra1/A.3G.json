@@ -1,0 +1,447 @@
+{
+  "standard": "A.3G",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-graphical-estimation-primary-act",
+  "documents": [
+    {
+      "id": "mm_A_3G_v2_pricing-estimate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3G:v2-pricing-estimate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "none",
+      "assessedConstruct": "A.3G",
+      "taskType": "application",
+      "representation": "context",
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "numericTolerance": 0.12,
+      "prompt": "Two pricing plans are modeled by the two lines in the workspace. Use the GRAPH to estimate the break-even point to about the nearest tenth; classify the system and enter the intersection coordinates.",
+      "context": {
+        "scenario": "Two pricing plans with different starting fees and rates"
+      },
+      "system": {
+        "m1": "{{m1}}",
+        "b1": "{{b1}}",
+        "m2": "{{m2}}",
+        "b2": "{{b2}}"
+      },
+      "graph": {
+        "xMin": 0,
+        "xMax": 10,
+        "yMin": -10,
+        "yMax": 36
+      },
+      "solutionReview": {
+        "headline": "A graphical solution is the coordinate where both real-world models have the same output.",
+        "reasoning": [
+          "The two lines intersect at approximately $({{xstar}},{{ystar}})$.",
+          "Because the task is graphical estimation, a coordinate read to about the nearest tenth is appropriate; substituting into both models can verify the estimate."
+        ]
+      },
+      "attemptFeedback": [
+        "Read both coordinates from the crossing point, not from where either line crosses an axis."
+      ],
+      "supportHints": [
+        "Trace both lines to their intersection, then project to the x- and y-axes."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": 4,
+            "max": 6
+          },
+          "xstar": {
+            "type": "choice",
+            "values": [
+              1.5,
+              2.5,
+              3.5,
+              4.5,
+              5.5
+            ]
+          },
+          "b1": {
+            "type": "int",
+            "min": 6,
+            "max": 16
+          }
+        },
+        "derived": {
+          "ystar": "m1*xstar+b1",
+          "b2": "ystar-m2*xstar"
+        },
+        "constraints": [
+          "b2>=-10",
+          "b2<=16",
+          "ystar<=34"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_3G_v2_savings-estimate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3G:v2-savings-estimate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "none",
+      "assessedConstruct": "A.3G",
+      "taskType": "application",
+      "representation": "context",
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "numericTolerance": 0.12,
+      "prompt": "The workspace graphs two savings models. Estimate graphically when the balances are equal and what that common balance is. Enter the intersection you read from the graph.",
+      "context": {
+        "scenario": "Two savings strategies growing at different constant rates"
+      },
+      "system": {
+        "m1": "{{m1}}",
+        "b1": "{{b1}}",
+        "m2": "{{m2}}",
+        "b2": "{{b2}}"
+      },
+      "graph": {
+        "xMin": 0,
+        "xMax": 10,
+        "yMin": -10,
+        "yMax": 36
+      },
+      "solutionReview": {
+        "headline": "A graphical solution is the coordinate where both real-world models have the same output.",
+        "reasoning": [
+          "The two lines intersect at approximately $({{xstar}},{{ystar}})$.",
+          "Because the task is graphical estimation, a coordinate read to about the nearest tenth is appropriate; substituting into both models can verify the estimate."
+        ]
+      },
+      "attemptFeedback": [
+        "Read both coordinates from the crossing point, not from where either line crosses an axis."
+      ],
+      "supportHints": [
+        "Trace both lines to their intersection, then project to the x- and y-axes."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": 4,
+            "max": 6
+          },
+          "xstar": {
+            "type": "choice",
+            "values": [
+              1.5,
+              2.5,
+              3.5,
+              4.5,
+              5.5
+            ]
+          },
+          "b1": {
+            "type": "int",
+            "min": 6,
+            "max": 16
+          }
+        },
+        "derived": {
+          "ystar": "m1*xstar+b1",
+          "b2": "ystar-m2*xstar"
+        },
+        "constraints": [
+          "b2>=-10",
+          "b2<=16",
+          "ystar<=34"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_3G_v2_transport-estimate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3G:v2-transport-estimate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "none",
+      "assessedConstruct": "A.3G",
+      "taskType": "application",
+      "representation": "context",
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "numericTolerance": 0.12,
+      "prompt": "Two transportation options have different fixed costs and per-unit rates. Use their graphs—not algebra first—to estimate where the costs are equal.",
+      "context": {
+        "scenario": "Two transportation cost models"
+      },
+      "system": {
+        "m1": "{{m1}}",
+        "b1": "{{b1}}",
+        "m2": "{{m2}}",
+        "b2": "{{b2}}"
+      },
+      "graph": {
+        "xMin": 0,
+        "xMax": 10,
+        "yMin": -10,
+        "yMax": 36
+      },
+      "solutionReview": {
+        "headline": "A graphical solution is the coordinate where both real-world models have the same output.",
+        "reasoning": [
+          "The two lines intersect at approximately $({{xstar}},{{ystar}})$.",
+          "Because the task is graphical estimation, a coordinate read to about the nearest tenth is appropriate; substituting into both models can verify the estimate."
+        ]
+      },
+      "attemptFeedback": [
+        "Read both coordinates from the crossing point, not from where either line crosses an axis."
+      ],
+      "supportHints": [
+        "Trace both lines to their intersection, then project to the x- and y-axes."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": 4,
+            "max": 6
+          },
+          "xstar": {
+            "type": "choice",
+            "values": [
+              1.5,
+              2.5,
+              3.5,
+              4.5,
+              5.5
+            ]
+          },
+          "b1": {
+            "type": "int",
+            "min": 6,
+            "max": 16
+          }
+        },
+        "derived": {
+          "ystar": "m1*xstar+b1",
+          "b2": "ystar-m2*xstar"
+        },
+        "constraints": [
+          "b2>=-10",
+          "b2<=16",
+          "ystar<=34"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_3G_v2_error-read-intersection",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3G:v2-error-read-intersection",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "none",
+      "assessedConstruct": "A.3G",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "numericTolerance": 0.12,
+      "prompt": "A student reads an axis intercept instead of the crossing point when estimating where two real-world models are equal. Use the workspace graph to correct the error and enter the actual intersection estimate.",
+      "context": {
+        "scenario": "Checking a student's graphical system estimate"
+      },
+      "system": {
+        "m1": "{{m1}}",
+        "b1": "{{b1}}",
+        "m2": "{{m2}}",
+        "b2": "{{b2}}"
+      },
+      "graph": {
+        "xMin": 0,
+        "xMax": 10,
+        "yMin": -10,
+        "yMax": 36
+      },
+      "solutionReview": {
+        "headline": "A graphical solution is the coordinate where both real-world models have the same output.",
+        "reasoning": [
+          "The two lines intersect at approximately $({{xstar}},{{ystar}})$.",
+          "Because the task is graphical estimation, a coordinate read to about the nearest tenth is appropriate; substituting into both models can verify the estimate."
+        ]
+      },
+      "attemptFeedback": [
+        "Read both coordinates from the crossing point, not from where either line crosses an axis."
+      ],
+      "supportHints": [
+        "Trace both lines to their intersection, then project to the x- and y-axes."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": 4,
+            "max": 6
+          },
+          "xstar": {
+            "type": "choice",
+            "values": [
+              1.5,
+              2.5,
+              3.5,
+              4.5,
+              5.5
+            ]
+          },
+          "b1": {
+            "type": "int",
+            "min": 6,
+            "max": 16
+          }
+        },
+        "derived": {
+          "ystar": "m1*xstar+b1",
+          "b2": "ystar-m2*xstar"
+        },
+        "constraints": [
+          "b2>=-10",
+          "b2<=16",
+          "ystar<=34"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_3G_v2_graph-then-verify",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3G:v2-graph-then-verify",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "none",
+      "assessedConstruct": "A.3G",
+      "taskType": "transfer",
+      "representation": "multipleRepresentation",
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "numericTolerance": 0.15,
+      "prompt": "Estimate the solution of the two models from their graph to the nearest tenth. Then use the equations shown in the workspace to mentally verify that your estimated point is reasonable before submitting it.",
+      "context": {
+        "scenario": "Comparing two competing linear models"
+      },
+      "system": {
+        "m1": "{{m1}}",
+        "b1": "{{b1}}",
+        "m2": "{{m2}}",
+        "b2": "{{b2}}"
+      },
+      "graph": {
+        "xMin": 0,
+        "xMax": 10,
+        "yMin": -10,
+        "yMax": 36
+      },
+      "solutionReview": {
+        "headline": "A graphical solution is the coordinate where both real-world models have the same output.",
+        "reasoning": [
+          "The two lines intersect at approximately $({{xstar}},{{ystar}})$.",
+          "Because the task is graphical estimation, a coordinate read to about the nearest tenth is appropriate; substituting into both models can verify the estimate."
+        ]
+      },
+      "attemptFeedback": [
+        "Read both coordinates from the crossing point, not from where either line crosses an axis."
+      ],
+      "supportHints": [
+        "Trace both lines to their intersection, then project to the x- and y-axes."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": 4,
+            "max": 6
+          },
+          "xstar": {
+            "type": "choice",
+            "values": [
+              1.5,
+              2.5,
+              3.5,
+              4.5,
+              5.5
+            ]
+          },
+          "b1": {
+            "type": "int",
+            "min": 6,
+            "max": 16
+          }
+        },
+        "derived": {
+          "ystar": "m1*xstar+b1",
+          "b2": "ystar-m2*xstar"
+        },
+        "constraints": [
+          "b2>=-10",
+          "b2<=16",
+          "ystar<=34"
+        ]
+      }
+    }
+  ]
+}

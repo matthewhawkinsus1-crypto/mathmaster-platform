@@ -97,6 +97,22 @@ test('student work is kept per question instance, so a second attempt is not a b
     'a new value merges into that question\'s existing work');
 });
 
+test('secure Path questions preserve authored calculator technology outside the answer-safe tool payload', () => {
+  const sanitized = mathPath.split('function buildSanitizedQuestion')[1].split('\nfunction ')[0];
+  assert.ok(
+    sanitized.includes("calculatorPolicy: String(question.calculatorPolicy || 'inherit')"),
+    'issuance must copy the authored calculator policy onto the public question instance',
+  );
+  assert.ok(
+    player.includes('questionSpec: questionInstance || {}'),
+    'the student calculator must resolve policy from the outer issued question',
+  );
+  assert.ok(
+    player.includes('<CalculatorPanel policy={calculatorPolicy}'),
+    'the resolved policy must reach the calculator panel',
+  );
+});
+
 // --- Feedback and solution review ---------------------------------------------
 
 test('a solution review is never built for an open question', () => {

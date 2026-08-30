@@ -1,0 +1,352 @@
+{
+  "standard": "A.3F",
+  "verdict": "KEEP",
+  "certificationStatus": "candidate-keep-math-systems-graph-and-classification-certified",
+  "documents": [
+    {
+      "id": "mm_A_3F_v2_workspace-solve",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3F:v2-workspace-solve",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3F",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Graph the system $y={{m1}}x {{b1|signed}}$ and $y={{m2}}x {{b2|signed}}$ and identify the intersection.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The solution is the point that satisfies both equations.",
+          "The generated lines share the point $({{x}},{{y}})$ and have different slopes, so the solution is unique."
+        ],
+        "answerSummary": "The solution is $({{x}},{{y}})$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "m2": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        },
+        "derived": {
+          "y": "m1*x+b1",
+          "b2": "y-m2*x"
+        }
+      },
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "system": {
+        "m1": "{{m1}}",
+        "b1": "{{b1}}",
+        "m2": "{{m2}}",
+        "b2": "{{b2}}"
+      }
+    },
+    {
+      "id": "mm_A_3F_v2_substitution",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3F:v2-substitution",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3F",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve the system $y={{m1}}x {{b1|signed}}$ and $y={{m2}}x {{b2|signed}}$. Give the solution as an ordered pair.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Set the two expressions for $y$ equal and solve for $x$.",
+          "Substitute that value into either equation to get $y$."
+        ],
+        "answerSummary": "$({{x}},{{y}})$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "m2": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        },
+        "derived": {
+          "y": "m1*x+b1",
+          "b2": "y-m2*x"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "orderedPair",
+          "expected": "({{x}},{{y}})"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3F_v2_context-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3F:v2-context-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3F",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "Two services charge ${{m1}}x {{b1|signed}}$ and ${{m2}}x {{b2|signed}}$ dollars for $x$ units. At how many units are their costs equal?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Equal costs occur at the intersection of the two linear models.",
+          "Set the expressions equal and solve; the constructed crossing occurs at the generated input."
+        ],
+        "answerSummary": "The costs are equal at $x={{x}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "m2": {
+            "type": "int",
+            "min": 6,
+            "max": 10
+          },
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "b1": {
+            "type": "int",
+            "min": 20,
+            "max": 60
+          }
+        },
+        "derived": {
+          "y": "m1*x+b1",
+          "b2": "y-m2*x"
+        },
+        "constraints": [
+          "b2>=0"
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3F_v2_classify-parallel",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3F:v2-classify-parallel",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3F",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student says two lines with the same slope must be the same line and therefore have infinitely many solutions. For $y={{m}}x{{b1|signed}}$ and $y={{m}}x{{b2|signed}}$, correct the claim by entering the number of solutions.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The slopes are equal but the intercepts are different.",
+          "Distinct parallel lines never intersect."
+        ],
+        "answerSummary": "The system has {{solutions}} solutions."
+      },
+      "attemptFeedback": [
+        "Compare both slope and y-intercept; equal slopes alone do not make two equations identical."
+      ],
+      "supportHints": [
+        "Equal slopes with different intercepts produce distinct parallel lines."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b1": {
+            "type": "int",
+            "min": -9,
+            "max": 0
+          },
+          "b2": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          }
+        },
+        "derived": {
+          "solutions": "0"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{solutions}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3F_v2_recover-intercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3F:v2-recover-intercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3F",
+      "taskType": "reverseReasoning",
+      "representation": "symbolic",
+      "prompt": "The lines $y={{m1}}x {{b1|signed}}$ and $y={{m2}}x+b$ intersect at $({{x}},{{y}})$. Find $b$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "At the intersection, the point lies on both lines.",
+          "Substitute $({{x}},{{y}})$ into the second equation and solve for its intercept."
+        ],
+        "answerSummary": "$b={{b2}}$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "m2": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 5
+          },
+          "b1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y": "m1*x+b1",
+          "b2": "y-m2*x"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{b2}}"
+        }
+      ]
+    }
+  ]
+}
