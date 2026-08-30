@@ -377,6 +377,21 @@ Resume here. Do not reopen A2.2A–A2.4D unless a failing gate names them.
   3. server-grade fitted $a,h,k$ and a required prediction from the resulting model;
   4. keep the table public while fitted coefficients remain server-computed;
   5. certify client/server fit parity and wrong-coefficient rejection.
+### 2026-08-30 — A2.4E square-root technology implemented
+- Added deterministic endpoint-anchored square-root regression for $y=a\sqrt{x-h}+k$ in client math — commit `5939db97251b1d56ec47bd2a77ea2a17fa772560`.
+  - the table endpoint supplies $(h,k)$;
+  - the scale a is fit by least squares using **all remaining observations**, not one hand-picked point.
+- Mirrored the fit server-side and added secure `squareRootFitPrediction` grading — commit `1247833becfe115f45f60839cd77ef67cbdbd618`.
+  - server recomputes a,h,k from the public table;
+  - server grades all three fitted parameters and the requested prediction;
+  - private coefficient tolerances do not enter the public payload.
+- Correct Answer Acceptance Audit on the secure server change: **PASS**.
+- Added square-root coefficient entry/model rendering to Data Modeling Lab — commit `4846c176460d6417fee3ac0bdc7415214431f13a`.
+- Added client/server parity, whole-table-fit, secure parameter grading, fixed prediction, and public nonleakage tests — commit `b73c4c41d1ce313e258c0ac50e33ee61e98f5232`.
+- Added all Data Modeling capability files/tests to the dedicated Algebra II certification workflow — commit `fb213109ed5fdcfda39dd70b095434a627454dfe`.
+- Capability certification run `33320344200`: **RUNNING** at this checkpoint.
+- A2.4E remains FIRST UNFINISHED until this capability gate is green and its five Fidelity V2 families are authored/certified.
+
 - Fidelity V2 content requirements after capability work:
   - at least two quadratic-technology families and at least two square-root-technology families;
   - students must enter the **complete fitted equation/model coefficients**, not choose from equations;
