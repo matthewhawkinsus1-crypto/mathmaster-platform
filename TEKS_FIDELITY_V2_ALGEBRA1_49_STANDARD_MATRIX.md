@@ -1,6 +1,6 @@
 # Algebra I TEKS Fidelity V2 — 49-Standard Decision Matrix
 
-**Audit authority:** the shipping compiled seed `seed/pathQuestionBank/algebra1_pathQuestionBank_seed.json`, not the older source modules.
+**Audit authority:** the shipping compiled seed `seed/pathQuestionBank/algebra1_pathQuestionBank_seed.json`. The Adaptive V2 migration established `drafts/algebra1.json` as the matching authoring/source package for that seed, so Fidelity V2 repairs are staged against the draft package and promoted through a controlled builder. The older `seed/pathQuestionBank/authoring/algebra1*.mjs` modules are a separate, non-overlapping generation and are not a source for shipping Fidelity V2 repairs.
 
 **Scope:** 49 Algebra I content standards (A.2A–A.12E), 245 active shipping families, five per standard.
 
@@ -17,7 +17,7 @@
 3. **DOK and difficulty are too tightly coupled.** Across the Algebra I bank the correlation is approximately **0.845**. Thirty-three standards use the identical pattern: procedural D1/B2, representation translation D2/B3, application D2/B3, error analysis D3/B3, reverse reasoning D3/B4.
 4. **Open/reverse wording is being used as a DOK shortcut.** A reverse prompt is not automatically DOK 3; many current D3 tasks are one-step parameter recovery.
 5. **Multiple-choice IDs leak a universal key pattern.** All 11 Algebra I choice families store `opt-1` as the expected choice. Runtime shuffling moves the option, but the public payload preserves the choice IDs, so an inspected payload can reveal the key pattern.
-6. **The repository has two non-overlapping Algebra I banks.** The seven older source modules contain 245 code+slug families; the shipping seed contains 245; overlap is **0/245**. Fidelity V2 needs one declared source of truth before authoring repairs.
+6. **Source governance is now resolved for Fidelity V2.** `drafts/algebra1.json` is the canonical Adaptive V2 authoring package; both installed Algebra I seeds are mirrors generated from it. The older seven Algebra I source modules remain historical/pedagogical references only.
 7. **The current Path tool contract cannot authentically assess several technology/graph standards.** It supports algebra, systems, systemsWorkspace (linear mode), relationMapping, intervalNumberLine, stepAlgebra, functionInvestigation and multiAnswer, but not a full two-variable inequality-region tool or data/regression lab.
 8. **Generator stability is not the primary weakness.** The Adaptive V2 migration already established generator/issuability/render stability. The Fidelity V2 problem is semantic: what the task actually measures, whether the representation is real, and whether the cognitive-demand metadata is honest.
 
@@ -158,7 +158,7 @@ The whole A.10 strand shows the same semantic weakness: the TEKS names a **full 
 ## Recommended repair order
 
 ### Phase 0 — architecture before content
-1. Declare one Algebra I source of truth and disable/deprecate the competing bank-generation path.
+1. Canonical source is `drafts/algebra1.json`; seed mirrors must be generated/checked from it.
 2. Fix public multiple-choice IDs so the correct answer cannot be inferred from `opt-1`.
 3. Add semantic audit gates for task-label honesty, representation honesty, DOK/difficulty independence, and TEKS-action coverage.
 4. Define predicate grading for intentionally open construction tasks.
