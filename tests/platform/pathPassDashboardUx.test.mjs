@@ -13,6 +13,7 @@ const wheel = readFileSync('src/components/student/MyMathPathWheel.jsx', 'utf8')
 const modal = readFileSync('src/components/student/SkillDetailCardModal.jsx', 'utf8');
 const player = readFileSync('src/components/student/PathSessionPlayer.jsx', 'utf8');
 const badge = readFileSync('src/components/common/StandardBadge.jsx', 'utf8');
+const weeklyPanel = readFileSync('src/components/student/WeeklyPathGoalPanel.jsx', 'utf8');
 
 test('dashboard receives the same server-owned Path pass progress as the full Path tab', () => {
   assert.match(
@@ -78,4 +79,14 @@ test('TEKS and CCMR alignment remains clickable rather than becoming decorative 
   assert.match(badge, />TEKS \{info\.displayCode\}/);
   assert.match(badge, /onClick=\{\(\) => openDetails\('ccmr'\)\}/);
   assert.match(badge, /CCMR connections/);
+});
+
+
+test('weekly CCMR slots name the actual assessment framework while course Challenge stays distinct', () => {
+  assert.match(weeklyPanel, /FRAMEWORK_LABELS/);
+  assert.match(weeklyPanel, /weeklyPurposeLabel/);
+  assert.match(weeklyPanel, /\$\{frameworkLabel\} transfer/);
+  assert.match(weeklyPanel, /weeklyPurposeLabel\(session\)/);
+  assert.match(weeklyPanel, /weeklyPurposeLabel\(next\)/);
+  assert.match(weeklyPanel, /PURPOSE\.EXTENSION/);
 });
