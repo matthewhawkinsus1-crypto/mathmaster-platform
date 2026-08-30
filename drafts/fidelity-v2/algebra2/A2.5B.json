@@ -169,7 +169,86 @@
           "retainPct": "100-pct",
           "factor": "1-pct/100"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-quarterly-decay-time-scale",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "modeling",
+          "representation": "context",
+          "prompt": "An asset is worth ${{v0}} initially and loses {{pct}}% of its value EVERY QUARTER. Formulate an explicit model V(t) with t measured in years and an equivalent recursive model with n measured in quarters.",
+          "responseFields": [
+            {
+              "id": "factor",
+              "label": "Quarterly retained-value factor",
+              "inputProfile": "number",
+              "expected": "{{factor}}"
+            },
+            {
+              "id": "explicit",
+              "label": "Explicit yearly-time model V(t)",
+              "inputProfile": "equation",
+              "expected": "V={{v0}}({{factor}})^(4t)"
+            },
+            {
+              "id": "initial",
+              "label": "Recursive initial condition",
+              "inputProfile": "equation",
+              "expected": "V_0={{v0}}"
+            },
+            {
+              "id": "recursive",
+              "label": "Recursive quarter-to-quarter step",
+              "inputProfile": "equation",
+              "expected": "V_n={{factor}}V_(n-1)"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The percentage factor and the time unit must agree.",
+            "reasoning": [
+              "A {{pct}}% quarterly loss leaves factor {{factor}} each quarter.",
+              "There are 4 quarters per year, so t years corresponds to exponent 4t.",
+              "The recursive model advances one quarter at a time using the same factor."
+            ],
+            "answerSummary": "Explicit exponent 4t; recursive step uses quarterly factor {{factor}}."
+          },
+          "attemptFeedback": [
+            "Do not use exponent t directly when the percent change occurs four times per year."
+          ],
+          "supportHints": [
+            "Convert years to quarters before writing the explicit exponent."
+          ],
+          "generator": {
+            "parameters": {
+              "v0": {
+                "type": "int",
+                "min": 400,
+                "max": 2000,
+                "step": 100
+              },
+              "pct": {
+                "type": "choice",
+                "values": [
+                  5,
+                  10,
+                  15,
+                  20
+                ]
+              }
+            },
+            "derived": {
+              "factor": "1-pct/100",
+              "retainPct": "100-pct"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_5B_v2_table-infer-ratio-models",
