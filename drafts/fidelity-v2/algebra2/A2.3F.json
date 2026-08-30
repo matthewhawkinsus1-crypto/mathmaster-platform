@@ -163,7 +163,93 @@
             "max": 8
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-three-boundary-routine-construction",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "representationTranslation",
+          "representation": "graph",
+          "type": "systemsWorkspace",
+          "mode": "inequalities",
+          "interaction": "construct",
+          "ask": [
+            "construction"
+          ],
+          "prompt": "Solve the THREE-inequality system by constructing every boundary with the correct solid/dashed style and shading ONLY the common overlap: $y>{{m1}}x{{b1|signed}}$, $y\\le{{m2}}x{{b2|signed}}$, and $y\\ge{{c}}$.",
+          "inequalities": [
+            {
+              "m": "{{m1}}",
+              "b": "{{b1}}",
+              "relation": ">"
+            },
+            {
+              "m": "{{m2}}",
+              "b": "{{b2}}",
+              "relation": "<="
+            },
+            {
+              "m": 0,
+              "b": "{{c}}",
+              "relation": ">="
+            }
+          ],
+          "graph": {
+            "xMin": -6,
+            "xMax": 6,
+            "yMin": -10,
+            "yMax": 12
+          },
+          "solutionReview": {
+            "headline": "Three constraints increase construction load while the reasoning remains routine intersection work.",
+            "reasoning": [
+              "Use a dashed first boundary, a solid second boundary, and a solid horizontal third boundary.",
+              "Keep only the region satisfying all three inequalities at once."
+            ]
+          },
+          "attemptFeedback": [
+            "Check boundary style and shading direction for all three before identifying the overlap."
+          ],
+          "supportHints": [
+            "A system means AND: every retained point must satisfy every inequality."
+          ],
+          "generator": {
+            "parameters": {
+              "m1": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "m2": {
+                "type": "int",
+                "min": -3,
+                "max": -1
+              },
+              "b1": {
+                "type": "int",
+                "min": -5,
+                "max": -2
+              },
+              "b2": {
+                "type": "int",
+                "min": 4,
+                "max": 8
+              },
+              "c": {
+                "type": "int",
+                "min": -3,
+                "max": 1
+              }
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_3F_v2_three-constraint-region",
