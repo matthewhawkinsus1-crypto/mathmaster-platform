@@ -304,17 +304,36 @@ Certification result:
 
 Do **not** re-audit A2.4B unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.4C
 
-### A2.4C — REBUILD — STAGED / CERTIFICATION RUNNING
+### A2.4C — REBUILD — CERTIFIED
 
 Official construct: **Determine the effect on the graph of the square root parent function when it is vertically or horizontally scaled, reflected, or translated.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- full $a\sqrt{b(x-h)}+k$ transformation reasoning is represented without pretending the current interactive tool supports b;
+- vertical stretch and vertical compression are both explicit;
+- horizontal stretch and reciprocal horizontal compression are both explicit;
+- x-axis reflection and horizontal/y-axis reflection effects are both represented;
+- endpoint translation and left/right ray direction are required;
+- generated point mapping and graph-distance evidence verify the horizontal effects numerically;
+- reverse reasoning and complete error analysis are present;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- targeted Algebra II Fidelity V2 Certification run `33319841981`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4C unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.4D — PENDING AUDIT
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.4C
+### A2.4D
 
-Resume here. Do not reopen A2.2A–A2.4B unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.4C unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.4C audit finding
@@ -360,7 +379,10 @@ Resume here. Do not reopen A2.2A–A2.4B unless a failing gate names them.
 - Strengthened the point-mapping prompt/labels/solution review to explicitly name both **vertical compression** and **horizontal compression** — commit `039b86e86d29a2c332ec66d9a36adc51695b535a`.
 - No mathematical requirement was weakened; the content now makes the intended transformation language more visible to students.
 - Replacement certification is triggered from the strengthened package.
-- FIRST UNFINISHED STANDARD remains **A2.4C** until the replacement run is green.
+- Replacement certification run `33319841981`: **PASS**.
+- Generated transformation breadth, secure self-grading, point-map arithmetic, horizontal-stretch graph distances, explicit compression vocabulary, reverse reasoning, error analysis, public-key stripping, and student/runtime build all passed.
+- A2.4C is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4D**.
 
 
 ### 2026-08-30 — A2.4B audit finding
