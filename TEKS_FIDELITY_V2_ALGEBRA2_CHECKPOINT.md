@@ -408,15 +408,38 @@ Certification result:
 
 Do **not** re-audit A2.4G unless a named regression/certification test fails.
 
+## Completed: A2.4H
+
+### A2.4H — ENHANCE — CERTIFIED
+
+Official construct: **Solve quadratic inequalities.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- standard-form, factored, positive-leading, and negative-leading quadratic inequalities are represented;
+- strict and inclusive solution sets are both required;
+- a secure interval-number-line family constructs both exterior rays and interval notation;
+- a no-real-zero case uses discriminant/sign reasoning to produce the all-real solution set;
+- error analysis repairs endpoint inclusion and still gives the complete interval;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect interval/end-point work is rejected;
+- public payloads strip answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33324732755`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4H unless a named regression/certification test fails.
+
 ## Active standard
 
-### A2.4H — ENHANCE — STAGED / CERTIFICATION RUNNING
+### A2.5A — PENDING AUDIT
+
+Official construct: **Determine effects on key attributes of exponential and logarithmic graphs when they are vertically scaled/reflected or translated.**
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.4H
+### A2.5A
 
-Resume here. Do not reopen A2.2A–A2.4G unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.4H unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.4H audit finding
@@ -1224,4 +1247,7 @@ For each standard:
 - Generated content, production issue gate, secure self-grading, public-key stripping, representation/task breadth, concrete unrestricted-quadratic counterexamples, and student/runtime build all passed.
 - A2.2C is now locked as certified.
 - FIRST UNFINISHED STANDARD advanced to **A2.2D**.
-- Full A2.4H assertion run `33324732755`: **IN_PROGRESS** at this checkpoint.
+- Full A2.4H assertion run `33324732755`: **PASS**.
+- Generated content, number-line secure grading, no-real-zero sign case, strict/inclusive breadth, wrong-answer rejection, public-key stripping, and student/runtime build all passed.
+- A2.4H is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.5A**.
