@@ -192,9 +192,25 @@
               }
             },
             "derived": {
-              "maxCost": "fee+rate*maxh"
+              "maxCost": "fee+rate*maxh",
+              "maxcost": "fee+rate*maxh"
             }
-          }
+          },
+          "solutionReview": {
+            "headline": "Use the allowed input interval and evaluate both endpoints.",
+            "reasoning": [
+              "The booking time can vary from 0 through {{maxh}}, so the domain is [0,{{maxh}}].",
+              "At h=0 the cost is {{fee}}; at h={{maxh}} the cost is {{maxCost}}.",
+              "Because the rate is positive, the cost range is [{{fee}},{{maxCost}}]."
+            ],
+            "answerSummary": "Domain [0,{{maxh}}]; range [{{fee}},{{maxCost}}]."
+          },
+          "attemptFeedback": [
+            "Use the allowed h-values first, then evaluate the linear cost at both endpoints."
+          ],
+          "supportHints": [
+            "A positive rate makes the smallest cost occur at h=0 and the largest at h=max."
+          ]
         },
         {
           "coverageKey": "adaptive-d2b4-two-representations-decreasing-bounded-range",
@@ -255,6 +271,25 @@
               "yleft": "-mag*lo+b",
               "yright": "-mag*hi+b"
             }
+          },
+          "solutionReview": {
+            "headline": "A decreasing linear function reverses which input endpoint gives the minimum output.",
+            "reasoning": [
+              "Evaluate both domain endpoints: f({{lo}})={{yleft}} and f({{hi}})={{yright}}.",
+              "Because the slope is negative, {{yright}} is the smaller output and {{yleft}} is the larger output.",
+              "The same range is [{{yright}},{{yleft}}] and {{yright}}≤y≤{{yleft}}."
+            ],
+            "answerSummary": "Range [{{yright}},{{yleft}}], equivalently {{yright}}≤y≤{{yleft}}."
+          },
+          "attemptFeedback": [
+            "Order the range by output size, not by the left-to-right order of the input endpoints."
+          ],
+          "supportHints": [
+            "For a negative slope, increasing x makes the output decrease."
+          ],
+          "context": {
+            "title": "Bounded decreasing linear function",
+            "note": "Represent the same range in two mathematically equivalent forms."
           }
         }
       ]
