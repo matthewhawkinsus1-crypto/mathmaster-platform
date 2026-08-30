@@ -146,6 +146,56 @@ test('a choice parameter draws from its own list', () => {
   assert.deepEqual([...seen].sort(), ['gallons', 'litres']);
 });
 
+test('a generated sub-variant is deterministic and does not leak the unused variants', () => {
+  const template = {
+    id: 'variant-family',
+    variants: [
+      {
+        prompt: 'Square root with shift {{h}}',
+        functionSpec: { type: 'squareRoot', h: '{{h}}' },
+        generator: { parameters: { h: { type: 'int', min: -4, max: 4 } } },
+      },
+      {
+        prompt: 'Cube root with shift {{h}}',
+        functionSpec: { type: 'cubeRoot', h: '{{h}}' },
+        generator: { parameters: { h: { type: 'int', min: -4, max: 4 } } },
+      },
+    ],
+  };
+
+  assert.equal(hasPathGenerator(template), true);
+  const replayA = generatePathInstance(template, 'same-seed');
+  const replayB = generatePathInstance(template, 'same-seed');
+  assert.deepEqual(replayA, replayB);
+  assert.equal(replayA.question.variants, undefined);
+  assert.equal(replayA.question.generator, undefined);
+  assert.ok(['squareRoot', 'cubeRoot'].includes(replayA.question.functionSpec.type));
+  assert.equal(Number.isInteger(replayA.parameters.__variantIndex), true);
+
+  const seen = new Set();
+  for (let index = 0; index < 60; index += 1) {
+    const generated = generatePathInstance(template, `variant-${index}`);
+    assert.ok(generated.question);
+    seen.add(generated.question.functionSpec.type);
+  }
+  assert.deepEqual([...seen].sort(), ['cubeRoot', 'squareRoot']);
+});
+
+test('a static sub-variant can be selected without pretending it is a numeric generator', () => {
+  const template = {
+    id: 'static-variant-family',
+    variants: [
+      { prompt: 'Version A', responseFields: [{ id: 'a', expected: 'A' }] },
+      { prompt: 'Version B', responseFields: [{ id: 'a', expected: 'B' }] },
+    ],
+  };
+  assert.equal(hasPathGenerator(template), false);
+  const generated = generatePathInstance(template, 'static-seed');
+  assert.match(generated.question.prompt, /^Version [AB]$/);
+  assert.equal(generated.question.variants, undefined);
+  assert.equal(Number.isInteger(generated.parameters.__variantIndex), true);
+});
+
 // The half that keeps a broken template out of a classroom.
 test('a template that cannot satisfy its own constraints is refused', () => {
   const impossible = {

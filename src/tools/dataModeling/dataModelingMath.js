@@ -7,6 +7,10 @@ export const mean = (values = []) => values.length
 export const predictLinear = (model, x) => Number(model.m) * Number(x) + Number(model.b);
 export const predictQuadratic = (model, x) => Number(model.a) * Number(x) ** 2 + Number(model.b) * Number(x) + Number(model.c);
 export const predictExponential = (model, x) => Number(model.a) * Number(model.base) ** Number(x);
+export const predictSquareRoot = (model, x) => {
+  const inside = Number(x) - Number(model.h);
+  return inside < -EPS ? Number.NaN : Number(model.a) * Math.sqrt(Math.max(0, inside)) + Number(model.k);
+};
 
 const solve3x3 = (matrix, vector) => {
   const a = matrix.map((row, i) => [...row.map(Number), Number(vector[i])]);
@@ -68,6 +72,25 @@ export const exponentialRegression = (points = []) => {
   if (Math.abs(denominator) < EPS) return null;
   const logBase = numerator / denominator;
   return { a: Math.exp(ml - logBase * mx), base: Math.exp(logBase) };
+};
+
+export const squareRootFit = (points = []) => {
+  const clean = points
+    .map(([x, y]) => [Number(x), Number(y)])
+    .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y))
+    .sort((left, right) => left[0] - right[0]);
+  if (clean.length < 3) return null;
+  const h = clean[0][0];
+  const endpointRows = clean.filter(([x]) => Math.abs(x - h) <= EPS);
+  const k = mean(endpointRows.map(([, y]) => y));
+  const transformed = clean
+    .filter(([x]) => x > h + EPS)
+    .map(([x, y]) => ({ t: Math.sqrt(x - h), y: y - k }));
+  if (transformed.length < 2) return null;
+  const denominator = transformed.reduce((sum, row) => sum + row.t ** 2, 0);
+  if (Math.abs(denominator) < EPS) return null;
+  const a = transformed.reduce((sum, row) => sum + row.t * row.y, 0) / denominator;
+  return { a, h, k };
 };
 
 export const modelMetrics = (points = [], predict) => {
