@@ -717,6 +717,14 @@ Resume here. Do not reopen A2.2A–A2.7B unless a failing gate names them.
   - keep routine division DOK 2 despite multi-step computation; reserve DOK 3 for complete error analysis.
 - Existing secure expanded-polynomial expression grading is sufficient for quotient/remainder fields; no new Path tool is required.
 
+### 2026-08-30 — A2.7C staged
+- Staged five A2.7C Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7C.json` — commit `6c2ec51ad0da27bd541b16f045383eba025676ce`.
+- Coverage directly includes all four TEA combinations: cubic÷linear, cubic÷quadratic, quartic÷linear, and quartic÷quadratic.
+- Both exact and nonzero-remainder cases are present; the quartic÷quadratic nonexact case requires a valid linear remainder.
+- The fifth family is complete premature-stopping error analysis on quartic÷quadratic long division.
+- Base Algebra II certification run `33330906469`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.7C** until full generated certification is green.
+
 
 ### 2026-08-30 — A2.7B audit finding
 - Official construct: **add, subtract, and multiply polynomials**.
