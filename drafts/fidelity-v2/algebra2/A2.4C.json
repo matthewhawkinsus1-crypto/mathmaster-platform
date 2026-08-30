@@ -136,7 +136,102 @@
           "verticalScale": "abs(a)",
           "horizontalScale": "1/abs(b)"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-basic-translation-vertical-scale",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "interpretation",
+          "representation": "symbolic",
+          "prompt": "Compared with $y=\\sqrt{x}$, determine the basic effects of $g(x)={{a}}\\sqrt{x-({{h}})}{{k|signed}}$. Give the vertical scale, endpoint, and ray direction.",
+          "responseFields": [
+            {
+              "id": "vertical-scale",
+              "label": "Vertical scale factor",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "endpoint",
+              "label": "Transformed endpoint",
+              "inputProfile": "orderedPair",
+              "expected": "({{h}},{{k}})"
+            },
+            {
+              "id": "ray",
+              "label": "Direction the ray extends",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "right",
+                  "label": "Right"
+                },
+                {
+                  "id": "left",
+                  "label": "Left"
+                }
+              ],
+              "expected": "right"
+            },
+            {
+              "id": "reflection",
+              "label": "Is there a reflection?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "no",
+                  "label": "No"
+                },
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                }
+              ],
+              "expected": "no"
+            }
+          ],
+          "solutionReview": {
+            "headline": "With no inside scale or negative signs, only the outside scale and translation change the parent graph.",
+            "reasoning": [
+              "The outside factor {{a}} gives a vertical stretch by {{a}}.",
+              "The endpoint moves from (0,0) to ({{h}},{{k}}).",
+              "The ray still extends right and no reflection occurs."
+            ],
+            "answerSummary": "Vertical scale {{a}}, endpoint ({{h}},{{k}}), ray right."
+          },
+          "attemptFeedback": [
+            "Read outside scale and endpoint shift before looking for reflections that are not present."
+          ],
+          "supportHints": [
+            "In $a\\sqrt{x-h}+k$, positive a with no inside negative keeps the ray extending right."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              },
+              "h": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "k": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_4C_v2_point-map-horizontal-reflection",
@@ -269,7 +364,145 @@
           "x16": "h-4",
           "y16": "k+2"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d2b4-full-point-map-double-reflection",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "table",
+          "prompt": "Map the parent points $(0,0)$, $(4,2)$, and $(16,4)$ on $y=\\sqrt{x}$ through $g(x)=-2\\sqrt{-4(x-({{h}}))}{{k|signed}}$. Compute all three image points and state the scale/reflection effects.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Parent points",
+            "table": {
+              "headers": [
+                "Parent x",
+                "Parent y"
+              ],
+              "rows": [
+                [
+                  "0",
+                  "0"
+                ],
+                [
+                  "4",
+                  "2"
+                ],
+                [
+                  "16",
+                  "4"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "p0",
+              "label": "Image of (0,0)",
+              "inputProfile": "orderedPair",
+              "expected": "({{h}},{{k}})"
+            },
+            {
+              "id": "p4",
+              "label": "Image of (4,2)",
+              "inputProfile": "orderedPair",
+              "expected": "({{x4}},{{y4}})"
+            },
+            {
+              "id": "p16",
+              "label": "Image of (16,4)",
+              "inputProfile": "orderedPair",
+              "expected": "({{x16}},{{y16}})"
+            },
+            {
+              "id": "vertical-scale",
+              "label": "Vertical scale factor",
+              "inputProfile": "number",
+              "expected": "2"
+            },
+            {
+              "id": "horizontal-scale",
+              "label": "Horizontal scale factor",
+              "inputProfile": "number",
+              "expected": "0.25"
+            },
+            {
+              "id": "horizontal-reflection",
+              "label": "Horizontal reflection?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "x-reflection",
+              "label": "Reflection across x-axis?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "yes"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Point mapping applies the reciprocal inside scale to x and the outside scale to y.",
+            "reasoning": [
+              "The inside factor -4 maps parent x-values by dividing by -4 before translating by h.",
+              "The outside factor -2 doubles y-values and reflects them across the x-axis before adding k.",
+              "The three image points are therefore the generated coordinates shown."
+            ],
+            "answerSummary": "Horizontal scale 1/4 with horizontal reflection; vertical scale 2 with x-axis reflection."
+          },
+          "attemptFeedback": [
+            "Transform x- and y-coordinates with their own scale factors; do not use -4 directly as the horizontal scale."
+          ],
+          "supportHints": [
+            "For $a\\sqrt{b(x-h)}+k$, parent x maps to $h+x/b$ and parent y maps to $ay+k$."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -3,
+                "max": 5
+              },
+              "k": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            },
+            "derived": {
+              "x4": "h-1",
+              "y4": "k-4",
+              "x16": "h-4",
+              "y16": "k-8"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_4C_v2_graph-horizontal-stretch",
@@ -685,7 +918,91 @@
             "max": 5
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b5",
+          "dok": 3,
+          "difficultyBand": 5
+        },
+        {
+          "coverageKey": "adaptive-d3b3-horizontal-scale-claim-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student analyzes $g(x)=\\sqrt{4(x-({{h}}))}{{k|signed}}$ and says, “The 4 causes a horizontal stretch by factor 4.” Diagnose the claim, give the correct horizontal scale, identify the endpoint, and use the parent point $(4,2)$ to verify the corrected mapping.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Correct diagnosis",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "reciprocal",
+                  "label": "The horizontal scale is the reciprocal of |4|, so this is a compression by 1/4."
+                },
+                {
+                  "id": "stretch",
+                  "label": "The student is correct: horizontal stretch by 4."
+                }
+              ],
+              "expected": "reciprocal"
+            },
+            {
+              "id": "horizontal-scale",
+              "label": "Correct horizontal scale factor",
+              "inputProfile": "number",
+              "expected": "0.25"
+            },
+            {
+              "id": "endpoint",
+              "label": "Endpoint",
+              "inputProfile": "orderedPair",
+              "expected": "({{h}},{{k}})"
+            },
+            {
+              "id": "mapped-point",
+              "label": "Image of parent point (4,2)",
+              "inputProfile": "orderedPair",
+              "expected": "({{x4}},{{y4}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Inside horizontal factors act reciprocally on the parent x-coordinates.",
+            "reasoning": [
+              "The factor 4 gives horizontal compression by 1/4, not stretch by 4.",
+              "The endpoint is ({{h}},{{k}}).",
+              "Parent x=4 maps to {{x4}}, while parent y=2 maps to {{y4}}, confirming the compression."
+            ],
+            "answerSummary": "Horizontal compression by 1/4; endpoint and mapped point verify the correction."
+          },
+          "attemptFeedback": [
+            "Repair the claim with a mapped point, not only a memorized reciprocal rule."
+          ],
+          "supportHints": [
+            "Parent x maps to $h+x/4$ for this transformation."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "k": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            },
+            "derived": {
+              "x4": "h+1",
+              "y4": "k+2"
+            }
+          }
+        }
+      ]
     }
   ]
 }
