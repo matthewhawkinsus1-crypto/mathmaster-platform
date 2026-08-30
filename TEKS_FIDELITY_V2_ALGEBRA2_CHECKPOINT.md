@@ -348,7 +348,7 @@ Do **not** re-audit A2.4D unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4E — PENDING AUDIT
+### A2.4E — REBUILD — AUDITED / CAPABILITY WORK
 
 Official construct: **Formulate quadratic and square root equations using technology from a table of data.**
 
@@ -357,6 +357,31 @@ Official construct: **Formulate quadratic and square root equations using techno
 ### A2.4E
 
 Resume here. Do not reopen A2.2A–A2.4D unless a failing gate names them.
+
+
+### 2026-08-30 — A2.4E audit finding
+- Official construct: **formulate quadratic and square root equations using technology from a table of data**.
+- Verdict: **REBUILD with a real technology capability gap**.
+- Legacy drift:
+  - the quadratic-table family writes an exact equation but never requires use of regression/modeling technology;
+  - the square-root table family is multiple-choice recognition;
+  - the “choose family” item identifies quadratic from differences but does not formulate an equation;
+  - the context family gives the fitted quadratic in advance and only asks for a prediction;
+  - the reverse square-root family uses only two structural points and chooses a prewritten model.
+- The existing secure Data Modeling Lab already has authentic **quadratic regression technology** and server recomputation, so A2.4E quadratic work should use it rather than generic answer boxes.
+- Capability audit found the missing half of the TEKS: Data Modeling Lab has linear, quadratic, and exponential fit modes but **no square-root regression/model-fitting mode**.
+- A2.4E must not be certified by calling hand recognition of an endpoint “technology.”
+- Implementation target:
+  1. add a deterministic square-root regression/model fit to client and server Data Modeling math;
+  2. add a `squareRootFitPrediction` technology mode to Data Modeling Lab;
+  3. server-grade fitted $a,h,k$ and a required prediction from the resulting model;
+  4. keep the table public while fitted coefficients remain server-computed;
+  5. certify client/server fit parity and wrong-coefficient rejection.
+- Fidelity V2 content requirements after capability work:
+  - at least two quadratic-technology families and at least two square-root-technology families;
+  - students must enter the **complete fitted equation/model coefficients**, not choose from equations;
+  - tables should include more observations than the minimum needed to determine a model, reinforcing use of technology;
+  - include contextual transfer and an error-analysis family comparing an incorrect technology entry/model family with the actual fit.
 
 
 ### 2026-08-30 — A2.4D audit finding
