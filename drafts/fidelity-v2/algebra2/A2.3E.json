@@ -175,7 +175,102 @@
           "labor": "2*x+y+slack1",
           "material": "x+3*y+slack2"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-three-resource-five-constraint-model",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "modeling",
+          "representation": "context",
+          "prompt": "A shop makes products x and y. Product x uses 2 labor, 1 material, and 3 machine units; product y uses 1 labor, 3 material, and 2 machine units. Available resources are {{labor}}, {{material}}, and {{machine}} units. Production cannot be negative. Formulate the COMPLETE five-inequality system.",
+          "responseFields": [
+            {
+              "id": "labor",
+              "label": "Labor inequality",
+              "inputProfile": "equation",
+              "expected": "2x+y<={{labor}}"
+            },
+            {
+              "id": "material",
+              "label": "Material inequality",
+              "inputProfile": "equation",
+              "expected": "x+3y<={{material}}"
+            },
+            {
+              "id": "machine",
+              "label": "Machine inequality",
+              "inputProfile": "equation",
+              "expected": "3x+2y<={{machine}}"
+            },
+            {
+              "id": "nonneg-x",
+              "label": "x nonnegativity",
+              "inputProfile": "equation",
+              "expected": "x>=0"
+            },
+            {
+              "id": "nonneg-y",
+              "label": "y nonnegativity",
+              "inputProfile": "equation",
+              "expected": "y>=0"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Each resource creates its own coupled inequality, plus nonnegativity constraints.",
+            "reasoning": [
+              "Translate labor, material, and machine usage separately.",
+              "Then include x≥0 and y≥0 because production counts cannot be negative."
+            ],
+            "answerSummary": "Three resource inequalities plus two nonnegativity inequalities."
+          },
+          "attemptFeedback": [
+            "Do not merge different resource limits into one inequality."
+          ],
+          "supportHints": [
+            "Write one inequality per resource, then add the two domain constraints."
+          ],
+          "generator": {
+            "parameters": {
+              "x": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "y": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "s1": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              },
+              "s2": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              },
+              "s3": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              }
+            },
+            "derived": {
+              "labor": "2*x+y+s1",
+              "material": "x+3*y+s2",
+              "machine": "3*x+2*y+s3"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_3E_v2_table-half-plane-system",
