@@ -87,17 +87,35 @@ Certification result:
 
 Do **not** re-audit A2.2B unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.2C
 
-### A2.2C — ENHANCE — STAGED / CERTIFICATION RUNNING
+### A2.2C — ENHANCE — CERTIFIED
 
 Official construct: **Describe and analyze relationships between functions and their inverses, including quadratic/square root and logarithmic/exponential pairs and required domain restrictions.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- quadratic/square-root and exponential/logarithmic inverse pairs are both repeatedly assessed;
+- left-branch and right-branch quadratic restrictions are both represented;
+- domain/range exchange, reflection features, intercept/asymptote exchange, and unrestricted-quadratic error analysis are required;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- public Path payloads strip private answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33316108442`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.2C unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.2D — PENDING AUDIT
+
+Official construct: **Use composition of functions, including necessary domain restrictions, to determine whether two functions are inverses.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.2C
+### A2.2D
 
-Resume here. Do not reopen A2.2A or A2.2B unless a failing gate names them.
+Resume here. Do not reopen A2.2A, A2.2B, or A2.2C unless a failing gate names them.
 
 ---
 
@@ -197,4 +215,7 @@ For each standard:
 - Replaced the string-shape assertion with a concrete generated counterexample check: each unrestricted-quadratic error family must produce a test input for which the composition value is not the original input — commit `bd9a4cd29170cf143e919375aa8ba266b7bbccde`.
 - This strengthens the gate by testing the actual mathematical failure rather than a particular printed sign.
 - Current replacement run `33316108442`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.2C** until that run is green.
+- Replacement run `33316108442`: **PASS**.
+- Generated content, production issue gate, secure self-grading, public-key stripping, representation/task breadth, concrete unrestricted-quadratic counterexamples, and student/runtime build all passed.
+- A2.2C is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.2D**.
