@@ -11,6 +11,7 @@ import {
   solveLinearQuadratic,
 } from './systemsMath';
 import useToolSubmission from '../shared/useToolSubmission';
+import Matrix3Mode from './Matrix3Mode';
 
 const DEFAULT_SYSTEM = { m1: 2, b1: 1, m2: -1, b2: 7 };
 const DEFAULT_INEQUALITIES = [
@@ -450,6 +451,7 @@ const MODE_TASKS = {
   inequalities: 'Decide whether the marked point is in the feasible region, then find a point of your own that satisfies every inequality.',
   linearQuadratic: 'Find how many times the line meets the parabola, and give the coordinates of each meeting point.',
   matrix: 'Read the augmented matrix as a system, classify it, and solve it if it has exactly one solution.',
+  matrix3: 'Solve a system of three linear equations in three variables and show the required Gaussian or matrix-technology evidence.',
 };
 
 const MODE_STEPS = {
@@ -457,20 +459,23 @@ const MODE_STEPS = {
   inequalities: ['Substitute the purple point into every inequality.', 'Pick your own point from well inside the green overlap.', 'Enter both answers, then check.'],
   linearQuadratic: ['Count how many times the two graphs actually meet.', 'Set the expressions equal and solve for each x.', 'Substitute each x back to get its y.'],
   matrix: ['Rewrite each row as an equation.', 'Work out the determinant to decide the number of solutions.', 'Solve for x and y if there is exactly one.'],
+  matrix3: ['Read the 3×4 augmented matrix.', 'Complete the required row-reduction evidence.', 'Classify the system and report x, y, and z when the solution is unique.'],
 };
 
 export default function SystemsWorkspace({ questionData = {}, onAction }) {
   const mode = questionData.mode || 'linear';
   const modeLabel = mode === 'inequalities' ? 'Systems of Inequalities'
     : mode === 'linearQuadratic' ? 'Linear–Quadratic Systems'
-      : mode === 'matrix' ? 'Matrix / Row Reduction'
-        : 'Linear Systems';
+      : mode === 'matrix3' ? '3×3 Gaussian / Matrix Technology'
+        : mode === 'matrix' ? 'Matrix / Row Reduction'
+          : 'Linear Systems';
   return <ToolShell title="Systems Workspace" subtitle="Solve, classify and interpret a system — graphically and algebraically — in one place." badge={modeLabel}>
     <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.linear} steps={MODE_STEPS[mode] || MODE_STEPS.linear} />
     {mode === 'inequalities' ? <InequalityMode questionData={questionData} onAction={onAction}/>
       : mode === 'linearQuadratic' ? <LinearQuadraticMode questionData={questionData} onAction={onAction}/>
-        : mode === 'matrix' ? <MatrixMode questionData={questionData} onAction={onAction}/>
-          : <LinearMode questionData={questionData} onAction={onAction}/>
+        : mode === 'matrix3' ? <Matrix3Mode questionData={questionData} onAction={onAction}/>
+          : mode === 'matrix' ? <MatrixMode questionData={questionData} onAction={onAction}/>
+            : <LinearMode questionData={questionData} onAction={onAction}/>
     }
   </ToolShell>;
 }
