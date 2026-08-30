@@ -306,7 +306,7 @@ Do **not** re-audit A2.4B unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4C — PENDING AUDIT
+### A2.4C — REBUILD — AUDITED / AUTHORING
 
 Official construct: **Determine the effect on the graph of the square root parent function when it is vertically or horizontally scaled, reflected, or translated.**
 
@@ -315,6 +315,32 @@ Official construct: **Determine the effect on the graph of the square root paren
 ### A2.4C
 
 Resume here. Do not reopen A2.2A–A2.4B unless a failing gate names them.
+
+
+### 2026-08-30 — A2.4C audit finding
+- Official construct: **determine the effect on the graph of the square root parent function when it is vertically or horizontally scaled, reflected, or translated**.
+- Verdict: **REBUILD**.
+- The legacy bank covers only part of the transformation model:
+  - family 1 authentically plots a translated/vertically scaled square-root graph, but the current Function Investigation specification has no horizontal-scale parameter;
+  - family 2 recognizes translations only;
+  - family 3 asks for domain rather than determining transformation effects;
+  - family 4 corrects only an outside-negative reflection and never addresses the inside/horizontal reflection;
+  - family 5 chooses a prewritten equation from endpoint/vertical scale.
+- The missing construct is substantial: **horizontal scaling by the reciprocal inside factor** and horizontal reflection are effectively absent.
+- Fidelity V2 will use the full transformation model $y=a\sqrt{b(x-h)}+k$ as reasoning notation:
+  - vertical scale factor $|a|$;
+  - horizontal scale factor $1/|b|$;
+  - reflection across the x-axis when $a<0$;
+  - horizontal reflection when $b<0$;
+  - horizontal translation h and vertical translation k;
+  - endpoint remains $(h,k)$, with the square-root ray extending right for $b>0$ and left for $b<0$.
+- Required breadth:
+  - explicit vertical and horizontal scaling, including a compression/stretch distinction;
+  - both x-axis and horizontal/y-axis reflection effects;
+  - translations with correct inside-sign reasoning;
+  - graph/point-mapping evidence, symbolic transformation analysis, reverse reasoning, and genuine error analysis;
+  - at least one combined transformation where the student determines several effects together rather than answering isolated vocabulary.
+- The current interactive Function Investigation tool intentionally models $a\sqrt{x-h}+k$ and does not support b. A2.4C does **not** need a risky tool expansion to be faithful: secure generic multi-response fields plus generated point-mapping/graph stimuli can assess the missing horizontal effects directly. The existing tool may still be used only where its supported a/h/k model is mathematically sufficient.
 
 
 ### 2026-08-30 — A2.4B audit finding
