@@ -1,0 +1,547 @@
+{
+  "standard": "A2.7A",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-complex-add-subtract-multiply-standard-form-zero-components-mixed-operations-error-repair",
+  "rationale": "The legacy bank already covers all three TEKS operations. Fidelity V2 strengthens evidence collection, multiplication depth, deliberate zero-component cases, mixed operations, and complete error repair while keeping routine arithmetic at DOK 2.",
+  "documents": [
+    {
+      "id": "mm_A2_7A_v2_add-components-standard-form",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7A:v2-add-components-standard-form",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7A",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Add $({{a}}+({{b}})i)+({{c}}+({{d}})i)$. First combine the real parts and the imaginary coefficients separately, then write the simplified result in standard $a+bi$ form.",
+      "responseFields": [
+        {
+          "id": "real-part",
+          "label": "Combined real part",
+          "inputProfile": "number",
+          "expected": "{{re}}"
+        },
+        {
+          "id": "imag-coefficient",
+          "label": "Combined imaginary coefficient",
+          "inputProfile": "number",
+          "expected": "{{im}}"
+        },
+        {
+          "id": "answer",
+          "label": "Simplified complex number",
+          "inputProfile": "expression",
+          "expected": "{{re}}+({{im}})*i"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Add like components of complex numbers.",
+        "reasoning": [
+          "Real parts: {{a}}+{{c}}={{re}}.",
+          "Imaginary coefficients: {{b}}+{{d}}={{im}}.",
+          "The result is {{re}}+({{im}})i."
+        ],
+        "answerSummary": "${{re}}+({{im}})i$"
+      },
+      "attemptFeedback": [
+        "Combine real with real and imaginary coefficient with imaginary coefficient before writing standard form."
+      ],
+      "supportHints": [
+        "Treat 1 and i like separate basis components: add their coefficients independently."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          },
+          "b": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          },
+          "c": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          },
+          "d": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          }
+        },
+        "derived": {
+          "re": "a+c",
+          "im": "b+d"
+        },
+        "constraints": [
+          "re!=0",
+          "im!=0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A2_7A_v2_subtract-pure-imaginary-edge",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7A:v2-subtract-pure-imaginary-edge",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7A",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Subtract $({{a}}+({{b}})i)-({{a}}+({{d}})i)$. Distribute the subtraction, determine the real and imaginary components, and write the result in simplified standard form. This family deliberately allows the real component to cancel completely.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Component bookkeeping",
+        "table": {
+          "headers": [
+            "Component",
+            "First number",
+            "Subtract second number"
+          ],
+          "rows": [
+            [
+              "real",
+              "{{a}}",
+              "{{a}}"
+            ],
+            [
+              "imaginary coefficient",
+              "{{b}}",
+              "{{d}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "real-part",
+          "label": "Resulting real part",
+          "inputProfile": "number",
+          "expected": "0"
+        },
+        {
+          "id": "imag-coefficient",
+          "label": "Resulting imaginary coefficient",
+          "inputProfile": "number",
+          "expected": "{{im}}"
+        },
+        {
+          "id": "answer",
+          "label": "Simplified complex number",
+          "inputProfile": "expression",
+          "expected": "0+({{im}})*i"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Subtraction must apply to both components.",
+        "reasoning": [
+          "The real parts cancel: {{a}}-{{a}}=0.",
+          "The imaginary coefficient is {{b}}-{{d}}={{im}}.",
+          "So the result is purely imaginary: {{im}}i."
+        ],
+        "answerSummary": "${{im}}i$"
+      },
+      "attemptFeedback": [
+        "Distribute the subtraction to the real and imaginary parts of the second complex number."
+      ],
+      "supportHints": [
+        "The real components are identical, so focus carefully on the imaginary-coefficient subtraction."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "b": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "d": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          }
+        },
+        "derived": {
+          "im": "b-d"
+        },
+        "constraints": [
+          "im!=0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A2_7A_v2_multiply-general-components",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7A:v2-multiply-general-components",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7A",
+      "representation": "table",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Multiply $({{a}}+({{b}})i)({{c}}+({{d}})i)$. Use $i^2=-1$, determine the final real part and imaginary coefficient, and write the product in standard $a+bi$ form.",
+      "stimulus": {
+        "kind": "table",
+        "title": "FOIL structure",
+        "table": {
+          "headers": [
+            "Contribution",
+            "Expression"
+          ],
+          "rows": [
+            [
+              "real from ac",
+              "{{a}}·{{c}}"
+            ],
+            [
+              "imaginary from ad",
+              "{{a}}·{{d}}i"
+            ],
+            [
+              "imaginary from bc",
+              "{{b}}·{{c}}i"
+            ],
+            [
+              "i² term",
+              "{{b}}·{{d}}i²"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "real-part",
+          "label": "Final real part after using i²=-1",
+          "inputProfile": "number",
+          "expected": "{{re}}"
+        },
+        {
+          "id": "imag-coefficient",
+          "label": "Final imaginary coefficient",
+          "inputProfile": "number",
+          "expected": "{{im}}"
+        },
+        {
+          "id": "answer",
+          "label": "Simplified product",
+          "inputProfile": "expression",
+          "expected": "{{re}}+({{im}})*i"
+        }
+      ],
+      "solutionReview": {
+        "headline": "FOIL, replace i² with -1, then combine components.",
+        "reasoning": [
+          "The real part is ac-bd={{a}}({{c}})-{{b}}({{d}})={{re}}.",
+          "The imaginary coefficient is ad+bc={{a}}({{d}})+{{b}}({{c}})={{im}}.",
+          "The simplified product is {{re}}+({{im}})i."
+        ],
+        "answerSummary": "${{re}}+({{im}})i$"
+      },
+      "attemptFeedback": [
+        "The bd·i² term contributes -bd to the real part because i²=-1."
+      ],
+      "supportHints": [
+        "After FOIL, group the terms without i and the terms with exactly one i."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "c": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "d": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "re": "a*c-b*d",
+          "im": "a*d+b*c"
+        },
+        "constraints": [
+          "re!=0",
+          "im!=0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A2_7A_v2_conjugate-product-minus-real-pure-real",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7A:v2-conjugate-product-minus-real-pure-real",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7A",
+      "representation": "symbolic",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "application",
+      "prompt": "Simplify $({{a}}+{{b}}i)({{a}}-{{b}}i)-{{c}}$. This expression combines complex multiplication and subtraction. Show the conjugate product, then write the final result in standard complex form.",
+      "responseFields": [
+        {
+          "id": "conjugate-product",
+          "label": "Value of the conjugate product",
+          "inputProfile": "number",
+          "expected": "{{product}}"
+        },
+        {
+          "id": "real-part",
+          "label": "Final real part after subtracting {{c}}",
+          "inputProfile": "number",
+          "expected": "{{re}}"
+        },
+        {
+          "id": "imag-coefficient",
+          "label": "Final imaginary coefficient",
+          "inputProfile": "number",
+          "expected": "0"
+        },
+        {
+          "id": "answer",
+          "label": "Final complex number",
+          "inputProfile": "expression",
+          "expected": "{{re}}+0*i"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Conjugates multiply to a real number.",
+        "reasoning": [
+          "({{a}}+{{b}}i)({{a}}-{{b}}i)={{a}}^2+{{b}}^2={{product}} because i²=-1.",
+          "Subtract {{c}} to get {{re}}.",
+          "The imaginary component is 0, so the final result is purely real."
+        ],
+        "answerSummary": "${{re}}$"
+      },
+      "attemptFeedback": [
+        "Do the conjugate multiplication first; the imaginary cross-terms cancel."
+      ],
+      "supportHints": [
+        "Use (a+bi)(a-bi)=a²+b²."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "c": {
+            "type": "int",
+            "min": -10,
+            "max": 20
+          }
+        },
+        "derived": {
+          "product": "a*a+b*b",
+          "re": "product-c"
+        },
+        "constraints": [
+          "re!=0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A2_7A_v2_i-square-error-full-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7A:v2-i-square-error-full-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7A",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student multiplies $({{a}}+({{b}})i)({{c}}+({{d}})i)$ and incorrectly treats $i^2$ as $+1$, producing real part {{wrongRe}} instead of the correct value. Diagnose the error, repair the real and imaginary components, and finish the product in standard form.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's multiplication",
+        "steps": [
+          {
+            "id": "foil",
+            "label": "FOIL terms",
+            "work": "${{a}}({{c}})+{{a}}({{d}})i+{{b}}({{c}})i+{{b}}({{d}})i^2$"
+          },
+          {
+            "id": "wrong",
+            "label": "Incorrect i² substitution",
+            "work": "Uses $i^2=1$, giving real part {{wrongRe}}."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What corrects the student's error?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "i-square",
+              "label": "Use i²=-1, so the bd·i² contribution is -bd."
+            },
+            {
+              "id": "i-square-positive",
+              "label": "Keep i²=1; the student's real part is correct."
+            },
+            {
+              "id": "drop-i",
+              "label": "Delete every term containing i."
+            }
+          ],
+          "expected": "i-square"
+        },
+        {
+          "id": "real-part",
+          "label": "Correct real part",
+          "inputProfile": "number",
+          "expected": "{{re}}"
+        },
+        {
+          "id": "imag-coefficient",
+          "label": "Correct imaginary coefficient",
+          "inputProfile": "number",
+          "expected": "{{im}}"
+        },
+        {
+          "id": "answer",
+          "label": "Corrected product",
+          "inputProfile": "expression",
+          "expected": "{{re}}+({{im}})*i"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The defining identity i²=-1 changes the real contribution of the last FOIL term.",
+        "reasoning": [
+          "The student used +bd instead of -bd in the real part.",
+          "The correct real part is ac-bd={{re}}.",
+          "The imaginary coefficient is ad+bc={{im}}, so the product is {{re}}+({{im}})i."
+        ],
+        "answerSummary": "${{re}}+({{im}})i$"
+      },
+      "attemptFeedback": [
+        "Repair the i² substitution first, then recompute both final components."
+      ],
+      "supportHints": [
+        "Only the term containing i² changes sign when you replace i² by -1."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "c": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "d": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "wrongRe": "a*c+b*d",
+          "re": "a*c-b*d",
+          "im": "a*d+b*c"
+        },
+        "constraints": [
+          "wrongRe!=re",
+          "re!=0",
+          "im!=0"
+        ]
+      }
+    }
+  ]
+}
