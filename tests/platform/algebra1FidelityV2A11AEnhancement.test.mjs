@@ -23,7 +23,7 @@ test('A.11A answers are complete simplified expressions rather than extracted co
 });
 
 test('A.11A includes coefficient, like-radical, and genuine error-analysis reasoning', () => {
-  assert.ok(entry.documents.some((doc) => /coefficient/i.test(doc.prompt)));
+  assert.ok(entry.documents.some((doc) => /coefficient/i.test(JSON.stringify(doc.solutionReview || {}))), 'must reason about the outside coefficient');
   assert.ok(entry.documents.some((doc) => /\+/.test(doc.prompt)), 'must combine added like radicals');
   assert.ok(entry.documents.some((doc) => /-/.test(doc.prompt)), 'must combine subtracted like radicals');
   const error = entry.documents.find((doc) => doc.taskType === 'errorAnalysis');
