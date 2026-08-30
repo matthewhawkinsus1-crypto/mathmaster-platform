@@ -368,7 +368,138 @@
           "y1": "a*base",
           "y2": "a*base*base"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-shifted-fractional-growth-construction",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "representationTranslation",
+          "representation": "graph",
+          "prompt": "Construct the shifted exponential growth graph $y={{a}}({{base}})^x{{k|signed}}$ using FOUR requested points, including x=-1. Then identify the y-intercept and horizontal asymptote.",
+          "functionSpec": {
+            "type": "exponential",
+            "a": "{{a}}",
+            "k": "{{k}}",
+            "base": "{{base}}"
+          },
+          "graph": {
+            "xMin": -3,
+            "xMax": 5,
+            "yMin": -10,
+            "yMax": 60,
+            "snapStep": 0.25
+          },
+          "pointTasks": [
+            {
+              "id": "pneg",
+              "label": "Plot x = -1",
+              "x": -1,
+              "expected": [
+                -1,
+                "{{yNeg}}"
+              ]
+            },
+            {
+              "id": "p0",
+              "label": "Plot x = 0",
+              "x": 0,
+              "expected": [
+                0,
+                "{{y0}}"
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot x = 1",
+              "x": 1,
+              "expected": [
+                1,
+                "{{y1}}"
+              ]
+            },
+            {
+              "id": "p2",
+              "label": "Plot x = 2",
+              "x": 2,
+              "expected": [
+                2,
+                "{{y2}}"
+              ]
+            }
+          ],
+          "analysisRequests": [
+            {
+              "id": "yint",
+              "label": "y-intercept value",
+              "kind": "value",
+              "responseMode": "text",
+              "expected": [
+                "{{y0}}"
+              ]
+            },
+            {
+              "id": "asym",
+              "label": "horizontal asymptote y-value",
+              "kind": "value",
+              "responseMode": "text",
+              "expected": [
+                "{{k}}"
+              ]
+            }
+          ],
+          "solutionReview": {
+            "headline": "Negative inputs and a vertical shift make the graph harder without changing the construction reasoning.",
+            "reasoning": [
+              "At x=-1, divide the exponential distance from the asymptote by the base.",
+              "At x=0 the y-intercept is {{y0}}; then multiply the distance from y={{k}} by {{base}} for each step right.",
+              "The horizontal asymptote is y={{k}}."
+            ],
+            "answerSummary": "y-intercept {{y0}}; asymptote y={{k}}."
+          },
+          "attemptFeedback": [
+            "Track the exponential distance from the asymptote rather than repeatedly adding a constant."
+          ],
+          "supportHints": [
+            "For x=-1, use a/base before adding the vertical shift."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  2,
+                  4,
+                  6
+                ]
+              },
+              "base": {
+                "type": "choice",
+                "values": [
+                  1.5,
+                  2.5
+                ]
+              },
+              "k": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            },
+            "derived": {
+              "yNeg": "a/base+k",
+              "y0": "a+k",
+              "y1": "a*base+k",
+              "y2": "a*base*base+k"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_9D_v2_context-decay-graph",
