@@ -346,7 +346,81 @@
         "constraints": [
           "t!=v"
         ]
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b3"
+        },
+        {
+          "coverageKey": "challenge-d3b4-system-coefficient-mapping-audit",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "context",
+          "prompt": "A group buys {{n}} sandwiches: turkey costs {{t}} dollars each and veggie costs {{v}} dollars each. Let x be turkey and y be veggie. A student writes the cost equation ${{t}}y+{{v}}x={{total}}$. An audit later confirms {{x}} turkey and {{y}} veggie sandwiches were purchased. Diagnose the coefficient-variable mismatch, write the correct system, and verify the revenue using the audited counts.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What is wrong with the student's cost equation?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "coefficients-swapped",
+                  "label": "The turkey price must multiply x and the veggie price must multiply y; the student swapped the variable meanings."
+                },
+                {
+                  "id": "count-wrong",
+                  "label": "The count equation should multiply both variables by their prices."
+                },
+                {
+                  "id": "system-valid",
+                  "label": "The student's cost equation is valid because addition is commutative."
+                }
+              ],
+              "expected": "coefficients-swapped"
+            },
+            {
+              "id": "count",
+              "label": "Correct count equation",
+              "inputProfile": "equation",
+              "expected": "x+y={{n}}"
+            },
+            {
+              "id": "cost",
+              "label": "Correct cost equation",
+              "inputProfile": "equation",
+              "expected": "{{t}}x+{{v}}y={{total}}"
+            },
+            {
+              "id": "verified-count",
+              "label": "x+y using the audited counts",
+              "inputProfile": "number",
+              "expected": "{{n}}"
+            },
+            {
+              "id": "verified-revenue",
+              "label": "Revenue using the audited counts",
+              "inputProfile": "number",
+              "expected": "{{total}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Model coefficients must stay attached to the quantities they describe.",
+            "reasoning": [
+              "x counts turkey sandwiches, so the turkey price {{t}} multiplies x.",
+              "y counts veggie sandwiches, so the veggie price {{v}} multiplies y.",
+              "The audited counts satisfy both x+y={{n}} and {{t}}x+{{v}}y={{total}}, confirming the corrected model."
+            ],
+            "answerSummary": "$x+y={{n}}$ and ${{t}}x+{{v}}y={{total}}$"
+          },
+          "attemptFeedback": [
+            "Read the variable definitions before assigning prices to terms."
+          ],
+          "supportHints": [
+            "Commutativity lets you reorder whole terms, but it does not let you swap which coefficient belongs to which variable."
+          ]
+        }
+      ]
     },
     {
       "id": "mm_A_2I_v2_reverse-build-system-from-solution",
