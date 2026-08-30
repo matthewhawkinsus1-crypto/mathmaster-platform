@@ -5346,6 +5346,12 @@ async function loadCoursePathPassProgress(db, studentId, { limit = 400 } = {}) {
     if (session.status !== "completed") return;
     if (session.sessionKind === "retentionProbe") return;
     if (session.assessmentFramework) return;
+    // Weekly Path is a separate commitment. Its sessions still contribute
+    // mastery evidence and weekly completion, but they may be frozen at
+    // Current learning, Retention, Challenge, or CCMR-transfer rigor. Counting
+    // them as numbered Foundation/Deeper/Mastery passes would let low-rigor
+    // weekly work advance the open-practice level by session count alone.
+    if (session.weeklySlotKey) return;
 
     const alignmentKey = mathPath.canonicalAlignmentKey(session.target?.alignmentKey);
     const code = mathPath.displayAlignmentKey(alignmentKey);
@@ -5671,7 +5677,7 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   // work. This is NOT mastery — mastery remains evidence-driven.
   let priorCoursePasses = 0;
   let coursePassLevel = null;
-  if (!assessmentFramework && sessionKind !== "retentionProbe") {
+  if (!assessmentFramework && sessionKind !== "retentionProbe" && !requestedWeeklySlotKey) {
     const passProgress = await loadCoursePathPassProgress(db, studentId);
     const targetCode = mathPath.displayAlignmentKey(targetAlignmentKey);
     priorCoursePasses = Number(passProgress.byTeksCode?.[targetCode]?.passesCompleted || 0);
@@ -6214,7 +6220,9 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     generatorParameters: instantiated.parameters,
     skillCode: activeDisplayCode,
     pathRole,
-    coursePassLevel: session.assessmentFramework ? null : Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1))),
+    coursePassLevel: session.assessmentFramework || session.weeklySlotKey
+      ? null
+      : Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1))),
     assessmentBridgeFramework: usingCourseBridge ? session.assessmentFramework : null,
     ccmrChallengeTier: session.assessmentFramework ? Math.max(1, Math.min(3, Number(session.ccmrChallengeTier || 1))) : null,
     ccmrFamilyRole: authored.ccmrFamilyRole || (Number(authored.ccmrChallengeTier || 1) >= 2 ? "challenge" : "direct"),
