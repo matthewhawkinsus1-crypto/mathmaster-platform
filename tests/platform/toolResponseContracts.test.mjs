@@ -295,6 +295,7 @@ const SPOILED = {
     intervals: [{ ...work.intervals[0], max: 8 }, work.intervals[1]],
     notation: '(-∞, -3] U (2, 8)',
   }),
+  dataModelingLab: (work) => ({ ...work, r: 0 }),
   systemsWorkspace: (work) => ({ ...work, classification: 'none' }),
   stepAlgebra: (work) => ({ ...work, finalEquation: ' x = 9' }),
   functionInvestigation: (work) => ({ ...work, placements: { ...work.placements, p2: [2, 9] } }),
