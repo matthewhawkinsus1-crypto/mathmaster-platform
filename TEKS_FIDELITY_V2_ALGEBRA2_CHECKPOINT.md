@@ -474,7 +474,7 @@ Do **not** re-audit A2.5B unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.5C — PENDING AUDIT
+### A2.5C — ENHANCE — AUDITED / AUTHORING
 
 Official construct: **Rewrite exponential equations as corresponding logarithmic equations and logarithmic equations as corresponding exponential equations.**
 
@@ -483,6 +483,30 @@ Official construct: **Rewrite exponential equations as corresponding logarithmic
 ### A2.5C
 
 Resume here. Do not reopen A2.2A–A2.5B unless a failing gate names them.
+
+
+### 2026-08-30 — A2.5C audit finding
+- Official construct: **rewrite exponential equations as corresponding logarithmic equations and logarithmic equations as corresponding exponential equations**.
+- Verdict: **ENHANCE**.
+- Legacy mathematical role-mapping is sound:
+  - exponential base remains logarithmic base;
+  - exponential result becomes logarithm argument;
+  - exponent becomes logarithm value;
+  - both conversion directions are represented.
+- The fidelity weakness is the student action:
+  - all five legacy families are multiple-choice recognition;
+  - none requires the student to actually author the corresponding equation;
+  - examples are almost entirely positive-integer numeric triples, so students can pattern-match without transferring the relationship to variables/expressions;
+  - common/natural-log notation and symbolic expressions are absent;
+  - error analysis identifies a role mistake but does not require writing the corrected equation.
+- Fidelity V2 requirements:
+  - every family must require a **written rewritten equation**;
+  - both directions must occur repeatedly;
+  - include numeric role-mapping, variable/expression role-mapping, and common/natural-log notation;
+  - include at least one family that rewrites the same relationship in both directions to make the equivalence explicit;
+  - do not turn the task into solving for the exponent/input — A2.5D owns equation solving;
+  - error analysis must repair the incorrect base/argument/exponent placement and write the corrected equivalent form.
+- Generic secure equation fields are sufficient; no new Path capability is required.
 
 
 ### 2026-08-30 — A2.5B audit finding
