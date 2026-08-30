@@ -496,7 +496,7 @@ Do **not** re-audit A2.5C unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.5D — ENHANCE — AUDITED / AUTHORING
+### A2.5D — ENHANCE — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Solve exponential equations of the form y = ab^x and single logarithmic equations having real solutions.**
 
@@ -529,6 +529,21 @@ Resume here. Do not reopen A2.2A–A2.5C unless a failing gate names them.
   - include complete error analysis that repairs the isolation/log step and still finishes x;
   - keep A2.5D distinct from A2.5E: solve the equation here; reasonableness/domain validation is the next standard's primary action.
 - Generic secure equation/expression/number fields are sufficient; no new Path capability is required.
+
+
+### 2026-08-30 — A2.5D staged and gated
+- Staged five A2.5D Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.5D.json` — commit `78074a1609bf8258c64525cd707f2889f86b192d`.
+- Package/build run `33325402874`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - complete same-base exponential solving;
+  - a genuine y=ab^x solve whose isolated ratio is deliberately not a power of 2 and therefore requires logarithms;
+  - a common-log equation with affine argument that rewrites to exponential form and finishes a linear solve;
+  - contextual noninteger exponential time solved exactly with natural logs and interpreted in hours;
+  - complete error repair for taking logs before isolating the exponential expression.
+- Added A2.5D-specific generated certification — commit `3a1d909beeb2790be8b9f9b20f6b9cfc8ce71658`.
+- The gate samples 200+ generated instances, independently verifies non-power ratios/log approximations, validates affine-log solutions and positive log arguments, requires context/error-repair breadth, rejects a wrong final solved value in every family, and checks public answer-key stripping.
+- Full A2.5D assertion run `33325432153`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.5D** until that run is green.
 
 
 ### 2026-08-30 — A2.5C audit finding
