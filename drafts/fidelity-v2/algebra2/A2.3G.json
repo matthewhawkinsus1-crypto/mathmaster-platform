@@ -569,7 +569,70 @@
         "derived": {
           "b2": "b1+gap"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-fixed-boundary-inclusion-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "type": "systemsWorkspace",
+          "mode": "inequalities",
+          "interaction": "analyze",
+          "ask": [
+            "testPoint",
+            "candidate"
+          ],
+          "prompt": "A student says the marked point $(0,0)$ cannot solve the system because it lies on the boundary of $y\\ge0$. The second inequality is $y< -x+4$. Correct the student's boundary reasoning, decide whether the marked point is possible, then enter another feasible point.",
+          "inequalities": [
+            {
+              "m": 0,
+              "b": 0,
+              "relation": ">="
+            },
+            {
+              "m": -1,
+              "b": 4,
+              "relation": "<"
+            }
+          ],
+          "testPoint": {
+            "x": 0,
+            "y": 0
+          },
+          "graph": {
+            "xMin": -6,
+            "xMax": 6,
+            "yMin": -6,
+            "yMax": 8
+          },
+          "context": {
+            "title": "Boundary inclusion audit",
+            "note": "The marked point lies on the first boundary and below the second boundary."
+          },
+          "solutionReview": {
+            "headline": "An inclusive boundary can contain valid system solutions.",
+            "reasoning": [
+              "The ≥ symbol includes y=0.",
+              "At x=0, the second inequality requires y<4, so (0,0) satisfies it too.",
+              "Therefore the marked point is feasible and the student's blanket boundary rule is wrong."
+            ]
+          },
+          "answerSummary": "The marked point is feasible.",
+          "attemptFeedback": [
+            "Read the inequality symbol before deciding whether a boundary point is excluded."
+          ],
+          "supportHints": [
+            "≥ includes equality; > does not."
+          ]
+        }
+      ]
     }
   ]
 }
