@@ -788,6 +788,513 @@ mkc('6.3D', 'diagnosing-a-double-negative', {
   feedback: 'The arithmetic itself is sound; it is the sign on ${{b}}$ that was mishandled.',
 });
 
+// ================================================================ 6.3E
+// Multiplying and dividing positive rational numbers.
+
+mkc('6.3E', 'difference-of-two-fractional-parts', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'What is ${{n}} \\times \\frac{{{p}}}{{{q}}} - {{m}} \\times \\frac{{{r}}}{{{q}}}$?',
+  generator: {
+    parameters: {
+      q: { type: 'int', min: 4, max: 11 },
+      u: { type: 'int', min: 2, max: 9 },
+      w: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 2, max: 9 },
+      r: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      n: 'q*u',
+      m: 'q*w',
+      answer: 'u*p-w*r',
+      // Added the two parts instead of subtracting.
+      d_operationInverted: 'u*p+w*r',
+      // Paired each whole with the other numerator.
+      d_ratioReversed: 'u*r-w*p',
+      // Answered only the part that was being taken away.
+      d_forgotFinalStep: 'w*r',
+    },
+    constraints: [
+      'p<q', 'r<q', 'gcd(p,q)==1', 'gcd(r,q)==1', 'p!=r',
+      'u*p-w*r>4', 'abs(u*r-w*p-(u*p-w*r))>3', 'u!=w', 'p!=r', 'abs(w*r-u*p+w*r)>3',
+    ],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['${{n}}$ is ${{u}}$ lots of ${{q}}$, so the first part is ${{u}} \\times {{p}}$.', 'The second is ${{w}} \\times {{r}}$, and the difference is ${{answer}}$.'],
+  answerSummary: { headline: 'A common denominator makes both products whole numbers.', text: 'The value is ${{answer}}$.' },
+  hint: 'Divide each whole number by ${{q}}$ before multiplying.',
+  feedback: 'Each numerator belongs to the whole number written beside it.',
+});
+
+mkc('6.3E', 'number-behind-a-doubled-fraction-of-itself', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'A number is doubled and then multiplied by $\\frac{{{p}}}{{{q}}}$, giving ${{v}}$. What is the number?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 5 },
+      q: { type: 'int', min: 3, max: 12 },
+      t: { type: 'int', min: 2, max: 9 },
+    },
+    derived: {
+      v: '2*t*p',
+      answer: 'q*t',
+      // Answered the value that was given.
+      d_usedGivenValue: 'v',
+      // Undid the fraction but never undid the doubling.
+      d_forgotFinalStep: '2*q*t',
+      // Divided by the numerator and stopped.
+      d_partialTotal: 't',
+    },
+    constraints: ['p<q', 'gcd(p,q)==1', 'q*t>9', 'abs(v-q*t)>3', 'abs(q*t-t)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['Undoing $\\frac{{{p}}}{{{q}}}$ means multiplying ${{v}}$ by $\\frac{{{q}}}{{{p}}}$, giving $2 \\times {{q}} \\times {{t}}$.', 'Halving that leaves ${{answer}}$.'],
+  answerSummary: { headline: 'Undo the operations in the reverse order they were applied.', text: 'The number is ${{answer}}$.' },
+  hint: 'The doubling happened first, so it comes off last.',
+  feedback: 'Reversing the fraction alone leaves the doubling still in the answer.',
+});
+
+mkc('6.3E', 'diagnosing-a-misplaced-decimal-point', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student multiplied ${{a}}$ by ${{b}}$ and wrote ${{wrong}}$. What went wrong?',
+  generator: {
+    parameters: {
+      A: { type: 'int', min: 12, max: 89 },
+      B: { type: 'int', min: 12, max: 89 },
+    },
+    derived: {
+      a: 'A/10',
+      b: 'B/10',
+      right: 'A*B/100',
+      wrong: 'A*B/10',
+    },
+    constraints: ['A%10!=0', 'B%10!=0'],
+  },
+  choices: [
+    { label: 'The decimal point was placed one digit too far right.', correct: true },
+    { label: 'The two numbers were added instead of multiplied.', error: 'operationInverted' },
+    { label: 'Only the whole-number parts were multiplied.', error: 'partialTotal' },
+    { label: 'One factor was rounded before the multiplication.', error: 'roundedWrong' },
+  ],
+  reasoning: ['Each factor carries one decimal place, so the product carries two.', '${{a}} \\times {{b}} = {{right}}$, not ${{wrong}}$.'],
+  answerSummary: { headline: 'Count the decimal places in both factors and total them.', text: 'The decimal point sits one place too far right.' },
+  hint: 'Multiply as whole numbers first, then replace the decimal places.',
+  feedback: 'The digits themselves are right; it is their place value that is off.',
+});
+
+// ================================================================ 6.4A
+// Additive and multiplicative rules, and how they differ.
+
+mkc('6.4A', 'value-where-two-rules-agree', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Rule A is $y = {{a}}x - {{c}}$ and Rule B is $y = {{d}}x$. What is $y$ where they agree?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 4, max: 12 },
+      d: { type: 'int', min: 2, max: 9 },
+      k: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      c: '(a-d)*k',
+      answer: 'd*k',
+      // Answered the input where they agree, not the output.
+      d_forgotFinalStep: 'k',
+      // Read the output off Rule A without subtracting.
+      d_partialTotal: 'a*k',
+      // Answered the constant that was given.
+      d_usedGivenValue: 'c',
+    },
+    constraints: ['d<a', 'a-d!=d', 'abs((a-d-d)*k)>3', 'd*k>8', 'abs((a-d)*k)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Setting ${{a}}x - {{c}} = {{d}}x$ gives $x = {{k}}$.', 'Rule B then gives $y = {{d}} \\times {{k}} = {{answer}}$.'],
+  answerSummary: { headline: 'Solve for the input first, then read the output.', text: 'They agree at $y = {{answer}}$.' },
+  hint: 'Collect the $x$ terms on one side before dividing.',
+  feedback: 'The input where the rules meet is not the output they share.',
+});
+
+mkc('6.4A', 'multiplying-rule-behind-a-shared-pair', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: 'One rule multiplies and one adds; both send ${{x}}$ to ${{y}}$. What does the multiplying rule send ${{x2}}$ to?',
+  generator: {
+    parameters: {
+      x: { type: 'int', min: 2, max: 13 },
+      m: { type: 'int', min: 2, max: 9 },
+      x2: { type: 'int', min: 2, max: 13 },
+    },
+    derived: {
+      y: 'm*x',
+      answer: 'm*x2',
+      // Multiplied by the output rather than by the factor behind it.
+      d_usedGivenValue: 'x2*m*x',
+      // Applied the adding rule instead.
+      d_operationInverted: 'x2+m*x-x',
+      // Answered the input untouched.
+      d_forgotFinalStep: 'x2',
+    },
+    constraints: ['x!=x2', 'm*x2>8', 'abs(m*x2-x2-m*x+x)>3', 'abs(x2*m*x-m*x2)>3', 'abs(m*x2-x2)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['The multiplying rule takes ${{x}}$ to ${{y}}$, so it multiplies by ${{m}}$.', 'It therefore sends ${{x2}}$ to ${{answer}}$.'],
+  answerSummary: { headline: 'One shared pair fixes both rules, but they part company elsewhere.', text: 'It sends ${{x2}}$ to ${{answer}}$.' },
+  hint: 'Find the factor that carries ${{x}}$ to ${{y}}$.',
+  feedback: 'The adding rule agrees at ${{x}}$ only, and gives a different value at ${{x2}}$.',
+});
+
+mkc('6.4A', 'input-where-two-rules-differ-by-a-set-amount', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Rule A is $y = {{a}}x$ and Rule B is $y = x + {{b}}$. At which listed input does A exceed B by ${{gap}}$?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Input'],
+    rows: [['{{k}}'], ['{{i_low}}'], ['{{i_high}}'], ['{{i_odd}}']],
+  },
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 8 },
+      w: { type: 'int', min: 2, max: 9 },
+      k: { type: 'int', min: 6, max: 40 },
+    },
+    derived: {
+      b: '(a-1)*w',
+      gap: '(a-1)*(k-w)',
+      i_low: 'k-w',
+      i_high: 'k+2*w',
+      i_odd: 'w',
+    },
+    constraints: ['k>2*w+2', 'k-w>2', 'gap>6', 'w!=k-w', 'k!=2*w'],
+  },
+  choices: [
+    { label: 'Input ${{k}}$', correct: true },
+    { label: 'Input ${{i_low}}$', error: 'forgotFinalStep' },
+    { label: 'Input ${{i_high}}$', error: 'operationInverted' },
+    { label: 'Input ${{i_odd}}$', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The gap between the rules at input $x$ is $({{a}}-1)x - {{b}}$.', 'Setting that equal to ${{gap}}$ gives $x = {{k}}$.'],
+  answerSummary: { headline: 'The gap between an additive and a multiplicative rule grows steadily.', text: 'It is input ${{k}}$.' },
+  hint: 'Write the difference between the two rules as one expression in $x$.',
+  feedback: 'Leaving ${{b}}$ out of the difference shifts the input that works.',
+});
+
+// ================================================================ 6.7A
+// Order of operations, exponents and factorization.
+
+mkc('6.7A', 'product-less-a-grouped-quotient', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
+  prompt: 'Find the value of ${{d}} \\times {{e}} - \\frac{{{a}} + {{b}}^{2}}{{{c}}}$.',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 2, max: 6 },
+      c: { type: 'int', min: 2, max: 9 },
+      u: { type: 'int', min: 3, max: 20 },
+      d: { type: 'int', min: 2, max: 7 },
+      e: { type: 'int', min: 2, max: 7 },
+    },
+    derived: {
+      a: 'c*u-b*b',
+      answer: 'd*e-u',
+      // Added the quotient instead of subtracting it.
+      d_operationInverted: 'd*e+u',
+      // Took the difference the other way round.
+      d_signError: 'u-d*e',
+      // Answered the quotient on its own.
+      d_usedGivenValue: 'u',
+    },
+    constraints: ['a>2', 'abs(d*e-u)>4', 'abs(2*u-d*e)>3', 'd!=e'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The fraction bar groups ${{a}} + {{b}}^{2}$, which is ${{c}} \\times {{u}}$.', 'So the expression is ${{d}} \\times {{e}} - {{u}} = {{answer}}$.'],
+  answerSummary: { headline: 'A fraction bar groups everything above it.', text: 'The value is ${{answer}}$.' },
+  hint: 'Square ${{b}}$ before adding, and divide only after that.',
+  feedback: 'The quotient is subtracted from the product, not the other way round.',
+});
+
+mkc('6.7A', 'coefficient-behind-a-squared-term', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic',
+  prompt: 'For which value of $b$ does ${{a}} + b \\times {{x}}^{2}$ equal ${{v}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 5, max: 60 },
+      x: { type: 'int', min: 3, max: 6 },
+      w: { type: 'int', min: 2, max: 7 },
+    },
+    derived: {
+      v: 'a+w*x*x*x',
+      answer: 'x*w',
+      // Doubled the base instead of squaring it.
+      d_exponentError: 'w*x*x/2',
+      // Answered the base that was given.
+      d_usedGivenValue: 'x*x',
+      // Divided by a cube rather than a square.
+      d_orderOfOperations: 'w',
+    },
+    constraints: ['w*x*x%2==0', 'x!=w', 'abs(x*x-x*w)>3', 'x*w>8', 'abs(w*x*x/2-x*w)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_orderOfOperations}}'), error: 'orderOfOperations' },
+  ],
+  reasoning: ['Subtracting ${{a}}$ from ${{v}}$ leaves $b \\times {{x}}^{2}$.', 'Dividing by ${{x}}^{2}$ gives $b = {{answer}}$.'],
+  answerSummary: { headline: 'Strip the constant first, then divide by the power.', text: '$b = {{answer}}$.' },
+  hint: 'The square is a factor of what is left after ${{a}}$ is removed.',
+  feedback: '${{x}}^{2}$ is ${{x}}$ multiplied by itself, not ${{x}}$ doubled.',
+});
+
+mkc('6.7A', 'diagnosing-a-squared-product', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'A student evaluated ${{a}} - {{b}} \\times {{c}}^{2}$ as ${{wrong}}$. What went wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 20, max: 90 },
+      b: { type: 'int', min: 2, max: 6 },
+      c: { type: 'int', min: 3, max: 7 },
+    },
+    derived: {
+      right: 'a-b*c*c',
+      wrong: 'a-b*c*b*c',
+    },
+    constraints: ['b>1', 'a-b*c*c!=a-b*c*b*c'],
+  },
+  choices: [
+    { label: 'The base was multiplied by ${{b}}$ before it was squared.', correct: true },
+    { label: 'The subtraction was carried out before the multiplication.', error: 'orderOfOperations' },
+    { label: 'The exponent was treated as a multiplier.', error: 'exponentError' },
+    { label: 'The sign in front of ${{b}}$ was dropped.', error: 'signError' },
+  ],
+  reasoning: ['Only ${{c}}$ carries the exponent, so the term is ${{b}} \\times {{c}} \\times {{c}}$.', 'That gives ${{right}}$, not ${{wrong}}$.'],
+  answerSummary: { headline: 'An exponent binds only to the base written beneath it.', text: '${{b}}$ was folded into the base before squaring.' },
+  hint: 'Ask which factor the exponent actually sits on.',
+  feedback: 'Squaring came first here; the order of operations was not the problem.',
+});
+
+// ================================================================ 6.6A
+// Independent and dependent quantities.
+
+mkc('6.6A', 'column-that-a-rate-change-moves', {
+  difficultyBand: 4, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'A shift of ${{h}}$ hours makes ${{parts}}$ parts and pays $\\${{pay}}$. Which column changes if only the pay rate changes?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Hours', 'Parts made', 'Pay'],
+    rows: [['{{h}}', '{{parts}}', '$\\${{pay}}$'], ['{{h2}}', '{{parts2}}', '$\\${{pay2}}$']],
+  },
+  generator: {
+    parameters: {
+      h: { type: 'int', min: 3, max: 8 },
+      h2: { type: 'int', min: 4, max: 9 },
+      rate: { type: 'int', min: 14, max: 32 },
+      speed: { type: 'int', min: 5, max: 20 },
+    },
+    derived: {
+      parts: 'h*speed',
+      parts2: 'h2*speed',
+      pay: 'h*rate',
+      pay2: 'h2*rate',
+    },
+    constraints: ['h!=h2'],
+  },
+  choices: [
+    { label: 'Pay only.', correct: true },
+    { label: 'Hours only.', error: 'operationInverted' },
+    { label: 'Parts made only.', error: 'usedGivenValue' },
+    { label: 'Parts made and pay together.', error: 'partialTotal' },
+  ],
+  reasoning: ['Hours are chosen, not produced, so nothing about the pay rate moves them.', 'Parts made depend on hours and on how fast the work goes, not on the rate.'],
+  answerSummary: { headline: 'A change reaches only the quantities that depend on it.', text: 'Only the pay column changes.' },
+  hint: 'Ask which column is computed from the rate.',
+  feedback: 'Parts made and hours are settled before any pay rate is applied.',
+});
+
+mkc('6.6A', 'pair-for-a-longer-shift', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'orderedPairs',
+  prompt: 'The pair $({{h}}, {{p}})$ records hours and pay for one shift. Which pair records a shift ${{k}}$ hours longer?',
+  generator: {
+    parameters: {
+      h: { type: 'int', min: 2, max: 9 },
+      rate: { type: 'int', min: 12, max: 30 },
+      k: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      p: 'h*rate',
+      hNew: 'h+k',
+      pNew: 'h*rate+rate*k',
+      pFlat: 'h*rate+k',
+    },
+    constraints: ['rate!=1', 'k>0'],
+  },
+  choices: [
+    { label: plain('({{hNew}}, {{pNew}})'), correct: true },
+    { label: plain('({{hNew}}, {{pFlat}})'), error: 'usedGivenValue' },
+    { label: plain('({{hNew}}, {{p}})'), error: 'forgotFinalStep' },
+    { label: plain('({{pNew}}, {{hNew}})'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The pay rate is ${{p}} \\div {{h}} = {{rate}}$ an hour.', '${{k}}$ more hours add ${{rate}} \\times {{k}}$, giving $({{hNew}}, {{pNew}})$.'],
+  answerSummary: { headline: 'Recover the rate before extending the shift.', text: 'It is $({{hNew}}, {{pNew}})$.' },
+  hint: 'The pair given is enough to find what one hour pays.',
+  feedback: 'Extra hours add pay at the hourly rate, not one dollar each.',
+});
+
+mkc('6.6A', 'claim-that-ignores-a-fixed-charge', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'A cost $c$ follows $c = {{r}}n + {{f}}$ for $n$ parts. Which statement is wrong?',
+  generator: {
+    parameters: {
+      r: { type: 'int', min: 3, max: 20 },
+      f: { type: 'int', min: 8, max: 60 },
+    },
+    constraints: ['f>0', 'r>1'],
+  },
+  choices: [
+    { label: 'Doubling $n$ doubles $c$.', correct: true },
+    { label: 'Raising $n$ by one raises $c$ by ${{r}}$.', error: 'operationInverted' },
+    { label: 'When $n$ is zero, $c$ is ${{f}}$.', error: 'usedGivenValue' },
+    { label: '$c$ depends on $n$, not $n$ on $c$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Doubling $n$ doubles only the ${{r}}n$ part; the ${{f}}$ is charged once either way.', 'So the cost grows by less than double.'],
+  answerSummary: { headline: 'A fixed charge breaks proportional scaling.', text: 'Doubling $n$ does not double $c$.' },
+  hint: 'Test the claim with $n$ equal to one and then two.',
+  feedback: 'Each extra part does add exactly ${{r}}$; it is the fixed charge that spoils doubling.',
+});
+
+// ================================================================ 6.6B
+// Writing an equation that fits a table of pairs.
+
+mkc('6.6B', 'value-of-the-rule-at-zero', {
+  difficultyBand: 4, dok: 2, taskType: 'interpretation', representation: 'table',
+  prompt: 'Every row follows one rule of the form $y = kx + b$. What is $y$ when $x$ is zero?',
+  stimulus: {
+    kind: 'table',
+    columns: ['x', 'y'],
+    rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{y3}}']],
+  },
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 3, max: 15 },
+      b: { type: 'int', min: 4, max: 14 },
+      x1: { type: 'int', min: 2, max: 5 },
+      x2: { type: 'int', min: 6, max: 9 },
+      x3: { type: 'int', min: 11, max: 15 },
+    },
+    derived: {
+      y1: 'k*x1+b',
+      y2: 'k*x2+b',
+      y3: 'k*x3+b',
+      answer: 'b',
+      // Read the first output straight off the table.
+      d_forgotFinalStep: 'y1',
+      // Answered the rate of change instead of the starting value.
+      d_ratioReversed: 'k',
+      // Put the starting value on the wrong side of zero.
+      d_signError: '0-b',
+    },
+    constraints: ['abs(b-k)>3', 'abs(y1-b)>3', 'b>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['From row to row $y$ climbs ${{k}}$ for each step in $x$.', 'Working back to $x = 0$ leaves $y = {{answer}}$.'],
+  answerSummary: { headline: 'The value at zero is what is left once the rate is removed.', text: '$y = {{answer}}$.' },
+  hint: 'Find how much $y$ changes per unit of $x$ first.',
+  feedback: 'The rate of change and the value at zero are two different numbers.',
+});
+
+mkc('6.6B', 'input-that-reaches-a-target-output', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'orderedPairs',
+  prompt: 'The pairs $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$ obey one rule. For which $x$ does $y$ equal ${{yt}}$?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 7 },
+      c: { type: 'int', min: 4, max: 70 },
+      z: { type: 'int', min: 4, max: 9 },
+      x1: { type: 'int', min: 1, max: 6 },
+      x2: { type: 'int', min: 7, max: 12 },
+    },
+    derived: {
+      b: 'k*c',
+      y1: 'k*x1+k*c',
+      y2: 'k*x2+k*c',
+      answer: '(k+1)*z',
+      yt: 'k*(k+1)*z+k*c',
+      // Divided the output by the rate and never removed the constant.
+      d_forgotFinalStep: '(k+1)*z+c',
+      // Answered the constant divided by the rate.
+      d_usedGivenValue: 'c',
+      // Divided by one more than the rate.
+      d_orderOfOperations: 'k*z',
+    },
+    constraints: ['c>3', 'z>3', 'abs(c-(k+1)*z)>3', '(k+1)*z>9'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_orderOfOperations}}'), error: 'orderOfOperations' },
+  ],
+  reasoning: ['The two pairs give a rise of ${{k}}$ per step and a value of ${{b}}$ at zero.', 'Solving ${{k}}x + {{b}} = {{yt}}$ gives $x = {{answer}}$.'],
+  answerSummary: { headline: 'Build the rule from the pairs, then run it backwards.', text: '$x = {{answer}}$.' },
+  hint: 'Take the value at zero off the target before dividing.',
+  feedback: 'Dividing the target by the rate leaves the constant still folded in.',
+});
+
+mkc('6.6B', 'diagnosing-a-missing-constant', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal',
+  prompt: 'From the pairs $({{x1}}, {{y1}})$ and $({{x2}}, {{y2}})$ a student wrote $y = {{ratio}}x$. What went wrong?',
+  generator: {
+    parameters: {
+      k: { type: 'int', min: 2, max: 8 },
+      x1: { type: 'int', min: 2, max: 6 },
+      x2: { type: 'int', min: 7, max: 13 },
+      j: { type: 'int', min: 1, max: 6 },
+    },
+    derived: {
+      b: 'x1*j',
+      y1: 'k*x1+x1*j',
+      y2: 'k*x2+x1*j',
+      ratio: 'k+j',
+    },
+    constraints: ['j>0', 'k*x2+x1*j!=(k+j)*x2'],
+  },
+  choices: [
+    { label: 'The rule was read as multiplicative when a constant is also added.', correct: true },
+    { label: 'The two coordinates were used in the wrong order.', error: 'ratioReversed' },
+    { label: 'The rise was divided by the wrong difference.', error: 'wrongPercentBase' },
+    { label: 'Only the second pair was used to build the rule.', error: 'partialTotal' },
+  ],
+  reasoning: ['$y = {{ratio}}x$ fits the first pair but sends ${{x2}}$ to a value that is not ${{y2}}$.', 'The pairs rise by ${{k}}$ per step and start from ${{b}}$ at zero.'],
+  answerSummary: { headline: 'One pair can never settle a rule with two unknowns.', text: 'The constant term was left out.' },
+  hint: 'Check the proposed rule against the second pair.',
+  feedback: 'The coordinates were read in the right order; it is the form of the rule that is wrong.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
