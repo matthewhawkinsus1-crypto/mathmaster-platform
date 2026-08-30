@@ -222,6 +222,12 @@ export const createTeacherPathRuntime = ({
     status: session.status,
     sessionKind: session.sessionKind,
     assessmentFramework: session.assessmentFramework || null,
+    weekKey: session.weekKey || null,
+    weeklySlotKey: session.weeklySlotKey || null,
+    weeklySlot: session.weeklySlot || null,
+    weeklyPurpose: session.weeklyPurpose || null,
+    intendedDok: session.preferredDok || null,
+    intendedDifficultyBand: session.preferredBand || null,
     requiredQuestions: session.requiredQuestions,
     target: { alignmentKey: session.targetAlignmentKey },
     summary: { ...session.summary },
@@ -258,6 +264,7 @@ export const createTeacherPathRuntime = ({
     const byQuestion = new Map(candidates.map((entry) => [entry.question, entry]));
     const choice = selectNextFamily(candidates.map((entry) => entry.question), {
       preferredBand: session.preferredBand || 3,
+      preferredDok: session.preferredDok || 2,
       usage: session.familyUsage || {},
       usedRepresentations: session.usedRepresentations || [],
       usedTaskTypes: session.usedTaskTypes || [],
@@ -280,7 +287,10 @@ export const createTeacherPathRuntime = ({
     // or private grading definition, otherwise a teacher sees literal {{n}}
     // placeholders while a student receives a concrete server-generated item.
     const generated = hasPathGenerator(chosen.question)
-      ? generatePathInstanceWithRetries(chosen.question, `${session.sessionId}|${questionInstanceId}`)
+      ? generatePathInstanceWithRetries(chosen.question, `${session.sessionId}|${questionInstanceId}`, {
+        preferredDok: session.preferredDok || 2,
+        preferredDifficultyBand: session.preferredBand || 3,
+      })
       : { question: chosen.question, parameters: null, reason: null };
     if (!generated.question) {
       session.status = 'blocked';
@@ -333,7 +343,10 @@ export const createTeacherPathRuntime = ({
       selectedRepresentation: selection?.representation || null,
       selectedTaskType: selection?.taskType || null,
       selectedBand: selection?.band ?? null,
-      preferredBand: selection?.preferredBand ?? null,
+      selectedDok: Number(issuedQuestion.dok) || null,
+      preferredBand: selection?.preferredBand ?? session.preferredBand ?? null,
+      preferredDok: session.preferredDok ?? null,
+      weeklyPurpose: session.weeklyPurpose || null,
       unusedFamiliesRemaining: selection?.unusedRemaining ?? null,
       isRepeatFamily: selection?.isRepeat ?? null,
     };
@@ -382,7 +395,18 @@ export const createTeacherPathRuntime = ({
 
   // --- The three calls the container makes -----------------------------------
 
-  const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind = 'practice', requiredQuestions: required = requiredQuestions, assessmentFramework = null }) => {
+  const startOrResumePathSession = async ({
+    targetAlignmentKey,
+    sessionKind = 'practice',
+    requiredQuestions: required = requiredQuestions,
+    assessmentFramework = null,
+    weekKey = null,
+    weeklySlotKey = null,
+    weeklySlot = null,
+    intendedDok = null,
+    intendedDifficultyBand = null,
+    weeklyPurpose = null,
+  }) => {
     const code = toDisplayCode(targetAlignmentKey);
     const skillId = teksSkillId(code);
 
@@ -398,6 +422,7 @@ export const createTeacherPathRuntime = ({
       && candidate.targetAlignmentKey === toCanonicalKey(code)
       && candidate.sessionKind === sessionKind
       && (candidate.assessmentFramework || null) === (assessmentFramework || null)
+      && (candidate.weeklySlotKey || null) === (weeklySlotKey || null)
     ));
     if (existing) {
       publish(existing);
@@ -409,6 +434,10 @@ export const createTeacherPathRuntime = ({
       status: 'active',
       sessionKind,
       assessmentFramework: assessmentFramework || null,
+      weekKey: weekKey || null,
+      weeklySlotKey: weeklySlotKey || null,
+      weeklySlot: weeklySlot || null,
+      weeklyPurpose: weeklyPurpose || null,
       requiredQuestions: Math.max(1, Math.min(10, Number(required) || 5)),
       targetAlignmentKey: toCanonicalKey(code),
       originSkillId: skillId,
@@ -419,7 +448,12 @@ export const createTeacherPathRuntime = ({
       summary: { completedQuestions: 0, correctQuestions: 0, independentSuccesses: 0 },
       evidenceBySkill: { [skillId]: emptyEvidence() },
       // Selection state, identical in shape to the live session document.
-      preferredBand: 3,
+      // A weekly simulated launch receives the same frozen target the live
+      // server resolved from its weekly snapshot. Open-practice simulation
+      // keeps the current baseline until its separate pass/readiness parity
+      // audit supplies a stronger target.
+      preferredBand: Number.isFinite(Number(intendedDifficultyBand)) ? Number(intendedDifficultyBand) : 3,
+      preferredDok: Number.isFinite(Number(intendedDok)) ? Number(intendedDok) : 2,
       familyUsage: {},
       usedRepresentations: [],
       usedTaskTypes: [],
