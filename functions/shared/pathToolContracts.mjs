@@ -322,6 +322,34 @@ export const pick = (source, fields) => {
   return result;
 };
 
+// A function-investigation may need a visible table as the SOURCE of the graph.
+// Do not pass an arbitrary stimulus object through the secure tool boundary:
+// an authoring-only key could contain an answer. A2.2B needs only the table
+// shape, so allowlist that shape field by field and normalize rows to the same
+// Firestore-safe { cells: [...] } form the generic Path sanitizer uses.
+const sanitizeFunctionInvestigationTableStimulus = (stimulus) => {
+  if (!isObject(stimulus) || !isObject(stimulus.table)) return null;
+  const cellsForRow = (row) => (
+    Array.isArray(row) ? row : (Array.isArray(row?.cells) ? row.cells : [])
+  );
+  const headers = list(stimulus.table.headers)
+    .slice(0, 8)
+    .map((value) => String(value).slice(0, 200));
+  const rows = list(stimulus.table.rows)
+    .slice(0, 20)
+    .map((row) => ({
+      cells: cellsForRow(row).slice(0, 8).map((value) => String(value).slice(0, 200)),
+    }));
+
+  if (!headers.length && !rows.length) return null;
+  return {
+    kind: 'table',
+    ...(stimulus.title ? { title: String(stimulus.title).slice(0, 140) } : {}),
+    ...(stimulus.note ? { note: String(stimulus.note).slice(0, 300) } : {}),
+    table: { headers, rows },
+  };
+};
+
 const graded = (isCorrect, parts = [], detail = '') => ({
   isCorrect: isCorrect === true,
   score: isCorrect === true ? 1 : 0,
@@ -786,6 +814,9 @@ const CONTRACTS = {
           'includeUndefinedChecks', 'undefinedCount', 'showCoordinates', 'context',
         ],
       );
+
+      const tableStimulus = sanitizeFunctionInvestigationTableStimulus(question.stimulus);
+      if (tableStimulus) publicQuestion.stimulus = tableStimulus;
 
       if (inverse) publicQuestion.inverseReflection = inverse.publicConfig;
 
