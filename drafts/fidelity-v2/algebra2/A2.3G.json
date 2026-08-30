@@ -28,7 +28,7 @@
         "testPoint",
         "candidate"
       ],
-      "prompt": "Use the displayed solution region for $y\\ge {{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$. Decide whether the marked point is a possible solution, then enter a different feasible ordered pair.",
+      "prompt": "Use the displayed solution region for $y\\ge {{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$. Decide whether the marked point is a possible solution, then enter a feasible ordered pair from the solution set.",
       "inequalities": [
         {
           "m": "{{m1}}",
@@ -119,7 +119,7 @@
         "testPoint",
         "candidate"
       ],
-      "prompt": "The system is $y>{{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$. The marked point lies exactly on the dashed first boundary. Determine whether it is possible, then provide a feasible point that really is in the solution set.",
+      "prompt": "The system is $y>{{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$. The marked point lies exactly on the dashed first boundary. Determine whether it is possible, then enter a feasible ordered pair from the solution set.",
       "inequalities": [
         {
           "m": "{{m1}}",
@@ -209,7 +209,7 @@
         "testPoint",
         "candidate"
       ],
-      "prompt": "Determine whether the marked point is possible for ALL THREE constraints $y\\ge {{m1}}x{{b1|signed}}$, $y\\le {{m2}}x{{b2|signed}}$, and $y>{{floor}}$. Then enter another possible solution.",
+      "prompt": "Determine whether the marked point is possible for ALL THREE constraints $y\\ge {{m1}}x{{b1|signed}}$, $y\\le {{m2}}x{{b2|signed}}$, and $y>{{floor}}$. then enter a feasible ordered pair from the solution set.",
       "inequalities": [
         {
           "m": "{{m1}}",
@@ -314,7 +314,7 @@
         "testPoint",
         "candidate"
       ],
-      "prompt": "A planning model uses $y\\ge0$, $y\\ge x-{{shift}}$, and $y\\le -x+{{cap}}$. Decide whether the marked plan is possible, then provide a plan that satisfies all three constraints.",
+      "prompt": "A planning model uses $y\\ge0$, $y\\ge x-{{shift}}$, and $y\\le -x+{{cap}}$. Decide whether the marked plan is possible, then enter a feasible plan that satisfies all three constraints.",
       "inequalities": [
         {
           "m": 0,
@@ -405,7 +405,7 @@
         "testPoint",
         "candidate"
       ],
-      "prompt": "A student says the marked point cannot be a solution because it lies on the boundary of $y\\ge {{m1}}x{{b1|signed}}$. The full system is $y\\ge {{m1}}x{{b1|signed}}$ and $y<{{m2}}x{{b2|signed}}$. Correct the student's decision, then enter another feasible point.",
+      "prompt": "A student says the marked point cannot be a solution because it lies on the boundary of $y\\ge {{m1}}x{{b1|signed}}$. The full system is $y\\ge {{m1}}x{{b1|signed}}$ and $y<{{m2}}x{{b2|signed}}$. Correct the student's decision, then enter a feasible point from the solution set.",
       "inequalities": [
         {
           "m": "{{m1}}",
