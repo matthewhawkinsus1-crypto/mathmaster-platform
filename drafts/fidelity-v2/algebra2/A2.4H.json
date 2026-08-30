@@ -1,0 +1,461 @@
+{
+  "standard": "A2.4H",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-complete-quadratic-inequality-solution-sets-critical-zeros-sign-analysis-number-line",
+  "rationale": "A2.4H legacy content had several sound interval solves, but Fidelity V2 broadens the actual solving to standard form, both leading-coefficient directions, strict/inclusive boundaries, exterior/interior regions, a no-real-zero sign case, number-line construction, and complete error repair.",
+  "documents": [
+    {
+      "id": "mm_A2_4H_v2_standard-form-critical-zeros",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4H:v2-standard-form-critical-zeros",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4H",
+      "representation": "symbolic",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Solve the quadratic inequality completely: ${{a}}x^2+({{b}})x+({{c}})\\le0$. First find the two critical zeros, then give the solution set in interval notation.",
+      "responseFields": [
+        {
+          "id": "zero1",
+          "label": "Smaller zero",
+          "inputProfile": "number",
+          "expected": "{{u}}"
+        },
+        {
+          "id": "zero2",
+          "label": "Larger zero",
+          "inputProfile": "number",
+          "expected": "{{v}}"
+        },
+        {
+          "id": "interval",
+          "label": "Complete solution set",
+          "inputProfile": "interval",
+          "expected": "[{{u}},{{v}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Critical zeros split the number line into sign intervals.",
+        "reasoning": [
+          "The quadratic factors as ${{a}}(x-({{u}}))(x-({{v}}))$.",
+          "Because the leading coefficient is positive, the quadratic is nonpositive between its two zeros.",
+          "The ≤ symbol includes both zeros."
+        ],
+        "answerSummary": "$[{{u}},{{v}}]$"
+      },
+      "attemptFeedback": [
+        "Do not decide the interval before finding both zeros; they are the sign-change boundaries."
+      ],
+      "supportHints": [
+        "Factor or otherwise solve the related quadratic equation first, then use the sign of an upward-opening parabola."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "u": {
+            "type": "int",
+            "min": -7,
+            "max": -1
+          },
+          "v": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          }
+        },
+        "derived": {
+          "b": "-a*(u+v)",
+          "c": "a*u*v"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4H_v2_downward-opening-strict-between",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4H:v2-downward-opening-strict-between",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4H",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "Solve $-{{a}}(x-({{u}}))(x-({{v}}))>0$ in interval notation. Use the downward-opening sign pattern rather than applying the upward-opening rule automatically.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Critical points",
+        "table": {
+          "headers": [
+            "Critical x-value",
+            "Quadratic value"
+          ],
+          "rows": [
+            [
+              "{{u}}",
+              "0"
+            ],
+            [
+              "{{v}}",
+              "0"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "opening",
+          "label": "Opening direction",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "down",
+              "label": "Downward"
+            },
+            {
+              "id": "up",
+              "label": "Upward"
+            }
+          ],
+          "expected": "down"
+        },
+        {
+          "id": "interval",
+          "label": "Complete strict-positive solution set",
+          "inputProfile": "interval",
+          "expected": "({{u}},{{v}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A negative leading coefficient reverses the usual sign pattern.",
+        "reasoning": [
+          "The zeros are {{u}} and {{v}}.",
+          "A downward-opening quadratic is positive between the zeros and negative outside.",
+          "Because the inequality is strict, neither zero is included."
+        ],
+        "answerSummary": "$({{u}},{{v}})$"
+      },
+      "attemptFeedback": [
+        "Account for the negative leading coefficient before choosing inside versus outside."
+      ],
+      "supportHints": [
+        "Downward opening means the graph lies above the x-axis between its two real zeros."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "u": {
+            "type": "int",
+            "min": -8,
+            "max": -1
+          },
+          "v": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4H_v2_number-line-exterior-inclusive",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4H:v2-number-line-exterior-inclusive",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4H",
+      "representation": "numberLine",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "Solve $(x-({{u}}))(x-({{v}}))\\ge0$. Graph the COMPLETE solution on the number line and give the matching interval notation.",
+      "type": "intervalNumberLine",
+      "min": "{{minv}}",
+      "max": "{{maxv}}",
+      "step": 1,
+      "variable": "x",
+      "ask": [
+        "graph",
+        "interval"
+      ],
+      "expectedIntervals": [
+        {
+          "min": null,
+          "max": "{{u}}",
+          "minClosed": false,
+          "maxClosed": true
+        },
+        {
+          "min": "{{v}}",
+          "max": null,
+          "minClosed": true,
+          "maxClosed": false
+        }
+      ],
+      "solutionReview": {
+        "headline": "For an upward-opening quadratic, nonnegative values are on the exterior intervals.",
+        "reasoning": [
+          "The zeros {{u}} and {{v}} divide the line into three sign intervals.",
+          "The quadratic is nonnegative outside the roots.",
+          "The ≥ symbol includes each root, so use closed endpoints there."
+        ],
+        "answerSummary": "$(-\\infty,{{u}}]\\cup[{{v}},\\infty)$"
+      },
+      "attemptFeedback": [
+        "The graph needs both exterior rays, not only one side of the solution."
+      ],
+      "supportHints": [
+        "Use closed points at both zeros because equality is allowed."
+      ],
+      "generator": {
+        "parameters": {
+          "u": {
+            "type": "int",
+            "min": -7,
+            "max": -1
+          },
+          "v": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          }
+        },
+        "derived": {
+          "minv": "u-5",
+          "maxv": "v+5"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4H_v2_no-real-zeros-all-real",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4H:v2-no-real-zeros-all-real",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4H",
+      "representation": "table",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "interpretation",
+      "prompt": "Solve $x^2+({{b}})x+({{c}})>0$. Use the discriminant and leading coefficient to determine the COMPLETE solution set even though the quadratic has no real zeros.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Quadratic sign information",
+        "table": {
+          "headers": [
+            "Quantity",
+            "Value"
+          ],
+          "rows": [
+            [
+              "Leading coefficient",
+              "1"
+            ],
+            [
+              "Discriminant $b^2-4ac$",
+              "{{disc}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "discriminant",
+          "label": "Discriminant",
+          "inputProfile": "number",
+          "expected": "{{disc}}"
+        },
+        {
+          "id": "real-zeros",
+          "label": "Number of real zeros",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "zero",
+              "label": "0"
+            },
+            {
+              "id": "one",
+              "label": "1"
+            },
+            {
+              "id": "two",
+              "label": "2"
+            }
+          ],
+          "expected": "zero"
+        },
+        {
+          "id": "interval",
+          "label": "Complete solution set",
+          "inputProfile": "interval",
+          "expected": "(-inf,inf)"
+        }
+      ],
+      "solutionReview": {
+        "headline": "No real zeros means the sign never changes.",
+        "reasoning": [
+          "The discriminant {{disc}} is negative, so the quadratic never crosses or touches the x-axis.",
+          "The leading coefficient is positive, so the quadratic stays positive for every real x.",
+          "Therefore the strict inequality is true for all real numbers."
+        ],
+        "answerSummary": "$(-\\infty,\\infty)$"
+      },
+      "attemptFeedback": [
+        "Do not return an empty set just because there are no real zeros; determine whether the whole parabola lies above or below the x-axis."
+      ],
+      "supportHints": [
+        "Negative discriminant + positive leading coefficient means the quadratic is always positive."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          }
+        },
+        "derived": {
+          "b": "-2*h",
+          "c": "h*h+d",
+          "disc": "b*b-4*c"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4H_v2_endpoint-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4H:v2-endpoint-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4H",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student solves $(x-({{u}}))(x-({{v}}))\\le0$ and writes $({{u}},{{v}})$ because 'the sign is negative between the roots.' Diagnose the incomplete reasoning and give the corrected COMPLETE solution set.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's work",
+        "steps": [
+          {
+            "id": "zeros",
+            "label": "Zeros",
+            "work": "$x={{u}},\\;x={{v}}$"
+          },
+          {
+            "id": "sign",
+            "label": "Middle interval",
+            "work": "Quadratic is negative between the roots."
+          },
+          {
+            "id": "answer",
+            "label": "Student answer",
+            "work": "$({{u}},{{v}})$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What is the error?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "endpoints",
+              "label": "The ≤ symbol includes the zeros, so both endpoints must be included."
+            },
+            {
+              "id": "outside",
+              "label": "The solution should be outside the roots."
+            },
+            {
+              "id": "no-roots",
+              "label": "Quadratic inequalities never include roots."
+            }
+          ],
+          "expected": "endpoints"
+        },
+        {
+          "id": "interval",
+          "label": "Corrected complete solution set",
+          "inputProfile": "interval",
+          "expected": "[{{u}},{{v}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Endpoint inclusion comes from the inequality symbol, not only the sign between the roots.",
+        "reasoning": [
+          "The product is negative between {{u}} and {{v}} and equals zero at both roots.",
+          "Because ≤ allows equality, both roots satisfy the inequality.",
+          "The repaired interval is closed at both endpoints."
+        ],
+        "answerSummary": "$[{{u}},{{v}}]$"
+      },
+      "attemptFeedback": [
+        "The student got the sign interval right but did not finish checking whether equality is allowed."
+      ],
+      "supportHints": [
+        "Substitute either root: the quadratic equals 0, and 0≤0 is true."
+      ],
+      "generator": {
+        "parameters": {
+          "u": {
+            "type": "int",
+            "min": -8,
+            "max": -1
+          },
+          "v": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        }
+      }
+    }
+  ]
+}
