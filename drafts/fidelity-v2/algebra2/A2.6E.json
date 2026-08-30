@@ -73,31 +73,24 @@
           "difficultyBand": 2
         },
         {
-          "coverageKey": "adaptive-d2b4-scaled-half-unit-two-case",
+          "coverageKey": "adaptive-d2b4-nonunit-linear-interior",
           "dok": 2,
           "difficultyBand": 4,
           "taskType": "procedural",
-          "representation": "multipleRepresentation",
-          "prompt": "Solve $3|2x-({{center2}})|-5={{y}}$. Isolate the absolute value, write both linear cases, and give the two real solutions. The center and distance are half-units.",
+          "representation": "symbolic",
+          "prompt": "Solve $|{{m}}x{{b|signed}}|={{D}}$. Write both linear cases and solve completely. This is harder algebra, but the reasoning demand remains routine DOK 2.",
           "responseFields": [
-            {
-              "id": "isolated",
-              "label": "Isolated absolute-value equation",
-              "inputProfile": "equation",
-              "equivalence": "absoluteLinearRelation",
-              "expected": "abs(2*x-({{center2}}))={{d2}}"
-            },
             {
               "id": "case-plus",
               "label": "Positive case",
               "inputProfile": "equation",
-              "expected": "2*x-({{center2}})={{d2}}"
+              "expected": "{{m}}x{{b|signed}}={{D}}"
             },
             {
               "id": "case-minus",
               "label": "Negative case",
               "inputProfile": "equation",
-              "expected": "2*x-({{center2}})=-{{d2}}"
+              "expected": "{{m}}x{{b|signed}}=-{{D}}"
             },
             {
               "id": "left",
@@ -113,51 +106,43 @@
             }
           ],
           "solutionReview": {
-            "headline": "A more complex absolute-value equation still follows isolate → two cases → solve.",
+            "headline": "A harder absolute-value equation can still be routine two-case solving.",
             "reasoning": [
-              "Add 5 and divide by 3 to isolate $|2x-({{center2}})|={{d2}}$.",
-              "Solve $2x-({{center2}})={{d2}}$ and $2x-({{center2}})=-{{d2}}$.",
-              "The two solutions are {{left}} and {{right}}."
+              "Split the equation into {{m}}x{{b|signed}}={{D}} and {{m}}x{{b|signed}}=-{{D}}.",
+              "Solving those two linear equations gives x={{left}} and x={{right}}.",
+              "The extra coefficient increases algebraic difficulty without changing the reasoning structure."
             ],
-            "answerSummary": "$x={{left}}$ or $x={{right}}$."
+            "answerSummary": "Solutions: x={{left}} and x={{right}}."
           },
           "attemptFeedback": [
-            "Do not split into two cases until the absolute-value expression is isolated."
+            "Treat the absolute-value equation as two linear equations, then solve each one carefully."
           ],
           "supportHints": [
-            "Undo the outside -5 and factor 3 before creating the positive and negative cases."
+            "The two cases use the same linear expression with right sides +{{D}} and -{{D}}."
           ],
           "generator": {
             "parameters": {
-              "center2": {
-                "type": "choice",
-                "values": [
-                  -9,
-                  -7,
-                  -5,
-                  -3,
-                  -1,
-                  1,
-                  3,
-                  5,
-                  7,
-                  9
-                ]
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 6
               },
-              "d2": {
-                "type": "choice",
-                "values": [
-                  3,
-                  5,
-                  7,
-                  9
-                ]
+              "h": {
+                "type": "int",
+                "min": -7,
+                "max": 7
+              },
+              "s": {
+                "type": "int",
+                "min": 2,
+                "max": 7
               }
             },
             "derived": {
-              "y": "3*d2-5",
-              "left": "(center2-d2)/2",
-              "right": "(center2+d2)/2"
+              "b": "-m*h",
+              "D": "m*s",
+              "left": "h-s",
+              "right": "h+s"
             }
           }
         }
@@ -552,48 +537,38 @@
           "difficultyBand": 4
         },
         {
-          "coverageKey": "adaptive-d3b3-simple-negative-distance-repair",
+          "coverageKey": "adaptive-d3b3-zero-distance-repair",
           "dok": 3,
           "difficultyBand": 3,
           "taskType": "errorAnalysis",
           "representation": "verbal",
-          "prompt": "A student reaches $|x-({{h}})|=-{{d}}$ and then creates two linear cases. Diagnose the mistake and state the real solution count.",
+          "prompt": "A student solves $|{{m}}x{{b|signed}}|=0$ by creating two different cases, ${{m}}x{{b|signed}}=0$ and ${{m}}x{{b|signed}}=-0$, then claims there are two distinct solutions. Diagnose the reasoning error and give the correct solution count and solution.",
           "responseFields": [
-            {
-              "id": "isolated",
-              "label": "Isolated absolute-value equation",
-              "inputProfile": "equation",
-              "expected": "abs(x-({{h}}))=-{{d}}"
-            },
             {
               "id": "diagnosis",
               "label": "Diagnosis",
               "inputProfile": "choice",
               "choices": [
                 {
+                  "id": "same-case",
+                  "label": "The two cases are identical because -0=0, so they produce the same single solution."
+                },
+                {
+                  "id": "two",
+                  "label": "Absolute value always creates two distinct solutions."
+                },
+                {
                   "id": "none",
-                  "label": "An absolute value cannot equal a negative number, so there are no real solutions."
-                },
-                {
-                  "id": "split",
-                  "label": "Split into positive and negative cases anyway."
-                },
-                {
-                  "id": "square",
-                  "label": "Square both sides first."
+                  "label": "An absolute value equal to zero has no real solution."
                 }
               ],
-              "expected": "none"
+              "expected": "same-case"
             },
             {
               "id": "solution-count",
-              "label": "Number of real solutions",
+              "label": "Number of distinct real solutions",
               "inputProfile": "choice",
               "choices": [
-                {
-                  "id": "zero",
-                  "label": "0"
-                },
                 {
                   "id": "one",
                   "label": "1"
@@ -601,38 +576,51 @@
                 {
                   "id": "two",
                   "label": "2"
+                },
+                {
+                  "id": "zero",
+                  "label": "0"
                 }
               ],
-              "expected": "zero"
+              "expected": "one"
+            },
+            {
+              "id": "solution",
+              "label": "Real solution",
+              "inputProfile": "number",
+              "expected": "{{h}}"
             }
           ],
           "solutionReview": {
-            "headline": "A negative isolated absolute value ends the solve immediately.",
+            "headline": "A zero absolute-value target collapses the two usual cases into one.",
             "reasoning": [
-              "Absolute value is always nonnegative.",
-              "Therefore $|x-({{h}})|=-{{d}}$ has no real solution.",
-              "Creating two linear cases after reaching a negative distance is invalid."
+              "Because -0=0, the positive and negative cases are the same equation.",
+              "So {{m}}x{{b|signed}}=0 is solved only once.",
+              "The unique solution is x={{h}}."
             ],
-            "answerSummary": "0 real solutions."
+            "answerSummary": "One distinct real solution: x={{h}}."
           },
           "attemptFeedback": [
-            "Check whether the isolated absolute value is nonnegative before splitting into cases."
+            "Focus on whether the two cases are actually different when the right side is zero."
           ],
           "supportHints": [
-            "No absolute value of a real expression can be negative."
+            "Compare +0 and -0 before solving."
           ],
           "generator": {
             "parameters": {
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
               "h": {
                 "type": "int",
-                "min": -6,
-                "max": 6
-              },
-              "d": {
-                "type": "int",
-                "min": 1,
-                "max": 6
+                "min": -8,
+                "max": 8
               }
+            },
+            "derived": {
+              "b": "-m*h"
             }
           }
         }
