@@ -99,7 +99,53 @@
           "y2": "4*a+2*b+c",
           "pred": "9*a+3*b+c"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-symmetric-quadratic-regression",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "procedural",
+          "representation": "table",
+          "prompt": "Use quadratic regression technology on all five symmetric observations to formulate $y=ax^2+c$ (the fitted x-term is 0). Enter a, b, and c from technology, then predict y at x=3.",
+          "context": {
+            "title": "Accessible quadratic regression",
+            "note": "The table is symmetric about x=0, but you must still use the regression tool and enter all three reported coefficients."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  1,
+                  2,
+                  -1,
+                  -2
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            },
+            "derived": {
+              "b": "0",
+              "ym2": "4*a+c",
+              "ym1": "a+c",
+              "y0": "c",
+              "y1": "a+c",
+              "y2": "4*a+c",
+              "pred": "9*a+c"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_4E_v2_quadratic-context-interpolation",
@@ -294,7 +340,65 @@
           "y16": "4*a+k",
           "pred": "5*a+k"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-fractional-scale-square-root-fit",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "multipleRepresentation",
+          "prompt": "Use square-root regression technology on all five rows to formulate $y=a\\sqrt{x-h}+k$. The fitted scale a is non-integer. Enter a, h, and k and extrapolate to x={{x25}}.",
+          "context": {
+            "title": "Square-root regression with fractional scale",
+            "note": "Use all five observations. The non-integer scale makes the numeric fit more demanding, but the regression procedure is unchanged."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  1.5,
+                  2.5,
+                  3.5
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  -2.5,
+                  -1.5,
+                  0.5,
+                  1.5,
+                  2.5
+                ]
+              }
+            },
+            "derived": {
+              "x1": "h+1",
+              "x4": "h+4",
+              "x9": "h+9",
+              "x16": "h+16",
+              "x25": "h+25",
+              "y1": "a+k",
+              "y4": "2*a+k",
+              "y9": "3*a+k",
+              "y16": "4*a+k",
+              "pred": "5*a+k"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_4E_v2_square-root-context-interpolation",
@@ -495,7 +599,60 @@
           "y2": "4*a+2*b+c",
           "pred": "9*a+3*b+c"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b5",
+          "dok": 3,
+          "difficultyBand": 5
+        },
+        {
+          "coverageKey": "adaptive-d3b3-simple-regression-sign-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student runs quadratic regression on the five-row table but copies the sign of b incorrectly, writing $y={{a}}x^2+({{wrongB}})x+({{c}})$. Re-run the regression, identify the transcription error, enter the correct a, b, c, and verify the corrected prediction at x=3.",
+          "context": {
+            "title": "Regression sign audit",
+            "note": "The coefficient sizes are intentionally small so the task emphasizes verifying and repairing technology output rather than heavy arithmetic."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  1
+                ]
+              },
+              "b": {
+                "type": "choice",
+                "values": [
+                  -2,
+                  -1,
+                  1,
+                  2
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              }
+            },
+            "derived": {
+              "wrongB": "-b",
+              "ym2": "4*a-2*b+c",
+              "ym1": "a-b+c",
+              "y0": "c",
+              "y1": "a+b+c",
+              "y2": "4*a+2*b+c",
+              "pred": "9*a+3*b+c"
+            }
+          }
+        }
+      ]
     }
   ]
 }
