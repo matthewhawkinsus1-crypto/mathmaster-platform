@@ -520,8 +520,12 @@ Resume here. Do not reopen A2.2A–A2.5B unless a failing gate names them.
   - complete base/argument role-error repair followed by rewriting back in the opposite direction.
 - Added A2.5C-specific generated certification — commit `812c9bfaa2e90bff5012c8f02b9e4f2adcfd4132`.
 - The gate samples 200+ generated instances, independently verifies numeric role mappings, requires written equation fields rather than multiple-choice recognition, requires both directions repeatedly, checks symbolic/common/natural-log breadth, rejects a non-equivalent rewrite in every family, and checks public answer-key stripping.
-- Full A2.5C assertion run `33325264164`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.5C** until that run is green.
+- Full A2.5C assertion run `33325264164`: **FAILED only on the certification test's rewrite-direction counter** after the generated/self-grading checks passed.
+- Cause: the gate counted exponential→logarithmic families from prompt wording such as “logarithmic equation,” so valid families phrased as “logarithmic form” were not counted even though their authored answer fields were correct.
+- Repaired the gate to count rewrite direction from the actual private authored equation keys: `log_`/ `ln(` for exponential→log and `^` for log→exponential — commit `27867ec9d265191ef568dd9918923d6d5e83e4d9`.
+- No content requirement was weakened; the gate now measures the equations students actually have to write instead of prose wording.
+- Replacement A2.5C certification is triggered.
+- FIRST UNFINISHED STANDARD remains **A2.5C** until the replacement run is green.
 
 
 ### 2026-08-30 — A2.5B audit finding
@@ -1420,3 +1424,4 @@ For each standard:
 - Secure graph construction, transformed feature/behavior parity, wrong-point/attribute rejection, public-key stripping, and student/runtime build all passed.
 - A2.5A is now locked as certified.
 - FIRST UNFINISHED STANDARD advanced to **A2.5B**.
+- Replacement A2.5C run `33325302232`: **IN_PROGRESS** at this checkpoint.
