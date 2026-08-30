@@ -252,3 +252,22 @@ Current Algebra I adaptive counts after A.10:
 
 Final Algebra I batch: **A.11A, A.11B, A.12A–A.12E**.
 
+## Progress — Algebra I adaptive coverage COMPLETE
+
+- Algebra I Challenge/Extension readiness: **49/49**.
+- Algebra I full preferred adaptive five-cell target: **49/49**.
+- Algebra I complete DOK2 axis: **49/49**.
+- Algebra I complete DOK3 axis: **49/49**.
+- Missing preferred cells: **0**.
+- Strict preferred-cell failures: **0**.
+- Final Algebra I Fidelity V2 Certification at content head `7210746e22cb945c5183536091210a075a19b8a0` — run `33337433315`: **PASS**.
+- The cross-course audit initially failed only because its test still expected Algebra I to be unfinished; the actual content audit had already reached strictFailureCount=0.
+- Updated the audit guardrail to require Algebra I to remain strictly complete while Algebra II remains in-progress — commit `781eab1ff5b05a35d28b4d05d19b662ca05c4863`.
+- Updated Challenge/DOK Difficulty Audit — run `33337475746`: **PASS**.
+
+### Course status now
+
+**Algebra I adaptive-content pass is locked complete.** Do not reopen Algebra I unless a named fidelity/adaptive regression gate fails.
+
+**Algebra II Challenge is already 48/48**, but its independent-axis preferred cells remain incomplete. Continue with Algebra II in batches, beginning with **A2.2A–A2.2D**.
+
