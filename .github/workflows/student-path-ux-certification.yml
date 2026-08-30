@@ -25,6 +25,7 @@ on:
       - src/platform/path/recommendationV2.js
       - src/platform/simulation/teacherPathRuntime.js
       - functions/index.js
+      - src/services/pathSessionService.js
       - tests/platform/pathAdaptiveVariantTargeting.test.mjs
       - tests/platform/pathPassDashboardUx.test.mjs
       - tests/platform/teacherPathTargetParity.test.mjs
