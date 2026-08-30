@@ -616,17 +616,58 @@ Certification result:
 
 Do **not** re-audit A2.6D unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.6E
 
-### A2.6E — ENHANCE — STAGED / CERTIFICATION RUNNING
+### A2.6E — ENHANCE — CERTIFIED
 
 Official construct: **Solve absolute value linear equations.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- complete isolate → case split → linear solve evidence is collected repeatedly;
+- nontrivial linear expressions inside absolute value are used across most families;
+- exactly two, exactly one, and zero real-solution cases are all represented;
+- contextual interpretation and complete no-solution error repair are included;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect final outcomes are rejected and public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33326432567`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.6E unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.6F — ENHANCE — AUDITED / AUTHORING
+
+Official construct: **Solve absolute value linear inequalities.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.6E
+### A2.6F
 
-Resume here. Do not reopen A2.2A–A2.6D unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.6E unless a failing gate names them.
+
+
+### 2026-08-30 — A2.6F audit finding
+- Official construct: **solve absolute value linear inequalities**.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - between/AND and outside/OR solution regions are both present;
+  - interval notation, number-line construction, context, a negative-bound edge case, and an AND-vs-OR error frame are represented.
+- Legacy limitations:
+  - almost every inequality is the easiest $|x-h|\;\square\;d$ pattern;
+  - students usually return only the final interval/choice rather than showing isolation and the resulting compound linear inequalities;
+  - nontrivial linear expressions inside the absolute value are absent;
+  - dividing by a negative outside coefficient and correctly flipping the inequality is not represented;
+  - the negative-bound family only covers “absolute value < negative → no solution,” not the complementary “absolute value > negative → all real numbers.”
+- Fidelity V2 requirements:
+  - repeatedly solve nontrivial $|mx+b|\;\square\;d$ inequalities;
+  - collect the isolated absolute-value inequality and the correct AND/OR linear inequalities before the final interval/union;
+  - include a negative outside coefficient that forces an inequality reversal during isolation;
+  - explicitly contrast impossible and automatically true negative-bound cases;
+  - include contextual transfer and complete AND-vs-OR error repair;
+  - require inclusive/strict endpoint control and both bounded intervals and two-ray unions.
+- Generic secure inequality/interval grading is sufficient; no new Path capability is required.
 
 
 ### 2026-08-30 — A2.6E audit finding
@@ -660,8 +701,10 @@ Resume here. Do not reopen A2.2A–A2.6D unless a failing gate names them.
   - complete no-solution error repair when the isolated absolute value is negative.
 - Added A2.6E-specific generated certification — commit `38329a76f0a9df8676dbff7e55b067eeb1dfc6a3`.
 - The A2.6E gate samples 200+ generated instances, checks production issuability and secure self-grading, requires repeated two-case evidence, one/two/zero solution-count breadth, repeated nontrivial linear interiors, context/error repair, wrong-outcome rejection, and public answer-key stripping.
-- Full A2.6E assertion run `33326432567`: **QUEUED/RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.6E** until that run is green.
+- Full A2.6E assertion run `33326432567`: **PASS**.
+- Generated two/one/zero-solution breadth, nontrivial linear interiors, context/error repair, secure wrong-outcome rejection, public-key stripping, and student/runtime build all passed.
+- A2.6E is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.6F**.
 
 
 ### 2026-08-30 — A2.6D audit finding
