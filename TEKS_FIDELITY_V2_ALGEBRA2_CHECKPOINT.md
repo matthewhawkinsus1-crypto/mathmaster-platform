@@ -542,8 +542,13 @@ Resume here. Do not reopen A2.2A–A2.5C unless a failing gate names them.
   - complete error repair for taking logs before isolating the exponential expression.
 - Added A2.5D-specific generated certification — commit `3a1d909beeb2790be8b9f9b20f6b9cfc8ce71658`.
 - The gate samples 200+ generated instances, independently verifies non-power ratios/log approximations, validates affine-log solutions and positive log arguments, requires context/error-repair breadth, rejects a wrong final solved value in every family, and checks public answer-key stripping.
-- Full A2.5D assertion run `33325432153`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.5D** until that run is green.
+- Full A2.5D assertion run `33325432153`: **FAILED at generated issuability for the non-power logarithmic solve**.
+- Root cause: the content generator intentionally supports a small safe arithmetic language and does **not** expose `log()`; two families tried to derive rounded logarithmic approximations with `round(log(...),3)`, so the secure generator correctly failed closed as `constraints_unsatisfiable`.
+- Removed those generated decimal keys and kept the mathematically stronger exact solutions `ln(ratio)/ln(2)`; the fixed-context family still supplies an independently valid decimal interpretation where the target ratio is constant — commit `ebfc90d7e328e80d5d245f97488c828486edc299`.
+- Consolidated two overlapping A2.5D certification blocks into one authoritative gate and updated it to require exact logarithmic solutions rather than unsupported generator-side log arithmetic — commit `14841fd43569c5b982f6a752d4c5fb475af24048`.
+- No mathematical requirement was weakened: non-power exponential cases still require logarithms, and the gate independently verifies those ratios are not integer powers of 2.
+- Replacement A2.5D certification is triggered.
+- FIRST UNFINISHED STANDARD remains **A2.5D** until the replacement run is green.
 
 
 ### 2026-08-30 — A2.5C audit finding
@@ -1489,3 +1494,4 @@ For each standard:
 - Written rewrite breadth, numeric role-map verification, wrong-rewrite rejection, public-key stripping, and student/runtime build all passed.
 - A2.5C is now locked as certified.
 - FIRST UNFINISHED STANDARD advanced to **A2.5D**.
+- Replacement A2.5D run `33325519965`: **IN_PROGRESS** at this checkpoint.
