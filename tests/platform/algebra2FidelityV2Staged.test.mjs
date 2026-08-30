@@ -4796,3 +4796,98 @@ test('A2.7B securely adds subtracts and multiplies polynomials across sparse and
   assert.equal(wrongRejected,entry.documents.length);
   assert.ok(representations.has('symbolic')&&representations.has('table')&&representations.has('multipleRepresentation')&&representations.has('verbal'));
 });
+test('A2.7C directly certifies all four polynomial quotient degree combinations', async () => {
+  const entry=payload('A2.7C');
+  assert.ok(entry); assert.equal(entry.verdict,'REBUILD');
+  assert.match(entry.certificationStatus,/four-degree-combinations-polynomial-quotients/);
+  let generatedCount=0,c3l1=0,c3q2=0,q4l1=0,q4q2=0,errorFamilies=0,reorderedAccepted=0,wrongRejected=0,linearRemainders=0;
+  const representations=new Set();
+  for(const doc of entry.documents){
+    representations.add(doc.representation);
+    if(doc.id.includes('cubic-linear')) c3l1+=1;
+    if(doc.id.includes('cubic-quadratic')) c3q2+=1;
+    if(doc.id.includes('quartic-linear')) q4l1+=1;
+    if(doc.id.includes('quartic-quadratic')) q4q2+=1;
+    if(doc.taskType==='errorAnalysis') errorFamilies+=1;
+    assert.ok((doc.responseFields||[]).some((field)=>field.id==='quotient'),doc.id+' must require the quotient');
+    const plan=await buildTemplateIssuePlan(doc,{samples:24});
+    assert.equal(plan.issuable,true,doc.id+' is not production-issuable: '+plan.reason);
+    let reorderChecked=false,wrongChecked=false;
+    for(const generated of samplePathInstances(doc,40)){
+      assert.ok(generated.question,doc.id+' failed generation: '+generated.reason);
+      const q=generated.question,p=generated.parameters||{}; generatedCount+=1;
+      assert.deepEqual([...placeholdersUsed(q)],[]);
+      const fields=Object.fromEntries((q.responseFields||[]).map((field)=>[field.id,field]));
+      if(doc.id.includes('cubic-linear')){
+        assert.equal(Number(p.A3),Number(p.q2));
+        assert.equal(Number(p.A2),Number(p.q1)-Number(p.d)*Number(p.q2));
+        assert.equal(Number(p.A1),Number(p.q0)-Number(p.d)*Number(p.q1));
+        assert.equal(Number(p.A0),-Number(p.d)*Number(p.q0));
+        assert.equal(Number(fields.remainder.expected),0);
+      }
+      if(doc.id.includes('cubic-quadratic')){
+        assert.equal(Number(p.A3),Number(p.m));
+        assert.equal(Number(p.A2),Number(p.n)+Number(p.p)*Number(p.m));
+        assert.equal(Number(p.A1),Number(p.m)*Number(p.q)+Number(p.n)*Number(p.p));
+        assert.equal(Number(p.A0),Number(p.n)*Number(p.q));
+        assert.equal(Number(fields.remainder.expected),0);
+      }
+      if(doc.id.includes('quartic-linear')){
+        assert.notEqual(Number(p.rem),0);
+        assert.equal(Number(p.A4),Number(p.q3));
+        assert.equal(Number(p.A3),Number(p.q2)-Number(p.d)*Number(p.q3));
+        assert.equal(Number(p.A2),Number(p.q1)-Number(p.d)*Number(p.q2));
+        assert.equal(Number(p.A1),Number(p.q0)-Number(p.d)*Number(p.q1));
+        assert.equal(Number(p.A0),-Number(p.d)*Number(p.q0)+Number(p.rem));
+        assert.equal(Number(fields.remainder.expected),Number(p.rem));
+      }
+      if(doc.id.includes('linear-remainder')){
+        linearRemainders+=1;
+        assert.notEqual(Number(p.s),0);
+        assert.equal(Number(p.A4),Number(p.m));
+        assert.equal(Number(p.A3),Number(p.n)+Number(p.p)*Number(p.m));
+        assert.equal(Number(p.A2),Number(p.r)+Number(p.p)*Number(p.n)+Number(p.q)*Number(p.m));
+        assert.equal(Number(p.A1),Number(p.p)*Number(p.r)+Number(p.q)*Number(p.n)+Number(p.s));
+        assert.equal(Number(p.A0),Number(p.q)*Number(p.r)+Number(p.t));
+      }
+      if(doc.id.includes('premature-stop')){
+        assert.equal(fields.diagnosis.expected,'continue');
+        assert.equal(Number(p.A4),Number(p.m));
+        assert.equal(Number(p.A3),Number(p.n)+Number(p.p)*Number(p.m));
+        assert.equal(Number(p.A2),Number(p.r)+Number(p.p)*Number(p.n)+Number(p.q)*Number(p.m));
+        assert.equal(Number(p.A1),Number(p.p)*Number(p.r)+Number(p.q)*Number(p.n));
+        assert.equal(Number(p.A0),Number(p.q)*Number(p.r));
+        assert.equal(Number(fields.remainder.expected),0);
+        assert.equal(doc.dok,3);
+      } else assert.equal(doc.dok,2,doc.id+' should remain DOK 2 despite long computation');
+      const grading=privateGradingDefinition(q);
+      const responses=Object.fromEntries(grading.fields.map((field)=>[field.id,field.expected??field.accepted?.[0]??'']));
+      const correct=await gradeResponse(grading,{responses});
+      assert.equal(correct.isCorrect,true,doc.id+' failed secure self-acceptance: '+JSON.stringify(correct.fieldResults));
+      if(!reorderChecked){
+        const qFields=grading.fields.filter((field)=>/^q\d$/.test(field.id)).map((field)=>({degree:Number(field.id.slice(1)),value:Number(field.expected)})).sort((a,b)=>a.degree-b.degree);
+        const alt=qFields.map((term)=>'('+term.value+')'+(term.degree===0?'':term.degree===1?'*x':'*x^'+term.degree)).join('+');
+        const result=await gradeResponse(grading,{responses:{...responses,quotient:alt}});
+        assert.equal(result.isCorrect,true,doc.id+' rejected equivalent reordered quotient');
+        reorderedAccepted+=1; reorderChecked=true;
+      }
+      if(!wrongChecked){
+        const qField=grading.fields.find((field)=>/^q\d$/.test(field.id)); assert.ok(qField);
+        const wrongResponses={...responses,[qField.id]:String(Number(qField.expected)+1)};
+        const result=await gradeResponse(grading,{responses:wrongResponses});
+        assert.equal(result.isCorrect,false,doc.id+' accepted an incorrect quotient coefficient');
+        wrongRejected+=1; wrongChecked=true;
+      }
+      if(fields.remainder?.inputProfile==='expression'){
+        const altRem=Number(p.t)+'+('+Number(p.s)+')*x';
+        const result=await gradeResponse(grading,{responses:{...responses,remainder:altRem}});
+        assert.equal(result.isCorrect,true,doc.id+' rejected equivalent reordered linear remainder');
+      }
+      const publicQ=buildSanitizedQuestion(q,{questionInstanceId:'qa-'+doc.id+'-'+generatedCount,attemptsAllowed:3});
+      const publicText=JSON.stringify(publicQ); assert.equal(publicText.includes('"expected"'),false); assert.equal(publicText.includes('"acceptedAnswers"'),false);
+    }
+  }
+  assert.ok(generatedCount>=200); assert.equal(c3l1,1); assert.equal(c3q2,1); assert.equal(q4l1,1); assert.ok(q4q2>=2);
+  assert.equal(errorFamilies,1); assert.ok(linearRemainders>=40); assert.equal(reorderedAccepted,entry.documents.length); assert.equal(wrongRejected,entry.documents.length);
+  assert.ok(representations.has('symbolic')&&representations.has('table')&&representations.has('multipleRepresentation')&&representations.has('verbal'));
+});
