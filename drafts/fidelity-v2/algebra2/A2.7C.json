@@ -630,7 +630,74 @@
           "A1": "p*r+q*n",
           "A0": "q*r"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-quadratic-divisor-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student divides a quartic by $x^2+({{p}})x+({{q}})$, finds the first quotient term {{m}}x², then stops even though the remaining polynomial still has degree at least 2. Diagnose why division must continue and finish the exact quotient.",
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": -2,
+                "max": 2
+              },
+              "q": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "m": {
+                "type": "choice",
+                "values": [
+                  -2,
+                  -1,
+                  1,
+                  2
+                ]
+              },
+              "n": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "r": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            "derived": {
+              "A4": "m",
+              "A3": "n+p*m",
+              "A2": "r+p*n+q*m",
+              "A1": "p*r+q*n",
+              "A0": "q*r"
+            }
+          }
+        }
+      ]
     }
   ]
 }
