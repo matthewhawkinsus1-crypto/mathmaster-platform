@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const read = (code) => JSON.parse(readFileSync(`drafts/fidelity-v2/algebra1/${code}.json`, 'utf8'));
-const entries = ['A.2D', 'A.2E', 'A.2F'].map(read);
+const entries = ['A.2B', 'A.2D', 'A.2E', 'A.2F'].map(read);
 
-test('A.2D A.2E A.2F each stage five new Fidelity V2 families', () => {
+test('A.2B A.2D A.2E A.2F each stage five new Fidelity V2 families', () => {
   for (const entry of entries) {
     assert.equal(entry.verdict, 'ENHANCE');
     assert.equal(entry.documents.length, 5);
@@ -15,6 +15,22 @@ test('A.2D A.2E A.2F each stage five new Fidelity V2 families', () => {
     assert.ok(entry.documents.some((doc) => doc.representation === 'table'));
     assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis' && /student/i.test(doc.prompt)));
   }
+});
+
+test('A.2B requires complete line equations and genuinely samples multiple forms', () => {
+  const entry = read('A.2B');
+  assert.match(entry.certificationStatus, /multiple-linear-forms/);
+  for (const doc of entry.documents) {
+    const equation = doc.responseFields?.find((field) => field.inputProfile === 'equation');
+    assert.ok(equation, `${doc.id} must require a complete equation`);
+    assert.match(String(equation.expected), /=/);
+  }
+  assert.ok(entry.documents.some((doc) => /point-slope/i.test(doc.prompt)), 'must assess point-slope form');
+  assert.ok(entry.documents.some((doc) => /standard form/i.test(doc.prompt)), 'must assess standard form');
+  assert.ok(entry.documents.some((doc) => /slope-intercept form/i.test(doc.prompt)), 'must assess slope-intercept form');
+  assert.ok(entry.documents.some((doc) => doc.representation === 'table'));
+  assert.ok(entry.documents.some((doc) => doc.representation === 'orderedPairs'));
+  assert.ok(entry.documents.some((doc) => doc.taskType === 'errorAnalysis'));
 });
 
 test('A.2D requires a complete direct-variation equation in every family', () => {
