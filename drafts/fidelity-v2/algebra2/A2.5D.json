@@ -248,7 +248,78 @@
           "power": "pow(10,n)",
           "c": "power-m*x"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-variable-base-negative-coefficient-log",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "table",
+          "prompt": "Solve $\\log_{{{base}}}({{m}}x{{c|signed}})={{n}}$. Rewrite in exponential form using the stated base, then solve the resulting affine equation. The x-coefficient may be negative.",
+          "responseFields": [
+            {
+              "id": "exponential",
+              "label": "Equivalent exponential equation",
+              "inputProfile": "equation",
+              "expected": "{{m}}x{{c|signed}}={{power}}"
+            },
+            {
+              "id": "solution",
+              "label": "x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A variable logarithm base changes the exponential rewrite, not the linear-solving step.",
+            "reasoning": [
+              "The logarithmic equation rewrites as ${{m}}x{{c|signed}}={{base}}^{{n}}={{power}}$.",
+              "Then solve the affine equation to obtain x={{x}}."
+            ],
+            "answerSummary": "$x={{x}}$"
+          },
+          "attemptFeedback": [
+            "Use the given logarithm base rather than assuming base 10."
+          ],
+          "supportHints": [
+            "First rewrite $\\log_b(A)=n$ as $A=b^n$."
+          ],
+          "generator": {
+            "parameters": {
+              "base": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "n": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              },
+              "m": {
+                "type": "int",
+                "min": -6,
+                "max": -2
+              },
+              "x": {
+                "type": "int",
+                "min": 1,
+                "max": 8
+              }
+            },
+            "derived": {
+              "power": "pow(base,n)",
+              "c": "power-m*x"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_5D_v2_context-noninteger-time",
@@ -423,7 +494,85 @@
         "derived": {
           "target": "a*ratio"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-simple-isolation-before-log-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student solves ${{target}}=2\\cdot2^x$ by taking logs before dividing by the outside 2. Diagnose the isolation error, write the correct isolated equation, and finish the exact logarithmic solution.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Required first correction",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "divide",
+                  "label": "Divide by the outside coefficient 2 before applying logarithms."
+                },
+                {
+                  "id": "log-first",
+                  "label": "Take logs before isolating the exponential term."
+                }
+              ],
+              "expected": "divide"
+            },
+            {
+              "id": "isolated",
+              "label": "Correct isolated equation",
+              "inputProfile": "equation",
+              "expected": "2^x=3"
+            },
+            {
+              "id": "exact",
+              "label": "Correct exact x",
+              "inputProfile": "expression",
+              "expected": "ln(3)/ln(2)"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The conceptual issue is isolation order, not heavy computation.",
+            "reasoning": [
+              "Divide by 2 first to get $2^x=3$.",
+              "Then use logarithms: $x=\\ln3/\\ln2$."
+            ],
+            "answerSummary": "$x=\\ln3/\\ln2$"
+          },
+          "attemptFeedback": [
+            "Repair the algebraic structure before using logarithms."
+          ],
+          "supportHints": [
+            "The exponential expression should be alone before applying the log rule."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  2
+                ]
+              },
+              "ratio": {
+                "type": "choice",
+                "values": [
+                  3
+                ]
+              }
+            },
+            "derived": {
+              "target": "a*ratio"
+            }
+          }
+        }
+      ]
     }
   ]
 }
