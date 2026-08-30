@@ -17,6 +17,7 @@ import {
 import { stackDivisions } from './stackDivisions.mjs';
 import { sameExpandedPolynomialExpression } from './expandedPolynomialExpressionEquivalence.mjs';
 import { sameLinearInequality } from './linearInequalityEquivalence.mjs';
+export { sameRationalExpression } from './rationalExpressionEquivalence.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
 
