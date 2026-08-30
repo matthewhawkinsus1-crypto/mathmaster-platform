@@ -1,0 +1,492 @@
+{
+  "standard": "A2.8B",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-authentic-technology-regression-linear-quadratic-exponential-growth-decay-noisy-fit-only-error-repair",
+  "rationale": "A2.8B requires technology regression to write linear, quadratic, and exponential functions. Fidelity V2 uses fit-only secure Data Modeling Lab modes so prediction is not imported from A2.8C, uses overdetermined noisy data, requires every fitted coefficient, and includes growth, decay, and full transcription repair.",
+  "documents": [
+    {
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.8B"
+      ],
+      "courseId": "algebra2",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.8B",
+      "type": "dataModelingLab",
+      "id": "mm_A2_8B_v2_linear-regression-noisy",
+      "familyId": "mathmaster:A2.8B:v2-linear-regression-noisy",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "mode": "linearFit",
+      "prompt": "Use linear regression technology on all five observations to write the line of best fit $y=mx+b$. Enter the regression slope and intercept reported by the technology.",
+      "points": [
+        [
+          -2,
+          "{{ym2}}"
+        ],
+        [
+          -1,
+          "{{ym1}}"
+        ],
+        [
+          0,
+          "{{y0}}"
+        ],
+        [
+          1,
+          "{{y1}}"
+        ],
+        [
+          2,
+          "{{y2}}"
+        ]
+      ],
+      "slopeTolerance": 0.02,
+      "interceptTolerance": 0.03,
+      "context": {
+        "title": "Noisy linear data",
+        "note": "The five points do not lie perfectly on one line. Use regression on the complete data set rather than choosing two convenient points."
+      },
+      "solutionReview": {
+        "headline": "Regression uses all observations, including the residual variation.",
+        "reasoning": [
+          "The residual pattern is balanced around the generating line, so the full least-squares regression recovers m={{m}} and b={{b}}.",
+          "A line through only two selected points can give a different result; the standard requires regression technology on the data set."
+        ],
+        "answerSummary": "Technology fit: $y={{m}}x+({{b}})$."
+      },
+      "attemptFeedback": [
+        "Run linear regression on all five rows; do not calculate slope from only two points."
+      ],
+      "supportHints": [
+        "Enter both regression outputs m and b exactly as technology reports them."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "e": {
+            "type": "int",
+            "min": 1,
+            "max": 2
+          }
+        },
+        "derived": {
+          "ym2": "-2*m+b+e",
+          "ym1": "-m+b-2*e",
+          "y0": "b+2*e",
+          "y1": "m+b-2*e",
+          "y2": "2*m+b+e"
+        }
+      }
+    },
+    {
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.8B"
+      ],
+      "courseId": "algebra2",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.8B",
+      "type": "dataModelingLab",
+      "id": "mm_A2_8B_v2_quadratic-regression-noisy",
+      "familyId": "mathmaster:A2.8B:v2-quadratic-regression-noisy",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "mode": "quadraticFit",
+      "prompt": "Use quadratic regression technology on the complete five-row data set to write $y=ax^2+bx+c$. Enter all three fitted coefficients.",
+      "points": [
+        [
+          -2,
+          "{{ym2}}"
+        ],
+        [
+          -1,
+          "{{ym1}}"
+        ],
+        [
+          0,
+          "{{y0}}"
+        ],
+        [
+          1,
+          "{{y1}}"
+        ],
+        [
+          2,
+          "{{y2}}"
+        ]
+      ],
+      "quadraticATolerance": 0.02,
+      "quadraticBTolerance": 0.03,
+      "quadraticCTolerance": 0.04,
+      "context": {
+        "title": "Noisy quadratic data",
+        "note": "The observations include small residual variation, so fitting only three points is not equivalent to running quadratic regression."
+      },
+      "solutionReview": {
+        "headline": "Quadratic regression uses all five observations to estimate three coefficients.",
+        "reasoning": [
+          "The balanced residual pattern is orthogonal to the constant, x, and x² columns used by least squares.",
+          "Therefore the full regression recovers a={{a}}, b={{b}}, and c={{c}} even though no five-row perfect parabola is shown."
+        ],
+        "answerSummary": "Technology fit: $y={{a}}x^2+({{b}})x+({{c}})$."
+      },
+      "attemptFeedback": [
+        "Use quadratic regression on the complete list and record a, b, and c."
+      ],
+      "supportHints": [
+        "Do not hand-fit three selected points; the extra observations are part of the regression evidence."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "c": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "e": {
+            "type": "int",
+            "min": 1,
+            "max": 2
+          }
+        },
+        "derived": {
+          "ym2": "4*a-2*b+c+e",
+          "ym1": "a-b+c-2*e",
+          "y0": "c",
+          "y1": "a+b+c+2*e",
+          "y2": "4*a+2*b+c-e"
+        }
+      }
+    },
+    {
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.8B"
+      ],
+      "courseId": "algebra2",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.8B",
+      "type": "dataModelingLab",
+      "id": "mm_A2_8B_v2_exponential-regression-growth-noisy",
+      "familyId": "mathmaster:A2.8B:v2-exponential-regression-growth-noisy",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "mode": "exponentialFit",
+      "prompt": "Use exponential regression technology on all five positive observations to write the fitted function $y=a(b)^x$. Enter the fitted initial factor a and base b.",
+      "points": [
+        [
+          -2,
+          "{{ym2}}"
+        ],
+        [
+          -1,
+          "{{ym1}}"
+        ],
+        [
+          0,
+          "{{y0}}"
+        ],
+        [
+          1,
+          "{{y1}}"
+        ],
+        [
+          2,
+          "{{y2}}"
+        ]
+      ],
+      "exponentialATolerance": 0.04,
+      "exponentialBaseTolerance": 0.015,
+      "context": {
+        "title": "Noisy exponential growth data",
+        "note": "The points vary slightly above and below a perfect exponential curve. Use exponential regression rather than consecutive-ratio recognition."
+      },
+      "solutionReview": {
+        "headline": "Exponential regression linearizes the positive outputs on a logarithmic scale.",
+        "reasoning": [
+          "The multiplicative noise is balanced on the log scale, so technology recovers the underlying fitted initial factor and growth base.",
+          "The fitted base is greater than 1, which is consistent with exponential growth."
+        ],
+        "answerSummary": "Record the technology's fitted a and growth base b."
+      },
+      "attemptFeedback": [
+        "Use exponential regression on the full list; the raw consecutive ratios are intentionally not constant."
+      ],
+      "supportHints": [
+        "Both a and b must come from the regression output."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 30
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              1.4,
+              1.5,
+              1.8,
+              2
+            ]
+          },
+          "q": {
+            "type": "choice",
+            "values": [
+              1.1,
+              1.2
+            ]
+          }
+        },
+        "derived": {
+          "ym2": "a*pow(base,-2)*q",
+          "ym1": "a*pow(base,-1)/q",
+          "y0": "a",
+          "y1": "a*base/q",
+          "y2": "a*base*base*q"
+        }
+      }
+    },
+    {
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.8B"
+      ],
+      "courseId": "algebra2",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.8B",
+      "type": "dataModelingLab",
+      "id": "mm_A2_8B_v2_exponential-regression-decay-noisy",
+      "familyId": "mathmaster:A2.8B:v2-exponential-regression-decay-noisy",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "application",
+      "mode": "exponentialFit",
+      "prompt": "A quantity is decaying but the measurements are not perfectly exponential. Use exponential regression technology on all five observations to write the fitted function $y=a(b)^x$. Enter a and b.",
+      "points": [
+        [
+          -2,
+          "{{ym2}}"
+        ],
+        [
+          -1,
+          "{{ym1}}"
+        ],
+        [
+          0,
+          "{{y0}}"
+        ],
+        [
+          1,
+          "{{y1}}"
+        ],
+        [
+          2,
+          "{{y2}}"
+        ]
+      ],
+      "exponentialATolerance": 0.05,
+      "exponentialBaseTolerance": 0.015,
+      "context": {
+        "title": "Measured exponential decay",
+        "note": "Measurement variation makes consecutive ratios unequal. The fitted base should come from regression technology, not from one chosen pair."
+      },
+      "solutionReview": {
+        "headline": "Regression distinguishes an overall exponential decay pattern from small measurement variation.",
+        "reasoning": [
+          "The fitted base is between 0 and 1, so the fitted model represents decay.",
+          "All five positive observations contribute to the technology estimate."
+        ],
+        "answerSummary": "Record the technology's fitted a and decay base b."
+      },
+      "attemptFeedback": [
+        "Do not average two ratios by hand; use the exponential regression command on all five observations."
+      ],
+      "supportHints": [
+        "A valid decay fit has a positive initial factor and a base between 0 and 1."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 20,
+            "max": 80,
+            "step": 5
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.65,
+              0.75,
+              0.8
+            ]
+          },
+          "q": {
+            "type": "choice",
+            "values": [
+              1.1,
+              1.2
+            ]
+          }
+        },
+        "derived": {
+          "ym2": "a*pow(base,-2)*q",
+          "ym1": "a*pow(base,-1)/q",
+          "y0": "a",
+          "y1": "a*base/q",
+          "y2": "a*base*base*q"
+        }
+      }
+    },
+    {
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.8B"
+      ],
+      "courseId": "algebra2",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.8B",
+      "type": "dataModelingLab",
+      "id": "mm_A2_8B_v2_quadratic-regression-transcription-error",
+      "familyId": "mathmaster:A2.8B:v2-quadratic-regression-transcription-error",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "mode": "quadraticFit",
+      "prompt": "A student runs quadratic regression on the five observations but records the x-term coefficient with the opposite sign, writing $y={{a}}x^2+({{wrongB}})x+({{c}})$. Re-run quadratic regression on the full data set and repair the complete fitted function by entering the actual a, b, and c.",
+      "points": [
+        [
+          -2,
+          "{{ym2}}"
+        ],
+        [
+          -1,
+          "{{ym1}}"
+        ],
+        [
+          0,
+          "{{y0}}"
+        ],
+        [
+          1,
+          "{{y1}}"
+        ],
+        [
+          2,
+          "{{y2}}"
+        ]
+      ],
+      "quadraticATolerance": 0.02,
+      "quadraticBTolerance": 0.03,
+      "quadraticCTolerance": 0.04,
+      "context": {
+        "title": "Repair a regression transcription error",
+        "note": "The displayed student equation is not an answer key. Verify every coefficient against a fresh technology regression on all five observations."
+      },
+      "solutionReview": {
+        "headline": "Regression output must be transcribed faithfully before the model is used.",
+        "reasoning": [
+          "The student's x-term sign disagrees with the regression output.",
+          "Re-running the five-row quadratic regression gives a={{a}}, b={{b}}, c={{c}}.",
+          "The corrected fitted function uses b={{b}}, not {{wrongB}}."
+        ],
+        "answerSummary": "Corrected technology fit: $y={{a}}x^2+({{b}})x+({{c}})$."
+      },
+      "attemptFeedback": [
+        "Re-run the regression rather than changing only the displayed sign by assumption."
+      ],
+      "supportHints": [
+        "Compare all three coefficients from technology with the student's recorded model."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "c": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "e": {
+            "type": "int",
+            "min": 1,
+            "max": 2
+          }
+        },
+        "derived": {
+          "wrongB": "-b",
+          "ym2": "4*a-2*b+c+e",
+          "ym1": "a-b+c-2*e",
+          "y0": "c",
+          "y1": "a+b+c+2*e",
+          "y2": "4*a+2*b+c-e"
+        }
+      }
+    }
+  ]
+}
