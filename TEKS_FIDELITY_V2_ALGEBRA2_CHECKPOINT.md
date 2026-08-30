@@ -410,7 +410,7 @@ Do **not** re-audit A2.4G unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4H — ENHANCE — AUDITED / AUTHORING
+### A2.4H — ENHANCE — STAGED / CERTIFICATION RUNNING
 
 ## FIRST UNFINISHED STANDARD
 
@@ -440,6 +440,18 @@ Resume here. Do not reopen A2.2A–A2.4G unless a failing gate names them.
   - preserve an authentic number-line construction family;
   - include genuine error analysis that repairs endpoint inclusion/sign-interval reasoning and still gives the full solution set.
 - Generic secure interval grading plus the existing secure interval-number-line tool are sufficient; no new Path capability is required.
+
+
+### 2026-08-30 — A2.4H staged and gated
+- Staged five A2.4H Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4H.json` — commit `c33ff122d3318e0a95ef4587ac103b5cdd003d30`.
+- Coverage includes:
+  - standard-form solving that requires finding the critical zeros before sign analysis;
+  - a negative-leading-coefficient strict between-roots case;
+  - secure number-line construction of an inclusive exterior solution;
+  - a negative-discriminant/no-real-zero case whose complete solution set is all real numbers;
+  - endpoint-inclusion error repair that still produces the complete interval.
+- Added A2.4H-specific generated certification — commit `a2d697b1b0ed4a55241a1fa4fa5e9b5d4ad798b8`.
+- The gate samples 200+ generated instances, checks production issuability and secure self-grading, validates the secure number-line tool and rejects a wrong endpoint style, independently verifies the no-real-zero discriminant condition, requires positive/negative leading-coefficient breadth plus strict/inclusive cases, rejects a spoiled interval answer in every family, and checks public answer-key stripping.
 
 
 ### 2026-08-30 — A2.4G audit finding
@@ -1212,3 +1224,4 @@ For each standard:
 - Generated content, production issue gate, secure self-grading, public-key stripping, representation/task breadth, concrete unrestricted-quadratic counterexamples, and student/runtime build all passed.
 - A2.2C is now locked as certified.
 - FIRST UNFINISHED STANDARD advanced to **A2.2D**.
+- Full A2.4H assertion run `33324732755`: **IN_PROGRESS** at this checkpoint.
