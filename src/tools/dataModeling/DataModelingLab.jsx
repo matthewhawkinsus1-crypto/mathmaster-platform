@@ -24,14 +24,15 @@ const inputStyle = { width:'100%', boxSizing:'border-box', padding:'9px 10px', b
 
 const modelFunction = (entry) => entry?.predict || (() => Number.NaN);
 
-const MODE_TASKS = {'full': 'Fit a line to the data, describe the association, choose the best model family, and make a prediction you can defend.', 'lineFit': 'Find the slope and intercept of a line that fits this data well.', 'linearFitPrediction': 'Use regression technology to write a linear function that fits the data, then use your model to make the requested prediction.', 'quadraticFitPrediction': 'Use quadratic regression technology to write a quadratic function that fits the data, then use your model to make the requested prediction.', 'exponentialFitPrediction': 'Use exponential regression technology to write an exponential function that fits the data, then use your model to make the requested prediction.', 'association': 'Describe the direction and strength of the association, and say what this data can justify.', 'correlation': 'Use statistical technology to calculate the correlation coefficient r, then interpret its direction and strength.', 'prediction': 'Use the model to predict a value, and say whether that prediction is interpolation or extrapolation.', 'modelCompare': 'Decide which model family fits this data best.'};
-const MODE_STEPS = {'full': ['Adjust the slope and intercept until the residuals are small and evenly scattered.', 'Read the correlation to describe direction and strength.', 'Compare the model families, then predict and classify.'], 'lineFit': ['Move the slope until the line matches the overall trend.', 'Move the intercept until the line sits through the middle of the points.', 'Watch the residual plot — you want it scattered around zero with no pattern.'], 'linearFitPrediction': ['Run a linear regression on the data.', 'Enter the regression coefficients to write y = mx + b.', 'Use that model at the requested x-value and classify the prediction as interpolation or extrapolation.'], 'quadraticFitPrediction': ['Run a quadratic regression on the data.', 'Enter the regression coefficients to write y = ax² + bx + c.', 'Use that model at the requested x-value and classify the prediction.'], 'exponentialFitPrediction': ['Run an exponential regression on the data.', 'Enter the regression coefficients to write y = a(b)^x.', 'Use that model at the requested x-value and classify the prediction.'], 'association': ['Look at whether the points rise or fall from left to right.', 'Look at how tightly they cluster around a line.', 'Decide whether this data could show cause and effect, or only a relationship.'], 'correlation': ['Run a correlation calculation on the x- and y-data using statistical technology.', 'Record r to at least the thousandths place.', 'Use the sign and magnitude of r to interpret direction and strength.'], 'prediction': ['Enter the x-value you are predicting at.', 'Use the model to compute the predicted y.', 'Decide whether that x is inside or outside the observed data.'], 'modelCompare': ['Compare the residual error of each candidate.', 'Check that the shape is reasonable for what the data describes.', 'Select the best model and check.']};
-const HINTS = {'full': ['Work through the panels in order — each one builds on the last.', 'A good fit has residuals scattered above and below zero with no curve or pattern in them.', 'Correlation describes how tightly the points follow a line. It never proves that one variable causes the other.'], 'lineFit': ['Get the slope roughly right first, then slide the intercept to centre the line.', 'Slope is rise over run: pick two points far apart on the trend and compare how much y changes to how much x changes.', 'If the residual plot curves, a straight line is the wrong shape for this data — that is information, not failure.'], 'linearFitPrediction': ['Use the linear-regression feature of your approved technology; the model coefficients should come from the full data set, not two hand-picked points.', 'Write the complete function before predicting.', 'Use the x-value named in the task; changing the prediction target changes the question.'], 'quadraticFitPrediction': ['Use quadratic regression and record all three coefficients a, b and c.', 'A quadratic model needs the x² term, x term and constant even when a coefficient is near zero.', 'Substitute the requested x into the fitted quadratic, then decide whether that x lies inside or outside the observed range.'], 'exponentialFitPrediction': ['Use exponential regression and record both the initial factor a and multiplicative base b.', 'For decay, the fitted base should be between 0 and 1; for growth it should be greater than 1.', 'Use the requested x-value rather than choosing one of the observed data points.'], 'association': ['Direction is about which way the cloud of points tilts.', 'Strength is about how close the points sit to a single line, not how steep that line is.', 'Observational data can only establish an association. Only a controlled experiment can establish cause and effect.'], 'correlation': ['Use the statistical correlation or linear-regression feature of your approved technology; do not estimate r from the picture.', 'The sign of r gives direction. The size of |r| describes how tightly the points follow a line.', 'Correlation can support an association claim, but correlation alone cannot establish cause and effect.'], 'prediction': ['Substitute your x into the model and compute the y it gives.', 'Interpolation means predicting inside the range of x-values you actually observed.', 'Extrapolation goes beyond the data, where the pattern may not hold — treat those predictions cautiously.'], 'modelCompare': ['Smaller residual error means the model is closer to the points on average.', 'RMSE punishes large misses more than MAE does, so a model with one big error will look worse under RMSE.', 'Also ask whether the shape makes sense: a model that fits well but predicts a negative quantity is still wrong.']};
+const MODE_TASKS = {'full': 'Fit a line to the data, describe the association, choose the best model family, and make a prediction you can defend.', 'lineFit': 'Find the slope and intercept of a line that fits this data well.', 'linearFitPrediction': 'Use regression technology to write a linear function that fits the data, then use your model to make the requested prediction.', 'quadraticFitPrediction': 'Use quadratic regression technology to write a quadratic function that fits the data, then use your model to make the requested prediction.', 'exponentialFitPrediction': 'Use exponential regression technology to write an exponential function that fits the data, then use your model to make the requested prediction.', 'squareRootFitPrediction': 'Use square-root regression technology to write y = a√(x-h)+k from the table, then use your model to make the requested prediction.', 'association': 'Describe the direction and strength of the association, and say what this data can justify.', 'correlation': 'Use statistical technology to calculate the correlation coefficient r, then interpret its direction and strength.', 'prediction': 'Use the model to predict a value, and say whether that prediction is interpolation or extrapolation.', 'modelCompare': 'Decide which model family fits this data best.'};
+const MODE_STEPS = {'full': ['Adjust the slope and intercept until the residuals are small and evenly scattered.', 'Read the correlation to describe direction and strength.', 'Compare the model families, then predict and classify.'], 'lineFit': ['Move the slope until the line matches the overall trend.', 'Move the intercept until the line sits through the middle of the points.', 'Watch the residual plot — you want it scattered around zero with no pattern.'], 'linearFitPrediction': ['Run a linear regression on the data.', 'Enter the regression coefficients to write y = mx + b.', 'Use that model at the requested x-value and classify the prediction as interpolation or extrapolation.'], 'quadraticFitPrediction': ['Run a quadratic regression on the data.', 'Enter the regression coefficients to write y = ax² + bx + c.', 'Use that model at the requested x-value and classify the prediction.'], 'exponentialFitPrediction': ['Run an exponential regression on the data.', 'Enter the regression coefficients to write y = a(b)^x.', 'Use that model at the requested x-value and classify the prediction.'], 'squareRootFitPrediction': ['Run the square-root fit on the full table.', 'Enter a, h, and k in y = a√(x-h)+k.', 'Use the fitted model at the requested x-value and classify the prediction.'], 'association': ['Look at whether the points rise or fall from left to right.', 'Look at how tightly they cluster around a line.', 'Decide whether this data could show cause and effect, or only a relationship.'], 'correlation': ['Run a correlation calculation on the x- and y-data using statistical technology.', 'Record r to at least the thousandths place.', 'Use the sign and magnitude of r to interpret direction and strength.'], 'prediction': ['Enter the x-value you are predicting at.', 'Use the model to compute the predicted y.', 'Decide whether that x is inside or outside the observed data.'], 'modelCompare': ['Compare the residual error of each candidate.', 'Check that the shape is reasonable for what the data describes.', 'Select the best model and check.']};
+const HINTS = {'full': ['Work through the panels in order — each one builds on the last.', 'A good fit has residuals scattered above and below zero with no curve or pattern in them.', 'Correlation describes how tightly the points follow a line. It never proves that one variable causes the other.'], 'lineFit': ['Get the slope roughly right first, then slide the intercept to centre the line.', 'Slope is rise over run: pick two points far apart on the trend and compare how much y changes to how much x changes.', 'If the residual plot curves, a straight line is the wrong shape for this data — that is information, not failure.'], 'linearFitPrediction': ['Use the linear-regression feature of your approved technology; the model coefficients should come from the full data set, not two hand-picked points.', 'Write the complete function before predicting.', 'Use the x-value named in the task; changing the prediction target changes the question.'], 'quadraticFitPrediction': ['Use quadratic regression and record all three coefficients a, b and c.', 'A quadratic model needs the x² term, x term and constant even when a coefficient is near zero.', 'Substitute the requested x into the fitted quadratic, then decide whether that x lies inside or outside the observed range.'], 'exponentialFitPrediction': ['Use exponential regression and record both the initial factor a and multiplicative base b.', 'For decay, the fitted base should be between 0 and 1; for growth it should be greater than 1.', 'Use the requested x-value rather than choosing one of the observed data points.'], 'squareRootFitPrediction': ['Use the square-root regression feature on the complete table rather than selecting two convenient points.', 'Record all three fitted parameters a, h, and k in y = a√(x-h)+k.', 'The endpoint-anchored fit uses the smallest x-value as h and the endpoint output as k, then fits a from all remaining observations.'], 'association': ['Direction is about which way the cloud of points tilts.', 'Strength is about how close the points sit to a single line, not how steep that line is.', 'Observational data can only establish an association. Only a controlled experiment can establish cause and effect.'], 'correlation': ['Use the statistical correlation or linear-regression feature of your approved technology; do not estimate r from the picture.', 'The sign of r gives direction. The size of |r| describes how tightly the points follow a line.', 'Correlation can support an association claim, but correlation alone cannot establish cause and effect.'], 'prediction': ['Substitute your x into the model and compute the y it gives.', 'Interpolation means predicting inside the range of x-values you actually observed.', 'Extrapolation goes beyond the data, where the pattern may not hold — treat those predictions cautiously.'], 'modelCompare': ['Smaller residual error means the model is closer to the points on average.', 'RMSE punishes large misses more than MAE does, so a model with one big error will look worse under RMSE.', 'Also ask whether the shape makes sense: a model that fits well but predicts a negative quantity is still wrong.']};
 
 const FIT_PREDICTION_MODELS = {
   linearFitPrediction: 'linear',
   quadraticFitPrediction: 'quadratic',
   exponentialFitPrediction: 'exponential',
+  squareRootFitPrediction: 'squareRoot',
 };
 
 const fitCoefficientTolerance = (expected, authored, floor, relative = 0.05) => {
@@ -88,6 +89,9 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const [quadraticC, setQuadraticC] = useState(startingModel.c ?? '');
   const [exponentialA, setExponentialA] = useState(startingModel.a ?? '');
   const [exponentialBase, setExponentialBase] = useState(startingModel.base ?? '');
+  const [squareRootA, setSquareRootA] = useState(startingModel.a ?? '');
+  const [squareRootH, setSquareRootH] = useState(startingModel.h ?? '');
+  const [squareRootK, setSquareRootK] = useState(startingModel.k ?? '');
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
   const studentPredict = useMemo(() => {
@@ -102,11 +106,18 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       if (a == null || base == null) return () => Number.NaN;
       return (x) => a * base ** Number(x);
     }
+    if (mode === 'squareRootFitPrediction') {
+      const a = parseNumericAnswer(squareRootA);
+      const h = parseNumericAnswer(squareRootH);
+      const k = parseNumericAnswer(squareRootK);
+      if (a == null || h == null || k == null) return () => Number.NaN;
+      return (x) => Number(x) < h ? Number.NaN : a * Math.sqrt(Number(x) - h) + k;
+    }
     const slope = parseNumericAnswer(m);
     const intercept = parseNumericAnswer(b);
     if (slope == null || intercept == null) return () => Number.NaN;
     return (x) => slope * Number(x) + intercept;
-  }, [mode, m, b, quadraticA, quadraticB, quadraticC, exponentialA, exponentialBase]);
+  }, [mode, m, b, quadraticA, quadraticB, quadraticC, exponentialA, exponentialBase, squareRootA, squareRootH, squareRootK]);
   const studentResiduals = useMemo(() => points.map(([x, y]) => {
     const predicted = Number(studentPredict(x));
     return { x:Number(x), y:Number(y), predicted, residual:Number(y) - predicted };
@@ -135,8 +146,10 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
     ? [quadraticA, quadraticB, quadraticC].every((value) => parseNumericAnswer(value) != null)
     : mode === 'exponentialFitPrediction'
       ? [exponentialA, exponentialBase].every((value) => parseNumericAnswer(value) != null)
-      : false;
-  const studentModelReady = mode === 'quadraticFitPrediction' || mode === 'exponentialFitPrediction'
+      : mode === 'squareRootFitPrediction'
+        ? [squareRootA, squareRootH, squareRootK].every((value) => parseNumericAnswer(value) != null)
+        : false;
+  const studentModelReady = ['quadraticFitPrediction', 'exponentialFitPrediction', 'squareRootFitPrediction'].includes(mode)
     ? nonlinearModelReady
     : linearModelReady;
 
@@ -157,6 +170,12 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       results.fit = parseNumericAnswer(exponentialA) != null && parseNumericAnswer(exponentialBase) != null
         && Math.abs(Number(exponentialA) - Number(expected.a)) <= fitCoefficientTolerance(expected.a, questionData.exponentialATolerance, 0.08)
         && Math.abs(Number(exponentialBase) - Number(expected.base)) <= fitCoefficientTolerance(expected.base, questionData.exponentialBaseTolerance, 0.02, 0.03);
+    } else if (mode === 'squareRootFitPrediction') {
+      const expected = expectedModel?.model || {};
+      results.fit = [squareRootA, squareRootH, squareRootK].every((value) => parseNumericAnswer(value) != null)
+        && Math.abs(Number(squareRootA) - Number(expected.a)) <= fitCoefficientTolerance(expected.a, questionData.squareRootATolerance, 0.05)
+        && Math.abs(Number(squareRootH) - Number(expected.h)) <= fitCoefficientTolerance(expected.h, questionData.squareRootHTolerance, 0.05, 0.02)
+        && Math.abs(Number(squareRootK) - Number(expected.k)) <= fitCoefficientTolerance(expected.k, questionData.squareRootKTolerance, 0.08, 0.03);
     } else {
       results.fit = fitSlope != null && fitIntercept != null
         && Math.abs(fitSlope - regression.m) <= slopeTolerance
@@ -181,7 +200,9 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
       ? { a:Number(quadraticA), b:Number(quadraticB), c:Number(quadraticC) }
       : mode === 'exponentialFitPrediction'
         ? { a:Number(exponentialA), base:Number(exponentialBase) }
-        : { m:Number(m), b:Number(b) };
+        : mode === 'squareRootFitPrediction'
+          ? { a:Number(squareRootA), h:Number(squareRootH), k:Number(squareRootK) }
+          : { m:Number(m), b:Number(b) };
     submit(
       { isCorrect: score === 1, score },
       { ...fitResponse, r:Number(correlationEntry), direction, strength, causation, modelChoice, predictionX:Number(predictionX), predictionY:Number(predictionY), predictionType },
@@ -208,8 +229,8 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
           <CoordinatePlane
             xMin={xMin} xMax={xMax} yMin={yMin} yMax={yMax}
             points={points.map(([x,y]) => ({ 0:x, 1:y }))}
-            lines={showModelEntry && mode !== 'quadraticFitPrediction' && mode !== 'exponentialFitPrediction' && linearModelReady ? [{ m:Number(m), b:Number(b) }] : []}
-            functions={(mode === 'quadraticFitPrediction' || mode === 'exponentialFitPrediction') && nonlinearModelReady ? [studentPredict] : []}
+            lines={showModelEntry && !['quadraticFitPrediction', 'exponentialFitPrediction', 'squareRootFitPrediction'].includes(mode) && linearModelReady ? [{ m:Number(m), b:Number(b) }] : []}
+            functions={['quadraticFitPrediction', 'exponentialFitPrediction', 'squareRootFitPrediction'].includes(mode) && nonlinearModelReady ? [studentPredict] : []}
           />
           {showModelEntry ? (
             <>
@@ -224,6 +245,12 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                   <Field label="a in y = a(b)^x"><input type="number" step="0.01" value={exponentialA} onChange={(e)=>{setExponentialA(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
                   <Field label="Base b"><input type="number" step="0.001" value={exponentialBase} onChange={(e)=>{setExponentialBase(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
                 </div>
+              ) : mode === 'squareRootFitPrediction' ? (
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:10, marginTop:12 }}>
+                  <Field label="a in y = a√(x-h)+k"><input type="number" step="0.01" value={squareRootA} onChange={(e)=>{setSquareRootA(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
+                  <Field label="h (endpoint x)"><input type="number" step="0.01" value={squareRootH} onChange={(e)=>{setSquareRootH(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
+                  <Field label="k (endpoint y)"><input type="number" step="0.01" value={squareRootK} onChange={(e)=>{setSquareRootK(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
+                </div>
               ) : (
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:12 }}>
                   <Field label="Slope m"><input type="number" step="0.1" value={m} onChange={(e)=>{setM(e.target.value);clearFeedback();}} style={inputStyle}/></Field>
@@ -237,7 +264,9 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
                     ? <>y = {quadraticA}x² {Number(quadraticB) >= 0 ? '+' : '−'} {Math.abs(Number(quadraticB))}x {Number(quadraticC) >= 0 ? '+' : '−'} {Math.abs(Number(quadraticC))}</>
                     : mode === 'exponentialFitPrediction'
                       ? <>y = {exponentialA}({exponentialBase})^x</>
-                      : <>y = {m}x {Number(b) >= 0 ? '+' : '−'} {Math.abs(Number(b))}</>}
+                      : mode === 'squareRootFitPrediction'
+                        ? <>y = {squareRootA}√(x − {squareRootH}) {Number(squareRootK) >= 0 ? '+' : '−'} {Math.abs(Number(squareRootK))}</>
+                        : <>y = {m}x {Number(b) >= 0 ? '+' : '−'} {Math.abs(Number(b))}</>
                   <br/><span style={{ fontSize:13 }}>Current MAE: {Number.isFinite(studentMetrics.mae) ? round(studentMetrics.mae, 2) : '—'} · RMSE: {Number.isFinite(studentMetrics.rmse) ? round(studentMetrics.rmse, 2) : '—'}</span>
                 </div>
               ) : (
