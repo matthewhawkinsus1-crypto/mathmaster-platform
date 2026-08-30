@@ -351,7 +351,158 @@
       },
       "variants": [
         {
-          "coverageKey": "core-d2b4"
+          "coverageKey": "core-d2b4",
+          "dok": 2,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d2b2-simple-cost-per-item",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "application",
+          "representation": "context",
+          "prompt": "A production run has total cost ${{A}}x^2+{{B}}x$ dollars for {{d}}x identical items. Divide to write the cost per item as a complete simplified expression.",
+          "responseFields": [
+            {
+              "id": "xcoef",
+              "label": "x coefficient of quotient",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "constant",
+              "label": "constant of quotient",
+              "inputProfile": "number",
+              "expected": "{{b}}"
+            },
+            {
+              "id": "answer",
+              "label": "Cost-per-item expression",
+              "inputProfile": "expression",
+              "expected": "{{a}}*x+({{b}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Divide every term of the total polynomial by the monomial item count.",
+            "reasoning": [
+              "${{A}}x^2/({{d}}x)={{a}}x$.",
+              "${{B}}x/({{d}}x)={{b}}$."
+            ],
+            "answerSummary": "${{a}}x+({{b}})$"
+          },
+          "attemptFeedback": [
+            "Divide both terms by the full monomial, including its x."
+          ],
+          "supportHints": [
+            "Subtract exponents when dividing powers of x."
+          ],
+          "generator": {
+            "parameters": {
+              "d": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              }
+            },
+            "derived": {
+              "A": "d*a",
+              "B": "d*b"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-quotient-multiplication-check",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student divides ${{A}}x^3+{{B}}x^2+{{C}}x$ by {{d}}x and claims the quotient is ${{a}}x^2+{{b}}x^2+{{c}}$. Diagnose the exponent error, write the correct quotient, then verify the middle term by multiplying your middle quotient term by {{d}}x.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What is the error?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "power",
+                  "label": "Dividing x² by x leaves x¹, not x²."
+                },
+                {
+                  "id": "none",
+                  "label": "The student's middle exponent is correct."
+                }
+              ],
+              "expected": "power"
+            },
+            {
+              "id": "answer",
+              "label": "Correct quotient",
+              "inputProfile": "expression",
+              "expected": "{{a}}*x^2+({{b}})*x+({{c}})"
+            },
+            {
+              "id": "verify-middle",
+              "label": "Recovered middle term coefficient",
+              "inputProfile": "number",
+              "expected": "{{B}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A quotient can be verified by multiplying it back by the divisor.",
+            "reasoning": [
+              "The middle quotient term is {{b}}x because x²/x=x.",
+              "Multiplying {{b}}x by {{d}}x recovers coefficient {{B}} on x²."
+            ],
+            "answerSummary": "Correct quotient verified by multiplication."
+          },
+          "attemptFeedback": [
+            "Track both coefficients and exponents term by term."
+          ],
+          "supportHints": [
+            "After dividing, multiply the quotient by the divisor to test the result."
+          ],
+          "generator": {
+            "parameters": {
+              "d": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              },
+              "b": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              }
+            },
+            "derived": {
+              "A": "d*a",
+              "B": "d*b",
+              "C": "d*c"
+            }
+          }
         },
         {
           "coverageKey": "challenge-d3b4-division-error-verification",
