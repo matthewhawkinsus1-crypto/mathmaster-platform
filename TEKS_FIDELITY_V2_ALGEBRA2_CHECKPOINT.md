@@ -683,9 +683,9 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.8B
+### A2.8C
 
-Resume here. Do not reopen A2.2A–A2.8A unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.8B unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.7H audit finding
@@ -2694,8 +2694,10 @@ For each standard:
 - Coverage includes noisy overdetermined linear regression, noisy overdetermined quadratic regression, exponential growth regression, exponential decay regression, and complete quadratic regression-transcription repair.
 - Base production/generated/build run `33333964394`: **PASS**.
 - Added focused A2.8B secure regression certification in `tests/platform/a28bRegressionTechnology.test.mjs` — commit `3ded4137d5d5dd49860475f7d89e2b60a9516952`.
-- Focused run `33334056795`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.8B** until that run is green.
+- Focused run `33334056795`: **PASS**.
+- Generated noisy linear/quadratic/exponential fits, growth/decay breadth, fit-only required-parts behavior, secure coefficient grading, wrong-coefficient rejection, public expected-model stripping, and student/runtime build all passed.
+- A2.8B is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.8C**.
 
 ### 2026-08-30 — A2.8C pre-audit finding
 - Official construct: **predict and make decisions and critical judgments from a given set of data using linear, quadratic, and exponential models**.
