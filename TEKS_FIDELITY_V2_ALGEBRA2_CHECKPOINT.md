@@ -186,5 +186,8 @@ For each standard:
 - Replacement run `33315977704` reached all generation/issuability/self-grading checks, then failed only on the certification test's branch-coverage detector. The test inspected `JSON.stringify(doc)`, which doubles backslashes and hid authored `x\\le` / `x\\ge` from the intended match.
 - Replaced that brittle JSON-string inspection with recursive raw-string inspection — commit `948fd32a5c7c2e8d57f0d906d184bdcf68db1aa3`.
 - Content was not weakened or waived; the left-branch and right-branch requirements remain mandatory.
+- Replacement run `33316022565` passed all generation, production-issuability, secure self-grading, public-key stripping, representation breadth, restriction breadth, and task-type checks. It failed only on the final error-analysis identity assertion because the test searched `solutionReview` for the generic `\\sqrt{u^2}=|u|` hint, while that identity is intentionally stored in `supportHints` and the solution review uses the generated shifted form `|x-h|`.
+- Corrected the certification to verify the generic identity in `supportHints` and the generated principal-square-root / absolute-value reasoning in every sampled solution review — commit `852f66d3307f70e14af8102994998648d51cd605`.
+- No content requirement was removed; the check now tests the fields where the mathematics actually lives.
 - Replacement certification is triggered from the corrected test.
 - FIRST UNFINISHED STANDARD remains **A2.2C** until the replacement run is green.
