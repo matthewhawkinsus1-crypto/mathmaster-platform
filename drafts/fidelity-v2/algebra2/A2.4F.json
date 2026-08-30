@@ -282,7 +282,98 @@
           "b": "t*t-m*x",
           "r": "c+t"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-scale-isolate-square-solve",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "multipleRepresentation",
+          "prompt": "Solve ${{c}}+{{q}}\\sqrt{{{m}}x{{b|signed}}}={{r}}$. Subtract the constant, divide by the outside radical coefficient, square, and solve the resulting linear equation.",
+          "responseFields": [
+            {
+              "id": "after-subtract",
+              "label": "Equation after subtracting {{c}}",
+              "inputProfile": "equation",
+              "expected": "{{q}}sqrt({{m}}x{{b|signed}})={{qt}}"
+            },
+            {
+              "id": "isolated",
+              "label": "Isolated radical equation",
+              "inputProfile": "equation",
+              "expected": "sqrt({{m}}x{{b|signed}})={{t}}"
+            },
+            {
+              "id": "squared",
+              "label": "Equation after squaring",
+              "inputProfile": "equation",
+              "expected": "{{m}}x{{b|signed}}={{t2}}"
+            },
+            {
+              "id": "solution",
+              "label": "Solution x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The extra outside coefficient adds arithmetic complexity, not a new reasoning method.",
+            "reasoning": [
+              "Subtract {{c}} to get {{q}} times the radical equal to {{qt}}.",
+              "Divide by {{q}} so the isolated radical equals {{t}}.",
+              "Square to get the linear equation, then solve x={{x}}."
+            ],
+            "answerSummary": "$x={{x}}$"
+          },
+          "attemptFeedback": [
+            "Do not square while the radical still has an outside coefficient or added constant."
+          ],
+          "supportHints": [
+            "Isolate the square root completely before squaring."
+          ],
+          "generator": {
+            "parameters": {
+              "q": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "x": {
+                "type": "int",
+                "min": 1,
+                "max": 10
+              },
+              "c": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "t": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              }
+            },
+            "derived": {
+              "t2": "t*t",
+              "b": "t*t-m*x",
+              "qt": "q*t",
+              "r": "c+q*t"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_4F_v2_context-radical-model",
@@ -488,7 +579,97 @@
           "c2": "c*c",
           "r2": "(c+t)*(c+t)"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-simple-isolation-error-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student tries to solve $\\sqrt{x{{b|signed}}}+{{c}}={{r}}$ by squaring before subtracting {{c}}. Diagnose why that step is invalid for isolating the radical, repair the setup, and finish the solution.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "First correction",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "isolate",
+                  "label": "Subtract the outside constant so the radical is isolated before squaring."
+                },
+                {
+                  "id": "square-now",
+                  "label": "Square immediately; isolation is unnecessary."
+                }
+              ],
+              "expected": "isolate"
+            },
+            {
+              "id": "isolated",
+              "label": "Correct isolated radical equation",
+              "inputProfile": "equation",
+              "expected": "sqrt(x{{b|signed}})={{t}}"
+            },
+            {
+              "id": "squared",
+              "label": "Equation after squaring",
+              "inputProfile": "equation",
+              "expected": "x{{b|signed}}={{t2}}"
+            },
+            {
+              "id": "solution",
+              "label": "Solution x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The reasoning error is the order of operations, not difficult arithmetic.",
+            "reasoning": [
+              "Subtract {{c}} first so the square root alone equals {{t}}.",
+              "Then squaring gives $x{{b|signed}}={{t2}}$.",
+              "Solving gives x={{x}}."
+            ],
+            "answerSummary": "Repair the isolation step; $x={{x}}$."
+          },
+          "attemptFeedback": [
+            "Explain and repair the isolation mistake, then complete the solve."
+          ],
+          "supportHints": [
+            "A square root should be alone on one side before squaring."
+          ],
+          "generator": {
+            "parameters": {
+              "x": {
+                "type": "int",
+                "min": 1,
+                "max": 8
+              },
+              "c": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "t": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              }
+            },
+            "derived": {
+              "t2": "t*t",
+              "b": "t*t-x",
+              "r": "c+t"
+            }
+          }
+        }
+      ]
     }
   ]
 }
