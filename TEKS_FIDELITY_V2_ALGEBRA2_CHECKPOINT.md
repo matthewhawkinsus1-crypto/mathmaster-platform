@@ -578,6 +578,20 @@ Resume here. Do not reopen A2.2A–A2.5E unless a failing gate names them.
 - The current Function Investigation tool intentionally lacks b. No risky tool expansion is required: secure generic multi-response fields plus generated table/graph point mappings can directly assess the missing horizontal effects.
 - Generic secure response grading is sufficient; no new Path capability is required.
 
+
+### 2026-08-30 — A2.6A staged and gated
+- Staged five A2.6A Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6A.json` — commit `1bbbceb89637da07287092994490391d23fdb022`.
+- Coverage now includes repeated cubic and cube-root analysis under the full $a\,f(b(x-h))+k$ model:
+  - combined cubic effects with negative a and reciprocal horizontal compression;
+  - cube-root point mapping with b<0, horizontal reflection, and 1/4 horizontal compression;
+  - cubic graph evidence for a true horizontal stretch from b=0.5;
+  - reverse recovery of cube-root a/b/h/k from mapped points;
+  - error analysis correcting the misconception that negative a and negative b “cancel” or that |b| is the horizontal scale.
+- Added A2.6A-specific generated certification — commit `6ca0d32a4029dcb905c6ead3f82e0df814eff800`.
+- The gate samples 200+ generated instances, requires production issuability and secure self-grading, independently checks mapped-point geometry and reciprocal horizontal scales, requires repeated cubic/cube-root and positive/negative parameter breadth, rejects an incorrect transformation effect in every family, and checks public answer-key stripping.
+- Full A2.6A certification is triggered.
+- FIRST UNFINISHED STANDARD remains **A2.6A** until the generated gate and build are green.
+
 ### 2026-08-30 — A2.5E audit finding
 - Official construct: **determine the reasonableness of a solution to a logarithmic equation**.
 - Verdict: **REBUILD**.
