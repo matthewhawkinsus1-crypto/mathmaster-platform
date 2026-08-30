@@ -556,17 +556,38 @@ Certification result:
 
 Do **not** re-audit A2.6A unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.6B
 
-### A2.6B — ENHANCE — AUDITED / AUTHORING
+### A2.6B — ENHANCE — CERTIFIED
 
 Official construct: **Solve cube root equations that have real roots.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- every family finishes the cube-root solve rather than returning only a method label;
+- isolate → cube → linear-solve evidence is collected repeatedly;
+- nontrivial linear radicands are used across most families;
+- negative real cube-root values and a noninteger real cube-root value are represented;
+- contextual modeled solving and complete squaring-vs-cubing error repair are included;
+- no artificial square-root-style domain/extraneous restriction is introduced;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- wrong final solutions are rejected and public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33325959758`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.6B unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.6C — PENDING AUDIT
+
+Official construct: **Analyze transformations of the absolute value parent function for specified positive and negative real parameter values.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.6B
+### A2.6C
 
-Resume here. Do not reopen A2.2A–A2.6A unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.6B unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.6B audit finding
@@ -599,7 +620,10 @@ Resume here. Do not reopen A2.2A–A2.6A unless a failing gate names them.
 - Added A2.6B-specific generated certification — commit `9fecebd60cbf73820e4972f9e9482d94a9ef0aa6`.
 - The gate samples 200+ generated instances, requires production issuability and secure self-grading, requires isolate/cube/final evidence, independently checks noninteger cubing, requires repeated negative real cube-root cases, rejects an incorrect final solution in every family, and checks public answer-key stripping.
 - Full A2.6B certification is triggered.
-- FIRST UNFINISHED STANDARD remains **A2.6B** until the generated gate and build are green.
+- Full A2.6B certification run `33325959758`: **PASS**.
+- Generated complete-step solving, negative/noninteger real cube-root breadth, context/error repair, secure wrong-final rejection, public-key stripping, and student/runtime build all passed.
+- A2.6B is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.6C**.
 
 ### 2026-08-30 — A2.6A audit finding
 - Official construct: **analyze transformations of cubic and cube root parent functions for specified positive and negative real parameter values**.
