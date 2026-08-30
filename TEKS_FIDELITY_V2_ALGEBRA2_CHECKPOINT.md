@@ -720,7 +720,9 @@ Resume here. Do not reopen A2.2A–A2.6L unless a failing gate names them.
 - Staged five A2.7A Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7A.json` — commit `89a3edc26650c3946da1b59e7574cf87c9450253`.
 - Coverage includes addition with separately graded components, subtraction to a pure-imaginary result, general non-conjugate multiplication, a mixed conjugate-product/subtraction family yielding a pure-real result, and complete (i^2) error repair.
 - Routine multi-step arithmetic remains DOK 2 across difficulty bands 2–4; only complete error repair is DOK 3.
-- Base Algebra II certification run `33330594410`: **RUNNING** at this checkpoint.
+- Base Algebra II certification run `33330594410`: **PASS**.
+- Added A2.7A-specific generated certification — commit `47f02755b954719d59ee45a1d87088bfebf65461`.
+- Full A2.7A certification run `33330651450`: **RUNNING** at this checkpoint.
 - FIRST UNFINISHED STANDARD remains **A2.7A** until the full generated certification is green.
 
 
