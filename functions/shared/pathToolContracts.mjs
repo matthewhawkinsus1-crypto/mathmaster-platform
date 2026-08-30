@@ -542,12 +542,13 @@ const CONTRACTS = {
           tolerance: Number(question.numericTolerance ?? 0.05),
         }
     ),
-    validateStudentResponse: (raw) => {
-      // The response shape identifies the mode without trusting a client-sent
-      // mode flag. The actual grader is still selected from the server's stored
-      // private definition below.
-      if (raw && ('testChoice' in raw || 'candidate' in raw)) {
-        return validateSystemsInequalityResponse(raw);
+    validateStudentResponse: (raw, definition) => {
+      // The grader is selected from the server-held definition, never from a
+      // client-sent mode flag. Inequality validation also needs that definition
+      // because a construction task requires different fields from a legacy
+      // test-point task.
+      if (definition?.mode === 'inequalities') {
+        return validateSystemsInequalityResponse(raw, definition);
       }
       return raw && typeof raw.classification === 'string' && raw.classification.trim() !== ''
         ? valid()
@@ -1157,7 +1158,7 @@ export const gradePathResponse = ({ privateGrading, raw }) => {
   if (!contract) {
     return { ...graded(false), rejected: true, reason: 'no_server_grader_for_this_tool' };
   }
-  const check = contract.validateStudentResponse(raw);
+  const check = contract.validateStudentResponse(raw, privateGrading.definition);
   if (!check.valid) {
     return { ...graded(false), rejected: true, reason: 'malformed_response', detail: check.reason };
   }
