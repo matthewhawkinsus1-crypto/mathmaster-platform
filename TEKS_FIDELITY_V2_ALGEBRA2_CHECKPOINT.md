@@ -412,7 +412,10 @@ Resume here. Do not reopen A2.2A–A2.4E unless a failing gate names them.
   - a multi-step square-root equation that must be isolated, squared, then solved linearly;
   - a contextual square-root model requiring the same complete solve and final time interpretation;
   - error analysis that repairs the mistake of squaring before isolating the radical and still finishes the solution.
-- Package/build run `33323628362`: **RUNNING** at this checkpoint.
+- Package/build run `33323628362`: **PASS**, including student/runtime build.
+- Added A2.4F-specific generated certification — commit `5854e277a250a85dce6139848da25150813d3fe7`.
+- The A2.4F gate samples 200+ generated instances, checks production issuability and secure self-grading, requires repeated quadratic and square-root solves, verifies a non-perfect-square discriminant for the exact quadratic-formula family, requires repeated isolate→square→solve radical evidence, requires context/error-repair coverage, rejects a spoiled final solution in every family, and checks public answer-key stripping.
+- Full A2.4F assertion run `33323687834`: **RUNNING** at this checkpoint.
 - FIRST UNFINISHED STANDARD remains **A2.4F** until generated certification is added and green.
 
 
