@@ -41,7 +41,7 @@ function protectIssuedChoiceIds(question, seedKey = '') {
   if (!question || typeof question !== 'object') return question;
 
   const identity = String(question.id || question.familyId || question.assessedConstruct || 'path-question');
-  const remapChoiceList = (choices, scope) => {
+  const remapChoiceList = (choices, scope, preferredAliases = null) => {
     const source = Array.isArray(choices) ? choices : [];
     const aliases = new Map();
     const protectedChoices = source.map((choice, index) => {
@@ -51,11 +51,14 @@ function protectIssuedChoiceIds(question, seedKey = '') {
           ? (choice.id ?? choice.value ?? `choice-${index + 1}`)
           : choice,
       );
-      const protectedId = opaqueId('choice', seedKey, identity, scope, index, originalId);
+      const originalValue = objectChoice && choice.value != null ? String(choice.value) : null;
+      const protectedId = preferredAliases?.get(originalId)
+        || (originalValue ? preferredAliases?.get(originalValue) : null)
+        || opaqueId('choice', seedKey, identity, scope, index, originalId);
 
       aliases.set(originalId, protectedId);
       if (objectChoice && choice.id != null) aliases.set(String(choice.id), protectedId);
-      if (objectChoice && choice.value != null) aliases.set(String(choice.value), protectedId);
+      if (originalValue != null) aliases.set(originalValue, protectedId);
 
       return objectChoice
         ? { ...choice, id: protectedId }
@@ -68,7 +71,11 @@ function protectIssuedChoiceIds(question, seedKey = '') {
   const responseFields = (Array.isArray(question.responseFields) ? question.responseFields : [])
     .map((field, index) => {
       const local = Array.isArray(field?.choices)
-        ? remapChoiceList(field.choices, `field:${field?.id || index + 1}`)
+        ? remapChoiceList(
+          field.choices,
+          `field:${field?.id || index + 1}`,
+          topLevel.aliases.size ? topLevel.aliases : null,
+        )
         : null;
       const maps = [local?.aliases, topLevel.aliases].filter(Boolean);
       const mapAnswer = (value) => {
