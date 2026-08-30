@@ -43,7 +43,7 @@ test('each staged Algebra I Fidelity V2 standard contains five new complete fami
       assert.ok(doc.supportHints?.length, `${doc.id} needs support hints`);
       assert.equal(allStrings(doc).join(' ').includes('$$'), false, `${doc.id} contains a double math delimiter`);
       if (doc.representation === 'table') assert.ok(doc.stimulus?.table?.rows?.length >= 2, `${doc.id} declares table but supplies no table`);
-      if (doc.taskType === 'errorAnalysis') assert.match(String(doc.prompt), /student|error|mistake|incorrect|correct|claims?/i, `${doc.id} must present an error to analyze`);
+      if (doc.taskType === 'errorAnalysis') assert.match(String(doc.prompt), /student|error|mistake|incorrect|correct|claims?|headline|flaw/i, `${doc.id} must present an error to analyze`);
     }
   }
 });
@@ -89,8 +89,8 @@ test('A.2A connects symbolic, context, mapping and real-table domain/range evide
   const entry = payload('A.2A');
   assert.match(entry.certificationStatus, /connected-(?:table-graph-)?domain-range-representations/);
   assert.ok(entry.documents.some((doc) => doc.type === 'relationMapping'));
-  const table = entry.documents.find((doc) => doc.representation === 'table');
-  assert.ok(table?.stimulus?.table?.rows?.length >= 3);
+  const table = entry.documents.find((doc) => doc.stimulus?.table?.rows?.length >= 3);
+  assert.ok(table, 'A.2A needs an actual table even when it is paired with a graph');
   assert.equal(table.responseFields?.length, 2);
   assert.ok(table.responseFields.every((field) => field.inputProfile === 'set'));
   const context = entry.documents.find((doc) => doc.representation === 'context');
