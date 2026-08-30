@@ -119,8 +119,8 @@ test('a choice field must have at least one grading key that matches a displayed
   assert.ok(result.errors.some((message) => /every visible option and still be marked wrong/.test(message)));
 });
 
-test('regular answerFields self-grade their canonical key through the actual MultiAnswer grader', () => {
-  const good = validateQuestionGradingContracts({
+test('regular answerFields keep their canonical key when alternate accepted answers are present', () => {
+  const equivalent = validateQuestionGradingContracts({
     answerFields: [{
       id: 'quadratic',
       label: 'Standard form',
@@ -128,9 +128,9 @@ test('regular answerFields self-grade their canonical key through the actual Mul
       acceptedAnswers: ['y=x^{2}-6x+1'],
     }],
   });
-  assert.deepEqual(good.errors, []);
+  assert.deepEqual(equivalent.errors, []);
 
-  const bad = validateQuestionGradingContracts({
+  const distinctAlternate = validateQuestionGradingContracts({
     answerFields: [{
       id: 'value',
       label: 'Value',
@@ -138,7 +138,11 @@ test('regular answerFields self-grade their canonical key through the actual Mul
       acceptedAnswers: ['5'],
     }],
   });
-  assert.ok(bad.errors.some((message) => /runtime self-grade check/.test(message)));
+  assert.deepEqual(
+    distinctAlternate.errors,
+    [],
+    'acceptedAnswers supplement the canonical answer; they do not replace and invalidate it',
+  );
 });
 
 test('secure responseFields self-grade the canonical key through gradeResponseField', () => {
