@@ -80,3 +80,28 @@ test('live Path service does not trust browser-supplied weekly rigor', () => {
   assert.match(server, /intendedDifficultyBand: weeklySlot\?\.difficultyBand \|\| null/);
   assert.match(server, /weeklyPurpose: weeklySlot\?\.purpose \|\| null/);
 });
+
+
+test('Teacher Path Simulator free-choice Challenge intent also targets DOK3 Band4', async () => {
+  assert.ok(targetRecord);
+  const code = primaryCode(targetRecord);
+  const runtime = createTeacherPathRuntime({
+    pathBankQuestions: records,
+    courseId: 'algebra1',
+  });
+  const started = await runtime.startOrResumePathSession({
+    targetAlignmentKey: 'texas:' + code,
+    coursePracticeIntent: 'challenge',
+  });
+  assert.equal(started.session.coursePracticeIntent, 'challenge');
+  assert.equal(started.session.intendedDok, 3);
+  assert.equal(started.session.intendedDifficultyBand, 4);
+
+  const question = (await runtime.fetchNextSanitizedQuestion({
+    sessionId: started.session.sessionId,
+  })).questionInstance;
+  assert.equal(question.preferredDok, 3);
+  assert.equal(question.preferredBand, 4);
+  assert.equal(question.dok, 3);
+  assert.equal(question.difficultyBand, 4);
+});
