@@ -65,7 +65,103 @@
           "left": "h-d",
           "right": "h+d"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b2",
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "coverageKey": "adaptive-d2b4-scaled-half-unit-two-case",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "multipleRepresentation",
+          "prompt": "Solve $3|2x-({{center2}})|-5={{y}}$. Isolate the absolute value, write both linear cases, and give the two real solutions. The center and distance are half-units.",
+          "responseFields": [
+            {
+              "id": "isolated",
+              "label": "Isolated absolute-value equation",
+              "inputProfile": "equation",
+              "equivalence": "absoluteLinearRelation",
+              "expected": "abs(2*x-({{center2}}))={{d2}}"
+            },
+            {
+              "id": "case-plus",
+              "label": "Positive case",
+              "inputProfile": "equation",
+              "expected": "2*x-({{center2}})={{d2}}"
+            },
+            {
+              "id": "case-minus",
+              "label": "Negative case",
+              "inputProfile": "equation",
+              "expected": "2*x-({{center2}})=-{{d2}}"
+            },
+            {
+              "id": "left",
+              "label": "Smaller solution",
+              "inputProfile": "number",
+              "expected": "{{left}}"
+            },
+            {
+              "id": "right",
+              "label": "Larger solution",
+              "inputProfile": "number",
+              "expected": "{{right}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A more complex absolute-value equation still follows isolate → two cases → solve.",
+            "reasoning": [
+              "Add 5 and divide by 3 to isolate $|2x-({{center2}})|={{d2}}$.",
+              "Solve $2x-({{center2}})={{d2}}$ and $2x-({{center2}})=-{{d2}}$.",
+              "The two solutions are {{left}} and {{right}}."
+            ],
+            "answerSummary": "$x={{left}}$ or $x={{right}}$."
+          },
+          "attemptFeedback": [
+            "Do not split into two cases until the absolute-value expression is isolated."
+          ],
+          "supportHints": [
+            "Undo the outside -5 and factor 3 before creating the positive and negative cases."
+          ],
+          "generator": {
+            "parameters": {
+              "center2": {
+                "type": "choice",
+                "values": [
+                  -9,
+                  -7,
+                  -5,
+                  -3,
+                  -1,
+                  1,
+                  3,
+                  5,
+                  7,
+                  9
+                ]
+              },
+              "d2": {
+                "type": "choice",
+                "values": [
+                  3,
+                  5,
+                  7,
+                  9
+                ]
+              }
+            },
+            "derived": {
+              "y": "3*d2-5",
+              "left": "(center2-d2)/2",
+              "right": "(center2+d2)/2"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_6E_v2_scaled-linear-inside",
@@ -448,7 +544,99 @@
         "derived": {
           "y": "k-a*d"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-simple-negative-distance-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student reaches $|x-({{h}})|=-{{d}}$ and then creates two linear cases. Diagnose the mistake and state the real solution count.",
+          "responseFields": [
+            {
+              "id": "isolated",
+              "label": "Isolated absolute-value equation",
+              "inputProfile": "equation",
+              "expected": "abs(x-({{h}}))=-{{d}}"
+            },
+            {
+              "id": "diagnosis",
+              "label": "Diagnosis",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "none",
+                  "label": "An absolute value cannot equal a negative number, so there are no real solutions."
+                },
+                {
+                  "id": "split",
+                  "label": "Split into positive and negative cases anyway."
+                },
+                {
+                  "id": "square",
+                  "label": "Square both sides first."
+                }
+              ],
+              "expected": "none"
+            },
+            {
+              "id": "solution-count",
+              "label": "Number of real solutions",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "zero",
+                  "label": "0"
+                },
+                {
+                  "id": "one",
+                  "label": "1"
+                },
+                {
+                  "id": "two",
+                  "label": "2"
+                }
+              ],
+              "expected": "zero"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A negative isolated absolute value ends the solve immediately.",
+            "reasoning": [
+              "Absolute value is always nonnegative.",
+              "Therefore $|x-({{h}})|=-{{d}}$ has no real solution.",
+              "Creating two linear cases after reaching a negative distance is invalid."
+            ],
+            "answerSummary": "0 real solutions."
+          },
+          "attemptFeedback": [
+            "Check whether the isolated absolute value is nonnegative before splitting into cases."
+          ],
+          "supportHints": [
+            "No absolute value of a real expression can be negative."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "d": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }
