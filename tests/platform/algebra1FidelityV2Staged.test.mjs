@@ -87,7 +87,7 @@ test('A.2I requires both equations of the system in every family', () => {
 
 test('A.2A connects symbolic, context, mapping and real-table domain/range evidence', () => {
   const entry = payload('A.2A');
-  assert.match(entry.certificationStatus, /connected-domain-range-representations/);
+  assert.match(entry.certificationStatus, /connected-(?:table-graph-)?domain-range-representations/);
   assert.ok(entry.documents.some((doc) => doc.type === 'relationMapping'));
   const table = entry.documents.find((doc) => doc.representation === 'table');
   assert.ok(table?.stimulus?.table?.rows?.length >= 3);
