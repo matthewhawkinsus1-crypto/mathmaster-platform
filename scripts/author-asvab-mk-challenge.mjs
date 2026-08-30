@@ -216,7 +216,7 @@ mkc('6.2B', 'absolute-value-row-that-fails', {
 
 mkc('6.2C', 'value-at-a-step-along-a-line', {
   difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
-  prompt: 'A line runs from $-{{a}}$ to ${{b}}$ in ${{steps}}$ equal steps. What value sits ${{k}}$ steps from the left end?',
+  prompt: 'A scale of ${{steps}}$ equal gaps stretches from $-{{a}}$ up to ${{b}}$. After ${{k}}$ gaps, what value is reached?',
   generator: {
     parameters: {
       stepSize: { type: 'int', min: 2, max: 9 },
@@ -1562,7 +1562,7 @@ mkc('6.9B', 'diagnosing-a-ray-drawn-backwards', {
 
 mkc('6.10A', 'solve-a-grouped-quotient-equation', {
   difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic',
-  prompt: 'Solve $\\frac{x + {{a}}}{{{c}}} = {{q}}$.',
+  prompt: 'What value of $x$ satisfies $\\frac{x + {{a}}}{{{c}}} = {{q}}$?',
   generator: {
     parameters: {
       a: { type: 'int', min: 3, max: 30 },
@@ -1751,9 +1751,9 @@ mkc('6.10B', 'substituting-inside-the-wrong-grouping', {
 // ================================================================ 6.11
 // Points, quadrants and reflections in the coordinate plane.
 
-mkc('6.11', 'point-after-two-reflections', {
-  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'orderedPairs',
-  prompt: 'Reflect $(-{{p}}, {{q}})$ across the horizontal axis, then across the vertical axis. Which point results?',
+mkc('6.11', 'quadrant-after-flipping-over-both-axes', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal',
+  prompt: 'A point at $(-{{p}}, {{q}})$ is flipped over both axes in turn. Which quadrant does it finish in?',
   generator: {
     parameters: {
       p: { type: 'int', min: 2, max: 18 },
@@ -1762,15 +1762,15 @@ mkc('6.11', 'point-after-two-reflections', {
     constraints: ['p!=q'],
   },
   choices: [
-    { label: plain('({{p}}, -{{q}})'), correct: true },
-    { label: plain('(-{{p}}, -{{q}})'), error: 'forgotFinalStep' },
-    { label: plain('({{p}}, {{q}})'), error: 'signError' },
-    { label: plain('(-{{q}}, {{p}})'), error: 'ratioReversed' },
+    { label: 'Quadrant IV.', correct: true },
+    { label: 'Quadrant III.', error: 'forgotFinalStep' },
+    { label: 'Quadrant II.', error: 'signError' },
+    { label: 'Quadrant I.', error: 'operationInverted' },
   ],
-  reasoning: ['The first reflection changes the sign of the height, giving $(-{{p}}, -{{q}})$.', 'The second changes the sign of the across value, giving $({{p}}, -{{q}})$.'],
-  answerSummary: { headline: 'Each axis flips the coordinate it is not aligned with.', text: 'It is $({{p}}, -{{q}})$.' },
-  hint: 'Apply one reflection at a time and write the point down between them.',
-  feedback: 'Stopping after the first reflection leaves the across value negative.',
+  reasoning: ['The point starts in Quadrant II, and flipping over the horizontal axis sends it to Quadrant III.', 'Flipping that over the vertical axis carries it on to Quadrant IV.'],
+  answerSummary: { headline: 'Each flip carries the point one quadrant across.', text: 'It finishes in Quadrant IV.' },
+  hint: 'Name the quadrant the point starts in before moving it.',
+  feedback: 'Stopping after the first flip leaves the point one quadrant short.',
 });
 
 mkc('6.11', 'point-behind-a-reflection-distance', {
@@ -3101,7 +3101,7 @@ mkc('7.7', 'value-further-along-a-line', {
 
 mkc('7.7', 'value-at-zero-from-two-points', {
   difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade7',
-  prompt: 'A line passes through $({{x1}}, {{y1}})$ and $({{xt}}, {{yt}})$. What is its value at $x = 0$?',
+  prompt: 'Where does the line through $({{x1}}, {{y1}})$ and $({{xt}}, {{yt}})$ meet the vertical axis?',
   generator: {
     parameters: {
       m: { type: 'int', min: 2, max: 24 },
@@ -4359,7 +4359,7 @@ mkc('8.2B', 'root-to-the-nearest-tenth-interval', {
 
 mkc('8.2B', 'interval-holding-a-sum-of-two-roots', {
   difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'symbolic', courseId: 'grade8',
-  prompt: 'Between which two whole numbers does $\\sqrt{{{n}}} + \\sqrt{{{m}}}$ lie?',
+  prompt: 'Which pair of consecutive whole numbers surrounds $\\sqrt{{{n}}} + \\sqrt{{{m}}}$?',
   generator: {
     parameters: {
       n: { type: 'int', min: 5, max: 90 },
@@ -5374,7 +5374,7 @@ mkc('8.5B', 'monthly-charge-behind-a-total', {
 
 mkc('8.5B', 'fee-folded-into-the-monthly-rate', {
   difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal', courseId: 'grade8',
-  prompt: 'For a $\\${{b}}$ joining fee at $\\${{m}}$ a month a student writes $y = ({{m}} + {{b}})x$. What is wrong?',
+  prompt: 'A student models $\\${{m}}$ a month after a $\\${{b}}$ joining fee as $y = ({{m}} + {{b}})x$. What is wrong?',
   generator: {
     parameters: {
       b: { type: 'int', min: 10, max: 120 },
@@ -6790,24 +6790,33 @@ mkc('8.8D', 'third-angle-from-an-exterior-one', {
   feedback: 'Subtracting the remote angle gives the other remote angle, not the third one.',
 });
 
-mkc('8.8D', 'claim-about-angles-on-a-transversal', {
-  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade8',
-  prompt: 'Parallel lines are cut by a transversal and one angle measures ${{a}}^\\circ$. Which statement is wrong?',
+mkc('8.8D', 'gap-between-two-partners-of-one-angle', {
+  difficultyBand: 4, dok: 3, taskType: 'application', representation: 'verbal', courseId: 'grade8',
+  prompt: 'A transversal crosses two parallel lines and one angle is ${{a}}^\\circ$. How far apart are its co-interior and alternate partners?',
   generator: {
-    parameters: { a: { type: 'int', min: 25, max: 155 } },
-    derived: { sup: '180-a' },
-    constraints: ['a!=90'],
+    parameters: { a: { type: 'int', min: 25, max: 86 } },
+    derived: {
+      sup: '180-a',
+      answer: '180-2*a',
+      // Answered the co-interior partner rather than the gap.
+      d_forgotFinalStep: '180-a',
+      // Answered the alternate partner, which is the given angle again.
+      d_usedGivenValue: 'a',
+      // Took the difference the other way round.
+      d_signError: '2*a-180',
+    },
+    constraints: ['a!=90', '180-2*a>6', 'abs(180-3*a)>4'],
   },
   choices: [
-    { label: 'The angle inside the parallels on the same side is also ${{a}}^\\circ$.', correct: true },
-    { label: 'The corresponding angle is ${{a}}^\\circ$.', error: 'partialTotal' },
-    { label: 'The alternate angle is ${{a}}^\\circ$.', error: 'usedGivenValue' },
-    { label: 'The angle beside it on the same line is ${{sup}}^\\circ$.', error: 'ratioReversed' },
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
   ],
-  reasoning: ['Angles inside the parallels on the same side of the transversal add to $180^\\circ$.', 'So that angle is ${{sup}}^\\circ$, not ${{a}}^\\circ$.'],
-  answerSummary: { headline: 'Same-side interior angles are supplementary, not equal.', text: 'That angle is ${{sup}}^\\circ$.' },
-  hint: 'Sketch the two parallels and mark every angle.',
-  feedback: 'Corresponding and alternate angles really are equal.',
+  reasoning: ['The alternate partner equals the angle at ${{a}}^\\circ$, while the co-interior partner is ${{sup}}^\\circ$.', 'They sit ${{answer}}^\\circ$ apart.'],
+  answerSummary: { headline: 'One partner matches the angle and the other completes a straight line.', text: 'They are ${{answer}}^\\circ$ apart.' },
+  hint: 'Decide for each partner whether it matches the angle or supplements it.',
+  feedback: 'The co-interior partner on its own is not the gap between the two.',
 });
 
 // ================================================================ 8.9
@@ -7930,7 +7939,7 @@ mkc('A.3F', 'claim-about-a-system-with-no-solution', {
 
 mkc('A.5A', 'solve-a-grouped-quotient-with-a-shift', {
   difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
-  prompt: 'Solve $\\frac{x + {{p}}}{{{d}}} - {{q}} = {{r}}$.',
+  prompt: 'Find $x$ if $\\frac{x + {{p}}}{{{d}}} - {{q}} = {{r}}$.',
   generator: {
     parameters: {
       p: { type: 'int', min: 3, max: 260 },
@@ -7963,7 +7972,7 @@ mkc('A.5A', 'solve-a-grouped-quotient-with-a-shift', {
 
 mkc('A.5A', 'constant-that-fixes-a-bracketed-solution', {
   difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
-  prompt: 'For which $c$ does ${{a}}(x + {{p}}) = {{b}}x + c$ have the solution $x = {{v}}$?',
+  prompt: 'The equation ${{a}}(x + {{p}}) = {{b}}x + c$ is solved by $x = {{v}}$. What is $c$?',
   generator: {
     parameters: {
       a: { type: 'int', min: 3, max: 18 },
@@ -8193,34 +8202,40 @@ mkc('A.5C', 'multiplier-that-clears-the-first-unknown', {
   feedback: 'The coefficient to be matched is the target, not the multiplier.',
 });
 
-mkc('A.5C', 'equation-substitution-leaves-behind', {
-  difficultyBand: 4, dok: 3, taskType: 'representationTranslation', representation: 'symbolic', courseId: 'algebra1',
-  prompt: 'Substituting $y = {{m}}x + {{p}}$ into ${{a}}x + {{b}}y = {{c}}$ leaves which equation?',
+mkc('A.5C', 'how-much-heavier-a-crate-is', {
+  difficultyBand: 5, dok: 3, taskType: 'application', representation: 'context', courseId: 'algebra1',
+  prompt: 'Two crates and ${{n}}$ boxes weigh ${{w1}}$ kg, while ${{n2}}$ crates and one box weigh ${{w2}}$ kg. How much heavier is a crate?',
   generator: {
     parameters: {
-      a: { type: 'int', min: 2, max: 14 },
-      b: { type: 'int', min: 2, max: 12 },
-      m: { type: 'int', min: 2, max: 10 },
-      p: { type: 'int', min: 2, max: 30 },
-      c: { type: 'int', min: 20, max: 300 },
+      b: { type: 'int', min: 2, max: 24 },
+      g: { type: 'int', min: 2, max: 24 },
+      n: { type: 'int', min: 2, max: 6 },
+      n2: { type: 'int', min: 2, max: 6 },
     },
     derived: {
-      ab: 'a+b*m',
-      abBad: 'a+m',
-      bp: 'b*p',
+      c: 'b+g',
+      w1: '2*(b+g)+n*b',
+      w2: 'n2*(b+g)+b',
+      answer: 'g',
+      // Answered the crate's own weight.
+      d_forgotFinalStep: 'b+g',
+      // Answered the box's weight.
+      d_partialTotal: 'b',
+      // Compared the two the other way round.
+      d_signError: '0-g',
     },
-    constraints: ['a+b*m!=a+m', 'b*p!=p'],
+    constraints: ['abs(b-g)>1', 'n!=n2'],
   },
   choices: [
-    { label: plain('{{ab}}x + {{bp}} = {{c}}'), correct: true },
-    { label: plain('{{abBad}}x + {{bp}} = {{c}}'), error: 'incompleteFactoring' },
-    { label: plain('{{ab}}x + {{p}} = {{c}}'), error: 'partialTotal' },
-    { label: plain('{{ab}}x - {{bp}} = {{c}}'), error: 'signError' },
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
   ],
-  reasoning: ['The ${{b}}$ multiplies both terms of $y$, giving ${{b}}{{m}}x + {{b}}{{p}}$.', 'Collecting with ${{a}}x$ leaves ${{ab}}x + {{bp}} = {{c}}$.'],
-  answerSummary: { headline: 'Distribute the coefficient across the whole substitution.', text: 'It is ${{ab}}x + {{bp}} = {{c}}$.' },
-  hint: 'Both terms of $y$ pass through the ${{b}}$.',
-  feedback: 'Leaving the constant undistributed drops a factor of ${{b}}$.',
+  reasoning: ['Solving the pair gives a box at ${{b}}$ kg and a crate at ${{c}}$ kg.', 'The crate is therefore ${{answer}}$ kg heavier.'],
+  answerSummary: { headline: 'Solve the system first; the comparison comes after.', text: 'A crate is ${{answer}}$ kg heavier.' },
+  hint: 'Let one letter stand for a crate and another for a box, then eliminate one of them.',
+  feedback: 'Either weight on its own is not the difference between them.',
 });
 
 // ================================================================ A.6A
@@ -9418,7 +9433,7 @@ mkc('A.12A', 'what-being-a-function-requires', {
 
 mkc('A.12B', 'gap-between-two-function-values', {
   difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
-  prompt: 'For $f(x) = {{a}}x + {{b}}$, what is $f({{v}}) - f({{w}})$?',
+  prompt: 'By how much does $f({{v}})$ exceed $f({{w}})$ when $f(x) = {{a}}x + {{b}}$?',
   generator: {
     parameters: {
       a: { type: 'int', min: 2, max: 16 },
@@ -9710,7 +9725,7 @@ mkc('A2.4D', 'claim-about-a-completed-square', {
 
 mkc('A2.4F', 'solve-a-scaled-root-with-a-shift', {
   difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra2',
-  prompt: 'Solve ${{k}}\\sqrt{x + {{a}}} = {{p}}$.',
+  prompt: 'What must $x$ be for ${{k}}\\sqrt{x + {{a}}} = {{p}}$?',
   generator: {
     parameters: {
       k: { type: 'int', min: 2, max: 9 },
@@ -9834,7 +9849,7 @@ mkc('A2.4G', 'which-candidate-survives-the-original', {
 
 mkc('A2.4G', 'which-length-the-equation-allows', {
   difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'algebra2',
-  prompt: 'A length satisfies $\\sqrt{L + {{a}}} = L - {{b}}$, and squaring gives ${{r}}$ and ${{s}}$. Which is the length?',
+  prompt: 'Squaring $\\sqrt{L + {{a}}} = L - {{b}}$ produces ${{r}}$ and ${{s}}$ for a length $L$. Which answer and reason are right?',
   generator: {
     parameters: {
       b: { type: 'int', min: 3, max: 20 },
@@ -9886,7 +9901,7 @@ mkc('A2.4G', 'check-that-settles-a-candidate', {
 
 mkc('A2.6B', 'solve-a-scaled-cube-root', {
   difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra2',
-  prompt: 'Solve ${{k}}\\sqrt[3]{x + {{a}}} = {{p}}$.',
+  prompt: 'What must $x$ be for ${{k}}\\sqrt[3]{x + {{a}}} = {{p}}$?',
   generator: {
     parameters: {
       k: { type: 'int', min: 2, max: 9 },
@@ -10839,7 +10854,7 @@ mkc('A2.7H', 'two-rational-powers-multiplied', {
     { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
     { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
   ],
-  reasoning: ['The first is the ${{n}}th root of ${{b1}}$ raised to ${{m}}$, which is ${{u}}^{{{m}}}$.', 'The second gives ${{w}}^{{{q}}}$, and the product is ${{answer}}$.'],
+  reasoning: ['The first is the ${{n}}$th root of ${{b1}}$, raised to ${{m}}$, which is ${{u}}^{{{m}}}$.', 'The second gives ${{w}}^{{{q}}}$, and the product is ${{answer}}$.'],
   answerSummary: { headline: 'Take each root down to its base before multiplying.', text: 'It is ${{answer}}$.' },
   hint: 'The denominator names the root and the numerator the power.',
   feedback: 'Each base keeps its own exponent; they do not trade.',

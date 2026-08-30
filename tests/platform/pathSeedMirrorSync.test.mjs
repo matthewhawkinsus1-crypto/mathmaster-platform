@@ -26,7 +26,7 @@ test('all deployable Path-bank files are byte-identical in both bundled location
 // literal braces, and the old check could not see that at all.
 const PLACEHOLDER = /\{\{[^}]+\}\}/;
 
-test('the synchronized active bank contains exactly 3,334 renderable documents', async () => {
+test('the synchronized active bank contains exactly 3,337 renderable documents', async () => {
   let total = 0;
   for (const name of names.filter((name) => name.endsWith('_pathQuestionBank_seed.json'))) {
     const parsed = JSON.parse(await readFile(resolve(primary, name), 'utf8'));
@@ -44,5 +44,5 @@ test('the synchronized active bank contains exactly 3,334 renderable documents',
       assert.ok(!PLACEHOLDER.test(rendered), `${name}: ${entry?.id} has placeholders but no generator to fill them`);
     }
   }
-  assert.equal(total, 3334);
+  assert.equal(total, 3337);
 });

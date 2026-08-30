@@ -16,32 +16,8 @@ const norm = (value) => String(value || '').toLowerCase().replace(/\s+/g, ' ').t
 const bandsOf = (rows) => rows.map((q) => Number(q.difficultyBand));
 const mean = (values) => values.reduce((total, value) => total + value, 0) / values.length;
 
-// A standard is not limited to one set of families. CCMR V2.1 routes several
-// TEKS codes into more than one assessment domain, and a code that reaches two
-// domains is authored once per domain — so the SAT's A.3B ships two complete
-// sets and the ACT's 6.2A ships four. What must hold is that every set is
-// COMPLETE: whole 5-direct/3-challenge groups, never a partial one, and always
-// the same number of direct groups as challenge groups.
-// One known, temporary shortfall, pinned to its exact numbers.
-//
-// ASVAB's two domains are two separate tests a recruit sits, so the authored
-// direct tier is written per subtest: A2.6L is assessed in both Arithmetic
-// Reasoning and Mathematics Knowledge and carries five direct families in each,
-// which is two complete sets. Its challenge families were not authored by that
-// rebuild — they are the inherited tier-2 layer, built one set of three per
-// CODE — so A2.6L has two direct sets against one challenge set.
-//
-// This is recorded rather than waived. The numbers are asserted exactly, so the
-// gap cannot widen or spread to another code unnoticed, and the entry is
-// deleted when the ASVAB challenge tier is reauthored per subtest (147 pairs x
-// 3 = 441 families), which is the job tracked after the direct-bank merge. See
-// CCMR_ASVAB_FIDELITY_V2_1_HANDOFF.md section 11.
-const KNOWN_SET_PARITY_SHORTFALL = Object.freeze({
-  'asvab A2.6L': Object.freeze({ directSets: 2, challengeSets: 1 }),
-});
 
 test('every assessment standard ships complete 5-direct / 3-challenge family sets', () => {
-  const shortfallsSeen = new Set();
   for (const [framework, docs] of Object.entries(banks)) {
     const byCode = new Map();
     docs.forEach((q) => { const code = codeOf(q); if (!byCode.has(code)) byCode.set(code, []); byCode.get(code).push(q); });
@@ -52,19 +28,9 @@ test('every assessment standard ships complete 5-direct / 3-challenge family set
       const challengeFamilies = new Set(challenge.map((q) => q.familyId)).size;
       assert.ok(directFamilies > 0 && directFamilies % 5 === 0, `${framework} ${code}: ${directFamilies} direct families is not whole sets of five`);
       assert.ok(challengeFamilies > 0 && challengeFamilies % 3 === 0, `${framework} ${code}: ${challengeFamilies} challenge families is not whole sets of three`);
-      const known = KNOWN_SET_PARITY_SHORTFALL[`${framework} ${code}`];
-      if (known) {
-        shortfallsSeen.add(`${framework} ${code}`);
-        assert.equal(directFamilies / 5, known.directSets, `${framework} ${code}: direct set count moved off its recorded shortfall`);
-        assert.equal(challengeFamilies / 3, known.challengeSets, `${framework} ${code}: challenge set count moved off its recorded shortfall`);
-        return;
-      }
       assert.equal(directFamilies / 5, challengeFamilies / 3, `${framework} ${code}: direct and challenge set counts disagree`);
     });
   }
-  // When the shortfall is fixed, this fails and the entry above must be deleted.
-  assert.deepEqual([...shortfallsSeen].sort(), Object.keys(KNOWN_SET_PARITY_SHORTFALL).sort(),
-    'a recorded set-parity shortfall no longer exists — remove it from KNOWN_SET_PARITY_SHORTFALL');
 });
 
 // The challenge tier has to be genuinely harder than the direct tier it follows.

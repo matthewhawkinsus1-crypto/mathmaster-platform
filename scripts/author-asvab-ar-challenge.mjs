@@ -280,7 +280,7 @@ arc('6.4C', 'which-record-breaks-the-ratio', {
 
 arc('6.4D', 'delivered-cost-each-across-two-orders', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A {{shop}} buys {{n1}} {{item}} for $\$\{{p1}}$ and {{n2}} more for $\$\{{p2}}$. What is the average cost of one across both orders?',
+  prompt: 'A {{shop}} buys {{n1}} {{item}} for $\\${{p1}}$ and {{n2}} more for $\\${{p2}}$. What is the average cost of one across both orders?',
   generator: {
     parameters: {
       shop: SHOPS,
@@ -306,8 +306,8 @@ arc('6.4D', 'delivered-cost-each-across-two-orders', {
     { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Together that is {{d_partialTotal}} dollars for {{n1}}+{{n2}} {{item}}.', 'Dividing gives $\$\{{answer}}$ each.'],
-  answerSummary: { headline: 'Total the money and the count before dividing.', text: 'Each costs $\$\{{answer}}$.' },
+  reasoning: ['Together that is {{d_partialTotal}} dollars for {{n1}}+{{n2}} {{item}}.', 'Dividing gives $\\${{answer}}$ each.'],
+  answerSummary: { headline: 'Total the money and the count before dividing.', text: 'Each costs $\\${{answer}}$.' },
   hint: 'An average over both orders needs both totals of money and of count.',
   feedback: 'Dividing one order\'s money by both counts mixes the two orders.',
 });
@@ -351,7 +351,7 @@ arc('6.4D', 'which-supplier-is-cheaper-and-by-how-much', {
   stimulus: {
     kind: 'table',
     columns: ['Supplier', '{{item}}', 'Price'],
-    rows: [['A', '{{nA}}', '$\$\{{pA}}$'], ['B', '{{nB}}', '$\$\{{pB}}$']],
+    rows: [['A', '{{nA}}', '$\\${{pA}}$'], ['B', '{{nB}}', '$\\${{pB}}$']],
   },
   generator: {
     parameters: {
@@ -378,8 +378,8 @@ arc('6.4D', 'which-supplier-is-cheaper-and-by-how-much', {
     { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Supplier A works out at $\$\{{eachA}}$ each and B at $\$\{{eachB}}$ each.', 'Over {{want}} {{item}} the gap of the two unit prices comes to $\$\{{answer}}$.'],
-  answerSummary: { headline: 'Compare the prices each, not the quoted totals.', text: 'The saving is $\$\{{answer}}$.' },
+  reasoning: ['Supplier A works out at $\\${{eachA}}$ each and B at $\\${{eachB}}$ each.', 'Over {{want}} {{item}} the gap of the two unit prices comes to $\\${{answer}}$.'],
+  answerSummary: { headline: 'Compare the prices each, not the quoted totals.', text: 'The saving is $\\${{answer}}$.' },
   hint: 'The two quotes cover different counts, so the totals cannot be compared directly.',
   feedback: 'The two quoted totals added together is what the samples cost, not the saving.',
 });
@@ -389,7 +389,7 @@ arc('6.4D', 'which-supplier-is-cheaper-and-by-how-much', {
 
 arc('6.5A', 'two-stage-scale-conversion', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'On a plan 1 inch stands for {{feet}} feet and a wall is drawn {{drawn}} inches long. Fencing costs $\$\{{rate}}$ a foot. What does that wall cost to fence?',
+  prompt: 'On a plan 1 inch stands for {{feet}} feet and a wall is drawn {{drawn}} inches long. Fencing costs $\\${{rate}}$ a foot. What does that wall cost to fence?',
   generator: {
     parameters: {
       feet: { type: 'int', min: 3, max: 12 },
@@ -412,15 +412,15 @@ arc('6.5A', 'two-stage-scale-conversion', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['{{drawn}} inches at {{feet}} feet an inch is {{real}} feet.', 'At $\$\{{rate}}$ a foot that is $\$\{{answer}}$.'],
-  answerSummary: { headline: 'Convert the drawing to feet before pricing it.', text: 'It costs $\$\{{answer}}$.' },
+  reasoning: ['{{drawn}} inches at {{feet}} feet an inch is {{real}} feet.', 'At $\\${{rate}}$ a foot that is $\\${{answer}}$.'],
+  answerSummary: { headline: 'Convert the drawing to feet before pricing it.', text: 'It costs $\\${{answer}}$.' },
   hint: 'The scale turns inches into feet; the rate turns feet into dollars.',
   feedback: 'The length in feet is not yet a price.',
 });
 
 arc('6.5A', 'drawn-length-from-a-budget', {
   difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
-  prompt: 'A plan uses 1 inch to {{feet}} feet. Fencing runs $\$\{{rate}}$ a foot, $\$\{{budget}}$ is available and {{allowance}} inches are already fenced. How many more inches can be fenced?',
+  prompt: 'A plan uses 1 inch to {{feet}} feet. Fencing runs $\\${{rate}}$ a foot, $\\${{budget}}$ is available and {{allowance}} inches are already fenced. How many more inches can be fenced?',
   generator: {
     parameters: {
       feet: { type: 'int', min: 3, max: 10 },
@@ -444,7 +444,7 @@ arc('6.5A', 'drawn-length-from-a-budget', {
     { label: plain('{{d_convertedWrongWay}}'), error: 'convertedWrongWay' },
     { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['$\$\{{budget}}$ at $\$\{{rate}}$ a foot buys {{real}} feet.', 'At {{feet}} feet an inch that is {{answer}} inches on the plan.'],
+  reasoning: ['$\\${{budget}}$ at $\\${{rate}}$ a foot buys {{real}} feet.', 'At {{feet}} feet an inch that is {{answer}} inches on the plan.'],
   answerSummary: { headline: 'Money to feet, then feet back to the drawing.', text: 'It is ${{answer}}$ inches.' },
   hint: 'Work back through the rate first, then through the scale.',
   feedback: 'The length in feet still has to be turned back into inches on the plan.',
@@ -607,7 +607,7 @@ arc('6.4E', 'gap-between-two-written-forms', {
 
 arc('6.4F', 'two-markdowns-in-sequence', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A {{tool}} listed at $\$\{{list}}$ is cut {{p}}%, then the sale price is cut {{q}}% more. What is the final price?',
+  prompt: 'A {{tool}} listed at $\\${{list}}$ is cut {{p}}%, then the sale price is cut {{q}}% more. What is the final price?',
   generator: {
     parameters: {
       tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
@@ -632,15 +632,15 @@ arc('6.4F', 'two-markdowns-in-sequence', {
     { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['{{p}}% off $\$\{{list}}$ leaves $\$\{{afterFirst}}$.', '{{q}}% off that leaves $\$\{{answer}}$.'],
-  answerSummary: { headline: 'The second cut applies to the reduced price.', text: 'It ends at $\$\{{answer}}$.' },
+  reasoning: ['{{p}}% off $\\${{list}}$ leaves $\\${{afterFirst}}$.', '{{q}}% off that leaves $\\${{answer}}$.'],
+  answerSummary: { headline: 'The second cut applies to the reduced price.', text: 'It ends at $\\${{answer}}$.' },
   hint: 'The second discount is not taken from the original ticket.',
   feedback: 'Adding the two percentages treats both cuts as coming off the list price.',
 });
 
 arc('6.4F', 'list-price-behind-a-benchmark-cut', {
   difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
-  prompt: 'After {{p}}% was taken off, a {{tool}} sold for $\$\{{sale}}$ and the {{shop}} kept $\$\{{fee}}$ of that as a fee. What was the list price?',
+  prompt: 'After {{p}}% was taken off, a {{tool}} sold for $\\${{sale}}$ and the {{shop}} kept $\\${{fee}}$ of that as a fee. What was the list price?',
   generator: {
     parameters: {
       tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
@@ -653,6 +653,7 @@ arc('6.4F', 'list-price-behind-a-benchmark-cut', {
     derived: {
       answer: 'hundreds*100',
       sale: 'answer*(100-p)/100',
+      pctLeft: '100-p',
       d_forgotFinalStep: 'sale',
       d_partialTotal: 'answer+sale',
       d_usedGivenValue: 'ticket',
@@ -665,8 +666,8 @@ arc('6.4F', 'list-price-behind-a-benchmark-cut', {
     { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['$\$\{{sale}}$ is {{100-p}}% of the list price.', 'That makes the list price $\$\{{answer}}$; the fee comes out of the sale, not the list.'],
-  answerSummary: { headline: 'The sale price is a percentage of the list price.', text: 'The list price was $\$\{{answer}}$.' },
+  reasoning: ['$\\${{sale}}$ is {{pctLeft}}% of the list price.', 'That makes the list price $\\${{answer}}$; the fee comes out of the sale, not the list.'],
+  answerSummary: { headline: 'The sale price is a percentage of the list price.', text: 'The list price was $\\${{answer}}$.' },
   hint: 'Ask what fraction of the list price the sale price represents.',
   feedback: 'The fee is taken from what was received, so it does not change the list price.',
 });
@@ -720,7 +721,7 @@ arc('6.4F', 'which-claim-the-figures-support', {
 
 arc('6.4G', 'bill-with-tip-and-split', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A {{crew}} of {{people}} splits a $\$\{{bill}}$ bill evenly after adding a {{p}}% tip. What does each person pay?',
+  prompt: 'A {{crew}} of {{people}} splits a $\\${{bill}}$ bill evenly after adding a {{p}}% tip. What does each person pay?',
   generator: {
     parameters: {
       crew: WORKERS,
@@ -745,15 +746,15 @@ arc('6.4G', 'bill-with-tip-and-split', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['A {{p}}% tip takes $\$\{{bill}}$ to $\$\{{withTip}}$.', 'Split {{people}} ways that is about $\$\{{answer}}$ each.'],
-  answerSummary: { headline: 'Add the tip before splitting, not after.', text: 'Each pays about $\$\{{answer}}$.' },
+  reasoning: ['A {{p}}% tip takes $\\${{bill}}$ to $\\${{withTip}}$.', 'Split {{people}} ways that is about $\\${{answer}}$ each.'],
+  answerSummary: { headline: 'Add the tip before splitting, not after.', text: 'Each pays about $\\${{answer}}$.' },
   hint: 'Everyone shares the tip as well as the bill.',
   feedback: 'Splitting the bill alone leaves the tip unpaid.',
 });
 
 arc('6.4G', 'ticket-price-inside-a-total', {
   difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
-  prompt: 'A receipt of $\$\{{total}}$ covers a {{tool}}, {{p}}% sales tax on it, and an untaxed $\$\{{fee}}$ delivery. What did the {{tool}} cost?',
+  prompt: 'A receipt of $\\${{total}}$ covers a {{tool}}, {{p}}% sales tax on it, and an untaxed $\\${{fee}}$ delivery. What did the {{tool}} cost?',
   generator: {
     parameters: {
       tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
@@ -766,6 +767,7 @@ arc('6.4G', 'ticket-price-inside-a-total', {
       answer: 'hundreds*100',
       taxed: 'answer*(100+p)/100',
       total: 'taxed+fee',
+      pctWithTax: '100+p',
       d_wrongPercentBase: 'round(taxed*(100-p)/100)',
       d_forgotFinalStep: 'total',
       d_usedGivenValue: 'shown',
@@ -778,19 +780,19 @@ arc('6.4G', 'ticket-price-inside-a-total', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Taking off the untaxed $\$\{{fee}}$ leaves $\$\{{taxed}}$, which is {{100+p}}% of the price.', 'That makes the price $\$\{{answer}}$.'],
-  answerSummary: { headline: 'Remove the untaxed part before undoing the tax.', text: 'It cost $\$\{{answer}}$.' },
+  reasoning: ['Taking off the untaxed $\\${{fee}}$ leaves $\\${{taxed}}$, which is {{pctWithTax}}% of the price.', 'That makes the price $\\${{answer}}$.'],
+  answerSummary: { headline: 'Remove the untaxed part before undoing the tax.', text: 'It cost $\\${{answer}}$.' },
   hint: 'The delivery charge carries no tax, so it is not part of the taxed amount.',
   feedback: 'Taking the tax rate off again is not the same as undoing the tax that was added.',
 });
 
 arc('6.4G', 'total-cost-of-a-payment-plan', {
   difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
-  prompt: 'Two ways to pay for a $\$\{{price}}$ {{tool}} are shown. What does plan A cost in total?',
+  prompt: 'Two ways to pay for a $\\${{price}}$ {{tool}} are shown. What does plan A cost in total?',
   stimulus: {
     kind: 'table',
     columns: ['Plan', 'Terms'],
-    rows: [['A', '{{p}}% deposit, then {{months}} payments of $\$\{{monthly}}$'], ['B', 'full price less {{q}}%']],
+    rows: [['A', '{{p}}% deposit, then {{months}} payments of $\\${{monthly}}$'], ['B', 'full price less {{q}}%']],
   },
   generator: {
     parameters: {
@@ -818,8 +820,8 @@ arc('6.4G', 'total-cost-of-a-payment-plan', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['The deposit is {{p}}% of $\$\{{price}}$, and the {{months}} payments add {{months}}x$\$\{{monthly}}$.', 'Together plan A costs $\$\{{answer}}$.'],
-  answerSummary: { headline: 'A deposit and instalments are both part of the plan.', text: 'Plan A costs $\$\{{answer}}$.' },
+  reasoning: ['The deposit is {{p}}% of $\\${{price}}$, and the {{months}} payments add {{months}}x$\\${{monthly}}$.', 'Together plan A costs $\\${{answer}}$.'],
+  answerSummary: { headline: 'A deposit and instalments are both part of the plan.', text: 'Plan A costs $\\${{answer}}$.' },
   hint: 'The deposit is a percentage of the ticket price, not of the instalments.',
   feedback: 'The instalments alone leave the deposit unpaid.',
 });
@@ -1164,7 +1166,7 @@ arc('6.5C', 'correcting-the-record-that-disagrees', {
 
 arc('7.4B', 'pay-across-two-rates', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A {{worker}} is paid $\$\{{rate}}$ an hour for the first {{plain}} hours and $\$\{{over}}$ an hour after that. What is the pay for a {{total}}-hour week?',
+  prompt: 'A {{worker}} is paid $\\${{rate}}$ an hour for the first {{plain}} hours and $\\${{over}}$ an hour after that. What is the pay for a {{total}}-hour week?',
   generator: {
     parameters: {
       worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
@@ -1190,15 +1192,15 @@ arc('7.4B', 'pay-across-two-rates', {
     { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['{{plain}} hours at $\$\{{rate}}$ and {{extra}} hours at $\$\{{over}}$.', 'Together that is $\$\{{answer}}$.'],
-  answerSummary: { headline: 'The two rates cover different parts of the week.', text: 'The pay is $\$\{{answer}}$.' },
+  reasoning: ['{{plain}} hours at $\\${{rate}}$ and {{extra}} hours at $\\${{over}}$.', 'Together that is $\\${{answer}}$.'],
+  answerSummary: { headline: 'The two rates cover different parts of the week.', text: 'The pay is $\\${{answer}}$.' },
   hint: 'Only the hours past the first block earn the higher rate.',
   feedback: 'Paying every hour at one rate ignores the change after {{plain}} hours.',
 });
 
 arc('7.4B', 'hours-behind-a-pay-packet', {
   difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
-  prompt: 'A {{worker}} earning $\$\{{rate}}$ an hour, then $\$\{{over}}$ after {{plain}} hours, took home $\$\{{answerPay}}$. How many hours were worked?',
+  prompt: 'A {{worker}} earning $\\${{rate}}$ an hour, then $\\${{over}}$ after {{plain}} hours, took home $\\${{answerPay}}$. How many hours were worked?',
   generator: {
     parameters: {
       worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
@@ -1224,7 +1226,7 @@ arc('7.4B', 'hours-behind-a-pay-packet', {
     { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
     { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['The first {{plain}} hours pay {{plain}}x$\$\{{rate}}$, leaving the rest at $\$\{{over}}$ an hour.', 'That is {{extra}} more hours, so {{answer}} in all.'],
+  reasoning: ['The first {{plain}} hours pay {{plain}}x$\\${{rate}}$, leaving the rest at $\\${{over}}$ an hour.', 'That is {{extra}} more hours, so {{answer}} in all.'],
   answerSummary: { headline: 'Take off the basic block before dividing the remainder.', text: 'It was ${{answer}}$ hours.' },
   hint: 'Some of the packet is earned before the higher rate starts.',
   feedback: 'Dividing the whole packet by the basic rate ignores the higher rate.',
@@ -1236,7 +1238,7 @@ arc('7.4B', 'which-quote-is-cheapest-per-unit', {
   stimulus: {
     kind: 'table',
     columns: ['Supplier', '{{item}}', 'Price'],
-    rows: [['A', '{{nA}}', '$\$\{{pA}}$'], ['B', '{{nB}}', '$\$\{{pB}}$'], ['C', '{{nC}}', '$\$\{{pC}}$']],
+    rows: [['A', '{{nA}}', '$\\${{pA}}$'], ['B', '{{nB}}', '$\\${{pB}}$'], ['C', '{{nC}}', '$\\${{pC}}$']],
   },
   generator: {
     parameters: {
@@ -1268,8 +1270,8 @@ arc('7.4B', 'which-quote-is-cheapest-per-unit', {
     { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Per {{item}} the quotes work out at $\$\{{low}}$, $\$\{{eachB}}$ and $\$\{{eachC}}$.', 'The cheapest is $\$\{{low}}$, so {{want}} cost $\$\{{answer}}$.'],
-  answerSummary: { headline: 'The lowest quoted total is not the lowest price each.', text: 'It costs $\$\{{answer}}$.' },
+  reasoning: ['Per {{item}} the quotes work out at $\\${{low}}$, $\\${{eachB}}$ and $\\${{eachC}}$.', 'The cheapest is $\\${{low}}$, so {{want}} cost $\\${{answer}}$.'],
+  answerSummary: { headline: 'The lowest quoted total is not the lowest price each.', text: 'It costs $\\${{answer}}$.' },
   hint: 'The three quotes cover different counts, so compare the price of one.',
   feedback: 'Adding two of the quotes prices their samples, not this order.',
 });
@@ -1620,11 +1622,11 @@ arc('6.3B', 'scaling-row-that-does-not-hold', {
 
 arc('6.14C', 'closing-balance-after-a-fee', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'table',
-  prompt: 'A register opened at $\$\{{start}}$ and recorded the entries shown, then a $\$\{{fee}}$ service charge. What is the closing balance?',
+  prompt: 'A register opened at $\\${{start}}$ and recorded the entries shown, then a $\\${{fee}}$ service charge. What is the closing balance?',
   stimulus: {
     kind: 'table',
     columns: ['Entry', 'Amount'],
-    rows: [['Deposit', '$\$\{{dep}}$'], ['Withdrawal', '$\$\{{wd}}$'], ['Deposit', '$\$\{{dep2}}$']],
+    rows: [['Deposit', '$\\${{dep}}$'], ['Withdrawal', '$\\${{wd}}$'], ['Deposit', '$\\${{dep2}}$']],
   },
   generator: {
     parameters: {
@@ -1649,15 +1651,15 @@ arc('6.14C', 'closing-balance-after-a-fee', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['The two deposits add $\$\{{dep}}$ and $\$\{{dep2}}$; the withdrawal takes $\$\{{wd}}$.', 'After the $\$\{{fee}}$ charge the balance is $\$\{{answer}}$.'],
-  answerSummary: { headline: 'Deposits add, withdrawals and charges take away.', text: 'It closes at $\$\{{answer}}$.' },
+  reasoning: ['The two deposits add $\\${{dep}}$ and $\\${{dep2}}$; the withdrawal takes $\\${{wd}}$.', 'After the $\\${{fee}}$ charge the balance is $\\${{answer}}$.'],
+  answerSummary: { headline: 'Deposits add, withdrawals and charges take away.', text: 'It closes at $\\${{answer}}$.' },
   hint: 'A service charge leaves the account like a withdrawal.',
   feedback: 'Adding the withdrawal moves the balance the wrong way.',
 });
 
 arc('6.14C', 'withdrawal-hidden-in-a-closing-balance', {
   difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
-  prompt: 'Opening at $\$\{{start}}$, an account received $\$\{{dep}}$ and paid out once, finishing on $\$\{{close}}$. How large was the payment out?',
+  prompt: 'Opening at $\\${{start}}$, an account received $\\${{dep}}$ and paid out once, finishing on $\\${{close}}$. How large was the payment out?',
   generator: {
     parameters: {
       start: { type: 'int', min: 150, max: 700, step: 10 },
@@ -1680,15 +1682,15 @@ arc('6.14C', 'withdrawal-hidden-in-a-closing-balance', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['After the deposit the register held $\$\{{start}}$+$\$\{{dep}}$.', 'Closing at $\$\{{close}}$ means $\$\{{answer}}$ went out.'],
-  answerSummary: { headline: 'Add the deposit before working out what left.', text: 'The withdrawal was $\$\{{answer}}$.' },
+  reasoning: ['After the deposit the register held $\\${{start}}$+$\\${{dep}}$.', 'Closing at $\\${{close}}$ means $\\${{answer}}$ went out.'],
+  answerSummary: { headline: 'Add the deposit before working out what left.', text: 'The withdrawal was $\\${{answer}}$.' },
   hint: 'The deposit went in before the withdrawal came out.',
   feedback: 'Comparing the opening and closing balances ignores the deposit.',
 });
 
 arc('6.14C', 'largest-withdrawal-that-clears', {
   difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'context',
-  prompt: 'A register holds $\$\{{start}}$ with $\$\{{pending}}$ of payments still to clear. The account must keep $\$\{{floor}}$. What is the largest whole withdrawal?',
+  prompt: 'A register holds $\\${{start}}$ with $\\${{pending}}$ of payments still to clear. The account must keep $\\${{floor}}$. What is the largest whole withdrawal?',
   generator: {
     parameters: {
       floor: { type: 'int', min: 25, max: 100, step: 25 },
@@ -1711,8 +1713,8 @@ arc('6.14C', 'largest-withdrawal-that-clears', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['The $\$\{{pending}}$ still to clear and the $\$\{{floor}}$ that must stay are both spoken for.', 'That leaves $\$\{{answer}}$ available.'],
-  answerSummary: { headline: 'Payments not yet cleared are already committed.', text: 'The largest withdrawal is $\$\{{answer}}$.' },
+  reasoning: ['The $\\${{pending}}$ still to clear and the $\\${{floor}}$ that must stay are both spoken for.', 'That leaves $\\${{answer}}$ available.'],
+  answerSummary: { headline: 'Payments not yet cleared are already committed.', text: 'The largest withdrawal is $\\${{answer}}$.' },
   hint: 'Two amounts in the account are not available to withdraw.',
   feedback: 'Leaving only the minimum forgets the payments still to clear.',
 });
@@ -1722,7 +1724,7 @@ arc('6.14C', 'largest-withdrawal-that-clears', {
 
 arc('7.13A', 'tax-charged-only-above-an-allowance', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A {{worker}} earned $\$\{{gross}}$. The first $\$\{{allowance}}$ is untaxed and the rest is taxed {{p}}%, then $\$\{{dues}}$ of dues comes off. What is left?',
+  prompt: 'A {{worker}} earned $\\${{gross}}$. The first $\\${{allowance}}$ is untaxed and the rest is taxed {{p}}%, then $\\${{dues}}$ of dues comes off. What is left?',
   generator: {
     parameters: {
       worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
@@ -1749,15 +1751,15 @@ arc('7.13A', 'tax-charged-only-above-an-allowance', {
     { label: money('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Only $\$\{{taxable}}$ is taxed, so the tax is $\$\{{tax}}$.', 'Taking that and the $\$\{{dues}}$ dues from $\$\{{gross}}$ leaves $\$\{{answer}}$.'],
-  answerSummary: { headline: 'The allowance is not taxed.', text: '$\$\{{answer}}$ is left.' },
+  reasoning: ['Only $\\${{taxable}}$ is taxed, so the tax is $\\${{tax}}$.', 'Taking that and the $\\${{dues}}$ dues from $\\${{gross}}$ leaves $\\${{answer}}$.'],
+  answerSummary: { headline: 'The allowance is not taxed.', text: '$\\${{answer}}$ is left.' },
   hint: 'Part of the earnings is free of tax.',
   feedback: 'Taxing the whole amount ignores the untaxed allowance.',
 });
 
 arc('7.13A', 'gross-behind-a-pay-slip', {
   difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
-  prompt: 'After {{p}}% income tax and a flat $\$\{{dues}}$ deduction, a {{worker}} took home $\$\{{net}}$. What was the gross pay?',
+  prompt: 'After {{p}}% income tax and a flat $\\${{dues}}$ deduction, a {{worker}} took home $\\${{net}}$. What was the gross pay?',
   generator: {
     parameters: {
       worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
@@ -1770,6 +1772,7 @@ arc('7.13A', 'gross-behind-a-pay-slip', {
       answer: 'hundreds*100',
       tax: 'answer*p/100',
       net: 'answer-tax-dues',
+      pctLeft: '100-p',
       d_percentNotApplied: 'net+dues',
       d_partialTotal: 'answer+dues',
       d_usedGivenValue: 'slip',
@@ -1782,8 +1785,8 @@ arc('7.13A', 'gross-behind-a-pay-slip', {
     { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Adding the $\$\{{dues}}$ back gives $\$\{{d_percentNotApplied}}$, which is {{100-p}}% of the gross.', 'That makes the gross $\$\{{answer}}$.'],
-  answerSummary: { headline: 'Put the flat deduction back before undoing the percentage.', text: 'The gross was $\$\{{answer}}$.' },
+  reasoning: ['Adding the $\\${{dues}}$ back gives $\\${{d_percentNotApplied}}$, which is {{pctLeft}}% of the gross.', 'That makes the gross $\\${{answer}}$.'],
+  answerSummary: { headline: 'Put the flat deduction back before undoing the percentage.', text: 'The gross was $\\${{answer}}$.' },
   hint: 'The dues came off after the tax, so they go back on first.',
   feedback: 'The dues came out of the gross, so adding them on top overstates it.',
 });
@@ -1794,7 +1797,7 @@ arc('7.13A', 'which-bracket-the-receipt-shows', {
   stimulus: {
     kind: 'table',
     columns: ['Earner', 'Gross', 'Tax'],
-    rows: [['A', '$\$\{{g1}}$', '$\$\{{t1}}$'], ['B', '$\$\{{g2}}$', '$\$\{{tBad}}$'], ['C', '$\$\{{g3}}$', '$\$\{{t3}}$']],
+    rows: [['A', '$\\${{g1}}$', '$\\${{t1}}$'], ['B', '$\\${{g2}}$', '$\\${{tBad}}$'], ['C', '$\\${{g3}}$', '$\\${{t3}}$']],
   },
   generator: {
     parameters: {
@@ -1823,8 +1826,8 @@ arc('7.13A', 'which-bracket-the-receipt-shows', {
     { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Earners A and C are both taxed at {{p}}%.', '{{p}}% of $\$\{{g2}}$ is $\$\{{answer}}$, not the $\$\{{tBad}}$ shown.'],
-  answerSummary: { headline: 'Recover the rate from the lines that agree.', text: 'It should show $\$\{{answer}}$.' },
+  reasoning: ['Earners A and C are both taxed at {{p}}%.', '{{p}}% of $\\${{g2}}$ is $\\${{answer}}$, not the $\\${{tBad}}$ shown.'],
+  answerSummary: { headline: 'Recover the rate from the lines that agree.', text: 'It should show $\\${{answer}}$.' },
   hint: 'Two of the three lines share one rate. Use them to test the third.',
   feedback: 'The tax printed on that line is the error, not the correction.',
 });
@@ -1834,7 +1837,7 @@ arc('7.13A', 'which-bracket-the-receipt-shows', {
 
 arc('7.13E', 'interest-then-a-further-deposit', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A {{worker}} put $\$\{{principal}}$ into an account paying {{r}}% simple interest a year. After {{years}} years they added $\$\{{added}}$. What is the balance?',
+  prompt: 'A {{worker}} put $\\${{principal}}$ into an account paying {{r}}% simple interest a year. After {{years}} years they added $\\${{added}}$. What is the balance?',
   generator: {
     parameters: {
       worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
@@ -1860,15 +1863,15 @@ arc('7.13E', 'interest-then-a-further-deposit', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['{{r}}% of $\$\{{principal}}$ for {{years}} years is $\$\{{interest}}$ of interest.', 'With the $\$\{{added}}$ deposit the balance is $\$\{{answer}}$.'],
-  answerSummary: { headline: 'Interest first, then the new money.', text: 'The balance is $\$\{{answer}}$.' },
+  reasoning: ['{{r}}% of $\\${{principal}}$ for {{years}} years is $\\${{interest}}$ of interest.', 'With the $\\${{added}}$ deposit the balance is $\\${{answer}}$.'],
+  answerSummary: { headline: 'Interest first, then the new money.', text: 'The balance is $\\${{answer}}$.' },
   hint: 'Simple interest is the same amount every year.',
   feedback: 'The deposit still has to be added after the interest.',
 });
 
 arc('7.13E', 'principal-behind-the-interest', {
   difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
-  prompt: 'An account paying {{r}}% simple interest a year earned $\$\{{interest}}$ over {{years}} years. What was put in at the start?',
+  prompt: 'An account paying {{r}}% simple interest a year earned $\\${{interest}}$ over {{years}} years. What was put in at the start?',
   generator: {
     parameters: {
       hundreds: { type: 'int', min: 4, max: 24 },
@@ -1891,15 +1894,15 @@ arc('7.13E', 'principal-behind-the-interest', {
     { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Over {{years}} years at {{r}}% the account earns {{r}}x{{years}}% of the principal.', '$\$\{{interest}}$ is that share, so the principal was $\$\{{answer}}$.'],
-  answerSummary: { headline: 'The rate applies once for every year.', text: '$\$\{{answer}}$ was put in.' },
+  reasoning: ['Over {{years}} years at {{r}}% the account earns {{r}}x{{years}}% of the principal.', '$\\${{interest}}$ is that share, so the principal was $\\${{answer}}$.'],
+  answerSummary: { headline: 'The rate applies once for every year.', text: '$\\${{answer}}$ was put in.' },
   hint: 'Total simple interest is the yearly rate multiplied by the number of years.',
   feedback: 'The interest earned is not the amount that was put in.',
 });
 
 arc('7.13E', 'compound-balance-after-two-years', {
   difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'context',
-  prompt: 'A {{worker}} put $\$\{{principal}}$ into an account paying {{r}}% compounded yearly. What is the balance after two years?',
+  prompt: 'A {{worker}} put $\\${{principal}}$ into an account paying {{r}}% compounded yearly. What is the balance after two years?',
   generator: {
     parameters: {
       worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
@@ -1923,8 +1926,8 @@ arc('7.13E', 'compound-balance-after-two-years', {
     { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['After one year the account holds $\$\{{year1}}$.', 'The second year pays {{r}}% of that, giving $\$\{{answer}}$.'],
-  answerSummary: { headline: 'The second year earns interest on the first year of interest.', text: 'The balance is $\$\{{answer}}$.' },
+  reasoning: ['After one year the account holds $\\${{year1}}$.', 'The second year pays {{r}}% of that, giving $\\${{answer}}$.'],
+  answerSummary: { headline: 'The second year earns interest on the first year of interest.', text: 'The balance is $\\${{answer}}$.' },
   hint: 'Compounding pays on the balance, not on the original deposit.',
   feedback: 'Two years of simple interest misses the interest earned on interest.',
 });
@@ -1934,7 +1937,7 @@ arc('7.13E', 'compound-balance-after-two-years', {
 
 arc('7.13F', 'sale-then-coupon-then-tax', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A {{tool}} listed at $\$\{{price}}$ is cut {{p}}%, then a $\$\{{coupon}}$ coupon comes off. Sales tax of {{t}}% is added. What is paid?',
+  prompt: 'A {{tool}} listed at $\\${{price}}$ is cut {{p}}%, then a $\\${{coupon}}$ coupon comes off. Sales tax of {{t}}% is added. What is paid?',
   generator: {
     parameters: {
       tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
@@ -1961,15 +1964,15 @@ arc('7.13F', 'sale-then-coupon-then-tax', {
     { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['{{p}}% off leaves $\$\{{sale}}$, and the coupon brings it to $\$\{{afterCoupon}}$.', 'Adding {{t}}% tax gives $\$\{{answer}}$.'],
-  answerSummary: { headline: 'Tax is charged on what is actually owed.', text: 'The price paid is $\$\{{answer}}$.' },
+  reasoning: ['{{p}}% off leaves $\\${{sale}}$, and the coupon brings it to $\\${{afterCoupon}}$.', 'Adding {{t}}% tax gives $\\${{answer}}$.'],
+  answerSummary: { headline: 'Tax is charged on what is actually owed.', text: 'The price paid is $\\${{answer}}$.' },
   hint: 'The tax goes on last, after both reductions.',
   feedback: 'Leaving the sale discount out overstates what the tax is charged on.',
 });
 
 arc('7.13F', 'list-price-behind-a-till-receipt', {
   difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
-  prompt: 'After {{p}}% was taken off and a $\$\{{coupon}}$ coupon applied, a {{tool}} came to $\$\{{paid}}$. The ticket read $\$\{{ticket}}$. What was the list price?',
+  prompt: 'After {{p}}% was taken off and a $\\${{coupon}}$ coupon applied, a {{tool}} came to $\\${{paid}}$. The ticket read $\\${{ticket}}$. What was the list price?',
   generator: {
     parameters: {
       tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
@@ -1982,6 +1985,7 @@ arc('7.13F', 'list-price-behind-a-till-receipt', {
       answer: 'hundreds*100',
       sale: 'answer*(100-p)/100',
       paid: 'sale-coupon',
+      pctLeft: '100-p',
       d_forgotFinalStep: 'paid+coupon',
       d_partialTotal: 'answer+coupon',
       d_usedGivenValue: 'ticket',
@@ -1994,19 +1998,19 @@ arc('7.13F', 'list-price-behind-a-till-receipt', {
     { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Adding the coupon back gives $\$\{{sale}}$, which is {{100-p}}% of the list price.', 'That makes the list price $\$\{{answer}}$.'],
-  answerSummary: { headline: 'Put the coupon back before undoing the percentage.', text: 'The list price was $\$\{{answer}}$.' },
+  reasoning: ['Adding the coupon back gives $\\${{sale}}$, which is {{pctLeft}}% of the list price.', 'That makes the list price $\\${{answer}}$.'],
+  answerSummary: { headline: 'Put the coupon back before undoing the percentage.', text: 'The list price was $\\${{answer}}$.' },
   hint: 'The coupon came off after the discount, so it goes back on first.',
   feedback: 'Restoring the coupon still leaves the percentage to undo.',
 });
 
 arc('7.13F', 'how-many-the-budget-buys-on-sale', {
   difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
-  prompt: 'The sale below runs while $\$\{{budget}}$ is available to spend. How many {{tool}}s can be bought?',
+  prompt: 'The sale below runs while $\\${{budget}}$ is available to spend. How many {{tool}}s can be bought?',
   stimulus: {
     kind: 'table',
     columns: ['Item', 'Value'],
-    rows: [['List price', '$\$\{{price}}$'], ['Sale', '{{p}}% off'], ['Ordered last time', '{{ordered}}']],
+    rows: [['List price', '$\\${{price}}$'], ['Sale', '{{p}}% off'], ['Ordered last time', '{{ordered}}']],
   },
   generator: {
     parameters: {
@@ -2033,7 +2037,7 @@ arc('7.13F', 'how-many-the-budget-buys-on-sale', {
     { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['{{p}}% off $\$\{{price}}$ leaves $\$\{{sale}}$ each.', '$\$\{{budget}}$ buys {{answer}} whole ones at that price.'],
+  reasoning: ['{{p}}% off $\\${{price}}$ leaves $\\${{sale}}$ each.', '$\\${{budget}}$ buys {{answer}} whole ones at that price.'],
   answerSummary: { headline: 'Price one at the sale rate before dividing the budget.', text: '${{answer}}$ can be bought.' },
   hint: 'Only whole ones can be bought.',
   feedback: 'Using the list price prices them higher than the sale allows.',
@@ -2044,7 +2048,7 @@ arc('7.13F', 'how-many-the-budget-buys-on-sale', {
 
 arc('8.12A', 'total-repaid-on-a-simple-loan', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A {{worker}} borrows $\$\{{principal}}$ at {{r}}% simple interest for {{years}} years, plus a $\$\{{fee}}$ arrangement fee. What is repaid in all?',
+  prompt: 'A {{worker}} borrows $\\${{principal}}$ at {{r}}% simple interest for {{years}} years, plus a $\\${{fee}}$ arrangement fee. What is repaid in all?',
   generator: {
     parameters: {
       worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
@@ -2070,15 +2074,15 @@ arc('8.12A', 'total-repaid-on-a-simple-loan', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['{{r}}% for {{years}} years on $\$\{{principal}}$ is $\$\{{interest}}$ of interest.', 'With the $\$\{{fee}}$ fee the total repaid is $\$\{{answer}}$.'],
-  answerSummary: { headline: 'The fee is repaid alongside the loan and its interest.', text: '$\$\{{answer}}$ is repaid.' },
+  reasoning: ['{{r}}% for {{years}} years on $\\${{principal}}$ is $\\${{interest}}$ of interest.', 'With the $\\${{fee}}$ fee the total repaid is $\\${{answer}}$.'],
+  answerSummary: { headline: 'The fee is repaid alongside the loan and its interest.', text: '$\\${{answer}}$ is repaid.' },
   hint: 'Three amounts make up the repayment.',
   feedback: 'Leaving the fee out understates what is owed.',
 });
 
 arc('8.12A', 'term-behind-the-interest-charged', {
   difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
-  prompt: 'A $\$\{{principal}}$ loan at {{r}}% simple interest was charged $\$\{{interest}}$ in interest. The agreement listed {{stated}} years. How many years did it run?',
+  prompt: 'A $\\${{principal}}$ loan at {{r}}% simple interest was charged $\\${{interest}}$ in interest. The agreement listed {{stated}} years. How many years did it run?',
   generator: {
     parameters: {
       hundreds: { type: 'int', min: 5, max: 30 },
@@ -2103,7 +2107,7 @@ arc('8.12A', 'term-behind-the-interest-charged', {
     { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['One year at {{r}}% on $\$\{{principal}}$ is $\$\{{yearly}}$.', '$\$\{{interest}}$ divided by that is {{answer}} years.'],
+  reasoning: ['One year at {{r}}% on $\\${{principal}}$ is $\\${{yearly}}$.', '$\\${{interest}}$ divided by that is {{answer}} years.'],
   answerSummary: { headline: 'Find one year of interest before dividing.', text: 'It ran ${{answer}}$ years.' },
   hint: 'Work out what a single year costs first.',
   feedback: 'The listed term is what the paperwork claims, not what the interest shows.',
@@ -2115,7 +2119,7 @@ arc('8.12A', 'monthly-payment-on-a-loan', {
   stimulus: {
     kind: 'table',
     columns: ['Item', 'Value'],
-    rows: [['Amount borrowed', '$\$\{{principal}}$'], ['Simple interest', '{{r}}% a year'], ['Term', '{{years}} years']],
+    rows: [['Amount borrowed', '$\\${{principal}}$'], ['Simple interest', '{{r}}% a year'], ['Term', '{{years}} years']],
   },
   generator: {
     parameters: {
@@ -2142,8 +2146,8 @@ arc('8.12A', 'monthly-payment-on-a-loan', {
     { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['The interest is $\$\{{interest}}$, so $\$\{{total}}$ is repaid over {{months}} months.', 'That is about $\$\{{answer}}$ a month.'],
-  answerSummary: { headline: 'Interest is repaid alongside the amount borrowed.', text: 'It is about $\$\{{answer}}$ a month.' },
+  reasoning: ['The interest is $\\${{interest}}$, so $\\${{total}}$ is repaid over {{months}} months.', 'That is about $\\${{answer}}$ a month.'],
+  answerSummary: { headline: 'Interest is repaid alongside the amount borrowed.', text: 'It is about $\\${{answer}}$ a month.' },
   hint: 'The term is given in years but the payments are monthly.',
   feedback: 'Spreading only the amount borrowed leaves the interest unpaid.',
 });
@@ -2153,7 +2157,7 @@ arc('8.12A', 'monthly-payment-on-a-loan', {
 
 arc('8.12B', 'card-balance-across-two-months', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A card balance of $\$\{{balance}}$ is charged {{r}}% each month. A payment of $\$\{{payment}}$ is made after the first month. What is owed after the second?',
+  prompt: 'A card balance of $\\${{balance}}$ is charged {{r}}% each month. A payment of $\\${{payment}}$ is made after the first month. What is owed after the second?',
   generator: {
     parameters: {
       hundreds: { type: 'int', min: 5, max: 20 },
@@ -2178,15 +2182,15 @@ arc('8.12B', 'card-balance-across-two-months', {
     { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['The first month takes the balance to $\$\{{month1}}$, and the payment leaves $\$\{{afterPayment}}$.', 'A second month of {{r}}% brings it to $\$\{{answer}}$.'],
-  answerSummary: { headline: 'The second month charges interest on what is left after paying.', text: '$\$\{{answer}}$ is owed.' },
+  reasoning: ['The first month takes the balance to $\\${{month1}}$, and the payment leaves $\\${{afterPayment}}$.', 'A second month of {{r}}% brings it to $\\${{answer}}$.'],
+  answerSummary: { headline: 'The second month charges interest on what is left after paying.', text: '$\\${{answer}}$ is owed.' },
   hint: 'The payment lands between the two interest charges.',
   feedback: 'Charging both months on the opening balance ignores the payment.',
 });
 
 arc('8.12B', 'months-to-clear-a-balance', {
   difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
-  prompt: 'A balance of $\$\{{balance}}$ carries no further interest and $\$\{{already}}$ has been paid. At $\$\{{payment}}$ a month, how many more months clear it?',
+  prompt: 'A balance of $\\${{balance}}$ carries no further interest and $\\${{already}}$ has been paid. At $\\${{payment}}$ a month, how many more months clear it?',
   generator: {
     parameters: {
       payment: { type: 'int', min: 40, max: 150, step: 10 },
@@ -2209,7 +2213,7 @@ arc('8.12B', 'months-to-clear-a-balance', {
     { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['The $\$\{{already}}$ already paid leaves $\$\{{payment}}$x{{months}} outstanding.', 'At $\$\{{payment}}$ a month that is {{answer}} more months.'],
+  reasoning: ['The $\\${{already}}$ already paid leaves $\\${{payment}}$x{{months}} outstanding.', 'At $\\${{payment}}$ a month that is {{answer}} more months.'],
   answerSummary: { headline: 'Only the unpaid part still takes months.', text: 'It takes ${{answer}}$ more months.' },
   hint: 'Part of the balance has already gone.',
   feedback: 'Dividing the whole balance ignores what has been paid.',
@@ -2221,7 +2225,7 @@ arc('8.12B', 'extra-paid-over-the-amount-borrowed', {
   stimulus: {
     kind: 'table',
     columns: ['Item', 'Value'],
-    rows: [['Borrowed', '$\$\{{principal}}$'], ['Monthly payment', '$\$\{{payment}}$'], ['Months', '{{months}}']],
+    rows: [['Borrowed', '$\\${{principal}}$'], ['Monthly payment', '$\\${{payment}}$'], ['Months', '{{months}}']],
   },
   generator: {
     parameters: {
@@ -2247,8 +2251,8 @@ arc('8.12B', 'extra-paid-over-the-amount-borrowed', {
     { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['{{months}} payments of $\$\{{payment}}$ come to $\$\{{total}}$.', 'That is $\$\{{answer}}$ more than the $\$\{{principal}}$ borrowed.'],
-  answerSummary: { headline: 'Total the payments before comparing with the loan.', text: '$\$\{{answer}}$ more is handed over.' },
+  reasoning: ['{{months}} payments of $\\${{payment}}$ come to $\\${{total}}$.', 'That is $\\${{answer}}$ more than the $\\${{principal}}$ borrowed.'],
+  answerSummary: { headline: 'Total the payments before comparing with the loan.', text: '$\\${{answer}}$ more is handed over.' },
   hint: 'Work out everything paid, then set it against what was borrowed.',
   feedback: 'The whole amount handed over is not the same as the extra above the loan.',
 });
@@ -2258,7 +2262,7 @@ arc('8.12B', 'extra-paid-over-the-amount-borrowed', {
 
 arc('7.4D', 'worth-once-two-years-of-loss-are-applied', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'Bought for $\$\{{value}}$, a {{tool}} sheds {{p}}% over twelve months and a further {{q}}% of whatever remains. Where does its worth end up?',
+  prompt: 'Bought for $\\${{value}}$, a {{tool}} sheds {{p}}% over twelve months and a further {{q}}% of whatever remains. Where does its worth end up?',
   generator: {
     parameters: {
       tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
@@ -2283,15 +2287,15 @@ arc('7.4D', 'worth-once-two-years-of-loss-are-applied', {
     { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['A {{p}}% fall leaves $\$\{{afterOne}}$.', 'A further {{q}}% off that leaves $\$\{{answer}}$.'],
-  answerSummary: { headline: 'The second fall applies to the reduced value.', text: 'It is worth $\$\{{answer}}$.' },
+  reasoning: ['A {{p}}% fall leaves $\\${{afterOne}}$.', 'A further {{q}}% off that leaves $\\${{answer}}$.'],
+  answerSummary: { headline: 'The second fall applies to the reduced value.', text: 'It is worth $\\${{answer}}$.' },
   hint: 'The second year loses a share of the new value, not the original.',
   feedback: 'Adding the two percentages treats both falls as coming off the first value.',
 });
 
 arc('7.4D', 'value-before-a-rise-and-a-fee', {
   difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
-  prompt: 'After rising {{p}}% and a $\$\{{fee}}$ fitting charge, a {{tool}} stands at $\$\{{after}}$. What was it before?',
+  prompt: 'After rising {{p}}% and a $\\${{fee}}$ fitting charge, a {{tool}} stands at $\\${{after}}$. What was it before?',
   generator: {
     parameters: {
       tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
@@ -2304,6 +2308,7 @@ arc('7.4D', 'value-before-a-rise-and-a-fee', {
       answer: 'hundreds*100',
       risen: 'answer*(100+p)/100',
       after: 'risen+fee',
+      pctWithRise: '100+p',
       d_percentNotApplied: 'after-fee',
       // Taking the rise off again always lands below the original, because
       // (100+p)(100-p) is less than 10000 for any p.
@@ -2318,8 +2323,8 @@ arc('7.4D', 'value-before-a-rise-and-a-fee', {
     { label: money('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Taking off the $\$\{{fee}}$ charge leaves $\$\{{risen}}$, which is {{100+p}}% of the old value.', 'That makes it $\$\{{answer}}$ before.'],
-  answerSummary: { headline: 'Remove the flat charge before undoing the rise.', text: 'It was $\$\{{answer}}$.' },
+  reasoning: ['Taking off the $\\${{fee}}$ charge leaves $\\${{risen}}$, which is {{pctWithRise}}% of the old value.', 'That makes it $\\${{answer}}$ before.'],
+  answerSummary: { headline: 'Remove the flat charge before undoing the rise.', text: 'It was $\\${{answer}}$.' },
   hint: 'The fitting charge is not part of what rose.',
   feedback: 'Taking the same percentage off again does not undo a rise.',
 });
@@ -2366,7 +2371,7 @@ arc('7.4D', 'percent-rise-between-two-readings', {
 
 arc('7.4E', 'drums-then-cost-from-a-tank', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'Using 1 gallon = 4 litres, a {{litres}}-litre tank is emptied into {{size}}-gallon drums. Each drum costs $\$\{{each}}$ to ship. What is the shipping bill?',
+  prompt: 'Using 1 gallon = 4 litres, a {{litres}}-litre tank is emptied into {{size}}-gallon drums. Each drum costs $\\${{each}}$ to ship. What is the shipping bill?',
   generator: {
     parameters: {
       size: { type: 'int', min: 2, max: 6 },
@@ -2390,8 +2395,8 @@ arc('7.4E', 'drums-then-cost-from-a-tank', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['{{litres}} litres is {{gallons}} gallons, which fills {{drums}} drums of {{size}} gallons.', 'At $\$\{{each}}$ a drum that is $\$\{{answer}}$.'],
-  answerSummary: { headline: 'Litres to gallons to drums, then price the drums.', text: 'The bill is $\$\{{answer}}$.' },
+  reasoning: ['{{litres}} litres is {{gallons}} gallons, which fills {{drums}} drums of {{size}} gallons.', 'At $\\${{each}}$ a drum that is $\\${{answer}}$.'],
+  answerSummary: { headline: 'Litres to gallons to drums, then price the drums.', text: 'The bill is $\\${{answer}}$.' },
   hint: 'The shipping is charged per drum, not per litre.',
   feedback: 'Pricing every litre charges far more than the drums cost.',
 });
@@ -2918,7 +2923,7 @@ arc('6.9C', 'space-left-on-a-shelf', {
 
 arc('7.10C', 'bill-with-call-out-labour-and-parts', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A {{worker}} charges $\$\{{fee}}$ to call out plus $\$\{{rate}}$ an hour, and fitted $\$\{{parts}}$ of parts. What is a {{hours}}-hour bill?',
+  prompt: 'A {{worker}} charges $\\${{fee}}$ to call out plus $\\${{rate}}$ an hour, and fitted $\\${{parts}}$ of parts. What is a {{hours}}-hour bill?',
   generator: {
     parameters: {
       worker: contextParam(['mechanic', 'technician', 'plumber', 'fitter', 'electrician']),
@@ -2942,15 +2947,15 @@ arc('7.10C', 'bill-with-call-out-labour-and-parts', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['{{hours}} hours at $\$\{{rate}}$ is $\$\{{rate}}$x{{hours}}, plus $\$\{{parts}}$ of parts.', 'With the $\$\{{fee}}$ call-out the bill is $\$\{{answer}}$.'],
-  answerSummary: { headline: 'The call-out is charged once, whatever the hours.', text: 'The bill is $\$\{{answer}}$.' },
+  reasoning: ['{{hours}} hours at $\\${{rate}}$ is $\\${{rate}}$x{{hours}}, plus $\\${{parts}}$ of parts.', 'With the $\\${{fee}}$ call-out the bill is $\\${{answer}}$.'],
+  answerSummary: { headline: 'The call-out is charged once, whatever the hours.', text: 'The bill is $\\${{answer}}$.' },
   hint: 'Three separate charges make up the bill.',
   feedback: 'Leaving the call-out out understates the bill.',
 });
 
 arc('7.10C', 'hours-inside-a-bill', {
   difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
-  prompt: 'A bill of $\$\{{total}}$ covers a $\$\{{fee}}$ call-out, $\$\{{parts}}$ of parts and labour at $\$\{{rate}}$ an hour. How many hours were worked?',
+  prompt: 'A bill of $\\${{total}}$ covers a $\\${{fee}}$ call-out, $\\${{parts}}$ of parts and labour at $\\${{rate}}$ an hour. How many hours were worked?',
   generator: {
     parameters: {
       fee: { type: 'int', min: 30, max: 90, step: 10 },
@@ -2974,7 +2979,7 @@ arc('7.10C', 'hours-inside-a-bill', {
     { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
     { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Taking off the call-out and the parts leaves $\$\{{rate}}$x{{hours}} of labour.', 'At $\$\{{rate}}$ an hour that is {{answer}} hours.'],
+  reasoning: ['Taking off the call-out and the parts leaves $\\${{rate}}$x{{hours}} of labour.', 'At $\\${{rate}}$ an hour that is {{answer}} hours.'],
   answerSummary: { headline: 'Strip the fixed charges before dividing by the rate.', text: 'It was ${{answer}}$ hours.' },
   hint: 'Only part of the bill was earned by the hour.',
   feedback: 'Dividing the whole bill counts the call-out and parts as labour.',
@@ -2986,7 +2991,7 @@ arc('7.10C', 'hours-a-budget-covers', {
   stimulus: {
     kind: 'table',
     columns: ['Item', 'Amount'],
-    rows: [['Budget', '$\$\{{budget}}$'], ['Permit', '$\$\{{permit}}$'], ['Labour', '$\$\{{rate}}$ an hour']],
+    rows: [['Budget', '$\\${{budget}}$'], ['Permit', '$\\${{permit}}$'], ['Labour', '$\\${{rate}}$ an hour']],
   },
   generator: {
     parameters: {
@@ -3011,7 +3016,7 @@ arc('7.10C', 'hours-a-budget-covers', {
     { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
     { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['The permit comes out first, leaving $\$\{{rate}}$x{{hours}} and a little over.', 'That pays for {{answer}} whole hours.'],
+  reasoning: ['The permit comes out first, leaving $\\${{rate}}$x{{hours}} and a little over.', 'That pays for {{answer}} whole hours.'],
   answerSummary: { headline: 'The permit is paid before any labour.', text: '${{answer}}$ whole hours can be paid for.' },
   hint: 'Not all of the budget is available for labour.',
   feedback: 'Spending the whole budget on labour leaves the permit unpaid.',
@@ -3022,7 +3027,7 @@ arc('7.10C', 'hours-a-budget-covers', {
 
 arc('8.8B', 'cost-of-a-plan-after-a-joining-fee', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'Plan A costs $\$\{{feeA}}$ to join then $\$\{{rateA}}$ a month, and adds a $\$\{{yearly}}$ charge once a year. What does {{months}} months cost?',
+  prompt: 'Plan A costs $\\${{feeA}}$ to join then $\\${{rateA}}$ a month, and adds a $\\${{yearly}}$ charge once a year. What does {{months}} months cost?',
   generator: {
     parameters: {
       feeA: { type: 'int', min: 30, max: 120, step: 10 },
@@ -3046,15 +3051,15 @@ arc('8.8B', 'cost-of-a-plan-after-a-joining-fee', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['{{months}} months at $\$\{{rateA}}$ plus the $\$\{{feeA}}$ joining fee is $\$\{{d_forgotFinalStep}}$.', 'The yearly charge applies {{years}} times, giving $\$\{{answer}}$.'],
-  answerSummary: { headline: 'The joining fee is paid once and the yearly charge once a year.', text: 'It costs $\$\{{answer}}$.' },
+  reasoning: ['{{months}} months at $\\${{rateA}}$ plus the $\\${{feeA}}$ joining fee is $\\${{d_forgotFinalStep}}$.', 'The yearly charge applies {{years}} times, giving $\\${{answer}}$.'],
+  answerSummary: { headline: 'The joining fee is paid once and the yearly charge once a year.', text: 'It costs $\\${{answer}}$.' },
   hint: 'Three different charges run on three different clocks.',
   feedback: 'Leaving the yearly charge out understates the plan.',
 });
 
 arc('8.8B', 'month-the-two-plans-level', {
   difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
-  prompt: 'Plan A costs $\$\{{feeA}}$ to join then $\$\{{rateA}}$ a month; plan B costs $\$\{{feeB}}$ then $\$\{{rateB}}$. After how many months do they cost the same?',
+  prompt: 'Plan A costs $\\${{feeA}}$ to join then $\\${{rateA}}$ a month; plan B costs $\\${{feeB}}$ then $\\${{rateB}}$. After how many months do they cost the same?',
   generator: {
     parameters: {
       feeA: { type: 'int', min: 80, max: 320, step: 20 },
@@ -3079,7 +3084,7 @@ arc('8.8B', 'month-the-two-plans-level', {
     { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
     { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Plan B costs $\$\{{gap}}$ more each month, and plan A starts $\$\{{feeA}}$-$\$\{{feeB}}$ ahead on joining.', 'It takes {{answer}} months for the monthly gap to close that.'],
+  reasoning: ['Plan B costs $\\${{gap}}$ more each month, and plan A starts $\\${{feeA}}$-$\\${{feeB}}$ ahead on joining.', 'It takes {{answer}} months for the monthly gap to close that.'],
   answerSummary: { headline: 'The joining fee is closed by the monthly difference.', text: 'They level after ${{answer}}$ months.' },
   hint: 'Compare the two monthly costs before using the joining fee.',
   feedback: 'Using plan A\'s whole joining fee ignores what plan B charges to join.',
@@ -3091,7 +3096,7 @@ arc('8.8B', 'total-paid-on-the-better-plan', {
   stimulus: {
     kind: 'table',
     columns: ['Plan', 'Joining', 'Monthly'],
-    rows: [['A', '$\$\{{feeA}}$', '$\$\{{rateA}}$'], ['B', '$\$\{{feeB}}$', '$\$\{{rateB}}$']],
+    rows: [['A', '$\\${{feeA}}$', '$\\${{rateA}}$'], ['B', '$\\${{feeB}}$', '$\\${{rateB}}$']],
   },
   generator: {
     parameters: {
@@ -3118,8 +3123,8 @@ arc('8.8B', 'total-paid-on-the-better-plan', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Over {{months}} months plan A costs $\$\{{costA}}$ and plan B costs $\$\{{costB}}$.', 'The cheaper of the two is $\$\{{answer}}$.'],
-  answerSummary: { headline: 'A lower joining fee does not always mean a lower total.', text: 'The cheaper plan costs $\$\{{answer}}$.' },
+  reasoning: ['Over {{months}} months plan A costs $\\${{costA}}$ and plan B costs $\\${{costB}}$.', 'The cheaper of the two is $\\${{answer}}$.'],
+  answerSummary: { headline: 'A lower joining fee does not always mean a lower total.', text: 'The cheaper plan costs $\\${{answer}}$.' },
   hint: 'Total each plan over the whole period before comparing.',
   feedback: 'The monthly payments alone leave the joining fee unpaid.',
 });
@@ -3129,7 +3134,7 @@ arc('8.8B', 'total-paid-on-the-better-plan', {
 
 arc('8.12C', 'total-saved-with-a-raise-partway', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'A {{worker}} has $\$\{{start}}$ saved, puts away $\$\{{monthly}}$ a month for {{m1}} months, then $\$\{{higher}}$ a month for {{m2}} more. What is saved?',
+  prompt: 'A {{worker}} has $\\${{start}}$ saved, puts away $\\${{monthly}}$ a month for {{m1}} months, then $\\${{higher}}$ a month for {{m2}} more. What is saved?',
   generator: {
     parameters: {
       worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
@@ -3155,15 +3160,15 @@ arc('8.12C', 'total-saved-with-a-raise-partway', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['{{m1}} months at $\$\{{monthly}}$ then {{m2}} at $\$\{{higher}}$ adds to the $\$\{{start}}$ already saved.', 'That comes to $\$\{{answer}}$.'],
-  answerSummary: { headline: 'The two stretches save at different rates.', text: '$\$\{{answer}}$ is saved.' },
+  reasoning: ['{{m1}} months at $\\${{monthly}}$ then {{m2}} at $\\${{higher}}$ adds to the $\\${{start}}$ already saved.', 'That comes to $\\${{answer}}$.'],
+  answerSummary: { headline: 'The two stretches save at different rates.', text: '$\\${{answer}}$ is saved.' },
   hint: 'Only the later months earn the higher amount.',
   feedback: 'Using the lower amount throughout misses the increase.',
 });
 
 arc('8.12C', 'monthly-amount-a-target-needs', {
   difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
-  prompt: 'A {{worker}} wants $\$\{{target}}$ in {{years}} years and has $\$\{{start}}$ now. How much must be put away each month?',
+  prompt: 'A {{worker}} wants $\\${{target}}$ in {{years}} years and has $\\${{start}}$ now. How much must be put away each month?',
   generator: {
     parameters: {
       worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
@@ -3188,8 +3193,8 @@ arc('8.12C', 'monthly-amount-a-target-needs', {
     { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['The $\$\{{start}}$ already saved leaves $\$\{{target}}$-$\$\{{start}}$ to find over {{months}} months.', 'That is $\$\{{answer}}$ a month.'],
-  answerSummary: { headline: 'What is already saved reduces what must be found.', text: 'It is $\$\{{answer}}$ a month.' },
+  reasoning: ['The $\\${{start}}$ already saved leaves $\\${{target}}$-$\\${{start}}$ to find over {{months}} months.', 'That is $\\${{answer}}$ a month.'],
+  answerSummary: { headline: 'What is already saved reduces what must be found.', text: 'It is $\\${{answer}}$ a month.' },
   hint: 'The target is not all still to be saved.',
   feedback: 'Spreading the whole target ignores the money already put by.',
 });
@@ -3200,7 +3205,7 @@ arc('8.12C', 'months-still-to-go', {
   stimulus: {
     kind: 'table',
     columns: ['Item', 'Amount'],
-    rows: [['Target', '$\$\{{target}}$'], ['Saved so far', '$\$\{{saved}}$'], ['Each month', '$\$\{{monthly}}$']],
+    rows: [['Target', '$\\${{target}}$'], ['Saved so far', '$\\${{saved}}$'], ['Each month', '$\\${{monthly}}$']],
   },
   generator: {
     parameters: {
@@ -3226,7 +3231,7 @@ arc('8.12C', 'months-still-to-go', {
     { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
     { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['$\$\{{target}}$ less the $\$\{{saved}}$ already put by leaves $\$\{{monthly}}$x{{months}}.', 'At $\$\{{monthly}}$ a month that is {{answer}} months.'],
+  reasoning: ['$\\${{target}}$ less the $\\${{saved}}$ already put by leaves $\\${{monthly}}$x{{months}}.', 'At $\\${{monthly}}$ a month that is {{answer}} months.'],
   answerSummary: { headline: 'Only the shortfall still takes months.', text: 'It takes ${{answer}}$ more months.' },
   hint: 'Part of the target is already met.',
   feedback: 'Dividing the whole target ignores what is already saved.',
@@ -3237,7 +3242,7 @@ arc('8.12C', 'months-still-to-go', {
 
 arc('8.12D', 'compounding-around-a-mid-term-withdrawal', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'An investment of $\$\{{principal}}$ grows {{r}}% a year. $\$\{{wd}}$ is drawn out once year one has been credited. Where does it stand a year later?',
+  prompt: 'An investment of $\\${{principal}}$ grows {{r}}% a year. $\\${{wd}}$ is drawn out once year one has been credited. Where does it stand a year later?',
   generator: {
     parameters: {
       hundreds: { type: 'int', min: 10, max: 40 },
@@ -3266,15 +3271,15 @@ arc('8.12D', 'compounding-around-a-mid-term-withdrawal', {
     { label: money('{{d_simpleForCompound}}'), error: 'simpleForCompound' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Year one leaves $\$\{{year1}}$, and the withdrawal brings it to $\$\{{afterWd}}$.', 'Year two pays {{r}}% on that, giving $\$\{{answer}}$.'],
-  answerSummary: { headline: 'The second year earns on what is left after the withdrawal.', text: 'It holds $\$\{{answer}}$.' },
+  reasoning: ['Year one leaves $\\${{year1}}$, and the withdrawal brings it to $\\${{afterWd}}$.', 'Year two pays {{r}}% on that, giving $\\${{answer}}$.'],
+  answerSummary: { headline: 'The second year earns on what is left after the withdrawal.', text: 'It holds $\\${{answer}}$.' },
   hint: 'The money taken out stops earning.',
   feedback: 'Ignoring the withdrawal leaves it earning interest it never earned.',
 });
 
 arc('8.12D', 'deposit-behind-a-two-year-balance', {
   difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
-  prompt: 'An account compounding yearly at {{r}}% holds $\$\{{balance}}$ after two years. The statement listed $\$\{{listed}}$. What was deposited?',
+  prompt: 'An account compounding yearly at {{r}}% holds $\\${{balance}}$ after two years. The statement listed $\\${{listed}}$. What was deposited?',
   generator: {
     parameters: {
       hundreds: { type: 'int', min: 8, max: 40 },
@@ -3297,15 +3302,15 @@ arc('8.12D', 'deposit-behind-a-two-year-balance', {
     { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Undoing one year of {{r}}% growth from $\$\{{balance}}$ gives $\$\{{year1}}$.', 'Undoing a second year gives $\$\{{answer}}$.'],
-  answerSummary: { headline: 'Two years of growth take two years of undoing.', text: '$\$\{{answer}}$ was deposited.' },
+  reasoning: ['Undoing one year of {{r}}% growth from $\\${{balance}}$ gives $\\${{year1}}$.', 'Undoing a second year gives $\\${{answer}}$.'],
+  answerSummary: { headline: 'Two years of growth take two years of undoing.', text: '$\\${{answer}}$ was deposited.' },
   hint: 'Each year multiplied the balance, so each year has to be divided out.',
   feedback: 'Undoing a third year strips growth the account never had.',
 });
 
 arc('8.12D', 'what-compounding-adds-over-simple', {
   difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
-  prompt: 'Two accounts each hold $\$\{{principal}}$ at {{r}}% for two years, as shown. What does the compound account hold?',
+  prompt: 'Two accounts each hold $\\${{principal}}$ at {{r}}% for two years, as shown. What does the compound account hold?',
   stimulus: {
     kind: 'table',
     columns: ['Account', 'Interest'],
@@ -3334,8 +3339,8 @@ arc('8.12D', 'what-compounding-adds-over-simple', {
     { label: money('{{d_simpleForCompound}}'), error: 'simpleForCompound' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Account Y reaches $\$\{{year1}}$ after one year and earns {{r}}% on that in year two.', 'That gives $\$\{{answer}}$, against $\$\{{simple}}$ for the simple account.'],
-  answerSummary: { headline: 'Compounding pays on interest already earned.', text: 'It holds $\$\{{answer}}$.' },
+  reasoning: ['Account Y reaches $\\${{year1}}$ after one year and earns {{r}}% on that in year two.', 'That gives $\\${{answer}}$, against $\\${{simple}}$ for the simple account.'],
+  answerSummary: { headline: 'Compounding pays on interest already earned.', text: 'It holds $\\${{answer}}$.' },
   hint: 'The second year of compounding works on a bigger balance.',
   feedback: 'Two equal years of interest describes the simple account, not the compound one.',
 });
@@ -3345,7 +3350,7 @@ arc('8.12D', 'what-compounding-adds-over-simple', {
 
 arc('8.12G', 'four-year-cost-with-a-rise', {
   difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
-  prompt: 'College costs $\$\{{perYear}}$ a year for tuition and $\$\{{living}}$ a year to live on, and tuition rises $\$\{{rise}}$ each year after the first. What do four years cost?',
+  prompt: 'College costs $\\${{perYear}}$ a year for tuition and $\\${{living}}$ a year to live on, and tuition rises $\\${{rise}}$ each year after the first. What do four years cost?',
   generator: {
     parameters: {
       perYear: { type: 'int', min: 3000, max: 9000, step: 500 },
@@ -3368,15 +3373,15 @@ arc('8.12G', 'four-year-cost-with-a-rise', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['Tuition over four years is $\$\{{tuition}}$ once the yearly rises are counted.', 'With four years of living costs the total is $\$\{{answer}}$.'],
-  answerSummary: { headline: 'The rise applies in each year after the first.', text: 'Four years cost $\$\{{answer}}$.' },
+  reasoning: ['Tuition over four years is $\\${{tuition}}$ once the yearly rises are counted.', 'With four years of living costs the total is $\\${{answer}}$.'],
+  answerSummary: { headline: 'The rise applies in each year after the first.', text: 'Four years cost $\\${{answer}}$.' },
   hint: 'Only the first year is charged at the opening tuition figure.',
   feedback: 'Charging the opening tuition every year misses the rises.',
 });
 
 arc('8.12G', 'monthly-saving-to-close-a-gap', {
   difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
-  prompt: 'Four years of college cost $\$\{{total}}$. A family can contribute $\$\{{contribution}}$ and has {{years}} years to save the rest. How much a month is that?',
+  prompt: 'Four years of college cost $\\${{total}}$. A family can contribute $\\${{contribution}}$ and has {{years}} years to save the rest. How much a month is that?',
   generator: {
     parameters: {
       contribution: { type: 'int', min: 5000, max: 20000, step: 1000 },
@@ -3401,8 +3406,8 @@ arc('8.12G', 'monthly-saving-to-close-a-gap', {
     { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['The contribution leaves $\$\{{gap}}$ to find over {{months}} months.', 'That is $\$\{{answer}}$ a month.'],
-  answerSummary: { headline: 'The contribution reduces what has to be saved.', text: 'It is $\$\{{answer}}$ a month.' },
+  reasoning: ['The contribution leaves $\\${{gap}}$ to find over {{months}} months.', 'That is $\\${{answer}}$ a month.'],
+  answerSummary: { headline: 'The contribution reduces what has to be saved.', text: 'It is $\\${{answer}}$ a month.' },
   hint: 'Not all of the cost has to come from monthly saving.',
   feedback: 'Spreading the whole cost ignores what the family can already put in.',
 });
@@ -3413,7 +3418,7 @@ arc('8.12G', 'cost-of-the-cheaper-route', {
   stimulus: {
     kind: 'table',
     columns: ['Route', 'Years', 'Cost a year'],
-    rows: [['Direct', '4', '$\$\{{costA}}$'], ['Transfer', '2 then 2', '$\$\{{costB1}}$ then $\$\{{costB2}}$']],
+    rows: [['Direct', '4', '$\\${{costA}}$'], ['Transfer', '2 then 2', '$\\${{costB1}}$ then $\\${{costB2}}$']],
   },
   generator: {
     parameters: {
@@ -3438,8 +3443,8 @@ arc('8.12G', 'cost-of-the-cheaper-route', {
     { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
     { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
   ],
-  reasoning: ['The direct route costs $\$\{{totalA}}$ and the transfer route $\$\{{totalB}}$.', 'The cheaper of the two is $\$\{{answer}}$.'],
-  answerSummary: { headline: 'Total every year of each route before comparing.', text: 'The cheaper route costs $\$\{{answer}}$.' },
+  reasoning: ['The direct route costs $\\${{totalA}}$ and the transfer route $\\${{totalB}}$.', 'The cheaper of the two is $\\${{answer}}$.'],
+  answerSummary: { headline: 'Total every year of each route before comparing.', text: 'The cheaper route costs $\\${{answer}}$.' },
   hint: 'The transfer route is charged at two different yearly rates.',
   feedback: 'Costing only the first two years leaves half the degree unpaid.',
 });

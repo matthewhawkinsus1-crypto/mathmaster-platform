@@ -416,7 +416,7 @@ Eight files conflicted. Nothing was resolved by picking a side blindly:
 | `tests/platform/pathBankSeed.test.mjs` | `main`'s direct/challenge structure, with the direct tier counted per subtest. |
 | `tests/platform/pathSeedMirrorSync.test.mjs` | Total moved 7,601 → 7,606 (the +5 ASVAB delta). |
 
-The release is now `path-bank-2026-08-29-r12-asvab-rebuild` in both places —
+The release is now `path-bank-2026-08-30-r13-asvab-challenge` in both places —
 above `main`'s `r11`, so a refresh still retires older sessions in order.
 
 `scripts/build-asvab-bank.mjs` now stamps the Fidelity V2 direct metadata
@@ -568,3 +568,128 @@ behind that replacement.
 tier-2 candidate pool for ASVAB, and the runtime's fallback needs direct families
 at band ≥ 4, which this bank has none of.
 
+
+
+---
+
+## 12. The challenge tier, authored (2026-08-30)
+
+Section 11 ends by recommending that the 438 inherited tier-2 families be
+replaced with authored ones. That is done. **All 438 are gone**; the bank now
+ships 735 authored direct families and 441 authored challenge families — 1,176
+documents across 147 standard-subtest pairs, five direct and three challenge per
+pair, with no recorded exception.
+
+### What "challenge" means here
+
+Not a wrapper. Each family is written from the standard, and escalates over the
+direct tier in one of three ways:
+
+- **Synthesis** — two linked quantities where the first feeds the second (divide
+  a cubic, then evaluate the quotient; price a job in worker-days, then re-share
+  what is left across a smaller crew).
+- **Inversion** — the outcome is given and an input has to be recovered (which
+  constant makes a division exact; which coefficient produces a known least
+  value).
+- **Judgement** — several candidates or a threshold, usually DOK 3 (which
+  rearrangement keeps the constant inside; which claim about a sum of cubes
+  fails).
+
+Distractors carry misconception codes from the `DISTRACTOR_ERRORS` registry and
+are derived from the same generated parameters the student is shown. No family
+offers key ± 1, ± 2, ± 3, or any other fixed offset from the key.
+
+### A2.6L and the parity exception
+
+A2.6L now carries its own complete challenge set in **each** subtest, so the two
+recorded shortfall entries are deleted, not waived:
+`KNOWN_SET_PARITY_SHORTFALL` in `tests/platform/ccmrFidelityV2.test.mjs` and
+`SET_PARITY_SHORTFALL` in `tests/platform/pathBankSeed.test.mjs` are both gone,
+along with the branches that read them. Direct and challenge set counts are now
+asserted equal for every code in every framework.
+
+### The six families with unbalanced math
+
+Section 11 records eighteen unbalanced math segments across six inherited
+families, left unrepaired because they sat inside content that was going to be
+replaced. They were replaced. `verify-path-drafts.mjs` over the whole bank now
+reports `id_already_published` and nothing else.
+
+### Two defects the gates missed, and what now catches them
+
+**A family that failed to generate on some seeds.** `7.4A
+average-rate-across-two-stretches` reached its divisibility conditions by
+rejection sampling and ran out of attempts on a fraction of seeds, which leaves a
+student looking at a missing question. The rank probe never saw it, because it
+scores only the instances that did generate. `scripts/asvab-generation-yield.mjs`
+was added to measure it directly; all four drafts now report 100% yield over
+3,000 seeds. The family itself was rebuilt so the weighted average is exact by
+construction.
+
+**Currency escaped one backslash short.** 138 lines of the Arithmetic Reasoning
+challenge script wrote `\$\{{amount}}` where a JS string literal needs
+`\\${{amount}}`; the shorter form collapses to `$${{amount}}$`, and the student
+sees `$$430$` instead of `$\$430$`. Five reasoning strings also carried
+`{{100-p}}%`, an arithmetic expression inside a placeholder, which the template
+engine renders verbatim rather than evaluating. Neither shows up in the per-draft
+audits — only `verify-path-drafts.mjs` over the assembled bank catches them, so
+that run is now part of the standard sequence below.
+
+### Fifteen cross-tier clones
+
+The per-draft fidelity audit compares families within one draft. Run over the
+assembled bank, where a standard's direct and challenge families sit side by
+side, it found one task clone, three frame clones and eleven prompt overlaps
+between a challenge family and the direct family it shares a standard with.
+Eleven were reworded off the direct frame with their mathematics untouched.
+Three had duplicated the underlying task, not just the wording, and were
+re-authored: 6.11 now asks which quadrant a point finishes in rather than
+recomputing its coordinates, 8.8D compares an angle's two partners rather than
+restating the direct item with "wrong" for "true", and A.5C solves a system and
+then compares the two unknowns rather than repeating the substitution question.
+
+### Rebuild and verify
+
+```
+node scripts/author-asvab-ar.mjs             # 155 direct across 31 standards
+node scripts/author-asvab-mk.mjs             # 580 direct across 116 standards
+node scripts/author-asvab-ar-challenge.mjs   #  93 challenge across 31 standards
+node scripts/author-asvab-mk-challenge.mjs   # 348 challenge across 116 standards
+node scripts/build-asvab-bank.mjs            # 1,176 documents → 3 files
+node scripts/rebuild-path-manifest.mjs       # then copy the manifest to functions/seeds/
+
+node scripts/audit-asvab-drafts.mjs      drafts/asvab-ar-challenge.json  # counters 0
+node scripts/audit-asvab-drafts.mjs      drafts/asvab-mk-challenge.json  # counters 0
+node scripts/audit-asvab-fidelity.mjs    drafts/asvab-ar-challenge.json  # keep 93 / 0 / 0
+node scripts/audit-asvab-fidelity.mjs    drafts/asvab-mk-challenge.json  # keep 348 / 0 / 0
+node scripts/asvab-rank-probe.mjs        drafts/asvab-ar-challenge.json  # 0 flagged
+node scripts/asvab-rank-probe.mjs        drafts/asvab-mk-challenge.json  # 0 flagged
+node scripts/asvab-generation-yield.mjs  drafts/asvab-mk-challenge.json 3000   # 0 failures
+node scripts/audit-asvab-fidelity.mjs                                   # keep 1176 / 0 / 0
+node scripts/verify-path-drafts.mjs      drafts/asvab.json              # only id_already_published
+```
+
+`audit-asvab-drafts.mjs` reports `badStandards` equal to the standard count on a
+challenge-only draft. That is the direct tier's five-families-per-standard rule
+applied where three is correct; it is not a finding.
+
+### Results
+
+| Check | Result |
+| --- | --- |
+| `node --test "tests/platform/*.test.mjs"` | 2,653 tests, **2,653 pass, 0 fail** |
+| `npm run build` | clean |
+| `npm run lint` | 0 errors (warning count down 594, all from the currency fix) |
+| `node scripts/audits.mjs` | all three audits pass |
+| `audit-asvab-fidelity.mjs` (whole bank) | `keep=1176 revise=0 replace=0`, no issues of any kind |
+| `asvab-rank-probe.mjs` (whole bank) | 0 of 1,176 families flagged |
+| `verify-path-drafts.mjs` | only `id_already_published` |
+| Task clones | 0 of 146 standards |
+| Bank voice | 993 distinct sentence frames across 1,176 prompts |
+
+Digital SAT, ACT and TSIA2 seed files and drafts are byte-identical to `main`.
+
+The release moved to `path-bank-2026-08-30-r13-asvab-challenge` in
+`src/platform/path/pathRelease.js` and `functions/index.js`.
+
+**The production bank has not been refreshed and nothing has been deployed.**

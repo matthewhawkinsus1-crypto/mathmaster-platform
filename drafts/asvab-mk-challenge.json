@@ -913,7 +913,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A line runs from $-{{a}}$ to ${{b}}$ in ${{steps}}$ equal steps. What value sits ${{k}}$ steps from the left end?",
+   "prompt": "A scale of ${{steps}}$ equal gaps stretches from $-{{a}}$ up to ${{b}}$. After ${{k}}$ gaps, what value is reached?",
    "solutionReview": {
     "headline": "Count the steps from the left end, not from zero.",
     "reasoning": [
@@ -1019,7 +1019,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:mk:6.2C:value-at-a-step-along-a-line",
-    "sourcePrompt": "A line runs from $-{{a}}$ to ${{b}}$ in ${{steps}}$ equal steps. What value sits ${{k}}$ steps from the left end?"
+    "sourcePrompt": "A scale of ${{steps}}$ equal gaps stretches from $-{{a}}$ up to ${{b}}$. After ${{k}}$ gaps, what value is reached?"
    }
   },
   {
@@ -6965,7 +6965,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Solve $\\frac{x + {{a}}}{{{c}}} = {{q}}$.",
+   "prompt": "What value of $x$ satisfies $\\frac{x + {{a}}}{{{c}}} = {{q}}$?",
    "solutionReview": {
     "headline": "Clear the denominator before touching the constant.",
     "reasoning": [
@@ -7064,7 +7064,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:mk:6.10A:solve-a-grouped-quotient-equation",
-    "sourcePrompt": "Solve $\\frac{x + {{a}}}{{{c}}} = {{q}}$."
+    "sourcePrompt": "What value of $x$ satisfies $\\frac{x + {{a}}}{{{c}}} = {{q}}$?"
    }
   },
   {
@@ -7801,7 +7801,7 @@
    }
   },
   {
-   "id": "mm_asvab_mk_6_11_point_after_two_reflections",
+   "id": "mm_asvab_mk_6_11_quadrant_after_flipping_over_both_axes",
    "active": true,
    "alignmentKeys": [
     "texas:6.11"
@@ -7827,35 +7827,35 @@
     "subtest": "mathematicsKnowledge"
    },
    "courseId": "grade6",
-   "familyId": "mathmaster:asvab:mk:6.11:point-after-two-reflections",
+   "familyId": "mathmaster:asvab:mk:6.11:quadrant-after-flipping-over-both-axes",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
    "difficultyBand": 4,
-   "dok": 2,
+   "dok": 3,
    "calculatorPolicy": "none",
    "examCalculatorMode": "none",
    "assessedConstruct": "6.11",
-   "taskType": "procedural",
-   "representation": "orderedPairs",
+   "taskType": "conceptual",
+   "representation": "verbal",
    "authoring": {
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Reflect $(-{{p}}, {{q}})$ across the horizontal axis, then across the vertical axis. Which point results?",
+   "prompt": "A point at $(-{{p}}, {{q}})$ is flipped over both axes in turn. Which quadrant does it finish in?",
    "solutionReview": {
-    "headline": "Each axis flips the coordinate it is not aligned with.",
+    "headline": "Each flip carries the point one quadrant across.",
     "reasoning": [
-     "The first reflection changes the sign of the height, giving $(-{{p}}, -{{q}})$.",
-     "The second changes the sign of the across value, giving $({{p}}, -{{q}})$."
+     "The point starts in Quadrant II, and flipping over the horizontal axis sends it to Quadrant III.",
+     "Flipping that over the vertical axis carries it on to Quadrant IV."
     ],
-    "answerSummary": "It is $({{p}}, -{{q}})$."
+    "answerSummary": "It finishes in Quadrant IV."
    },
    "attemptFeedback": [
-    "Stopping after the first reflection leaves the across value negative."
+    "Stopping after the first flip leaves the point one quadrant short."
    ],
    "supportHints": [
-    "Apply one reflection at a time and write the point down between them."
+    "Name the quadrant the point starts in before moving it."
    ],
    "generator": {
     "parameters": {
@@ -7878,22 +7878,22 @@
    "choices": [
     {
      "id": "choice-a",
-     "label": "$({{p}}, -{{q}})$"
+     "label": "Quadrant I.",
+     "error": "operationInverted"
     },
     {
      "id": "choice-b",
-     "label": "$(-{{p}}, -{{q}})$",
-     "error": "forgotFinalStep"
+     "label": "Quadrant IV."
     },
     {
      "id": "choice-c",
-     "label": "$({{p}}, {{q}})$",
-     "error": "signError"
+     "label": "Quadrant III.",
+     "error": "forgotFinalStep"
     },
     {
      "id": "choice-d",
-     "label": "$(-{{q}}, {{p}})$",
-     "error": "ratioReversed"
+     "label": "Quadrant II.",
+     "error": "signError"
     }
    ],
    "responseFields": [
@@ -7901,7 +7901,7 @@
      "id": "answer",
      "label": "Choose the correct answer",
      "inputProfile": "choice",
-     "expected": "choice-a"
+     "expected": "choice-b"
     }
    ],
    "ccmrChallengeTier": 2,
@@ -7920,8 +7920,8 @@
      "subtest"
     ],
     "directAssessmentEvidence": true,
-    "sourceFamilyId": "mathmaster:asvab:mk:6.11:point-after-two-reflections",
-    "sourcePrompt": "Reflect $(-{{p}}, {{q}})$ across the horizontal axis, then across the vertical axis. Which point results?"
+    "sourceFamilyId": "mathmaster:asvab:mk:6.11:quadrant-after-flipping-over-both-axes",
+    "sourcePrompt": "A point at $(-{{p}}, {{q}})$ is flipped over both axes in turn. Which quadrant does it finish in?"
    }
   },
   {
@@ -14048,7 +14048,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A line passes through $({{x1}}, {{y1}})$ and $({{xt}}, {{yt}})$. What is its value at $x = 0$?",
+   "prompt": "Where does the line through $({{x1}}, {{y1}})$ and $({{xt}}, {{yt}})$ meet the vertical axis?",
    "solutionReview": {
     "headline": "Find the slope, then walk back to zero.",
     "reasoning": [
@@ -14154,7 +14154,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:mk:7.7:value-at-zero-from-two-points",
-    "sourcePrompt": "A line passes through $({{x1}}, {{y1}})$ and $({{xt}}, {{yt}})$. What is its value at $x = 0$?"
+    "sourcePrompt": "Where does the line through $({{x1}}, {{y1}})$ and $({{xt}}, {{yt}})$ meet the vertical axis?"
    }
   },
   {
@@ -19897,7 +19897,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Between which two whole numbers does $\\sqrt{{{n}}} + \\sqrt{{{m}}}$ lie?",
+   "prompt": "Which pair of consecutive whole numbers surrounds $\\sqrt{{{n}}} + \\sqrt{{{m}}}$?",
    "solutionReview": {
     "headline": "Estimate the sum itself, not the two parts separately.",
     "reasoning": [
@@ -19991,7 +19991,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:mk:8.2B:interval-holding-a-sum-of-two-roots",
-    "sourcePrompt": "Between which two whole numbers does $\\sqrt{{{n}}} + \\sqrt{{{m}}}$ lie?"
+    "sourcePrompt": "Which pair of consecutive whole numbers surrounds $\\sqrt{{{n}}} + \\sqrt{{{m}}}$?"
    }
   },
   {
@@ -24457,7 +24457,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "For a $\\${{b}}$ joining fee at $\\${{m}}$ a month a student writes $y = ({{m}} + {{b}})x$. What is wrong?",
+   "prompt": "A student models $\\${{m}}$ a month after a $\\${{b}}$ joining fee as $y = ({{m}} + {{b}})x$. What is wrong?",
    "solutionReview": {
     "headline": "A one-off charge stands outside the $x$ term.",
     "reasoning": [
@@ -24536,7 +24536,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:mk:8.5B:fee-folded-into-the-monthly-rate",
-    "sourcePrompt": "For a $\\${{b}}$ joining fee at $\\${{m}}$ a month a student writes $y = ({{m}} + {{b}})x$. What is wrong?"
+    "sourcePrompt": "A student models $\\${{m}}$ a month after a $\\${{b}}$ joining fee as $y = ({{m}} + {{b}})x$. What is wrong?"
    }
   },
   {
@@ -30835,7 +30835,7 @@
    }
   },
   {
-   "id": "mm_asvab_mk_8_8D_claim_about_angles_on_a_transversal",
+   "id": "mm_asvab_mk_8_8D_gap_between_two_partners_of_one_angle",
    "active": true,
    "alignmentKeys": [
     "texas:8.8D"
@@ -30861,7 +30861,7 @@
     "subtest": "mathematicsKnowledge"
    },
    "courseId": "grade8",
-   "familyId": "mathmaster:asvab:mk:8.8D:claim-about-angles-on-a-transversal",
+   "familyId": "mathmaster:asvab:mk:8.8D:gap-between-two-partners-of-one-angle",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
@@ -30870,62 +30870,74 @@
    "calculatorPolicy": "none",
    "examCalculatorMode": "none",
    "assessedConstruct": "8.8D",
-   "taskType": "conceptual",
+   "taskType": "application",
    "representation": "verbal",
    "authoring": {
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Parallel lines are cut by a transversal and one angle measures ${{a}}^\\circ$. Which statement is wrong?",
+   "prompt": "A transversal crosses two parallel lines and one angle is ${{a}}^\\circ$. How far apart are its co-interior and alternate partners?",
    "solutionReview": {
-    "headline": "Same-side interior angles are supplementary, not equal.",
+    "headline": "One partner matches the angle and the other completes a straight line.",
     "reasoning": [
-     "Angles inside the parallels on the same side of the transversal add to $180^\\circ$.",
-     "So that angle is ${{sup}}^\\circ$, not ${{a}}^\\circ$."
+     "The alternate partner equals the angle at ${{a}}^\\circ$, while the co-interior partner is ${{sup}}^\\circ$.",
+     "They sit ${{answer}}^\\circ$ apart."
     ],
-    "answerSummary": "That angle is ${{sup}}^\\circ$."
+    "answerSummary": "They are ${{answer}}^\\circ$ apart."
    },
    "attemptFeedback": [
-    "Corresponding and alternate angles really are equal."
+    "The co-interior partner on its own is not the gap between the two."
    ],
    "supportHints": [
-    "Sketch the two parallels and mark every angle."
+    "Decide for each partner whether it matches the angle or supplements it."
    ],
    "generator": {
     "parameters": {
      "a": {
       "type": "int",
       "min": 25,
-      "max": 155
+      "max": 86
      }
     },
     "derived": {
-     "sup": "180-a"
+     "sup": "180-a",
+     "answer": "180-2*a",
+     "d_forgotFinalStep": "180-a",
+     "d_usedGivenValue": "a",
+     "d_signError": "2*a-180"
     },
     "constraints": [
-     "a!=90"
+     "a!=90",
+     "180-2*a>6",
+     "abs(180-3*a)>4",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_signError",
+     "d_usedGivenValue!=d_signError"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
    "choices": [
     {
      "id": "choice-a",
-     "label": "The angle inside the parallels on the same side is also ${{a}}^\\circ$."
+     "label": "${{answer}}$"
     },
     {
      "id": "choice-b",
-     "label": "The corresponding angle is ${{a}}^\\circ$.",
-     "error": "partialTotal"
+     "label": "${{d_signError}}$",
+     "error": "signError"
     },
     {
      "id": "choice-c",
-     "label": "The alternate angle is ${{a}}^\\circ$.",
+     "label": "${{d_usedGivenValue}}$",
      "error": "usedGivenValue"
     },
     {
      "id": "choice-d",
-     "label": "The angle beside it on the same line is ${{sup}}^\\circ$.",
-     "error": "ratioReversed"
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
     }
    ],
    "responseFields": [
@@ -30952,8 +30964,8 @@
      "subtest"
     ],
     "directAssessmentEvidence": true,
-    "sourceFamilyId": "mathmaster:asvab:mk:8.8D:claim-about-angles-on-a-transversal",
-    "sourcePrompt": "Parallel lines are cut by a transversal and one angle measures ${{a}}^\\circ$. Which statement is wrong?"
+    "sourceFamilyId": "mathmaster:asvab:mk:8.8D:gap-between-two-partners-of-one-angle",
+    "sourcePrompt": "A transversal crosses two parallel lines and one angle is ${{a}}^\\circ$. How far apart are its co-interior and alternate partners?"
    }
   },
   {
@@ -36134,7 +36146,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Solve $\\frac{x + {{p}}}{{{d}}} - {{q}} = {{r}}$.",
+   "prompt": "Find $x$ if $\\frac{x + {{p}}}{{{d}}} - {{q}} = {{r}}$.",
    "solutionReview": {
     "headline": "Undo the outside shift, then the division, then the inside shift.",
     "reasoning": [
@@ -36237,7 +36249,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:mk:A.5A:solve-a-grouped-quotient-with-a-shift",
-    "sourcePrompt": "Solve $\\frac{x + {{p}}}{{{d}}} - {{q}} = {{r}}$."
+    "sourcePrompt": "Find $x$ if $\\frac{x + {{p}}}{{{d}}} - {{q}} = {{r}}$."
    }
   },
   {
@@ -36282,7 +36294,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "For which $c$ does ${{a}}(x + {{p}}) = {{b}}x + c$ have the solution $x = {{v}}$?",
+   "prompt": "The equation ${{a}}(x + {{p}}) = {{b}}x + c$ is solved by $x = {{v}}$. What is $c$?",
    "solutionReview": {
     "headline": "Expand, substitute, and read off what is left.",
     "reasoning": [
@@ -36386,7 +36398,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:mk:A.5A:constant-that-fixes-a-bracketed-solution",
-    "sourcePrompt": "For which $c$ does ${{a}}(x + {{p}}) = {{b}}x + c$ have the solution $x = {{v}}$?"
+    "sourcePrompt": "The equation ${{a}}(x + {{p}}) = {{b}}x + c$ is solved by $x = {{v}}$. What is $c$?"
    }
   },
   {
@@ -37285,7 +37297,7 @@
    }
   },
   {
-   "id": "mm_asvab_mk_A_5C_equation_substitution_leaves_behind",
+   "id": "mm_asvab_mk_A_5C_how_much_heavier_a_crate_is",
    "active": true,
    "alignmentKeys": [
     "texas:A.5C"
@@ -37311,94 +37323,99 @@
     "subtest": "mathematicsKnowledge"
    },
    "courseId": "algebra1",
-   "familyId": "mathmaster:asvab:mk:A.5C:equation-substitution-leaves-behind",
+   "familyId": "mathmaster:asvab:mk:A.5C:how-much-heavier-a-crate-is",
    "familyVersion": 2,
    "questionType": "multipleChoice",
    "activityRole": "practice",
-   "difficultyBand": 4,
+   "difficultyBand": 5,
    "dok": 3,
    "calculatorPolicy": "none",
    "examCalculatorMode": "none",
    "assessedConstruct": "A.5C",
-   "taskType": "representationTranslation",
-   "representation": "symbolic",
+   "taskType": "application",
+   "representation": "context",
    "authoring": {
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Substituting $y = {{m}}x + {{p}}$ into ${{a}}x + {{b}}y = {{c}}$ leaves which equation?",
+   "prompt": "Two crates and ${{n}}$ boxes weigh ${{w1}}$ kg, while ${{n2}}$ crates and one box weigh ${{w2}}$ kg. How much heavier is a crate?",
    "solutionReview": {
-    "headline": "Distribute the coefficient across the whole substitution.",
+    "headline": "Solve the system first; the comparison comes after.",
     "reasoning": [
-     "The ${{b}}$ multiplies both terms of $y$, giving ${{b}}{{m}}x + {{b}}{{p}}$.",
-     "Collecting with ${{a}}x$ leaves ${{ab}}x + {{bp}} = {{c}}$."
+     "Solving the pair gives a box at ${{b}}$ kg and a crate at ${{c}}$ kg.",
+     "The crate is therefore ${{answer}}$ kg heavier."
     ],
-    "answerSummary": "It is ${{ab}}x + {{bp}} = {{c}}$."
+    "answerSummary": "A crate is ${{answer}}$ kg heavier."
    },
    "attemptFeedback": [
-    "Leaving the constant undistributed drops a factor of ${{b}}$."
+    "Either weight on its own is not the difference between them."
    ],
    "supportHints": [
-    "Both terms of $y$ pass through the ${{b}}$."
+    "Let one letter stand for a crate and another for a box, then eliminate one of them."
    ],
    "generator": {
     "parameters": {
-     "a": {
-      "type": "int",
-      "min": 2,
-      "max": 14
-     },
      "b": {
       "type": "int",
       "min": 2,
-      "max": 12
+      "max": 24
      },
-     "m": {
+     "g": {
       "type": "int",
       "min": 2,
-      "max": 10
+      "max": 24
      },
-     "p": {
+     "n": {
       "type": "int",
       "min": 2,
-      "max": 30
+      "max": 6
      },
-     "c": {
+     "n2": {
       "type": "int",
-      "min": 20,
-      "max": 300
+      "min": 2,
+      "max": 6
      }
     },
     "derived": {
-     "ab": "a+b*m",
-     "abBad": "a+m",
-     "bp": "b*p"
+     "c": "b+g",
+     "w1": "2*(b+g)+n*b",
+     "w2": "n2*(b+g)+b",
+     "answer": "g",
+     "d_forgotFinalStep": "b+g",
+     "d_partialTotal": "b",
+     "d_signError": "0-g"
     },
     "constraints": [
-     "a+b*m!=a+m",
-     "b*p!=p"
+     "abs(b-g)>1",
+     "n!=n2",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_signError",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_signError",
+     "d_partialTotal!=d_signError"
     ]
    },
    "assessmentItemFormat": "multipleChoice",
    "choices": [
     {
      "id": "choice-a",
-     "label": "${{ab}}x + {{bp}} = {{c}}$"
+     "label": "${{answer}}$"
     },
     {
      "id": "choice-b",
-     "label": "${{ab}}x - {{bp}} = {{c}}$",
-     "error": "signError"
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
     },
     {
      "id": "choice-c",
-     "label": "${{ab}}x + {{p}} = {{c}}$",
+     "label": "${{d_partialTotal}}$",
      "error": "partialTotal"
     },
     {
      "id": "choice-d",
-     "label": "${{abBad}}x + {{bp}} = {{c}}$",
-     "error": "incompleteFactoring"
+     "label": "${{d_signError}}$",
+     "error": "signError"
     }
    ],
    "responseFields": [
@@ -37425,8 +37442,8 @@
      "subtest"
     ],
     "directAssessmentEvidence": true,
-    "sourceFamilyId": "mathmaster:asvab:mk:A.5C:equation-substitution-leaves-behind",
-    "sourcePrompt": "Substituting $y = {{m}}x + {{p}}$ into ${{a}}x + {{b}}y = {{c}}$ leaves which equation?"
+    "sourceFamilyId": "mathmaster:asvab:mk:A.5C:how-much-heavier-a-crate-is",
+    "sourcePrompt": "Two crates and ${{n}}$ boxes weigh ${{w1}}$ kg, while ${{n2}}$ crates and one box weigh ${{w2}}$ kg. How much heavier is a crate?"
    }
   },
   {
@@ -42940,7 +42957,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "For $f(x) = {{a}}x + {{b}}$, what is $f({{v}}) - f({{w}})$?",
+   "prompt": "By how much does $f({{v}})$ exceed $f({{w}})$ when $f(x) = {{a}}x + {{b}}$?",
    "solutionReview": {
     "headline": "A difference of outputs cancels the constant.",
     "reasoning": [
@@ -43044,7 +43061,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:mk:A.12B:gap-between-two-function-values",
-    "sourcePrompt": "For $f(x) = {{a}}x + {{b}}$, what is $f({{v}}) - f({{w}})$?"
+    "sourcePrompt": "By how much does $f({{v}})$ exceed $f({{w}})$ when $f(x) = {{a}}x + {{b}}$?"
    }
   },
   {
@@ -44234,7 +44251,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Solve ${{k}}\\sqrt{x + {{a}}} = {{p}}$.",
+   "prompt": "What must $x$ be for ${{k}}\\sqrt{x + {{a}}} = {{p}}$?",
    "solutionReview": {
     "headline": "Free the root before squaring, and undo the shift after.",
     "reasoning": [
@@ -44332,7 +44349,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:mk:A2.4F:solve-a-scaled-root-with-a-shift",
-    "sourcePrompt": "Solve ${{k}}\\sqrt{x + {{a}}} = {{p}}$."
+    "sourcePrompt": "What must $x$ be for ${{k}}\\sqrt{x + {{a}}} = {{p}}$?"
    }
   },
   {
@@ -44783,7 +44800,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A length satisfies $\\sqrt{L + {{a}}} = L - {{b}}$, and squaring gives ${{r}}$ and ${{s}}$. Which is the length?",
+   "prompt": "Squaring $\\sqrt{L + {{a}}} = L - {{b}}$ produces ${{r}}$ and ${{s}}$ for a length $L$. Which answer and reason are right?",
    "solutionReview": {
     "headline": "The original equation, not the squared one, decides.",
     "reasoning": [
@@ -44869,7 +44886,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:mk:A2.4G:which-length-the-equation-allows",
-    "sourcePrompt": "A length satisfies $\\sqrt{L + {{a}}} = L - {{b}}$, and squaring gives ${{r}}$ and ${{s}}$. Which is the length?"
+    "sourcePrompt": "Squaring $\\sqrt{L + {{a}}} = L - {{b}}$ produces ${{r}}$ and ${{s}}$ for a length $L$. Which answer and reason are right?"
    }
   },
   {
@@ -45038,7 +45055,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Solve ${{k}}\\sqrt[3]{x + {{a}}} = {{p}}$.",
+   "prompt": "What must $x$ be for ${{k}}\\sqrt[3]{x + {{a}}} = {{p}}$?",
    "solutionReview": {
     "headline": "Free the cube root, cube, then undo the shift.",
     "reasoning": [
@@ -45137,7 +45154,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:mk:A2.6B:solve-a-scaled-cube-root",
-    "sourcePrompt": "Solve ${{k}}\\sqrt[3]{x + {{a}}} = {{p}}$."
+    "sourcePrompt": "What must $x$ be for ${{k}}\\sqrt[3]{x + {{a}}} = {{p}}$?"
    }
   },
   {
@@ -49212,7 +49229,7 @@
    "solutionReview": {
     "headline": "Take each root down to its base before multiplying.",
     "reasoning": [
-     "The first is the ${{n}}th root of ${{b1}}$ raised to ${{m}}$, which is ${{u}}^{{{m}}}$.",
+     "The first is the ${{n}}$th root of ${{b1}}$, raised to ${{m}}$, which is ${{u}}^{{{m}}}$.",
      "The second gives ${{w}}^{{{q}}}$, and the product is ${{answer}}$."
     ],
     "answerSummary": "It is ${{answer}}$."

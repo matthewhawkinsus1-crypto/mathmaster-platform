@@ -1122,14 +1122,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A {{shop}} buys {{n1}} {{item}} for $${{p1}}$ and {{n2}} more for $${{p2}}$. What is the average cost of one across both orders?",
+   "prompt": "A {{shop}} buys {{n1}} {{item}} for $\\${{p1}}$ and {{n2}} more for $\\${{p2}}$. What is the average cost of one across both orders?",
    "solutionReview": {
     "headline": "Total the money and the count before dividing.",
     "reasoning": [
      "Together that is {{d_partialTotal}} dollars for {{n1}}+{{n2}} {{item}}.",
-     "Dividing gives $${{answer}}$ each."
+     "Dividing gives $\\${{answer}}$ each."
     ],
-    "answerSummary": "Each costs $${{answer}}$."
+    "answerSummary": "Each costs $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Dividing one order's money by both counts mixes the two orders."
@@ -1247,7 +1247,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:6.4D:delivered-cost-each-across-two-orders",
-    "sourcePrompt": "A {{shop}} buys {{n1}} {{item}} for $${{p1}}$ and {{n2}} more for $${{p2}}$. What is the average cost of one across both orders?"
+    "sourcePrompt": "A {{shop}} buys {{n1}} {{item}} for $\\${{p1}}$ and {{n2}} more for $\\${{p2}}$. What is the average cost of one across both orders?"
    }
   },
   {
@@ -1470,22 +1470,22 @@
      [
       "A",
       "{{nA}}",
-      "$${{pA}}$"
+      "$\\${{pA}}$"
      ],
      [
       "B",
       "{{nB}}",
-      "$${{pB}}$"
+      "$\\${{pB}}$"
      ]
     ]
    },
    "solutionReview": {
     "headline": "Compare the prices each, not the quoted totals.",
     "reasoning": [
-     "Supplier A works out at $${{eachA}}$ each and B at $${{eachB}}$ each.",
-     "Over {{want}} {{item}} the gap of the two unit prices comes to $${{answer}}$."
+     "Supplier A works out at $\\${{eachA}}$ each and B at $\\${{eachB}}$ each.",
+     "Over {{want}} {{item}} the gap of the two unit prices comes to $\\${{answer}}$."
     ],
-    "answerSummary": "The saving is $${{answer}}$."
+    "answerSummary": "The saving is $\\${{answer}}$."
    },
    "attemptFeedback": [
     "The two quoted totals added together is what the samples cost, not the saving."
@@ -1644,14 +1644,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "On a plan 1 inch stands for {{feet}} feet and a wall is drawn {{drawn}} inches long. Fencing costs $${{rate}}$ a foot. What does that wall cost to fence?",
+   "prompt": "On a plan 1 inch stands for {{feet}} feet and a wall is drawn {{drawn}} inches long. Fencing costs $\\${{rate}}$ a foot. What does that wall cost to fence?",
    "solutionReview": {
     "headline": "Convert the drawing to feet before pricing it.",
     "reasoning": [
      "{{drawn}} inches at {{feet}} feet an inch is {{real}} feet.",
-     "At $${{rate}}$ a foot that is $${{answer}}$."
+     "At $\\${{rate}}$ a foot that is $\\${{answer}}$."
     ],
-    "answerSummary": "It costs $${{answer}}$."
+    "answerSummary": "It costs $\\${{answer}}$."
    },
    "attemptFeedback": [
     "The length in feet is not yet a price."
@@ -1747,7 +1747,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:6.5A:two-stage-scale-conversion",
-    "sourcePrompt": "On a plan 1 inch stands for {{feet}} feet and a wall is drawn {{drawn}} inches long. Fencing costs $${{rate}}$ a foot. What does that wall cost to fence?"
+    "sourcePrompt": "On a plan 1 inch stands for {{feet}} feet and a wall is drawn {{drawn}} inches long. Fencing costs $\\${{rate}}$ a foot. What does that wall cost to fence?"
    }
   },
   {
@@ -1792,11 +1792,11 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A plan uses 1 inch to {{feet}} feet. Fencing runs $${{rate}}$ a foot, $${{budget}}$ is available and {{allowance}} inches are already fenced. How many more inches can be fenced?",
+   "prompt": "A plan uses 1 inch to {{feet}} feet. Fencing runs $\\${{rate}}$ a foot, $\\${{budget}}$ is available and {{allowance}} inches are already fenced. How many more inches can be fenced?",
    "solutionReview": {
     "headline": "Money to feet, then feet back to the drawing.",
     "reasoning": [
-     "$${{budget}}$ at $${{rate}}$ a foot buys {{real}} feet.",
+     "$\\${{budget}}$ at $\\${{rate}}$ a foot buys {{real}} feet.",
      "At {{feet}} feet an inch that is {{answer}} inches on the plan."
     ],
     "answerSummary": "It is ${{answer}}$ inches."
@@ -1897,7 +1897,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:6.5A:drawn-length-from-a-budget",
-    "sourcePrompt": "A plan uses 1 inch to {{feet}} feet. Fencing runs $${{rate}}$ a foot, $${{budget}}$ is available and {{allowance}} inches are already fenced. How many more inches can be fenced?"
+    "sourcePrompt": "A plan uses 1 inch to {{feet}} feet. Fencing runs $\\${{rate}}$ a foot, $\\${{budget}}$ is available and {{allowance}} inches are already fenced. How many more inches can be fenced?"
    }
   },
   {
@@ -2646,14 +2646,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A {{tool}} listed at $${{list}}$ is cut {{p}}%, then the sale price is cut {{q}}% more. What is the final price?",
+   "prompt": "A {{tool}} listed at $\\${{list}}$ is cut {{p}}%, then the sale price is cut {{q}}% more. What is the final price?",
    "solutionReview": {
     "headline": "The second cut applies to the reduced price.",
     "reasoning": [
-     "{{p}}% off $${{list}}$ leaves $${{afterFirst}}$.",
-     "{{q}}% off that leaves $${{answer}}$."
+     "{{p}}% off $\\${{list}}$ leaves $\\${{afterFirst}}$.",
+     "{{q}}% off that leaves $\\${{answer}}$."
     ],
-    "answerSummary": "It ends at $${{answer}}$."
+    "answerSummary": "It ends at $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Adding the two percentages treats both cuts as coming off the list price."
@@ -2763,7 +2763,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:6.4F:two-markdowns-in-sequence",
-    "sourcePrompt": "A {{tool}} listed at $${{list}}$ is cut {{p}}%, then the sale price is cut {{q}}% more. What is the final price?"
+    "sourcePrompt": "A {{tool}} listed at $\\${{list}}$ is cut {{p}}%, then the sale price is cut {{q}}% more. What is the final price?"
    }
   },
   {
@@ -2808,14 +2808,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "After {{p}}% was taken off, a {{tool}} sold for $${{sale}}$ and the {{shop}} kept $${{fee}}$ of that as a fee. What was the list price?",
+   "prompt": "After {{p}}% was taken off, a {{tool}} sold for $\\${{sale}}$ and the {{shop}} kept $\\${{fee}}$ of that as a fee. What was the list price?",
    "solutionReview": {
     "headline": "The sale price is a percentage of the list price.",
     "reasoning": [
-     "$${{sale}}$ is {{100-p}}% of the list price.",
-     "That makes the list price $${{answer}}$; the fee comes out of the sale, not the list."
+     "$\\${{sale}}$ is {{pctLeft}}% of the list price.",
+     "That makes the list price $\\${{answer}}$; the fee comes out of the sale, not the list."
     ],
-    "answerSummary": "The list price was $${{answer}}$."
+    "answerSummary": "The list price was $\\${{answer}}$."
    },
    "attemptFeedback": [
     "The fee is taken from what was received, so it does not change the list price."
@@ -2870,6 +2870,7 @@
     "derived": {
      "answer": "hundreds*100",
      "sale": "answer*(100-p)/100",
+     "pctLeft": "100-p",
      "d_forgotFinalStep": "sale",
      "d_partialTotal": "answer+sale",
      "d_usedGivenValue": "ticket"
@@ -2932,7 +2933,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:6.4F:list-price-behind-a-benchmark-cut",
-    "sourcePrompt": "After {{p}}% was taken off, a {{tool}} sold for $${{sale}}$ and the {{shop}} kept $${{fee}}$ of that as a fee. What was the list price?"
+    "sourcePrompt": "After {{p}}% was taken off, a {{tool}} sold for $\\${{sale}}$ and the {{shop}} kept $\\${{fee}}$ of that as a fee. What was the list price?"
    }
   },
   {
@@ -3174,14 +3175,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A {{crew}} of {{people}} splits a $${{bill}}$ bill evenly after adding a {{p}}% tip. What does each person pay?",
+   "prompt": "A {{crew}} of {{people}} splits a $\\${{bill}}$ bill evenly after adding a {{p}}% tip. What does each person pay?",
    "solutionReview": {
     "headline": "Add the tip before splitting, not after.",
     "reasoning": [
-     "A {{p}}% tip takes $${{bill}}$ to $${{withTip}}$.",
-     "Split {{people}} ways that is about $${{answer}}$ each."
+     "A {{p}}% tip takes $\\${{bill}}$ to $\\${{withTip}}$.",
+     "Split {{people}} ways that is about $\\${{answer}}$ each."
     ],
-    "answerSummary": "Each pays about $${{answer}}$."
+    "answerSummary": "Each pays about $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Splitting the bill alone leaves the tip unpaid."
@@ -3288,7 +3289,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:6.4G:bill-with-tip-and-split",
-    "sourcePrompt": "A {{crew}} of {{people}} splits a $${{bill}}$ bill evenly after adding a {{p}}% tip. What does each person pay?"
+    "sourcePrompt": "A {{crew}} of {{people}} splits a $\\${{bill}}$ bill evenly after adding a {{p}}% tip. What does each person pay?"
    }
   },
   {
@@ -3333,14 +3334,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A receipt of $${{total}}$ covers a {{tool}}, {{p}}% sales tax on it, and an untaxed $${{fee}}$ delivery. What did the {{tool}} cost?",
+   "prompt": "A receipt of $\\${{total}}$ covers a {{tool}}, {{p}}% sales tax on it, and an untaxed $\\${{fee}}$ delivery. What did the {{tool}} cost?",
    "solutionReview": {
     "headline": "Remove the untaxed part before undoing the tax.",
     "reasoning": [
-     "Taking off the untaxed $${{fee}}$ leaves $${{taxed}}$, which is {{100+p}}% of the price.",
-     "That makes the price $${{answer}}$."
+     "Taking off the untaxed $\\${{fee}}$ leaves $\\${{taxed}}$, which is {{pctWithTax}}% of the price.",
+     "That makes the price $\\${{answer}}$."
     ],
-    "answerSummary": "It cost $${{answer}}$."
+    "answerSummary": "It cost $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Taking the tax rate off again is not the same as undoing the tax that was added."
@@ -3387,6 +3388,7 @@
      "answer": "hundreds*100",
      "taxed": "answer*(100+p)/100",
      "total": "taxed+fee",
+     "pctWithTax": "100+p",
      "d_wrongPercentBase": "round(taxed*(100-p)/100)",
      "d_forgotFinalStep": "total",
      "d_usedGivenValue": "shown"
@@ -3448,7 +3450,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:6.4G:ticket-price-inside-a-total",
-    "sourcePrompt": "A receipt of $${{total}}$ covers a {{tool}}, {{p}}% sales tax on it, and an untaxed $${{fee}}$ delivery. What did the {{tool}} cost?"
+    "sourcePrompt": "A receipt of $\\${{total}}$ covers a {{tool}}, {{p}}% sales tax on it, and an untaxed $\\${{fee}}$ delivery. What did the {{tool}} cost?"
    }
   },
   {
@@ -3493,7 +3495,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Two ways to pay for a $${{price}}$ {{tool}} are shown. What does plan A cost in total?",
+   "prompt": "Two ways to pay for a $\\${{price}}$ {{tool}} are shown. What does plan A cost in total?",
    "stimulus": {
     "kind": "table",
     "columns": [
@@ -3503,7 +3505,7 @@
     "rows": [
      [
       "A",
-      "{{p}}% deposit, then {{months}} payments of $${{monthly}}$"
+      "{{p}}% deposit, then {{months}} payments of $\\${{monthly}}$"
      ],
      [
       "B",
@@ -3514,10 +3516,10 @@
    "solutionReview": {
     "headline": "A deposit and instalments are both part of the plan.",
     "reasoning": [
-     "The deposit is {{p}}% of $${{price}}$, and the {{months}} payments add {{months}}x$${{monthly}}$.",
-     "Together plan A costs $${{answer}}$."
+     "The deposit is {{p}}% of $\\${{price}}$, and the {{months}} payments add {{months}}x$\\${{monthly}}$.",
+     "Together plan A costs $\\${{answer}}$."
     ],
-    "answerSummary": "Plan A costs $${{answer}}$."
+    "answerSummary": "Plan A costs $\\${{answer}}$."
    },
    "attemptFeedback": [
     "The instalments alone leave the deposit unpaid."
@@ -3633,7 +3635,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:6.4G:total-cost-of-a-payment-plan",
-    "sourcePrompt": "Two ways to pay for a $${{price}}$ {{tool}} are shown. What does plan A cost in total?"
+    "sourcePrompt": "Two ways to pay for a $\\${{price}}$ {{tool}} are shown. What does plan A cost in total?"
    }
   },
   {
@@ -5223,14 +5225,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A {{worker}} is paid $${{rate}}$ an hour for the first {{plain}} hours and $${{over}}$ an hour after that. What is the pay for a {{total}}-hour week?",
+   "prompt": "A {{worker}} is paid $\\${{rate}}$ an hour for the first {{plain}} hours and $\\${{over}}$ an hour after that. What is the pay for a {{total}}-hour week?",
    "solutionReview": {
     "headline": "The two rates cover different parts of the week.",
     "reasoning": [
-     "{{plain}} hours at $${{rate}}$ and {{extra}} hours at $${{over}}$.",
-     "Together that is $${{answer}}$."
+     "{{plain}} hours at $\\${{rate}}$ and {{extra}} hours at $\\${{over}}$.",
+     "Together that is $\\${{answer}}$."
     ],
-    "answerSummary": "The pay is $${{answer}}$."
+    "answerSummary": "The pay is $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Paying every hour at one rate ignores the change after {{plain}} hours."
@@ -5342,7 +5344,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:7.4B:pay-across-two-rates",
-    "sourcePrompt": "A {{worker}} is paid $${{rate}}$ an hour for the first {{plain}} hours and $${{over}}$ an hour after that. What is the pay for a {{total}}-hour week?"
+    "sourcePrompt": "A {{worker}} is paid $\\${{rate}}$ an hour for the first {{plain}} hours and $\\${{over}}$ an hour after that. What is the pay for a {{total}}-hour week?"
    }
   },
   {
@@ -5387,11 +5389,11 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A {{worker}} earning $${{rate}}$ an hour, then $${{over}}$ after {{plain}} hours, took home $${{answerPay}}$. How many hours were worked?",
+   "prompt": "A {{worker}} earning $\\${{rate}}$ an hour, then $\\${{over}}$ after {{plain}} hours, took home $\\${{answerPay}}$. How many hours were worked?",
    "solutionReview": {
     "headline": "Take off the basic block before dividing the remainder.",
     "reasoning": [
-     "The first {{plain}} hours pay {{plain}}x$${{rate}}$, leaving the rest at $${{over}}$ an hour.",
+     "The first {{plain}} hours pay {{plain}}x$\\${{rate}}$, leaving the rest at $\\${{over}}$ an hour.",
      "That is {{extra}} more hours, so {{answer}} in all."
     ],
     "answerSummary": "It was ${{answer}}$ hours."
@@ -5507,7 +5509,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:7.4B:hours-behind-a-pay-packet",
-    "sourcePrompt": "A {{worker}} earning $${{rate}}$ an hour, then $${{over}}$ after {{plain}} hours, took home $${{answerPay}}$. How many hours were worked?"
+    "sourcePrompt": "A {{worker}} earning $\\${{rate}}$ an hour, then $\\${{over}}$ after {{plain}} hours, took home $\\${{answerPay}}$. How many hours were worked?"
    }
   },
   {
@@ -5564,27 +5566,27 @@
      [
       "A",
       "{{nA}}",
-      "$${{pA}}$"
+      "$\\${{pA}}$"
      ],
      [
       "B",
       "{{nB}}",
-      "$${{pB}}$"
+      "$\\${{pB}}$"
      ],
      [
       "C",
       "{{nC}}",
-      "$${{pC}}$"
+      "$\\${{pC}}$"
      ]
     ]
    },
    "solutionReview": {
     "headline": "The lowest quoted total is not the lowest price each.",
     "reasoning": [
-     "Per {{item}} the quotes work out at $${{low}}$, $${{eachB}}$ and $${{eachC}}$.",
-     "The cheapest is $${{low}}$, so {{want}} cost $${{answer}}$."
+     "Per {{item}} the quotes work out at $\\${{low}}$, $\\${{eachB}}$ and $\\${{eachC}}$.",
+     "The cheapest is $\\${{low}}$, so {{want}} cost $\\${{answer}}$."
     ],
-    "answerSummary": "It costs $${{answer}}$."
+    "answerSummary": "It costs $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Adding two of the quotes prices their samples, not this order."
@@ -7330,7 +7332,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A register opened at $${{start}}$ and recorded the entries shown, then a $${{fee}}$ service charge. What is the closing balance?",
+   "prompt": "A register opened at $\\${{start}}$ and recorded the entries shown, then a $\\${{fee}}$ service charge. What is the closing balance?",
    "stimulus": {
     "kind": "table",
     "columns": [
@@ -7340,25 +7342,25 @@
     "rows": [
      [
       "Deposit",
-      "$${{dep}}$"
+      "$\\${{dep}}$"
      ],
      [
       "Withdrawal",
-      "$${{wd}}$"
+      "$\\${{wd}}$"
      ],
      [
       "Deposit",
-      "$${{dep2}}$"
+      "$\\${{dep2}}$"
      ]
     ]
    },
    "solutionReview": {
     "headline": "Deposits add, withdrawals and charges take away.",
     "reasoning": [
-     "The two deposits add $${{dep}}$ and $${{dep2}}$; the withdrawal takes $${{wd}}$.",
-     "After the $${{fee}}$ charge the balance is $${{answer}}$."
+     "The two deposits add $\\${{dep}}$ and $\\${{dep2}}$; the withdrawal takes $\\${{wd}}$.",
+     "After the $\\${{fee}}$ charge the balance is $\\${{answer}}$."
     ],
-    "answerSummary": "It closes at $${{answer}}$."
+    "answerSummary": "It closes at $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Adding the withdrawal moves the balance the wrong way."
@@ -7469,7 +7471,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:6.14C:closing-balance-after-a-fee",
-    "sourcePrompt": "A register opened at $${{start}}$ and recorded the entries shown, then a $${{fee}}$ service charge. What is the closing balance?"
+    "sourcePrompt": "A register opened at $\\${{start}}$ and recorded the entries shown, then a $\\${{fee}}$ service charge. What is the closing balance?"
    }
   },
   {
@@ -7514,14 +7516,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Opening at $${{start}}$, an account received $${{dep}}$ and paid out once, finishing on $${{close}}$. How large was the payment out?",
+   "prompt": "Opening at $\\${{start}}$, an account received $\\${{dep}}$ and paid out once, finishing on $\\${{close}}$. How large was the payment out?",
    "solutionReview": {
     "headline": "Add the deposit before working out what left.",
     "reasoning": [
-     "After the deposit the register held $${{start}}$+$${{dep}}$.",
-     "Closing at $${{close}}$ means $${{answer}}$ went out."
+     "After the deposit the register held $\\${{start}}$+$\\${{dep}}$.",
+     "Closing at $\\${{close}}$ means $\\${{answer}}$ went out."
     ],
-    "answerSummary": "The withdrawal was $${{answer}}$."
+    "answerSummary": "The withdrawal was $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Comparing the opening and closing balances ignores the deposit."
@@ -7622,7 +7624,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:6.14C:withdrawal-hidden-in-a-closing-balance",
-    "sourcePrompt": "Opening at $${{start}}$, an account received $${{dep}}$ and paid out once, finishing on $${{close}}$. How large was the payment out?"
+    "sourcePrompt": "Opening at $\\${{start}}$, an account received $\\${{dep}}$ and paid out once, finishing on $\\${{close}}$. How large was the payment out?"
    }
   },
   {
@@ -7667,14 +7669,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A register holds $${{start}}$ with $${{pending}}$ of payments still to clear. The account must keep $${{floor}}$. What is the largest whole withdrawal?",
+   "prompt": "A register holds $\\${{start}}$ with $\\${{pending}}$ of payments still to clear. The account must keep $\\${{floor}}$. What is the largest whole withdrawal?",
    "solutionReview": {
     "headline": "Payments not yet cleared are already committed.",
     "reasoning": [
-     "The $${{pending}}$ still to clear and the $${{floor}}$ that must stay are both spoken for.",
-     "That leaves $${{answer}}$ available."
+     "The $\\${{pending}}$ still to clear and the $\\${{floor}}$ that must stay are both spoken for.",
+     "That leaves $\\${{answer}}$ available."
     ],
-    "answerSummary": "The largest withdrawal is $${{answer}}$."
+    "answerSummary": "The largest withdrawal is $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Leaving only the minimum forgets the payments still to clear."
@@ -7774,7 +7776,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:6.14C:largest-withdrawal-that-clears",
-    "sourcePrompt": "A register holds $${{start}}$ with $${{pending}}$ of payments still to clear. The account must keep $${{floor}}$. What is the largest whole withdrawal?"
+    "sourcePrompt": "A register holds $\\${{start}}$ with $\\${{pending}}$ of payments still to clear. The account must keep $\\${{floor}}$. What is the largest whole withdrawal?"
    }
   },
   {
@@ -7819,14 +7821,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A {{worker}} earned $${{gross}}$. The first $${{allowance}}$ is untaxed and the rest is taxed {{p}}%, then $${{dues}}$ of dues comes off. What is left?",
+   "prompt": "A {{worker}} earned $\\${{gross}}$. The first $\\${{allowance}}$ is untaxed and the rest is taxed {{p}}%, then $\\${{dues}}$ of dues comes off. What is left?",
    "solutionReview": {
     "headline": "The allowance is not taxed.",
     "reasoning": [
-     "Only $${{taxable}}$ is taxed, so the tax is $${{tax}}$.",
-     "Taking that and the $${{dues}}$ dues from $${{gross}}$ leaves $${{answer}}$."
+     "Only $\\${{taxable}}$ is taxed, so the tax is $\\${{tax}}$.",
+     "Taking that and the $\\${{dues}}$ dues from $\\${{gross}}$ leaves $\\${{answer}}$."
     ],
-    "answerSummary": "$${{answer}}$ is left."
+    "answerSummary": "$\\${{answer}}$ is left."
    },
    "attemptFeedback": [
     "Taxing the whole amount ignores the untaxed allowance."
@@ -7943,7 +7945,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:7.13A:tax-charged-only-above-an-allowance",
-    "sourcePrompt": "A {{worker}} earned $${{gross}}$. The first $${{allowance}}$ is untaxed and the rest is taxed {{p}}%, then $${{dues}}$ of dues comes off. What is left?"
+    "sourcePrompt": "A {{worker}} earned $\\${{gross}}$. The first $\\${{allowance}}$ is untaxed and the rest is taxed {{p}}%, then $\\${{dues}}$ of dues comes off. What is left?"
    }
   },
   {
@@ -7988,14 +7990,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "After {{p}}% income tax and a flat $${{dues}}$ deduction, a {{worker}} took home $${{net}}$. What was the gross pay?",
+   "prompt": "After {{p}}% income tax and a flat $\\${{dues}}$ deduction, a {{worker}} took home $\\${{net}}$. What was the gross pay?",
    "solutionReview": {
     "headline": "Put the flat deduction back before undoing the percentage.",
     "reasoning": [
-     "Adding the $${{dues}}$ back gives $${{d_percentNotApplied}}$, which is {{100-p}}% of the gross.",
-     "That makes the gross $${{answer}}$."
+     "Adding the $\\${{dues}}$ back gives $\\${{d_percentNotApplied}}$, which is {{pctLeft}}% of the gross.",
+     "That makes the gross $\\${{answer}}$."
     ],
-    "answerSummary": "The gross was $${{answer}}$."
+    "answerSummary": "The gross was $\\${{answer}}$."
    },
    "attemptFeedback": [
     "The dues came out of the gross, so adding them on top overstates it."
@@ -8043,6 +8045,7 @@
      "answer": "hundreds*100",
      "tax": "answer*p/100",
      "net": "answer-tax-dues",
+     "pctLeft": "100-p",
      "d_percentNotApplied": "net+dues",
      "d_partialTotal": "answer+dues",
      "d_usedGivenValue": "slip"
@@ -8105,7 +8108,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:7.13A:gross-behind-a-pay-slip",
-    "sourcePrompt": "After {{p}}% income tax and a flat $${{dues}}$ deduction, a {{worker}} took home $${{net}}$. What was the gross pay?"
+    "sourcePrompt": "After {{p}}% income tax and a flat $\\${{dues}}$ deduction, a {{worker}} took home $\\${{net}}$. What was the gross pay?"
    }
   },
   {
@@ -8161,18 +8164,18 @@
     "rows": [
      [
       "A",
-      "$${{g1}}$",
-      "$${{t1}}$"
+      "$\\${{g1}}$",
+      "$\\${{t1}}$"
      ],
      [
       "B",
-      "$${{g2}}$",
-      "$${{tBad}}$"
+      "$\\${{g2}}$",
+      "$\\${{tBad}}$"
      ],
      [
       "C",
-      "$${{g3}}$",
-      "$${{t3}}$"
+      "$\\${{g3}}$",
+      "$\\${{t3}}$"
      ]
     ]
    },
@@ -8180,9 +8183,9 @@
     "headline": "Recover the rate from the lines that agree.",
     "reasoning": [
      "Earners A and C are both taxed at {{p}}%.",
-     "{{p}}% of $${{g2}}$ is $${{answer}}$, not the $${{tBad}}$ shown."
+     "{{p}}% of $\\${{g2}}$ is $\\${{answer}}$, not the $\\${{tBad}}$ shown."
     ],
-    "answerSummary": "It should show $${{answer}}$."
+    "answerSummary": "It should show $\\${{answer}}$."
    },
    "attemptFeedback": [
     "The tax printed on that line is the error, not the correction."
@@ -8341,14 +8344,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A {{worker}} put $${{principal}}$ into an account paying {{r}}% simple interest a year. After {{years}} years they added $${{added}}$. What is the balance?",
+   "prompt": "A {{worker}} put $\\${{principal}}$ into an account paying {{r}}% simple interest a year. After {{years}} years they added $\\${{added}}$. What is the balance?",
    "solutionReview": {
     "headline": "Interest first, then the new money.",
     "reasoning": [
-     "{{r}}% of $${{principal}}$ for {{years}} years is $${{interest}}$ of interest.",
-     "With the $${{added}}$ deposit the balance is $${{answer}}$."
+     "{{r}}% of $\\${{principal}}$ for {{years}} years is $\\${{interest}}$ of interest.",
+     "With the $\\${{added}}$ deposit the balance is $\\${{answer}}$."
     ],
-    "answerSummary": "The balance is $${{answer}}$."
+    "answerSummary": "The balance is $\\${{answer}}$."
    },
    "attemptFeedback": [
     "The deposit still has to be added after the interest."
@@ -8461,7 +8464,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:7.13E:interest-then-a-further-deposit",
-    "sourcePrompt": "A {{worker}} put $${{principal}}$ into an account paying {{r}}% simple interest a year. After {{years}} years they added $${{added}}$. What is the balance?"
+    "sourcePrompt": "A {{worker}} put $\\${{principal}}$ into an account paying {{r}}% simple interest a year. After {{years}} years they added $\\${{added}}$. What is the balance?"
    }
   },
   {
@@ -8506,14 +8509,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "An account paying {{r}}% simple interest a year earned $${{interest}}$ over {{years}} years. What was put in at the start?",
+   "prompt": "An account paying {{r}}% simple interest a year earned $\\${{interest}}$ over {{years}} years. What was put in at the start?",
    "solutionReview": {
     "headline": "The rate applies once for every year.",
     "reasoning": [
      "Over {{years}} years at {{r}}% the account earns {{r}}x{{years}}% of the principal.",
-     "$${{interest}}$ is that share, so the principal was $${{answer}}$."
+     "$\\${{interest}}$ is that share, so the principal was $\\${{answer}}$."
     ],
-    "answerSummary": "$${{answer}}$ was put in."
+    "answerSummary": "$\\${{answer}}$ was put in."
    },
    "attemptFeedback": [
     "The interest earned is not the amount that was put in."
@@ -8610,7 +8613,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:7.13E:principal-behind-the-interest",
-    "sourcePrompt": "An account paying {{r}}% simple interest a year earned $${{interest}}$ over {{years}} years. What was put in at the start?"
+    "sourcePrompt": "An account paying {{r}}% simple interest a year earned $\\${{interest}}$ over {{years}} years. What was put in at the start?"
    }
   },
   {
@@ -8655,14 +8658,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A {{worker}} put $${{principal}}$ into an account paying {{r}}% compounded yearly. What is the balance after two years?",
+   "prompt": "A {{worker}} put $\\${{principal}}$ into an account paying {{r}}% compounded yearly. What is the balance after two years?",
    "solutionReview": {
     "headline": "The second year earns interest on the first year of interest.",
     "reasoning": [
-     "After one year the account holds $${{year1}}$.",
-     "The second year pays {{r}}% of that, giving $${{answer}}$."
+     "After one year the account holds $\\${{year1}}$.",
+     "The second year pays {{r}}% of that, giving $\\${{answer}}$."
     ],
-    "answerSummary": "The balance is $${{answer}}$."
+    "answerSummary": "The balance is $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Two years of simple interest misses the interest earned on interest."
@@ -8765,7 +8768,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:7.13E:compound-balance-after-two-years",
-    "sourcePrompt": "A {{worker}} put $${{principal}}$ into an account paying {{r}}% compounded yearly. What is the balance after two years?"
+    "sourcePrompt": "A {{worker}} put $\\${{principal}}$ into an account paying {{r}}% compounded yearly. What is the balance after two years?"
    }
   },
   {
@@ -8810,14 +8813,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A {{tool}} listed at $${{price}}$ is cut {{p}}%, then a $${{coupon}}$ coupon comes off. Sales tax of {{t}}% is added. What is paid?",
+   "prompt": "A {{tool}} listed at $\\${{price}}$ is cut {{p}}%, then a $\\${{coupon}}$ coupon comes off. Sales tax of {{t}}% is added. What is paid?",
    "solutionReview": {
     "headline": "Tax is charged on what is actually owed.",
     "reasoning": [
-     "{{p}}% off leaves $${{sale}}$, and the coupon brings it to $${{afterCoupon}}$.",
-     "Adding {{t}}% tax gives $${{answer}}$."
+     "{{p}}% off leaves $\\${{sale}}$, and the coupon brings it to $\\${{afterCoupon}}$.",
+     "Adding {{t}}% tax gives $\\${{answer}}$."
     ],
-    "answerSummary": "The price paid is $${{answer}}$."
+    "answerSummary": "The price paid is $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Leaving the sale discount out overstates what the tax is charged on."
@@ -8934,7 +8937,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:7.13F:sale-then-coupon-then-tax",
-    "sourcePrompt": "A {{tool}} listed at $${{price}}$ is cut {{p}}%, then a $${{coupon}}$ coupon comes off. Sales tax of {{t}}% is added. What is paid?"
+    "sourcePrompt": "A {{tool}} listed at $\\${{price}}$ is cut {{p}}%, then a $\\${{coupon}}$ coupon comes off. Sales tax of {{t}}% is added. What is paid?"
    }
   },
   {
@@ -8979,14 +8982,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "After {{p}}% was taken off and a $${{coupon}}$ coupon applied, a {{tool}} came to $${{paid}}$. The ticket read $${{ticket}}$. What was the list price?",
+   "prompt": "After {{p}}% was taken off and a $\\${{coupon}}$ coupon applied, a {{tool}} came to $\\${{paid}}$. The ticket read $\\${{ticket}}$. What was the list price?",
    "solutionReview": {
     "headline": "Put the coupon back before undoing the percentage.",
     "reasoning": [
-     "Adding the coupon back gives $${{sale}}$, which is {{100-p}}% of the list price.",
-     "That makes the list price $${{answer}}$."
+     "Adding the coupon back gives $\\${{sale}}$, which is {{pctLeft}}% of the list price.",
+     "That makes the list price $\\${{answer}}$."
     ],
-    "answerSummary": "The list price was $${{answer}}$."
+    "answerSummary": "The list price was $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Restoring the coupon still leaves the percentage to undo."
@@ -9034,6 +9037,7 @@
      "answer": "hundreds*100",
      "sale": "answer*(100-p)/100",
      "paid": "sale-coupon",
+     "pctLeft": "100-p",
      "d_forgotFinalStep": "paid+coupon",
      "d_partialTotal": "answer+coupon",
      "d_usedGivenValue": "ticket"
@@ -9096,7 +9100,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:7.13F:list-price-behind-a-till-receipt",
-    "sourcePrompt": "After {{p}}% was taken off and a $${{coupon}}$ coupon applied, a {{tool}} came to $${{paid}}$. The ticket read $${{ticket}}$. What was the list price?"
+    "sourcePrompt": "After {{p}}% was taken off and a $\\${{coupon}}$ coupon applied, a {{tool}} came to $\\${{paid}}$. The ticket read $\\${{ticket}}$. What was the list price?"
    }
   },
   {
@@ -9141,7 +9145,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "The sale below runs while $${{budget}}$ is available to spend. How many {{tool}}s can be bought?",
+   "prompt": "The sale below runs while $\\${{budget}}$ is available to spend. How many {{tool}}s can be bought?",
    "stimulus": {
     "kind": "table",
     "columns": [
@@ -9151,7 +9155,7 @@
     "rows": [
      [
       "List price",
-      "$${{price}}$"
+      "$\\${{price}}$"
      ],
      [
       "Sale",
@@ -9166,8 +9170,8 @@
    "solutionReview": {
     "headline": "Price one at the sale rate before dividing the budget.",
     "reasoning": [
-     "{{p}}% off $${{price}}$ leaves $${{sale}}$ each.",
-     "$${{budget}}$ buys {{answer}} whole ones at that price."
+     "{{p}}% off $\\${{price}}$ leaves $\\${{sale}}$ each.",
+     "$\\${{budget}}$ buys {{answer}} whole ones at that price."
     ],
     "answerSummary": "${{answer}}$ can be bought."
    },
@@ -9285,7 +9289,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:7.13F:how-many-the-budget-buys-on-sale",
-    "sourcePrompt": "The sale below runs while $${{budget}}$ is available to spend. How many {{tool}}s can be bought?"
+    "sourcePrompt": "The sale below runs while $\\${{budget}}$ is available to spend. How many {{tool}}s can be bought?"
    }
   },
   {
@@ -9330,14 +9334,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A {{worker}} borrows $${{principal}}$ at {{r}}% simple interest for {{years}} years, plus a $${{fee}}$ arrangement fee. What is repaid in all?",
+   "prompt": "A {{worker}} borrows $\\${{principal}}$ at {{r}}% simple interest for {{years}} years, plus a $\\${{fee}}$ arrangement fee. What is repaid in all?",
    "solutionReview": {
     "headline": "The fee is repaid alongside the loan and its interest.",
     "reasoning": [
-     "{{r}}% for {{years}} years on $${{principal}}$ is $${{interest}}$ of interest.",
-     "With the $${{fee}}$ fee the total repaid is $${{answer}}$."
+     "{{r}}% for {{years}} years on $\\${{principal}}$ is $\\${{interest}}$ of interest.",
+     "With the $\\${{fee}}$ fee the total repaid is $\\${{answer}}$."
     ],
-    "answerSummary": "$${{answer}}$ is repaid."
+    "answerSummary": "$\\${{answer}}$ is repaid."
    },
    "attemptFeedback": [
     "Leaving the fee out understates what is owed."
@@ -9450,7 +9454,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:8.12A:total-repaid-on-a-simple-loan",
-    "sourcePrompt": "A {{worker}} borrows $${{principal}}$ at {{r}}% simple interest for {{years}} years, plus a $${{fee}}$ arrangement fee. What is repaid in all?"
+    "sourcePrompt": "A {{worker}} borrows $\\${{principal}}$ at {{r}}% simple interest for {{years}} years, plus a $\\${{fee}}$ arrangement fee. What is repaid in all?"
    }
   },
   {
@@ -9495,12 +9499,12 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A $${{principal}}$ loan at {{r}}% simple interest was charged $${{interest}}$ in interest. The agreement listed {{stated}} years. How many years did it run?",
+   "prompt": "A $\\${{principal}}$ loan at {{r}}% simple interest was charged $\\${{interest}}$ in interest. The agreement listed {{stated}} years. How many years did it run?",
    "solutionReview": {
     "headline": "Find one year of interest before dividing.",
     "reasoning": [
-     "One year at {{r}}% on $${{principal}}$ is $${{yearly}}$.",
-     "$${{interest}}$ divided by that is {{answer}} years."
+     "One year at {{r}}% on $\\${{principal}}$ is $\\${{yearly}}$.",
+     "$\\${{interest}}$ divided by that is {{answer}} years."
     ],
     "answerSummary": "It ran ${{answer}}$ years."
    },
@@ -9601,7 +9605,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:8.12A:term-behind-the-interest-charged",
-    "sourcePrompt": "A $${{principal}}$ loan at {{r}}% simple interest was charged $${{interest}}$ in interest. The agreement listed {{stated}} years. How many years did it run?"
+    "sourcePrompt": "A $\\${{principal}}$ loan at {{r}}% simple interest was charged $\\${{interest}}$ in interest. The agreement listed {{stated}} years. How many years did it run?"
    }
   },
   {
@@ -9656,7 +9660,7 @@
     "rows": [
      [
       "Amount borrowed",
-      "$${{principal}}$"
+      "$\\${{principal}}$"
      ],
      [
       "Simple interest",
@@ -9671,10 +9675,10 @@
    "solutionReview": {
     "headline": "Interest is repaid alongside the amount borrowed.",
     "reasoning": [
-     "The interest is $${{interest}}$, so $${{total}}$ is repaid over {{months}} months.",
-     "That is about $${{answer}}$ a month."
+     "The interest is $\\${{interest}}$, so $\\${{total}}$ is repaid over {{months}} months.",
+     "That is about $\\${{answer}}$ a month."
     ],
-    "answerSummary": "It is about $${{answer}}$ a month."
+    "answerSummary": "It is about $\\${{answer}}$ a month."
    },
    "attemptFeedback": [
     "Spreading only the amount borrowed leaves the interest unpaid."
@@ -9819,14 +9823,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A card balance of $${{balance}}$ is charged {{r}}% each month. A payment of $${{payment}}$ is made after the first month. What is owed after the second?",
+   "prompt": "A card balance of $\\${{balance}}$ is charged {{r}}% each month. A payment of $\\${{payment}}$ is made after the first month. What is owed after the second?",
    "solutionReview": {
     "headline": "The second month charges interest on what is left after paying.",
     "reasoning": [
-     "The first month takes the balance to $${{month1}}$, and the payment leaves $${{afterPayment}}$.",
-     "A second month of {{r}}% brings it to $${{answer}}$."
+     "The first month takes the balance to $\\${{month1}}$, and the payment leaves $\\${{afterPayment}}$.",
+     "A second month of {{r}}% brings it to $\\${{answer}}$."
     ],
-    "answerSummary": "$${{answer}}$ is owed."
+    "answerSummary": "$\\${{answer}}$ is owed."
    },
    "attemptFeedback": [
     "Charging both months on the opening balance ignores the payment."
@@ -9928,7 +9932,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:8.12B:card-balance-across-two-months",
-    "sourcePrompt": "A card balance of $${{balance}}$ is charged {{r}}% each month. A payment of $${{payment}}$ is made after the first month. What is owed after the second?"
+    "sourcePrompt": "A card balance of $\\${{balance}}$ is charged {{r}}% each month. A payment of $\\${{payment}}$ is made after the first month. What is owed after the second?"
    }
   },
   {
@@ -9973,12 +9977,12 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A balance of $${{balance}}$ carries no further interest and $${{already}}$ has been paid. At $${{payment}}$ a month, how many more months clear it?",
+   "prompt": "A balance of $\\${{balance}}$ carries no further interest and $\\${{already}}$ has been paid. At $\\${{payment}}$ a month, how many more months clear it?",
    "solutionReview": {
     "headline": "Only the unpaid part still takes months.",
     "reasoning": [
-     "The $${{already}}$ already paid leaves $${{payment}}$x{{months}} outstanding.",
-     "At $${{payment}}$ a month that is {{answer}} more months."
+     "The $\\${{already}}$ already paid leaves $\\${{payment}}$x{{months}} outstanding.",
+     "At $\\${{payment}}$ a month that is {{answer}} more months."
     ],
     "answerSummary": "It takes ${{answer}}$ more months."
    },
@@ -10079,7 +10083,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:8.12B:months-to-clear-a-balance",
-    "sourcePrompt": "A balance of $${{balance}}$ carries no further interest and $${{already}}$ has been paid. At $${{payment}}$ a month, how many more months clear it?"
+    "sourcePrompt": "A balance of $\\${{balance}}$ carries no further interest and $\\${{already}}$ has been paid. At $\\${{payment}}$ a month, how many more months clear it?"
    }
   },
   {
@@ -10134,11 +10138,11 @@
     "rows": [
      [
       "Borrowed",
-      "$${{principal}}$"
+      "$\\${{principal}}$"
      ],
      [
       "Monthly payment",
-      "$${{payment}}$"
+      "$\\${{payment}}$"
      ],
      [
       "Months",
@@ -10149,10 +10153,10 @@
    "solutionReview": {
     "headline": "Total the payments before comparing with the loan.",
     "reasoning": [
-     "{{months}} payments of $${{payment}}$ come to $${{total}}$.",
-     "That is $${{answer}}$ more than the $${{principal}}$ borrowed."
+     "{{months}} payments of $\\${{payment}}$ come to $\\${{total}}$.",
+     "That is $\\${{answer}}$ more than the $\\${{principal}}$ borrowed."
     ],
-    "answerSummary": "$${{answer}}$ more is handed over."
+    "answerSummary": "$\\${{answer}}$ more is handed over."
    },
    "attemptFeedback": [
     "The whole amount handed over is not the same as the extra above the loan."
@@ -10298,14 +10302,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Bought for $${{value}}$, a {{tool}} sheds {{p}}% over twelve months and a further {{q}}% of whatever remains. Where does its worth end up?",
+   "prompt": "Bought for $\\${{value}}$, a {{tool}} sheds {{p}}% over twelve months and a further {{q}}% of whatever remains. Where does its worth end up?",
    "solutionReview": {
     "headline": "The second fall applies to the reduced value.",
     "reasoning": [
-     "A {{p}}% fall leaves $${{afterOne}}$.",
-     "A further {{q}}% off that leaves $${{answer}}$."
+     "A {{p}}% fall leaves $\\${{afterOne}}$.",
+     "A further {{q}}% off that leaves $\\${{answer}}$."
     ],
-    "answerSummary": "It is worth $${{answer}}$."
+    "answerSummary": "It is worth $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Adding the two percentages treats both falls as coming off the first value."
@@ -10415,7 +10419,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:7.4D:worth-once-two-years-of-loss-are-applied",
-    "sourcePrompt": "Bought for $${{value}}$, a {{tool}} sheds {{p}}% over twelve months and a further {{q}}% of whatever remains. Where does its worth end up?"
+    "sourcePrompt": "Bought for $\\${{value}}$, a {{tool}} sheds {{p}}% over twelve months and a further {{q}}% of whatever remains. Where does its worth end up?"
    }
   },
   {
@@ -10460,14 +10464,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "After rising {{p}}% and a $${{fee}}$ fitting charge, a {{tool}} stands at $${{after}}$. What was it before?",
+   "prompt": "After rising {{p}}% and a $\\${{fee}}$ fitting charge, a {{tool}} stands at $\\${{after}}$. What was it before?",
    "solutionReview": {
     "headline": "Remove the flat charge before undoing the rise.",
     "reasoning": [
-     "Taking off the $${{fee}}$ charge leaves $${{risen}}$, which is {{100+p}}% of the old value.",
-     "That makes it $${{answer}}$ before."
+     "Taking off the $\\${{fee}}$ charge leaves $\\${{risen}}$, which is {{pctWithRise}}% of the old value.",
+     "That makes it $\\${{answer}}$ before."
     ],
-    "answerSummary": "It was $${{answer}}$."
+    "answerSummary": "It was $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Taking the same percentage off again does not undo a rise."
@@ -10515,6 +10519,7 @@
      "answer": "hundreds*100",
      "risen": "answer*(100+p)/100",
      "after": "risen+fee",
+     "pctWithRise": "100+p",
      "d_percentNotApplied": "after-fee",
      "d_wrongPercentBase": "round((after-fee)*(100-p)/100)",
      "d_usedGivenValue": "listed"
@@ -10576,7 +10581,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:7.4D:value-before-a-rise-and-a-fee",
-    "sourcePrompt": "After rising {{p}}% and a $${{fee}}$ fitting charge, a {{tool}} stands at $${{after}}$. What was it before?"
+    "sourcePrompt": "After rising {{p}}% and a $\\${{fee}}$ fitting charge, a {{tool}} stands at $\\${{after}}$. What was it before?"
    }
   },
   {
@@ -10795,14 +10800,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Using 1 gallon = 4 litres, a {{litres}}-litre tank is emptied into {{size}}-gallon drums. Each drum costs $${{each}}$ to ship. What is the shipping bill?",
+   "prompt": "Using 1 gallon = 4 litres, a {{litres}}-litre tank is emptied into {{size}}-gallon drums. Each drum costs $\\${{each}}$ to ship. What is the shipping bill?",
    "solutionReview": {
     "headline": "Litres to gallons to drums, then price the drums.",
     "reasoning": [
      "{{litres}} litres is {{gallons}} gallons, which fills {{drums}} drums of {{size}} gallons.",
-     "At $${{each}}$ a drum that is $${{answer}}$."
+     "At $\\${{each}}$ a drum that is $\\${{answer}}$."
     ],
-    "answerSummary": "The bill is $${{answer}}$."
+    "answerSummary": "The bill is $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Pricing every litre charges far more than the drums cost."
@@ -10899,7 +10904,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:7.4E:drums-then-cost-from-a-tank",
-    "sourcePrompt": "Using 1 gallon = 4 litres, a {{litres}}-litre tank is emptied into {{size}}-gallon drums. Each drum costs $${{each}}$ to ship. What is the shipping bill?"
+    "sourcePrompt": "Using 1 gallon = 4 litres, a {{litres}}-litre tank is emptied into {{size}}-gallon drums. Each drum costs $\\${{each}}$ to ship. What is the shipping bill?"
    }
   },
   {
@@ -13341,14 +13346,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A {{worker}} charges $${{fee}}$ to call out plus $${{rate}}$ an hour, and fitted $${{parts}}$ of parts. What is a {{hours}}-hour bill?",
+   "prompt": "A {{worker}} charges $\\${{fee}}$ to call out plus $\\${{rate}}$ an hour, and fitted $\\${{parts}}$ of parts. What is a {{hours}}-hour bill?",
    "solutionReview": {
     "headline": "The call-out is charged once, whatever the hours.",
     "reasoning": [
-     "{{hours}} hours at $${{rate}}$ is $${{rate}}$x{{hours}}, plus $${{parts}}$ of parts.",
-     "With the $${{fee}}$ call-out the bill is $${{answer}}$."
+     "{{hours}} hours at $\\${{rate}}$ is $\\${{rate}}$x{{hours}}, plus $\\${{parts}}$ of parts.",
+     "With the $\\${{fee}}$ call-out the bill is $\\${{answer}}$."
     ],
-    "answerSummary": "The bill is $${{answer}}$."
+    "answerSummary": "The bill is $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Leaving the call-out out understates the bill."
@@ -13461,7 +13466,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:7.10C:bill-with-call-out-labour-and-parts",
-    "sourcePrompt": "A {{worker}} charges $${{fee}}$ to call out plus $${{rate}}$ an hour, and fitted $${{parts}}$ of parts. What is a {{hours}}-hour bill?"
+    "sourcePrompt": "A {{worker}} charges $\\${{fee}}$ to call out plus $\\${{rate}}$ an hour, and fitted $\\${{parts}}$ of parts. What is a {{hours}}-hour bill?"
    }
   },
   {
@@ -13506,12 +13511,12 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A bill of $${{total}}$ covers a $${{fee}}$ call-out, $${{parts}}$ of parts and labour at $${{rate}}$ an hour. How many hours were worked?",
+   "prompt": "A bill of $\\${{total}}$ covers a $\\${{fee}}$ call-out, $\\${{parts}}$ of parts and labour at $\\${{rate}}$ an hour. How many hours were worked?",
    "solutionReview": {
     "headline": "Strip the fixed charges before dividing by the rate.",
     "reasoning": [
-     "Taking off the call-out and the parts leaves $${{rate}}$x{{hours}} of labour.",
-     "At $${{rate}}$ an hour that is {{answer}} hours."
+     "Taking off the call-out and the parts leaves $\\${{rate}}$x{{hours}} of labour.",
+     "At $\\${{rate}}$ an hour that is {{answer}} hours."
     ],
     "answerSummary": "It was ${{answer}}$ hours."
    },
@@ -13618,7 +13623,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:7.10C:hours-inside-a-bill",
-    "sourcePrompt": "A bill of $${{total}}$ covers a $${{fee}}$ call-out, $${{parts}}$ of parts and labour at $${{rate}}$ an hour. How many hours were worked?"
+    "sourcePrompt": "A bill of $\\${{total}}$ covers a $\\${{fee}}$ call-out, $\\${{parts}}$ of parts and labour at $\\${{rate}}$ an hour. How many hours were worked?"
    }
   },
   {
@@ -13673,22 +13678,22 @@
     "rows": [
      [
       "Budget",
-      "$${{budget}}$"
+      "$\\${{budget}}$"
      ],
      [
       "Permit",
-      "$${{permit}}$"
+      "$\\${{permit}}$"
      ],
      [
       "Labour",
-      "$${{rate}}$ an hour"
+      "$\\${{rate}}$ an hour"
      ]
     ]
    },
    "solutionReview": {
     "headline": "The permit is paid before any labour.",
     "reasoning": [
-     "The permit comes out first, leaving $${{rate}}$x{{hours}} and a little over.",
+     "The permit comes out first, leaving $\\${{rate}}$x{{hours}} and a little over.",
      "That pays for {{answer}} whole hours."
     ],
     "answerSummary": "${{answer}}$ whole hours can be paid for."
@@ -13841,14 +13846,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Plan A costs $${{feeA}}$ to join then $${{rateA}}$ a month, and adds a $${{yearly}}$ charge once a year. What does {{months}} months cost?",
+   "prompt": "Plan A costs $\\${{feeA}}$ to join then $\\${{rateA}}$ a month, and adds a $\\${{yearly}}$ charge once a year. What does {{months}} months cost?",
    "solutionReview": {
     "headline": "The joining fee is paid once and the yearly charge once a year.",
     "reasoning": [
-     "{{months}} months at $${{rateA}}$ plus the $${{feeA}}$ joining fee is $${{d_forgotFinalStep}}$.",
-     "The yearly charge applies {{years}} times, giving $${{answer}}$."
+     "{{months}} months at $\\${{rateA}}$ plus the $\\${{feeA}}$ joining fee is $\\${{d_forgotFinalStep}}$.",
+     "The yearly charge applies {{years}} times, giving $\\${{answer}}$."
     ],
-    "answerSummary": "It costs $${{answer}}$."
+    "answerSummary": "It costs $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Leaving the yearly charge out understates the plan."
@@ -13953,7 +13958,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:8.8B:cost-of-a-plan-after-a-joining-fee",
-    "sourcePrompt": "Plan A costs $${{feeA}}$ to join then $${{rateA}}$ a month, and adds a $${{yearly}}$ charge once a year. What does {{months}} months cost?"
+    "sourcePrompt": "Plan A costs $\\${{feeA}}$ to join then $\\${{rateA}}$ a month, and adds a $\\${{yearly}}$ charge once a year. What does {{months}} months cost?"
    }
   },
   {
@@ -13998,11 +14003,11 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Plan A costs $${{feeA}}$ to join then $${{rateA}}$ a month; plan B costs $${{feeB}}$ then $${{rateB}}$. After how many months do they cost the same?",
+   "prompt": "Plan A costs $\\${{feeA}}$ to join then $\\${{rateA}}$ a month; plan B costs $\\${{feeB}}$ then $\\${{rateB}}$. After how many months do they cost the same?",
    "solutionReview": {
     "headline": "The joining fee is closed by the monthly difference.",
     "reasoning": [
-     "Plan B costs $${{gap}}$ more each month, and plan A starts $${{feeA}}$-$${{feeB}}$ ahead on joining.",
+     "Plan B costs $\\${{gap}}$ more each month, and plan A starts $\\${{feeA}}$-$\\${{feeB}}$ ahead on joining.",
      "It takes {{answer}} months for the monthly gap to close that."
     ],
     "answerSummary": "They level after ${{answer}}$ months."
@@ -14112,7 +14117,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:8.8B:month-the-two-plans-level",
-    "sourcePrompt": "Plan A costs $${{feeA}}$ to join then $${{rateA}}$ a month; plan B costs $${{feeB}}$ then $${{rateB}}$. After how many months do they cost the same?"
+    "sourcePrompt": "Plan A costs $\\${{feeA}}$ to join then $\\${{rateA}}$ a month; plan B costs $\\${{feeB}}$ then $\\${{rateB}}$. After how many months do they cost the same?"
    }
   },
   {
@@ -14168,23 +14173,23 @@
     "rows": [
      [
       "A",
-      "$${{feeA}}$",
-      "$${{rateA}}$"
+      "$\\${{feeA}}$",
+      "$\\${{rateA}}$"
      ],
      [
       "B",
-      "$${{feeB}}$",
-      "$${{rateB}}$"
+      "$\\${{feeB}}$",
+      "$\\${{rateB}}$"
      ]
     ]
    },
    "solutionReview": {
     "headline": "A lower joining fee does not always mean a lower total.",
     "reasoning": [
-     "Over {{months}} months plan A costs $${{costA}}$ and plan B costs $${{costB}}$.",
-     "The cheaper of the two is $${{answer}}$."
+     "Over {{months}} months plan A costs $\\${{costA}}$ and plan B costs $\\${{costB}}$.",
+     "The cheaper of the two is $\\${{answer}}$."
     ],
-    "answerSummary": "The cheaper plan costs $${{answer}}$."
+    "answerSummary": "The cheaper plan costs $\\${{answer}}$."
    },
    "attemptFeedback": [
     "The monthly payments alone leave the joining fee unpaid."
@@ -14343,14 +14348,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A {{worker}} has $${{start}}$ saved, puts away $${{monthly}}$ a month for {{m1}} months, then $${{higher}}$ a month for {{m2}} more. What is saved?",
+   "prompt": "A {{worker}} has $\\${{start}}$ saved, puts away $\\${{monthly}}$ a month for {{m1}} months, then $\\${{higher}}$ a month for {{m2}} more. What is saved?",
    "solutionReview": {
     "headline": "The two stretches save at different rates.",
     "reasoning": [
-     "{{m1}} months at $${{monthly}}$ then {{m2}} at $${{higher}}$ adds to the $${{start}}$ already saved.",
-     "That comes to $${{answer}}$."
+     "{{m1}} months at $\\${{monthly}}$ then {{m2}} at $\\${{higher}}$ adds to the $\\${{start}}$ already saved.",
+     "That comes to $\\${{answer}}$."
     ],
-    "answerSummary": "$${{answer}}$ is saved."
+    "answerSummary": "$\\${{answer}}$ is saved."
    },
    "attemptFeedback": [
     "Using the lower amount throughout misses the increase."
@@ -14469,7 +14474,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:8.12C:total-saved-with-a-raise-partway",
-    "sourcePrompt": "A {{worker}} has $${{start}}$ saved, puts away $${{monthly}}$ a month for {{m1}} months, then $${{higher}}$ a month for {{m2}} more. What is saved?"
+    "sourcePrompt": "A {{worker}} has $\\${{start}}$ saved, puts away $\\${{monthly}}$ a month for {{m1}} months, then $\\${{higher}}$ a month for {{m2}} more. What is saved?"
    }
   },
   {
@@ -14514,14 +14519,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "A {{worker}} wants $${{target}}$ in {{years}} years and has $${{start}}$ now. How much must be put away each month?",
+   "prompt": "A {{worker}} wants $\\${{target}}$ in {{years}} years and has $\\${{start}}$ now. How much must be put away each month?",
    "solutionReview": {
     "headline": "What is already saved reduces what must be found.",
     "reasoning": [
-     "The $${{start}}$ already saved leaves $${{target}}$-$${{start}}$ to find over {{months}} months.",
-     "That is $${{answer}}$ a month."
+     "The $\\${{start}}$ already saved leaves $\\${{target}}$-$\\${{start}}$ to find over {{months}} months.",
+     "That is $\\${{answer}}$ a month."
     ],
-    "answerSummary": "It is $${{answer}}$ a month."
+    "answerSummary": "It is $\\${{answer}}$ a month."
    },
    "attemptFeedback": [
     "Spreading the whole target ignores the money already put by."
@@ -14631,7 +14636,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:8.12C:monthly-amount-a-target-needs",
-    "sourcePrompt": "A {{worker}} wants $${{target}}$ in {{years}} years and has $${{start}}$ now. How much must be put away each month?"
+    "sourcePrompt": "A {{worker}} wants $\\${{target}}$ in {{years}} years and has $\\${{start}}$ now. How much must be put away each month?"
    }
   },
   {
@@ -14686,23 +14691,23 @@
     "rows": [
      [
       "Target",
-      "$${{target}}$"
+      "$\\${{target}}$"
      ],
      [
       "Saved so far",
-      "$${{saved}}$"
+      "$\\${{saved}}$"
      ],
      [
       "Each month",
-      "$${{monthly}}$"
+      "$\\${{monthly}}$"
      ]
     ]
    },
    "solutionReview": {
     "headline": "Only the shortfall still takes months.",
     "reasoning": [
-     "$${{target}}$ less the $${{saved}}$ already put by leaves $${{monthly}}$x{{months}}.",
-     "At $${{monthly}}$ a month that is {{answer}} months."
+     "$\\${{target}}$ less the $\\${{saved}}$ already put by leaves $\\${{monthly}}$x{{months}}.",
+     "At $\\${{monthly}}$ a month that is {{answer}} months."
     ],
     "answerSummary": "It takes ${{answer}}$ more months."
    },
@@ -14848,14 +14853,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "An investment of $${{principal}}$ grows {{r}}% a year. $${{wd}}$ is drawn out once year one has been credited. Where does it stand a year later?",
+   "prompt": "An investment of $\\${{principal}}$ grows {{r}}% a year. $\\${{wd}}$ is drawn out once year one has been credited. Where does it stand a year later?",
    "solutionReview": {
     "headline": "The second year earns on what is left after the withdrawal.",
     "reasoning": [
-     "Year one leaves $${{year1}}$, and the withdrawal brings it to $${{afterWd}}$.",
-     "Year two pays {{r}}% on that, giving $${{answer}}$."
+     "Year one leaves $\\${{year1}}$, and the withdrawal brings it to $\\${{afterWd}}$.",
+     "Year two pays {{r}}% on that, giving $\\${{answer}}$."
     ],
-    "answerSummary": "It holds $${{answer}}$."
+    "answerSummary": "It holds $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Ignoring the withdrawal leaves it earning interest it never earned."
@@ -14957,7 +14962,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:8.12D:compounding-around-a-mid-term-withdrawal",
-    "sourcePrompt": "An investment of $${{principal}}$ grows {{r}}% a year. $${{wd}}$ is drawn out once year one has been credited. Where does it stand a year later?"
+    "sourcePrompt": "An investment of $\\${{principal}}$ grows {{r}}% a year. $\\${{wd}}$ is drawn out once year one has been credited. Where does it stand a year later?"
    }
   },
   {
@@ -15002,14 +15007,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "An account compounding yearly at {{r}}% holds $${{balance}}$ after two years. The statement listed $${{listed}}$. What was deposited?",
+   "prompt": "An account compounding yearly at {{r}}% holds $\\${{balance}}$ after two years. The statement listed $\\${{listed}}$. What was deposited?",
    "solutionReview": {
     "headline": "Two years of growth take two years of undoing.",
     "reasoning": [
-     "Undoing one year of {{r}}% growth from $${{balance}}$ gives $${{year1}}$.",
-     "Undoing a second year gives $${{answer}}$."
+     "Undoing one year of {{r}}% growth from $\\${{balance}}$ gives $\\${{year1}}$.",
+     "Undoing a second year gives $\\${{answer}}$."
     ],
-    "answerSummary": "$${{answer}}$ was deposited."
+    "answerSummary": "$\\${{answer}}$ was deposited."
    },
    "attemptFeedback": [
     "Undoing a third year strips growth the account never had."
@@ -15102,7 +15107,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:8.12D:deposit-behind-a-two-year-balance",
-    "sourcePrompt": "An account compounding yearly at {{r}}% holds $${{balance}}$ after two years. The statement listed $${{listed}}$. What was deposited?"
+    "sourcePrompt": "An account compounding yearly at {{r}}% holds $\\${{balance}}$ after two years. The statement listed $\\${{listed}}$. What was deposited?"
    }
   },
   {
@@ -15147,7 +15152,7 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Two accounts each hold $${{principal}}$ at {{r}}% for two years, as shown. What does the compound account hold?",
+   "prompt": "Two accounts each hold $\\${{principal}}$ at {{r}}% for two years, as shown. What does the compound account hold?",
    "stimulus": {
     "kind": "table",
     "columns": [
@@ -15168,10 +15173,10 @@
    "solutionReview": {
     "headline": "Compounding pays on interest already earned.",
     "reasoning": [
-     "Account Y reaches $${{year1}}$ after one year and earns {{r}}% on that in year two.",
-     "That gives $${{answer}}$, against $${{simple}}$ for the simple account."
+     "Account Y reaches $\\${{year1}}$ after one year and earns {{r}}% on that in year two.",
+     "That gives $\\${{answer}}$, against $\\${{simple}}$ for the simple account."
     ],
-    "answerSummary": "It holds $${{answer}}$."
+    "answerSummary": "It holds $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Two equal years of interest describes the simple account, not the compound one."
@@ -15265,7 +15270,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:8.12D:what-compounding-adds-over-simple",
-    "sourcePrompt": "Two accounts each hold $${{principal}}$ at {{r}}% for two years, as shown. What does the compound account hold?"
+    "sourcePrompt": "Two accounts each hold $\\${{principal}}$ at {{r}}% for two years, as shown. What does the compound account hold?"
    }
   },
   {
@@ -15310,14 +15315,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "College costs $${{perYear}}$ a year for tuition and $${{living}}$ a year to live on, and tuition rises $${{rise}}$ each year after the first. What do four years cost?",
+   "prompt": "College costs $\\${{perYear}}$ a year for tuition and $\\${{living}}$ a year to live on, and tuition rises $\\${{rise}}$ each year after the first. What do four years cost?",
    "solutionReview": {
     "headline": "The rise applies in each year after the first.",
     "reasoning": [
-     "Tuition over four years is $${{tuition}}$ once the yearly rises are counted.",
-     "With four years of living costs the total is $${{answer}}$."
+     "Tuition over four years is $\\${{tuition}}$ once the yearly rises are counted.",
+     "With four years of living costs the total is $\\${{answer}}$."
     ],
-    "answerSummary": "Four years cost $${{answer}}$."
+    "answerSummary": "Four years cost $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Charging the opening tuition every year misses the rises."
@@ -15416,7 +15421,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:8.12G:four-year-cost-with-a-rise",
-    "sourcePrompt": "College costs $${{perYear}}$ a year for tuition and $${{living}}$ a year to live on, and tuition rises $${{rise}}$ each year after the first. What do four years cost?"
+    "sourcePrompt": "College costs $\\${{perYear}}$ a year for tuition and $\\${{living}}$ a year to live on, and tuition rises $\\${{rise}}$ each year after the first. What do four years cost?"
    }
   },
   {
@@ -15461,14 +15466,14 @@
     "source": "MathMaster ASVAB fidelity rebuild",
     "kit": "ccmr-asvab-v2.1"
    },
-   "prompt": "Four years of college cost $${{total}}$. A family can contribute $${{contribution}}$ and has {{years}} years to save the rest. How much a month is that?",
+   "prompt": "Four years of college cost $\\${{total}}$. A family can contribute $\\${{contribution}}$ and has {{years}} years to save the rest. How much a month is that?",
    "solutionReview": {
     "headline": "The contribution reduces what has to be saved.",
     "reasoning": [
-     "The contribution leaves $${{gap}}$ to find over {{months}} months.",
-     "That is $${{answer}}$ a month."
+     "The contribution leaves $\\${{gap}}$ to find over {{months}} months.",
+     "That is $\\${{answer}}$ a month."
     ],
-    "answerSummary": "It is $${{answer}}$ a month."
+    "answerSummary": "It is $\\${{answer}}$ a month."
    },
    "attemptFeedback": [
     "Spreading the whole cost ignores what the family can already put in."
@@ -15569,7 +15574,7 @@
     ],
     "directAssessmentEvidence": true,
     "sourceFamilyId": "mathmaster:asvab:ar:8.12G:monthly-saving-to-close-a-gap",
-    "sourcePrompt": "Four years of college cost $${{total}}$. A family can contribute $${{contribution}}$ and has {{years}} years to save the rest. How much a month is that?"
+    "sourcePrompt": "Four years of college cost $\\${{total}}$. A family can contribute $\\${{contribution}}$ and has {{years}} years to save the rest. How much a month is that?"
    }
   },
   {
@@ -15626,22 +15631,22 @@
      [
       "Direct",
       "4",
-      "$${{costA}}$"
+      "$\\${{costA}}$"
      ],
      [
       "Transfer",
       "2 then 2",
-      "$${{costB1}}$ then $${{costB2}}$"
+      "$\\${{costB1}}$ then $\\${{costB2}}$"
      ]
     ]
    },
    "solutionReview": {
     "headline": "Total every year of each route before comparing.",
     "reasoning": [
-     "The direct route costs $${{totalA}}$ and the transfer route $${{totalB}}$.",
-     "The cheaper of the two is $${{answer}}$."
+     "The direct route costs $\\${{totalA}}$ and the transfer route $\\${{totalB}}$.",
+     "The cheaper of the two is $\\${{answer}}$."
     ],
-    "answerSummary": "The cheaper route costs $${{answer}}$."
+    "answerSummary": "The cheaper route costs $\\${{answer}}$."
    },
    "attemptFeedback": [
     "Costing only the first two years leaves half the degree unpaid."
