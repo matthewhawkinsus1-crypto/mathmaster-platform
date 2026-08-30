@@ -164,7 +164,68 @@
           "A1": "f",
           "A0": "c+g"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-clean-sparse-alignment",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "procedural",
+          "representation": "multipleRepresentation",
+          "prompt": "Add $({{a}}x^4+({{b}})x^2+({{c}}))+({{d}}x^3+({{e}})x^2+({{f}})x+({{g}}))$. Use the alignment table, combine like powers, and write the sum in descending order.",
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "b": {
+                "type": "int",
+                "min": 0,
+                "max": 4
+              },
+              "c": {
+                "type": "int",
+                "min": 0,
+                "max": 5
+              },
+              "d": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "e": {
+                "type": "int",
+                "min": 0,
+                "max": 4
+              },
+              "f": {
+                "type": "int",
+                "min": 0,
+                "max": 5
+              },
+              "g": {
+                "type": "int",
+                "min": 0,
+                "max": 5
+              }
+            },
+            "derived": {
+              "A4": "a",
+              "A3": "d",
+              "A2": "b+e",
+              "A1": "f",
+              "A0": "c+g"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_7B_v2_subtract-sparse-quartic",
@@ -737,7 +798,84 @@
           "A1": "c-g",
           "A0": "d-h"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-coefficient-sign-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student subtracts $Q(x)$ from $P(x)$ but changes the sign of only the first term of $Q$. Diagnose the distribution error, correct all four coefficients, and write the repaired polynomial difference.",
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "c": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "d": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "e": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "f": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "g": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "h": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              }
+            },
+            "derived": {
+              "A3": "a-e",
+              "A2": "b-f",
+              "A1": "c-g",
+              "A0": "d-h"
+            }
+          }
+        }
+      ]
     }
   ]
 }
