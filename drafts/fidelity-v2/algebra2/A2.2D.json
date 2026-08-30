@@ -1,0 +1,641 @@
+{
+  "standard": "A2.2D",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-two-direction-composition-inverse-determination-with-domain-restrictions",
+  "rationale": "A2.2D requires composition to be the evidence used to decide whether two functions are inverses, with domain restrictions handled when needed. Fidelity V2 therefore makes one- or two-direction compositions, inverse conclusions, and restriction reasoning part of the graded response rather than treating composition as an unrelated calculation.",
+  "documents": [
+    {
+      "id": "mm_A2_2D_v2_linear-two-way-proof",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2D:v2-linear-two-way-proof",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2D",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "Use composition in BOTH directions to determine whether $f(x)={{a}}x{{b|signed}}$ and $g(x)=\\frac{x-({{b}})}{{{a}}}$ are inverse functions.",
+      "responseFields": [
+        {
+          "id": "fog",
+          "label": "Simplify $f(g(x))$",
+          "inputProfile": "expression",
+          "expected": "x"
+        },
+        {
+          "id": "gof",
+          "label": "Simplify $g(f(x))$",
+          "inputProfile": "expression",
+          "expected": "x"
+        },
+        {
+          "id": "conclusion",
+          "label": "Conclusion",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "yes",
+              "label": "Yes. Both composition orders return the original input."
+            },
+            {
+              "id": "no-one-way",
+              "label": "No. Only one composition order returns the original input."
+            },
+            {
+              "id": "no-reciprocal",
+              "label": "No. Inverse functions must be reciprocals."
+            }
+          ],
+          "expected": "yes"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A two-sided composition check verifies the inverse relationship.",
+        "reasoning": [
+          "Substituting $g(x)$ into $f$ cancels the division by {{a}} and the shift {{b|signed}}, so $f(g(x))=x$.",
+          "Substituting $f(x)$ into $g$ reverses the same scale and shift, so $g(f(x))=x$.",
+          "Because both compositions return the original input on their domains, the functions are inverses."
+        ],
+        "answerSummary": "$f(g(x))=x$ and $g(f(x))=x$; yes, the functions are inverses."
+      },
+      "attemptFeedback": [
+        "An inverse conclusion needs the composition evidence, not just similar-looking formulas."
+      ],
+      "supportHints": [
+        "Work from the inside function outward in each composition order."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              -5,
+              -4,
+              -3,
+              -2,
+              2,
+              3,
+              4,
+              5
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2D_v2_table-counterexample",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2D:v2-table-counterexample",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2D",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "Use the tables to evaluate the two composition orders at $x={{t}}$. Decide whether the proposed functions can be inverses.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Values needed for the composition check",
+        "table": {
+          "headers": [
+            "Function",
+            "Input",
+            "Output"
+          ],
+          "rows": [
+            [
+              "$g$",
+              "{{t}}",
+              "{{gt}}"
+            ],
+            [
+              "$f$",
+              "{{gt}}",
+              "{{fog}}"
+            ],
+            [
+              "$f$",
+              "{{t}}",
+              "{{ft}}"
+            ],
+            [
+              "$g$",
+              "{{ft}}",
+              "{{gof}}"
+            ]
+          ]
+        },
+        "note": "For inverse functions, both $f(g(x))$ and $g(f(x))$ must return the starting input wherever the compositions are defined."
+      },
+      "responseFields": [
+        {
+          "id": "fog",
+          "label": "$f(g({{t}}))$",
+          "inputProfile": "number",
+          "expected": "{{fog}}"
+        },
+        {
+          "id": "gof",
+          "label": "$g(f({{t}}))$",
+          "inputProfile": "number",
+          "expected": "{{gof}}"
+        },
+        {
+          "id": "conclusion",
+          "label": "What does this composition evidence prove?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "not-inverse",
+              "label": "They are not inverses because at least one composition does not return {{t}}."
+            },
+            {
+              "id": "inverse",
+              "label": "They are inverses because both functions are linear."
+            },
+            {
+              "id": "unknown",
+              "label": "Composition cannot be used to test inverses."
+            }
+          ],
+          "expected": "not-inverse"
+        }
+      ],
+      "solutionReview": {
+        "headline": "One counterexample is enough to disprove an inverse claim.",
+        "reasoning": [
+          "The table gives $f(g({{t}}))={{fog}}$ and $g(f({{t}}))={{gof}}$.",
+          "The starting input was {{t}}. Since the composition does not return that input, the proposed pair cannot be inverse functions."
+        ],
+        "answerSummary": "The functions are not inverses."
+      },
+      "attemptFeedback": [
+        "Follow the output of the inside function into the outside function, then compare with the starting input."
+      ],
+      "supportHints": [
+        "If a composition returns something other than the original x, the inverse claim fails."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              -4,
+              -3,
+              -2,
+              2,
+              3,
+              4
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "d": {
+            "type": "choice",
+            "values": [
+              -3,
+              -2,
+              -1,
+              1,
+              2,
+              3
+            ]
+          },
+          "t": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          }
+        },
+        "derived": {
+          "gt": "(t-b)/a+d",
+          "fog": "a*gt+b",
+          "ft": "a*t+b",
+          "gof": "(ft-b)/a+d"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2D_v2_right-quadratic-root-composition",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2D:v2-right-quadratic-root-composition",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2D",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "reverseReasoning",
+      "prompt": "Let $f(x)=(x-({{h}}))^2{{k|signed}}$ and $g(x)=\\sqrt{x-({{k}})}+{{h}}$. Use composition and the needed domain restrictions to determine whether they are inverses.",
+      "stimulus": {
+        "kind": "expressions",
+        "title": "Proposed inverse pair",
+        "expressions": [
+          "$f(x)=(x-({{h}}))^2{{k|signed}}$",
+          "$g(x)=\\sqrt{x-({{k}})}+{{h}}$",
+          "$g(f(x))=\\sqrt{(x-({{h}}))^2}+{{h}}$"
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "fog",
+          "label": "On the domain of $g$, simplify $f(g(x))$",
+          "inputProfile": "expression",
+          "expected": "x"
+        },
+        {
+          "id": "gof",
+          "label": "After the correct restriction on $f$, simplify $g(f(x))$",
+          "inputProfile": "expression",
+          "expected": "x"
+        },
+        {
+          "id": "f-domain",
+          "label": "Required domain restriction on $f$",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "right",
+              "label": "$x\\ge {{h}}$"
+            },
+            {
+              "id": "left",
+              "label": "$x\\le {{h}}$"
+            },
+            {
+              "id": "all",
+              "label": "All real x"
+            }
+          ],
+          "expected": "right"
+        },
+        {
+          "id": "g-domain",
+          "label": "Domain required for $f(g(x))$",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "from-k",
+              "label": "$x\\ge {{k}}$"
+            },
+            {
+              "id": "from-h",
+              "label": "$x\\ge {{h}}$"
+            },
+            {
+              "id": "all",
+              "label": "All real x"
+            }
+          ],
+          "expected": "from-k"
+        },
+        {
+          "id": "conclusion",
+          "label": "Conclusion",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "yes-restricted",
+              "label": "Yes, with the stated right-branch restriction on $f$."
+            },
+            {
+              "id": "yes-all",
+              "label": "Yes, with no restriction on the quadratic."
+            },
+            {
+              "id": "no",
+              "label": "No restriction can make this pair inverse."
+            }
+          ],
+          "expected": "yes-restricted"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The principal square root reverses only the right branch of the quadratic.",
+        "reasoning": [
+          "$f(g(x))=x$ where the square root is defined, so that composition uses $x\\ge {{k}}$.",
+          "$g(f(x))=\\sqrt{(x-({{h}}))^2}+{{h}}=|x-{{h}}|+{{h}}$.",
+          "Restricting $f$ to $x\\ge {{h}}$ makes $|x-{{h}}|=x-{{h}}$, so the reverse composition also becomes x."
+        ],
+        "answerSummary": "They are inverses when $f$ is restricted to $x\\ge {{h}}$."
+      },
+      "attemptFeedback": [
+        "The absolute value created by the square root of a square determines which quadratic branch is valid."
+      ],
+      "supportHints": [
+        "For the principal square root, $\\sqrt{u^2}=|u|$."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2D_v2_left-quadratic-root-composition",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2D:v2-left-quadratic-root-composition",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2D",
+      "representation": "symbolic",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "reverseReasoning",
+      "prompt": "Let $f(x)=(x-({{h}}))^2{{k|signed}}$ and $g(x)={{h}}-\\sqrt{x-({{k}})}$. Use both compositions and the necessary domain restrictions to decide whether $g=f^{-1}$.",
+      "responseFields": [
+        {
+          "id": "fog",
+          "label": "On the domain of $g$, simplify $f(g(x))$",
+          "inputProfile": "expression",
+          "expected": "x"
+        },
+        {
+          "id": "gof",
+          "label": "After restricting $f$ correctly, simplify $g(f(x))$",
+          "inputProfile": "expression",
+          "expected": "x"
+        },
+        {
+          "id": "f-domain",
+          "label": "Required domain restriction on $f$",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "left",
+              "label": "$x\\le {{h}}$"
+            },
+            {
+              "id": "right",
+              "label": "$x\\ge {{h}}$"
+            },
+            {
+              "id": "all",
+              "label": "All real x"
+            }
+          ],
+          "expected": "left"
+        },
+        {
+          "id": "g-domain",
+          "label": "Domain required for $f(g(x))$",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "from-k",
+              "label": "$x\\ge {{k}}$"
+            },
+            {
+              "id": "from-h",
+              "label": "$x\\le {{h}}$"
+            },
+            {
+              "id": "all",
+              "label": "All real x"
+            }
+          ],
+          "expected": "from-k"
+        },
+        {
+          "id": "conclusion",
+          "label": "Conclusion",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "yes-left",
+              "label": "Yes, when $f$ is restricted to its left branch."
+            },
+            {
+              "id": "yes-right",
+              "label": "Yes, only on the right branch."
+            },
+            {
+              "id": "no",
+              "label": "No, the negative square-root branch can never be an inverse."
+            }
+          ],
+          "expected": "yes-left"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The negative square-root expression reverses the left branch.",
+        "reasoning": [
+          "$f(g(x))=x$ for inputs in the square-root domain $x\\ge {{k}}$.",
+          "$g(f(x))={{h}}-\\sqrt{(x-({{h}}))^2}={{h}}-|x-{{h}}|$.",
+          "When $x\\le {{h}}$, $|x-{{h}}|={{h}}-x$, so the reverse composition becomes x."
+        ],
+        "answerSummary": "They are inverses when $f$ is restricted to $x\\le {{h}}$."
+      },
+      "attemptFeedback": [
+        "The sign in front of the square root tells you which side of the quadratic is being reversed."
+      ],
+      "supportHints": [
+        "On the left of the vertex, $|x-h|=h-x$."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2D_v2_unrestricted-quadratic-error-analysis",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2D:v2-unrestricted-quadratic-error-analysis",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2D",
+      "representation": "verbal",
+      "difficultyBand": 5,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student claims $f(x)=(x-({{h}}))^2{{k|signed}}$ on all real x and $g(x)=\\sqrt{x-({{k}})}+{{h}}$ are inverses because $f(g(x))=x$. Analyze the claim using the other composition.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's inverse check",
+        "steps": [
+          {
+            "id": "s1",
+            "label": "Step 1",
+            "work": "Compute $f(g(x))$ and get x where $g$ is defined."
+          },
+          {
+            "id": "s2",
+            "label": "Step 2",
+            "work": "Stop after one composition and declare the functions inverses."
+          },
+          {
+            "id": "s3",
+            "label": "Missing check",
+            "work": "$g(f(x))=\\sqrt{(x-({{h}}))^2}+{{h}}$"
+          }
+        ],
+        "note": "Use the generated input $x={{testX}}$, which lies left of the vertex, to test the missing composition."
+      },
+      "responseFields": [
+        {
+          "id": "simplify",
+          "label": "Simplify $g(f(x))$ before imposing a branch restriction",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "absolute",
+              "label": "$|x-{{h}}|+{{h}}$"
+            },
+            {
+              "id": "always-x",
+              "label": "$x$ for every real x"
+            },
+            {
+              "id": "reciprocal",
+              "label": "$1/x$"
+            }
+          ],
+          "expected": "absolute"
+        },
+        {
+          "id": "counterexample",
+          "label": "Evaluate $g(f({{testX}}))$",
+          "inputProfile": "number",
+          "expected": "{{composition}}"
+        },
+        {
+          "id": "diagnosis",
+          "label": "Diagnosis",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "fails",
+              "label": "The inverse claim fails on all real x because the second composition does not always return the original input."
+            },
+            {
+              "id": "works",
+              "label": "The first composition is enough to prove the functions are inverses."
+            },
+            {
+              "id": "reciprocal",
+              "label": "The only problem is that g should be the reciprocal of f."
+            }
+          ],
+          "expected": "fails"
+        },
+        {
+          "id": "repair",
+          "label": "Restriction that repairs the principal-root inverse pair",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "right",
+              "label": "Restrict $f$ to $x\\ge {{h}}$."
+            },
+            {
+              "id": "left",
+              "label": "Restrict $f$ to $x\\le {{h}}$ without changing g."
+            },
+            {
+              "id": "none",
+              "label": "No restriction is needed."
+            }
+          ],
+          "expected": "right"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Both composition orders matter, and domain restrictions can be essential.",
+        "reasoning": [
+          "$g(f(x))=\\sqrt{(x-({{h}}))^2}+{{h}}=|x-{{h}}|+{{h}}$.",
+          "At $x={{testX}}$, that composition gives {{composition}}, not {{testX}}, so the all-real inverse claim is false.",
+          "Restricting the quadratic to $x\\ge {{h}}$ makes the principal square root undo that branch."
+        ],
+        "answerSummary": "The unrestricted pair is not inverse; restrict $f$ to $x\\ge {{h}}$."
+      },
+      "attemptFeedback": [
+        "A single successful composition does not justify an inverse claim when the other direction can fail."
+      ],
+      "supportHints": [
+        "Test $g(f(x))$ and remember that $\\sqrt{u^2}=|u|$."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "testX": "h-d",
+          "composition": "h+d"
+        }
+      }
+    }
+  ]
+}
