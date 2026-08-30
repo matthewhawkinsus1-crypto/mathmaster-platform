@@ -683,9 +683,38 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.7E
+### A2.7F
 
-Resume here. Do not reopen A2.2A–A2.7D unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.7E unless a failing gate names them.
+
+
+### 2026-08-30 — A2.7F audit finding
+- Official construct: **determine the sum, difference, product, and quotient of rational expressions with integral exponents of degree one and of degree two**.
+- TEA breakout contains **12 distinct combinations**:
+  - sum: degree 1; degree 2; mixed degree 1 and degree 2;
+  - difference: degree 1; degree 2; mixed degree 1 and degree 2;
+  - product: degree 1; degree 2; mixed degree 1 and degree 2;
+  - quotient: degree 1; degree 2; mixed degree 1 and degree 2.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - one basic multiplication family, one division-to-reciprocal family, and basic addition/subtraction with like linear denominators are directionally correct;
+  - cancellation and reciprocal language are introduced.
+- Legacy limitations:
+  - degree-2 rational expressions are effectively absent;
+  - mixed degree-1/degree-2 cases are absent;
+  - addition and subtraction use only already-matching linear denominators, so students never construct an LCD;
+  - multiplication uses only an obvious single linear cancellation;
+  - the quotient family stops after rewriting division as multiplication by the reciprocal and does **not** determine the simplified quotient;
+  - one context family simply repeats like-denominator addition and does not add breakout coverage;
+  - original denominator restrictions are not repeatedly captured even when factors cancel.
+- Fidelity V2 requirements:
+  - cover all 12 TEA operation/degree combinations through generated variants inside five coherent families rather than twelve shallow templates;
+  - addition and subtraction families must construct/use an LCD and combine numerators, including degree-2 denominators;
+  - product and quotient families must factor, cancel only legitimate common factors, and finish the simplified result;
+  - require original-domain restrictions separately so cancellation never erases excluded inputs;
+  - include a mixed-operation error-analysis family that diagnoses illegal cancellation or failure to distribute subtraction and finishes the correct rational expression;
+  - keep routine multi-step rational-expression operations DOK 2; reserve DOK 3 for genuine error analysis.
+- Before staging, verify whether generic expression grading fairly accepts equivalent simplified rational expressions. If not, add the smallest opt-in rational-expression equivalence while preserving separately graded original restrictions rather than padding accepted-answer spellings.
 
 
 ### 2026-08-30 — A2.7E audit finding
@@ -728,8 +757,10 @@ Resume here. Do not reopen A2.2A–A2.7D unless a failing gate names them.
 - Added A2.7E-specific generated certification — commit `c9c00b538270140d3a806436fc8fd43fa1b535cd`.
 - First dedicated run `33331366261`: **FAIL** due only to a certification counter that counted both the dedicated degree-3 difference-of-cubes family and the quartic-grouping family whose second factoring step also uses difference of cubes. No generated factoring or grading assertion failed.
 - Narrowed the dedicated-family counter — commit `a1262349f2b063e2cdc952e46b19ea31a3cda90e`.
-- Replacement full certification run `33331430930`: **QUEUED/RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.7E** until the replacement run is green.
+- Replacement full certification run `33331430930`: **PASS**.
+- Generated cube/grouping identities, cubic/quartic grouping, separately graded linear/quadratic factors, production issuability, secure self-grading, changed-factor rejection, DOK-vs-difficulty discipline, public key stripping, and student/runtime build all passed.
+- A2.7E is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7F**.
 
 
 ### 2026-08-30 — A2.7D audit finding
