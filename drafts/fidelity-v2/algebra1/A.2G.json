@@ -252,13 +252,13 @@
       "assessedConstruct": "A.2G",
       "taskType": "errorAnalysis",
       "representation": "verbal",
-      "prompt": "A student says, “The line through $({{x}},{{y1}})$ and $({{x}},{{y2}})$ has slope 0 because one coordinate does not change.” Correct the student's claim by entering the actual slope classification.",
+      "prompt": "A student says, “The line through $({{x}},{{y1}})$ and $({{x}},{{y2}})$ has slope 0 because one coordinate does not change.” Which classification correctly fixes the student's claim?",
       "responseFields": [
         {
           "id": "answer",
-          "label": "Actual slope classification",
-          "inputProfile": "text",
-          "expected": "undefined"
+          "label": "Correct slope classification",
+          "inputProfile": "choice",
+          "expected": "slope-undefined"
         }
       ],
       "solutionReview": {
@@ -292,7 +292,25 @@
             "max": 7
           }
         }
-      }
+      },
+      "choices": [
+        {
+          "id": "slope-undefined",
+          "label": "The slope is undefined because the run is 0."
+        },
+        {
+          "id": "slope-zero",
+          "label": "The slope is 0 because the rise is 0."
+        },
+        {
+          "id": "slope-positive",
+          "label": "The slope is positive because y increases."
+        },
+        {
+          "id": "slope-negative",
+          "label": "The slope is negative because x does not change."
+        }
+      ]
     }
   ]
 }
