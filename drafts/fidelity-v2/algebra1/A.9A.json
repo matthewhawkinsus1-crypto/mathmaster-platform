@@ -311,7 +311,90 @@
             "max": 12
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-algebraic-vs-contextual-domain-judgment",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "interpretation",
+          "representation": "context",
+          "prompt": "A quantity is modeled algebraically by $Q(t)={{a}}({{base}})^t$, but the study only covers the first {{years}} years after t=0. Compare the ALGEBRAIC domain with the CONTEXTUAL domain and decide which domain should be reported when interpreting this study.",
+          "responseFields": [
+            {
+              "id": "algebraic",
+              "label": "Algebraic domain",
+              "inputProfile": "interval",
+              "expected": "(-inf,inf)"
+            },
+            {
+              "id": "contextual",
+              "label": "Contextual domain",
+              "inputProfile": "interval",
+              "expected": "[0,{{years}}]"
+            },
+            {
+              "id": "judgment",
+              "label": "Which domain answers the study question?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "context",
+                  "label": "Use [0, years] because the situation restricts the model to the observed time window."
+                },
+                {
+                  "id": "algebraic",
+                  "label": "Use all real numbers because the formula alone accepts every real exponent."
+                }
+              ],
+              "expected": "context"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A formula's algebraic domain and a model's meaningful contextual domain can differ.",
+            "reasoning": [
+              "The exponential expression is defined for every real t.",
+              "Elapsed study time begins at 0 and the model is stated to apply only through year {{years}}.",
+              "Therefore $(-\\infty,\\infty)$ is the algebraic domain, while $[0,{{years}}]$ is the domain that answers the contextual question."
+            ],
+            "answerSummary": "Algebraic: all real t; contextual: $[0,{{years}}]$."
+          },
+          "attemptFeedback": [
+            "State both domains before deciding which one belongs to the real-world interpretation."
+          ],
+          "supportHints": [
+            "The formula and the situation impose different kinds of restrictions."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 50,
+                "max": 500
+              },
+              "base": {
+                "type": "choice",
+                "values": [
+                  0.8,
+                  0.9,
+                  1.1,
+                  1.2
+                ]
+              },
+              "years": {
+                "type": "int",
+                "min": 3,
+                "max": 12
+              }
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_9A_v2_reflected-range-graph",
@@ -433,7 +516,138 @@
           "y0": "-a+k",
           "y1": "-a*base+k"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-reflected-decay-three-point-graph",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "interpretation",
+          "representation": "graph",
+          "prompt": "Graph the reflected, vertically shifted decay function $y=-{{a}}({{base}})^x{{k|signed}}$ using THREE requested points, including a negative input. Then identify the horizontal asymptote and determine the complete domain and range.",
+          "functionSpec": {
+            "type": "exponential",
+            "a": "{{negA}}",
+            "k": "{{k}}",
+            "base": "{{base}}"
+          },
+          "graph": {
+            "xMin": -3,
+            "xMax": 5,
+            "yMin": -35,
+            "yMax": 15,
+            "snapStep": 0.25
+          },
+          "pointTasks": [
+            {
+              "id": "pneg",
+              "label": "Plot x = -1",
+              "x": -1,
+              "expected": [
+                -1,
+                "{{yNeg}}"
+              ]
+            },
+            {
+              "id": "p0",
+              "label": "Plot x = 0",
+              "x": 0,
+              "expected": [
+                0,
+                "{{y0}}"
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot x = 1",
+              "x": 1,
+              "expected": [
+                1,
+                "{{y1}}"
+              ]
+            }
+          ],
+          "analysisRequests": [
+            {
+              "id": "asym",
+              "label": "Horizontal asymptote y-value",
+              "kind": "value",
+              "responseMode": "text",
+              "expected": [
+                "{{k}}"
+              ]
+            },
+            {
+              "id": "domain",
+              "label": "Domain",
+              "kind": "domain",
+              "notation": "interval",
+              "expected": [
+                "(-∞,∞)"
+              ]
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "kind": "range",
+              "notation": "interval",
+              "expected": [
+                "(-∞,{{k}})"
+              ]
+            }
+          ],
+          "solutionReview": {
+            "headline": "Reflection changes which side of the asymptote contains the range; decay changes direction, not domain.",
+            "reasoning": [
+              "The base {{base}} is between 0 and 1, so the exponential part decays as x increases.",
+              "The negative multiplier reflects the outputs below the horizontal asymptote y={{k}}.",
+              "Negative inputs are valid, so the domain remains all real numbers and the range is $(-\\infty,{{k}})$."
+            ],
+            "answerSummary": "Domain $(-\\infty,\\infty)$; range $(-\\infty,{{k}})$."
+          },
+          "attemptFeedback": [
+            "Track the decay base, reflection, and vertical shift separately before deciding the range."
+          ],
+          "supportHints": [
+            "A negative multiplier puts the exponential on the side below y=k."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  4,
+                  8,
+                  12
+                ]
+              },
+              "base": {
+                "type": "choice",
+                "values": [
+                  0.5,
+                  0.75
+                ]
+              },
+              "k": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            },
+            "derived": {
+              "negA": "-a",
+              "yNeg": "-a/base+k",
+              "y0": "-a+k",
+              "y1": "-a*base+k"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_9A_v2_error-decay-domain",
