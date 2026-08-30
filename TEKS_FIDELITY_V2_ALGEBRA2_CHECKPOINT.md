@@ -184,7 +184,7 @@ Do **not** re-audit A2.3C unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.3D — REBUILD — AUDITED / AUTHORING
+### A2.3D — REBUILD — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Determine the reasonableness of solutions to systems consisting of a linear equation and a quadratic equation in two variables.**
 
@@ -213,6 +213,21 @@ Resume here. Do not reopen A2.2A–A2.3C unless a failing gate names them.
   - error analysis must perform the missing check and issue the corrected keep/reject decision.
 - A2.3D must remain distinct from A2.3C: it evaluates proposed solutions rather than re-solving the full system from scratch.
 - Generic secure multi-response grading is sufficient; no new Path tool capability is needed.
+
+
+### 2026-08-30 — A2.3D staged and gated
+- Staged five A2.3D Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.3D.json` — commit `81859de5e35cddd8cbdd7351a196d250a20c7cf7`.
+- Coverage now includes:
+  - an exact candidate that is retained only after both equations are checked;
+  - an invalid candidate that lies on the line but has a nonzero quadratic residual;
+  - an algebraically valid candidate rejected by a real-world time-domain restriction;
+  - a rounded numerical candidate judged against an explicit 0.05 residual tolerance;
+  - genuine error analysis that performs the quadratic check the student omitted and changes the verdict.
+- The package-only workflow was superseded/cancelled by the immediate certification-test commit; no content gate was waived.
+- Added A2.3D-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `ae9e58b0571d6c84a005bc1258f949a014a8f329`.
+- The A2.3D gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public-key stripping, both keep/reject cases, algebraic-vs-context reasonableness, tolerance-aware numerical evidence, nonzero residuals for invalid candidates, and complete error-analysis correction.
+- Full A2.3D assertion run `33318316744`: **QUEUED/RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.3D** until that run is green.
 
 
 ### 2026-08-30 — A2.3C audit finding
