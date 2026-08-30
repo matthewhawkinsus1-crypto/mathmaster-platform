@@ -348,7 +348,7 @@ Do **not** re-audit A2.4D unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4E — REBUILD — AUDITED / CAPABILITY WORK
+### A2.4E — REBUILD — STAGED / CERTIFICATION AUTHORING
 
 Official construct: **Formulate quadratic and square root equations using technology from a table of data.**
 
@@ -393,7 +393,12 @@ Resume here. Do not reopen A2.2A–A2.4D unless a failing gate names them.
 - Build failure was a JSX syntax error in the new Data Modeling Lab model-summary branch: the square-root/linear ternary expression was missing its closing `}` before the MAE/RMSE line.
 - Fixed the JSX without changing any grading or math behavior — commit `9122824194e9f46eb838996a6c925da355b3fd41`.
 - Replacement capability certification is triggered; A2.4E remains locked as FIRST UNFINISHED until the build is green.
-- A2.4E remains FIRST UNFINISHED until this capability gate is green and its five Fidelity V2 families are authored/certified.
+- Replacement capability certification run `33323282781`: **PASS**, including the full student/runtime build.
+- Square-root regression technology is now locked as a real supported capability for A2.4E.
+- Staged five A2.4E Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4E.json` — commit `ec00fd6befe3bfa8db693810fba89c8adca20265`.
+- Staged coverage includes two quadratic-regression families, two square-root-regression families, and one regression-entry error-repair family. Every family uses Data Modeling Lab technology, every table has five observations, and every family requires both the complete fitted coefficients and a prediction from that fitted model.
+- Package/build run `33323381039`: **QUEUED/RUNNING** at this checkpoint.
+- A2.4E remains FIRST UNFINISHED until the staged package receives its generated certification gate and that gate is green.
 
 - Fidelity V2 content requirements after capability work:
   - at least two quadratic-technology families and at least two square-root-technology families;
