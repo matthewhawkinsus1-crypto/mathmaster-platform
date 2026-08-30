@@ -755,3 +755,77 @@ test('A2.3D judges proposed linear-quadratic solutions from concrete algebraic a
   assert.ok(taskTypes.has('errorAnalysis'));
 });
 
+test('A2.3E requires students to formulate complete systems of linear inequalities', async () => {
+  const entry = payload('A2.3E');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /student-authored-systems-of-linear-inequalities/);
+
+  const representations = new Set();
+  const taskTypes = new Set();
+  let generatedCount = 0;
+  let threePlusConstraintFamilies = 0;
+  let coupledConstraintFamilies = 0;
+  let strictBoundaryFamilies = 0;
+  let nonnegativeFamilies = 0;
+  let errorRepairFamilies = 0;
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    taskTypes.add(doc.taskType);
+    const fields = doc.responseFields || [];
+    const inequalityFields = fields.filter((field) => field.inputProfile === 'equation');
+    const authoredText = stringValues(doc).join(' ');
+
+    assert.ok(inequalityFields.length >= 2, `${doc.id} must make the student write a system of at least two inequalities`);
+    if (inequalityFields.length >= 3) threePlusConstraintFamilies += 1;
+    if (/\d+x.*\d+y|x\+3y|2x\+y/.test(authoredText.replace(/\\/g, ''))) coupledConstraintFamilies += 1;
+    if (/strict|excluded|dashed/.test(authoredText.toLowerCase()) && /y</.test(authoredText.replace(/\\/g, ''))) strictBoundaryFamilies += 1;
+    if (/x>=0|y>=0|nonnegative|nonnegativity/.test(authoredText.replace(/\\/g, ''))) nonnegativeFamilies += 1;
+    if (doc.taskType === 'errorAnalysis' && inequalityFields.length >= 3) errorRepairFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const generatedInequalities = (question.responseFields || []).filter((field) => field.inputProfile === 'equation');
+      assert.ok(generatedInequalities.length >= 2);
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const result = await gradeResponse(grading, { responses });
+      assert.equal(
+        result.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(result.fieldResults)}`,
+      );
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(threePlusConstraintFamilies >= 4, 'A2.3E should usually formulate more than the bare minimum of two constraints');
+  assert.ok(coupledConstraintFamilies >= 2, 'A2.3E must include coupled x/y resource constraints, not only independent bounds');
+  assert.ok(strictBoundaryFamilies >= 2, 'A2.3E must repeatedly distinguish strict from inclusive boundaries');
+  assert.ok(nonnegativeFamilies >= 2, 'A2.3E must include nonnegativity when quantities require it');
+  assert.ok(errorRepairFamilies >= 1, 'A2.3E error analysis must write the entire corrected system');
+  assert.ok(representations.size >= 4, 'A2.3E formulation must transfer across context, table, region description, and verbal error analysis');
+  assert.ok(taskTypes.has('modeling'));
+  assert.ok(taskTypes.has('representationTranslation'));
+  assert.ok(taskTypes.has('errorAnalysis'));
+});
+
