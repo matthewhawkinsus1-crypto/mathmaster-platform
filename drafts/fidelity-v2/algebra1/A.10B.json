@@ -349,7 +349,245 @@
           "A!=0",
           "B!=0"
         ]
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d2b2-simple-area-product",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "application",
+          "representation": "context",
+          "prompt": "A rectangle has side lengths $(x+{{p}})$ and $(x+1)$. Write and expand the polynomial area.",
+          "responseFields": [
+            {
+              "id": "x2",
+              "label": "x² coefficient",
+              "inputProfile": "number",
+              "expected": "1"
+            },
+            {
+              "id": "x1",
+              "label": "x coefficient",
+              "inputProfile": "number",
+              "expected": "{{mid}}"
+            },
+            {
+              "id": "constant",
+              "label": "constant",
+              "inputProfile": "number",
+              "expected": "{{p}}"
+            },
+            {
+              "id": "answer",
+              "label": "Expanded area polynomial",
+              "inputProfile": "expression",
+              "expected": "x^2+({{mid}})*x+{{p}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Area translates directly to a product of the two side-length polynomials.",
+            "reasoning": [
+              "Multiply each term of x+{{p}} by each term of x+1.",
+              "The two middle contributions combine to {{mid}}x."
+            ],
+            "answerSummary": "$x^2+{{mid}}x+{{p}}$"
+          },
+          "attemptFeedback": [
+            "Include both cross products before combining the x-terms."
+          ],
+          "supportHints": [
+            "FOIL works because both factors are linear."
+          ],
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              }
+            },
+            "derived": {
+              "mid": "p+1"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d2b4-general-linear-times-quadratic",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "symbolic",
+          "prompt": "Multiply $({{a}}x+{{b}})({{c}}x^2+{{d}}x+{{e}})$ and write the complete degree-3 product in descending powers. Record all four coefficients.",
+          "responseFields": [
+            {
+              "id": "x3",
+              "label": "x³ coefficient",
+              "inputProfile": "number",
+              "expected": "{{A3}}"
+            },
+            {
+              "id": "x2",
+              "label": "x² coefficient",
+              "inputProfile": "number",
+              "expected": "{{A2}}"
+            },
+            {
+              "id": "x1",
+              "label": "x coefficient",
+              "inputProfile": "number",
+              "expected": "{{A1}}"
+            },
+            {
+              "id": "x0",
+              "label": "constant",
+              "inputProfile": "number",
+              "expected": "{{A0}}"
+            },
+            {
+              "id": "answer",
+              "label": "Expanded product",
+              "inputProfile": "expression",
+              "expected": "{{A3}}*x^3+({{A2}})*x^2+({{A1}})*x+({{A0}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Harder coefficients increase structural difficulty without changing the multiplication reasoning.",
+            "reasoning": [
+              "Distribute both terms of the linear factor across the quadratic.",
+              "Combine the two x² contributions and the two x contributions."
+            ],
+            "answerSummary": "Complete cubic product."
+          },
+          "attemptFeedback": [
+            "Organize partial products by exponent before combining."
+          ],
+          "supportHints": [
+            "The x² coefficient receives contributions from ad and bc."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": -4,
+                "max": 4,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -4,
+                "max": 4,
+                "exclude": [
+                  0
+                ]
+              },
+              "d": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "e": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              }
+            },
+            "derived": {
+              "A3": "a*c",
+              "A2": "a*d+b*c",
+              "A1": "a*e+b*d",
+              "A0": "b*e"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-missing-cross-term-verification",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student multiplies $(x+{{p}})(x+{{q}})$ and writes $x^2+{{prod}}$, omitting both cross terms. Diagnose the error, write the correct product, and verify the x-coefficient from the two cross products.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What was omitted?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "cross",
+                  "label": "Both cross products px and qx were omitted."
+                },
+                {
+                  "id": "none",
+                  "label": "No term was omitted."
+                }
+              ],
+              "expected": "cross"
+            },
+            {
+              "id": "middle",
+              "label": "Correct x coefficient",
+              "inputProfile": "number",
+              "expected": "{{sum}}"
+            },
+            {
+              "id": "answer",
+              "label": "Correct product",
+              "inputProfile": "expression",
+              "expected": "x^2+({{sum}})*x+{{prod}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The middle term comes from two separate cross products.",
+            "reasoning": [
+              "The cross terms are {{p}}x and {{q}}x.",
+              "Their combined coefficient is {{sum}}."
+            ],
+            "answerSummary": "$x^2+{{sum}}x+{{prod}}$"
+          },
+          "attemptFeedback": [
+            "List all four products before combining like terms."
+          ],
+          "supportHints": [
+            "The middle coefficient is p+q."
+          ],
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              },
+              "q": {
+                "type": "int",
+                "min": -6,
+                "max": -1
+              }
+            },
+            "derived": {
+              "sum": "p+q",
+              "prod": "p*q"
+            },
+            "constraints": [
+              "sum!=0"
+            ]
+          }
+        }
+      ]
     }
   ]
 }
