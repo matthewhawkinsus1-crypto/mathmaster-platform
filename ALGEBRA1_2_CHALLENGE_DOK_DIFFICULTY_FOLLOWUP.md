@@ -295,3 +295,31 @@ Current Algebra II adaptive counts after A2.2:
 
 Next batch: **A2.3A–A2.3G**.
 
+
+
+## Progress — Algebra II A2.3 adaptive batch green
+
+- Completed the independent-axis pass for **A2.3A–A2.3G**.
+- Added only the missing preferred cells while preserving the certified core and all DOK3/Band4 Challenge endpoints.
+- The batch deliberately separates structural difficulty from reasoning depth:
+  - nonunit Gaussian elimination, nonmonic linear-quadratic systems, multi-candidate residual checks, and three-boundary inequality work supply DOK2/Band4;
+  - modeling audits, row-operation repair, system-error analysis, inequality-language audits, union/intersection repair, and boundary-rule audits supply DOK3/Band3.
+- Two adaptive regressions were caught by the full Fidelity gate and repaired:
+  - A2.3B's DOK3/Band3 row-error variant inherited a base stimulus placeholder (`r3`) that its generator no longer bound; the variant now carries its own self-contained stimulus.
+  - A2.3D's two-candidate DOK2/Band4 variant could accidentally make Candidate B another true intersection; its generator now constructs one actual line-quadratic system with Candidate A at one root and explicitly keeps Candidate B away from both intersection x-values.
+- Algebra II Fidelity V2 Certification after repair — run `33337921761`: **PASS**.
+- Cross-course Challenge/DOK Difficulty Audit after repair — run `33337921662`: **PASS**.
+
+Current Algebra II adaptive counts after A2.3:
+- Challenge-ready: **48/48**
+- Full preferred five-cell target: **11/48**
+- Complete DOK2 axis: **21/48**
+- Complete DOK3 axis: **16/48**
+- Missing 2/2: **13**
+- Missing 2/3: **2**
+- Missing 2/4: **23**
+- Missing 3/3: **32**
+- Missing 3/4: **0**
+- Strict preferred-cell failures: **37/48**
+
+Next batch: **A2.4A–A2.4H**.
