@@ -16,6 +16,7 @@ import {
 } from './algebraicForm.mjs';
 import { stackDivisions } from './stackDivisions.mjs';
 import { sameExpandedPolynomialExpression } from './expandedPolynomialExpressionEquivalence.mjs';
+import { sameLinearInequality } from './linearInequalityEquivalence.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
 
@@ -460,6 +461,7 @@ export const sameValue = (left, right, tolerance = 1e-6) => {
   }
   if (sameAtomicValue(left, right, tolerance)) return true;
   if (sameSimpleInequality(left, right, tolerance)) return true;
+  if (sameLinearInequality(left, right, tolerance)) return true;
   if (sameFormPreservingEquation(left, right)) return true;
   if (sameFormPreservingExpression(left, right)) return true;
   // Expanded polynomial answers are mathematical expressions, so harmless
