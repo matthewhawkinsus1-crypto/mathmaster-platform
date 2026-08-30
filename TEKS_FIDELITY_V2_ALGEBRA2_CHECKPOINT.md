@@ -243,7 +243,7 @@ Do **not** re-audit A2.3F unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.3G — ENHANCE — AUDITED / AUTHORING
+### A2.3G — ENHANCE — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Determine possible solutions in the solution set of systems of two or more linear inequalities in two variables.**
 
@@ -279,6 +279,23 @@ Resume here. Do not reopen A2.2A–A2.3F unless a failing gate names them.
   - include contextual transfer and genuine error analysis;
   - require the student to provide an actual feasible candidate in every family.
 - No new Path tool capability is required; reuse the secure inequality analyze contract rather than creating a parallel candidate checker.
+
+
+### 2026-08-30 — A2.3G staged and gated
+- Staged five A2.3G Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.3G.json` — commit `5cdcef5489807136e6fb094416412cd82150cc99`.
+- Aligned prompts with the actual secure evidence so they require a feasible candidate but do not claim the server enforces “different from the marked point” — commit `26d28edc29f3e46b57a9a4e72329c501a7aa2f33`.
+- Package/build certification run `33319030625`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - an inclusive two-inequality feasible marked point;
+  - a point lying exactly on a strict/dashed boundary that must be rejected;
+  - a feasible marked point checked against three simultaneous inequalities;
+  - a contextual three-constraint marked point that violates one requirement;
+  - error analysis where a point on an inclusive boundary is correctly retained.
+- Every family uses secure `systemsWorkspace` analyze mode with `ask: ["testPoint", "candidate"]`; A2.3G therefore determines a proposed point's feasibility and requires an actual feasible ordered pair without drifting back into A2.3F graph construction.
+- Added A2.3G-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `c7792a0b06096f9163133f5a0292e0734977bb5f`.
+- The A2.3G gate samples 200+ generated instances, checks production issuability and secure Path eligibility, independently computes marked-point feasibility from the displayed inequalities, finds a feasible candidate inside the graph bounds, self-grades both pieces through the server contract, flips the marked-point verdict and requires rejection, injects a clearly infeasible candidate and requires rejection, and certifies strict-boundary rejection plus inclusive-boundary acceptance.
+- Full A2.3G assertion run `33319070766`: **QUEUED/RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.3G** until that run is green.
 
 
 ### 2026-08-30 — A2.3F audit finding
