@@ -716,6 +716,28 @@ Resume here. Do not reopen A2.2A–A2.7E unless a failing gate names them.
   - keep routine multi-step rational-expression operations DOK 2; reserve DOK 3 for genuine error analysis.
 - Before staging, verify whether generic expression grading fairly accepts equivalent simplified rational expressions. If not, add the smallest opt-in rational-expression equivalence while preserving separately graded original restrictions rather than padding accepted-answer spellings.
 
+### 2026-08-30 — A2.7F grading capability + staged
+- Added opt-in `sameRationalExpression` in `functions/shared/rationalExpressionEquivalence.mjs`.
+- The comparator:
+  - compares reduced rational expressions by polynomial cross-products;
+  - accepts harmless scaling, term order, and factored-vs-expanded polynomial spelling;
+  - preserves numerator and denominator degrees;
+  - rejects extra canceling polynomial factors that would create additional domain holes;
+  - is used only when a response field declares `equivalence: "rationalExpression"`.
+- `functions/lib/mathPath.js` now routes that explicit equivalence mode.
+- Added dedicated regression tests in `tests/platform/rationalExpressionAnswerEquivalence.test.mjs` and included them in the Algebra II certification workflow.
+- Rational-expression capability certification run `33332332450`: **PASS**.
+- Staged five A2.7F Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7F.json` — commit `1c8d466afe6ccd3de8671fbd9c9845bba43d9532`.
+- The four operation families each contain three server-selected variants:
+  - degree 1;
+  - degree 2;
+  - mixed degree 1 / degree 2.
+- This directly covers all 12 TEA sum/difference/product/quotient × degree combinations.
+- Addition/subtraction require LCD numerator work; product/quotient require complete factoring/cancellation; all families separately grade original restrictions.
+- The fifth family is DOK 3 quotient-domain error repair.
+- Base Algebra II certification run `33332488635`: **PASS**.
+- FIRST UNFINISHED STANDARD remains **A2.7F** until the dedicated generated certification is green.
+
 
 ### 2026-08-30 — A2.7E audit finding
 - Official construct: **determine linear and quadratic factors of a polynomial expression of degree three and of degree four, including factoring the sum and difference of two cubes and factoring by grouping**.
