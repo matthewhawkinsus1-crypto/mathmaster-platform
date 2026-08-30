@@ -683,9 +683,32 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.6H
+### A2.6I
 
-Resume here. Do not reopen A2.2A–A2.6G unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.6H unless a failing gate names them.
+
+
+### 2026-08-30 — A2.6I audit finding
+- Official construct: **solve rational equations that have real solutions**.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - all five families are directionally aligned to solving rather than drifting into graph analysis;
+  - basic denominator clearing, shifted reciprocals, a rate context, and a denominator/shift misconception are represented;
+  - generated answers are constructed to be real and avoid an undefined final value.
+- Legacy limitations:
+  - four families collapse to a one-denominator linear equation, so the bank never requires a genuine least-common-denominator solve across multiple rational terms;
+  - no family produces a quadratic after denominators are cleared, even though this is a central Algebra II rational-equation case;
+  - the rate context is algebraically the same one-step quantity/rate solve as the simplest symbolic family;
+  - students usually return only one final number, with little evidence that they can clear denominators and finish every real solution;
+  - the labeled error-analysis family is multiple-choice and does not repair the rational equation through a complete solve.
+- Fidelity V2 requirements:
+  - preserve one accessible shifted/single-rational-term solve, but require isolation and a complete solution;
+  - repeatedly solve equations with rational expressions on both sides or multiple rational terms and clear an authentic LCD;
+  - include equations whose cleared form is quadratic and require all real solutions;
+  - include a supplied real-world rational equation (for example combined work/rate) and solve it rather than reformulate it, keeping A2.6H distinct;
+  - include complete error analysis that corrects denominator clearing and finishes the full real solution set;
+  - keep A2.6I distinct from A2.6J by generating valid real solutions here and reserving explicit reasonableness/extraneous-candidate judgment for A2.6J.
+- Generic secure response fields plus opt-in polynomial-relation equivalence for cleared polynomial equations are sufficient; no new Path tool is required.
 
 
 ### 2026-08-30 — A2.6H audit finding
