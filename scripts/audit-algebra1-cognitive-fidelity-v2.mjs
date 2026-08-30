@@ -12,7 +12,11 @@
 
 import { readFileSync } from 'node:fs';
 
-const BANK = 'seed/pathQuestionBank/algebra1_pathQuestionBank_seed.json';
+const argOf = (name, fallback) => {
+  const index = process.argv.indexOf(name);
+  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
+};
+const BANK = argOf('--bank', 'seed/pathQuestionBank/algebra1_pathQuestionBank_seed.json');
 const parsed = JSON.parse(readFileSync(BANK, 'utf8'));
 const docs = (parsed.documents || []).filter((doc) => doc.active !== false);
 
@@ -107,6 +111,7 @@ for (const finding of findings) {
 }
 
 console.log('# Algebra I cognitive-fidelity audit\n');
+console.log(`Bank: ${BANK}`);
 console.log(`Active families: ${docs.length}`);
 console.log(`Standards: ${new Set(docs.map(codeOf)).size}`);
 console.log(`Findings: ${findings.length}`);
