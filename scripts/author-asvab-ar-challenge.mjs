@@ -1717,6 +1717,216 @@ arc('6.14C', 'largest-withdrawal-that-clears', {
   feedback: 'Leaving only the minimum forgets the payments still to clear.',
 });
 
+// ================================================================ 7.13A
+// Income tax and deductions.
+
+arc('7.13A', 'take-home-after-tax-and-dues', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{worker}} earned $\$\{{gross}}$, paid {{p}}% income tax and then $\$\{{dues}}$ in union dues. What was left?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
+      hundreds: { type: 'int', min: 8, max: 30 },
+      p: { type: 'int', min: 10, max: 30, step: 5 },
+      dues: { type: 'int', min: 20, max: 120, step: 10 },
+      quoted: { type: 'int', min: 500, max: 2600, step: 20 },
+    },
+    derived: {
+      gross: 'hundreds*100',
+      tax: 'gross*p/100',
+      answer: 'gross-tax-dues',
+      d_percentNotApplied: 'gross-dues',
+      d_forgotFinalStep: 'gross-tax-dues-dues',
+      d_usedGivenValue: 'quoted',
+    },
+    constraints: ['gross-tax-dues-dues>0', 'quoted!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{p}}% of $\$\{{gross}}$ is $\$\{{tax}}$ in tax.', 'Taking that and the $\$\{{dues}}$ dues leaves $\$\{{answer}}$.'],
+  answerSummary: { headline: 'Tax and dues both come out of the gross.', text: '$\$\{{answer}}$ was left.' },
+  hint: 'The dues are a flat amount, not a percentage.',
+  feedback: 'Taking only the dues leaves the tax unpaid.',
+});
+
+arc('7.13A', 'gross-behind-a-pay-slip', {
+  difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'After {{p}}% income tax and a flat $\$\{{dues}}$ deduction, a {{worker}} took home $\$\{{net}}$. What was the gross pay?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
+      hundreds: { type: 'int', min: 8, max: 30 },
+      p: { type: 'int', min: 10, max: 30, step: 5 },
+      dues: { type: 'int', min: 20, max: 120, step: 10 },
+      slip: { type: 'int', min: 600, max: 2800, step: 20 },
+    },
+    derived: {
+      answer: 'hundreds*100',
+      tax: 'answer*p/100',
+      net: 'answer-tax-dues',
+      d_percentNotApplied: 'net+dues',
+      d_partialTotal: 'answer+dues',
+      d_usedGivenValue: 'slip',
+    },
+    constraints: ['answer-tax-dues>0', 'slip!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Adding the $\$\{{dues}}$ back gives $\$\{{d_percentNotApplied}}$, which is {{100-p}}% of the gross.', 'That makes the gross $\$\{{answer}}$.'],
+  answerSummary: { headline: 'Put the flat deduction back before undoing the percentage.', text: 'The gross was $\$\{{answer}}$.' },
+  hint: 'The dues came off after the tax, so they go back on first.',
+  feedback: 'The dues came out of the gross, so adding them on top overstates it.',
+});
+
+arc('7.13A', 'which-bracket-the-receipt-shows', {
+  difficultyBand: 5, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'Two earners were taxed at the same rate, but one line is wrong. What tax should that line show?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Earner', 'Gross', 'Tax'],
+    rows: [['A', '$\$\{{g1}}$', '$\$\{{t1}}$'], ['B', '$\$\{{g2}}$', '$\$\{{tBad}}$'], ['C', '$\$\{{g3}}$', '$\$\{{t3}}$']],
+  },
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 10, max: 30, step: 5 },
+      h1: { type: 'int', min: 8, max: 16 },
+      h2: { type: 'int', min: 18, max: 32 },
+      h3: { type: 'int', min: 34, max: 48 },
+      off: { type: 'int', min: 15, max: 120, step: 5 },
+      filed: { type: 'int', min: 150, max: 900, step: 10 },
+    },
+    derived: {
+      g1: 'h1*100', g2: 'h2*100', g3: 'h3*100',
+      t1: 'g1*p/100',
+      answer: 'g2*p/100',
+      t3: 'g3*p/100',
+      tBad: 'answer+off',
+      d_forgotFinalStep: 'tBad',
+      d_offByOneStep: 't1',
+      d_usedGivenValue: 'filed',
+    },
+    constraints: ['filed!=answer', 'tBad!=t3'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Earners A and C are both taxed at {{p}}%.', '{{p}}% of $\$\{{g2}}$ is $\$\{{answer}}$, not the $\$\{{tBad}}$ shown.'],
+  answerSummary: { headline: 'Recover the rate from the lines that agree.', text: 'It should show $\$\{{answer}}$.' },
+  hint: 'Two of the three lines share one rate. Use them to test the third.',
+  feedback: 'The tax printed on that line is the error, not the correction.',
+});
+
+// ================================================================ 7.13E
+// Simple and compound interest.
+
+arc('7.13E', 'interest-then-a-further-deposit', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{worker}} put $\$\{{principal}}$ into an account paying {{r}}% simple interest a year. After {{years}} years they added $\$\{{added}}$. What is the balance?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
+      hundreds: { type: 'int', min: 4, max: 20 },
+      r: { type: 'int', min: 2, max: 10 },
+      years: { type: 'int', min: 2, max: 6 },
+      added: { type: 'int', min: 50, max: 400, step: 25 },
+      shown: { type: 'int', min: 500, max: 2800, step: 20 },
+    },
+    derived: {
+      principal: 'hundreds*100',
+      interest: 'principal*r*years/100',
+      answer: 'principal+interest+added',
+      d_partialTotal: 'answer+interest',
+      d_forgotFinalStep: 'principal+interest',
+      d_usedGivenValue: 'shown',
+    },
+    constraints: ['shown!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{r}}% of $\$\{{principal}}$ for {{years}} years is $\$\{{interest}}$ of interest.', 'With the $\$\{{added}}$ deposit the balance is $\$\{{answer}}$.'],
+  answerSummary: { headline: 'Interest first, then the new money.', text: 'The balance is $\$\{{answer}}$.' },
+  hint: 'Simple interest is the same amount every year.',
+  feedback: 'The deposit still has to be added after the interest.',
+});
+
+arc('7.13E', 'principal-behind-the-interest', {
+  difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'verbal',
+  prompt: 'An account paying {{r}}% simple interest a year earned $\$\{{interest}}$ over {{years}} years. What was put in at the start?',
+  generator: {
+    parameters: {
+      hundreds: { type: 'int', min: 4, max: 24 },
+      r: { type: 'int', min: 2, max: 10 },
+      years: { type: 'int', min: 2, max: 6 },
+      filed: { type: 'int', min: 300, max: 2800, step: 20 },
+    },
+    derived: {
+      answer: 'hundreds*100',
+      interest: 'answer*r*years/100',
+      d_forgotFinalStep: 'round(interest*100/r)',
+      d_partialTotal: 'interest',
+      d_usedGivenValue: 'filed',
+    },
+    constraints: ['filed!=answer', 'round(interest*100/r)!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Over {{years}} years at {{r}}% the account earns {{r}}x{{years}}% of the principal.', '$\$\{{interest}}$ is that share, so the principal was $\$\{{answer}}$.'],
+  answerSummary: { headline: 'The rate applies once for every year.', text: '$\$\{{answer}}$ was put in.' },
+  hint: 'Total simple interest is the yearly rate multiplied by the number of years.',
+  feedback: 'The interest earned is not the amount that was put in.',
+});
+
+arc('7.13E', 'compound-balance-after-two-years', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'context',
+  prompt: 'A {{worker}} put $\$\{{principal}}$ into an account paying {{r}}% compounded yearly. What is the balance after two years?',
+  generator: {
+    parameters: {
+      worker: contextParam(['mechanic', 'technician', 'driver', 'fitter', 'welder']),
+      hundreds: { type: 'int', min: 10, max: 40 },
+      r: { type: 'int', min: 5, max: 25, step: 5 },
+      posted: { type: 'int', min: 1000, max: 5600, step: 40 },
+    },
+    derived: {
+      principal: 'hundreds*100',
+      year1: 'principal*(100+r)/100',
+      answer: 'year1*(100+r)/100',
+      d_simpleForCompound: 'principal+2*principal*r/100',
+      d_partialTotal: 'answer+principal*r/100',
+      d_usedGivenValue: 'posted',
+    },
+    constraints: ['posted!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_simpleForCompound}}'), error: 'simpleForCompound' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['After one year the account holds $\$\{{year1}}$.', 'The second year pays {{r}}% of that, giving $\$\{{answer}}$.'],
+  answerSummary: { headline: 'The second year earns interest on the first year of interest.', text: 'The balance is $\$\{{answer}}$.' },
+  hint: 'Compounding pays on the balance, not on the original deposit.',
+  feedback: 'Two years of simple interest misses the interest earned on interest.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

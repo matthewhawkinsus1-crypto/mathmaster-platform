@@ -7776,6 +7776,990 @@
     "sourceFamilyId": "mathmaster:asvab:ar:6.14C:largest-withdrawal-that-clears",
     "sourcePrompt": "A register holds $${{start}}$ with $${{pending}}$ of payments still to clear. The account must keep $${{floor}}$. What is the largest whole withdrawal?"
    }
+  },
+  {
+   "id": "mm_asvab_ar_7_13A_take_home_after_tax_and_dues",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.13A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.13A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.13A:take-home-after-tax-and-dues",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.13A",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{worker}} earned $${{gross}}$, paid {{p}}% income tax and then $${{dues}}$ in union dues. What was left?",
+   "solutionReview": {
+    "headline": "Tax and dues both come out of the gross.",
+    "reasoning": [
+     "{{p}}% of $${{gross}}$ is $${{tax}}$ in tax.",
+     "Taking that and the $${{dues}}$ dues leaves $${{answer}}$."
+    ],
+    "answerSummary": "$${{answer}}$ was left."
+   },
+   "attemptFeedback": [
+    "Taking only the dues leaves the tax unpaid."
+   ],
+   "supportHints": [
+    "The dues are a flat amount, not a percentage."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "technician",
+       "driver",
+       "fitter",
+       "welder"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 8,
+      "max": 30
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 30,
+      "step": 5
+     },
+     "dues": {
+      "type": "int",
+      "min": 20,
+      "max": 120,
+      "step": 10
+     },
+     "quoted": {
+      "type": "int",
+      "min": 500,
+      "max": 2600,
+      "step": 20
+     }
+    },
+    "derived": {
+     "gross": "hundreds*100",
+     "tax": "gross*p/100",
+     "answer": "gross-tax-dues",
+     "d_percentNotApplied": "gross-dues",
+     "d_forgotFinalStep": "gross-tax-dues-dues",
+     "d_usedGivenValue": "quoted"
+    },
+    "constraints": [
+     "gross-tax-dues-dues>0",
+     "quoted!=answer",
+     "answer!=d_percentNotApplied",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_percentNotApplied!=d_forgotFinalStep",
+     "d_percentNotApplied!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.13A:take-home-after-tax-and-dues",
+    "sourcePrompt": "A {{worker}} earned $${{gross}}$, paid {{p}}% income tax and then $${{dues}}$ in union dues. What was left?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_7_13A_gross_behind_a_pay_slip",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.13A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.13A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.13A:gross-behind-a-pay-slip",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.13A",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "After {{p}}% income tax and a flat $${{dues}}$ deduction, a {{worker}} took home $${{net}}$. What was the gross pay?",
+   "solutionReview": {
+    "headline": "Put the flat deduction back before undoing the percentage.",
+    "reasoning": [
+     "Adding the $${{dues}}$ back gives $${{d_percentNotApplied}}$, which is {{100-p}}% of the gross.",
+     "That makes the gross $${{answer}}$."
+    ],
+    "answerSummary": "The gross was $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The dues came out of the gross, so adding them on top overstates it."
+   ],
+   "supportHints": [
+    "The dues came off after the tax, so they go back on first."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "technician",
+       "driver",
+       "fitter",
+       "welder"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 8,
+      "max": 30
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 30,
+      "step": 5
+     },
+     "dues": {
+      "type": "int",
+      "min": 20,
+      "max": 120,
+      "step": 10
+     },
+     "slip": {
+      "type": "int",
+      "min": 600,
+      "max": 2800,
+      "step": 20
+     }
+    },
+    "derived": {
+     "answer": "hundreds*100",
+     "tax": "answer*p/100",
+     "net": "answer-tax-dues",
+     "d_percentNotApplied": "net+dues",
+     "d_partialTotal": "answer+dues",
+     "d_usedGivenValue": "slip"
+    },
+    "constraints": [
+     "answer-tax-dues>0",
+     "slip!=answer",
+     "answer!=d_percentNotApplied",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_percentNotApplied!=d_partialTotal",
+     "d_percentNotApplied!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.13A:gross-behind-a-pay-slip",
+    "sourcePrompt": "After {{p}}% income tax and a flat $${{dues}}$ deduction, a {{worker}} took home $${{net}}$. What was the gross pay?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_7_13A_which_bracket_the_receipt_shows",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.13A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.13A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.13A:which-bracket-the-receipt-shows",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.13A",
+   "taskType": "errorAnalysis",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two earners were taxed at the same rate, but one line is wrong. What tax should that line show?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Earner",
+     "Gross",
+     "Tax"
+    ],
+    "rows": [
+     [
+      "A",
+      "$${{g1}}$",
+      "$${{t1}}$"
+     ],
+     [
+      "B",
+      "$${{g2}}$",
+      "$${{tBad}}$"
+     ],
+     [
+      "C",
+      "$${{g3}}$",
+      "$${{t3}}$"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "Recover the rate from the lines that agree.",
+    "reasoning": [
+     "Earners A and C are both taxed at {{p}}%.",
+     "{{p}}% of $${{g2}}$ is $${{answer}}$, not the $${{tBad}}$ shown."
+    ],
+    "answerSummary": "It should show $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The tax printed on that line is the error, not the correction."
+   ],
+   "supportHints": [
+    "Two of the three lines share one rate. Use them to test the third."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 30,
+      "step": 5
+     },
+     "h1": {
+      "type": "int",
+      "min": 8,
+      "max": 16
+     },
+     "h2": {
+      "type": "int",
+      "min": 18,
+      "max": 32
+     },
+     "h3": {
+      "type": "int",
+      "min": 34,
+      "max": 48
+     },
+     "off": {
+      "type": "int",
+      "min": 15,
+      "max": 120,
+      "step": 5
+     },
+     "filed": {
+      "type": "int",
+      "min": 150,
+      "max": 900,
+      "step": 10
+     }
+    },
+    "derived": {
+     "g1": "h1*100",
+     "g2": "h2*100",
+     "g3": "h3*100",
+     "t1": "g1*p/100",
+     "answer": "g2*p/100",
+     "t3": "g3*p/100",
+     "tBad": "answer+off",
+     "d_forgotFinalStep": "tBad",
+     "d_offByOneStep": "t1",
+     "d_usedGivenValue": "filed"
+    },
+    "constraints": [
+     "filed!=answer",
+     "tBad!=t3",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_offByOneStep",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_offByOneStep",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_offByOneStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_offByOneStep}}$",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.13A:which-bracket-the-receipt-shows",
+    "sourcePrompt": "Two earners were taxed at the same rate, but one line is wrong. What tax should that line show?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_7_13E_interest_then_a_further_deposit",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.13E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.13E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.13E:interest-then-a-further-deposit",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.13E",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{worker}} put $${{principal}}$ into an account paying {{r}}% simple interest a year. After {{years}} years they added $${{added}}$. What is the balance?",
+   "solutionReview": {
+    "headline": "Interest first, then the new money.",
+    "reasoning": [
+     "{{r}}% of $${{principal}}$ for {{years}} years is $${{interest}}$ of interest.",
+     "With the $${{added}}$ deposit the balance is $${{answer}}$."
+    ],
+    "answerSummary": "The balance is $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "The deposit still has to be added after the interest."
+   ],
+   "supportHints": [
+    "Simple interest is the same amount every year."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "technician",
+       "driver",
+       "fitter",
+       "welder"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 4,
+      "max": 20
+     },
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "years": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "added": {
+      "type": "int",
+      "min": 50,
+      "max": 400,
+      "step": 25
+     },
+     "shown": {
+      "type": "int",
+      "min": 500,
+      "max": 2800,
+      "step": 20
+     }
+    },
+    "derived": {
+     "principal": "hundreds*100",
+     "interest": "principal*r*years/100",
+     "answer": "principal+interest+added",
+     "d_partialTotal": "answer+interest",
+     "d_forgotFinalStep": "principal+interest",
+     "d_usedGivenValue": "shown"
+    },
+    "constraints": [
+     "shown!=answer",
+     "answer!=d_partialTotal",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=d_forgotFinalStep",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.13E:interest-then-a-further-deposit",
+    "sourcePrompt": "A {{worker}} put $${{principal}}$ into an account paying {{r}}% simple interest a year. After {{years}} years they added $${{added}}$. What is the balance?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_7_13E_principal_behind_the_interest",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.13E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.13E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.13E:principal-behind-the-interest",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.13E",
+   "taskType": "reverseReasoning",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "An account paying {{r}}% simple interest a year earned $${{interest}}$ over {{years}} years. What was put in at the start?",
+   "solutionReview": {
+    "headline": "The rate applies once for every year.",
+    "reasoning": [
+     "Over {{years}} years at {{r}}% the account earns {{r}}x{{years}}% of the principal.",
+     "$${{interest}}$ is that share, so the principal was $${{answer}}$."
+    ],
+    "answerSummary": "$${{answer}}$ was put in."
+   },
+   "attemptFeedback": [
+    "The interest earned is not the amount that was put in."
+   ],
+   "supportHints": [
+    "Total simple interest is the yearly rate multiplied by the number of years."
+   ],
+   "generator": {
+    "parameters": {
+     "hundreds": {
+      "type": "int",
+      "min": 4,
+      "max": 24
+     },
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "years": {
+      "type": "int",
+      "min": 2,
+      "max": 6
+     },
+     "filed": {
+      "type": "int",
+      "min": 300,
+      "max": 2800,
+      "step": 20
+     }
+    },
+    "derived": {
+     "answer": "hundreds*100",
+     "interest": "answer*r*years/100",
+     "d_forgotFinalStep": "round(interest*100/r)",
+     "d_partialTotal": "interest",
+     "d_usedGivenValue": "filed"
+    },
+    "constraints": [
+     "filed!=answer",
+     "round(interest*100/r)!=answer",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.13E:principal-behind-the-interest",
+    "sourcePrompt": "An account paying {{r}}% simple interest a year earned $${{interest}}$ over {{years}} years. What was put in at the start?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_7_13E_compound_balance_after_two_years",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.13E"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.13E",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.13E:compound-balance-after-two-years",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.13E",
+   "taskType": "interpretation",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{worker}} put $${{principal}}$ into an account paying {{r}}% compounded yearly. What is the balance after two years?",
+   "solutionReview": {
+    "headline": "The second year earns interest on the first year of interest.",
+    "reasoning": [
+     "After one year the account holds $${{year1}}$.",
+     "The second year pays {{r}}% of that, giving $${{answer}}$."
+    ],
+    "answerSummary": "The balance is $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Two years of simple interest misses the interest earned on interest."
+   ],
+   "supportHints": [
+    "Compounding pays on the balance, not on the original deposit."
+   ],
+   "generator": {
+    "parameters": {
+     "worker": {
+      "type": "choice",
+      "values": [
+       "mechanic",
+       "technician",
+       "driver",
+       "fitter",
+       "welder"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 10,
+      "max": 40
+     },
+     "r": {
+      "type": "int",
+      "min": 5,
+      "max": 25,
+      "step": 5
+     },
+     "posted": {
+      "type": "int",
+      "min": 1000,
+      "max": 5600,
+      "step": 40
+     }
+    },
+    "derived": {
+     "principal": "hundreds*100",
+     "year1": "principal*(100+r)/100",
+     "answer": "year1*(100+r)/100",
+     "d_simpleForCompound": "principal+2*principal*r/100",
+     "d_partialTotal": "answer+principal*r/100",
+     "d_usedGivenValue": "posted"
+    },
+    "constraints": [
+     "posted!=answer",
+     "answer!=d_simpleForCompound",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_simpleForCompound!=d_partialTotal",
+     "d_simpleForCompound!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_simpleForCompound}}$",
+     "error": "simpleForCompound"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.13E:compound-balance-after-two-years",
+    "sourcePrompt": "A {{worker}} put $${{principal}}$ into an account paying {{r}}% compounded yearly. What is the balance after two years?"
+   }
   }
  ]
 }
