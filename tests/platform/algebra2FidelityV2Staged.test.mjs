@@ -4160,3 +4160,119 @@ test('A2.6I solves complete real rational equations across linear quadratic cont
   assert.ok(representations.has('context'));
   assert.ok(representations.has('verbal'));
 });
+
+test('A2.6J determines rational-solution reasonableness from original-equation evidence', async () => {
+  const entry = payload('A2.6J');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /evidence-based-rational-solution-reasonableness/);
+
+  let generatedCount = 0;
+  let keepFamilies = 0;
+  let rejectFamilies = 0;
+  let contextFamilies = 0;
+  let errorFamilies = 0;
+  let toleranceFamilies = 0;
+  let wrongVerdictsRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    assert.match(String(doc.prompt), /candidate/i, `${doc.id} must supply a candidate rather than ask students to re-solve A2.6I`);
+    assert.ok((doc.responseFields || []).some((field) => field.id === 'verdict'), `${doc.id} must require a final keep/reject decision`);
+    if (doc.representation === 'context') contextFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+    if (doc.id.includes('rounded-residual')) toleranceFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let wrongChecked = false;
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      const params = generated.parameters || {};
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+      const fields = Object.fromEntries((question.responseFields || []).map((field) => [field.id, field]));
+      const verdict = String(fields.verdict?.expected || '');
+      if (/keep/.test(verdict)) keepFamilies += 1;
+      else rejectFamilies += 1;
+
+      if (doc.id.includes('valid-exact')) {
+        const d1 = Number(params.d1);
+        const d2 = Number(params.d2);
+        assert.notEqual(d1, 0);
+        assert.notEqual(d2, 0);
+        assert.ok(Math.abs(Number(params.a) / d1 - Number(params.m)) < 1e-9);
+        assert.ok(Math.abs(Number(params.b) / d2 - Number(params.m)) < 1e-9);
+        assert.equal(verdict, 'keep');
+      }
+      if (doc.id.includes('cleared-root-excluded')) {
+        assert.equal(Number(fields['cleared-value']?.expected), 0);
+        assert.equal(Number(fields['original-denominator']?.expected), 0);
+        assert.equal(fields['original-status']?.expected, 'undefined');
+        assert.equal(verdict, 'reject');
+      }
+      if (doc.id.includes('context-algebra-valid')) {
+        assert.ok(Number(params.candidate) < 0);
+        assert.ok(Math.abs(Number(params.total) / (Number(params.candidate) + Number(params.shift)) - Number(params.rate)) < 1e-9);
+        assert.equal(fields['algebra-check']?.expected, 'yes');
+        assert.equal(verdict, 'reject-context');
+      }
+      if (doc.id.includes('rounded-residual')) {
+        assert.ok(Number(params.residual) > 0);
+        assert.ok(Number(params.residual) <= 0.01);
+        assert.notEqual(Number(params.denom), 0);
+        assert.equal(verdict, 'keep');
+      }
+      if (doc.id.includes('missing-substitution-error')) {
+        assert.notEqual(Number(params.d), 0);
+        assert.ok(Math.abs(Number(params.a) / Number(params.d) - Number(params.m)) < 1e-9);
+        assert.equal(Number(params.rhs), Number(params.m) + 1);
+        assert.equal(fields.diagnosis?.expected, 'substitute');
+        assert.equal(verdict, 'reject');
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(correct.isCorrect, true, `${doc.id} failed secure self-acceptance: ${JSON.stringify(correct.fieldResults)}`);
+
+      if (!wrongChecked) {
+        const wrongVerdict = verdict === 'keep'
+          ? (doc.id.includes('valid-exact') ? 'reject-domain' : 'reject')
+          : 'keep';
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, verdict: wrongVerdict },
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted an incorrect reasonableness verdict`);
+        wrongVerdictsRejected += 1;
+        wrongChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(keepFamilies > 0);
+  assert.ok(rejectFamilies > 0);
+  assert.equal(contextFamilies, 1);
+  assert.equal(errorFamilies, 1);
+  assert.equal(toleranceFamilies, 1);
+  assert.equal(wrongVerdictsRejected, entry.documents.length);
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('context'));
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('verbal'));
+});
