@@ -410,13 +410,36 @@ Do **not** re-audit A2.4G unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4H — PENDING AUDIT
+### A2.4H — ENHANCE — AUDITED / AUTHORING
 
 ## FIRST UNFINISHED STANDARD
 
 ### A2.4H
 
 Resume here. Do not reopen A2.2A–A2.4G unless a failing gate names them.
+
+
+### 2026-08-30 — A2.4H audit finding
+- Official construct: **solve quadratic inequalities**.
+- Verdict: **ENHANCE**.
+- Legacy strengths worth preserving:
+  - family 1 correctly solves an inclusive between-the-roots inequality in interval notation;
+  - family 2 correctly solves a strict outside-the-roots inequality;
+  - family 3 authentically graphs the solution interval on a number line.
+- Legacy gaps:
+  - all solving examples use an upward-opening factored quadratic with one negative and one positive integer root;
+  - family 4 only asks whether the middle interval belongs, not for the complete solution set;
+  - family 5 reverse-engineers an inequality from a desired interval instead of solving one;
+  - no downward-opening case, no standard-form case requiring zeros to be found first, and no no-real-zero/all-or-none sign case.
+- Fidelity V2 requirements:
+  - every family must finish with the complete solution set;
+  - cover strict and inclusive inequalities and both between-root and exterior solution sets;
+  - include positive and negative leading coefficients;
+  - include at least one standard-form quadratic where the student must find the critical zeros before sign analysis;
+  - include a no-real-zero case where sign/leading coefficient determine all-real or empty solution set;
+  - preserve an authentic number-line construction family;
+  - include genuine error analysis that repairs endpoint inclusion/sign-interval reasoning and still gives the full solution set.
+- Generic secure interval grading plus the existing secure interval-number-line tool are sufficient; no new Path capability is required.
 
 
 ### 2026-08-30 — A2.4G audit finding
