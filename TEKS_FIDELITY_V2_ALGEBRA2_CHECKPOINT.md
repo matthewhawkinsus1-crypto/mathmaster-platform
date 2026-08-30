@@ -283,17 +283,38 @@ Certification result:
 
 Do **not** re-audit A2.4A unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.4B
 
-### A2.4B — REBUILD — STAGED / CERTIFICATION RUNNING
+### A2.4B — REBUILD — CERTIFIED
 
 Official construct: **Write the equation of a parabola using given attributes, including vertex, focus, directrix, axis of symmetry, and direction of opening.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- every family requires the complete parabola equation rather than attribute recognition;
+- vertical up/down and horizontal right/left orientations are all represented;
+- vertex, focus, directrix, axis of symmetry, and opening direction all appear as meaningful evidence;
+- one graph family infers the vertex from focus/directrix geometry;
+- error analysis repairs orientation reasoning and still writes the corrected equation;
+- opt-in polynomial-relation grading accepts algebraically identical parabola equations without weakening unrelated form-specific grading;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- reversed-side equivalent equations are accepted and wrong relations are rejected;
+- targeted Algebra II Fidelity V2 Certification run `33319560739`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4B unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.4C — PENDING AUDIT
+
+Official construct: **Determine the effect on the graph of the square root parent function when it is vertically or horizontally scaled, reflected, or translated.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.4B
+### A2.4C
 
-Resume here. Do not reopen A2.2A–A2.4A unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.4B unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.4B audit finding
@@ -335,7 +356,10 @@ Resume here. Do not reopen A2.2A–A2.4A unless a failing gate names them.
 - Corrected the test to require that exact status string — commit `f5ee298a75aea9012e6c39bd78921602ab66262c`.
 - No mathematical/content requirement was weakened; the test now names the actual staged certification contract.
 - Replacement certification has been triggered.
-- FIRST UNFINISHED STANDARD remains **A2.4B** until the replacement run is green.
+- Replacement certification run `33319560739`: **PASS**.
+- Generated geometry/orientation breadth, relation-aware secure grading, public-key stripping, exact/reversed-answer acceptance, wrong-relation rejection, and student/runtime build all passed.
+- A2.4B is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4C**.
 
 
 ### 2026-08-30 — A2.4A audit finding
