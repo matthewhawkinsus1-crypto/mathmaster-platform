@@ -479,7 +479,34 @@
         "derived": {
           "k2": "k*k"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-absolute-value-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student rewrites $\\sqrt{{{k2}}x^2}$ as {{k}}x for all real x. Diagnose the missing absolute value and repair the expression so it is equivalent for both positive and negative x.",
+          "generator": {
+            "parameters": {
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              }
+            },
+            "derived": {
+              "k2": "k*k"
+            }
+          }
+        }
+      ]
     }
   ]
 }
