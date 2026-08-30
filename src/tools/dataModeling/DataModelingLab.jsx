@@ -112,7 +112,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const requiredParts = mode === 'lineFit' ? ['fit']
     : FIT_PREDICTION_MODELS[mode] ? ['fit', 'prediction']
       : mode === 'association' ? ['association']
-        : mode === 'correlation' ? ['correlation', 'association']
+        : mode === 'correlation' ? ['correlation', 'correlationInterpretation']
           : mode === 'prediction' ? ['prediction']
             : mode === 'modelCompare' ? ['modelChoice']
               : ['fit', 'association', 'modelChoice', 'prediction'];
@@ -140,7 +140,8 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
         && Math.abs(fitSlope - regression.m) <= slopeTolerance
         && Math.abs(fitIntercept - regression.b) <= interceptTolerance;
     }
-    results.association = direction === descriptor.direction && strength === descriptor.strength && causation === (questionData.causationSupported ? 'causation' : 'association');
+    results.correlationInterpretation = direction === descriptor.direction && strength === descriptor.strength;
+    results.association = results.correlationInterpretation && causation === (questionData.causationSupported ? 'causation' : 'association');
     const enteredCorrelation = parseNumericAnswer(correlationEntry);
     const correlationTolerance = Number(questionData.correlationTolerance ?? 0.03);
     results.correlation = enteredCorrelation != null
@@ -241,14 +242,18 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
             <Field label="Direction"><select value={direction} onChange={(e)=>setDirection(e.target.value)} style={inputStyle}><option value="positive">Positive</option><option value="negative">Negative</option><option value="none">No clear direction</option></select></Field>
             <Field label="Strength"><select value={strength} onChange={(e)=>setStrength(e.target.value)} style={inputStyle}><option value="strong">Strong</option><option value="moderate">Moderate</option><option value="weak">Weak</option><option value="none">None</option></select></Field>
           </div>
-          <Field label="What can this observational data justify?">
-            <select value={causation} onChange={(e)=>setCausation(e.target.value)} style={inputStyle}>
-              <option value="association">An association / relationship</option>
-              <option value="causation">A cause-and-effect conclusion</option>
-            </select>
-          </Field>
+          {mode !== 'correlation' ? (
+            <Field label="What can this observational data justify?">
+              <select value={causation} onChange={(e)=>setCausation(e.target.value)} style={inputStyle}>
+                <option value="association">An association / relationship</option>
+                <option value="causation">A cause-and-effect conclusion</option>
+              </select>
+            </Field>
+          ) : null}
           <div style={{ marginTop:14, padding:12, borderRadius:10, background:'#fff8e6', color:'#6d4c00', fontSize:13 }}>
-            A large |r| describes strength of linear association. It does not, by itself, prove causation.
+            {mode === 'correlation'
+              ? 'Interpret r by its sign (direction) and magnitude (strength).'
+              : 'A large |r| describes strength of linear association. It does not, by itself, prove causation.'}
           </div>
         </Panel>
 
@@ -296,7 +301,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
               {(() => {
                 const parts = feedback.metadata?.parts || {};
                 const missed = requiredParts.filter((part) => !parts[part]);
-                const label = { fit:'the fitted function', correlation:'the correlation coefficient', association:'the association description', modelChoice:'the model family', prediction:'the requested prediction' };
+                const label = { fit:'the fitted function', correlation:'the correlation coefficient', correlationInterpretation:'the direction/strength interpretation', association:'the association description', modelChoice:'the model family', prediction:'the requested prediction' };
                 const text = feedback.isCorrect
                   ? 'Every part of your modelling reasoning holds up.'
                   : `Still to fix: ${missed.map((part) => label[part] || part).join(', ')}. Everything else is right.`;
