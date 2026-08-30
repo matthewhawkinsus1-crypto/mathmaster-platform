@@ -2751,13 +2751,13 @@
       "assessedConstruct": "A.12A",
       "taskType": "application",
       "representation": "context",
-      "prompt": "A school relation uses student ID as the input and assigned locker number as the output. ID {{id}} is recorded with locker {{locker1}} and also locker {{locker2}}. Under this rule, is the recorded relation a function? Enter FUNCTION or NOT A FUNCTION.",
+      "prompt": "A school relation uses student ID as the input and assigned locker number as the output. ID {{id}} is recorded with locker {{locker1}} and also locker {{locker2}}. Under this rule, how should the recorded relation be classified?",
       "responseFields": [
         {
           "id": "answer",
           "label": "Classification",
-          "inputProfile": "text",
-          "expected": "not a function"
+          "inputProfile": "choice",
+          "expected": "not-function"
         }
       ],
       "solutionReview": {
@@ -2795,7 +2795,17 @@
         "constraints": [
           "locker1 != locker2"
         ]
-      }
+      },
+      "choices": [
+        {
+          "id": "function",
+          "label": "FUNCTION"
+        },
+        {
+          "id": "not-function",
+          "label": "NOT A FUNCTION"
+        }
+      ]
     },
     {
       "id": "mm_A_12A_v2_error-repeated-output",
@@ -7093,13 +7103,13 @@
       "assessedConstruct": "A.2G",
       "taskType": "errorAnalysis",
       "representation": "verbal",
-      "prompt": "A student says, “The line through $({{x}},{{y1}})$ and $({{x}},{{y2}})$ has slope 0 because one coordinate does not change.” Correct the student's claim by entering the actual slope classification.",
+      "prompt": "A student says, “The line through $({{x}},{{y1}})$ and $({{x}},{{y2}})$ has slope 0 because one coordinate does not change.” Which classification correctly fixes the student's claim?",
       "responseFields": [
         {
           "id": "answer",
-          "label": "Actual slope classification",
-          "inputProfile": "text",
-          "expected": "undefined"
+          "label": "Correct slope classification",
+          "inputProfile": "choice",
+          "expected": "vertical-slope-correct"
         }
       ],
       "solutionReview": {
@@ -7133,7 +7143,25 @@
             "max": 7
           }
         }
-      }
+      },
+      "choices": [
+        {
+          "id": "vertical-slope-correct",
+          "label": "The slope is undefined because the run is 0."
+        },
+        {
+          "id": "slope-zero",
+          "label": "The slope is 0 because the rise is 0."
+        },
+        {
+          "id": "slope-positive",
+          "label": "The slope is positive because y increases."
+        },
+        {
+          "id": "slope-negative",
+          "label": "The slope is negative because x does not change."
+        }
+      ]
     },
     {
       "id": "mm_A_2G_v2_horizontal-equation-slope",
