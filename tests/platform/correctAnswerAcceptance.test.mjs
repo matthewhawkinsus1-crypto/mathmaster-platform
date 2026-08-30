@@ -104,3 +104,106 @@ test('expanded-expression equivalence does not erase a required factored form', 
   assert.equal(result.isCorrect, false);
   assert.deepEqual(result.fieldResults, [{ id: 'answer', isCorrect: false }]);
 });
+
+test('secure Path replaces authored multiple-choice ids with opaque runtime ids and grades those ids', async () => {
+  const authored = {
+    id: 'choice-security-family',
+    familyId: 'mathmaster:A.4B:choice-security',
+    prompt: 'Which conclusion is justified by the study?',
+    choices: [
+      { id: 'opt-1', label: 'Association only' },
+      { id: 'opt-2', label: 'Causation is proven' },
+      { id: 'opt-3', label: 'There is no relationship' },
+      { id: 'opt-4', label: 'The variables are identical' },
+    ],
+    responseFields: [{
+      id: 'answer',
+      inputProfile: 'choice',
+      expected: 'opt-1',
+    }],
+  };
+
+  const publicQuestion = mathPath.buildSanitizedQuestion(authored, {
+    questionInstanceId: 'choice-instance',
+    attemptsAllowed: 3,
+  });
+  const grading = mathPath.privateGradingDefinition(authored);
+
+  assert.equal(publicQuestion.choices.some((choice) => /^opt-/.test(choice.id)), false);
+  assert.equal(publicQuestion.choices.every((choice) => /^choice_[0-9a-f]{28}$/.test(choice.id)), true);
+  assert.equal(grading.fields[0].expected, publicQuestion.choices[0].id);
+  assert.notEqual(grading.fields[0].expected, 'opt-1');
+
+  const correct = await mathPath.gradeResponse(grading, {
+    responses: { answer: publicQuestion.choices[0].id },
+  });
+  assert.equal(correct.isCorrect, true);
+
+  const forgedAuthorId = await mathPath.gradeResponse(grading, {
+    responses: { answer: 'opt-1' },
+  });
+  assert.equal(forgedAuthorId.isCorrect, false, 'the browser cannot answer with a private author id');
+});
+
+test('opaque choice ids are deterministic for a replay but differ across concrete generated questions', () => {
+  const base = {
+    id: 'choice-security-family',
+    familyId: 'mathmaster:A.4B:choice-security',
+    choices: [
+      { id: 'opt-1', label: 'A' },
+      { id: 'opt-2', label: 'B' },
+    ],
+    responseFields: [{ id: 'answer', inputProfile: 'choice', expected: 'opt-1' }],
+  };
+
+  const first = mathPath.buildSanitizedQuestion(
+    { ...base, prompt: 'Generated question with value 7.' },
+    { questionInstanceId: 'one', attemptsAllowed: 3 },
+  );
+  const replay = mathPath.buildSanitizedQuestion(
+    { ...base, prompt: 'Generated question with value 7.' },
+    { questionInstanceId: 'one-replay', attemptsAllowed: 3 },
+  );
+  const different = mathPath.buildSanitizedQuestion(
+    { ...base, prompt: 'Generated question with value 11.' },
+    { questionInstanceId: 'two', attemptsAllowed: 3 },
+  );
+
+  assert.deepEqual(first.choices, replay.choices, 'replaying the same concrete question keeps the same ids');
+  assert.notDeepEqual(
+    first.choices.map((choice) => choice.id),
+    different.choices.map((choice) => choice.id),
+    'a different concrete question gets a different public choice namespace',
+  );
+});
+
+test('field-level choices use the same opaque id mapping as private grading', async () => {
+  const authored = {
+    id: 'field-choice-security',
+    prompt: 'Choose a classification.',
+    responseFields: [{
+      id: 'classification',
+      inputProfile: 'choice',
+      choices: [
+        { id: 'opt-1', label: 'Function' },
+        { id: 'opt-2', label: 'Not a function' },
+      ],
+      expected: 'opt-2',
+    }],
+  };
+
+  const publicQuestion = mathPath.buildSanitizedQuestion(authored, {
+    questionInstanceId: 'field-choice-instance',
+    attemptsAllowed: 3,
+  });
+  const grading = mathPath.privateGradingDefinition(authored);
+  const publicChoices = publicQuestion.responseFields[0].choices;
+
+  assert.equal(publicChoices.some((choice) => choice.id === 'opt-1' || choice.id === 'opt-2'), false);
+  assert.equal(grading.fields[0].expected, publicChoices[1].id);
+
+  const result = await mathPath.gradeResponse(grading, {
+    responses: { classification: publicChoices[1].id },
+  });
+  assert.equal(result.isCorrect, true);
+});
