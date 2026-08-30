@@ -478,10 +478,14 @@ export const createTeacherPathRuntime = ({
       // audit supplies a stronger target.
       preferredBand: coursePracticeIntent === 'challenge' && !weeklySlotKey
         ? 4
-        : (Number.isFinite(Number(intendedDifficultyBand)) ? Number(intendedDifficultyBand) : 3),
+        : (intendedDifficultyBand != null && Number.isFinite(Number(intendedDifficultyBand))
+          ? Number(intendedDifficultyBand)
+          : 3),
       preferredDok: coursePracticeIntent === 'challenge' && !weeklySlotKey
         ? 3
-        : (Number.isFinite(Number(intendedDok)) ? Number(intendedDok) : 2),
+        : (intendedDok != null && Number.isFinite(Number(intendedDok))
+          ? Number(intendedDok)
+          : 2),
       familyUsage: {},
       usedRepresentations: [],
       usedTaskTypes: [],
