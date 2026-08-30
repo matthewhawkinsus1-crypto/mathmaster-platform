@@ -421,7 +421,117 @@
       },
       "variants": [
         {
-          "coverageKey": "core-2b4"
+          "coverageKey": "core-2b4",
+          "dok": 2,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-n-minus-one-formula-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "table",
+          "prompt": "The arithmetic sequence has first term {{a}} and common difference {{d}}. A student writes $f(n)={{a}}+{{d}}n$. Diagnose why the rule misses the first term, write the correct explicit formula, and verify both f(1) and f(4).",
+          "stimulus": {
+            "kind": "table",
+            "table": {
+              "headers": [
+                "n",
+                "f(n)"
+              ],
+              "rows": [
+                [
+                  1,
+                  "{{a}}"
+                ],
+                [
+                  2,
+                  "{{t2}}"
+                ],
+                [
+                  3,
+                  "{{t3}}"
+                ],
+                [
+                  4,
+                  "{{t4}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Why is n-1 needed?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "zero-steps",
+                  "label": "At n=1, zero common-difference steps have occurred, so the multiplier must be n-1."
+                },
+                {
+                  "id": "one-step",
+                  "label": "At n=1, one full common-difference step has already occurred."
+                }
+              ],
+              "expected": "zero-steps"
+            },
+            {
+              "id": "formula",
+              "label": "Correct right-hand side of f(n)",
+              "inputProfile": "expression",
+              "expected": "{{a}}+({{d}})*(n-1)"
+            },
+            {
+              "id": "check1",
+              "label": "f(1)",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "check4",
+              "label": "f(4)",
+              "inputProfile": "number",
+              "expected": "{{t4}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The n-1 structure counts how many recursive steps occur after the first term.",
+            "reasoning": [
+              "At term 1, no common-difference step has occurred.",
+              "So the explicit rule is ${{a}}+{{d}}(n-1)$.",
+              "It gives f(1)={{a}} and f(4)={{t4}}, matching the table."
+            ],
+            "answerSummary": "$f(n)={{a}}+{{d}}(n-1)$"
+          },
+          "attemptFeedback": [
+            "Test any proposed explicit rule at n=1 before accepting it."
+          ],
+          "supportHints": [
+            "The first term should use zero copies of the common difference."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": -8,
+                "max": 12
+              },
+              "d": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "t2": "a+d",
+              "t3": "a+2*d",
+              "t4": "a+3*d"
+            }
+          }
         },
         {
           "coverageKey": "challenge-d3b4-reconstruct-verify-explicit-sequence",
