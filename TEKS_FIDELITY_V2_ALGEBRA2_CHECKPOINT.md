@@ -346,17 +346,38 @@ Certification result:
 
 Do **not** re-audit A2.4D unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.4E
 
-### A2.4E — REBUILD — STAGED / CERTIFICATION AUTHORING
+### A2.4E — REBUILD — CERTIFIED
 
 Official construct: **Formulate quadratic and square root equations using technology from a table of data.**
 
+Certification result:
+- added a real secure square-root regression/model-fitting technology path to Data Modeling Lab;
+- client and server independently compute the same endpoint-anchored full-table square-root regression;
+- five Fidelity V2 families staged, all using authentic Data Modeling Lab technology;
+- at least two quadratic-regression and two square-root-regression families are present;
+- every table has five observations, so the task does not collapse into minimum-point hand fitting;
+- every family requires the complete fitted coefficients and a fixed prediction from the fitted model;
+- interpolation, extrapolation, contextual transfer, and technology-entry error repair are represented;
+- secure server grading rejects materially wrong fitted coefficients and rejects changing the authored prediction target;
+- public payloads expose the table/mode/target but not fitted coefficients or private tolerances;
+- generated package certification run `33323489643`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4E unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.4F — PENDING AUDIT
+
+Official construct: **Solve quadratic and square root equations.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.4E
+### A2.4F
 
-Resume here. Do not reopen A2.2A–A2.4D unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.4E unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.4E audit finding
@@ -403,7 +424,10 @@ Resume here. Do not reopen A2.2A–A2.4D unless a failing gate names them.
 - The first generated A2.4E certification run also caught unbound prompt placeholders: three prompts referenced `{{predictionX}}` even though the generator binds the actual fixed targets as literal 3, `{{x25}}`, or `{{x625}}`.
 - Rebound those student-visible prompt targets to the actual generated keys/literals — commit `087b0cd4df641608565daeddaecfa5a065eaa886`.
 - This was a template-binding defect only; the secure fixed prediction targets and server grading were already correct.
-- A2.4E remains FIRST UNFINISHED until the staged package receives its generated certification gate and that gate is green.
+- Full A2.4E generated certification run `33323489643`: **PASS**.
+- Production issuability, authentic quadratic/square-root technology use, client/server regression parity, overdetermined-table coverage, secure fitted-coefficient grading, fixed-target enforcement, interpolation/extrapolation breadth, public-key stripping, and student/runtime build all passed.
+- A2.4E is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4F**.
 
 - Fidelity V2 content requirements after capability work:
   - at least two quadratic-technology families and at least two square-root-technology families;
