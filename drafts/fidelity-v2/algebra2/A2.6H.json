@@ -1,0 +1,358 @@
+{
+  "standard": "A2.6H",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-student-authored-rational-equations-from-work-speed-current-concentration-error-contexts",
+  "rationale": "A2.6H requires formulation from real-world situations. Every Fidelity V2 family therefore makes the student author a rational equation with an identified unknown; pure inverse-variation work is left to A2.6L.",
+  "documents": [
+    {
+      "id": "mm_A2_6H_v2_combined-work-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6H:v2-combined-work-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6H",
+      "representation": "context",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "modeling",
+      "prompt": "Machine A completes one job in {{a}} hours and machine B in {{b}} hours. Let t be the hours needed when they work together. Formulate the rational equation; do not solve for t.",
+      "responseFields": [
+        {
+          "id": "rate-a",
+          "label": "Machine A rate",
+          "inputProfile": "expression",
+          "expected": "1/{{a}}"
+        },
+        {
+          "id": "rate-b",
+          "label": "Machine B rate",
+          "inputProfile": "expression",
+          "expected": "1/{{b}}"
+        },
+        {
+          "id": "equation",
+          "label": "Combined-work rational equation",
+          "inputProfile": "equation",
+          "equivalence": "modelEquation",
+          "expected": "1/{{a}}+1/{{b}}=1/t"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 3,
+            "max": 10
+          },
+          "b": {
+            "type": "int",
+            "min": 3,
+            "max": 12
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6H_v2_average-speed-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6H:v2-average-speed-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6H",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "modeling",
+      "prompt": "A trip has two segments. Let v be the overall average speed. Use total time = total distance ÷ average speed to formulate a rational equation in v. Do not solve.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Segment",
+            "Distance",
+            "Speed"
+          ],
+          "rows": [
+            [
+              "1",
+              "{{d1}} mi",
+              "{{v1}} mph"
+            ],
+            [
+              "2",
+              "{{d2}} mi",
+              "{{v2}} mph"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "time1",
+          "label": "Segment 1 time",
+          "inputProfile": "expression",
+          "expected": "{{d1}}/{{v1}}"
+        },
+        {
+          "id": "time2",
+          "label": "Segment 2 time",
+          "inputProfile": "expression",
+          "expected": "{{d2}}/{{v2}}"
+        },
+        {
+          "id": "equation",
+          "label": "Average-speed rational equation",
+          "inputProfile": "equation",
+          "equivalence": "modelEquation",
+          "expected": "{{d1}}/{{v1}}+{{d2}}/{{v2}}=({{d1}}+{{d2}})/v"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "d1": {
+            "type": "int",
+            "min": 20,
+            "max": 100,
+            "step": 10
+          },
+          "d2": {
+            "type": "int",
+            "min": 20,
+            "max": 100,
+            "step": 10
+          },
+          "v1": {
+            "type": "int",
+            "min": 25,
+            "max": 60,
+            "step": 5
+          },
+          "v2": {
+            "type": "int",
+            "min": 25,
+            "max": 60,
+            "step": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6H_v2_round-trip-current-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6H:v2-round-trip-current-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6H",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "modeling",
+      "prompt": "A boat travels {{d}} miles upstream and {{d}} miles downstream in a total of {{T}} hours. The current is {{c}} mph. Let v be the boat's speed in still water. Formulate the rational equation in v; do not solve it.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Leg",
+            "Distance",
+            "Actual speed"
+          ],
+          "rows": [
+            [
+              "Upstream",
+              "{{d}}",
+              "$v-{{c}}$"
+            ],
+            [
+              "Downstream",
+              "{{d}}",
+              "$v+{{c}}$"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "up-time",
+          "label": "Upstream time",
+          "inputProfile": "expression",
+          "expected": "{{d}}/(v-{{c}})"
+        },
+        {
+          "id": "down-time",
+          "label": "Downstream time",
+          "inputProfile": "expression",
+          "expected": "{{d}}/(v+{{c}})"
+        },
+        {
+          "id": "equation",
+          "label": "Round-trip rational equation",
+          "inputProfile": "equation",
+          "equivalence": "modelEquation",
+          "expected": "{{d}}/(v-{{c}})+{{d}}/(v+{{c}})={{T}}"
+        },
+        {
+          "id": "restriction",
+          "label": "Physical restriction on v",
+          "inputProfile": "inequality",
+          "expected": "v>{{c}}"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "d": {
+            "type": "int",
+            "min": 20,
+            "max": 80,
+            "step": 10
+          },
+          "c": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "T": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6H_v2_dilution-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6H:v2-dilution-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6H",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "modeling",
+      "prompt": "A solution contains {{solute}} units of solute in {{V}} units of liquid. Pure solvent is added, so the solute amount stays fixed. Let x be the solvent added. Formulate the rational equation that makes the final concentration 20%. Do not solve.",
+      "responseFields": [
+        {
+          "id": "new-volume",
+          "label": "Final volume",
+          "inputProfile": "expression",
+          "expected": "{{V}}+x"
+        },
+        {
+          "id": "equation",
+          "label": "Dilution rational equation",
+          "inputProfile": "equation",
+          "equivalence": "modelEquation",
+          "expected": "{{solute}}/({{V}}+x)=0.2"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "V": {
+            "type": "int",
+            "min": 20,
+            "max": 60,
+            "step": 5
+          },
+          "x0": {
+            "type": "int",
+            "min": 10,
+            "max": 30,
+            "step": 5
+          }
+        },
+        "derived": {
+          "solute": "(V+x0)/5"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6H_v2_opposing-rates-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6H:v2-opposing-rates-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6H",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A fill pipe fills a tank in {{a}} hours while a drain empties it in {{b}} hours. Let t be the net fill time with both open. A student adds both rates as positive. Diagnose the sign error and formulate the corrected rational equation. Do not solve.",
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "Diagnosis",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "subtract",
+              "label": "The drain removes work, so its rate must be subtracted."
+            },
+            {
+              "id": "add",
+              "label": "Both rates should be added."
+            },
+            {
+              "id": "times",
+              "label": "The completion times should be added directly."
+            }
+          ],
+          "expected": "subtract"
+        },
+        {
+          "id": "equation",
+          "label": "Correct net-rate equation",
+          "inputProfile": "equation",
+          "equivalence": "modelEquation",
+          "expected": "1/{{a}}-1/{{b}}=1/t"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 3,
+            "max": 7
+          },
+          "gap": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "b": "a+gap"
+        }
+      }
+    }
+  ]
+}
