@@ -157,6 +157,6 @@ export const gradeSystemsMatrix3Response = (definition = {}, raw = {}) => {
   return {
     isCorrect: parts.length > 0 && correct === parts.length,
     score: parts.length ? correct / parts.length : 0,
-    partGrades: parts,
+    parts,
   };
 };
