@@ -683,9 +683,30 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.6I
+### A2.6J
 
-Resume here. Do not reopen A2.2A–A2.6H unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.6I unless a failing gate names them.
+
+
+### 2026-08-30 — A2.6J audit finding
+- Official construct: **determine the reasonableness of a solution to a rational equation**.
+- Verdict: **REBUILD**.
+- The legacy bank states several correct rules, but it rarely makes the student determine reasonableness from actual evidence:
+  - the excluded-value family simply asks whether a denominator may equal zero;
+  - the domain-check family asks what should be checked first but never performs the check against a full equation;
+  - the negative-time family rejects a supplied negative candidate by context without verifying whether it satisfies the rational equation;
+  - the restriction-error family only asks for the excluded value;
+  - the reverse family chooses the sentence “check domain and substitute” rather than carrying out either calculation.
+- Fidelity V2 requirements:
+  - every family must supply a concrete rational equation and candidate and require evidence from the original equation, not only a memorized rule;
+  - include a valid exact candidate that is kept after both sides are evaluated;
+  - include a defined but invalid candidate that passes denominator restrictions yet fails substitution, proving a domain check alone is insufficient;
+  - include a candidate created by clearing/cancelling denominators that satisfies the transformed polynomial but is excluded from the original rational equation;
+  - include an algebraically valid candidate that is unreasonable in a real-world context;
+  - include a rounded numerical candidate judged against an explicit residual tolerance;
+  - error analysis must perform the missing original-equation check and issue the corrected keep/reject decision.
+- A2.6J must remain distinct from A2.6I: the candidate is supplied here and the primary action is evaluate/justify keep-or-reject, not re-solve the rational equation from scratch.
+- Generic secure multi-response grading is sufficient; no new Path tool capability is needed.
 
 
 ### 2026-08-30 — A2.6I audit finding
@@ -722,8 +743,10 @@ Resume here. Do not reopen A2.2A–A2.6H unless a failing gate names them.
 - Package/build Algebra II certification run `33329107935`: **PASS**, including the student/runtime bundle.
 - Added A2.6I-specific generated certification — commit `3612a26dd420dd4a45c8f980e4bc20a1cf048e00`.
 - The gate samples 200+ generated instances, independently verifies each generated rational equation and root, checks production issuability and secure self-grading, rejects wrong roots, accepts equivalent side-reversed cleared polynomial equations, enforces multi-denominator/quadratic breadth, keeps A2.6I distinct from A2.6J reasonableness, and checks public key stripping.
-- Full A2.6I certification run `33329205726`: **QUEUED/RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.6I** until the full run is green.
+- Full A2.6I certification run `33329205726`: **PASS**.
+- Generated content, production issuability, secure self-grading, wrong-root rejection, equivalent cleared-equation acceptance, multi-denominator/quadratic breadth, A2.6J boundary checks, public-key stripping, and student/runtime build all passed.
+- A2.6I is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.6J**.
 
 
 ### 2026-08-30 — A2.6H audit finding
