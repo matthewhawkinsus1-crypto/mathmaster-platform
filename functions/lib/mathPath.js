@@ -562,6 +562,9 @@ async function valuesEquivalent(actual, field) {
     if (field.equivalence === 'absoluteLinearRelation') {
       return equivalence.sameAbsoluteValueLinearEquation(actual, expected, tolerance);
     }
+    if (field.equivalence === 'modelEquation') {
+      return equivalence.sameCommutativeModelEquation(actual, expected);
+    }
     return equivalence.sameValue(actual, expected, tolerance);
   });
 }
