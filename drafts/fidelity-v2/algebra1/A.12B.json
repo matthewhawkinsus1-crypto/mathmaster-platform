@@ -343,7 +343,163 @@
       ],
       "variants": [
         {
-          "coverageKey": "core-2b4"
+          "coverageKey": "core-2b4",
+          "dok": 2,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d2b2-context-evaluation-ordered-pair",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "application",
+          "representation": "context",
+          "prompt": "A machine's total output is modeled by $f(n)={{m}}n+{{b}}$. Evaluate f({{n}}) and write the corresponding ordered pair $(n,f(n))$.",
+          "responseFields": [
+            {
+              "id": "value",
+              "label": "f({{n}})",
+              "inputProfile": "number",
+              "expected": "{{value}}"
+            },
+            {
+              "id": "input",
+              "label": "Input coordinate",
+              "inputProfile": "number",
+              "expected": "{{n}}"
+            },
+            {
+              "id": "output",
+              "label": "Output coordinate",
+              "inputProfile": "number",
+              "expected": "{{value}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Function evaluation pairs a chosen input with the output produced by the rule.",
+            "reasoning": [
+              "Substitute n={{n}} into ${{m}}n+{{b}}$.",
+              "The output is {{value}}, so the ordered pair is $({{n}},{{value}})$."
+            ],
+            "answerSummary": "$f({{n}})={{value}}$"
+          },
+          "attemptFeedback": [
+            "Substitute the input everywhere the variable appears."
+          ],
+          "supportHints": [
+            "The ordered pair uses input first and function output second."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "b": {
+                "type": "int",
+                "min": 1,
+                "max": 10
+              },
+              "n": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              }
+            },
+            "derived": {
+              "value": "m*n+b"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-input-shift-vs-output-shift-check",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "For $f(t)={{m}}t+{{b}}$, a student claims $f(x+{{h}})=f(x)+{{h}}$. At x={{x}}, evaluate BOTH expressions, compare them, and decide whether the claim is true for this function.",
+          "responseFields": [
+            {
+              "id": "input-shift",
+              "label": "f(x+h) at the given x",
+              "inputProfile": "number",
+              "expected": "{{left}}"
+            },
+            {
+              "id": "output-shift",
+              "label": "f(x)+h at the given x",
+              "inputProfile": "number",
+              "expected": "{{right}}"
+            },
+            {
+              "id": "difference",
+              "label": "Difference f(x+h)-[f(x)+h]",
+              "inputProfile": "number",
+              "expected": "{{diff}}"
+            },
+            {
+              "id": "judgment",
+              "label": "Evaluate the claim",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "false",
+                  "label": "The claim is false for this generated function."
+                },
+                {
+                  "id": "true",
+                  "label": "The two expressions are always equal."
+                }
+              ],
+              "expected": "false"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Changing the input and changing the output are different operations.",
+            "reasoning": [
+              "$f(x+{{h}})={{left}}$ while $f(x)+{{h}}={{right}}$.",
+              "Their difference is {{diff}}, so the student's claim fails for this function."
+            ],
+            "answerSummary": "The claim is false."
+          },
+          "attemptFeedback": [
+            "Evaluate the two expressions separately before comparing them."
+          ],
+          "supportHints": [
+            "An input shift is multiplied by the slope m inside the function."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "b": {
+                "type": "int",
+                "min": -5,
+                "max": 8
+              },
+              "x": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "h": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            },
+            "derived": {
+              "left": "m*(x+h)+b",
+              "right": "m*x+b+h",
+              "diff": "left-right"
+            },
+            "constraints": [
+              "diff!=0"
+            ]
+          }
         },
         {
           "coverageKey": "challenge-d3b4-compare-g-negative-x-and-negative-gx",
