@@ -130,6 +130,44 @@ test('mathPath instantiation receives and honors the adaptive target', async () 
   assert.equal(draw.question.coverageKey, 'd3b4');
 });
 
+test('mathPath also target-selects static variants with no numeric generator', async () => {
+  const family = {
+    id: 'static-adaptive-family',
+    familyId: 'static-adaptive-family',
+    dok: 2,
+    difficultyBand: 3,
+    variants: [
+      {
+        coverageKey: 'static-core',
+        dok: 2,
+        difficultyBand: 3,
+        prompt: 'Core static',
+        responseFields: [{ id: 'answer', expected: 'core' }],
+      },
+      {
+        coverageKey: 'static-challenge',
+        dok: 3,
+        difficultyBand: 4,
+        prompt: 'Challenge static',
+        responseFields: [{ id: 'answer', expected: 'challenge' }],
+      },
+    ],
+  };
+
+  const draw = await mathPath.instantiateQuestion(family, 'static-server-seam', {
+    preferredDok: 3,
+    preferredDifficultyBand: 4,
+  });
+  assert.ok(draw.question);
+  assert.equal(draw.question.coverageKey, 'static-challenge');
+  assert.equal(draw.question.dok, 3);
+  assert.equal(draw.question.difficultyBand, 4);
+
+  const plan = await mathPath.buildTemplateIssuePlan(family, { samples: 12 });
+  assert.equal(plan.issuable, true);
+  assert.equal(plan.samples, 12);
+});
+
 const stagedEntries = (directory) => readdirSync(directory)
   .filter((name) => name.endsWith('.json'))
   .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
