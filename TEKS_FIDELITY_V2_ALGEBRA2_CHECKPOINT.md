@@ -107,7 +107,7 @@ Do **not** re-audit A2.2C unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.2D — REBUILD — AUDITED / AUTHORING
+### A2.2D — REBUILD — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Use composition of functions, including necessary domain restrictions, to determine whether two functions are inverses.**
 
@@ -131,6 +131,21 @@ Resume here. Do not reopen A2.2A, A2.2B, or A2.2C unless a failing gate names th
 - Domain restrictions must be operational, not decorative: include right-branch and left-branch quadratic/square-root cases and at least one case where a proposed pair fails because the restriction is missing or wrong.
 - Linear and nonlinear pairs should both appear; one genuine error-analysis family must diagnose the false step `sqrt(u^2)=u` without a sign/domain condition.
 - No new Path tool contract is required. The existing `inverseComposition` classroom tool is not server-contracted for Path, and adding a new secure adapter is unnecessary here because multi-response symbolic/table composition can capture the TEKS action directly and securely.
+
+
+### 2026-08-30 — A2.2D staged and gated
+- Staged five A2.2D Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.2D.json` — commit `4689642f8706883b2986408f0bba3df9d82856e6`.
+- Coverage now includes:
+  - two-way symbolic composition proof for a true linear inverse pair;
+  - table-based composition counterexample for a near-miss linear pair;
+  - right-branch quadratic / principal-square-root inverse verification with both composition orders and both relevant domains;
+  - left-branch quadratic / negative-square-root inverse verification;
+  - genuine error analysis where one successful composition is insufficient and the reverse composition supplies a concrete counterexample.
+- Package-only Algebra II certification run `33316242011`: **PASS**, including student/runtime build.
+- Added A2.2D-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `dd5871bdd3c981456a38c9a88a5fff92b1fc8dcb`.
+- The A2.2D gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public answer-key stripping, at least three families with both composition orders, repeated domain-restriction evidence, both left/right branch cases, and at least two non-inverse/counterexample families.
+- Full A2.2D assertion run `33316271929`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.2D** until that run is green.
 
 ---
 
