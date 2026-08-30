@@ -15959,6 +15959,3356 @@
     "sourceFamilyId": "mathmaster:asvab:mk:7.9A:change-that-leaves-a-crate-holding-the-same",
     "sourcePrompt": "A crate measures ${{l}}$ by ${{w}}$ by ${{h}}$ cm. Which change leaves its volume unchanged?"
    }
+  },
+  {
+   "id": "mm_asvab_mk_7_9B_laps_round_a_circular_track",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.9B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.9B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.9B:laps-round-a-circular-track",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.9B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A circular track has radius ${{r}}$ cm. Taking $\\pi$ as $\\frac{22}{7}$, how many full laps cover ${{D}}$ cm?",
+   "solutionReview": {
+    "headline": "A lap is the circumference, which uses twice the radius.",
+    "reasoning": [
+     "One lap is $2 \\times \\frac{22}{7} \\times {{r}}$ cm, which is $44 \\times {{u}}$.",
+     "${{D}}$ divided by that is ${{answer}}$ laps."
+    ],
+    "answerSummary": "It is ${{answer}}$ laps."
+   },
+   "attemptFeedback": [
+    "Using the radius where the diameter belongs halves every lap."
+   ],
+   "supportHints": [
+    "Work out the distance round the track first."
+   ],
+   "generator": {
+    "parameters": {
+     "u": {
+      "type": "int",
+      "min": 2,
+      "max": 26
+     },
+     "z": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     }
+    },
+    "derived": {
+     "r": "7*u",
+     "D": "88*u*z",
+     "answer": "2*z",
+     "d_forgotFinalStep": "4*z",
+     "d_diameterForRadius": "z",
+     "d_usedGivenValue": "u"
+    },
+    "constraints": [
+     "abs(u-2*z)>3",
+     "2*z>5",
+     "abs(2*z-z)>2",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_diameterForRadius",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_diameterForRadius",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_diameterForRadius!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_diameterForRadius}}$",
+     "error": "diameterForRadius"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.9B:laps-round-a-circular-track",
+    "sourcePrompt": "A circular track has radius ${{r}}$ cm. Taking $\\pi$ as $\\frac{22}{7}$, how many full laps cover ${{D}}$ cm?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_9B_square_left_uncovered_by_a_circle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.9B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.9B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.9B:square-left-uncovered-by-a-circle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.9B",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A circle of circumference ${{C}}$ cm is drawn inside a square of side ${{s}}$ cm. Taking $\\pi$ as $\\frac{22}{7}$, how much of the square is uncovered?",
+   "solutionReview": {
+    "headline": "Circumference gives the radius; the radius gives the area.",
+    "reasoning": [
+     "A circumference of ${{C}}$ gives a radius of $7 \\times {{u}}$ cm, so the circle covers $154 \\times {{u}}^{2}$.",
+     "The square covers ${{s}}^{2}$, leaving ${{answer}}$ square cm."
+    ],
+    "answerSummary": "${{answer}}$ square cm are uncovered."
+   },
+   "attemptFeedback": [
+    "Dividing by $\\pi$ alone gives the diameter, which doubles the radius."
+   ],
+   "supportHints": [
+    "Divide the circumference by $2\\pi$, not by $\\pi$."
+   ],
+   "generator": {
+    "parameters": {
+     "u": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "j": {
+      "type": "int",
+      "min": 1,
+      "max": 7
+     }
+    },
+    "derived": {
+     "C": "44*u",
+     "s": "u*(14+j)",
+     "answer": "s*s-154*u*u",
+     "d_diameterForRadius": "s*s-616*u*u",
+     "d_forgotFinalStep": "s*s",
+     "d_partialTotal": "154*u*u"
+    },
+    "constraints": [
+     "s*s-154*u*u>8",
+     "abs(154*u*u-(s*s-154*u*u))>6",
+     "answer!=d_diameterForRadius",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "d_diameterForRadius!=d_forgotFinalStep",
+     "d_diameterForRadius!=d_partialTotal",
+     "d_forgotFinalStep!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_diameterForRadius}}$",
+     "error": "diameterForRadius"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.9B:square-left-uncovered-by-a-circle",
+    "sourcePrompt": "A circle of circumference ${{C}}$ cm is drawn inside a square of side ${{s}}$ cm. Taking $\\pi$ as $\\frac{22}{7}$, how much of the square is uncovered?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_9B_same_perimeter_different_shape",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.9B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.9B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.9B:same-perimeter-different-shape",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.9B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A circle and a square both have a perimeter of ${{P}}$ cm. Which statement is true?",
+   "solutionReview": {
+    "headline": "For a fixed perimeter the circle is the most efficient shape.",
+    "reasoning": [
+     "For a fixed perimeter the circle encloses more than any polygon.",
+     "The square of side ${{side}}$ covers ${{side}}^{2}$, which falls short of the circle."
+    ],
+    "answerSummary": "The circle encloses more."
+   },
+   "attemptFeedback": [
+    "Equal perimeters do not force equal areas."
+   ],
+   "supportHints": [
+    "Work out both areas for a perimeter you can handle mentally."
+   ],
+   "generator": {
+    "parameters": {
+     "P": {
+      "type": "int",
+      "min": 20,
+      "max": 200,
+      "step": 4
+     }
+    },
+    "derived": {
+     "side": "P/4"
+    },
+    "constraints": [
+     "P>16"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The square encloses $\\pi$ times the area of the circle.",
+     "error": "exponentError"
+    },
+    {
+     "id": "choice-b",
+     "label": "The circle encloses the greater area."
+    },
+    {
+     "id": "choice-c",
+     "label": "The square encloses the greater area.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "They enclose the same area.",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.9B:same-perimeter-different-shape",
+    "sourcePrompt": "A circle and a square both have a perimeter of ${{P}}$ cm. Which statement is true?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_9C_perimeter_of_a_notched_rectangle",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.9C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.9C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.9C:perimeter-of-a-notched-rectangle",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.9C",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A ${{a}}$ by ${{b}}$ cm rectangle has a ${{c}}$ by ${{d}}$ cm rectangle cut from one corner. What is the perimeter of what is left?",
+   "solutionReview": {
+    "headline": "A corner notch changes the area but not the perimeter.",
+    "reasoning": [
+     "The two edges the notch adds are exactly as long as the two it removes.",
+     "So the perimeter is still $2({{a}} + {{b}}) = {{answer}}$ cm."
+    ],
+    "answerSummary": "It is ${{answer}}$ cm."
+   },
+   "attemptFeedback": [
+    "The notch removes area, not distance round the outside."
+   ],
+   "supportHints": [
+    "Trace the outline and pair each new edge with the edge it replaced."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 3,
+      "max": 7
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 6
+     },
+     "c": {
+      "type": "int",
+      "min": 1,
+      "max": 6
+     },
+     "d": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     }
+    },
+    "derived": {
+     "answer": "2*(a+b)",
+     "d_partialTotal": "2*(a+b)-2*(c+d)",
+     "d_operationInverted": "2*(a+b)+2*(c+d)",
+     "d_usedGivenValue": "a*b-c*d"
+    },
+    "constraints": [
+     "c<a",
+     "d<b",
+     "2*(a+b)-2*(c+d)>4",
+     "abs(a*b-c*d-2*(a+b))>4",
+     "answer!=d_partialTotal",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_partialTotal!=d_operationInverted",
+     "d_partialTotal!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.9C:perimeter-of-a-notched-rectangle",
+    "sourcePrompt": "A ${{a}}$ by ${{b}}$ cm rectangle has a ${{c}}$ by ${{d}}$ cm rectangle cut from one corner. What is the perimeter of what is left?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_9C_rectangle_height_inside_a_composite",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.9C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.9C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.9C:rectangle-height-inside-a-composite",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.9C",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A plate covering ${{A}}$ square cm is a rectangle ${{a}}$ cm wide topped by a triangle of the same width and height ${{h}}$ cm. How tall is the rectangle?",
+   "solutionReview": {
+    "headline": "Peel off the piece you can work out, then divide.",
+    "reasoning": [
+     "The triangle covers $\\frac{{{a}} \\times {{h}}}{2}$ square cm.",
+     "Taking that off ${{A}}$ and dividing by ${{a}}$ leaves ${{answer}}$ cm."
+    ],
+    "answerSummary": "The rectangle is ${{answer}}$ cm tall."
+   },
+   "attemptFeedback": [
+    "A triangle covers half its base times its height."
+   ],
+   "supportHints": [
+    "Work out the triangle first; it needs no unknowns."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 4,
+      "max": 24
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 40,
+      "step": 2
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 30
+     }
+    },
+    "derived": {
+     "A": "a*b+a*h/2",
+     "answer": "b",
+     "d_forgotFinalStep": "b+h/2",
+     "d_usedGivenValue": "h",
+     "d_operationInverted": "b-h/2"
+    },
+    "constraints": [
+     "b-h/2>2",
+     "abs(h-b)>3",
+     "h>3",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_usedGivenValue!=d_operationInverted"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.9C:rectangle-height-inside-a-composite",
+    "sourcePrompt": "A plate covering ${{A}}$ square cm is a rectangle ${{a}}$ cm wide topped by a triangle of the same width and height ${{h}}$ cm. How tall is the rectangle?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_9C_claim_about_a_corner_notch",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.9C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.9C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.9C:claim-about-a-corner-notch",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.9C",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A ${{a}}$ by ${{b}}$ cm rectangle has a small rectangle cut from one corner. Which statement is wrong?",
+   "solutionReview": {
+    "headline": "A corner notch trades edges of equal length.",
+    "reasoning": [
+     "Cutting a corner rectangle out pushes two edges inwards and adds two of the same lengths.",
+     "The distance round the outside is therefore unchanged."
+    ],
+    "answerSummary": "The perimeter does not fall."
+   },
+   "attemptFeedback": [
+    "The area really does fall by exactly the notch."
+   ],
+   "supportHints": [
+    "Walk round the new outline and compare it with the old one."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 6,
+      "max": 40
+     },
+     "b": {
+      "type": "int",
+      "min": 5,
+      "max": 30
+     }
+    },
+    "constraints": [
+     "a!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Its perimeter is unchanged.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "The two edges the notch adds match the two it removes.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "Its area falls by the area of the notch.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Its perimeter falls by twice the width of the notch."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.9C:claim-about-a-corner-notch",
+    "sourcePrompt": "A ${{a}}$ by ${{b}}$ cm rectangle has a small rectangle cut from one corner. Which statement is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_9D_painting_every_face_but_the_base",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.9D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.9D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.9D:painting-every-face-but-the-base",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.9D",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A box ${{l}}$ by ${{w}}$ by ${{h}}$ cm is painted on every face except the base. What area is painted?",
+   "solutionReview": {
+    "headline": "Count the faces you actually need before adding.",
+    "reasoning": [
+     "The four sides cover $2 \\times {{h}} \\times ({{l}} + {{w}})$ square cm.",
+     "Adding the top of ${{l}} \\times {{w}}$ gives ${{answer}}$."
+    ],
+    "answerSummary": "It is ${{answer}}$ square cm."
+   },
+   "attemptFeedback": [
+    "Total surface area counts both the top and the base."
+   ],
+   "supportHints": [
+    "The top and the base are the same size; only one is painted."
+   ],
+   "generator": {
+    "parameters": {
+     "l": {
+      "type": "int",
+      "min": 2,
+      "max": 11
+     },
+     "w": {
+      "type": "int",
+      "min": 2,
+      "max": 11
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 11
+     }
+    },
+    "derived": {
+     "answer": "2*h*(l+w)+l*w",
+     "d_forgotFinalStep": "2*h*(l+w)",
+     "d_operationInverted": "2*(l*w+l*h+w*h)",
+     "d_usedGivenValue": "l*w*h"
+    },
+    "constraints": [
+     "abs(l*w*h-2*h*(l+w)-l*w)>5",
+     "l!=w",
+     "h>1",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.9D:painting-every-face-but-the-base",
+    "sourcePrompt": "A box ${{l}}$ by ${{w}}$ by ${{h}}$ cm is painted on every face except the base. What area is painted?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_9D_height_from_a_total_surface",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.9D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.9D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.9D:height-from-a-total-surface",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.9D",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A box with a square base of side ${{s}}$ cm has total surface area ${{S}}$ square cm. How tall is it?",
+   "solutionReview": {
+    "headline": "Strip out both square faces before dividing.",
+    "reasoning": [
+     "The two square faces cover $2 \\times {{s}}^{2}$, leaving $4 \\times {{s}} \\times h$ for the sides.",
+     "Dividing that by $4 \\times {{s}}$ gives $h = {{answer}}$ cm."
+    ],
+    "answerSummary": "It is ${{answer}}$ cm tall."
+   },
+   "attemptFeedback": [
+    "A box on a square base has four side faces, not eight."
+   ],
+   "supportHints": [
+    "A box on a square base has two square faces, not one."
+   ],
+   "generator": {
+    "parameters": {
+     "s": {
+      "type": "int",
+      "min": 2,
+      "max": 30,
+      "step": 2
+     },
+     "h": {
+      "type": "int",
+      "min": 6,
+      "max": 30,
+      "step": 2
+     }
+    },
+    "derived": {
+     "S": "2*s*s+4*s*h",
+     "answer": "h",
+     "d_forgotFinalStep": "2*h",
+     "d_usedGivenValue": "s",
+     "d_partialTotal": "h/2"
+    },
+    "constraints": [
+     "abs(s-h)>3",
+     "h>5",
+     "h/2!=s",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_partialTotal",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_usedGivenValue!=d_partialTotal"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.9D:height-from-a-total-surface",
+    "sourcePrompt": "A box with a square base of side ${{s}}$ cm has total surface area ${{S}}$ square cm. How tall is it?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_9D_what_doubling_the_height_reaches",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.9D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.9D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.9D:what-doubling-the-height-reaches",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.9D",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A box ${{l}}$ by ${{w}}$ cm at the base has its height doubled. Which statement about its surface is true?",
+   "solutionReview": {
+    "headline": "Only the faces that carry the height respond to it.",
+    "reasoning": [
+     "The four side faces all carry the height, so they double.",
+     "The top and the base do not change at all, so the total grows by less than double."
+    ],
+    "answerSummary": "The sides double; the total does not."
+   },
+   "attemptFeedback": [
+    "The top and base are fixed by the base measurements alone."
+   ],
+   "supportHints": [
+    "Split the surface into the faces that use the height and the faces that do not."
+   ],
+   "generator": {
+    "parameters": {
+     "l": {
+      "type": "int",
+      "min": 3,
+      "max": 24
+     },
+     "w": {
+      "type": "int",
+      "min": 2,
+      "max": 20
+     },
+     "h": {
+      "type": "int",
+      "min": 2,
+      "max": 16
+     }
+    },
+    "derived": {
+     "lateral": "2*h*(l+w)",
+     "total": "2*(l*w+l*h+w*h)"
+    },
+    "constraints": [
+     "l!=w"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The four sides double, but the total surface does not."
+    },
+    {
+     "id": "choice-b",
+     "label": "The total surface is unchanged.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "The total surface doubles.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "The total surface is four times as large.",
+     "error": "exponentError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.9D:what-doubling-the-height-reaches",
+    "sourcePrompt": "A box ${{l}}$ by ${{w}}$ cm at the base has its height doubled. Which statement about its surface is true?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_10A_inequality_for_a_budget_with_a_discount",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.10A:inequality-for-a-budget-with-a-discount",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10A",
+   "taskType": "representationTranslation",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A budget of $\\${{t}}$ must cover a $\\${{b}}$ fee and $\\${{m}}$ a day, less a $\\${{c}}$ discount. Which inequality gives the days $x$?",
+   "solutionReview": {
+    "headline": "A one-off charge sits outside the term that carries $x$.",
+    "reasoning": [
+     "The fee is paid once, the rate is paid per day, and the discount comes off the total.",
+     "Staying inside the budget means the total is at most ${{t}}$."
+    ],
+    "answerSummary": "It is ${{b}} + {{m}}x - {{c}} \\le {{t}}$."
+   },
+   "attemptFeedback": [
+    "Bracketing the fee with the rate charges it every day."
+   ],
+   "supportHints": [
+    "Decide which charges depend on the number of days."
+   ],
+   "generator": {
+    "parameters": {
+     "t": {
+      "type": "int",
+      "min": 60,
+      "max": 400
+     },
+     "b": {
+      "type": "int",
+      "min": 10,
+      "max": 90
+     },
+     "m": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     },
+     "c": {
+      "type": "int",
+      "min": 5,
+      "max": 50
+     }
+    },
+    "constraints": [
+     "t>b+m",
+     "c<b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{b}} + {{m}}x - {{c}} \\ge {{t}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "$({{b}} + {{m}})x - {{c}} \\le {{t}}$",
+     "error": "orderOfOperations"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{b}} + {{m}}x - {{c}} \\le {{t}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{b}} + {{m}}x + {{c}} \\le {{t}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.10A:inequality-for-a-budget-with-a-discount",
+    "sourcePrompt": "A budget of $\\${{t}}$ must cover a $\\${{b}}$ fee and $\\${{m}}$ a day, less a $\\${{c}}$ discount. Which inequality gives the days $x$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_10A_situation_behind_a_two_step_equation",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.10A:situation-behind-a-two-step-equation",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10A",
+   "taskType": "interpretation",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For which situation is ${{m}}x + {{b}} = {{t}}$ the right equation?",
+   "solutionReview": {
+    "headline": "The coefficient is the repeated charge; the constant is the one-off.",
+    "reasoning": [
+     "The term ${{m}}x$ charges ${{m}}$ for each of $x$ days.",
+     "The ${{b}}$ stands outside that term, so it is charged once and added."
+    ],
+    "answerSummary": "$\\${{b}}$ plus $\\${{m}}$ a day."
+   },
+   "attemptFeedback": [
+    "Swapping the two numbers charges the fee daily and the rate once."
+   ],
+   "supportHints": [
+    "Ask which number is multiplied by the unknown."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 5,
+      "max": 40
+     },
+     "b": {
+      "type": "int",
+      "min": 10,
+      "max": 90
+     },
+     "t": {
+      "type": "int",
+      "min": 80,
+      "max": 400
+     }
+    },
+    "constraints": [
+     "t>b+m",
+     "m!=b"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "A hire costs $\\${{m}}$ a day less a $\\${{b}}$ discount and comes to $\\${{t}}$.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "A hire costs $\\${{b}}$ a day for ${{m}}$ days and comes to $\\${{t}}$.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "A hire costs $\\${{b}}$ plus $\\${{m}}$ a day and comes to $\\${{t}}$."
+    },
+    {
+     "id": "choice-d",
+     "label": "A hire costs $\\${{m}}$ plus $\\${{b}}$ a day and comes to $\\${{t}}$.",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.10A:situation-behind-a-two-step-equation",
+    "sourcePrompt": "For which situation is ${{m}}x + {{b}} = {{t}}$ the right equation?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_10A_subtraction_written_back_to_front",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.10A:subtraction-written-back-to-front",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For \"${{m}}$ less than ${{c}}$ times a number is ${{t}}$\" a student writes ${{m}} - {{c}}x = {{t}}$. What is wrong?",
+   "solutionReview": {
+    "headline": "\"Less than\" reverses the order the words appear in.",
+    "reasoning": [
+     "\"${{m}}$ less than\" something means that something has ${{m}}$ taken off it.",
+     "The equation should read ${{c}}x - {{m}} = {{t}}$."
+    ],
+    "answerSummary": "The two terms are the wrong way round."
+   },
+   "attemptFeedback": [
+    "The multiplication is applied to the right quantity; it is the order of the subtraction that fails."
+   ],
+   "supportHints": [
+    "Ask which quantity is being reduced."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 4,
+      "max": 40
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "t": {
+      "type": "int",
+      "min": 10,
+      "max": 120
+     }
+    },
+    "constraints": [
+     "m!=t",
+     "c>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The subtraction is written the wrong way round."
+    },
+    {
+     "id": "choice-b",
+     "label": "The number should be divided by ${{c}}$, not multiplied.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-c",
+     "label": "The equation needs an inequality sign instead.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "The multiplication should come after the subtraction.",
+     "error": "orderOfOperations"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.10A:subtraction-written-back-to-front",
+    "sourcePrompt": "For \"${{m}}$ less than ${{c}}$ times a number is ${{t}}$\" a student writes ${{m}} - {{c}}x = {{t}}$. What is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_10B_distance_between_two_plotted_solutions",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.10B:distance-between-two-plotted-solutions",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solving ${{m}}x + {{b}} = {{t}}$ plots one dot and solving ${{n}}x = {{s}}$ plots another. How far apart are they?",
+   "solutionReview": {
+    "headline": "Solve each equation before measuring anything.",
+    "reasoning": [
+     "The first equation gives $x = {{p}}$ and the second gives $x = {{q}}$.",
+     "The dots sit ${{answer}}$ apart."
+    ],
+    "answerSummary": "They are ${{answer}}$ apart."
+   },
+   "attemptFeedback": [
+    "The gap between two points is a difference, not a total."
+   ],
+   "supportHints": [
+    "Each equation puts exactly one dot on the line."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 6,
+      "max": 40
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 30
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     }
+    },
+    "derived": {
+     "t": "m*p+b",
+     "s": "n*q",
+     "answer": "p-q",
+     "d_operationInverted": "p+q",
+     "d_usedGivenValue": "q",
+     "d_signError": "q-p"
+    },
+    "constraints": [
+     "p-q>4",
+     "abs(q-(p-q))>3",
+     "q>1",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "answer!=d_signError",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_operationInverted!=d_signError",
+     "d_usedGivenValue!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.10B:distance-between-two-plotted-solutions",
+    "sourcePrompt": "Solving ${{m}}x + {{b}} = {{t}}$ plots one dot and solving ${{n}}x = {{s}}$ plots another. How far apart are they?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_10B_constant_behind_a_drawn_endpoint",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.10B:constant-behind-a-drawn-endpoint",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10B",
+   "taskType": "reverseReasoning",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "The shading runs left from an open dot at ${{c}}$. For which $b$ does $\\frac{x}{{{m}}} + b < {{t}}$ draw that?",
+   "solutionReview": {
+    "headline": "The open dot marks where the two sides are equal.",
+    "reasoning": [
+     "At the endpoint $\\frac{{{c}}}{{{m}}} + b = {{t}}$, and $\\frac{{{c}}}{{{m}}}$ is ${{u}}$.",
+     "So $b = {{t}} - {{u}} = {{answer}}$."
+    ],
+    "answerSummary": "$b = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The endpoint has to be divided by ${{m}}$ before it is used."
+   ],
+   "supportHints": [
+    "Put the endpoint into the inequality as an equation."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "u": {
+      "type": "int",
+      "min": 2,
+      "max": 52
+     },
+     "t": {
+      "type": "int",
+      "min": 10,
+      "max": 60
+     }
+    },
+    "derived": {
+     "c": "m*u",
+     "answer": "t-u",
+     "d_usedGivenValue": "t",
+     "d_forgotFinalStep": "t-c",
+     "d_ratioReversed": "u"
+    },
+    "constraints": [
+     "t-u>4",
+     "abs(2*u-t)>3",
+     "abs(t-c-(t-u))>3",
+     "answer!=d_usedGivenValue",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_ratioReversed",
+     "d_usedGivenValue!=d_forgotFinalStep",
+     "d_usedGivenValue!=d_ratioReversed",
+     "d_forgotFinalStep!=d_ratioReversed"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.10B:constant-behind-a-drawn-endpoint",
+    "sourcePrompt": "The shading runs left from an open dot at ${{c}}$. For which $b$ does $\\frac{x}{{{m}}} + b < {{t}}$ draw that?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_10B_values_two_conditions_leave_shaded",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.10B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.10B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.10B:values-two-conditions-leave-shaded",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.10B",
+   "taskType": "interpretation",
+   "representation": "numberLine",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which values satisfy both ${{m}}x \\le {{t}}$ and $x \\ge {{lo}}$?",
+   "solutionReview": {
+    "headline": "Two conditions leave only the overlap.",
+    "reasoning": [
+     "The first condition solves to $x \\le {{hi}}$ and the second is already $x \\ge {{lo}}$.",
+     "Both use $\\le$ or $\\ge$, so both endpoints count."
+    ],
+    "answerSummary": "From ${{lo}}$ to ${{hi}}$, both included."
+   },
+   "attemptFeedback": [
+    "Keeping only one condition leaves values the other one rules out."
+   ],
+   "supportHints": [
+    "Solve the first condition before comparing the two."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "hi": {
+      "type": "int",
+      "min": 8,
+      "max": 50
+     },
+     "gap": {
+      "type": "int",
+      "min": 3,
+      "max": 20
+     }
+    },
+    "derived": {
+     "t": "m*hi",
+     "lo": "hi-gap"
+    },
+    "constraints": [
+     "hi-gap>1",
+     "gap>2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "Every value from ${{lo}}$ to ${{hi}}$, with ${{hi}}$ left out.",
+     "error": "offByOneStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "Every value below ${{hi}}$.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "Every value above ${{lo}}$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "Every value from ${{lo}}$ to ${{hi}}$, both included."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.10B:values-two-conditions-leave-shaded",
+    "sourcePrompt": "Which values satisfy both ${{m}}x \\le {{t}}$ and $x \\ge {{lo}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_11A_solve_a_grouped_two_step_quotient",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.11A:solve-a-grouped-two-step-quotient",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11A",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Solve $\\frac{{{m}}x - {{b}}}{{{c}}} = {{t}}$.",
+   "solutionReview": {
+    "headline": "Clear the denominator, restore the constant, then divide.",
+    "reasoning": [
+     "Multiplying by ${{c}}$ gives ${{m}}x - {{b}} = {{c}} \\times {{t}}$.",
+     "Adding ${{b}}$ and dividing by ${{m}}$ leaves $x = {{answer}}$."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The numerator is not the answer; it still has ${{m}}$ multiplying $x$."
+   ],
+   "supportHints": [
+    "The fraction bar groups both terms above it."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "u": {
+      "type": "int",
+      "min": 4,
+      "max": 20
+     },
+     "j": {
+      "type": "int",
+      "min": 1,
+      "max": 8
+     }
+    },
+    "derived": {
+     "t": "m*u/c",
+     "b": "m*j",
+     "answer": "u+j",
+     "d_forgotFinalStep": "m*(u+j)",
+     "d_operationInverted": "u-j",
+     "d_usedGivenValue": "t"
+    },
+    "constraints": [
+     "m*u%c==0",
+     "u>j+2",
+     "abs(t-(u+j))>3",
+     "u+j>7",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.11A:solve-a-grouped-two-step-quotient",
+    "sourcePrompt": "Solve $\\frac{{{m}}x - {{b}}}{{{c}}} = {{t}}$."
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_11A_constant_that_makes_two_equations_agree",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.11A:constant-that-makes-two-equations-agree",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11A",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "For which $b$ do ${{m}}x + b = {{t}}$ and ${{n}}x = {{s}}$ have the same solution?",
+   "solutionReview": {
+    "headline": "Solve the equation that has no unknown constant first.",
+    "reasoning": [
+     "The second equation gives $x = {{p}}$.",
+     "Putting that into the first gives ${{m}} \\times {{p}} + b = {{t}}$, so $b = {{answer}}$."
+    ],
+    "answerSummary": "$b = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "The constant is what is left of ${{t}}$ once ${{m}}x$ is accounted for."
+   ],
+   "supportHints": [
+    "One of the two equations can be solved straight away."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 9
+     },
+     "p": {
+      "type": "int",
+      "min": 2,
+      "max": 26
+     },
+     "t": {
+      "type": "int",
+      "min": 20,
+      "max": 200
+     }
+    },
+    "derived": {
+     "s": "n*p",
+     "answer": "t-m*p",
+     "d_usedGivenValue": "t",
+     "d_ratioReversed": "m*p",
+     "d_signError": "m*p-t"
+    },
+    "constraints": [
+     "t-m*p>4",
+     "abs(t-2*m*p)>4",
+     "m*p>5",
+     "answer!=d_usedGivenValue",
+     "answer!=d_ratioReversed",
+     "answer!=d_signError",
+     "d_usedGivenValue!=d_ratioReversed",
+     "d_usedGivenValue!=d_signError",
+     "d_ratioReversed!=d_signError"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.11A:constant-that-makes-two-equations-agree",
+    "sourcePrompt": "For which $b$ do ${{m}}x + b = {{t}}$ and ${{n}}x = {{s}}$ have the same solution?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_11A_dividing_an_inequality_by_a_negative",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11A"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11A",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.11A:dividing-an-inequality-by-a-negative",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11A",
+   "taskType": "errorAnalysis",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "To solve $-{{m}}x + {{b}} > {{t}}$ a student divides by $-{{m}}$ and leaves the sign facing the same way. What is wrong?",
+   "solutionReview": {
+    "headline": "A negative divisor flips the inequality.",
+    "reasoning": [
+     "Multiplying or dividing both sides by a negative swaps which side is larger.",
+     "So the $>$ has to become a $<$."
+    ],
+    "answerSummary": "The direction was not reversed."
+   },
+   "attemptFeedback": [
+    "${{b}}$ is moved before the division here, so it never needed dividing."
+   ],
+   "supportHints": [
+    "Test the claim on a simple pair of numbers, one negative."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 5,
+      "max": 60
+     },
+     "t": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     }
+    },
+    "constraints": [
+     "b>t",
+     "m>1"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "The constant ${{b}}$ should have been divided as well.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "Dividing by a negative reverses the direction of the inequality."
+    },
+    {
+     "id": "choice-c",
+     "label": "The sign of ${{b}}$ changes when it moves across.",
+     "error": "signError"
+    },
+    {
+     "id": "choice-d",
+     "label": "The inequality has to be turned into an equation first.",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.11A:dividing-an-inequality-by-a-negative",
+    "sourcePrompt": "To solve $-{{m}}x + {{b}} > {{t}}$ a student divides by $-{{m}}$ and leaves the sign facing the same way. What is wrong?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_11B_gap_between_two_expressions_at_one_value",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.11B:gap-between-two-expressions-at-one-value",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11B",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "At $x = {{v}}$, by how much does ${{m}}x + {{b}}$ exceed ${{n}}x - {{c}}$?",
+   "solutionReview": {
+    "headline": "Substitute into both, then subtract.",
+    "reasoning": [
+     "At $x = {{v}}$ the two expressions come to ${{m}} \\times {{v}} + {{b}}$ and ${{n}} \\times {{v}} - {{c}}$.",
+     "Their difference is ${{answer}}$."
+    ],
+    "answerSummary": "It exceeds it by ${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Subtracting $-{{c}}$ adds, so the gap grows rather than shrinks."
+   ],
+   "supportHints": [
+    "Work each expression out in full before comparing."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 3,
+      "max": 12
+     },
+     "n": {
+      "type": "int",
+      "min": 2,
+      "max": 10
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "b": {
+      "type": "int",
+      "min": 2,
+      "max": 40
+     },
+     "c": {
+      "type": "int",
+      "min": 2,
+      "max": 70
+     }
+    },
+    "derived": {
+     "answer": "(m-n)*v+b+c",
+     "d_operationInverted": "(m+n)*v+b+c",
+     "d_signError": "(m-n)*v+b-c",
+     "d_usedGivenValue": "m*v+b"
+    },
+    "constraints": [
+     "m>n",
+     "(m-n)*v+b+c>8",
+     "abs(n*v-c)>3",
+     "abs(c)>2",
+     "answer!=d_operationInverted",
+     "answer!=d_signError",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_signError",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_signError!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.11B:gap-between-two-expressions-at-one-value",
+    "sourcePrompt": "At $x = {{v}}$, by how much does ${{m}}x + {{b}}$ exceed ${{n}}x - {{c}}$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_11B_constant_behind_a_failed_test",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.11B:constant-behind-a-failed-test",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11B",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Testing $x = {{v}}$ in ${{m}}x + b = {{t}}$ leaves the left side ${{off}}$ short. What is $b$?",
+   "solutionReview": {
+    "headline": "A shortfall tells you how far the left side is from the right.",
+    "reasoning": [
+     "At $x = {{v}}$ the left side comes to ${{m}} \\times {{v}} + b$, and that is ${{off}}$ below ${{t}}$.",
+     "So $b = {{t}} - {{off}} - {{m}} \\times {{v}} = {{answer}}$."
+    ],
+    "answerSummary": "$b = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "Being short means the left side is smaller, so the constant is smaller too."
+   ],
+   "supportHints": [
+    "Write what the left side actually came to before solving."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "off": {
+      "type": "int",
+      "min": 3,
+      "max": 220
+     },
+     "t": {
+      "type": "int",
+      "min": 40,
+      "max": 320
+     }
+    },
+    "derived": {
+     "answer": "t-off-m*v",
+     "d_operationInverted": "t+off-m*v",
+     "d_signError": "m*v",
+     "d_forgotFinalStep": "off"
+    },
+    "constraints": [
+     "t-off-m*v>4",
+     "abs(off-(t-off-m*v))>3",
+     "abs(m*v-(t-off-m*v))>3",
+     "off>2",
+     "answer!=d_operationInverted",
+     "answer!=d_signError",
+     "answer!=d_forgotFinalStep",
+     "d_operationInverted!=d_signError",
+     "d_operationInverted!=d_forgotFinalStep",
+     "d_signError!=d_forgotFinalStep"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_signError}}$",
+     "error": "signError"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.11B:constant-behind-a-failed-test",
+    "sourcePrompt": "Testing $x = {{v}}$ in ${{m}}x + b = {{t}}$ leaves the left side ${{off}}$ short. What is $b$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_11B_what_one_successful_test_settles",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.11B:what-one-successful-test-settles",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11B",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Testing $x = {{v}}$ in ${{m}}x + {{b}} \\le {{t}}$ makes the left side ${{lhs}}$. What does that settle?",
+   "solutionReview": {
+    "headline": "One test confirms one value and nothing more.",
+    "reasoning": [
+     "${{lhs}}$ is at most ${{t}}$, so ${{v}}$ does satisfy the inequality.",
+     "An inequality usually holds for a whole range, so one success settles nothing about the rest."
+    ],
+    "answerSummary": "${{v}}$ works; other values may as well."
+   },
+   "attemptFeedback": [
+    "A successful test cannot rule anything out."
+   ],
+   "supportHints": [
+    "Ask how many values an inequality normally allows."
+   ],
+   "generator": {
+    "parameters": {
+     "m": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "v": {
+      "type": "int",
+      "min": 2,
+      "max": 14
+     },
+     "b": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     },
+     "spare": {
+      "type": "int",
+      "min": 3,
+      "max": 40
+     }
+    },
+    "derived": {
+     "lhs": "m*v+b",
+     "t": "m*v+b+spare"
+    },
+    "constraints": [
+     "spare>2"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "That the inequality has no solutions.",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-b",
+     "label": "That ${{v}}$ is the only value that satisfies it.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "That ${{v}}$ satisfies it, though other values may too."
+    },
+    {
+     "id": "choice-d",
+     "label": "That every value below ${{v}}$ fails it.",
+     "error": "signError"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.11B:what-one-successful-test-settles",
+    "sourcePrompt": "Testing $x = {{v}}$ in ${{m}}x + {{b}} \\le {{t}}$ makes the left side ${{lhs}}$. What does that settle?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_11C_value_behind_two_supplementary_expressions",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.11C:value-behind-two-supplementary-expressions",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11C",
+   "taskType": "procedural",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "An angle of $(2x + {{b}})^\\circ$ is supplementary to one of $(3x - {{c}})^\\circ$. What is $x$?",
+   "solutionReview": {
+    "headline": "Collect both expressions before using the total.",
+    "reasoning": [
+     "Supplementary angles total $180^\\circ$, so $5x + {{b}} - {{c}} = 180$.",
+     "That gives $x = {{answer}}$."
+    ],
+    "answerSummary": "$x = {{answer}}$."
+   },
+   "attemptFeedback": [
+    "Ninety degrees belongs to complementary angles, not supplementary ones."
+   ],
+   "supportHints": [
+    "Add the two expressions and set the result to $180$."
+   ],
+   "generator": {
+    "parameters": {
+     "b": {
+      "type": "int",
+      "min": 5,
+      "max": 42
+     },
+     "k": {
+      "type": "int",
+      "min": 21,
+      "max": 34
+     }
+    },
+    "derived": {
+     "c": "5*k-180+b",
+     "answer": "k",
+     "d_forgotFinalStep": "5*k",
+     "d_operationInverted": "k-18",
+     "d_usedGivenValue": "b"
+    },
+    "constraints": [
+     "5*k-180+b>2",
+     "abs(b-k)>3",
+     "2*k+b<180",
+     "3*k-(5*k-180+b)>2",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_operationInverted",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_operationInverted",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_operationInverted!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_operationInverted}}$",
+     "error": "operationInverted"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.11C:value-behind-two-supplementary-expressions",
+    "sourcePrompt": "An angle of $(2x + {{b}})^\\circ$ is supplementary to one of $(3x - {{c}})^\\circ$. What is $x$?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_11C_larger_angle_from_a_ratio_and_a_third",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.11C:larger-angle-from-a-ratio-and-a-third",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11C",
+   "taskType": "reverseReasoning",
+   "representation": "symbolic",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Two angles of a triangle are in the ratio ${{p}}$ to ${{q}}$ and the third is ${{c}}^\\circ$. What is the larger of the two?",
+   "solutionReview": {
+    "headline": "Split what is left of $180^\\circ$ in the given ratio.",
+    "reasoning": [
+     "The other two angles total $180 - {{c}} = {{p}}+{{q}}$ shares of ${{u}}^\\circ$.",
+     "The larger takes ${{q}}$ of them, or ${{answer}}^\\circ$."
+    ],
+    "answerSummary": "It is ${{answer}}^\\circ$."
+   },
+   "attemptFeedback": [
+    "The whole remainder belongs to both angles, not to one."
+   ],
+   "supportHints": [
+    "Work out one share before assigning either angle."
+   ],
+   "generator": {
+    "parameters": {
+     "p": {
+      "type": "int",
+      "min": 1,
+      "max": 5
+     },
+     "q": {
+      "type": "int",
+      "min": 2,
+      "max": 8
+     },
+     "u": {
+      "type": "int",
+      "min": 6,
+      "max": 30
+     }
+    },
+    "derived": {
+     "c": "180-(p+q)*u",
+     "answer": "q*u",
+     "d_forgotFinalStep": "p*u",
+     "d_usedGivenValue": "(p+q)*u",
+     "d_ratioReversed": "c"
+    },
+    "constraints": [
+     "q>p",
+     "gcd(p,q)==1",
+     "180-(p+q)*u>12",
+     "abs(c-q*u)>4",
+     "q*u>15",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "answer!=d_ratioReversed",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_ratioReversed",
+     "d_usedGivenValue!=d_ratioReversed"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_ratioReversed}}$",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-b"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.11C:larger-angle-from-a-ratio-and-a-third",
+    "sourcePrompt": "Two angles of a triangle are in the ratio ${{p}}$ to ${{q}}$ and the third is ${{c}}^\\circ$. What is the larger of the two?"
+   }
+  },
+  {
+   "id": "mm_asvab_mk_7_11C_pair_of_facts_that_cannot_both_hold",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.11C"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.11C",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "mathematicsKnowledge",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "mathematicsKnowledge",
+    "subtest": "mathematicsKnowledge"
+   },
+   "courseId": "grade7",
+   "familyId": "mathmaster:asvab:mk:7.11C:pair-of-facts-that-cannot-both-hold",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.11C",
+   "taskType": "conceptual",
+   "representation": "verbal",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Which description can never fit two real angles?",
+   "solutionReview": {
+    "headline": "A pair has one total, not two.",
+    "reasoning": [
+     "Supplementary angles total $180^\\circ$ and complementary angles total $90^\\circ$.",
+     "One pair cannot total both."
+    ],
+    "answerSummary": "They cannot be both at once."
+   },
+   "attemptFeedback": [
+    "Two angles of $90^\\circ$ each are supplementary and equal, so that pair is possible."
+   ],
+   "supportHints": [
+    "Write down what each word requires the total to be."
+   ],
+   "generator": {
+    "parameters": {
+     "a": {
+      "type": "int",
+      "min": 20,
+      "max": 70
+     },
+     "b": {
+      "type": "int",
+      "min": 30,
+      "max": 80
+     }
+    },
+    "derived": {
+     "comp": "b"
+    },
+    "constraints": [
+     "a!=b",
+     "a+b<150"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "They are supplementary and equal.",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-b",
+     "label": "They are complementary and one measures ${{a}}^\\circ$.",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-c",
+     "label": "They are supplementary and one measures ${{b}}^\\circ$.",
+     "error": "ratioReversed"
+    },
+    {
+     "id": "choice-d",
+     "label": "They are supplementary and also complementary to each other."
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-mk"
+    ],
+    "officialReferenceCodes": [
+     "MK"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:mk:7.11C:pair-of-facts-that-cannot-both-hold",
+    "sourcePrompt": "Which description can never fit two real angles?"
+   }
   }
  ]
 }

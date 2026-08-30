@@ -3522,6 +3522,730 @@ mkc('7.9A', 'change-that-leaves-a-crate-holding-the-same', {
   feedback: 'Doubling every edge multiplies the volume by eight.',
 });
 
+// ================================================================ 7.9B
+// Circumference and area of circles.
+
+mkc('7.9B', 'laps-round-a-circular-track', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A circular track has radius ${{r}}$ cm. Taking $\\pi$ as $\\frac{22}{7}$, how many full laps cover ${{D}}$ cm?',
+  generator: {
+    parameters: {
+      u: { type: 'int', min: 2, max: 26 },
+      z: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      r: '7*u',
+      D: '88*u*z',
+      answer: '2*z',
+      // Divided by half the circumference.
+      d_forgotFinalStep: '4*z',
+      // Treated the radius as the diameter.
+      d_diameterForRadius: 'z',
+      // Answered the radius in sevenths.
+      d_usedGivenValue: 'u',
+    },
+    constraints: ['abs(u-2*z)>3', '2*z>5', 'abs(2*z-z)>2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_diameterForRadius}}'), error: 'diameterForRadius' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['One lap is $2 \\times \\frac{22}{7} \\times {{r}}$ cm, which is $44 \\times {{u}}$.', '${{D}}$ divided by that is ${{answer}}$ laps.'],
+  answerSummary: { headline: 'A lap is the circumference, which uses twice the radius.', text: 'It is ${{answer}}$ laps.' },
+  hint: 'Work out the distance round the track first.',
+  feedback: 'Using the radius where the diameter belongs halves every lap.',
+});
+
+mkc('7.9B', 'square-left-uncovered-by-a-circle', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A circle of circumference ${{C}}$ cm is drawn inside a square of side ${{s}}$ cm. Taking $\\pi$ as $\\frac{22}{7}$, how much of the square is uncovered?',
+  generator: {
+    parameters: {
+      u: { type: 'int', min: 1, max: 6 },
+      j: { type: 'int', min: 1, max: 7 },
+    },
+    derived: {
+      C: '44*u',
+      s: 'u*(14+j)',
+      answer: 's*s-154*u*u',
+      // Read the circumference over pi as the radius.
+      d_diameterForRadius: 's*s-616*u*u',
+      // Answered the whole square.
+      d_forgotFinalStep: 's*s',
+      // Answered the circle instead of what is left.
+      d_partialTotal: '154*u*u',
+    },
+    constraints: ['s*s-154*u*u>8', 'abs(154*u*u-(s*s-154*u*u))>6'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_diameterForRadius}}'), error: 'diameterForRadius' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['A circumference of ${{C}}$ gives a radius of $7 \\times {{u}}$ cm, so the circle covers $154 \\times {{u}}^{2}$.', 'The square covers ${{s}}^{2}$, leaving ${{answer}}$ square cm.'],
+  answerSummary: { headline: 'Circumference gives the radius; the radius gives the area.', text: '${{answer}}$ square cm are uncovered.' },
+  hint: 'Divide the circumference by $2\\pi$, not by $\\pi$.',
+  feedback: 'Dividing by $\\pi$ alone gives the diameter, which doubles the radius.',
+});
+
+mkc('7.9B', 'same-perimeter-different-shape', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade7',
+  prompt: 'A circle and a square both have a perimeter of ${{P}}$ cm. Which statement is true?',
+  generator: {
+    parameters: { P: { type: 'int', min: 20, max: 200, step: 4 } },
+    derived: { side: 'P/4' },
+    constraints: ['P>16'],
+  },
+  choices: [
+    { label: 'The circle encloses the greater area.', correct: true },
+    { label: 'The square encloses the greater area.', error: 'ratioReversed' },
+    { label: 'They enclose the same area.', error: 'usedGivenValue' },
+    { label: 'The square encloses $\\pi$ times the area of the circle.', error: 'exponentError' },
+  ],
+  reasoning: ['For a fixed perimeter the circle encloses more than any polygon.', 'The square of side ${{side}}$ covers ${{side}}^{2}$, which falls short of the circle.'],
+  answerSummary: { headline: 'For a fixed perimeter the circle is the most efficient shape.', text: 'The circle encloses more.' },
+  hint: 'Work out both areas for a perimeter you can handle mentally.',
+  feedback: 'Equal perimeters do not force equal areas.',
+});
+
+// ================================================================ 7.9C
+// Composite figures.
+
+mkc('7.9C', 'perimeter-of-a-notched-rectangle', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A ${{a}}$ by ${{b}}$ cm rectangle has a ${{c}}$ by ${{d}}$ cm rectangle cut from one corner. What is the perimeter of what is left?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 7 },
+      b: { type: 'int', min: 3, max: 6 },
+      c: { type: 'int', min: 1, max: 6 },
+      d: { type: 'int', min: 1, max: 5 },
+    },
+    derived: {
+      answer: '2*(a+b)',
+      // Took the notch's perimeter off.
+      d_partialTotal: '2*(a+b)-2*(c+d)',
+      // Added the notch's perimeter on.
+      d_operationInverted: '2*(a+b)+2*(c+d)',
+      // Answered the area that is left.
+      d_usedGivenValue: 'a*b-c*d',
+    },
+    constraints: ['c<a', 'd<b', '2*(a+b)-2*(c+d)>4', 'abs(a*b-c*d-2*(a+b))>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The two edges the notch adds are exactly as long as the two it removes.', 'So the perimeter is still $2({{a}} + {{b}}) = {{answer}}$ cm.'],
+  answerSummary: { headline: 'A corner notch changes the area but not the perimeter.', text: 'It is ${{answer}}$ cm.' },
+  hint: 'Trace the outline and pair each new edge with the edge it replaced.',
+  feedback: 'The notch removes area, not distance round the outside.',
+});
+
+mkc('7.9C', 'rectangle-height-inside-a-composite', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A plate covering ${{A}}$ square cm is a rectangle ${{a}}$ cm wide topped by a triangle of the same width and height ${{h}}$ cm. How tall is the rectangle?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 4, max: 24 },
+      h: { type: 'int', min: 2, max: 40, step: 2 },
+      b: { type: 'int', min: 3, max: 30 },
+    },
+    derived: {
+      A: 'a*b+a*h/2',
+      answer: 'b',
+      // Divided the whole area by the width.
+      d_forgotFinalStep: 'b+h/2',
+      // Answered the triangle's height.
+      d_usedGivenValue: 'h',
+      // Took the whole triangle off instead of half of it.
+      d_operationInverted: 'b-h/2',
+    },
+    constraints: ['b-h/2>2', 'abs(h-b)>3', 'h>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['The triangle covers $\\frac{{{a}} \\times {{h}}}{2}$ square cm.', 'Taking that off ${{A}}$ and dividing by ${{a}}$ leaves ${{answer}}$ cm.'],
+  answerSummary: { headline: 'Peel off the piece you can work out, then divide.', text: 'The rectangle is ${{answer}}$ cm tall.' },
+  hint: 'Work out the triangle first; it needs no unknowns.',
+  feedback: 'A triangle covers half its base times its height.',
+});
+
+mkc('7.9C', 'claim-about-a-corner-notch', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade7',
+  prompt: 'A ${{a}}$ by ${{b}}$ cm rectangle has a small rectangle cut from one corner. Which statement is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 6, max: 40 },
+      b: { type: 'int', min: 5, max: 30 },
+    },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: 'Its perimeter falls by twice the width of the notch.', correct: true },
+    { label: 'Its area falls by the area of the notch.', error: 'partialTotal' },
+    { label: 'Its perimeter is unchanged.', error: 'usedGivenValue' },
+    { label: 'The two edges the notch adds match the two it removes.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Cutting a corner rectangle out pushes two edges inwards and adds two of the same lengths.', 'The distance round the outside is therefore unchanged.'],
+  answerSummary: { headline: 'A corner notch trades edges of equal length.', text: 'The perimeter does not fall.' },
+  hint: 'Walk round the new outline and compare it with the old one.',
+  feedback: 'The area really does fall by exactly the notch.',
+});
+
+// ================================================================ 7.9D
+// Surface area of prisms and pyramids.
+
+mkc('7.9D', 'painting-every-face-but-the-base', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A box ${{l}}$ by ${{w}}$ by ${{h}}$ cm is painted on every face except the base. What area is painted?',
+  generator: {
+    parameters: {
+      l: { type: 'int', min: 2, max: 11 },
+      w: { type: 'int', min: 2, max: 11 },
+      h: { type: 'int', min: 2, max: 11 },
+    },
+    derived: {
+      answer: '2*h*(l+w)+l*w',
+      // Painted the sides and left the top out.
+      d_forgotFinalStep: '2*h*(l+w)',
+      // Painted the base as well.
+      d_operationInverted: '2*(l*w+l*h+w*h)',
+      // Answered the volume.
+      d_usedGivenValue: 'l*w*h',
+    },
+    constraints: ['abs(l*w*h-2*h*(l+w)-l*w)>5', 'l!=w', 'h>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The four sides cover $2 \\times {{h}} \\times ({{l}} + {{w}})$ square cm.', 'Adding the top of ${{l}} \\times {{w}}$ gives ${{answer}}$.'],
+  answerSummary: { headline: 'Count the faces you actually need before adding.', text: 'It is ${{answer}}$ square cm.' },
+  hint: 'The top and the base are the same size; only one is painted.',
+  feedback: 'Total surface area counts both the top and the base.',
+});
+
+mkc('7.9D', 'height-from-a-total-surface', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A box with a square base of side ${{s}}$ cm has total surface area ${{S}}$ square cm. How tall is it?',
+  generator: {
+    parameters: {
+      s: { type: 'int', min: 2, max: 30, step: 2 },
+      h: { type: 'int', min: 6, max: 30, step: 2 },
+    },
+    derived: {
+      S: '2*s*s+4*s*h',
+      answer: 'h',
+      // Left one pair of side faces out.
+      d_forgotFinalStep: '2*h',
+      // Answered the side of the base.
+      d_usedGivenValue: 's',
+      // Divided the side area by eight sides rather than four.
+      d_partialTotal: 'h/2',
+    },
+    constraints: ['abs(s-h)>3', 'h>5', 'h/2!=s'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+  ],
+  reasoning: ['The two square faces cover $2 \\times {{s}}^{2}$, leaving $4 \\times {{s}} \\times h$ for the sides.', 'Dividing that by $4 \\times {{s}}$ gives $h = {{answer}}$ cm.'],
+  answerSummary: { headline: 'Strip out both square faces before dividing.', text: 'It is ${{answer}}$ cm tall.' },
+  hint: 'A box on a square base has two square faces, not one.',
+  feedback: 'A box on a square base has four side faces, not eight.',
+});
+
+mkc('7.9D', 'what-doubling-the-height-reaches', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'grade7',
+  prompt: 'A box ${{l}}$ by ${{w}}$ cm at the base has its height doubled. Which statement about its surface is true?',
+  generator: {
+    parameters: {
+      l: { type: 'int', min: 3, max: 24 },
+      w: { type: 'int', min: 2, max: 20 },
+      h: { type: 'int', min: 2, max: 16 },
+    },
+    derived: { lateral: '2*h*(l+w)', total: '2*(l*w+l*h+w*h)' },
+    constraints: ['l!=w'],
+  },
+  choices: [
+    { label: 'The four sides double, but the total surface does not.', correct: true },
+    { label: 'The total surface doubles.', error: 'operationInverted' },
+    { label: 'The total surface is unchanged.', error: 'usedGivenValue' },
+    { label: 'The total surface is four times as large.', error: 'exponentError' },
+  ],
+  reasoning: ['The four side faces all carry the height, so they double.', 'The top and the base do not change at all, so the total grows by less than double.'],
+  answerSummary: { headline: 'Only the faces that carry the height respond to it.', text: 'The sides double; the total does not.' },
+  hint: 'Split the surface into the faces that use the height and the faces that do not.',
+  feedback: 'The top and base are fixed by the base measurements alone.',
+});
+
+// ================================================================ 7.10A
+// Writing two-step equations and inequalities.
+
+mkc('7.10A', 'inequality-for-a-budget-with-a-discount', {
+  difficultyBand: 4, dok: 2, taskType: 'representationTranslation', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'A budget of $\\${{t}}$ must cover a $\\${{b}}$ fee and $\\${{m}}$ a day, less a $\\${{c}}$ discount. Which inequality gives the days $x$?',
+  generator: {
+    parameters: {
+      t: { type: 'int', min: 60, max: 400 },
+      b: { type: 'int', min: 10, max: 90 },
+      m: { type: 'int', min: 5, max: 40 },
+      c: { type: 'int', min: 5, max: 50 },
+    },
+    constraints: ['t>b+m', 'c<b'],
+  },
+  choices: [
+    { label: plain('{{b}} + {{m}}x - {{c}} \\le {{t}}'), correct: true },
+    { label: plain('{{b}} + {{m}}x + {{c}} \\le {{t}}'), error: 'signError' },
+    { label: plain('{{b}} + {{m}}x - {{c}} \\ge {{t}}'), error: 'operationInverted' },
+    { label: plain('({{b}} + {{m}})x - {{c}} \\le {{t}}'), error: 'orderOfOperations' },
+  ],
+  reasoning: ['The fee is paid once, the rate is paid per day, and the discount comes off the total.', 'Staying inside the budget means the total is at most ${{t}}$.'],
+  answerSummary: { headline: 'A one-off charge sits outside the term that carries $x$.', text: 'It is ${{b}} + {{m}}x - {{c}} \\le {{t}}$.' },
+  hint: 'Decide which charges depend on the number of days.',
+  feedback: 'Bracketing the fee with the rate charges it every day.',
+});
+
+mkc('7.10A', 'situation-behind-a-two-step-equation', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'grade7',
+  prompt: 'For which situation is ${{m}}x + {{b}} = {{t}}$ the right equation?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 5, max: 40 },
+      b: { type: 'int', min: 10, max: 90 },
+      t: { type: 'int', min: 80, max: 400 },
+    },
+    constraints: ['t>b+m', 'm!=b'],
+  },
+  choices: [
+    { label: 'A hire costs $\\${{b}}$ plus $\\${{m}}$ a day and comes to $\\${{t}}$.', correct: true },
+    { label: 'A hire costs $\\${{m}}$ plus $\\${{b}}$ a day and comes to $\\${{t}}$.', error: 'ratioReversed' },
+    { label: 'A hire costs $\\${{m}}$ a day less a $\\${{b}}$ discount and comes to $\\${{t}}$.', error: 'signError' },
+    { label: 'A hire costs $\\${{b}}$ a day for ${{m}}$ days and comes to $\\${{t}}$.', error: 'operationInverted' },
+  ],
+  reasoning: ['The term ${{m}}x$ charges ${{m}}$ for each of $x$ days.', 'The ${{b}}$ stands outside that term, so it is charged once and added.'],
+  answerSummary: { headline: 'The coefficient is the repeated charge; the constant is the one-off.', text: '$\\${{b}}$ plus $\\${{m}}$ a day.' },
+  hint: 'Ask which number is multiplied by the unknown.',
+  feedback: 'Swapping the two numbers charges the fee daily and the rate once.',
+});
+
+mkc('7.10A', 'subtraction-written-back-to-front', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal', courseId: 'grade7',
+  prompt: 'For "${{m}}$ less than ${{c}}$ times a number is ${{t}}$" a student writes ${{m}} - {{c}}x = {{t}}$. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 4, max: 40 },
+      c: { type: 'int', min: 2, max: 12 },
+      t: { type: 'int', min: 10, max: 120 },
+    },
+    constraints: ['m!=t', 'c>1'],
+  },
+  choices: [
+    { label: 'The subtraction is written the wrong way round.', correct: true },
+    { label: 'The multiplication should come after the subtraction.', error: 'orderOfOperations' },
+    { label: 'The number should be divided by ${{c}}$, not multiplied.', error: 'operationInverted' },
+    { label: 'The equation needs an inequality sign instead.', error: 'signError' },
+  ],
+  reasoning: ['"${{m}}$ less than" something means that something has ${{m}}$ taken off it.', 'The equation should read ${{c}}x - {{m}} = {{t}}$.'],
+  answerSummary: { headline: '"Less than" reverses the order the words appear in.', text: 'The two terms are the wrong way round.' },
+  hint: 'Ask which quantity is being reduced.',
+  feedback: 'The multiplication is applied to the right quantity; it is the order of the subtraction that fails.',
+});
+
+// ================================================================ 7.10B
+// Two-step solutions shown on a number line.
+
+mkc('7.10B', 'distance-between-two-plotted-solutions', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'Solving ${{m}}x + {{b}} = {{t}}$ plots one dot and solving ${{n}}x = {{s}}$ plots another. How far apart are they?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      n: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 6, max: 40 },
+      q: { type: 'int', min: 2, max: 30 },
+      b: { type: 'int', min: 3, max: 40 },
+    },
+    derived: {
+      t: 'm*p+b',
+      s: 'n*q',
+      answer: 'p-q',
+      // Added the two solutions instead of comparing them.
+      d_operationInverted: 'p+q',
+      // Answered the second solution.
+      d_usedGivenValue: 'q',
+      // Compared them the other way round.
+      d_signError: 'q-p',
+    },
+    constraints: ['p-q>4', 'abs(q-(p-q))>3', 'q>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The first equation gives $x = {{p}}$ and the second gives $x = {{q}}$.', 'The dots sit ${{answer}}$ apart.'],
+  answerSummary: { headline: 'Solve each equation before measuring anything.', text: 'They are ${{answer}}$ apart.' },
+  hint: 'Each equation puts exactly one dot on the line.',
+  feedback: 'The gap between two points is a difference, not a total.',
+});
+
+mkc('7.10B', 'constant-behind-a-drawn-endpoint', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'numberLine', courseId: 'grade7',
+  prompt: 'The shading runs left from an open dot at ${{c}}$. For which $b$ does $\\frac{x}{{{m}}} + b < {{t}}$ draw that?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      u: { type: 'int', min: 2, max: 52 },
+      t: { type: 'int', min: 10, max: 60 },
+    },
+    derived: {
+      c: 'm*u',
+      answer: 't-u',
+      // Answered the number on the right of the inequality.
+      d_usedGivenValue: 't',
+      // Took the endpoint off instead of the quotient.
+      d_forgotFinalStep: 't-c',
+      // Answered the quotient itself.
+      d_ratioReversed: 'u',
+    },
+    constraints: ['t-u>4', 'abs(2*u-t)>3', 'abs(t-c-(t-u))>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['At the endpoint $\\frac{{{c}}}{{{m}}} + b = {{t}}$, and $\\frac{{{c}}}{{{m}}}$ is ${{u}}$.', 'So $b = {{t}} - {{u}} = {{answer}}$.'],
+  answerSummary: { headline: 'The open dot marks where the two sides are equal.', text: '$b = {{answer}}$.' },
+  hint: 'Put the endpoint into the inequality as an equation.',
+  feedback: 'The endpoint has to be divided by ${{m}}$ before it is used.',
+});
+
+mkc('7.10B', 'values-two-conditions-leave-shaded', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'numberLine', courseId: 'grade7',
+  prompt: 'Which values satisfy both ${{m}}x \\le {{t}}$ and $x \\ge {{lo}}$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      hi: { type: 'int', min: 8, max: 50 },
+      gap: { type: 'int', min: 3, max: 20 },
+    },
+    derived: {
+      t: 'm*hi',
+      lo: 'hi-gap',
+    },
+    constraints: ['hi-gap>1', 'gap>2'],
+  },
+  choices: [
+    { label: 'Every value from ${{lo}}$ to ${{hi}}$, both included.', correct: true },
+    { label: 'Every value from ${{lo}}$ to ${{hi}}$, with ${{hi}}$ left out.', error: 'offByOneStep' },
+    { label: 'Every value above ${{lo}}$.', error: 'partialTotal' },
+    { label: 'Every value below ${{hi}}$.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['The first condition solves to $x \\le {{hi}}$ and the second is already $x \\ge {{lo}}$.', 'Both use $\\le$ or $\\ge$, so both endpoints count.'],
+  answerSummary: { headline: 'Two conditions leave only the overlap.', text: 'From ${{lo}}$ to ${{hi}}$, both included.' },
+  hint: 'Solve the first condition before comparing the two.',
+  feedback: 'Keeping only one condition leaves values the other one rules out.',
+});
+
+// ================================================================ 7.11A
+// Solving two-step equations and inequalities.
+
+mkc('7.11A', 'solve-a-grouped-two-step-quotient', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'Solve $\\frac{{{m}}x - {{b}}}{{{c}}} = {{t}}$.',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      c: { type: 'int', min: 2, max: 9 },
+      u: { type: 'int', min: 4, max: 20 },
+      j: { type: 'int', min: 1, max: 8 },
+    },
+    derived: {
+      t: 'm*u/c',
+      b: 'm*j',
+      answer: 'u+j',
+      // Stopped at the numerator.
+      d_forgotFinalStep: 'm*(u+j)',
+      // Subtracted the constant instead of adding it back.
+      d_operationInverted: 'u-j',
+      // Answered the number on the right.
+      d_usedGivenValue: 't',
+    },
+    constraints: ['m*u%c==0', 'u>j+2', 'abs(t-(u+j))>3', 'u+j>7'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Multiplying by ${{c}}$ gives ${{m}}x - {{b}} = {{c}} \\times {{t}}$.', 'Adding ${{b}}$ and dividing by ${{m}}$ leaves $x = {{answer}}$.'],
+  answerSummary: { headline: 'Clear the denominator, restore the constant, then divide.', text: '$x = {{answer}}$.' },
+  hint: 'The fraction bar groups both terms above it.',
+  feedback: 'The numerator is not the answer; it still has ${{m}}$ multiplying $x$.',
+});
+
+mkc('7.11A', 'constant-that-makes-two-equations-agree', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'For which $b$ do ${{m}}x + b = {{t}}$ and ${{n}}x = {{s}}$ have the same solution?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 9 },
+      n: { type: 'int', min: 2, max: 9 },
+      p: { type: 'int', min: 2, max: 26 },
+      t: { type: 'int', min: 20, max: 200 },
+    },
+    derived: {
+      s: 'n*p',
+      answer: 't-m*p',
+      // Answered the number on the right.
+      d_usedGivenValue: 't',
+      // Answered the part the first equation contributes.
+      d_ratioReversed: 'm*p',
+      // Took the difference the other way round.
+      d_signError: 'm*p-t',
+    },
+    constraints: ['t-m*p>4', 'abs(t-2*m*p)>4', 'm*p>5'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['The second equation gives $x = {{p}}$.', 'Putting that into the first gives ${{m}} \\times {{p}} + b = {{t}}$, so $b = {{answer}}$.'],
+  answerSummary: { headline: 'Solve the equation that has no unknown constant first.', text: '$b = {{answer}}$.' },
+  hint: 'One of the two equations can be solved straight away.',
+  feedback: 'The constant is what is left of ${{t}}$ once ${{m}}x$ is accounted for.',
+});
+
+mkc('7.11A', 'dividing-an-inequality-by-a-negative', {
+  difficultyBand: 4, dok: 3, taskType: 'errorAnalysis', representation: 'verbal', courseId: 'grade7',
+  prompt: 'To solve $-{{m}}x + {{b}} > {{t}}$ a student divides by $-{{m}}$ and leaves the sign facing the same way. What is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 5, max: 60 },
+      t: { type: 'int', min: 2, max: 40 },
+    },
+    constraints: ['b>t', 'm>1'],
+  },
+  choices: [
+    { label: 'Dividing by a negative reverses the direction of the inequality.', correct: true },
+    { label: 'The constant ${{b}}$ should have been divided as well.', error: 'partialTotal' },
+    { label: 'The inequality has to be turned into an equation first.', error: 'operationInverted' },
+    { label: 'The sign of ${{b}}$ changes when it moves across.', error: 'signError' },
+  ],
+  reasoning: ['Multiplying or dividing both sides by a negative swaps which side is larger.', 'So the $>$ has to become a $<$.'],
+  answerSummary: { headline: 'A negative divisor flips the inequality.', text: 'The direction was not reversed.' },
+  hint: 'Test the claim on a simple pair of numbers, one negative.',
+  feedback: '${{b}}$ is moved before the division here, so it never needed dividing.',
+});
+
+// ================================================================ 7.11B
+// Testing whether a value satisfies an equation or inequality.
+
+mkc('7.11B', 'gap-between-two-expressions-at-one-value', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'At $x = {{v}}$, by how much does ${{m}}x + {{b}}$ exceed ${{n}}x - {{c}}$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 3, max: 12 },
+      n: { type: 'int', min: 2, max: 10 },
+      v: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 40 },
+      c: { type: 'int', min: 2, max: 70 },
+    },
+    derived: {
+      answer: '(m-n)*v+b+c',
+      // Added the coefficients instead of comparing them.
+      d_operationInverted: '(m+n)*v+b+c',
+      // Missed the sign on the constant being subtracted.
+      d_signError: '(m-n)*v+b-c',
+      // Answered the first expression on its own.
+      d_usedGivenValue: 'm*v+b',
+    },
+    constraints: ['m>n', '(m-n)*v+b+c>8', 'abs(n*v-c)>3', 'abs(c)>2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['At $x = {{v}}$ the two expressions come to ${{m}} \\times {{v}} + {{b}}$ and ${{n}} \\times {{v}} - {{c}}$.', 'Their difference is ${{answer}}$.'],
+  answerSummary: { headline: 'Substitute into both, then subtract.', text: 'It exceeds it by ${{answer}}$.' },
+  hint: 'Work each expression out in full before comparing.',
+  feedback: 'Subtracting $-{{c}}$ adds, so the gap grows rather than shrinks.',
+});
+
+mkc('7.11B', 'constant-behind-a-failed-test', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'Testing $x = {{v}}$ in ${{m}}x + b = {{t}}$ leaves the left side ${{off}}$ short. What is $b$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      v: { type: 'int', min: 2, max: 14 },
+      off: { type: 'int', min: 3, max: 220 },
+      t: { type: 'int', min: 40, max: 320 },
+    },
+    derived: {
+      answer: 't-off-m*v',
+      // Added the shortfall instead of taking it off.
+      d_operationInverted: 't+off-m*v',
+      // Answered the term that was substituted.
+      d_signError: 'm*v',
+      // Answered the shortfall itself.
+      d_forgotFinalStep: 'off',
+    },
+    constraints: ['t-off-m*v>4', 'abs(off-(t-off-m*v))>3', 'abs(m*v-(t-off-m*v))>3', 'off>2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+  ],
+  reasoning: ['At $x = {{v}}$ the left side comes to ${{m}} \\times {{v}} + b$, and that is ${{off}}$ below ${{t}}$.', 'So $b = {{t}} - {{off}} - {{m}} \\times {{v}} = {{answer}}$.'],
+  answerSummary: { headline: 'A shortfall tells you how far the left side is from the right.', text: '$b = {{answer}}$.' },
+  hint: 'Write what the left side actually came to before solving.',
+  feedback: 'Being short means the left side is smaller, so the constant is smaller too.',
+});
+
+mkc('7.11B', 'what-one-successful-test-settles', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade7',
+  prompt: 'Testing $x = {{v}}$ in ${{m}}x + {{b}} \\le {{t}}$ makes the left side ${{lhs}}$. What does that settle?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 12 },
+      v: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 3, max: 40 },
+      spare: { type: 'int', min: 3, max: 40 },
+    },
+    derived: { lhs: 'm*v+b', t: 'm*v+b+spare' },
+    constraints: ['spare>2'],
+  },
+  choices: [
+    { label: 'That ${{v}}$ satisfies it, though other values may too.', correct: true },
+    { label: 'That ${{v}}$ is the only value that satisfies it.', error: 'partialTotal' },
+    { label: 'That the inequality has no solutions.', error: 'operationInverted' },
+    { label: 'That every value below ${{v}}$ fails it.', error: 'signError' },
+  ],
+  reasoning: ['${{lhs}}$ is at most ${{t}}$, so ${{v}}$ does satisfy the inequality.', 'An inequality usually holds for a whole range, so one success settles nothing about the rest.'],
+  answerSummary: { headline: 'One test confirms one value and nothing more.', text: '${{v}}$ works; other values may as well.' },
+  hint: 'Ask how many values an inequality normally allows.',
+  feedback: 'A successful test cannot rule anything out.',
+});
+
+// ================================================================ 7.11C
+// Angle relationships written as equations.
+
+mkc('7.11C', 'value-behind-two-supplementary-expressions', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'An angle of $(2x + {{b}})^\\circ$ is supplementary to one of $(3x - {{c}})^\\circ$. What is $x$?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 5, max: 42 },
+      k: { type: 'int', min: 21, max: 34 },
+    },
+    derived: {
+      c: '5*k-180+b',
+      answer: 'k',
+      // Stopped before dividing by five.
+      d_forgotFinalStep: '5*k',
+      // Used ninety degrees in place of one hundred and eighty.
+      d_operationInverted: 'k-18',
+      // Answered a constant from the question.
+      d_usedGivenValue: 'b',
+    },
+    constraints: ['5*k-180+b>2', 'abs(b-k)>3', '2*k+b<180', '3*k-(5*k-180+b)>2'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Supplementary angles total $180^\\circ$, so $5x + {{b}} - {{c}} = 180$.', 'That gives $x = {{answer}}$.'],
+  answerSummary: { headline: 'Collect both expressions before using the total.', text: '$x = {{answer}}$.' },
+  hint: 'Add the two expressions and set the result to $180$.',
+  feedback: 'Ninety degrees belongs to complementary angles, not supplementary ones.',
+});
+
+mkc('7.11C', 'larger-angle-from-a-ratio-and-a-third', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'grade7',
+  prompt: 'Two angles of a triangle are in the ratio ${{p}}$ to ${{q}}$ and the third is ${{c}}^\\circ$. What is the larger of the two?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 1, max: 5 },
+      q: { type: 'int', min: 2, max: 8 },
+      u: { type: 'int', min: 6, max: 30 },
+    },
+    derived: {
+      c: '180-(p+q)*u',
+      answer: 'q*u',
+      // Answered the smaller of the two.
+      d_forgotFinalStep: 'p*u',
+      // Answered what the two share between them.
+      d_usedGivenValue: '(p+q)*u',
+      // Answered the third angle.
+      d_ratioReversed: 'c',
+    },
+    constraints: ['q>p', 'gcd(p,q)==1', '180-(p+q)*u>12', 'abs(c-q*u)>4', 'q*u>15'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The other two angles total $180 - {{c}} = {{p}}+{{q}}$ shares of ${{u}}^\\circ$.', 'The larger takes ${{q}}$ of them, or ${{answer}}^\\circ$.'],
+  answerSummary: { headline: 'Split what is left of $180^\\circ$ in the given ratio.', text: 'It is ${{answer}}^\\circ$.' },
+  hint: 'Work out one share before assigning either angle.',
+  feedback: 'The whole remainder belongs to both angles, not to one.',
+});
+
+mkc('7.11C', 'pair-of-facts-that-cannot-both-hold', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'grade7',
+  prompt: 'Which description can never fit two real angles?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 20, max: 70 },
+      b: { type: 'int', min: 30, max: 80 },
+    },
+    derived: { comp: 'b' },
+    constraints: ['a!=b', 'a+b<150'],
+  },
+  choices: [
+    { label: 'They are supplementary and also complementary to each other.', correct: true },
+    { label: 'They are supplementary and equal.', error: 'usedGivenValue' },
+    { label: 'They are complementary and one measures ${{a}}^\\circ$.', error: 'partialTotal' },
+    { label: 'They are supplementary and one measures ${{b}}^\\circ$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Supplementary angles total $180^\\circ$ and complementary angles total $90^\\circ$.', 'One pair cannot total both.'],
+  answerSummary: { headline: 'A pair has one total, not two.', text: 'They cannot be both at once.' },
+  hint: 'Write down what each word requires the total to be.',
+  feedback: 'Two angles of $90^\\circ$ each are supplementary and equal, so that pair is possible.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
