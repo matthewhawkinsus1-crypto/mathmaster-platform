@@ -43,6 +43,7 @@ const argOf = (name, fallback) => {
 };
 const samples = Number(argOf('--samples', '10')) || 10;
 const asJson = process.argv.includes('--json');
+const allowExistingIds = process.argv.includes('--allow-existing-ids');
 const files = process.argv.slice(2).filter((entry) => entry.endsWith('.json'));
 
 if (!files.length) {
@@ -86,7 +87,7 @@ const verifyDocument = async (document, seenIds) => {
   const problems = [];
   const id = String(document?.id || '').trim();
   if (!id) problems.push('missing_id');
-  if (id && existingIds.has(id)) problems.push(`id_already_published:${id}`);
+  if (id && existingIds.has(id) && !allowExistingIds) problems.push(`id_already_published:${id}`);
   if (id && seenIds.has(id)) problems.push(`duplicate_id_in_drafts:${id}`);
   if (id) seenIds.add(id);
 
