@@ -141,6 +141,77 @@
           "inputProfile": "number",
           "expected": "{{h}}"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-basic-vertex-translations",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "For $y=(x-{{h}})^2{{k|signed}}$, identify the horizontal translation, vertical translation, and vertex relative to the parent $y=x^2$.",
+          "responseFields": [
+            {
+              "id": "horizontal",
+              "label": "Units shifted right",
+              "inputProfile": "number",
+              "expected": "{{h}}"
+            },
+            {
+              "id": "vertical",
+              "label": "Vertical shift",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "vertex-x",
+              "label": "Vertex x-coordinate",
+              "inputProfile": "number",
+              "expected": "{{h}}"
+            },
+            {
+              "id": "vertex-y",
+              "label": "Vertex y-coordinate",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Vertex form displays the two translations directly.",
+            "reasoning": [
+              "The inside subtraction x-{{h}} moves the parent right {{h}} units.",
+              "The outside change {{k}} moves the graph vertically by {{k}}.",
+              "The vertex is therefore ({{h}},{{k}})."
+            ],
+            "answerSummary": "Vertex ({{h}},{{k}})."
+          },
+          "attemptFeedback": [
+            "Read horizontal movement from inside the square and vertical movement from outside."
+          ],
+          "supportHints": [
+            "In (x-h)^2+k, the vertex is (h,k)."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "k": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  0
+                ]
+              }
+            }
+          }
+        }
       ]
     },
     {
@@ -256,6 +327,106 @@
           "label": "Answer",
           "inputProfile": "number",
           "expected": "{{newa}}"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-reflect-entire-parabola-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "The parabola $y={{a}}(x-({{h}}))^2{{k|signed}}$ is reflected across the x-axis. Student A changes only a to {{newa}} and leaves the vertex y-coordinate {{k}} unchanged. Student B says EVERY output must be negated. Determine whose reasoning is correct, give the reflected vertex, and write the complete reflected equation.",
+          "responseFields": [
+            {
+              "id": "student",
+              "label": "Whose reasoning is correct?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "b",
+                  "label": "Student B; an x-axis reflection negates every output."
+                },
+                {
+                  "id": "a",
+                  "label": "Student A; only the leading multiplier changes."
+                }
+              ],
+              "expected": "b"
+            },
+            {
+              "id": "new-a",
+              "label": "Reflected leading multiplier",
+              "inputProfile": "number",
+              "expected": "{{newa}}"
+            },
+            {
+              "id": "vertex-x",
+              "label": "Reflected vertex x-coordinate",
+              "inputProfile": "number",
+              "expected": "{{h}}"
+            },
+            {
+              "id": "vertex-y",
+              "label": "Reflected vertex y-coordinate",
+              "inputProfile": "number",
+              "expected": "{{newk}}"
+            },
+            {
+              "id": "equation",
+              "label": "Complete reflected equation",
+              "inputProfile": "equation",
+              "expected": "y={{newa}}(x-({{h}}))^2+({{newk}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Reflecting across the x-axis negates the complete function output, not one isolated parameter.",
+            "reasoning": [
+              "The multiplier changes from {{a}} to {{newa}}.",
+              "The vertex ({{h}},{{k}}) reflects to ({{h}},{{newk}}).",
+              "The reflected equation is y={{newa}}(x-({{h}}))^2+({{newk}})."
+            ],
+            "answerSummary": "Student B is correct; reflected vertex ({{h}},{{newk}})."
+          },
+          "attemptFeedback": [
+            "Track what happens to an actual point such as the vertex when every y-value is negated."
+          ],
+          "supportHints": [
+            "An x-axis reflection maps (x,y) to (x,-y)."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -2,
+                  -1,
+                  1,
+                  2
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "newa": "-a",
+              "newk": "-k"
+            }
+          }
         }
       ]
     },
