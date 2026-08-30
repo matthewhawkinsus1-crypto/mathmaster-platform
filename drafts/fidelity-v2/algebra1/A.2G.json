@@ -171,6 +171,11 @@
       },
       "variants": [
         {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
           "coverageKey": "adaptive-d2b2-vertical-equation-and-slope",
           "dok": 2,
           "difficultyBand": 2,
@@ -286,6 +291,11 @@
         }
       },
       "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
         {
           "coverageKey": "adaptive-d2b4-two-special-lines-and-intersection",
           "dok": 2,
