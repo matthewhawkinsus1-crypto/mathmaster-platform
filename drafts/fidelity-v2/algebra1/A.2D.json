@@ -204,7 +204,90 @@
         "derived": {
           "total": "rate*time"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d3b3-direct-variation-model-consistency",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A machine is claimed to follow a direct variation. It produces {{y1}} parts in {{x1}} minutes and {{y2}} parts in {{x2}} minutes. Determine whether both observations support the same constant of variation, write the model, and use it to predict the output after {{x3}} minutes.",
+          "responseFields": [
+            {
+              "id": "k1",
+              "label": "Constant k from the first observation",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "k2",
+              "label": "Constant k from the second observation",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "consistency",
+              "label": "Do both observations support one direct variation?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes; both y/x ratios equal the same constant k."
+                },
+                {
+                  "id": "no",
+                  "label": "No; the two y/x ratios are different."
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "equation",
+              "label": "Direct-variation equation",
+              "inputProfile": "equation",
+              "expected": "y={{k}}x"
+            },
+            {
+              "id": "prediction",
+              "label": "Predicted y when x={{x3}}",
+              "inputProfile": "number",
+              "expected": "{{y3}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              },
+              "x1": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              },
+              "x2": {
+                "type": "int",
+                "min": 6,
+                "max": 10
+              },
+              "x3": {
+                "type": "int",
+                "min": 3,
+                "max": 12
+              }
+            },
+            "derived": {
+              "y1": "k*x1",
+              "y2": "k*x2",
+              "y3": "k*x3"
+            },
+            "constraints": [
+              "x3!=x1",
+              "x3!=x2"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_2D_v2_error-added-intercept",
