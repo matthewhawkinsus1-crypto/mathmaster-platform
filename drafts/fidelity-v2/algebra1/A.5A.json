@@ -265,6 +265,97 @@
           "inputProfile": "number",
           "expected": "{{x}}"
         }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-compare-valid-equation-methods",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Solve ${{a}}(x{{b|signed}})={{rhs}}$. Student A distributes to BOTH terms before solving. Student B first divides both sides by {{a}} and then solves $x{{b|signed}}={{inside}}$. Decide why both methods preserve equality, solve for x, and verify the solution in the ORIGINAL equation.",
+          "responseFields": [
+            {
+              "id": "method",
+              "label": "Which statement about the two methods is correct?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "both",
+                  "label": "Both methods are valid because each applies an equivalent operation to the entire equation."
+                },
+                {
+                  "id": "only-a",
+                  "label": "Only distribution is allowed."
+                },
+                {
+                  "id": "only-b",
+                  "label": "Only dividing first is allowed."
+                }
+              ],
+              "expected": "both"
+            },
+            {
+              "id": "solution",
+              "label": "Solution x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            },
+            {
+              "id": "left-check",
+              "label": "Original left side at x={{x}}",
+              "inputProfile": "number",
+              "expected": "{{rhs}}"
+            },
+            {
+              "id": "right-check",
+              "label": "Original right side",
+              "inputProfile": "number",
+              "expected": "{{rhs}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Different legal equation moves can be compared by whether they preserve the same solution set.",
+            "reasoning": [
+              "Distributing gives {{a}}x plus the distributed constant; dividing both sides by {{a}} first gives x{{b|signed}}={{inside}}.",
+              "Both routes isolate the same x={{x}}.",
+              "Substitution makes both sides of the original equation equal {{rhs}}, confirming the solution."
+            ],
+            "answerSummary": "Both methods are valid; x={{x}}."
+          },
+          "attemptFeedback": [
+            "Judge a method by whether it performs a legal equivalent operation on the entire equation."
+          ],
+          "supportHints": [
+            "Verification in the original equation is a way to compare the results of two solution methods."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "b": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "x": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              }
+            },
+            "derived": {
+              "inside": "x+b",
+              "rhs": "a*inside"
+            }
+          }
+        }
       ]
     },
     {
