@@ -155,7 +155,7 @@
       "difficultyBand": 4,
       "dok": 3,
       "taskType": "representationTranslation",
-      "prompt": "The parent points in the table lie on $y=\\sqrt{x}$. Map them through $g(x)={{a}}\\sqrt{{{b}}(x-({{h}}))}{{k|signed}}$, then determine what the inside and outside factors do to the graph.",
+      "prompt": "The parent points in the table lie on $y=\\sqrt{x}$. Map them through $g(x)={{a}}\\sqrt{{{b}}(x-({{h}}))}{{k|signed}}$, then determine the horizontal compression/reflection and vertical compression shown by the mapping.",
       "stimulus": {
         "kind": "table",
         "title": "Parent-point mapping",
@@ -202,13 +202,13 @@
         },
         {
           "id": "vertical-scale",
-          "label": "Vertical scale factor",
+          "label": "Vertical compression scale factor",
           "inputProfile": "number",
           "expected": "0.5"
         },
         {
           "id": "horizontal-scale",
-          "label": "Horizontal scale factor",
+          "label": "Horizontal compression scale factor",
           "inputProfile": "number",
           "expected": "0.25"
         },
@@ -234,7 +234,7 @@
         }
       ],
       "solutionReview": {
-        "headline": "Point mapping makes horizontal scaling/reflection visible.",
+        "headline": "Point mapping makes horizontal compression/reflection and vertical compression visible.",
         "reasoning": [
           "Because b=-4, parent inputs are divided by -4 before adding h. That compresses horizontal distances by 1/4 and reverses their direction.",
           "Because a=0.5, vertical distances from k are halved.",
