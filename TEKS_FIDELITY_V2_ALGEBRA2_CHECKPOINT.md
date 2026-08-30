@@ -475,8 +475,12 @@ Resume here. Do not reopen A2.2A–A2.4H unless a failing gate names them.
   - complete error repair for parameter-role confusion on a reflected logarithmic graph.
 - Added A2.5A-specific generated certification — commit `0fed9f04149a99f4d2f3493058baaad7e0beb167`.
 - The gate samples 200+ generated instances, independently checks transformed exponential/logarithmic function features and point placements against the function specification, exercises secure Function Investigation grading, requires repeated exponential/logarithmic/reflection breadth plus compression and error repair, rejects an incorrect point/attribute in every family, and checks public answer-key stripping.
-- Full A2.5A assertion run `33324924406`: **QUEUED/RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.5A** until that run is green.
+- Full A2.5A assertion run `33324924406`: **FAILED on a real renderability gate before content grading**.
+- Cause: the two secure Function Investigation families authored their increasing/decreasing response as analysis `kind: "text"`. The workspace only renders the allowlisted analysis kinds; unrecognized kinds fail closed so students are never graded on a response box they cannot see.
+- Reclassified those behavior prompts as the renderable short-answer `kind: "value"` without changing the expected answer or mathematics — commit `6aef1b8b49489213cec27837f7fb72987c71891f`.
+- This preserves the fail-closed security contract rather than weakening it.
+- Replacement A2.5A certification is triggered.
+- FIRST UNFINISHED STANDARD remains **A2.5A** until the replacement run is green.
 
 
 ### 2026-08-30 — A2.4H audit finding
@@ -1288,3 +1292,4 @@ For each standard:
 - Generated content, number-line secure grading, no-real-zero sign case, strict/inclusive breadth, wrong-answer rejection, public-key stripping, and student/runtime build all passed.
 - A2.4H is now locked as certified.
 - FIRST UNFINISHED STANDARD advanced to **A2.5A**.
+- Replacement A2.5A run `33324974453`: **IN_PROGRESS** at this checkpoint.
