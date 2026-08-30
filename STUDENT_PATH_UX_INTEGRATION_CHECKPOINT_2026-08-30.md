@@ -136,3 +136,55 @@ Run an end-to-end Path scenario matrix across the same production/shared engines
 - weekly assigned work remaining separate from that free-choice pass progression.
 
 The Teacher Path Simulator and live student route must consume the same recommendation/routing decisions and present the same purpose/next-step explanation for each scenario.
+
+## 2026-08-30 — semantic grading / pre-launch alignment / acceptance checkpoint
+
+Completed after the scheduler phase:
+
+- Teacher Path Simulator field grading now preserves the same semantic-equivalence metadata as production.
+  - Shared `legacyFieldGrading.mjs` now retains:
+    - primary `expected` / legacy `answer`;
+    - `accepted` plus legacy `acceptedAnswers`;
+    - field `equivalence`.
+  - This closes simulator parity for set-builder, rational-expression, nonnegative-radical and other opt-in semantic comparators.
+- Weekly/free-choice pass presentation certification was aligned with the current compound separation rule:
+  - weekly assigned work;
+  - free-choice Challenge;
+  - direct assessment practice;
+  - retention;
+  - numbered Foundation/Deeper/Mastery-challenge passes
+  remain visually distinct.
+- The skill/topic detail modal now shows the same clickable `StandardBadge` used during active questions.
+  - Students can inspect the TEKS learning target **before** launching.
+  - Students can inspect legitimate CCMR connections **before** launching.
+  - Existing `PracticeAsMenu` still controls which direct assessment pathways can actually be launched from secure published coverage.
+- Mass Correct Answer Acceptance exposed a real Algebra I student-input false negative:
+  - authored geometric sequence key: `5*(4)^(n-1)`;
+  - ordinary student form: `5(4)^(n-1)`.
+  - The shared form-preserving normalizer now handles implicit multiplication before a parenthesized powered numeric base without broadening function-call or algebraic-group semantics.
+  - The mass audit's 48 false negatives are resolved.
+- The promoted Algebra II A2.2B inverse-reflection seed made an old single-ID certification stale.
+  - The gate now certifies all five promoted A2.2B function-investigation families in both seed mirrors instead of looking for the removed legacy ID.
+
+Green gates:
+- Student Path UX Certification `33342904029`: **PASS**.
+- Correct Answer Acceptance Audit `33342976132`: **PASS**.
+- Algebra II Fidelity V2 Certification `33343023335`: **PASS**.
+- Algebra I / II Challenge DOK Difficulty Audit remains green from `33342756717`.
+
+### Exact next work
+
+Proceed with the end-to-end Path scenario matrix already identified below. Do not reopen certified Algebra I/II content.
+
+The matrix must test complete journeys through shared production/simulator logic for:
+1. fresh regular student;
+2. below-level prerequisite bridge and return;
+3. Honors course Challenge + CCMR Transfer;
+4. above-level regular student receiving earned Challenge;
+5. CCMR-disabled week retaining full session count;
+6. retention-due student receiving retention without Challenge relabeling;
+7. Band-4 miss reducing complexity on the same TEKS;
+8. repeated misses causing diagnose → bounded repair → bridge/return or teacher support;
+9. free-choice Level 1 → Level 2 → Level 3 progression;
+10. weekly assigned work staying separate from numbered free-choice pass progression.
+
