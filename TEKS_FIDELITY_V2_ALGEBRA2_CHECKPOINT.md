@@ -472,17 +472,39 @@ Certification result:
 
 Do **not** re-audit A2.5B unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.5C
 
-### A2.5C — ENHANCE — STAGED / CERTIFICATION RUNNING
+### A2.5C — ENHANCE — CERTIFIED
 
 Official construct: **Rewrite exponential equations as corresponding logarithmic equations and logarithmic equations as corresponding exponential equations.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- every family requires a written equivalent equation instead of multiple-choice recognition;
+- exponential→logarithmic and logarithmic→exponential rewrites both occur repeatedly;
+- numeric, symbolic-expression, common-log, and natural-log forms are represented;
+- one family rewrites the same relationship in both directions;
+- error analysis repairs base/argument role confusion and writes the corrected equivalent form;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- numeric role mappings are independently verified;
+- non-equivalent rewrites are rejected;
+- public payloads strip answer keys;
+- replacement Algebra II Fidelity V2 Certification run `33325302232`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.5C unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.5D — PENDING AUDIT
+
+Official construct: **Solve exponential equations of the form y = ab^x and single logarithmic equations having real solutions.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.5C
+### A2.5D
 
-Resume here. Do not reopen A2.2A–A2.5B unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.5C unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.5C audit finding
@@ -1424,4 +1446,7 @@ For each standard:
 - Secure graph construction, transformed feature/behavior parity, wrong-point/attribute rejection, public-key stripping, and student/runtime build all passed.
 - A2.5A is now locked as certified.
 - FIRST UNFINISHED STANDARD advanced to **A2.5B**.
-- Replacement A2.5C run `33325302232`: **IN_PROGRESS** at this checkpoint.
+- Replacement A2.5C run `33325302232`: **PASS**.
+- Written rewrite breadth, numeric role-map verification, wrong-rewrite rejection, public-key stripping, and student/runtime build all passed.
+- A2.5C is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.5D**.
