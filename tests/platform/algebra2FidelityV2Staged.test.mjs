@@ -1928,3 +1928,136 @@ test('A2.4F solves quadratic and square-root equations through complete multi-st
   assert.ok(representations.has('verbal'));
 });
 
+test('A2.4G identifies extraneous square-root candidates by checking the original equation', async () => {
+  const entry = payload('A2.4G');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /original-equation-substitution-identifies-extraneous/);
+
+  let generatedCount = 0;
+  let bothCandidateEvidenceFamilies = 0;
+  let oneExtraneousFamilies = 0;
+  let noExtraneousFamilies = 0;
+  let domainInsufficientFamilies = 0;
+  let contextFamilies = 0;
+  let errorFamilies = 0;
+  let spoiledOutcomeRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const ids = new Set((doc.responseFields || []).map((field) => String(field.id)));
+    const lhsFields = [...ids].filter((id) => /lhs/.test(id));
+    const rhsFields = [...ids].filter((id) => /rhs/.test(id));
+    assert.ok(lhsFields.length >= 1 && rhsFields.length >= 1, `${doc.id} must collect original-equation substitution evidence`);
+
+    if (lhsFields.length >= 2 && rhsFields.length >= 2) bothCandidateEvidenceFamilies += 1;
+    if (doc.id.includes('no-extraneous')) noExtraneousFamilies += 1;
+    if (doc.id.includes('domain-is-not-enough')) domainInsufficientFamilies += 1;
+    if (doc.representation === 'context') contextFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let familyHasExtraneous = false;
+    let spoiledChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const fields = Object.fromEntries(
+        (question.responseFields || []).map((field) => [field.id, field]),
+      );
+
+      const mismatchPairs = [];
+      for (const prefix of ['u', 'v', 'k', 'kp1']) {
+        const lhs = Number(fields[`${prefix}-lhs`]?.expected);
+        const rhs = Number(fields[`${prefix}-rhs`]?.expected);
+        if (Number.isFinite(lhs) && Number.isFinite(rhs)) {
+          mismatchPairs.push({ prefix, matches:Math.abs(lhs-rhs)<=1e-9, lhs, rhs });
+        }
+      }
+
+      if (question.id?.includes('no-extraneous') || doc.id.includes('no-extraneous')) {
+        assert.ok(mismatchPairs.length >= 2);
+        assert.ok(mismatchPairs.every((pair) => pair.matches), `${doc.id} promised no extraneous candidates but a substitution check fails`);
+        assert.equal(fields['extraneous-count']?.expected, 'zero');
+      } else if (doc.id.includes('domain-is-not-enough')) {
+        assert.equal(fields.domain?.expected, 'yes');
+        assert.ok(Number(fields['u-lhs']?.expected) >= 0);
+        assert.ok(Number(fields['u-rhs']?.expected) < 0);
+        assert.notEqual(Number(fields['u-lhs']?.expected), Number(fields['u-rhs']?.expected));
+        familyHasExtraneous = true;
+      } else {
+        const u = mismatchPairs.find((pair) => pair.prefix === 'u');
+        const v = mismatchPairs.find((pair) => pair.prefix === 'v');
+        assert.ok(u && v, `${doc.id} must check both generated candidates`);
+        assert.equal(u.matches, false, `${doc.id} smaller candidate unexpectedly satisfies the original equation`);
+        assert.equal(v.matches, true, `${doc.id} valid candidate unexpectedly fails the original equation`);
+        familyHasExtraneous = true;
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(correct.fieldResults)}`,
+      );
+
+      if (!spoiledChecked) {
+        let outcomeField = grading.fields.find((field) => field.id === 'extraneous');
+        let wrongValue;
+        if (outcomeField) {
+          wrongValue = Number(outcomeField.expected) + 1;
+        } else if ((outcomeField = grading.fields.find((field) => field.id === 'extraneous-count'))) {
+          wrongValue = 'one';
+        } else if ((outcomeField = grading.fields.find((field) => field.id === 'valid-time'))) {
+          wrongValue = Number(outcomeField.expected) + 1;
+        } else {
+          outcomeField = grading.fields.find((field) => /verdict/.test(field.id));
+          wrongValue = String(outcomeField?.expected) === 'valid' ? 'extraneous' : 'valid';
+        }
+        assert.ok(outcomeField, `${doc.id} has no extraneous/valid outcome field to spoil`);
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, [outcomeField.id]:wrongValue },
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted an incorrect extraneous-solution conclusion`);
+        spoiledOutcomeRejected += 1;
+        spoiledChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+
+    if (familyHasExtraneous) oneExtraneousFamilies += 1;
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(bothCandidateEvidenceFamilies >= 4, 'A2.4G must repeatedly substitute every squared-equation candidate into the original equation');
+  assert.ok(oneExtraneousFamilies >= 4, 'A2.4G must repeatedly identify an actual extraneous candidate');
+  assert.ok(noExtraneousFamilies >= 1, 'A2.4G must include a case where squaring creates no extraneous solution');
+  assert.ok(domainInsufficientFamilies >= 1, 'A2.4G must prove that radical-domain membership alone is not enough');
+  assert.ok(contextFamilies >= 1);
+  assert.ok(errorFamilies >= 1, 'A2.4G must repair the claim that every squared-equation root is valid');
+  assert.equal(spoiledOutcomeRejected, entry.documents.length);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('context'));
+  assert.ok(representations.has('verbal'));
+});
+
