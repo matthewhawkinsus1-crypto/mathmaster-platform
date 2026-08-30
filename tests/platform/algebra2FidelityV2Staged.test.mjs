@@ -16,6 +16,11 @@ import {
 } from '../../functions/shared/answerEquivalence.mjs';
 import { parsePolynomial, splitEquationSides } from '../../functions/shared/algebraicForm.mjs';
 import {
+  pathPredictionKind,
+  pathQuadraticRegression,
+  pathSquareRootRegression,
+} from '../../functions/shared/pathDataModelingGrading.mjs';
+import {
   feasibleRegionPolygon,
   satisfiesLinearInequality,
   solve3x3System,
@@ -1657,5 +1662,151 @@ test('A2.4D transforms standard form to vertex form before identifying attribute
   assert.ok(taskTypes.has('representationTranslation'));
   assert.ok(taskTypes.has('application'));
   assert.ok(taskTypes.has('errorAnalysis'));
+});
+
+test('A2.4E formulates quadratic and square-root equations with authentic regression technology', async () => {
+  const entry = payload('A2.4E');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /authentic-technology-quadratic-and-square-root-regression/);
+
+  let generatedCount = 0;
+  let quadraticFamilies = 0;
+  let squareRootFamilies = 0;
+  let interpolationFamilies = 0;
+  let extrapolationFamilies = 0;
+  let errorRepairFamilies = 0;
+  let wrongCoefficientRejected = 0;
+  let wrongTargetRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    assert.equal(doc.type, 'dataModelingLab', `${doc.id} must use authentic Data Modeling Lab technology`);
+    assert.ok(
+      ['quadraticFitPrediction', 'squareRootFitPrediction'].includes(doc.mode),
+      `${doc.id} drifted outside the two model families named by A2.4E`,
+    );
+    assert.ok((doc.points || []).length >= 5, `${doc.id} must use an overdetermined table, not a minimum-point hand fit`);
+    assert.notEqual(doc.predictionX, undefined, `${doc.id} must use its formulated equation for a fixed prediction`);
+
+    if (doc.mode === 'quadraticFitPrediction') quadraticFamilies += 1;
+    if (doc.mode === 'squareRootFitPrediction') squareRootFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorRepairFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let familyPredictionType = null;
+    let spoiledCoefficient = false;
+    let spoiledTarget = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+      assert.equal(isPathEligible(question), true, `${doc.id} produced a Path-ineligible technology question`);
+
+      const publicPayload = buildPublicToolPayload(question);
+      assert.equal(publicPayload.pathToolId, 'dataModelingLab');
+      assert.equal(publicPayload.tool.mode, question.mode);
+      assert.equal(publicPayload.tool.points.length, question.points.length);
+      assert.equal(publicPayload.tool.predictionX, Number(question.predictionX));
+      const publicText = JSON.stringify(publicPayload.tool);
+      assert.equal(publicText.includes('expectedModel'), false);
+      assert.equal(publicText.includes('quadraticATolerance'), false);
+      assert.equal(publicText.includes('squareRootATolerance'), false);
+
+      const privateGrading = buildPrivateToolGrading(question);
+      const expected = privateGrading.definition.expectedModel;
+      assert.ok(expected?.model, `${doc.id} server produced no fitted model`);
+
+      const independent = question.mode === 'quadraticFitPrediction'
+        ? pathQuadraticRegression(publicPayload.tool.points)
+        : pathSquareRootRegression(publicPayload.tool.points);
+      assert.ok(independent, `${doc.id} independent regression failed`);
+
+      if (question.mode === 'quadraticFitPrediction') {
+        assert.equal(expected.id, 'quadratic');
+        assert.ok(Math.abs(expected.model.a - independent.a) <= 1e-9);
+        assert.ok(Math.abs(expected.model.b - independent.b) <= 1e-9);
+        assert.ok(Math.abs(expected.model.c - independent.c) <= 1e-9);
+      } else {
+        assert.equal(expected.id, 'squareRoot');
+        assert.ok(Math.abs(expected.model.a - independent.a) <= 1e-9);
+        assert.ok(Math.abs(expected.model.h - independent.h) <= 1e-9);
+        assert.ok(Math.abs(expected.model.k - independent.k) <= 1e-9);
+        const xs = publicPayload.tool.points.map(([x]) => Number(x));
+        assert.equal(independent.h, Math.min(...xs), `${doc.id} square-root fit did not anchor h at the table endpoint`);
+      }
+
+      const predictionX = Number(question.predictionX);
+      const predictionY = expected.id === 'quadratic'
+        ? expected.model.a * predictionX ** 2 + expected.model.b * predictionX + expected.model.c
+        : expected.model.a * Math.sqrt(predictionX - expected.model.h) + expected.model.k;
+      const predictionType = pathPredictionKind(publicPayload.tool.points, predictionX);
+      if (familyPredictionType === null) familyPredictionType = predictionType;
+      assert.equal(predictionType, familyPredictionType, `${doc.id} changes interpolation/extrapolation intent across generated instances`);
+
+      const fitRaw = expected.id === 'quadratic'
+        ? { a:expected.model.a, b:expected.model.b, c:expected.model.c }
+        : { a:expected.model.a, h:expected.model.h, k:expected.model.k };
+      const correctRaw = {
+        ...fitRaw,
+        predictionX,
+        predictionY,
+        predictionType,
+      };
+      const correct = gradePathResponse({ privateGrading, raw: correctRaw });
+      assert.equal(correct.rejected, false);
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed secure fitted-model self-acceptance: ${JSON.stringify(correct.parts)}`,
+      );
+      assert.equal(correct.parts.fit, true);
+      assert.equal(correct.parts.prediction, true);
+
+      if (!spoiledCoefficient) {
+        const wrongFit = { ...correctRaw, a:Number(correctRaw.a) + 2 };
+        const wrong = gradePathResponse({ privateGrading, raw: wrongFit });
+        assert.equal(wrong.rejected, false);
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted a materially wrong fitted coefficient`);
+        assert.equal(wrong.parts.fit, false);
+        wrongCoefficientRejected += 1;
+        spoiledCoefficient = true;
+      }
+
+      if (!spoiledTarget) {
+        const wrongX = predictionX + 1;
+        const wrongTarget = gradePathResponse({
+          privateGrading,
+          raw: { ...correctRaw, predictionX:wrongX },
+        });
+        assert.equal(wrongTarget.rejected, false);
+        assert.equal(wrongTarget.isCorrect, false, `${doc.id} allowed the fixed prediction target to be replaced`);
+        assert.equal(wrongTarget.parts.prediction, false);
+        wrongTargetRejected += 1;
+        spoiledTarget = true;
+      }
+    }
+
+    if (familyPredictionType === 'interpolation') interpolationFamilies += 1;
+    if (familyPredictionType === 'extrapolation') extrapolationFamilies += 1;
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(quadraticFamilies >= 2, 'A2.4E must repeatedly formulate quadratic equations with technology');
+  assert.ok(squareRootFamilies >= 2, 'A2.4E must repeatedly formulate square-root equations with technology');
+  assert.ok(interpolationFamilies >= 2, 'A2.4E must use fitted equations for interpolation as well as extrapolation');
+  assert.ok(extrapolationFamilies >= 2, 'A2.4E must use fitted equations for extrapolation as well as interpolation');
+  assert.ok(errorRepairFamilies >= 1, 'A2.4E must repair an incorrect technology model entry using the actual regression fit');
+  assert.equal(wrongCoefficientRejected, entry.documents.length);
+  assert.equal(wrongTargetRejected, entry.documents.length);
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('context'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('verbal'));
 });
 
