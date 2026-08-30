@@ -719,6 +719,9 @@ Resume here. Do not reopen A2.2A–A2.6G unless a failing gate names them.
 - No content requirement was weakened; A2.6H still requires both constructive work-rate modeling and a distinct opposing-rate error-repair model.
 - Replacement certification is triggered.
 - FIRST UNFINISHED STANDARD remains **A2.6H** until the replacement run is green.
+- Replacement A2.6H certification run `33327104027`: **PASS**, including the staged Algebra II generated-instance gates and student/runtime build.
+- A2.6H is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.6I**.
 
 
 ### 2026-08-30 — A2.6G audit finding
