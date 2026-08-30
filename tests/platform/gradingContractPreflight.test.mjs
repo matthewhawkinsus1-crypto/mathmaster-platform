@@ -5,7 +5,7 @@ import { validateQuestionGradingContracts } from '../../src/platform/grading/gra
 import { validateQuestionSemantics } from '../../src/platform/contract/semanticValidation.js';
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
 
-test('acceptedAnswers cannot silently override the declared correct answer', () => {
+test('legacy answerFields keep the canonical answer when acceptedAnswers add a distinct alternate', () => {
   const question = {
     type: 'multiAnswer',
     prompt: 'Enter the value.',
@@ -16,9 +16,8 @@ test('acceptedAnswers cannot silently override the declared correct answer', () 
       acceptedAnswers: ['5'],
     }],
   };
-  const result = validateQuestionGradingContracts(question, { label: 'Conflict question' });
-  assert.ok(result.errors.some((message) => /acceptedAnswers list/.test(message)));
-  assert.ok(result.errors.some((message) => /could be marked wrong/.test(message)));
+  const result = validateQuestionGradingContracts(question, { label: 'Alternate-answer question' });
+  assert.deepEqual(result.errors, []);
 });
 
 test('mathematically equivalent accepted formatting does not conflict with the primary key', () => {
@@ -197,15 +196,15 @@ test('negative or nonnumeric tolerances are rejected', () => {
   assert.ok(result.errors.some((message) => /relativeTolerance/.test(message)));
 });
 
-test('semantic Preflight includes grading-contract failures', () => {
+test('semantic Preflight includes secure response-field grading-contract failures', () => {
   const question = {
-    type: 'multiAnswer',
     prompt: 'Enter the value.',
-    answerFields: [{
+    responseFields: [{
       id: 'value',
       label: 'Value',
-      answer: '4',
-      acceptedAnswers: ['5'],
+      inputProfile: 'number',
+      expected: '4',
+      accepted: ['5'],
     }],
   };
   const result = validateQuestionSemantics(question, { label: 'Question 1' });
@@ -228,11 +227,12 @@ test('native Assignment V5 Preflight blocks a stale accepted-answer list', () =>
       questions: [{
         type: 'multiAnswer',
         prompt: 'Enter the value.',
-        answerFields: [{
+        responseFields: [{
           id: 'value',
           label: 'Value',
-          answer: '4',
-          acceptedAnswers: ['5'],
+          inputProfile: 'number',
+          expected: '4',
+          accepted: ['5'],
         }],
         alignments: [
           { framework: 'teks', code: 'A.5A', role: 'primary', evidenceLevel: 'assessed' },
