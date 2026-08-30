@@ -17,6 +17,8 @@ on:
       - src/components/student/PathSessionPlayer.jsx
       - src/components/common/StandardBadge.jsx
       - src/platform/path/pathPassPresentation.js
+      - functions/index.js
+      - tests/platform/pathAdaptiveVariantTargeting.test.mjs
       - tests/platform/pathPassDashboardUx.test.mjs
       - .github/workflows/student-path-ux-certification.yml
 
