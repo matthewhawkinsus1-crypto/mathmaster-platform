@@ -4935,7 +4935,7 @@ test('A2.7E certifies linear and quadratic factors from cubes and grouping', asy
   const representations=new Set();
   for(const doc of entry.documents){
     representations.add(doc.representation);
-    if(doc.id.includes('difference-cubes')) diffCube+=1;
+    if(doc.id.includes('_v2_difference-cubes-linear-quadratic')) diffCube+=1;
     if(doc.id.includes('sum-cubes')) sumCube+=1;
     if(doc.id.includes('cubic-grouping')) cubicGrouping+=1;
     if(doc.id.includes('quartic-grouping')) quarticGrouping+=1;
