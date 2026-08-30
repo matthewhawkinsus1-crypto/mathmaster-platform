@@ -203,7 +203,7 @@ Do **not** re-audit A2.3D unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.3E — REBUILD — AUDITED / AUTHORING
+### A2.3E — REBUILD — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Formulate systems of at least two linear inequalities in two variables.**
 
@@ -231,6 +231,22 @@ Resume here. Do not reopen A2.2A–A2.3D unless a failing gate names them.
   - one error-analysis family must diagnose the boundary-symbol mistake and then write the entire corrected system;
   - representations should include context, table, graph/half-plane description, and verbal constraints.
 - This is formulation, not graph solving; generic secure math-response fields are the right evidence. A2.3F will own construction/solution-region behavior.
+
+
+### 2026-08-30 — A2.3E staged and gated
+- Staged five A2.3E Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.3E.json` — commit `cfa8f75eb8a22e94f0d90f768e489e19aa047a74`.
+- Students now author the inequalities instead of selecting a prewritten system.
+- Coverage includes:
+  - budget + minimum quantity constraints;
+  - two coupled resource inequalities plus nonnegativity;
+  - table-based half-plane direction and boundary-inclusion evidence;
+  - region-description formulation with vertical, slanted, and strict horizontal boundaries;
+  - strict-boundary error analysis that diagnoses the symbol and writes the complete corrected system.
+- Package-only Algebra II certification run `33318488825`: **PASS**, including student/runtime build.
+- Added A2.3E-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `0ea64bbbf6308251a59ee9efc4fc01cbd73d66ae`.
+- The A2.3E gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public-key stripping, at least two student-authored inequality fields in every family, repeated 3+ constraint systems, coupled x/y resource constraints, strict/inclusive boundary evidence, nonnegativity, and complete error-analysis repair.
+- Full A2.3E assertion run `33318512713`: **QUEUED/RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.3E** until that run is green.
 
 
 ### 2026-08-30 — A2.3D audit finding
