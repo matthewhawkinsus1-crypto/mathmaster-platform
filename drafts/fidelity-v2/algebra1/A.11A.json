@@ -338,7 +338,81 @@
           "n2": "b*b*r",
           "diff": "gap"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-simplify-before-combining-error",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student says $\\sqrt{{{n1}}}-\\sqrt{{{n2}}}$ cannot be combined because the radicands are different. Diagnose the claim by simplifying BOTH radicals first, identify the common radical part, and give the completely simplified difference.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What is the student's error?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "simplify-first",
+                  "label": "The radicals must be simplified first; they become like radicals with the same remaining radicand."
+                },
+                {
+                  "id": "never-combine",
+                  "label": "Radicals with different original radicands can never become like radicals."
+                },
+                {
+                  "id": "subtract-radicands",
+                  "label": "The radicands should be subtracted directly before taking a square root."
+                }
+              ],
+              "expected": "simplify-first"
+            },
+            {
+              "id": "first-coefficient",
+              "label": "Coefficient after simplifying the first radical",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "second-coefficient",
+              "label": "Coefficient after simplifying the second radical",
+              "inputProfile": "number",
+              "expected": "{{b}}"
+            },
+            {
+              "id": "common-radicand",
+              "label": "Common radicand after simplification",
+              "inputProfile": "number",
+              "expected": "{{r}}"
+            },
+            {
+              "id": "answer",
+              "label": "Completely simplified difference",
+              "inputProfile": "expression",
+              "expected": "{{gap}}sqrt({{r}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Original radicands can look different and still simplify to like radicals.",
+            "reasoning": [
+              "$\\sqrt{{{n1}}}={{a}}\\sqrt{{{r}}}$ and $\\sqrt{{{n2}}}={{b}}\\sqrt{{{r}}}$.",
+              "After simplification the common radical part is $\\sqrt{{{r}}}$.",
+              "Subtract the coefficients: {{a}}-{{b}}={{gap}}, giving ${{gap}}\\sqrt{{{r}}}$."
+            ],
+            "answerSummary": "${{gap}}\\sqrt{{{r}}}$"
+          },
+          "attemptFeedback": [
+            "Simplify each radical independently before deciding whether the terms are like radicals."
+          ],
+          "supportHints": [
+            "The generated radicands each contain a different perfect-square factor but the same square-free factor."
+          ]
+        }
+      ]
     }
   ]
 }
