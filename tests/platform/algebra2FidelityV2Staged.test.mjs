@@ -4691,3 +4691,108 @@ test('A2.7A securely adds subtracts and multiplies complex numbers with standard
   assert.ok(representations.has('table'));
   assert.ok(representations.has('verbal'));
 });
+test('A2.7B securely adds subtracts and multiplies polynomials across sparse and higher-degree cases', async () => {
+  const entry = payload('A2.7B');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /polynomial-add-subtract-multiply/);
+  const authored = stringValues(entry.documents).join(' ').toLowerCase();
+  assert.equal(authored.includes('the degree is 3 and the leading coefficient'), false, 'A2.7B must not retain the off-standard degree/leading-coefficient family');
+
+  let generatedCount=0, addFamilies=0, subtractFamilies=0, multiplyFamilies=0, errorFamilies=0;
+  let reorderedAccepted=0, wrongRejected=0, degree5Instances=0;
+  const representations=new Set();
+
+  for(const doc of entry.documents){
+    representations.add(doc.representation);
+    if(doc.id.includes('add-')) addFamilies+=1;
+    if(doc.id.includes('subtract-') || doc.taskType==='errorAnalysis') subtractFamilies+=1;
+    if(doc.id.includes('multiply-')) multiplyFamilies+=1;
+    if(doc.taskType==='errorAnalysis') errorFamilies+=1;
+    assert.ok((doc.responseFields||[]).some((field)=>field.id==='answer'), doc.id+' must require a final expanded polynomial');
+    const issuePlan=await buildTemplateIssuePlan(doc,{samples:24});
+    assert.equal(issuePlan.issuable,true,doc.id+' is not production-issuable: '+issuePlan.reason);
+    let reorderChecked=false, wrongChecked=false;
+
+    for(const generated of samplePathInstances(doc,40)){
+      assert.ok(generated.question,doc.id+' failed generation: '+generated.reason);
+      const q=generated.question,p=generated.parameters||{};
+      generatedCount+=1;
+      assert.deepEqual([...placeholdersUsed(q)],[]);
+      const fields=Object.fromEntries((q.responseFields||[]).map((field)=>[field.id,field]));
+
+      if(doc.id.includes('add-sparse')){
+        assert.equal(Number(fields['coef-4'].expected),Number(p.a));
+        assert.equal(Number(fields['coef-3'].expected),Number(p.d));
+        assert.equal(Number(fields['coef-2'].expected),Number(p.b)+Number(p.e));
+        assert.equal(Number(fields['coef-1'].expected),Number(p.f));
+        assert.equal(Number(fields['coef-0'].expected),Number(p.c)+Number(p.g));
+      }
+      if(doc.id.includes('subtract-sparse')){
+        assert.equal(Number(fields['coef-4'].expected),Number(p.a)-Number(p.e));
+        assert.equal(Number(fields['coef-3'].expected),Number(p.b));
+        assert.equal(Number(fields['coef-2'].expected),-Number(p.f));
+        assert.equal(Number(fields['coef-1'].expected),Number(p.c)-Number(p.g));
+        assert.equal(Number(fields['coef-0'].expected),Number(p.d)-Number(p.h));
+      }
+      if(doc.id.includes('multiply-quadratics')){
+        assert.equal(Number(fields['coef-4'].expected),Number(p.a)*Number(p.d));
+        assert.equal(Number(fields['coef-3'].expected),Number(p.a)*Number(p.e)+Number(p.b)*Number(p.d));
+        assert.equal(Number(fields['coef-2'].expected),Number(p.a)*Number(p.f)+Number(p.b)*Number(p.e)+Number(p.c)*Number(p.d));
+        assert.equal(Number(fields['coef-1'].expected),Number(p.b)*Number(p.f)+Number(p.c)*Number(p.e));
+        assert.equal(Number(fields['coef-0'].expected),Number(p.c)*Number(p.f));
+      }
+      if(doc.id.includes('degree5')){
+        degree5Instances+=1;
+        assert.equal(Number(fields['coef-5'].expected),Number(p.a)*Number(p.c));
+        assert.equal(Number(fields['coef-4'].expected),Number(p.a)*Number(p.d));
+        assert.equal(Number(fields['coef-3'].expected),Number(p.a)*Number(p.e));
+        assert.equal(Number(fields['coef-2'].expected),Number(p.b)*Number(p.c));
+        assert.equal(Number(fields['coef-1'].expected),Number(p.b)*Number(p.d));
+        assert.equal(Number(fields['coef-0'].expected),Number(p.b)*Number(p.e));
+      }
+      if(doc.taskType==='errorAnalysis'){
+        assert.equal(fields.diagnosis.expected,'all-signs');
+        assert.equal(Number(fields['coef-3'].expected),Number(p.a)-Number(p.e));
+        assert.equal(Number(fields['coef-2'].expected),Number(p.b)-Number(p.f));
+        assert.equal(Number(fields['coef-1'].expected),Number(p.c)-Number(p.g));
+        assert.equal(Number(fields['coef-0'].expected),Number(p.d)-Number(p.h));
+        assert.equal(doc.dok,3);
+      } else assert.equal(doc.dok,2,doc.id+' should remain DOK 2 despite computational difficulty');
+
+      const grading=privateGradingDefinition(q);
+      const responses=Object.fromEntries(grading.fields.map((field)=>[field.id,field.expected??field.accepted?.[0]??'']));
+      const correct=await gradeResponse(grading,{responses});
+      assert.equal(correct.isCorrect,true,doc.id+' failed secure self-acceptance: '+JSON.stringify(correct.fieldResults));
+
+      const coefFields=grading.fields.filter((field)=>/^coef-\d+$/.test(field.id));
+      const terms=coefFields.map((field)=>({degree:Number(field.id.split('-')[1]),value:Number(field.expected)})).sort((a,b)=>a.degree-b.degree);
+      if(!reorderChecked){
+        const reordered=terms.map((term)=>'('+term.value+')'+(term.degree===0?'':term.degree===1?'*x':'*x^'+term.degree)).join('+');
+        const result=await gradeResponse(grading,{responses:{...responses,answer:reordered}});
+        assert.equal(result.isCorrect,true,doc.id+' rejected an equivalent reordered expanded polynomial');
+        reorderedAccepted+=1; reorderChecked=true;
+      }
+      if(!wrongChecked){
+        const lead=terms[terms.length-1];
+        const wrong=terms.map((term)=>'('+(term===lead?term.value+1:term.value)+')'+(term.degree===0?'':term.degree===1?'*x':'*x^'+term.degree)).join('+');
+        const result=await gradeResponse(grading,{responses:{...responses,answer:wrong}});
+        assert.equal(result.isCorrect,false,doc.id+' accepted a changed polynomial coefficient');
+        wrongRejected+=1; wrongChecked=true;
+      }
+      const publicQ=buildSanitizedQuestion(q,{questionInstanceId:'qa-'+doc.id+'-'+generatedCount,attemptsAllowed:3});
+      const publicText=JSON.stringify(publicQ);
+      assert.equal(publicText.includes('"expected"'),false);
+      assert.equal(publicText.includes('"acceptedAnswers"'),false);
+    }
+  }
+  assert.ok(generatedCount>=200);
+  assert.equal(addFamilies,1);
+  assert.ok(subtractFamilies>=2);
+  assert.equal(multiplyFamilies,2);
+  assert.equal(errorFamilies,1);
+  assert.ok(degree5Instances>=40);
+  assert.equal(reorderedAccepted,entry.documents.length);
+  assert.equal(wrongRejected,entry.documents.length);
+  assert.ok(representations.has('symbolic')&&representations.has('table')&&representations.has('multipleRepresentation')&&representations.has('verbal'));
+});
