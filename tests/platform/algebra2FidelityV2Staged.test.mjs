@@ -4891,3 +4891,41 @@ test('A2.7C directly certifies all four polynomial quotient degree combinations'
   assert.equal(errorFamilies,1); assert.ok(linearRemainders>=40); assert.equal(reorderedAccepted,entry.documents.length); assert.equal(wrongRejected,entry.documents.length);
   assert.ok(representations.has('symbolic')&&representations.has('table')&&representations.has('multipleRepresentation')&&representations.has('verbal'));
 });
+test('A2.7D algebraically determines cubic and quartic linear factors including rational roots and multiplicity', async () => {
+ const entry=payload('A2.7D'); assert.ok(entry); assert.equal(entry.verdict,'REBUILD'); assert.match(entry.certificationStatus,/algebraic-linear-factors-cubic-quartic/);
+ assert.equal(entry.documents.some((doc)=>doc.representation==='graph'),false,'A2.7D must use algebraic methods, not graph-only factor identification');
+ let generatedCount=0,cubicFamilies=0,quarticFamilies=0,rationalInstances=0,multiplicityInstances=0,errorFamilies=0,altFactorsAccepted=0,wrongRootsRejected=0;
+ const evalPoly=(coeffs,x)=>coeffs.reduce((acc,c)=>acc*x+c,0);
+ for(const doc of entry.documents){
+  if(doc.id.includes('cubic-')) cubicFamilies+=1; if(doc.id.includes('quartic-')||doc.taskType==='errorAnalysis') quarticFamilies+=1; if(doc.taskType==='errorAnalysis') errorFamilies+=1;
+  const plan=await buildTemplateIssuePlan(doc,{samples:24}); assert.equal(plan.issuable,true,doc.id+' is not production-issuable: '+plan.reason);
+  let altChecked=false,wrongChecked=false;
+  for(const generated of samplePathInstances(doc,40)){
+   assert.ok(generated.question,doc.id+' failed generation: '+generated.reason); const q=generated.question,p=generated.parameters||{}; generatedCount+=1; assert.deepEqual([...placeholdersUsed(q)],[]);
+   const fields=Object.fromEntries((q.responseFields||[]).map((field)=>[field.id,field]));
+   if(doc.id.includes('cubic-integer')){
+    const coeff=[1,Number(p.A2),Number(p.A1),Number(p.A0)]; [p.r1,p.r2,p.r3].forEach((root)=>assert.ok(Math.abs(evalPoly(coeff,Number(root)))<1e-9));
+    assert.equal(Number(fields['test-value'].expected),0); assert.equal(Number(p.Q1),-(Number(p.r2)+Number(p.r3))); assert.equal(Number(p.Q0),Number(p.r2)*Number(p.r3));
+   }
+   if(doc.id.includes('quartic-four')||doc.taskType==='errorAnalysis'){
+    const coeff=[1,Number(p.A3),Number(p.A2),Number(p.A1),Number(p.A0)]; [p.r1,p.r2,p.r3,p.r4].forEach((root)=>assert.ok(Math.abs(evalPoly(coeff,Number(root)))<1e-8));
+    if(fields['reduced-quotient']){ assert.equal(Number(p.Q2),-(Number(p.r2)+Number(p.r3)+Number(p.r4))); assert.equal(Number(p.Q1),Number(p.r2)*Number(p.r3)+Number(p.r2)*Number(p.r4)+Number(p.r3)*Number(p.r4)); assert.equal(Number(p.Q0),-Number(p.r2)*Number(p.r3)*Number(p.r4)); }
+   }
+   if(doc.id.includes('noninteger-rational')){
+    rationalInstances+=1; const rr=Number(p.rr); assert.notEqual(rr,Math.trunc(rr));
+    const coeff=[2,Number(p.A2),Number(p.A1),Number(p.A0)]; assert.ok(Math.abs(evalPoly(coeff,rr))<1e-8); assert.ok(Math.abs(evalPoly(coeff,Number(p.r2)))<1e-8); assert.ok(Math.abs(evalPoly(coeff,Number(p.r3)))<1e-8);
+   }
+   if(doc.id.includes('repeated-root')){
+    multiplicityInstances+=1; const coeff=[1,Number(p.A3),Number(p.A2),Number(p.A1),Number(p.A0)]; [p.r1,p.r2,p.r3].forEach((root)=>assert.ok(Math.abs(evalPoly(coeff,Number(root)))<1e-8));
+    assert.equal(Number(fields.multiplicity.expected),2);
+   }
+   if(doc.taskType==='errorAnalysis'){ assert.equal(fields.diagnosis.expected,'root-sign'); assert.equal(Number(fields['correct-synthetic'].expected),Number(p.r1)); assert.equal(Number(p.wrongSynthetic),-Number(p.r1)); assert.equal(doc.dok,3); } else assert.equal(doc.dok,2,doc.id+' should remain DOK 2 despite algebraic depth');
+   const grading=privateGradingDefinition(q); const responses=Object.fromEntries(grading.fields.map((field)=>[field.id,field.expected??field.accepted?.[0]??'']));
+   const correct=await gradeResponse(grading,{responses}); assert.equal(correct.isCorrect,true,doc.id+' failed secure self-acceptance: '+JSON.stringify(correct.fieldResults));
+   if(!altChecked){ const factor=grading.fields.find((field)=>/^factor-/.test(field.id))||grading.fields.find((field)=>field.id==='rational-factor'); assert.ok(factor); const rootFieldId=factor.id==='rational-factor'?'rational-root':factor.id.replace('factor-','root-'); const root=Number(grading.fields.find((field)=>field.id===rootFieldId)?.expected); assert.ok(Number.isFinite(root)); const alt='(-'+root+')+x'; const result=await gradeResponse(grading,{responses:{...responses,[factor.id]:alt}}); assert.equal(result.isCorrect,true,doc.id+' rejected equivalent reordered linear factor '+alt); altFactorsAccepted+=1; altChecked=true; }
+   if(!wrongChecked){ const rootField=grading.fields.find((field)=>/^root-/.test(field.id))||grading.fields.find((field)=>field.id==='rational-root'); assert.ok(rootField); const result=await gradeResponse(grading,{responses:{...responses,[rootField.id]:String(Number(rootField.expected)+1)}}); assert.equal(result.isCorrect,false,doc.id+' accepted a changed root'); wrongRootsRejected+=1; wrongChecked=true; }
+   const publicQ=buildSanitizedQuestion(q,{questionInstanceId:'qa-'+doc.id+'-'+generatedCount,attemptsAllowed:3}); const publicText=JSON.stringify(publicQ); assert.equal(publicText.includes('"expected"'),false); assert.equal(publicText.includes('"acceptedAnswers"'),false);
+  }
+ }
+ assert.ok(generatedCount>=200); assert.equal(cubicFamilies,2); assert.ok(quarticFamilies>=3); assert.ok(rationalInstances>=40); assert.ok(multiplicityInstances>=40); assert.equal(errorFamilies,1); assert.equal(altFactorsAccepted,entry.documents.length); assert.equal(wrongRootsRejected,entry.documents.length);
+});
