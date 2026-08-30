@@ -4003,3 +4003,160 @@ test('A2.6H formulates real-world rational equations through student-authored mo
   assert.ok(representations.has('verbal'));
 });
 
+test('A2.6I solves complete real rational equations across linear quadratic context and error-repair cases', async () => {
+  const entry = payload('A2.6I');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /complete-rational-equation-solving/);
+
+  const authoredText = stringValues(entry.documents).join(' ').toLowerCase();
+  assert.equal(authoredText.includes('extraneous candidate'), false, 'A2.6I must not take over A2.6J reasonableness/extraneous-candidate judgment');
+  assert.equal(authoredText.includes('is reasonable'), false, 'A2.6I must remain solve-focused rather than ask A2.6J reasonableness questions');
+
+  let generatedCount = 0;
+  let quadraticFamilies = 0;
+  let multiDenominatorFamilies = 0;
+  let contextFamilies = 0;
+  let errorFamilies = 0;
+  let wrongRootsRejected = 0;
+  let reversedClearedAccepted = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const solutionFields = (doc.responseFields || []).filter((field) => /solution|root/.test(String(field.id)));
+    assert.ok(solutionFields.length >= 1, `${doc.id} must finish with at least one real solution field`);
+
+    if (doc.id.includes('quadratic')) quadraticFamilies += 1;
+    if (doc.id.includes('two-denominator') || doc.id.includes('lcd-error')) {
+      quadraticFamilies += 1;
+      multiDenominatorFamilies += 1;
+    }
+    if (doc.id.includes('quadratic-proportion')) multiDenominatorFamilies += 1;
+    if (doc.representation === 'context') contextFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let wrongChecked = false;
+    let reversedChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      const params = generated.parameters || {};
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const fields = Object.fromEntries(
+        (question.responseFields || []).map((field) => [field.id, field]),
+      );
+
+      if (doc.id.includes('shifted-isolate')) {
+        const x = Number(fields.solution?.expected);
+        assert.equal(Number(fields.excluded?.expected), Number(params.h));
+        assert.equal(Number(fields['isolated-value']?.expected), Number(params.s));
+        assert.equal(Number(fields.denominator?.expected), Number(params.d));
+        assert.ok(Math.abs(Number(params.a) / (x - Number(params.h)) + Number(params.k) - Number(params.r)) < 1e-9);
+        assert.notEqual(x, Number(params.h));
+      }
+
+      if (doc.id.includes('quadratic-proportion')) {
+        const p = Number(fields['root-1']?.expected);
+        const q = Number(fields['root-2']?.expected);
+        const c = Number(params.c);
+        const b = Number(params.b);
+        assert.ok(p < q);
+        assert.ok(Math.abs(p / (p - 1) - c / (p + b)) < 1e-9);
+        assert.ok(Math.abs(q / (q - 1) - c / (q + b)) < 1e-9);
+        assert.notEqual(p, 1);
+        assert.notEqual(q, 1);
+        assert.notEqual(p, -b);
+        assert.notEqual(q, -b);
+      }
+
+      if (doc.id.includes('two-denominator') || doc.id.includes('lcd-error')) {
+        const p = Number(fields['root-1']?.expected);
+        const q = Number(fields['root-2']?.expected);
+        const a = Number(params.a);
+        const b = Number(params.b);
+        assert.ok(p < q);
+        assert.ok(Math.abs(a / p + b / (p - 3) - 1) < 1e-9);
+        assert.ok(Math.abs(a / q + b / (q - 3) - 1) < 1e-9);
+        assert.ok(![0, 3].includes(p));
+        assert.ok(![0, 3].includes(q));
+      }
+
+      if (doc.id.includes('combined-work')) {
+        const a = Number(params.a);
+        const x = Number(fields.solution?.expected);
+        const t = Number(params.t);
+        assert.ok(Math.abs(1 / a + 1 / x - 1 / t) < 1e-9);
+        assert.ok(x > 0);
+      }
+
+      if (doc.taskType === 'errorAnalysis') {
+        assert.equal(fields.diagnosis?.expected, 'missing-x');
+        assert.ok(fields.cleared?.expected);
+        assert.equal(fields.cleared.equivalence, 'polynomialRelation');
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(correct.fieldResults)}`,
+      );
+
+      if (!reversedChecked && fields.cleared?.expected) {
+        const sides = splitEquationSides(fields.cleared.expected);
+        assert.ok(sides);
+        const reversed = `${sides.right}=${sides.left}`;
+        const result = await gradeResponse(grading, {
+          responses: { ...responses, cleared: reversed },
+        });
+        assert.equal(result.isCorrect, true, `${doc.id} rejected an equivalent side-reversed cleared equation`);
+        reversedClearedAccepted += 1;
+        reversedChecked = true;
+      }
+
+      if (!wrongChecked) {
+        const target = fields.solution || fields['root-1'];
+        assert.ok(target, `${doc.id} has no final numeric field for wrong-answer rejection`);
+        const wrongValue = Number(target.expected) + 1;
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, [target.id]: String(wrongValue) },
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted an incorrect final rational-equation solution`);
+        wrongRootsRejected += 1;
+        wrongChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(quadraticFamilies >= 3, 'A2.6I must repeatedly reach a quadratic after clearing denominators');
+  assert.ok(multiDenominatorFamilies >= 3, 'A2.6I must repeatedly solve authentic multi-denominator rational equations');
+  assert.equal(contextFamilies, 1);
+  assert.equal(errorFamilies, 1);
+  assert.equal(wrongRootsRejected, entry.documents.length);
+  assert.ok(reversedClearedAccepted >= 4, 'Every nontrivial cleared-equation family must accept equivalent equation-side reversal');
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('context'));
+  assert.ok(representations.has('verbal'));
+});
