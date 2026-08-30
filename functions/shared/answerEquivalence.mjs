@@ -653,7 +653,7 @@ const canonicalSetBuilderNotation = (value) => {
     .replace(/\\mid|∣|｜/g, '|')
     .replace(/\\colon/g, ':')
     .replace(/\\land|∧|&&/g, '&')
-    .replace(/\band\b/g, '&')
+    .replace(/and/g, '&')
     .replace(/;/g, '&');
 
   const match = /^\{([xy])(?:inr)?[|:]([^{}]+)\}$/.exec(text);
