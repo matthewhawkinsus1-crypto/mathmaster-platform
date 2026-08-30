@@ -184,7 +184,7 @@ Do **not** re-audit A2.3C unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.3D — PENDING AUDIT
+### A2.3D — REBUILD — AUDITED / AUTHORING
 
 Official construct: **Determine the reasonableness of solutions to systems consisting of a linear equation and a quadratic equation in two variables.**
 
@@ -193,6 +193,26 @@ Official construct: **Determine the reasonableness of solutions to systems consi
 ### A2.3D
 
 Resume here. Do not reopen A2.2A–A2.3C unless a failing gate names them.
+
+
+### 2026-08-30 — A2.3D audit finding
+- Official construct: **determine the reasonableness of solutions** to a two-variable system containing one linear and one quadratic equation.
+- Verdict: **REBUILD**.
+- The legacy bank teaches the right slogans but mostly asks students to recognize the rule “check both equations” rather than actually determine reasonableness from evidence.
+- Legacy weaknesses:
+  - family 1 asks which check should be done but does not make the student perform it;
+  - family 2 applies a context restriction to a supplied point but does not verify the point in the system;
+  - family 3 states “yes, if outputs are equal” even when the generated table can contain unequal outputs, so the response key does not actually depend on the generated evidence;
+  - family 4 repeats the one-equation-check slogan without performing the missing quadratic check;
+  - family 5 states a domain rule abstractly instead of evaluating a concrete system solution against both algebra and model restrictions.
+- Fidelity V2 requirements:
+  - every family must use concrete substitution/residual/output evidence to judge a candidate solution;
+  - include both reasonable and unreasonable algebraic candidates;
+  - include candidates that satisfy both equations but are unreasonable in context/domain;
+  - include a rounded/approximate candidate where tolerance and scale matter;
+  - error analysis must perform the missing check and issue the corrected keep/reject decision.
+- A2.3D must remain distinct from A2.3C: it evaluates proposed solutions rather than re-solving the full system from scratch.
+- Generic secure multi-response grading is sufficient; no new Path tool capability is needed.
 
 
 ### 2026-08-30 — A2.3C audit finding
