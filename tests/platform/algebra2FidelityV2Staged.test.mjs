@@ -3076,3 +3076,129 @@ test('A2.6A analyzes cubic and cube-root transformations through full a-b-h-k ef
   assert.ok(representations.has('verbal'));
 });
 
+test('A2.6B solves cube-root equations through complete isolate-cube-linear work', async () => {
+  const entry = payload('A2.6B');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /complete-cube-root-solving-isolate-cube-linear-radicand/);
+
+  let generatedCount = 0;
+  let completeStepFamilies = 0;
+  let linearRadicandFamilies = 0;
+  let negativeRealInstances = 0;
+  let nonintegerFamilies = 0;
+  let contextFamilies = 0;
+  let errorFamilies = 0;
+  let wrongFinalRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const ids = new Set((doc.responseFields || []).map((field) => String(field.id)));
+    if (ids.has('cubed') && (ids.has('solution') || ids.has('time'))) completeStepFamilies += 1;
+    if (stringValues(doc).join(' ').includes('{{m}}')) linearRadicandFamilies += 1;
+    if (doc.id.includes('noninteger-real')) nonintegerFamilies += 1;
+    if (doc.representation === 'context') contextFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let spoiledChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const fields = Object.fromEntries(
+        (question.responseFields || []).map((field) => [field.id, field]),
+      );
+
+      const cubedText = String(fields.cubed?.expected || '');
+      if (cubedText) {
+        const rhs = Number(cubedText.split('=').pop());
+        if (Number.isFinite(rhs) && rhs < 0) negativeRealInstances += 1;
+      }
+
+      if (doc.id.includes('basic-complete')) {
+        assert.ok(fields.cubed);
+        assert.ok(fields.solution);
+      }
+
+      if (doc.id.includes('scaled-linear-radicand')) {
+        assert.ok(fields.isolated && fields.cubed && fields.solution);
+        assert.match(String(fields.isolated.expected), /cbrt\(/);
+        assert.match(String(fields.cubed.expected), /x/);
+      }
+
+      if (doc.id.includes('noninteger-real')) {
+        const isolated = String(fields.isolated?.expected || '');
+        const r = Number(isolated.split('=').pop());
+        assert.ok(Number.isFinite(r));
+        assert.ok(Math.abs(r - Math.round(r)) > 1e-9, `${doc.id} generated an integer cube-root value`);
+        const rhs = Number(String(fields.cubed?.expected || '').split('=').pop());
+        assert.ok(Math.abs(rhs - r ** 3) <= 1e-9);
+        assert.ok(Number.isFinite(Number(fields.solution?.expected)));
+      }
+
+      if (doc.id.includes('context-modeled')) {
+        assert.ok(fields.isolated && fields.cubed && fields.time);
+        assert.ok(Number(fields.time.expected) >= 1);
+      }
+
+      if (doc.taskType === 'errorAnalysis') {
+        assert.equal(fields.diagnosis?.expected, 'cube');
+        assert.ok(fields.cubed && fields.solution);
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(correct.fieldResults)}`,
+      );
+
+      if (!spoiledChecked) {
+        const finalField = grading.fields.find((field) => ['solution','time'].includes(field.id));
+        assert.ok(finalField, `${doc.id} has no final solved value`);
+        const expected = Number(finalField.expected ?? finalField.accepted?.[0]);
+        assert.ok(Number.isFinite(expected));
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, [finalField.id]:expected + 1 },
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted an incorrect final solution`);
+        wrongFinalRejected += 1;
+        spoiledChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(completeStepFamilies >= 5, 'A2.6B every family must finish the cube-root solve');
+  assert.ok(linearRadicandFamilies >= 4, 'A2.6B must repeatedly solve nontrivial linear radicands');
+  assert.ok(negativeRealInstances >= 20, 'A2.6B must repeatedly include negative real cube-root values/radicands');
+  assert.ok(nonintegerFamilies >= 1, 'A2.6B must include a noninteger real cube-root value');
+  assert.ok(contextFamilies >= 1);
+  assert.ok(errorFamilies >= 1, 'A2.6B must repair squaring-vs-cubing and still finish x');
+  assert.equal(wrongFinalRejected, entry.documents.length);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('context'));
+  assert.ok(representations.has('verbal'));
+});
+
