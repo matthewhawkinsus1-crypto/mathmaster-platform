@@ -242,7 +242,168 @@
           "quad": "x*x+A*x+B",
           "residual": "abs(y-quad)"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-two-candidate-reasonableness-check",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "interpretation",
+          "representation": "table",
+          "prompt": "Two points are proposed for the same line-quadratic system. Compute/check the residual evidence for BOTH candidates and decide which candidate, if either, is a reasonable exact solution.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Two candidate checks",
+            "table": {
+              "headers": [
+                "Candidate",
+                "Line output",
+                "Quadratic output",
+                "Candidate y"
+              ],
+              "rows": [
+                [
+                  "A = ({{x1}},{{y1}})",
+                  "{{line1}}",
+                  "{{quad1}}",
+                  "{{y1}}"
+                ],
+                [
+                  "B = ({{x2}},{{y2}})",
+                  "{{line2}}",
+                  "{{quad2}}",
+                  "{{y2}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "A-line",
+              "label": "Candidate A line residual",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "A-quad",
+              "label": "Candidate A quadratic residual",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "B-line",
+              "label": "Candidate B line residual",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "B-quad",
+              "label": "Candidate B quadratic residual",
+              "inputProfile": "number",
+              "expected": "{{residual2}}"
+            },
+            {
+              "id": "decision",
+              "label": "Which candidate is a system solution?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "A",
+                  "label": "Candidate A only"
+                },
+                {
+                  "id": "B",
+                  "label": "Candidate B only"
+                },
+                {
+                  "id": "both",
+                  "label": "Both candidates"
+                }
+              ],
+              "expected": "A"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Each candidate must satisfy both equations independently.",
+            "reasoning": [
+              "Candidate A has zero residual in both equations.",
+              "Candidate B lies on the line but has quadratic residual {{residual2}}.",
+              "Therefore only candidate A is an exact system solution."
+            ],
+            "answerSummary": "Candidate A only."
+          },
+          "attemptFeedback": [
+            "Do not let one successful equation validate a point for the whole system."
+          ],
+          "supportHints": [
+            "Check two residuals per candidate."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -4,
+                "max": 4,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "x1": {
+                "type": "int",
+                "min": -4,
+                "max": 0
+              },
+              "x2": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              },
+              "A": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "offset": {
+                "type": "choice",
+                "values": [
+                  -4,
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            "derived": {
+              "y1": "m*x1+b",
+              "line1": "y1",
+              "B": "y1-x1*x1-A*x1",
+              "quad1": "x1*x1+A*x1+B",
+              "y2": "m*x2+b",
+              "line2": "y2",
+              "quad2": "x2*x2+A*x2+B+offset",
+              "residual2": "abs(y2-quad2)"
+            },
+            "constraints": [
+              "x1!=x2",
+              "residual2!=0"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_3D_v2_context-domain-rejection",
