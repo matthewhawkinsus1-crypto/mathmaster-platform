@@ -59,6 +59,13 @@ import {
   gradeDataModelingResponse,
   sanitizeDataModelingPublicQuestion,
 } from './pathDataModelingGrading.mjs';
+import {
+  buildGraphingPrivateDefinition,
+  gradeGraphingResponse,
+  graphingDefinitionIsGradable,
+  sanitizeGraphingPublicQuestion,
+  validateGraphingResponse,
+} from './pathGraphingGrading.mjs';
 
 export { asNumber, normalizeAnswer, sameNumber, sameText, sameValue } from './answerEquivalence.mjs';
 
@@ -587,6 +594,19 @@ const CONTRACTS = {
     gradeStudentResponse: (definition, raw) => gradeDataModelingResponse(definition, raw),
   },
 
+  // Graphing2 constructs a line from conditions such as standard form,
+  // point-slope form, two given points, or a vertical/horizontal equation.
+  // Those conditions are the public question; the server independently rebuilds
+  // the target line and ignores the browser's claimed studentLine/verdict.
+  graphing2: {
+    serverGradingVersion: 1,
+    responseShape: 'graphingConstruction',
+    sanitizePublicQuestion: sanitizeGraphingPublicQuestion,
+    buildPrivateGradingDefinition: buildGraphingPrivateDefinition,
+    validateStudentResponse: validateGraphingResponse,
+    gradeStudentResponse: gradeGraphingResponse,
+  },
+
   // Plot a relation, or read one. The pairs are the question here.
   relationMapping: {
     serverGradingVersion: 1,
@@ -1095,6 +1115,8 @@ export const hasGradableDefinition = (toolId, definition) => {
         : definition.mode === 'inequalities' && systemsInequalityDefinitionIsGradable(definition);
     case 'dataModelingLab':
       return dataModelingDefinitionIsGradable(definition);
+    case 'graphing2':
+      return graphingDefinitionIsGradable(definition);
     case 'relationMapping':
       return definition.arrows.length > 0;
     case 'intervalNumberLine':
