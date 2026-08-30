@@ -366,7 +366,83 @@
           "y2": "m*x2+b",
           "dy": "y2-y1"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-competing-slope-reasoning-and-equation-verification",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "A line passes through $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. One student computes slope as $\\Delta y/\\Delta x={{m}}$; another reverses the ratio and uses $\\Delta x/\\Delta y$. Determine which reasoning is valid, write the line in slope-intercept form, and verify the second point with your equation.",
+          "responseFields": [
+            {
+              "id": "dx",
+              "label": "$\\Delta x$",
+              "inputProfile": "number",
+              "expected": "{{span}}"
+            },
+            {
+              "id": "dy",
+              "label": "$\\Delta y$",
+              "inputProfile": "number",
+              "expected": "{{dy}}"
+            },
+            {
+              "id": "slope",
+              "label": "Correct slope",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "diagnosis",
+              "label": "Which slope reasoning is valid?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "dy-over-dx",
+                  "label": "Use Δy/Δx; slope measures vertical change per horizontal change."
+                },
+                {
+                  "id": "dx-over-dy",
+                  "label": "Use Δx/Δy; slope measures horizontal change per vertical change."
+                }
+              ],
+              "expected": "dy-over-dx"
+            },
+            {
+              "id": "equation",
+              "label": "Line equation",
+              "inputProfile": "equation",
+              "expected": "y={{m}}x{{b|signed}}"
+            },
+            {
+              "id": "verify-y2",
+              "label": "y-value produced when x={{x2}}",
+              "inputProfile": "number",
+              "expected": "{{y2}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Slope is a rate of change in y per unit change in x.",
+            "reasoning": [
+              "$\\Delta x={{x2}}-{{x1}}={{span}}$ and $\\Delta y={{y2}}-{{y1}}={{dy}}$.",
+              "Thus slope is {{dy}}/{{span}}={{m}}, not its reciprocal.",
+              "The equation $y={{m}}x{{b|signed}}$ reproduces the second point with y={{y2}}."
+            ],
+            "answerSummary": "$y={{m}}x{{b|signed}}$"
+          },
+          "attemptFeedback": [
+            "Keep the dependent-variable change in the numerator and the independent-variable change in the denominator."
+          ],
+          "supportHints": [
+            "Verify the final equation using a point that was not used to solve for the intercept."
+          ]
+        }
+      ]
     }
   ]
 }
