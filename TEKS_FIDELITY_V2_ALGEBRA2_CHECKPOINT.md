@@ -683,9 +683,9 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.7H
+### A2.7I
 
-Resume here. Do not reopen A2.2A–A2.7G unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.7H unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.7H audit finding
@@ -770,6 +770,12 @@ Resume here. Do not reopen A2.2A–A2.7G unless a failing gate names them.
 - Official construct: **solve equations involving rational exponents**.
 - TEA breakout has one direct action: solve rational-exponent equations.
 - Provisional verdict: **REBUILD** after A2.7G locks.
+- Staged five A2.7H Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7H.json`.
+- Coverage includes shifted cube-root equations, shifted 3/2 equations with explicit real-domain inequality, two-solution 2/3 equations, no-real 2/3 equations, and complete square-root extraneous-solution error repair.
+- Final solution sets use true finite-set notation so order is irrelevant.
+- Dedicated generated certification and student/runtime build run `33333254516`: **PASS**.
+- A2.7H is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7I**.
 - Legacy strengths:
   - basic equations of the forms x^(1/n)=r and x^(p/q)=r are present;
   - reciprocal-power language and one verification frame are present.
@@ -2572,3 +2578,35 @@ For each standard:
 - A2.5C is now locked as certified.
 - FIRST UNFINISHED STANDARD advanced to **A2.5D**.
 - Replacement A2.5D run `33325519965`: **IN_PROGRESS** at this checkpoint.
+
+
+### 2026-08-30 — A2.7I audit finding
+- Official construct: **write the domain and range of a function in interval notation, inequalities, and set notation**.
+- TEA breakout requires six explicit representation targets:
+  - domain in interval notation;
+  - domain in inequalities;
+  - domain in set notation;
+  - range in interval notation;
+  - range in inequalities;
+  - range in set notation.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - square-root domain in interval notation is correct;
+  - rational-function domain restriction in inequality form is correct;
+  - quadratic range in interval notation is correct;
+  - the interval number-line tool is mathematically sound.
+- Legacy limitations:
+  - domain set notation is missing;
+  - range inequality notation is missing;
+  - range set notation is missing;
+  - one of five families uses a graph-only domain task, which is useful support but does not replace any missing TEA notation breakout;
+  - error analysis repairs only an interval endpoint and does not translate the same domain/range across the required representations.
+- Fidelity V2 requirements:
+  - explicitly grade all six TEA notation targets;
+  - require multiple representations of the same domain/range so notation translation is visible rather than inferred;
+  - retain square-root, quadratic, and rational-function breadth;
+  - include a reciprocal/rational family whose domain and range each exclude one value;
+  - include both lower-bounded and upper-bounded ranges;
+  - include complete notation error analysis that repairs interval, inequality, and set-builder forms;
+  - keep routine representation work DOK 2; reserve DOK 3 for complete error analysis.
+- Existing interval, inequality, finite-set/set-builder, and number-line grading capabilities are sufficient; no new Path tool is required.
