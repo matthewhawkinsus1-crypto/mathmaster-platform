@@ -369,7 +369,11 @@ Resume here. Do not reopen A2.2A–A2.4C unless a failing gate names them.
 - Added A2.4D-specific generated certification — commit `9fe89706c5460b74656a96d35d3268b709dc3881`.
 - The A2.4D gate samples 200+ generated instances, independently checks standard-form and vertex-form equivalence at multiple probe values, requires repeated completing-square evidence and repeated |a|>1 factoring, covers positive/negative a, confirms public-key stripping and secure self-grading, and deliberately submits the original standard form into the vertex-form field to require rejection.
 - Full A2.4D assertion run `33320051645`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.4D** until that run is green.
+- Full A2.4D assertion run `33320051645` reached the A2.4D gate and failed only because one prompt said “Transform … to vertex form” without literally saying the supplied expression was **standard form**. The expression itself was standard form, but the gate intentionally requires the starting representation to be explicit to students.
+- Strengthened all affected A2.4D prompts to explicitly say they are starting from standard form — commit `d1ccfb9ea261cff0130433c983cb48d1f9fa4760`.
+- No mathematical requirement was weakened; the student-facing wording now makes the standard→vertex transition clearer.
+- Replacement certification is triggered from the strengthened package.
+- FIRST UNFINISHED STANDARD remains **A2.4D** until the replacement run is green.
 
 
 ### 2026-08-30 — A2.4C audit finding
