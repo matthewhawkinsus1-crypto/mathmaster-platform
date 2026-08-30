@@ -2510,3 +2510,122 @@ test('A2.5B formulates explicit, recursive, and logarithmic real-world models', 
   assert.ok(representations.has('verbal'));
 });
 
+test('A2.5C rewrites exponential and logarithmic equations in both directions as written equations', async () => {
+  const entry = payload('A2.5C');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /student-written-bidirectional-exponential-logarithmic-equation-rewrites/);
+
+  let generatedCount = 0;
+  let expToLogFamilies = 0;
+  let logToExpFamilies = 0;
+  let symbolicFamilies = 0;
+  let commonNaturalFamilies = 0;
+  let errorFamilies = 0;
+  let wrongRewriteRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const text = stringValues(doc).join(' ');
+    const equationFields = (doc.responseFields || []).filter((field) => field.inputProfile === 'equation');
+    assert.ok(equationFields.length >= 1, `${doc.id} must require the student to WRITE an equivalent equation`);
+    assert.equal((doc.responseFields || []).some((field) => field.id === 'answer' && field.inputProfile === 'choice'), false);
+
+    if (/exp-to-log|logarithmic equation/.test(doc.id + ' ' + doc.prompt)) expToLogFamilies += 1;
+    if (/log-to-exp|exponential equation/.test(doc.id + ' ' + doc.prompt)) logToExpFamilies += 1;
+    if (doc.id.includes('symbolic-expression')) symbolicFamilies += 1;
+    if (doc.id.includes('common-natural')) commonNaturalFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let spoiledChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const fields = Object.fromEntries(
+        (question.responseFields || []).map((field) => [field.id, field]),
+      );
+
+      if (doc.id.includes('numeric-exp-to-log')) {
+        const match = String(fields.rewrite?.expected).match(/^log_(\d+)\((\d+)\)=(-?\d+)$/);
+        assert.ok(match, `${doc.id} generated an unexpected logarithmic key: ${fields.rewrite?.expected}`);
+        const [,base,arg,value] = match.map((item,index) => index === 0 ? item : Number(item));
+        assert.equal(base ** value, arg);
+      }
+
+      if (doc.id.includes('numeric-log-to-exp')) {
+        const match = String(fields.rewrite?.expected).match(/^(\d+)\^(-?\d+)=(\d+)$/);
+        assert.ok(match, `${doc.id} generated an unexpected exponential key: ${fields.rewrite?.expected}`);
+        const [,base,exp,result] = match.map((item,index) => index === 0 ? item : Number(item));
+        assert.equal(base ** exp, result);
+      }
+
+      if (doc.id.includes('symbolic-expression')) {
+        const rewrite = String(fields.rewrite?.expected);
+        assert.match(rewrite, /^log_\d+\(y\)=x-/);
+        assert.equal(/=x-/.test(rewrite), true, 'The entire exponent expression must stay together as the logarithm value');
+      }
+
+      if (doc.id.includes('common-natural')) {
+        assert.match(String(fields.natural?.expected), /^ln\(/);
+        assert.match(String(fields.common?.expected), /^10\^r=/);
+      }
+
+      if (doc.id.includes('role-error-repair')) {
+        assert.equal(fields.diagnosis?.expected, 'base-argument');
+        assert.match(String(fields['log-rewrite']?.expected), /^log_\d+\(/);
+        assert.match(String(fields['exp-rewrite']?.expected), /^\d+\^/);
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(correct.fieldResults)}`,
+      );
+
+      if (!spoiledChecked) {
+        const rewriteField = grading.fields.find((field) => /rewrite|natural|common/.test(field.id));
+        assert.ok(rewriteField, `${doc.id} has no written rewrite field to spoil`);
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, [rewriteField.id]:'x=y' },
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted a non-equivalent rewrite`);
+        wrongRewriteRejected += 1;
+        spoiledChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(expToLogFamilies >= 3, 'A2.5C must repeatedly rewrite exponential form into logarithmic form');
+  assert.ok(logToExpFamilies >= 3, 'A2.5C must repeatedly rewrite logarithmic form into exponential form');
+  assert.ok(symbolicFamilies >= 1, 'A2.5C must transfer the role map to a symbolic exponent expression');
+  assert.ok(commonNaturalFamilies >= 1, 'A2.5C must include common-log and natural-log notation');
+  assert.ok(errorFamilies >= 1, 'A2.5C must repair a role-mapping error and write the corrected equation');
+  assert.equal(wrongRewriteRejected, entry.documents.length);
+  assert.ok(representations.has('symbolic'));
+  assert.ok(representations.has('verbal'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('table'));
+});
+
