@@ -369,7 +369,7 @@ Do **not** re-audit A2.4E unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4F — ENHANCE — AUDITED / AUTHORING
+### A2.4F — ENHANCE — STAGED / CERTIFICATION AUTHORING
 
 Official construct: **Solve quadratic and square root equations.**
 
@@ -402,6 +402,18 @@ Resume here. Do not reopen A2.2A–A2.4E unless a failing gate names them.
   - require exact solutions where appropriate rather than decimal-only approximations;
   - do not make every quadratic have obvious integer roots or every radical equation a one-operation undo.
 - Generic secure multi-response grading is sufficient; no new Path tool capability is required for A2.4F.
+
+
+### 2026-08-30 — A2.4F staged
+- Staged five A2.4F Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4F.json` — commit `ad324ff312ee5a4cda44ac374550cbf69d73279a`.
+- Coverage includes:
+  - a complete factoring solve with the factored zero-product equation plus both roots;
+  - a true quadratic-formula family whose discriminant is always a non-perfect square and whose final roots stay exact;
+  - a multi-step square-root equation that must be isolated, squared, then solved linearly;
+  - a contextual square-root model requiring the same complete solve and final time interpretation;
+  - error analysis that repairs the mistake of squaring before isolating the radical and still finishes the solution.
+- Package/build run `33323628362`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.4F** until generated certification is added and green.
 
 
 ### 2026-08-30 — A2.4E audit finding
