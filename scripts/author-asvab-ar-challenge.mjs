@@ -2146,6 +2146,218 @@ arc('8.12A', 'monthly-payment-on-a-loan', {
   feedback: 'Spreading only the amount borrowed leaves the interest unpaid.',
 });
 
+// ================================================================ 8.12B
+// Repaying what is owed.
+
+arc('8.12B', 'card-balance-after-interest-and-payment', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A card balance of $\$\{{balance}}$ is charged {{r}}% interest for the month, then a payment of $\$\{{payment}}$ is made. What is owed?',
+  generator: {
+    parameters: {
+      hundreds: { type: 'int', min: 3, max: 18 },
+      r: { type: 'int', min: 2, max: 5 },
+      payment: { type: 'int', min: 50, max: 400, step: 25 },
+      statement: { type: 'int', min: 90, max: 1700, step: 10 },
+    },
+    derived: {
+      balance: 'hundreds*100',
+      interest: 'balance*r/100',
+      answer: 'balance+interest-payment',
+      d_operationInverted: 'balance-interest-payment',
+      d_partialTotal: 'balance+interest',
+      d_usedGivenValue: 'statement',
+    },
+    constraints: ['balance-interest-payment>0', 'statement!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{r}}% of $\$\{{balance}}$ adds $\$\{{interest}}$ of interest.', 'The $\$\{{payment}}$ payment then leaves $\$\{{answer}}$ owing.'],
+  answerSummary: { headline: 'Interest is added before the payment comes off.', text: '$\$\{{answer}}$ is owed.' },
+  hint: 'The interest is charged on the balance before anything is paid.',
+  feedback: 'Interest increases what is owed; it does not reduce it.',
+});
+
+arc('8.12B', 'months-to-clear-a-balance', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A balance of $\$\{{balance}}$ carries no further interest and $\$\{{already}}$ has been paid. At $\$\{{payment}}$ a month, how many more months clear it?',
+  generator: {
+    parameters: {
+      payment: { type: 'int', min: 40, max: 150, step: 10 },
+      months: { type: 'int', min: 4, max: 15 },
+      already: { type: 'int', min: 50, max: 400, step: 25 },
+      plan: { type: 'int', min: 3, max: 16 },
+    },
+    derived: {
+      balance: 'already+payment*months',
+      answer: 'months',
+      d_percentNotApplied: 'round(balance/payment)',
+      d_forgotFinalStep: 'round(already/payment)',
+      d_usedGivenValue: 'plan',
+    },
+    constraints: ['plan!=answer', 'round(already/payment)!=months', 'round(balance/payment)!=months'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The $\$\{{already}}$ already paid leaves $\$\{{payment}}$x{{months}} outstanding.', 'At $\$\{{payment}}$ a month that is {{answer}} more months.'],
+  answerSummary: { headline: 'Only the unpaid part still takes months.', text: 'It takes ${{answer}}$ more months.' },
+  hint: 'Part of the balance has already gone.',
+  feedback: 'Dividing the whole balance ignores what has been paid.',
+});
+
+arc('8.12B', 'extra-paid-over-the-amount-borrowed', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'A loan is repaid on the terms below. How much more than the amount borrowed is handed over?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Item', 'Value'],
+    rows: [['Borrowed', '$\$\{{principal}}$'], ['Monthly payment', '$\$\{{payment}}$'], ['Months', '{{months}}']],
+  },
+  generator: {
+    parameters: {
+      hundreds: { type: 'int', min: 4, max: 16 },
+      extraPer: { type: 'int', min: 5, max: 30, step: 5 },
+      months: { type: 'int', min: 6, max: 24, step: 6 },
+      billed: { type: 'int', min: 40, max: 480, step: 10 },
+    },
+    derived: {
+      principal: 'hundreds*100',
+      payment: 'round(principal/months)+extraPer',
+      total: 'payment*months',
+      answer: 'total-principal',
+      d_forgotFinalStep: 'total',
+      d_partialTotal: 'payment',
+      d_usedGivenValue: 'billed',
+    },
+    constraints: ['total-principal>0', 'billed!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{months}} payments of $\$\{{payment}}$ come to $\$\{{total}}$.', 'That is $\$\{{answer}}$ more than the $\$\{{principal}}$ borrowed.'],
+  answerSummary: { headline: 'Total the payments before comparing with the loan.', text: '$\$\{{answer}}$ more is handed over.' },
+  hint: 'Work out everything paid, then set it against what was borrowed.',
+  feedback: 'The whole amount handed over is not the same as the extra above the loan.',
+});
+
+// ================================================================ 7.4D
+// Percent increase and decrease.
+
+arc('7.4D', 'value-after-two-falls', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{tool}} worth $\$\{{value}}$ falls {{p}}% in one year, then {{q}}% of its new value the next. What is it worth then?',
+  generator: {
+    parameters: {
+      tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
+      hundreds: { type: 'int', min: 4, max: 20 },
+      p: { type: 'int', min: 10, max: 40, step: 10 },
+      q: { type: 'int', min: 10, max: 40, step: 10 },
+      appraised: { type: 'int', min: 200, max: 1250, step: 10 },
+    },
+    derived: {
+      value: 'hundreds*100',
+      afterOne: 'value*(100-p)/100',
+      answer: 'afterOne*(100-q)/100',
+      d_forgotFinalStep: 'afterOne',
+      d_percentNotApplied: 'value*(100-p-q)/100',
+      d_usedGivenValue: 'appraised',
+    },
+    constraints: ['p+q<90', 'appraised!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['A {{p}}% fall leaves $\$\{{afterOne}}$.', 'A further {{q}}% off that leaves $\$\{{answer}}$.'],
+  answerSummary: { headline: 'The second fall applies to the reduced value.', text: 'It is worth $\$\{{answer}}$.' },
+  hint: 'The second year loses a share of the new value, not the original.',
+  feedback: 'Adding the two percentages treats both falls as coming off the first value.',
+});
+
+arc('7.4D', 'value-before-a-rise-and-a-fee', {
+  difficultyBand: 5, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'After rising {{p}}% and a $\$\{{fee}}$ fitting charge, a {{tool}} stands at $\$\{{after}}$. What was it before?',
+  generator: {
+    parameters: {
+      tool: contextParam(['drill', 'compressor', 'welder', 'generator', 'grinder']),
+      hundreds: { type: 'int', min: 3, max: 18 },
+      p: { type: 'int', min: 10, max: 50, step: 10 },
+      fee: { type: 'int', min: 20, max: 120, step: 10 },
+      listed: { type: 'int', min: 250, max: 1900, step: 10 },
+    },
+    derived: {
+      answer: 'hundreds*100',
+      risen: 'answer*(100+p)/100',
+      after: 'risen+fee',
+      d_percentNotApplied: 'after-fee',
+      // Taking the rise off again always lands below the original, because
+      // (100+p)(100-p) is less than 10000 for any p.
+      d_wrongPercentBase: 'round((after-fee)*(100-p)/100)',
+      d_usedGivenValue: 'listed',
+    },
+    constraints: ['listed!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_percentNotApplied}}'), error: 'percentNotApplied' },
+    { label: money('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Taking off the $\$\{{fee}}$ charge leaves $\$\{{risen}}$, which is {{100+p}}% of the old value.', 'That makes it $\$\{{answer}}$ before.'],
+  answerSummary: { headline: 'Remove the flat charge before undoing the rise.', text: 'It was $\$\{{answer}}$.' },
+  hint: 'The fitting charge is not part of what rose.',
+  feedback: 'Taking the same percentage off again does not undo a rise.',
+});
+
+arc('7.4D', 'percent-rise-between-two-readings', {
+  difficultyBand: 5, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'Output was logged over two years as shown. What was the percent increase?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Year', '{{item}}'],
+    rows: [['1', '{{before}}'], ['2', '{{after}}']],
+  },
+  generator: {
+    parameters: {
+      item: GOODS,
+      hundreds: { type: 'int', min: 2, max: 12 },
+      p: { type: 'int', min: 10, max: 60, step: 5 },
+      claimed: { type: 'int', min: 10, max: 60, step: 5 },
+    },
+    derived: {
+      before: 'hundreds*100',
+      after: 'before*(100+p)/100',
+      answer: 'p',
+      d_wrongPercentBase: 'round((after-before)*100/after)',
+      d_percentNotApplied: 'round(after*100/before)',
+      d_usedGivenValue: 'claimed',
+    },
+    constraints: ['claimed!=answer', 'round((after-before)*100/after)!=p'],
+  },
+  choices: [
+    { label: plain('{{answer}}\\%'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}\\%'), error: 'wrongPercentBase' },
+    { label: plain('{{d_percentNotApplied}}\\%'), error: 'percentNotApplied' },
+    { label: plain('{{d_usedGivenValue}}\\%'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The rise is {{after}}-{{before}}, measured against the first year.', 'That is {{answer}}% of {{before}}.'],
+  answerSummary: { headline: 'A percent increase is measured against the starting value.', text: 'It rose ${{answer}}\\%$.' },
+  hint: 'The base of a percent increase is where it started, not where it finished.',
+  feedback: 'Measuring the rise against the later figure uses the wrong base.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {

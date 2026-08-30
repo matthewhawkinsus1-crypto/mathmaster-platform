@@ -9769,6 +9769,979 @@
     "sourceFamilyId": "mathmaster:asvab:ar:8.12A:monthly-payment-on-a-loan",
     "sourcePrompt": "A loan is set out below. What is the monthly payment?"
    }
+  },
+  {
+   "id": "mm_asvab_ar_8_12B_card_balance_after_interest_and_payment",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:8.12B:card-balance-after-interest-and-payment",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12B",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A card balance of $${{balance}}$ is charged {{r}}% interest for the month, then a payment of $${{payment}}$ is made. What is owed?",
+   "solutionReview": {
+    "headline": "Interest is added before the payment comes off.",
+    "reasoning": [
+     "{{r}}% of $${{balance}}$ adds $${{interest}}$ of interest.",
+     "The $${{payment}}$ payment then leaves $${{answer}}$ owing."
+    ],
+    "answerSummary": "$${{answer}}$ is owed."
+   },
+   "attemptFeedback": [
+    "Interest increases what is owed; it does not reduce it."
+   ],
+   "supportHints": [
+    "The interest is charged on the balance before anything is paid."
+   ],
+   "generator": {
+    "parameters": {
+     "hundreds": {
+      "type": "int",
+      "min": 3,
+      "max": 18
+     },
+     "r": {
+      "type": "int",
+      "min": 2,
+      "max": 5
+     },
+     "payment": {
+      "type": "int",
+      "min": 50,
+      "max": 400,
+      "step": 25
+     },
+     "statement": {
+      "type": "int",
+      "min": 90,
+      "max": 1700,
+      "step": 10
+     }
+    },
+    "derived": {
+     "balance": "hundreds*100",
+     "interest": "balance*r/100",
+     "answer": "balance+interest-payment",
+     "d_operationInverted": "balance-interest-payment",
+     "d_partialTotal": "balance+interest",
+     "d_usedGivenValue": "statement"
+    },
+    "constraints": [
+     "balance-interest-payment>0",
+     "statement!=answer",
+     "answer!=d_operationInverted",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_operationInverted!=d_partialTotal",
+     "d_operationInverted!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_operationInverted}}$",
+     "error": "operationInverted"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-c"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:8.12B:card-balance-after-interest-and-payment",
+    "sourcePrompt": "A card balance of $${{balance}}$ is charged {{r}}% interest for the month, then a payment of $${{payment}}$ is made. What is owed?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_8_12B_months_to_clear_a_balance",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:8.12B:months-to-clear-a-balance",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12B",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A balance of $${{balance}}$ carries no further interest and $${{already}}$ has been paid. At $${{payment}}$ a month, how many more months clear it?",
+   "solutionReview": {
+    "headline": "Only the unpaid part still takes months.",
+    "reasoning": [
+     "The $${{already}}$ already paid leaves $${{payment}}$x{{months}} outstanding.",
+     "At $${{payment}}$ a month that is {{answer}} more months."
+    ],
+    "answerSummary": "It takes ${{answer}}$ more months."
+   },
+   "attemptFeedback": [
+    "Dividing the whole balance ignores what has been paid."
+   ],
+   "supportHints": [
+    "Part of the balance has already gone."
+   ],
+   "generator": {
+    "parameters": {
+     "payment": {
+      "type": "int",
+      "min": 40,
+      "max": 150,
+      "step": 10
+     },
+     "months": {
+      "type": "int",
+      "min": 4,
+      "max": 15
+     },
+     "already": {
+      "type": "int",
+      "min": 50,
+      "max": 400,
+      "step": 25
+     },
+     "plan": {
+      "type": "int",
+      "min": 3,
+      "max": 16
+     }
+    },
+    "derived": {
+     "balance": "already+payment*months",
+     "answer": "months",
+     "d_percentNotApplied": "round(balance/payment)",
+     "d_forgotFinalStep": "round(already/payment)",
+     "d_usedGivenValue": "plan"
+    },
+    "constraints": [
+     "plan!=answer",
+     "round(already/payment)!=months",
+     "round(balance/payment)!=months",
+     "answer!=d_percentNotApplied",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_usedGivenValue",
+     "d_percentNotApplied!=d_forgotFinalStep",
+     "d_percentNotApplied!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:8.12B:months-to-clear-a-balance",
+    "sourcePrompt": "A balance of $${{balance}}$ carries no further interest and $${{already}}$ has been paid. At $${{payment}}$ a month, how many more months clear it?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_8_12B_extra_paid_over_the_amount_borrowed",
+   "active": true,
+   "alignmentKeys": [
+    "texas:8.12B"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "8.12B",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:8.12B:extra-paid-over-the-amount-borrowed",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "8.12B",
+   "taskType": "interpretation",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A loan is repaid on the terms below. How much more than the amount borrowed is handed over?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Item",
+     "Value"
+    ],
+    "rows": [
+     [
+      "Borrowed",
+      "$${{principal}}$"
+     ],
+     [
+      "Monthly payment",
+      "$${{payment}}$"
+     ],
+     [
+      "Months",
+      "{{months}}"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "Total the payments before comparing with the loan.",
+    "reasoning": [
+     "{{months}} payments of $${{payment}}$ come to $${{total}}$.",
+     "That is $${{answer}}$ more than the $${{principal}}$ borrowed."
+    ],
+    "answerSummary": "$${{answer}}$ more is handed over."
+   },
+   "attemptFeedback": [
+    "The whole amount handed over is not the same as the extra above the loan."
+   ],
+   "supportHints": [
+    "Work out everything paid, then set it against what was borrowed."
+   ],
+   "generator": {
+    "parameters": {
+     "hundreds": {
+      "type": "int",
+      "min": 4,
+      "max": 16
+     },
+     "extraPer": {
+      "type": "int",
+      "min": 5,
+      "max": 30,
+      "step": 5
+     },
+     "months": {
+      "type": "int",
+      "min": 6,
+      "max": 24,
+      "step": 6
+     },
+     "billed": {
+      "type": "int",
+      "min": 40,
+      "max": 480,
+      "step": 10
+     }
+    },
+    "derived": {
+     "principal": "hundreds*100",
+     "payment": "round(principal/months)+extraPer",
+     "total": "payment*months",
+     "answer": "total-principal",
+     "d_forgotFinalStep": "total",
+     "d_partialTotal": "payment",
+     "d_usedGivenValue": "billed"
+    },
+    "constraints": [
+     "total-principal>0",
+     "billed!=answer",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_partialTotal",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_partialTotal",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_partialTotal!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_partialTotal}}$",
+     "error": "partialTotal"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:8.12B:extra-paid-over-the-amount-borrowed",
+    "sourcePrompt": "A loan is repaid on the terms below. How much more than the amount borrowed is handed over?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_7_4D_value_after_two_falls",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.4D:value-after-two-falls",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 4,
+   "dok": 2,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4D",
+   "taskType": "application",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "A {{tool}} worth $${{value}}$ falls {{p}}% in one year, then {{q}}% of its new value the next. What is it worth then?",
+   "solutionReview": {
+    "headline": "The second fall applies to the reduced value.",
+    "reasoning": [
+     "A {{p}}% fall leaves $${{afterOne}}$.",
+     "A further {{q}}% off that leaves $${{answer}}$."
+    ],
+    "answerSummary": "It is worth $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Adding the two percentages treats both falls as coming off the first value."
+   ],
+   "supportHints": [
+    "The second year loses a share of the new value, not the original."
+   ],
+   "generator": {
+    "parameters": {
+     "tool": {
+      "type": "choice",
+      "values": [
+       "drill",
+       "compressor",
+       "welder",
+       "generator",
+       "grinder"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 4,
+      "max": 20
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 40,
+      "step": 10
+     },
+     "q": {
+      "type": "int",
+      "min": 10,
+      "max": 40,
+      "step": 10
+     },
+     "appraised": {
+      "type": "int",
+      "min": 200,
+      "max": 1250,
+      "step": 10
+     }
+    },
+    "derived": {
+     "value": "hundreds*100",
+     "afterOne": "value*(100-p)/100",
+     "answer": "afterOne*(100-q)/100",
+     "d_forgotFinalStep": "afterOne",
+     "d_percentNotApplied": "value*(100-p-q)/100",
+     "d_usedGivenValue": "appraised"
+    },
+    "constraints": [
+     "p+q<90",
+     "appraised!=answer",
+     "answer!=d_forgotFinalStep",
+     "answer!=d_percentNotApplied",
+     "answer!=d_usedGivenValue",
+     "d_forgotFinalStep!=d_percentNotApplied",
+     "d_forgotFinalStep!=d_usedGivenValue",
+     "d_percentNotApplied!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_forgotFinalStep}}$",
+     "error": "forgotFinalStep"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.4D:value-after-two-falls",
+    "sourcePrompt": "A {{tool}} worth $${{value}}$ falls {{p}}% in one year, then {{q}}% of its new value the next. What is it worth then?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_7_4D_value_before_a_rise_and_a_fee",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.4D:value-before-a-rise-and-a-fee",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4D",
+   "taskType": "reverseReasoning",
+   "representation": "context",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "After rising {{p}}% and a $${{fee}}$ fitting charge, a {{tool}} stands at $${{after}}$. What was it before?",
+   "solutionReview": {
+    "headline": "Remove the flat charge before undoing the rise.",
+    "reasoning": [
+     "Taking off the $${{fee}}$ charge leaves $${{risen}}$, which is {{100+p}}% of the old value.",
+     "That makes it $${{answer}}$ before."
+    ],
+    "answerSummary": "It was $${{answer}}$."
+   },
+   "attemptFeedback": [
+    "Taking the same percentage off again does not undo a rise."
+   ],
+   "supportHints": [
+    "The fitting charge is not part of what rose."
+   ],
+   "generator": {
+    "parameters": {
+     "tool": {
+      "type": "choice",
+      "values": [
+       "drill",
+       "compressor",
+       "welder",
+       "generator",
+       "grinder"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 3,
+      "max": 18
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 50,
+      "step": 10
+     },
+     "fee": {
+      "type": "int",
+      "min": 20,
+      "max": 120,
+      "step": 10
+     },
+     "listed": {
+      "type": "int",
+      "min": 250,
+      "max": 1900,
+      "step": 10
+     }
+    },
+    "derived": {
+     "answer": "hundreds*100",
+     "risen": "answer*(100+p)/100",
+     "after": "risen+fee",
+     "d_percentNotApplied": "after-fee",
+     "d_wrongPercentBase": "round((after-fee)*(100-p)/100)",
+     "d_usedGivenValue": "listed"
+    },
+    "constraints": [
+     "listed!=answer",
+     "answer!=d_percentNotApplied",
+     "answer!=d_wrongPercentBase",
+     "answer!=d_usedGivenValue",
+     "d_percentNotApplied!=d_wrongPercentBase",
+     "d_percentNotApplied!=d_usedGivenValue",
+     "d_wrongPercentBase!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "$\\${{answer}}$"
+    },
+    {
+     "id": "choice-b",
+     "label": "$\\${{d_percentNotApplied}}$",
+     "error": "percentNotApplied"
+    },
+    {
+     "id": "choice-c",
+     "label": "$\\${{d_wrongPercentBase}}$",
+     "error": "wrongPercentBase"
+    },
+    {
+     "id": "choice-d",
+     "label": "$\\${{d_usedGivenValue}}$",
+     "error": "usedGivenValue"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-a"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.4D:value-before-a-rise-and-a-fee",
+    "sourcePrompt": "After rising {{p}}% and a $${{fee}}$ fitting charge, a {{tool}} stands at $${{after}}$. What was it before?"
+   }
+  },
+  {
+   "id": "mm_asvab_ar_7_4D_percent_rise_between_two_readings",
+   "active": true,
+   "alignmentKeys": [
+    "texas:7.4D"
+   ],
+   "alignments": [
+    {
+     "framework": "teks",
+     "code": "7.4D",
+     "role": "primary",
+     "evidenceLevel": "assessed"
+    },
+    {
+     "framework": "asvab",
+     "domainId": "arithmeticReasoning",
+     "role": "primary",
+     "evidenceMode": "direct"
+    }
+   ],
+   "assessmentContext": {
+    "framework": "asvab",
+    "examStyle": true,
+    "domainId": "arithmeticReasoning",
+    "subtest": "arithmeticReasoning"
+   },
+   "courseId": "grade6",
+   "familyId": "mathmaster:asvab:ar:7.4D:percent-rise-between-two-readings",
+   "familyVersion": 2,
+   "questionType": "multipleChoice",
+   "activityRole": "practice",
+   "difficultyBand": 5,
+   "dok": 3,
+   "calculatorPolicy": "none",
+   "examCalculatorMode": "none",
+   "assessedConstruct": "7.4D",
+   "taskType": "errorAnalysis",
+   "representation": "table",
+   "authoring": {
+    "source": "MathMaster ASVAB fidelity rebuild",
+    "kit": "ccmr-asvab-v2.1"
+   },
+   "prompt": "Output was logged over two years as shown. What was the percent increase?",
+   "stimulus": {
+    "kind": "table",
+    "columns": [
+     "Year",
+     "{{item}}"
+    ],
+    "rows": [
+     [
+      "1",
+      "{{before}}"
+     ],
+     [
+      "2",
+      "{{after}}"
+     ]
+    ]
+   },
+   "solutionReview": {
+    "headline": "A percent increase is measured against the starting value.",
+    "reasoning": [
+     "The rise is {{after}}-{{before}}, measured against the first year.",
+     "That is {{answer}}% of {{before}}."
+    ],
+    "answerSummary": "It rose ${{answer}}\\%$."
+   },
+   "attemptFeedback": [
+    "Measuring the rise against the later figure uses the wrong base."
+   ],
+   "supportHints": [
+    "The base of a percent increase is where it started, not where it finished."
+   ],
+   "generator": {
+    "parameters": {
+     "item": {
+      "type": "choice",
+      "values": [
+       "filters",
+       "bolts",
+       "cartons",
+       "panels",
+       "crates",
+       "brackets"
+      ]
+     },
+     "hundreds": {
+      "type": "int",
+      "min": 2,
+      "max": 12
+     },
+     "p": {
+      "type": "int",
+      "min": 10,
+      "max": 60,
+      "step": 5
+     },
+     "claimed": {
+      "type": "int",
+      "min": 10,
+      "max": 60,
+      "step": 5
+     }
+    },
+    "derived": {
+     "before": "hundreds*100",
+     "after": "before*(100+p)/100",
+     "answer": "p",
+     "d_wrongPercentBase": "round((after-before)*100/after)",
+     "d_percentNotApplied": "round(after*100/before)",
+     "d_usedGivenValue": "claimed"
+    },
+    "constraints": [
+     "claimed!=answer",
+     "round((after-before)*100/after)!=p",
+     "answer!=d_wrongPercentBase",
+     "answer!=d_percentNotApplied",
+     "answer!=d_usedGivenValue",
+     "d_wrongPercentBase!=d_percentNotApplied",
+     "d_wrongPercentBase!=d_usedGivenValue",
+     "d_percentNotApplied!=d_usedGivenValue"
+    ]
+   },
+   "assessmentItemFormat": "multipleChoice",
+   "choices": [
+    {
+     "id": "choice-a",
+     "label": "${{d_wrongPercentBase}}\\%$",
+     "error": "wrongPercentBase"
+    },
+    {
+     "id": "choice-b",
+     "label": "${{d_percentNotApplied}}\\%$",
+     "error": "percentNotApplied"
+    },
+    {
+     "id": "choice-c",
+     "label": "${{d_usedGivenValue}}\\%$",
+     "error": "usedGivenValue"
+    },
+    {
+     "id": "choice-d",
+     "label": "${{answer}}\\%$"
+    }
+   ],
+   "responseFields": [
+    {
+     "id": "answer",
+     "label": "Choose the correct answer",
+     "inputProfile": "choice",
+     "expected": "choice-d"
+    }
+   ],
+   "ccmrChallengeTier": 2,
+   "ccmrFamilyRole": "challenge",
+   "ccmrFidelity": {
+    "version": 2,
+    "variantKind": "authored-challenge",
+    "responseMode": "multipleChoice",
+    "officialReferenceIds": [
+     "asvab-ar"
+    ],
+    "officialReferenceCodes": [
+     "AR"
+    ],
+    "officialReferencePrecision": [
+     "subtest"
+    ],
+    "directAssessmentEvidence": true,
+    "sourceFamilyId": "mathmaster:asvab:ar:7.4D:percent-rise-between-two-readings",
+    "sourcePrompt": "Output was logged over two years as shown. What was the percent increase?"
+   }
   }
  ]
 }
