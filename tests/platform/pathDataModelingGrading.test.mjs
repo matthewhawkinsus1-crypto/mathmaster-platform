@@ -143,6 +143,15 @@ test('future A.4A correlation mode requires both numeric r and correct interpret
   assert.equal(correct.isCorrect, true);
   assert.equal(correct.score, 1);
 
+  const causationIsOutsideA4A = gradeDataModelingResponse(definition, {
+    r: definition.r,
+    direction: definition.descriptor.direction,
+    strength: definition.descriptor.strength,
+    causation: definition.causationExpected === 'association' ? 'causation' : 'association',
+  });
+  assert.equal(causationIsOutsideA4A.isCorrect, true, 'A.4A grades r plus direction/strength, not a separate causation claim');
+  assert.equal(causationIsOutsideA4A.score, 1);
+
   const interpretationOnly = gradeDataModelingResponse(definition, {
     direction: definition.descriptor.direction,
     strength: definition.descriptor.strength,
