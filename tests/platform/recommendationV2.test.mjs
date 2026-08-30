@@ -292,10 +292,34 @@ test('an ineligible candidate never reaches the week', () => {
 test('an Honors week carries transfer and extension a regular week does not', () => {
   const honors = weeklyMixFor({ band: INSTRUCTIONAL_BAND.ON, honors: true, sessions: 5 });
   const regular = weeklyMixFor({ band: INSTRUCTIONAL_BAND.ON, honors: false, sessions: 4 });
+  assert.equal(honors.length, 5);
+  assert.equal(honors.filter((purpose) => purpose === PURPOSE.CURRENT_LEARNING).length, 2);
+  assert.ok(honors.includes(PURPOSE.RETENTION));
   assert.ok(honors.includes(PURPOSE.TRANSFER));
   assert.ok(honors.includes(PURPOSE.EXTENSION));
   assert.ok(!regular.includes(PURPOSE.EXTENSION),
     'an on-level regular student gets review, not challenge, in the fourth slot');
+});
+
+test('a four-session Honors week preserves both course Challenge and CCMR transfer', () => {
+  const slots = weeklyMixFor({ band: INSTRUCTIONAL_BAND.ON, honors: true, sessions: 4 });
+  assert.deepEqual(slots, [
+    PURPOSE.CURRENT_LEARNING,
+    PURPOSE.RETENTION,
+    PURPOSE.EXTENSION,
+    PURPOSE.TRANSFER,
+  ]);
+});
+
+test('a compressed three-session Honors week keeps Challenge instead of becoming ordinary-only', () => {
+  const slots = weeklyMixFor({ band: INSTRUCTIONAL_BAND.ON, honors: true, sessions: 3 });
+  assert.deepEqual(slots, [
+    PURPOSE.CURRENT_LEARNING,
+    PURPOSE.RETENTION,
+    PURPOSE.EXTENSION,
+  ]);
+  assert.ok(!slots.includes(PURPOSE.TRANSFER),
+    'with only three slots, course Challenge is preserved before the extra CCMR transfer slot');
 });
 
 test('an above-level regular student earns challenge work too', () => {
@@ -306,8 +330,12 @@ test('an above-level regular student earns challenge work too', () => {
 
 test('a below-level Honors student is still Honors, and still gets repair', () => {
   const slots = weeklyMixFor({ band: INSTRUCTIONAL_BAND.BELOW, honors: true, sessions: 4 });
+  assert.equal(slots.length, 4);
+  assert.ok(slots.includes(PURPOSE.CURRENT_LEARNING), 'repair must not remove contact with the enrolled course');
   assert.ok(slots.includes(PURPOSE.FOUNDATION_BRIDGE));
+  assert.ok(slots.includes(PURPOSE.RETENTION));
   assert.ok(!slots.includes(PURPOSE.EXTENSION), 'challenge waits until the foundation holds');
+  assert.ok(!slots.includes(PURPOSE.TRANSFER), 'CCMR transfer waits until the course foundation is ready');
 });
 
 // --- BC: weak course mastery suppresses premature CCMR transfer ------------------
