@@ -282,6 +282,25 @@ test('A.9E exponential fit mode supports decay as well as growth', () => {
   assert.equal(growthBase.score, 0.5);
 });
 
+test('blank or null prediction targets are never coerced to x = 0', () => {
+  const points = [[0, 2], [1, 5], [2, 8], [3, 11]];
+  const nullTarget = buildDataModelingPrivateDefinition({
+    points,
+    mode: 'linearFitPrediction',
+    predictionX: null,
+  });
+  const blankTarget = buildDataModelingPrivateDefinition({
+    points,
+    mode: 'linearFitPrediction',
+    predictionX: '',
+  });
+
+  assert.equal(nullTarget.predictionX, null);
+  assert.equal(blankTarget.predictionX, null);
+  assert.equal('predictionX' in sanitizeDataModelingPublicQuestion({ points, predictionX: null }), false);
+  assert.equal('predictionX' in sanitizeDataModelingPublicQuestion({ points, predictionX: '' }), false);
+});
+
 test('public Data Modeling payload omits expected model, regression answers and private tolerances', () => {
   const question = {
     prompt: 'Fit the data.',
