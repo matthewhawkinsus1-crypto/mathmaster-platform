@@ -3742,7 +3742,13 @@ test('A2.6G analyzes reciprocal transformations through full a-b-h-k effects and
     representations.add(doc.representation);
     const text = stringValues(doc).join(' ').toLowerCase();
     if (/a=-|x-axis reflection/.test(text)) negativeAFamilies += 1;
-    if (/b=-|b<0|-2\(x|-4\(x/.test(text)) negativeBFamilies += 1;
+    const authoredBValues = doc.generator?.parameters?.b?.values || [];
+    const authoredBField = (doc.responseFields || []).find((field) => field.id === 'b');
+    if (
+      authoredBValues.some((value) => Number(value) < 0)
+      || Number(authoredBField?.expected) < 0
+      || /b=-|b<0|-2\(x|-4\(x/.test(text)
+    ) negativeBFamilies += 1;
     if (/horizontal stretch/.test(text)) stretchFamilies += 1;
     if (/horizontal compression|horizontal scale.*0\.25|horizontal scale.*0\.5/.test(text)) compressionFamilies += 1;
     if (doc.taskType === 'reverseReasoning') reverseFamilies += 1;
