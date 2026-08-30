@@ -494,18 +494,58 @@ Certification result:
 
 Do **not** re-audit A2.5C unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.5D
 
-### A2.5D — ENHANCE — STAGED / CERTIFICATION RUNNING
+### A2.5D — ENHANCE — CERTIFIED
 
 Official construct: **Solve exponential equations of the form y = ab^x and single logarithmic equations having real solutions.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- same-base solving is preserved;
+- repeated non-power exponential targets require exact logarithmic solutions;
+- affine common-log solving and contextual noninteger time interpretation are included;
+- complete error repair isolates the exponential before logarithms and finishes x;
+- unsupported generated log/round arithmetic was removed from template-derived fields while exact mathematics was preserved;
+- the certification gate is tolerant of harmless signed-template spacing but not mathematical differences;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- wrong final solutions are rejected and public answer keys are stripped;
+- replacement Algebra II Fidelity V2 Certification run `33325560621`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.5D unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.5E — REBUILD — AUDITED / AUTHORING
+
+Official construct: **Determine the reasonableness of a solution to a logarithmic equation.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.5D
+### A2.5E
 
-Resume here. Do not reopen A2.2A–A2.5C unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.5D unless a failing gate names them.
 
+
+### 2026-08-30 — A2.5E audit finding
+- Official construct: **determine the reasonableness of a solution to a logarithmic equation**.
+- Verdict: **REBUILD**.
+- The legacy bank teaches the domain slogan but usually does not make the student perform a complete reasonableness check:
+  - domain-invalid candidates are recognized by multiple choice rather than evaluated;
+  - a positive log argument is treated as enough evidence even when reasonableness also requires the original equation to be true;
+  - the context family checks an exponential growth result rather than a logarithmic equation directly;
+  - the reverse family asks for a logarithmic function domain, which drifts away from evaluating a proposed equation solution;
+  - error analysis names “check the domain” but does not perform the original-equation verification.
+- Fidelity V2 requirements:
+  - every family begins with a **proposed solution** to a logarithmic equation rather than asking the student to solve from scratch;
+  - students compute the original log argument(s), verify positivity, and evaluate/compare the original equation;
+  - include both reasonable and unreasonable candidates;
+  - include a candidate with a positive argument that is still unreasonable because it does **not** satisfy the equation, proving domain validity alone is insufficient;
+  - include a domain-invalid candidate, a valid exact candidate, a multi-log or multi-condition check, contextual transfer, and genuine error analysis;
+  - context/domain restrictions must be evaluated separately from algebraic equation validity;
+  - keep A2.5E distinct from A2.5D: the candidate is supplied here; the primary action is judging its reasonableness.
+- Generic secure multi-response grading is sufficient; no new Path capability is required.
 
 ### 2026-08-30 — A2.5D audit finding
 - Official construct: **solve exponential equations of the form y = ab^x and single logarithmic equations having real solutions**.
