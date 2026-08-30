@@ -8,6 +8,8 @@ on:
       - "scripts/verify-path-drafts.mjs"
       - "scripts/audit-algebra1-semantic-fidelity-v2.mjs"
       - "scripts/audit-algebra1-cognitive-fidelity-v2.mjs"
+      - "scripts/audit-generator-health.mjs"
+      - "scripts/audit-algebra1-path-tool-readiness-v2.mjs"
       - "functions/lib/mathPath.js"
       - "functions/shared/pathToolContracts.mjs"
       - "functions/shared/pathDataModelingGrading.mjs"
@@ -52,6 +54,17 @@ jobs:
             tests/platform/algebra1FidelityV2LinearWritingEnhancements.test.mjs \
             tests/platform/algebra1FidelityV2FinalCertification.test.mjs
 
+      - name: Stress generated candidate instances
+        run: |
+          node scripts/audit-generator-health.mjs \
+            --bank drafts/algebra1.fidelity-v2.candidate.json \
+            --samples 36 \
+            --strict | tee /tmp/algebra1-generator-health.txt
+
+      - name: Verify secure Path tool readiness
+        run: |
+          node scripts/audit-algebra1-path-tool-readiness-v2.mjs | tee /tmp/algebra1-tool-readiness.txt
+
       - name: Run semantic fidelity audit
         run: |
           node scripts/audit-algebra1-semantic-fidelity-v2.mjs --bank drafts/algebra1.fidelity-v2.candidate.json | tee /tmp/algebra1-semantic.txt
@@ -77,4 +90,6 @@ jobs:
             drafts/algebra1.fidelity-v2.candidate.json
             /tmp/algebra1-semantic.txt
             /tmp/algebra1-cognitive.txt
+            /tmp/algebra1-generator-health.txt
+            /tmp/algebra1-tool-readiness.txt
           if-no-files-found: warn
