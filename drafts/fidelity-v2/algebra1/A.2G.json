@@ -258,7 +258,7 @@
           "id": "answer",
           "label": "Correct slope classification",
           "inputProfile": "choice",
-          "expected": "slope-undefined"
+          "expected": "vertical-slope-correct"
         }
       ],
       "solutionReview": {
@@ -295,7 +295,7 @@
       },
       "choices": [
         {
-          "id": "slope-undefined",
+          "id": "vertical-slope-correct",
           "label": "The slope is undefined because the run is 0."
         },
         {
