@@ -696,6 +696,22 @@
               "target": "4+k",
               "x": "h+8"
             }
+          },
+          "stimulus": {
+            "kind": "steps",
+            "title": "Student's work",
+            "steps": [
+              {
+                "id": "isolate",
+                "label": "Correct isolation",
+                "work": "$\\sqrt[3]{x-({{h}})}=2$"
+              },
+              {
+                "id": "wrong",
+                "label": "Incorrect next step",
+                "work": "Student squares both sides instead of cubing both sides."
+              }
+            ]
           }
         }
       ]
