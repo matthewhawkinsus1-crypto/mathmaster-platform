@@ -716,6 +716,20 @@ Resume here. Do not reopen A2.2A–A2.6K unless a failing gate names them.
 - Generic secure multi-response grading plus the existing opt-in model-equation equivalence is sufficient; no new Path tool is required.
 
 
+### 2026-08-30 — A2.6L staged
+- Staged five A2.6L Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6L.json` — commit `d6f3b4169cf7b5e2e4f9654da7162d540965ab18`.
+- Every family now requires the full TEKS action sequence: establish the inverse-variation constant, formulate the inverse-variation equation, and solve/predict a new value.
+- Coverage includes:
+  - symbolic formulation and prediction from one known pair;
+  - a multi-row table requiring repeated constant-product evidence before formulation;
+  - a fixed-distance speed/time context;
+  - a fixed-area length/width context;
+  - complete direct-vs-inverse variation error analysis followed by corrected formulation and prediction.
+- DOK and difficulty remain separate: the first four families are DOK 2 across difficulty bands 2–4; only the full error-analysis repair is DOK 3.
+- Base Algebra II certification run `33330439857`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.6L** until generated certification is fully green.
+
+
 ### 2026-08-30 — A2.6K audit finding
 - Official construct: **determine the asymptotic restrictions on the domain of a rational function and represent domain and range using interval notation, inequalities, and set notation**.
 - Verdict: **ENHANCE**.
