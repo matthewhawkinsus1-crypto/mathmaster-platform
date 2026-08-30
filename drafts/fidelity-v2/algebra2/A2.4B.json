@@ -147,7 +147,7 @@
           "difficultyBand": 4,
           "taskType": "procedural",
           "representation": "multipleRepresentation",
-          "prompt": "A horizontal parabola has focus $({{focusX}},{{k}})$ and directrix $x={{directrixX}}$. Infer the vertex midway between them, determine whether it opens left or right, and write the equation in standard conic form.",
+          "prompt": "A horizontal right-opening parabola has focus $({{focusX}},{{k}})$ and directrix $x={{directrixX}}$. Infer the vertex midway between them and write the equation in standard conic form.",
           "stimulus": {
             "kind": "table",
             "title": "Defining attributes",
@@ -193,7 +193,7 @@
                   "label": "Left"
                 }
               ],
-              "expected": "{{direction}}"
+              "expected": "right"
             },
             {
               "id": "equation",
@@ -204,13 +204,13 @@
             }
           ],
           "solutionReview": {
-            "headline": "The vertex is halfway between the focus and directrix along the axis.",
+            "headline": "The vertex is halfway between the focus and directrix along the horizontal axis.",
             "reasoning": [
-              "The midpoint x-coordinate is {{h}}.",
-              "The focus lies {{dirWord}} of the vertex, so the parabola opens {{direction}}.",
-              "With p={{p}}, the standard form uses $4p={{fourP}}$."
+              "The midpoint x-coordinate between {{focusX}} and {{directrixX}} is {{h}}.",
+              "The focus is to the right of the vertex, so the parabola opens right.",
+              "The focal distance is {{d}}, giving $4p={{fourP}}$."
             ],
-            "answerSummary": "Vertex $({{h}},{{k}})$ and the corresponding horizontal-parabola equation."
+            "answerSummary": "Vertex $({{h}},{{k}})$ with a right-opening horizontal-parabola equation."
           },
           "attemptFeedback": [
             "Find the vertex before choosing the sign of p."
@@ -234,22 +234,12 @@
                 "type": "int",
                 "min": 2,
                 "max": 4
-              },
-              "s": {
-                "type": "choice",
-                "values": [
-                  -1,
-                  1
-                ]
               }
             },
             "derived": {
-              "p": "s*d",
-              "focusX": "h+p",
-              "directrixX": "h-p",
-              "fourP": "4*p",
-              "direction": "s>0?'right':'left'",
-              "dirWord": "s>0?'right':'left'"
+              "focusX": "h+d",
+              "directrixX": "h-d",
+              "fourP": "4*d"
             }
           }
         }
