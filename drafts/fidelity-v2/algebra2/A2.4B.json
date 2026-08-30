@@ -27,7 +27,9 @@
           "id": "equation",
           "label": "Parabola equation",
           "inputProfile": "equation",
-          "expected": "(x-({{h}}))^2={{fourP}}(y-({{k}}))"
+          "expected": "(x-({{h}}))^2={{fourP}}(y-({{k}}))",
+          "equivalence": "polynomialRelation",
+          "responseHint": "Any algebraically equivalent equation for this parabola is acceptable."
         }
       ],
       "solutionReview": {
@@ -91,7 +93,9 @@
           "id": "equation",
           "label": "Parabola equation",
           "inputProfile": "equation",
-          "expected": "(x-({{h}}))^2={{fourP}}(y-({{k}}))"
+          "expected": "(x-({{h}}))^2={{fourP}}(y-({{k}}))",
+          "equivalence": "polynomialRelation",
+          "responseHint": "Any algebraically equivalent equation for this parabola is acceptable."
         }
       ],
       "solutionReview": {
@@ -210,7 +214,9 @@
           "id": "equation",
           "label": "Parabola equation",
           "inputProfile": "equation",
-          "expected": "(y-({{k}}))^2={{fourP}}(x-({{h}}))"
+          "expected": "(y-({{k}}))^2={{fourP}}(x-({{h}}))",
+          "equivalence": "polynomialRelation",
+          "responseHint": "Any algebraically equivalent equation for this parabola is acceptable."
         }
       ],
       "solutionReview": {
@@ -312,7 +318,9 @@
           "id": "equation",
           "label": "Parabola equation",
           "inputProfile": "equation",
-          "expected": "(y-({{k}}))^2={{fourP}}(x-({{h}}))"
+          "expected": "(y-({{k}}))^2={{fourP}}(x-({{h}}))",
+          "equivalence": "polynomialRelation",
+          "responseHint": "Any algebraically equivalent equation for this parabola is acceptable."
         }
       ],
       "solutionReview": {
@@ -418,7 +426,9 @@
           "id": "equation",
           "label": "Corrected parabola equation",
           "inputProfile": "equation",
-          "expected": "(y-({{k}}))^2={{fourP}}(x-({{h}}))"
+          "expected": "(y-({{k}}))^2={{fourP}}(x-({{h}}))",
+          "equivalence": "polynomialRelation",
+          "responseHint": "Any algebraically equivalent equation for this parabola is acceptable."
         }
       ],
       "solutionReview": {
