@@ -241,17 +241,38 @@ Certification result:
 
 Do **not** re-audit A2.3F unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.3G
 
-### A2.3G — ENHANCE — STAGED / CERTIFICATION RUNNING
+### A2.3G — ENHANCE — CERTIFIED
 
 Official construct: **Determine possible solutions in the solution set of systems of two or more linear inequalities in two variables.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- every family determines whether a marked ordered pair is possible and requires a feasible ordered pair;
+- two- and three-inequality systems are both represented;
+- feasible and infeasible marked points are both required;
+- a point on a strict/dashed boundary is rejected;
+- a point on an inclusive/solid boundary is accepted when all other constraints hold;
+- contextual transfer and genuine error analysis are included;
+- 200+ generated instances pass production issuability and secure Path eligibility;
+- opposite marked-point verdicts and infeasible candidate points are rejected by the server;
+- targeted Algebra II Fidelity V2 Certification run `33319070766`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.3G unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.4A — PENDING AUDIT
+
+Official construct: **Write a quadratic function given three specified points in the plane.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.3G
+### A2.4A
 
-Resume here. Do not reopen A2.2A–A2.3F unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.3G unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.3G audit finding
@@ -294,8 +315,10 @@ Resume here. Do not reopen A2.2A–A2.3F unless a failing gate names them.
 - Every family uses secure `systemsWorkspace` analyze mode with `ask: ["testPoint", "candidate"]`; A2.3G therefore determines a proposed point's feasibility and requires an actual feasible ordered pair without drifting back into A2.3F graph construction.
 - Added A2.3G-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `c7792a0b06096f9163133f5a0292e0734977bb5f`.
 - The A2.3G gate samples 200+ generated instances, checks production issuability and secure Path eligibility, independently computes marked-point feasibility from the displayed inequalities, finds a feasible candidate inside the graph bounds, self-grades both pieces through the server contract, flips the marked-point verdict and requires rejection, injects a clearly infeasible candidate and requires rejection, and certifies strict-boundary rejection plus inclusive-boundary acceptance.
-- Full A2.3G assertion run `33319070766`: **QUEUED/RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.3G** until that run is green.
+- Full A2.3G assertion run `33319070766`: **PASS**.
+- Generated content, production issue gate, secure possible-solution grading, strict/inclusive boundary cases, feasible/infeasible marked points, spoiled-verdict rejection, spoiled-candidate rejection, and student/runtime build all passed.
+- A2.3G is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4A**.
 
 
 ### 2026-08-30 — A2.3F audit finding
