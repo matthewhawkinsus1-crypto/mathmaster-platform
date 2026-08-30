@@ -9,7 +9,11 @@
 
 import { readFileSync } from 'node:fs';
 
-const BANK = 'seed/pathQuestionBank/algebra1_pathQuestionBank_seed.json';
+const argOf = (name, fallback) => {
+  const index = process.argv.indexOf(name);
+  return index >= 0 && process.argv[index + 1] ? process.argv[index + 1] : fallback;
+};
+const BANK = argOf('--bank', 'seed/pathQuestionBank/algebra1_pathQuestionBank_seed.json');
 const bank = JSON.parse(readFileSync(BANK, 'utf8'));
 const docs = (bank.documents || []).filter((doc) => doc.active !== false);
 
@@ -71,6 +75,18 @@ if (fakeTables.length) {
   );
 }
 
+const graphLabelled = docs.filter((doc) => String(doc.representation || '').toLowerCase() === 'graph');
+const graphTools = new Set(['functionInvestigation', 'systemsWorkspace', 'graphing2', 'dataModelingLab']);
+const fakeGraphs = graphLabelled.filter((doc) => !hasStimulusKind(doc, 'graph') && !graphTools.has(String(doc.type || '')));
+if (fakeGraphs.length) {
+  add(
+    'course',
+    'representation-honesty',
+    `${fakeGraphs.length}/${graphLabelled.length} families labelled graph do not carry a graph stimulus or graph-capable tool.`,
+    fakeGraphs.map((doc) => `${codeOf(doc)}/${familyOf(doc)}`),
+  );
+}
+
 // Pearson correlation between authored DOK and difficulty band. They are
 // different constructs. A high value is not automatically invalid, but a bank
 // produced from one repeated metadata ladder should be reviewed.
@@ -121,7 +137,11 @@ const requireCount = (code, predicate, min, message) => {
   if (count < min) add('standard', code, `${message} Found ${count}/${items.length}; expected at least ${min}.`);
 };
 
-const writesEquation = (doc) => hasProfile(doc, ['equation', 'expression']);
+const MODEL_WRITING_MODES = new Set(['linearFitPrediction', 'quadraticFitPrediction', 'exponentialFitPrediction']);
+const writesEquation = (doc) => (
+  hasProfile(doc, ['equation', 'expression'])
+  || (String(doc.type || '') === 'dataModelingLab' && MODEL_WRITING_MODES.has(String(doc.mode || '')))
+);
 const writesInequality = (doc) => hasProfile(doc, ['inequality']);
 const fullExpression = (doc) => hasProfile(doc, ['expression', 'equation']);
 const usesGraphTool = (doc) => ['functionInvestigation', 'systemsWorkspace', 'graphing2'].includes(String(doc.type || ''));
@@ -164,10 +184,10 @@ if (!/(rational exponent|\^\{?1\/|\^\{?\d+\/\d+)/.test(a11bText)) {
   add('standard', 'A.11B', 'A.11B includes rational exponents, but no rational-exponent evidence was detected in the production family text.');
 }
 
-requireCount('A.12A', (doc) => {
-  const text = promptText(doc);
-  return doc.type === 'relationMapping' || /is (?:this|the) relation a function|define a function|can be a function/.test(text);
-}, 3, 'A.12A mastery evidence should directly determine whether relations are functions across representations.');
+requireCount('A.12A', (doc) => (
+  doc.type === 'relationMapping'
+  || fields(doc).some((field) => ['function', 'not a function'].includes(lower(field.expected)))
+), 3, 'A.12A mastery evidence should directly determine whether relations are functions across representations.');
 
 requireCount('A.12D', writesEquation, 3, 'A.12D requires writing an nth-term formula from several terms; production evidence must actually write the formula.');
 
