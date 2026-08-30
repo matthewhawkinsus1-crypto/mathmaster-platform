@@ -1,6 +1,1475 @@
 {
   "documents": [
     {
+      "id": "mm_A_10A_v2_add-quadratics",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10A:v2-add-quadratics",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Add the polynomials and write the complete simplified result: $({{a1}}x^2{{b1|signed}}x{{c1|signed}})+({{a2}}x^2{{b2|signed}}x{{c2|signed}})$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified polynomial",
+          "inputProfile": "expression",
+          "expected": "{{A}}x^2{{B|signed}}x{{C|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Combine like terms by degree.",
+        "reasoning": [
+          "Add the $x^2$ coefficients: {{a1}}+{{a2}}={{A}}, and the $x$ coefficients: {{b1}}+{{b2}}={{B}}.",
+          "Add the constants: {{c1}}+{{c2}}={{C}}."
+        ],
+        "answerSummary": "${{A}}x^2{{B|signed}}x{{C|signed}}$"
+      },
+      "attemptFeedback": [
+        "Line up quadratic terms, linear terms, and constants before combining."
+      ],
+      "supportHints": [
+        "Only terms with the same variable power are like terms."
+      ],
+      "generator": {
+        "parameters": {
+          "a1": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "a2": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "b2": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "c1": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "c2": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          }
+        },
+        "derived": {
+          "A": "a1+a2",
+          "B": "b1+b2",
+          "C": "c1+c2"
+        },
+        "constraints": [
+          "B!=0",
+          "C!=0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10A_v2_error-analysis-subtraction",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10A:v2-error-analysis-subtraction",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10A",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student subtracts $({{a1}}x^2+{{b1}}x+{{c1}})-({{a2}}x^2+{{b2}}x+{{c2}})$ but changes the sign of only the first term of the second polynomial. Write the correct complete result.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct polynomial",
+          "inputProfile": "expression",
+          "expected": "{{A}}x^2{{B|signed}}x{{C|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The subtraction sign applies to the entire second polynomial.",
+        "reasoning": [
+          "Each coefficient in the second polynomial must be subtracted: {{a1}}-{{a2}}, {{b1}}-{{b2}}, and {{c1}}-{{c2}}.",
+          "That gives coefficients {{A}}, {{B}}, and {{C}}."
+        ],
+        "answerSummary": "${{A}}x^2{{B|signed}}x{{C|signed}}$"
+      },
+      "attemptFeedback": [
+        "Check whether all three signs in the subtracted polynomial were handled."
+      ],
+      "supportHints": [
+        "Place parentheses around the whole second polynomial and distribute a negative one."
+      ],
+      "generator": {
+        "parameters": {
+          "a1": {
+            "type": "int",
+            "min": 3,
+            "max": 9
+          },
+          "a2": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "b2": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          },
+          "c1": {
+            "type": "int",
+            "min": 2,
+            "max": 10
+          },
+          "c2": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "A": "a1-a2",
+          "B": "b1-b2",
+          "C": "c1-c2"
+        },
+        "constraints": [
+          "A!=0",
+          "B!=0",
+          "C!=0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10A_v2_perimeter-polynomials",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10A:v2-perimeter-polynomials",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10A",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A rectangular garden has length ${{a}}x{{b|signed}}$ meters and width ${{c}}x{{d|signed}}$ meters. Write a simplified polynomial for its perimeter.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Perimeter polynomial",
+          "inputProfile": "expression",
+          "expected": "{{P}}x{{Q|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Perimeter adds two copies of each dimension.",
+        "reasoning": [
+          "Use $P=2L+2W$ and distribute the 2 to both expressions.",
+          "The linear coefficient is $2({{a}}+{{c}})={{P}}$ and the constant is $2({{b}}+{{d}})={{Q}}$."
+        ],
+        "answerSummary": "${{P}}x{{Q|signed}}$"
+      },
+      "attemptFeedback": [
+        "Write two lengths plus two widths before combining like terms."
+      ],
+      "supportHints": [
+        "Perimeter is addition, not multiplication of length and width."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "c": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 10
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 10
+          }
+        },
+        "derived": {
+          "P": "2*(a+c)",
+          "Q": "2*(b+d)"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10A_v2_reverse-missing-polynomial",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10A:v2-reverse-missing-polynomial",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10A",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "A polynomial $P(x)={{a1}}x^2{{b1|signed}}x{{c1|signed}}$ is added to an unknown polynomial $Q(x)$. Their sum is ${{A}}x^2{{B|signed}}x{{C|signed}}$. Write the complete polynomial $Q(x)$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "$Q(x)$",
+          "inputProfile": "expression",
+          "expected": "{{a2}}x^2{{b2|signed}}x{{c2|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Recover the missing addend coefficient by coefficient.",
+        "reasoning": [
+          "Subtract the known polynomial from the sum for each degree.",
+          "The missing coefficients are {{A}}-{{a1}}={{a2}}, {{B}}-{{b1}}={{b2}}, and {{C}}-{{c1}}={{c2}}."
+        ],
+        "answerSummary": "$Q(x)={{a2}}x^2{{b2|signed}}x{{c2|signed}}$"
+      },
+      "attemptFeedback": [
+        "Treat the quadratic, linear, and constant coefficients as three linked missing-addend problems."
+      ],
+      "supportHints": [
+        "If $P+Q=S$, then $Q=S-P$."
+      ],
+      "generator": {
+        "parameters": {
+          "a1": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "a2": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "b2": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "c1": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          },
+          "c2": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          }
+        },
+        "derived": {
+          "A": "a1+a2",
+          "B": "b1+b2",
+          "C": "c1+c2"
+        },
+        "constraints": [
+          "b2!=0",
+          "c2!=0",
+          "B!=0",
+          "C!=0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10A_v2_subtract-quadratics",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10A:v2-subtract-quadratics",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Subtract and simplify completely: $({{a1}}x^2{{b1|signed}}x{{c1|signed}})-({{a2}}x^2{{b2|signed}}x{{c2|signed}})$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Simplified polynomial",
+          "inputProfile": "expression",
+          "expected": "{{A}}x^2{{B|signed}}x{{C|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Subtract every term in the second polynomial.",
+        "reasoning": [
+          "The difference in quadratic coefficients is {{a1}}-{{a2}}={{A}} and in linear coefficients is {{b1}}-{{b2}}={{B}}.",
+          "The constant is {{c1}}-{{c2}}={{C}}."
+        ],
+        "answerSummary": "${{A}}x^2{{B|signed}}x{{C|signed}}$"
+      },
+      "attemptFeedback": [
+        "Distribute the subtraction sign to all three terms of the second polynomial."
+      ],
+      "supportHints": [
+        "Rewrite subtraction as adding the opposite polynomial."
+      ],
+      "generator": {
+        "parameters": {
+          "a1": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "a2": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "b2": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "c1": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "c2": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          }
+        },
+        "derived": {
+          "A": "a1-a2",
+          "B": "b1-b2",
+          "C": "c1-c2"
+        },
+        "constraints": [
+          "A!=0",
+          "B!=0",
+          "C!=0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10B_v2_area-binomial-product",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10B:v2-area-binomial-product",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10B",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A rectangle has side lengths $x+{{p}}$ and $x+{{q}}$ units. Write a complete expanded polynomial for its area.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Area polynomial",
+          "inputProfile": "expression",
+          "expected": "x^2+{{B}}x+{{C}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Area multiplies the two side-length expressions.",
+        "reasoning": [
+          "Multiply $(x+{{p}})(x+{{q}})$ term by term.",
+          "The linear coefficient is {{p}}+{{q}}={{B}} and the constant is {{p}}({{q}})={{C}}."
+        ],
+        "answerSummary": "$x^2+{{B}}x+{{C}}$"
+      },
+      "attemptFeedback": [
+        "Area means multiply the dimensions, then combine the middle terms."
+      ],
+      "supportHints": [
+        "Use the distributive property twice."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "q": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          }
+        },
+        "derived": {
+          "B": "p+q",
+          "C": "p*q"
+        },
+        "constraints": [
+          "p!=q"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10B_v2_binomial-product",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10B:v2-binomial-product",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Multiply and write the complete expanded polynomial: $(x{{p|signed}})(x{{q|signed}})$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Expanded polynomial",
+          "inputProfile": "expression",
+          "expected": "x^2{{B|signed}}x{{C|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Each term in one binomial multiplies each term in the other.",
+        "reasoning": [
+          "The outer and inner products combine to give the linear coefficient {{p}}+{{q}}={{B}}.",
+          "The constants multiply to {{p}}({{q}})={{C}}."
+        ],
+        "answerSummary": "$x^2{{B|signed}}x{{C|signed}}$"
+      },
+      "attemptFeedback": [
+        "Multiply all four term pairs, then combine the two linear terms."
+      ],
+      "supportHints": [
+        "The middle coefficient is the sum of the two constants; the constant term is their product."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          },
+          "q": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "B": "p+q",
+          "C": "p*q"
+        },
+        "constraints": [
+          "p!=q",
+          "B!=0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10B_v2_error-analysis-missing-middle",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10B:v2-error-analysis-missing-middle",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10B",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student claims $(x+{{p}})(x+{{q}})=x^2+{{C}}$ and has omitted the middle terms. Write the correct complete product.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct product",
+          "inputProfile": "expression",
+          "expected": "x^2+{{B}}x+{{C}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The two cross-products do not disappear.",
+        "reasoning": [
+          "The cross-products are {{p}}x and {{q}}x, which combine to {{B}}x.",
+          "The constant product is {{C}}, so all three terms are required."
+        ],
+        "answerSummary": "$x^2+{{B}}x+{{C}}$"
+      },
+      "attemptFeedback": [
+        "Identify the two products involving one $x$ and one constant."
+      ],
+      "supportHints": [
+        "There are four products before like terms are combined."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": 2,
+            "max": 10
+          },
+          "q": {
+            "type": "int",
+            "min": 2,
+            "max": 10
+          }
+        },
+        "derived": {
+          "B": "p+q",
+          "C": "p*q"
+        },
+        "constraints": [
+          "p!=q"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10B_v2_linear-times-quadratic",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10B:v2-linear-times-quadratic",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10B",
+      "taskType": "transfer",
+      "representation": "symbolic",
+      "prompt": "Multiply and simplify completely: $(x{{p|signed}})(x^2{{q|signed}}x{{r|signed}})$. Keep the answer in descending powers of $x$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Expanded polynomial",
+          "inputProfile": "expression",
+          "expected": "x^3{{A|signed}}x^2{{B|signed}}x{{C|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A linear factor distributes across a quadratic factor.",
+        "reasoning": [
+          "The $x$ produces $x^3+{{q}}x^2{{r|signed}}x$, while {{p}} produces ${{p}}x^2{{pq|signed}}x{{C|signed}}$.",
+          "Combine the like $x^2$ and $x$ terms to get coefficients {{A}} and {{B}}."
+        ],
+        "answerSummary": "$x^3{{A|signed}}x^2{{B|signed}}x{{C|signed}}$"
+      },
+      "attemptFeedback": [
+        "Distribute both terms of the linear factor across all three terms of the quadratic."
+      ],
+      "supportHints": [
+        "Write the two partial products on separate lines, then combine like powers."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "q": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "r": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "A": "q+p",
+          "pq": "p*q",
+          "B": "r+p*q",
+          "C": "p*r"
+        },
+        "constraints": [
+          "A!=0",
+          "B!=0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10B_v2_monomial-times-quadratic",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10B:v2-monomial-times-quadratic",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Multiply and simplify completely: ${{k}}x({{a}}x^2{{b|signed}}x{{c|signed}})$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Product",
+          "inputProfile": "expression",
+          "expected": "{{A}}x^3{{B|signed}}x^2{{C|signed}}x"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Distribute the monomial to every term.",
+        "reasoning": [
+          "Multiply coefficients and add one to each exponent because every term is multiplied by $x$.",
+          "The new coefficients are {{A}}, {{B}}, and {{C}}."
+        ],
+        "answerSummary": "${{A}}x^3{{B|signed}}x^2{{C|signed}}x$"
+      },
+      "attemptFeedback": [
+        "Do not stop after multiplying the first term; distribute to all three terms."
+      ],
+      "supportHints": [
+        "Multiply {{k}}x by each term separately."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
+          },
+          "c": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "A": "k*a",
+          "B": "k*b",
+          "C": "k*c"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10C_v2_cancel-known-factor",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10C:v2-cancel-known-factor",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10C",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "Divide $(x{{p|signed}})(x{{q|signed}})$ by $(x{{p|signed}})$. Write the complete quotient.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "x{{q|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A common polynomial factor cancels as a whole factor.",
+        "reasoning": [
+          "The dividend is already written as a product of two factors.",
+          "Cancel the divisor $(x{{p|signed}})$, leaving $x{{q|signed}}$."
+        ],
+        "answerSummary": "$x{{q|signed}}$"
+      },
+      "attemptFeedback": [
+        "Look for the divisor as an entire factor of the dividend."
+      ],
+      "supportHints": [
+        "Do not cancel individual terms across addition; cancel the matching factor."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "q": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "constraints": [
+          "p != q"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_10C_v2_context-cost-per-unit",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10C:v2-context-cost-per-unit",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10C",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A production run of ${{d}}x$ identical items has total cost ${{A}}x^2{{B|signed}}x$ dollars. Divide total cost by the number of items to write the complete cost-per-item expression.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "{{a}}x{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Cost per item is total cost divided by item count.",
+        "reasoning": [
+          "Divide the polynomial total cost by ${{d}}x$.",
+          "Both terms share that factor, producing ${{a}}x{{b|signed}}$ dollars per item."
+        ],
+        "answerSummary": "${{a}}x{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "Use total cost ÷ number of items, then simplify every term."
+      ],
+      "supportHints": [
+        "Both terms in the numerator contain $x$."
+      ],
+      "generator": {
+        "parameters": {
+          "d": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 15
+          }
+        },
+        "derived": {
+          "A": "d*a",
+          "B": "d*b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10C_v2_divide-by-monomial",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10C:v2-divide-by-monomial",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10C",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Divide ${{A}}x^3{{B|signed}}x^2{{C|signed}}x$ by ${{d}}x$. Write the complete quotient.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "{{a}}x^2{{b|signed}}x{{c|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Divide every term by the monomial.",
+        "reasoning": [
+          "Each term contains the factor ${{d}}x$.",
+          "Dividing term-by-term gives ${{a}}x^2{{b|signed}}x{{c|signed}}$."
+        ],
+        "answerSummary": "${{a}}x^2{{b|signed}}x{{c|signed}}$"
+      },
+      "attemptFeedback": [
+        "Divide every term in the dividend, not just the first term."
+      ],
+      "supportHints": [
+        "Cancel the common factor ${{d}}x$ from each term."
+      ],
+      "generator": {
+        "parameters": {
+          "d": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "c": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "A": "d*a",
+          "B": "d*b",
+          "C": "d*c"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10C_v2_error-divide-every-term",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10C:v2-error-divide-every-term",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10C",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student divides ${{A}}x^3{{B|signed}}x^2$ by ${{d}}x$ and writes ${{a}}x^2{{B|signed}}x^2$. Correct the student's work by writing the complete quotient.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "{{a}}x^2{{b|signed}}x"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The divisor must be applied to every term.",
+        "reasoning": [
+          "The first term becomes ${{a}}x^2$.",
+          "The second term must also be divided by ${{d}}x$, giving ${{b}}x$ rather than leaving it unchanged."
+        ],
+        "answerSummary": "${{a}}x^2{{b|signed}}x$"
+      },
+      "attemptFeedback": [
+        "Identify which term the student failed to divide."
+      ],
+      "supportHints": [
+        "Check the exponent and coefficient of the second term after division."
+      ],
+      "generator": {
+        "parameters": {
+          "d": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "A": "d*a",
+          "B": "d*b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10C_v2_reverse-quotient-structure",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10C:v2-reverse-quotient-structure",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10C",
+      "taskType": "transfer",
+      "representation": "verbal",
+      "prompt": "The polynomial ${{A}}x^3{{B|signed}}x^2{{C|signed}}x$ is divided by ${{d}}x$ to model an amount per unit. Write the complete quotient, then use multiplication by ${{d}}x$ to check that all three original terms are recovered.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "{{a}}x^2{{b|signed}}x{{c|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Use division and multiplication as inverse operations.",
+        "reasoning": [
+          "Multiplying the proposed quotient by ${{d}}x$ reproduces the three dividend coefficients {{A}}, {{B}}, and {{C}}.",
+          "Dividing the supplied dividend by ${{d}}x$ therefore returns the complete quotient."
+        ],
+        "answerSummary": "${{a}}x^2{{b|signed}}x{{c|signed}}$"
+      },
+      "attemptFeedback": [
+        "Write the full quotient first; then check every term by multiplying it back by the divisor."
+      ],
+      "supportHints": [
+        "Each dividend coefficient should be divisible by {{d}}."
+      ],
+      "generator": {
+        "parameters": {
+          "d": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "b": {
+            "type": "int",
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
+          },
+          "c": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "A": "d*a",
+          "B": "d*b",
+          "C": "d*c"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10D_v2_area-distribute",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10D:v2-area-distribute",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10D",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A rectangle has width ${{k}}x$ and length ${{a}}x{{b|signed}}$. Use distribution to write its area as a fully expanded polynomial.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "{{A}}x^2{{B|signed}}x"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Area multiplies the two side expressions.",
+        "reasoning": [
+          "Compute $({{k}}x)({{a}}x{{b|signed}})$.",
+          "Distribute ${{k}}x$ to both terms to obtain the full area polynomial."
+        ],
+        "answerSummary": "${{A}}x^2{{B|signed}}x$"
+      },
+      "attemptFeedback": [
+        "Write width × length, then distribute to every term in the length."
+      ],
+      "supportHints": [
+        "$x\\cdot x=x^2$."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 12
+          }
+        },
+        "derived": {
+          "A": "k*a",
+          "B": "k*b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10D_v2_distribute-monomial",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10D:v2-distribute-monomial",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10D",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Use the distributive property to rewrite ${{k}}x({{a}}x^2{{b|signed}}x{{c|signed}})$ as a fully expanded polynomial.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "{{A}}x^3{{B|signed}}x^2{{C|signed}}x"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Distribute to every term inside the parentheses.",
+        "reasoning": [
+          "Multiply ${{k}}x$ by each of the three terms.",
+          "Combine the coefficient products and add one to each power of $x$."
+        ],
+        "answerSummary": "${{A}}x^3{{B|signed}}x^2{{C|signed}}x$"
+      },
+      "attemptFeedback": [
+        "The outside factor must multiply all three terms."
+      ],
+      "supportHints": [
+        "Track coefficients and exponents separately."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "c": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "A": "k*a",
+          "B": "k*b",
+          "C": "k*c"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10D_v2_error-missed-term",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10D:v2-error-missed-term",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10D",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student rewrites ${{k}}x({{a}}x^2{{b|signed}}x{{c|signed}})$ as ${{A}}x^3{{B|signed}}x^2{{c|signed}}$. Correct the student's rewrite by giving the complete expanded polynomial.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "{{A}}x^3{{B|signed}}x^2{{C|signed}}x"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The student failed to distribute to the constant term.",
+        "reasoning": [
+          "The first two products are shown, but {{c}} must also be multiplied by ${{k}}x$.",
+          "That last product is ${{C}}x$, so it belongs in the expanded polynomial."
+        ],
+        "answerSummary": "${{A}}x^3{{B|signed}}x^2{{C|signed}}x$"
+      },
+      "attemptFeedback": [
+        "Find the term inside the parentheses that was not multiplied by the outside factor."
+      ],
+      "supportHints": [
+        "Distribution applies to every addend."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "c": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          }
+        },
+        "derived": {
+          "A": "k*a",
+          "B": "k*b",
+          "C": "k*c"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10D_v2_factor-gcf",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10D:v2-factor-gcf",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10D",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "Rewrite ${{A}}x^3{{B|signed}}x^2{{C|signed}}x$ by factoring out the common monomial ${{g}}x$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "{{g}}x({{a}}x^2{{b|signed}}x{{c|signed}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Factoring reverses distribution.",
+        "reasoning": [
+          "Every term contains ${{g}}x$.",
+          "Divide each term by ${{g}}x$ to form the polynomial inside the parentheses."
+        ],
+        "answerSummary": "${{g}}x({{a}}x^2{{b|signed}}x{{c|signed}})$"
+      },
+      "attemptFeedback": [
+        "Factor the specified common coefficient and common power of $x$ from every term."
+      ],
+      "supportHints": [
+        "After factoring, distribute your answer mentally to check the original expression."
+      ],
+      "generator": {
+        "parameters": {
+          "g": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "c": {
+            "type": "int",
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "A": "g*a",
+          "B": "g*b",
+          "C": "g*c"
+        }
+      }
+    },
+    {
+      "id": "mm_A_10D_v2_reverse-factor-from-expanded",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.10D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.10D:v2-reverse-factor-from-expanded",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.10D",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "Rewrite ${{A}}x^3{{B|signed}}x^2{{C|signed}}x$ in the form ${{g}}x(ax^2+bx+c)$ by factoring out ${{g}}x$. Write the complete factored expression.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Complete expression",
+          "inputProfile": "expression",
+          "expected": "{{g}}x({{a}}x^2{{b|signed}}x{{c|signed}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Reverse distribution by identifying the shared monomial.",
+        "reasoning": [
+          "Each term shares the exact factor ${{g}}x$.",
+          "Dividing the three terms by that factor gives the three terms inside the parentheses."
+        ],
+        "answerSummary": "${{g}}x({{a}}x^2{{b|signed}}x{{c|signed}})$"
+      },
+      "attemptFeedback": [
+        "Treat factoring as division of every term by the requested common factor."
+      ],
+      "supportHints": [
+        "Your factored answer should distribute back to all three original terms."
+      ],
+      "generator": {
+        "parameters": {
+          "g": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "c": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "A": "g*a",
+          "B": "g*b",
+          "C": "g*c"
+        }
+      }
+    },
+    {
       "id": "mm_A_2A_v2_bounded-range",
       "active": true,
       "alignmentKeys": [
@@ -11326,6 +12795,2610 @@
           "sq": "s*s",
           "r1": "h-s",
           "r2": "h+s"
+        }
+      }
+    },
+    {
+      "id": "mm_A_8B_v2_quadratic-regression-context-projectile",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8B:v2-quadratic-regression-context-projectile",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.8B",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A measured path is modeled from data, not from a supplied formula; at $x=0$ the recorded value is {{y2}}. Use quadratic regression to WRITE the model and predict the value at $x=3$.",
+      "type": "dataModelingLab",
+      "mode": "quadraticFitPrediction",
+      "points": [
+        {
+          "x": -2,
+          "y": "{{y0}}"
+        },
+        {
+          "x": -1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 0,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 3,
+      "context": {
+        "title": "Measured trajectory"
+      },
+      "solutionReview": {
+        "headline": "Quadratic regression must produce a complete three-coefficient model.",
+        "reasoning": [
+          "Use quadratic regression on every data point and write $y=ax^2+bx+c$ with all three fitted coefficients.",
+          "Use that fitted model at the requested input and classify the prediction from the observed x-range."
+        ]
+      },
+      "attemptFeedback": [
+        "Record $a$, $b$, and $c$ from the regression before making the prediction."
+      ],
+      "supportHints": [
+        "Choose quadratic regression rather than fitting a line or reading one supplied equation."
+      ],
+      "generator": {
+        "parameters": {
+          "aMag": {
+            "type": "int",
+            "min": 1,
+            "max": 2
+          },
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "c": {
+            "type": "int",
+            "min": 20,
+            "max": 45
+          }
+        },
+        "derived": {
+          "a": "-aMag",
+          "y0": "4*a-2*b+c",
+          "y1": "a-b+c",
+          "y2": "c",
+          "y3": "a+b+c",
+          "y4": "4*a+2*b+c"
+        }
+      }
+    },
+    {
+      "id": "mm_A_8B_v2_quadratic-regression-downward",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8B:v2-quadratic-regression-downward",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.8B",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "A downward-opening data set has value {{y2}} at $x=0$. Use quadratic regression to WRITE the fitted equation and predict at $x=3$.",
+      "type": "dataModelingLab",
+      "mode": "quadraticFitPrediction",
+      "points": [
+        {
+          "x": -2,
+          "y": "{{y0}}"
+        },
+        {
+          "x": -1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 0,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 3,
+      "solutionReview": {
+        "headline": "Quadratic regression must produce a complete three-coefficient model.",
+        "reasoning": [
+          "Use quadratic regression on every data point and write $y=ax^2+bx+c$ with all three fitted coefficients.",
+          "Use that fitted model at the requested input and classify the prediction from the observed x-range."
+        ]
+      },
+      "attemptFeedback": [
+        "Record $a$, $b$, and $c$ from the regression before making the prediction."
+      ],
+      "supportHints": [
+        "Choose quadratic regression rather than fitting a line or reading one supplied equation."
+      ],
+      "generator": {
+        "parameters": {
+          "aMag": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "b": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "c": {
+            "type": "int",
+            "min": 18,
+            "max": 40
+          }
+        },
+        "derived": {
+          "a": "-aMag",
+          "y0": "4*a-2*b+c",
+          "y1": "a-b+c",
+          "y2": "c",
+          "y3": "a+b+c",
+          "y4": "4*a+2*b+c"
+        }
+      }
+    },
+    {
+      "id": "mm_A_8B_v2_quadratic-regression-error-linear-fit",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8B:v2-quadratic-regression-error-linear-fit",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.8B",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student sees the first data value {{y2}} at $x=0$ and fits a LINE to the curved data. Correct the method: use quadratic regression to WRITE $y=ax^2+bx+c$ and predict at $x=3$.",
+      "type": "dataModelingLab",
+      "mode": "quadraticFitPrediction",
+      "points": [
+        {
+          "x": -2,
+          "y": "{{y0}}"
+        },
+        {
+          "x": -1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 0,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 3,
+      "solutionReview": {
+        "headline": "Quadratic regression must produce a complete three-coefficient model.",
+        "reasoning": [
+          "Use quadratic regression on every data point and write $y=ax^2+bx+c$ with all three fitted coefficients.",
+          "Use that fitted model at the requested input and classify the prediction from the observed x-range."
+        ]
+      },
+      "attemptFeedback": [
+        "Record $a$, $b$, and $c$ from the regression before making the prediction."
+      ],
+      "supportHints": [
+        "Choose quadratic regression rather than fitting a line or reading one supplied equation."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "b": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "c": {
+            "type": "int",
+            "min": 6,
+            "max": 20
+          }
+        },
+        "derived": {
+          "y0": "4*a-2*b+c",
+          "y1": "a-b+c",
+          "y2": "c",
+          "y3": "a+b+c",
+          "y4": "4*a+2*b+c"
+        }
+      }
+    },
+    {
+      "id": "mm_A_8B_v2_quadratic-regression-interpolation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8B:v2-quadratic-regression-interpolation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.8B",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A curved-response experiment has generated middle value {{y2}}. Use quadratic regression to WRITE the model, then estimate the response at $x=1.5$.",
+      "type": "dataModelingLab",
+      "mode": "quadraticFitPrediction",
+      "points": [
+        {
+          "x": -2,
+          "y": "{{y0}}"
+        },
+        {
+          "x": -1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 0,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 1.5,
+      "context": {
+        "title": "Curved-response experiment"
+      },
+      "solutionReview": {
+        "headline": "Quadratic regression must produce a complete three-coefficient model.",
+        "reasoning": [
+          "Use quadratic regression on every data point and write $y=ax^2+bx+c$ with all three fitted coefficients.",
+          "Use that fitted model at the requested input and classify the prediction from the observed x-range."
+        ]
+      },
+      "attemptFeedback": [
+        "Record $a$, $b$, and $c$ from the regression before making the prediction."
+      ],
+      "supportHints": [
+        "Choose quadratic regression rather than fitting a line or reading one supplied equation."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "b": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "c": {
+            "type": "int",
+            "min": 5,
+            "max": 20
+          }
+        },
+        "derived": {
+          "y0": "4*a-2*b+c",
+          "y1": "a-b+c",
+          "y2": "c",
+          "y3": "a+b+c",
+          "y4": "4*a+2*b+c"
+        }
+      }
+    },
+    {
+      "id": "mm_A_8B_v2_quadratic-regression-upward",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8B:v2-quadratic-regression-upward",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.8B",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "The quadratic data set includes $(0,{{y2}})$. Use quadratic-regression technology to WRITE $y=ax^2+bx+c$, then predict $y$ at $x=3$.",
+      "type": "dataModelingLab",
+      "mode": "quadraticFitPrediction",
+      "points": [
+        {
+          "x": -2,
+          "y": "{{y0}}"
+        },
+        {
+          "x": -1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 0,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 3,
+      "solutionReview": {
+        "headline": "Quadratic regression must produce a complete three-coefficient model.",
+        "reasoning": [
+          "Use quadratic regression on every data point and write $y=ax^2+bx+c$ with all three fitted coefficients.",
+          "Use that fitted model at the requested input and classify the prediction from the observed x-range."
+        ]
+      },
+      "attemptFeedback": [
+        "Record $a$, $b$, and $c$ from the regression before making the prediction."
+      ],
+      "supportHints": [
+        "Choose quadratic regression rather than fitting a line or reading one supplied equation."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "c": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          }
+        },
+        "derived": {
+          "y0": "4*a-2*b+c",
+          "y1": "a-b+c",
+          "y2": "c",
+          "y3": "a+b+c",
+          "y4": "4*a+2*b+c"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9A_v2_context-restricted-domain",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9A:v2-context-restricted-domain",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9A",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A quantity is modeled by $Q(t)={{a}}({{base}})^t$ only during the first {{years}} years after measurement begins. Write the CONTEXTUAL domain of $t$ in interval notation.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Contextual domain",
+          "inputProfile": "interval",
+          "expected": "[0,{{years}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The algebraic domain and the contextual domain are different questions.",
+        "reasoning": [
+          "The exponential rule itself accepts every real input, but elapsed time in this situation begins at $t=0$.",
+          "The model is stated to apply only through year {{years}}, so the contextual domain is $[0,{{years}}]$."
+        ],
+        "answerSummary": "$[0,{{years}}]$"
+      },
+      "attemptFeedback": [
+        "Use the time interval in the situation rather than the unrestricted algebraic domain."
+      ],
+      "supportHints": [
+        "Elapsed time cannot be negative in this model, and the stated observation window has an endpoint."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 50,
+            "max": 500
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.8,
+              0.9,
+              1.1,
+              1.2
+            ]
+          },
+          "years": {
+            "type": "int",
+            "min": 3,
+            "max": 12
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_9A_v2_decay-graph-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9A:v2-decay-graph-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9A",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Graph the exponential decay function $y={{a}}({{base}})^x{{k|signed}}$. Plot the requested points, identify the asymptote, and state the domain and range.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": "{{k}}",
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 6,
+        "yMin": -8,
+        "yMax": 35,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot the y-intercept",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot x = 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "asym",
+          "label": "Horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "domain",
+          "label": "Domain",
+          "kind": "domain",
+          "notation": "interval",
+          "expected": [
+            "(-∞,∞)"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "kind": "range",
+          "notation": "interval",
+          "expected": [
+            "({{k}},∞)"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A base between 0 and 1 changes direction of change, not domain or the side of the asymptote.",
+        "reasoning": [
+          "Since $0<{{base}}<1$, the graph decreases as $x$ increases, but the exponential expression is still defined for every real input.",
+          "The positive multiplier keeps the graph above $y={{k}}$, so the range remains $({{k}},\\infty)$."
+        ],
+        "answerSummary": "Domain $(-\\infty,\\infty)$; range $({{k}},\\infty)$."
+      },
+      "attemptFeedback": [
+        "Decay means the outputs move toward the asymptote as x increases; it does not mean the domain stops."
+      ],
+      "supportHints": [
+        "The base is positive, so $({{base}})^x$ is positive for every real $x$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              4,
+              6,
+              8,
+              10
+            ]
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.75
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          }
+        },
+        "derived": {
+          "y0": "a+k",
+          "y1": "a*base+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9A_v2_error-decay-domain",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9A:v2-error-decay-domain",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9A",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "type": "functionInvestigation",
+      "prompt": "A student claims, “Because $y={{a}}({{base}})^x{{k|signed}}$ is decay, its domain is $x\\ge0$.” Use the graph to correct the claim and report the true domain and range.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": "{{k}}",
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -5,
+        "xMax": 6,
+        "yMin": -8,
+        "yMax": 40,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "pneg",
+          "label": "Plot x = -1 to test a negative input",
+          "x": -1,
+          "expected": [
+            -1,
+            "{{yNeg}}"
+          ]
+        },
+        {
+          "id": "p0",
+          "label": "Plot x = 0",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "domain",
+          "label": "True domain",
+          "kind": "domain",
+          "notation": "interval",
+          "expected": [
+            "(-∞,∞)"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "kind": "range",
+          "notation": "interval",
+          "expected": [
+            "({{k}},∞)"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Decay describes behavior, not an algebraic input restriction.",
+        "reasoning": [
+          "The point at $x=-1$ is valid, demonstrating directly that negative inputs belong to the algebraic domain.",
+          "The function has domain $(-\\infty,\\infty)$ and, with positive multiplier, range $({{k}},\\infty)$."
+        ],
+        "answerSummary": "Domain $(-\\infty,\\infty)$; range $({{k}},\\infty)$."
+      },
+      "attemptFeedback": [
+        "Test the student's claimed boundary by substituting a negative x-value."
+      ],
+      "supportHints": [
+        "A positive base can be raised to negative real exponents."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              2,
+              4,
+              6
+            ]
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.75
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          }
+        },
+        "derived": {
+          "yNeg": "a/base+k",
+          "y0": "a+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9A_v2_growth-graph-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9A:v2-growth-graph-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9A",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "interpretation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Graph $y={{a}}({{base}})^x{{k|signed}}$ by plotting the requested points. Then use the graph and horizontal asymptote to state the domain and range.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": "{{k}}",
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 5,
+        "yMin": -8,
+        "yMax": 30,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot the y-intercept",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot x = 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "asym",
+          "label": "Horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "domain",
+          "label": "Domain",
+          "kind": "domain",
+          "notation": "interval",
+          "expected": [
+            "(-∞,∞)"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "kind": "range",
+          "notation": "interval",
+          "expected": [
+            "({{k}},∞)"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Growth still has all real inputs; the asymptote controls the range.",
+        "reasoning": [
+          "An exponential with positive multiplier is defined for every real $x$, so its domain is $(-\\infty,\\infty)$.",
+          "Because the graph stays above and approaches $y={{k}}$ without reaching it, the range is $({{k}},\\infty)$."
+        ],
+        "answerSummary": "Domain $(-\\infty,\\infty)$; range $({{k}},\\infty)$."
+      },
+      "attemptFeedback": [
+        "Use the horizontal asymptote to decide the open endpoint of the range; the base does not restrict the domain."
+      ],
+      "supportHints": [
+        "For a positive exponential shifted by $k$, every output lies above $y=k$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              2,
+              3
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          }
+        },
+        "derived": {
+          "y0": "a+k",
+          "y1": "a*base+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9A_v2_reflected-range-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9A:v2-reflected-range-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9A",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Graph $y=-{{a}}({{base}})^x{{k|signed}}$ using the requested points. Then state its domain and range.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{negA}}",
+        "k": "{{k}}",
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 5,
+        "yMin": -30,
+        "yMax": 12,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot the y-intercept",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot x = 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "asym",
+          "label": "Horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "domain",
+          "label": "Domain",
+          "kind": "domain",
+          "notation": "interval",
+          "expected": [
+            "(-∞,∞)"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "kind": "range",
+          "notation": "interval",
+          "expected": [
+            "(-∞,{{k}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A negative multiplier reflects the exponential across the x-axis before the vertical shift.",
+        "reasoning": [
+          "The reflected exponential is still defined for every real input.",
+          "Its outputs stay below the horizontal asymptote $y={{k}}$, so the range is $(-\\infty,{{k}})$."
+        ],
+        "answerSummary": "Domain $(-\\infty,\\infty)$; range $(-\\infty,{{k}})$."
+      },
+      "attemptFeedback": [
+        "The sign of the leading multiplier decides whether the graph lies above or below its asymptote."
+      ],
+      "supportHints": [
+        "A negative multiplier makes the exponential contribution negative for every x."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              2,
+              3
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 5
+          }
+        },
+        "derived": {
+          "negA": "-a",
+          "y0": "-a+k",
+          "y1": "-a*base+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9B_v2_decay-percent",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9B:v2-decay-percent",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9B",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A value is modeled by $V={{a}}(1-{{p}}/100)^t$. What percent does it lose each period?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "A decay factor has the form $1-r$.",
+          "The subtracted portion here is {{p}}/100, or {{p}} percent."
+        ],
+        "answerSummary": "It loses ${{p}}$% each period."
+      },
+      "attemptFeedback": [
+        "Separate the initial value from the multiplicative factor, then convert between growth/decay factor and percent change."
+      ],
+      "supportHints": [
+        "In a(b)^x, a is the initial value and b is the multiplicative factor; growth percent is b-1 and decay percent is 1-b."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 100,
+            "max": 1000
+          },
+          "p": {
+            "type": "int",
+            "min": 5,
+            "max": 40
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{p}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_9B_v2_growth-factor",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9B:v2-growth-factor",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9B",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student says a model that multiplies by {{b}} each period has a growth factor of {{b}}%. Correct the interpretation: what MULTIPLICATIVE growth factor belongs in the exponential model?",
+      "solutionReview": {
+        "headline": "A multiplicative factor and a percent rate are not the same parameter.",
+        "reasoning": [
+          "The factor is the number multiplied by the previous value each period.",
+          "Because the quantity is multiplied by {{b}}, the model's growth factor is {{b}}."
+        ],
+        "answerSummary": "Growth factor {{b}}."
+      },
+      "attemptFeedback": [
+        "Separate the initial value from the multiplicative factor, then convert between growth/decay factor and percent change."
+      ],
+      "supportHints": [
+        "In a(b)^x, a is the initial value and b is the multiplicative factor; growth percent is b-1 and decay percent is 1-b."
+      ],
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "choice",
+            "values": [
+              2,
+              3,
+              4,
+              5
+            ]
+          },
+          "a": {
+            "type": "int",
+            "min": 20,
+            "max": 200
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{b}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_9B_v2_growth-rate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9B:v2-growth-rate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "A population model is $P={{a}}(1+{{p}}/100)^t$. What is the percent growth rate?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "In a growth model, the base is $1+r$ where $r$ is the decimal growth rate.",
+          "The expression explicitly uses {{p}}/100, which corresponds to {{p}} percent."
+        ],
+        "answerSummary": "The growth rate is ${{p}}$%."
+      },
+      "attemptFeedback": [
+        "Separate the initial value from the multiplicative factor, then convert between growth/decay factor and percent change."
+      ],
+      "supportHints": [
+        "In a(b)^x, a is the initial value and b is the multiplicative factor; growth percent is b-1 and decay percent is 1-b."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 100,
+            "max": 900
+          },
+          "p": {
+            "type": "int",
+            "min": 2,
+            "max": 25
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{p}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_9B_v2_initial-value",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9B:v2-initial-value",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9B",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "For $y={{a}}({{b}})^x$, what is the initial value $y(0)$?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Any nonzero base to the zero power equals 1.",
+          "So $y(0)={{a}}(1)={{a}}$."
+        ],
+        "answerSummary": "The initial value is ${{a}}$."
+      },
+      "attemptFeedback": [
+        "Separate the initial value from the multiplicative factor, then convert between growth/decay factor and percent change."
+      ],
+      "supportHints": [
+        "In a(b)^x, a is the initial value and b is the multiplicative factor; growth percent is b-1 and decay percent is 1-b."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 20,
+            "max": 500
+          },
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{a}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_9B_v2_recover-start",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9B:v2-recover-start",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9B",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "An exponential model $y=a({{b}})^x$ has $y(0)={{a}}$. Find the parameter $a$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "At $x=0$, the exponential factor equals 1.",
+          "Therefore the model output at zero is exactly its leading parameter $a$."
+        ],
+        "answerSummary": "$a={{a}}$"
+      },
+      "attemptFeedback": [
+        "Separate the initial value from the multiplicative factor, then convert between growth/decay factor and percent change."
+      ],
+      "supportHints": [
+        "In a(b)^x, a is the initial value and b is the multiplicative factor; growth percent is b-1 and decay percent is 1-b."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 20,
+            "max": 500
+          },
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{a}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_9C_v2_context-decay-model",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9C:v2-context-decay-model",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9C",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A value starts at {{a}} and decreases by {{pct}}% each period. Write the exponential model in the form $y=ab^t$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Exponential equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}({{base}})^t"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Decay percent becomes a multiplier between 0 and 1.",
+        "reasoning": [
+          "The initial value is {{a}}.",
+          "A decrease of {{pct}}% leaves {{base}} of the quantity each period, so the model is $y={{a}}({{base}})^t$."
+        ],
+        "answerSummary": "$y={{a}}({{base}})^t$"
+      },
+      "attemptFeedback": [
+        "For decay, subtract the rate from 1 rather than adding it."
+      ],
+      "supportHints": [
+        "A decay multiplier must be between 0 and 1."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 50,
+            "max": 800
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.6,
+              0.75,
+              0.8,
+              0.9,
+              0.95
+            ]
+          }
+        },
+        "derived": {
+          "pct": "round((1-base)*100)"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9C_v2_context-growth-model",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9C:v2-context-growth-model",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9C",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A quantity starts at {{a}} and grows by {{pct}}% each period. Write the exponential model in the form $y=ab^t$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Exponential equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}({{base}})^t"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Growth percent becomes a multiplier greater than 1.",
+        "reasoning": [
+          "The initial value is {{a}}, so $a={{a}}$.",
+          "A growth rate of {{pct}}% gives multiplier $1+{{pct}}/100={{base}}$, so the model is $y={{a}}({{base}})^t$."
+        ],
+        "answerSummary": "$y={{a}}({{base}})^t$"
+      },
+      "attemptFeedback": [
+        "Separate the initial value from the growth multiplier."
+      ],
+      "supportHints": [
+        "Growth uses $1+r$, where $r$ is written as a decimal."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 20,
+            "max": 500
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              1.05,
+              1.1,
+              1.2,
+              1.25,
+              1.5
+            ]
+          }
+        },
+        "derived": {
+          "pct": "round((base-1)*100)"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9C_v2_error-linear-instead-exponential",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9C:v2-error-linear-instead-exponential",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9C",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A quantity starts at {{a}} and DOUBLES each period. A student writes the linear model $y={{a}}+2t$. Correct the student's model by writing the exponential equation.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct exponential equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}(2)^t"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Doubling is repeated multiplication, not repeated addition.",
+        "reasoning": [
+          "The initial value {{a}} is multiplied by 2 each period.",
+          "Repeated multiplication is modeled with an exponent, giving $y={{a}}(2)^t$."
+        ],
+        "answerSummary": "$y={{a}}(2)^t$"
+      },
+      "attemptFeedback": [
+        "Ask whether the change is additive or multiplicative each period."
+      ],
+      "supportHints": [
+        "Doubling means multiply by 2 again and again."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 3,
+            "max": 200
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_9C_v2_nonconsecutive-data-model",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9C:v2-nonconsecutive-data-model",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9C",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "An exponential function has $y(0)={{a}}$ and $y(2)={{y2}}$. Its base is positive. Write the complete equation $y=ab^x$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Exponential equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}({{b}})^x"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Nonconsecutive data require recovering the per-step multiplier.",
+        "reasoning": [
+          "From $y(2)=a b^2$, the ratio ${{y2}}/{{a}}={{bsq}}$ equals $b^2$.",
+          "The positive base is therefore {{b}}, giving $y={{a}}({{b}})^x$."
+        ],
+        "answerSummary": "$y={{a}}({{b}})^x$"
+      },
+      "attemptFeedback": [
+        "Use the two-step ratio to find $b^2$, then recover the positive per-step base."
+      ],
+      "supportHints": [
+        "Because the second point is two input units away, its multiplier is $b^2$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 30
+          },
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          }
+        },
+        "derived": {
+          "bsq": "b*b",
+          "y2": "a*bsq"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9C_v2_table-to-exponential",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9C:v2-table-to-exponential",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9C",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table follows an exponential pattern. Write the complete equation in the form $y=ab^x$.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "0",
+              "{{a}}"
+            ],
+            [
+              "1",
+              "{{y1}}"
+            ],
+            [
+              "2",
+              "{{y2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Exponential equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}({{b}})^x"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The value at zero is the initial value and consecutive-output ratios give the base.",
+        "reasoning": [
+          "At $x=0$, $y={{a}}$, so the initial value is {{a}}.",
+          "Each output is multiplied by {{b}}, so the exponential base is {{b}}."
+        ],
+        "answerSummary": "$y={{a}}({{b}})^x$"
+      },
+      "attemptFeedback": [
+        "Find the output at zero, then compare consecutive outputs multiplicatively."
+      ],
+      "supportHints": [
+        "For an exponential table, divide one output by the previous output."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 25
+          },
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          }
+        },
+        "derived": {
+          "y1": "a*b",
+          "y2": "a*b*b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9D_v2_construct-decay",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9D:v2-construct-decay",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9D",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Construct the decay graph $y={{a}}({{base}})^x{{k|signed}}$ using the three requested points. Then identify its y-intercept and horizontal asymptote.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": "{{k}}",
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 6,
+        "yMin": -8,
+        "yMax": 45,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot x = 0",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot x = 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Plot x = 2",
+          "x": 2,
+          "expected": [
+            2,
+            "{{y2}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "yint",
+          "label": "y-intercept value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "asym",
+          "label": "horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{k}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Decay approaches the asymptote as x increases.",
+        "reasoning": [
+          "The y-intercept is {{y0}} because substituting $x=0$ makes the exponential factor 1.",
+          "Since $0<{{base}}<1$, the plotted outputs move toward the horizontal asymptote $y={{k}}$ to the right."
+        ],
+        "answerSummary": "y-intercept {{y0}}; asymptote $y={{k}}$."
+      },
+      "attemptFeedback": [
+        "If your right-hand points move farther from the asymptote, re-check whether the base is less than 1."
+      ],
+      "supportHints": [
+        "For decay, repeatedly multiply the distance from the asymptote by a number between 0 and 1."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              8,
+              12,
+              16
+            ]
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.75
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          }
+        },
+        "derived": {
+          "y0": "a+k",
+          "y1": "a*base+k",
+          "y2": "a*base*base+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9D_v2_construct-growth",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9D:v2-construct-growth",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9D",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Construct the growth graph $y={{a}}({{base}})^x{{k|signed}}$ by plotting three requested points and sketching the exponential curve. Then identify the y-intercept and horizontal asymptote.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": "{{k}}",
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 5,
+        "yMin": -8,
+        "yMax": 45,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot x = 0",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot x = 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Plot x = 2",
+          "x": 2,
+          "expected": [
+            2,
+            "{{y2}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "yint",
+          "label": "y-intercept value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "asym",
+          "label": "horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{k}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Growth moves away from the asymptote as x increases.",
+        "reasoning": [
+          "At $x=0$, $b^0=1$, so the y-intercept is {{y0}}.",
+          "The vertical shift gives horizontal asymptote $y={{k}}$; because ${{base}}>1$, the graph grows to the right."
+        ],
+        "answerSummary": "y-intercept {{y0}}; asymptote $y={{k}}$."
+      },
+      "attemptFeedback": [
+        "Make sure the three plotted outputs increase multiplicatively rather than by a constant difference."
+      ],
+      "supportHints": [
+        "Start at x=0, then multiply the distance from the asymptote by the base each step."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              2,
+              3
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          }
+        },
+        "derived": {
+          "y0": "a+k",
+          "y1": "a*base+k",
+          "y2": "a*base*base+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9D_v2_context-decay-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9D:v2-context-decay-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9D",
+      "difficultyBand": 3,
+      "dok": 3,
+      "taskType": "modeling",
+      "representation": "context",
+      "type": "functionInvestigation",
+      "prompt": "A measured quantity starts at {{a}} and retains {{percent}}% each period. Construct the exponential decay graph for periods 0, 1, and 2, then identify its y-intercept and asymptote.",
+      "context": {
+        "scenario": "Repeated percent decay"
+      },
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": 0,
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -1,
+        "xMax": 6,
+        "yMin": -2,
+        "yMax": 60,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Period 0",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Period 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Period 2",
+          "x": 2,
+          "expected": [
+            2,
+            "{{y2}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "yint",
+          "label": "y-intercept value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{a}}"
+          ]
+        },
+        {
+          "id": "asym",
+          "label": "horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "0"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Percent retained becomes the multiplicative base of the decay graph.",
+        "reasoning": [
+          "{{percent}}% retained corresponds to base {{base}}, so each plotted output is {{base}} times the previous one.",
+          "The initial amount {{a}} is the y-intercept and the unshifted graph approaches $y=0$."
+        ],
+        "answerSummary": "y-intercept {{a}}; asymptote $y=0$."
+      },
+      "attemptFeedback": [
+        "Convert the retained percent to a decimal before generating successive graph points."
+      ],
+      "supportHints": [
+        "A retained percent below 100% produces a base between 0 and 1."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              20,
+              30,
+              40
+            ]
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.75
+            ]
+          }
+        },
+        "derived": {
+          "percent": "base*100",
+          "y0": "a",
+          "y1": "a*base",
+          "y2": "a*base*base"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9D_v2_context-growth-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9D:v2-context-growth-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9D",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "application",
+      "representation": "context",
+      "type": "functionInvestigation",
+      "prompt": "A quantity starts at {{a}} and grows by a factor of {{base}} each period. Construct its graph for periods 0, 1, and 2, then identify the y-intercept and horizontal asymptote of the exponential model.",
+      "context": {
+        "scenario": "Repeated multiplicative growth"
+      },
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": 0,
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -1,
+        "xMax": 5,
+        "yMin": -2,
+        "yMax": 80,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Period 0",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Period 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Period 2",
+          "x": 2,
+          "expected": [
+            2,
+            "{{y2}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "yint",
+          "label": "y-intercept value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{a}}"
+          ]
+        },
+        {
+          "id": "asym",
+          "label": "horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "0"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The initial amount is the y-intercept of an unshifted exponential model.",
+        "reasoning": [
+          "At period 0 the model equals {{a}}, so the graph begins on the y-axis at $(0,{{a}})$.",
+          "With no vertical shift, the horizontal asymptote is $y=0$."
+        ],
+        "answerSummary": "y-intercept {{a}}; asymptote $y=0$."
+      },
+      "attemptFeedback": [
+        "Use repeated multiplication by the growth factor to generate the plotted outputs."
+      ],
+      "supportHints": [
+        "At time zero, any positive base raised to the zero power equals 1."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 5,
+            "max": 20
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              1.5,
+              2
+            ]
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a*base",
+          "y2": "a*base*base"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9D_v2_error-asymptote-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9D:v2-error-asymptote-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9D",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "type": "functionInvestigation",
+      "prompt": "A student says, “Every exponential graph has asymptote $y=0$.” Correct the claim by constructing $y={{a}}({{base}})^x{{k|signed}}$ and reporting its actual y-intercept and horizontal asymptote.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": "{{k}}",
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 45,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot x = 0",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot x = 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Plot x = 2",
+          "x": 2,
+          "expected": [
+            2,
+            "{{y2}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "yint",
+          "label": "actual y-intercept value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "asym",
+          "label": "actual asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{k}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A vertical shift moves the horizontal asymptote.",
+        "reasoning": [
+          "The parent exponential approaches $y=0$, but adding {{k}} shifts every output and the asymptote vertically.",
+          "The actual asymptote is $y={{k}}$, while the y-intercept is {{y0}}."
+        ],
+        "answerSummary": "y-intercept {{y0}}; asymptote $y={{k}}$."
+      },
+      "attemptFeedback": [
+        "Separate the initial value from the horizontal asymptote; they are not generally the same feature."
+      ],
+      "supportHints": [
+        "In $a(b)^x+k$, the asymptote is shifted from 0 to k."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              4,
+              8,
+              12
+            ]
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.75
+            ]
+          },
+          "k": {
+            "type": "choice",
+            "values": [
+              -4,
+              -2,
+              2,
+              4
+            ]
+          }
+        },
+        "derived": {
+          "y0": "a+k",
+          "y1": "a*base+k",
+          "y2": "a*base*base+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9E_v2_exponential-regression-context-decay",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9E:v2-exponential-regression-context-decay",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.9E",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A measured quantity decreases over time and starts at {{y0}}. Use exponential-regression technology to WRITE the decay model and predict the quantity at $x=6$.",
+      "type": "dataModelingLab",
+      "mode": "exponentialFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 6,
+      "context": {
+        "title": "Measured decay"
+      },
+      "solutionReview": {
+        "headline": "Exponential regression returns an initial factor and a multiplicative base.",
+        "reasoning": [
+          "Use exponential regression on the complete data set and write $y=a(b)^x$.",
+          "Use the fitted equation at the requested input; a base above 1 indicates growth and a base between 0 and 1 indicates decay."
+        ]
+      },
+      "attemptFeedback": [
+        "Write both $a$ and the base $b$ from the regression output before predicting."
+      ],
+      "supportHints": [
+        "Do not replace a decay base with a negative number; exponential decay uses $0<b<1$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 80
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.7,
+              0.8,
+              0.9
+            ]
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a*base",
+          "y2": "a*base*base",
+          "y3": "a*base*base*base",
+          "y4": "a*base*base*base*base"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9E_v2_exponential-regression-decay",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9E:v2-exponential-regression-decay",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.9E",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "A decay data set begins with {{y0}} at $x=0$. Use exponential regression to WRITE the fitted model and predict at $x=5$.",
+      "type": "dataModelingLab",
+      "mode": "exponentialFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 5,
+      "solutionReview": {
+        "headline": "Exponential regression returns an initial factor and a multiplicative base.",
+        "reasoning": [
+          "Use exponential regression on the complete data set and write $y=a(b)^x$.",
+          "Use the fitted equation at the requested input; a base above 1 indicates growth and a base between 0 and 1 indicates decay."
+        ]
+      },
+      "attemptFeedback": [
+        "Write both $a$ and the base $b$ from the regression output before predicting."
+      ],
+      "supportHints": [
+        "Do not replace a decay base with a negative number; exponential decay uses $0<b<1$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 80
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.6,
+              0.75,
+              0.8,
+              0.9
+            ]
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a*base",
+          "y2": "a*base*base",
+          "y3": "a*base*base*base",
+          "y4": "a*base*base*base*base"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9E_v2_exponential-regression-error-linear",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9E:v2-exponential-regression-error-linear",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.9E",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student treats the data beginning at {{y0}} as additive and fits a linear model. Correct the method: use exponential regression to WRITE $y=a(b)^x$ and predict at $x=5$.",
+      "type": "dataModelingLab",
+      "mode": "exponentialFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 5,
+      "solutionReview": {
+        "headline": "Exponential regression returns an initial factor and a multiplicative base.",
+        "reasoning": [
+          "Use exponential regression on the complete data set and write $y=a(b)^x$.",
+          "Use the fitted equation at the requested input; a base above 1 indicates growth and a base between 0 and 1 indicates decay."
+        ]
+      },
+      "attemptFeedback": [
+        "Write both $a$ and the base $b$ from the regression output before predicting."
+      ],
+      "supportHints": [
+        "Do not replace a decay base with a negative number; exponential decay uses $0<b<1$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 80
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              1.25,
+              1.5,
+              2,
+              0.5,
+              0.75
+            ]
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a*base",
+          "y2": "a*base*base",
+          "y3": "a*base*base*base",
+          "y4": "a*base*base*base*base"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9E_v2_exponential-regression-growth",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9E:v2-exponential-regression-growth",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.9E",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "The exponential data begin at $(0,{{y0}})$. Use exponential-regression technology to WRITE $y=a(b)^x$, then predict at $x=5$.",
+      "type": "dataModelingLab",
+      "mode": "exponentialFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 5,
+      "solutionReview": {
+        "headline": "Exponential regression returns an initial factor and a multiplicative base.",
+        "reasoning": [
+          "Use exponential regression on the complete data set and write $y=a(b)^x$.",
+          "Use the fitted equation at the requested input; a base above 1 indicates growth and a base between 0 and 1 indicates decay."
+        ]
+      },
+      "attemptFeedback": [
+        "Write both $a$ and the base $b$ from the regression output before predicting."
+      ],
+      "supportHints": [
+        "Do not replace a decay base with a negative number; exponential decay uses $0<b<1$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 80
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              1.2,
+              1.25,
+              1.5,
+              2
+            ]
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a*base",
+          "y2": "a*base*base",
+          "y3": "a*base*base*base",
+          "y4": "a*base*base*base*base"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9E_v2_exponential-regression-interpolation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9E:v2-exponential-regression-interpolation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.9E",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A multiplicative trend starts at observed value {{y0}}. Use exponential regression to WRITE the model, then estimate the value at $x=2.5$.",
+      "type": "dataModelingLab",
+      "mode": "exponentialFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 2.5,
+      "context": {
+        "title": "Multiplicative trend"
+      },
+      "solutionReview": {
+        "headline": "Exponential regression returns an initial factor and a multiplicative base.",
+        "reasoning": [
+          "Use exponential regression on the complete data set and write $y=a(b)^x$.",
+          "Use the fitted equation at the requested input; a base above 1 indicates growth and a base between 0 and 1 indicates decay."
+        ]
+      },
+      "attemptFeedback": [
+        "Write both $a$ and the base $b$ from the regression output before predicting."
+      ],
+      "supportHints": [
+        "Do not replace a decay base with a negative number; exponential decay uses $0<b<1$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 80
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              1.1,
+              1.2,
+              1.5
+            ]
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a*base",
+          "y2": "a*base*base",
+          "y3": "a*base*base*base",
+          "y4": "a*base*base*base*base"
         }
       }
     }
