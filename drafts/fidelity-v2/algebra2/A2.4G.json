@@ -121,7 +121,126 @@
           "negD": "-d",
           "vp": "d+1"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b2",
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "coverageKey": "adaptive-d2b4-scaled-original-equation-check",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "symbolic",
+          "prompt": "Squaring $\\sqrt{4x{{C|signed}}}=2x-({{twoK}})$ produces candidates $x={{u}}$ and $x={{v}}$. Substitute BOTH into the ORIGINAL scaled equation, compare both sides, and identify the extraneous candidate.",
+          "responseFields": [
+            {
+              "id": "u-lhs",
+              "label": "Original LHS at x={{u}}",
+              "inputProfile": "number",
+              "expected": "{{twoD}}"
+            },
+            {
+              "id": "u-rhs",
+              "label": "Original RHS at x={{u}}",
+              "inputProfile": "number",
+              "expected": "{{negTwoD}}"
+            },
+            {
+              "id": "u-verdict",
+              "label": "Verdict for x={{u}}",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "extraneous",
+                  "label": "Extraneous"
+                },
+                {
+                  "id": "valid",
+                  "label": "Valid"
+                }
+              ],
+              "expected": "extraneous"
+            },
+            {
+              "id": "v-lhs",
+              "label": "Original LHS at x={{v}}",
+              "inputProfile": "number",
+              "expected": "{{twoVp}}"
+            },
+            {
+              "id": "v-rhs",
+              "label": "Original RHS at x={{v}}",
+              "inputProfile": "number",
+              "expected": "{{twoVp}}"
+            },
+            {
+              "id": "v-verdict",
+              "label": "Verdict for x={{v}}",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "valid",
+                  "label": "Valid"
+                },
+                {
+                  "id": "extraneous",
+                  "label": "Extraneous"
+                }
+              ],
+              "expected": "valid"
+            },
+            {
+              "id": "extraneous",
+              "label": "Extraneous solution",
+              "inputProfile": "number",
+              "expected": "{{u}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Scaling both sides does not remove the need to check the original radical equation.",
+            "reasoning": [
+              "At x={{u}}, the principal square root is {{twoD}} while the right side is {{negTwoD}}, so the original equation fails.",
+              "At x={{v}}, both sides equal {{twoVp}}.",
+              "Therefore x={{u}} is extraneous and x={{v}} is valid."
+            ],
+            "answerSummary": "Extraneous candidate: x={{u}}."
+          },
+          "attemptFeedback": [
+            "Use the original scaled equation, not only the squared quadratic."
+          ],
+          "supportHints": [
+            "The principal square root is nonnegative, so compare its sign with the original right side."
+          ],
+          "generator": {
+            "parameters": {
+              "k": {
+                "type": "int",
+                "min": -3,
+                "max": 5
+              },
+              "d": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "u": "k-d",
+              "v": "k+1+d",
+              "c": "k*k-(k-d)*(k+1+d)",
+              "C": "4*c",
+              "twoK": "2*k",
+              "twoD": "2*d",
+              "negTwoD": "-2*d",
+              "vp": "d+1",
+              "twoVp": "2*(d+1)"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_4G_v2_no-extraneous-both-valid",
@@ -632,7 +751,102 @@
           "negD": "-d",
           "vp": "d+1"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b5",
+          "dok": 3,
+          "difficultyBand": 5
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-number-squaring-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student squares $\\sqrt{x{{c|signed}}}=x-({{k}})$, gets candidates x={{u}} and x={{v}}, and keeps both because both solve the squared equation. With the small generated values, check BOTH candidates in the original equation and repair the conclusion.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Reason the conclusion must be checked",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "check-original",
+                  "label": "Squaring can lose sign information, so each candidate must be checked in the original equation."
+                },
+                {
+                  "id": "both-valid",
+                  "label": "Every root of the squared equation is automatically valid."
+                }
+              ],
+              "expected": "check-original"
+            },
+            {
+              "id": "u-lhs",
+              "label": "Original LHS at x={{u}}",
+              "inputProfile": "number",
+              "expected": "1"
+            },
+            {
+              "id": "u-rhs",
+              "label": "Original RHS at x={{u}}",
+              "inputProfile": "number",
+              "expected": "-1"
+            },
+            {
+              "id": "v-lhs",
+              "label": "Original LHS at x={{v}}",
+              "inputProfile": "number",
+              "expected": "2"
+            },
+            {
+              "id": "v-rhs",
+              "label": "Original RHS at x={{v}}",
+              "inputProfile": "number",
+              "expected": "2"
+            },
+            {
+              "id": "extraneous",
+              "label": "Candidate to remove",
+              "inputProfile": "number",
+              "expected": "{{u}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The deeper reasoning is recognizing what squaring can hide.",
+            "reasoning": [
+              "The smaller candidate makes the original sides 1 and -1, so it fails.",
+              "The larger candidate makes both sides equal 2.",
+              "Thus only x={{v}} survives the original equation."
+            ],
+            "answerSummary": "Remove x={{u}}; keep x={{v}}."
+          },
+          "attemptFeedback": [
+            "Do not stop at the squared equation; the original sign relationship decides validity."
+          ],
+          "supportHints": [
+            "Evaluate the original left and right sides for each candidate."
+          ],
+          "generator": {
+            "parameters": {
+              "k": {
+                "type": "int",
+                "min": -2,
+                "max": 3
+              }
+            },
+            "derived": {
+              "d": "1",
+              "u": "k-1",
+              "v": "k+2",
+              "c": "k*k-(k-1)*(k+2)",
+              "negD": "-1",
+              "vp": "2"
+            }
+          }
+        }
+      ]
     }
   ]
 }
