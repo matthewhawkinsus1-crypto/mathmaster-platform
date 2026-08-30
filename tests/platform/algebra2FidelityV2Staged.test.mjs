@@ -4929,3 +4929,48 @@ test('A2.7D algebraically determines cubic and quartic linear factors including 
  }
  assert.ok(generatedCount>=200); assert.equal(cubicFamilies,2); assert.ok(quarticFamilies>=3); assert.ok(rationalInstances>=40); assert.ok(multiplicityInstances>=40); assert.equal(errorFamilies,1); assert.equal(altFactorsAccepted,entry.documents.length); assert.equal(wrongRootsRejected,entry.documents.length);
 });
+test('A2.7E certifies linear and quadratic factors from cubes and grouping', async () => {
+  const entry=payload('A2.7E'); assert.ok(entry); assert.equal(entry.verdict,'ENHANCE'); assert.match(entry.certificationStatus,/linear-quadratic-factors-cubes/);
+  let generatedCount=0,diffCube=0,sumCube=0,cubicGrouping=0,quarticGrouping=0,errorFamilies=0,altAccepted=0,wrongRejected=0;
+  const representations=new Set();
+  for(const doc of entry.documents){
+    representations.add(doc.representation);
+    if(doc.id.includes('difference-cubes')) diffCube+=1;
+    if(doc.id.includes('sum-cubes')) sumCube+=1;
+    if(doc.id.includes('cubic-grouping')) cubicGrouping+=1;
+    if(doc.id.includes('quartic-grouping')) quarticGrouping+=1;
+    if(doc.taskType==='errorAnalysis') errorFamilies+=1;
+    const factorFields=(doc.responseFields||[]).filter((field)=>field.id.includes('linear-factor'));
+    const quadraticFields=(doc.responseFields||[]).filter((field)=>field.id.includes('quadratic-factor'));
+    assert.ok(factorFields.length>=1,doc.id+' must grade at least one linear factor');
+    assert.ok(quadraticFields.length>=1,doc.id+' must grade a quadratic factor');
+    const plan=await buildTemplateIssuePlan(doc,{samples:24}); assert.equal(plan.issuable,true,doc.id+' is not production-issuable: '+plan.reason);
+    let altChecked=false,wrongChecked=false;
+    for(const generated of samplePathInstances(doc,40)){
+      assert.ok(generated.question,doc.id+' failed generation: '+generated.reason); const q=generated.question,p=generated.parameters||{}; generatedCount+=1; assert.deepEqual([...placeholdersUsed(q)],[]);
+      const fields=Object.fromEntries((q.responseFields||[]).map((field)=>[field.id,field]));
+      if(doc.id.includes('difference-cubes')){
+        assert.equal(Number(p.m2),Number(p.m)*Number(p.m)); assert.equal(Number(p.m3),Number(p.m2)*Number(p.m)); assert.equal(Number(p.n2),Number(p.n)*Number(p.n)); assert.equal(Number(p.n3),Number(p.n2)*Number(p.n)); assert.equal(Number(p.mn),Number(p.m)*Number(p.n));
+      }
+      if(doc.id.includes('sum-cubes')){
+        assert.equal(Number(p.m3),Number(p.m)*Number(p.m)*Number(p.m)); assert.equal(Number(p.n3),Number(p.n)*Number(p.n)*Number(p.n)); assert.equal(Number(p.mn),Number(p.m)*Number(p.n));
+      }
+      if(doc.id.includes('cubic-grouping')){
+        assert.equal(Number(p.ac),Number(p.a)*Number(p.c)); assert.equal(Number(p.bc),Number(p.b)*Number(p.c)); assert.equal(fields['common-binomial'].expected,'x+'+p.c);
+      }
+      if(doc.id.includes('quartic-grouping')){
+        assert.equal(Number(p.n2),Number(p.n)*Number(p.n)); assert.equal(Number(p.n3),Number(p.n)*Number(p.n)*Number(p.n)); assert.equal(Number(p.cn3),Number(p.c)*Number(p.n3)); assert.equal(fields['group-factor'].expected,'x+'+p.c);
+        if(doc.id.includes('difference-cubes')) assert.equal(fields['cubic-after-grouping'].expected,'x^3-'+p.n3);
+        if(doc.taskType==='errorAnalysis'){ assert.equal(fields.diagnosis.expected,'sign'); assert.equal(fields['cubic-after-grouping'].expected,'x^3+'+p.n3); assert.equal(doc.dok,3); }
+      }
+      if(doc.taskType!=='errorAnalysis') assert.equal(doc.dok,2,doc.id+' should remain DOK 2 despite factoring length');
+      const grading=privateGradingDefinition(q); const responses=Object.fromEntries(grading.fields.map((field)=>[field.id,field.expected??field.accepted?.[0]??'']));
+      const correct=await gradeResponse(grading,{responses}); assert.equal(correct.isCorrect,true,doc.id+' failed secure self-acceptance: '+JSON.stringify(correct.fieldResults));
+      if(!altChecked){ const lf=grading.fields.find((field)=>field.id.includes('linear-factor')); assert.ok(lf); const expected=String(lf.expected); const m=/^([0-9-]+)\*x([+-])([0-9-]+)$/.exec(expected); let alt=null; if(m){ alt=(m[2]==='+'?m[3]:'-'+m[3])+'+'+m[1]+'*x'; } else { const sm=/^x([+-])([0-9-]+)$/.exec(expected); if(sm) alt=(sm[1]==='+'?sm[2]:'-'+sm[2])+'+x'; } if(alt){ const result=await gradeResponse(grading,{responses:{...responses,[lf.id]:alt}}); assert.equal(result.isCorrect,true,doc.id+' rejected equivalent reordered linear factor '+alt); altAccepted+=1; } else altAccepted+=1; altChecked=true; }
+      if(!wrongChecked){ const qf=grading.fields.find((field)=>field.id.includes('quadratic-factor')); assert.ok(qf); const wrong=String(qf.expected)+'+1'; const result=await gradeResponse(grading,{responses:{...responses,[qf.id]:wrong}}); assert.equal(result.isCorrect,false,doc.id+' accepted a changed quadratic factor'); wrongRejected+=1; wrongChecked=true; }
+      const publicQ=buildSanitizedQuestion(q,{questionInstanceId:'qa-'+doc.id+'-'+generatedCount,attemptsAllowed:3}); const publicText=JSON.stringify(publicQ); assert.equal(publicText.includes('"expected"'),false); assert.equal(publicText.includes('"acceptedAnswers"'),false);
+    }
+  }
+  assert.ok(generatedCount>=200); assert.equal(diffCube,1); assert.equal(sumCube,1); assert.equal(cubicGrouping,1); assert.equal(quarticGrouping,2); assert.equal(errorFamilies,1); assert.equal(altAccepted,entry.documents.length); assert.equal(wrongRejected,entry.documents.length);
+  assert.ok(representations.has('symbolic')&&representations.has('multipleRepresentation')&&representations.has('table')&&representations.has('verbal'));
+});
