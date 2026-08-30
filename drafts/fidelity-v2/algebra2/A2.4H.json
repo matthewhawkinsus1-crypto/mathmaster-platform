@@ -79,7 +79,76 @@
           "b": "-a*(u+v)",
           "c": "a*u*v"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-factored-inclusive-between",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "procedural",
+          "representation": "symbolic",
+          "prompt": "Solve $(x-({{u}}))(x-({{v}}))\\le0$. Identify the two zeros and give the complete interval solution.",
+          "responseFields": [
+            {
+              "id": "zero1",
+              "label": "Smaller zero",
+              "inputProfile": "number",
+              "expected": "{{u}}"
+            },
+            {
+              "id": "zero2",
+              "label": "Larger zero",
+              "inputProfile": "number",
+              "expected": "{{v}}"
+            },
+            {
+              "id": "interval",
+              "label": "Complete solution set",
+              "inputProfile": "interval",
+              "expected": "[{{u}},{{v}}]"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A positive-leading factored quadratic is nonpositive between its two zeros.",
+            "reasoning": [
+              "The zeros are {{u}} and {{v}}.",
+              "The product is negative between them and equals zero at both endpoints.",
+              "Because the relation is ≤, both endpoints are included."
+            ],
+            "answerSummary": "$[{{u}},{{v}}]$"
+          },
+          "attemptFeedback": [
+            "Use the factor zeros as critical points, then include them because equality is allowed."
+          ],
+          "supportHints": [
+            "For positive leading coefficient, the sign is negative between two distinct real roots."
+          ],
+          "generator": {
+            "parameters": {
+              "u": {
+                "type": "int",
+                "min": -4,
+                "max": -1
+              },
+              "v": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            },
+            "derived": {
+              "a": "1",
+              "b": "-(u+v)",
+              "c": "u*v"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_4H_v2_downward-opening-strict-between",
@@ -176,7 +245,96 @@
             "max": 8
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-expanded-negative-leading-strict",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "multipleRepresentation",
+          "prompt": "Solve the expanded inequality $-{{a}}x^2+({{B}})x+({{C}})>0$. Determine its two zeros, use the negative leading coefficient to choose the correct sign interval, and give the complete solution set.",
+          "responseFields": [
+            {
+              "id": "zero1",
+              "label": "Smaller zero",
+              "inputProfile": "number",
+              "expected": "{{u}}"
+            },
+            {
+              "id": "zero2",
+              "label": "Larger zero",
+              "inputProfile": "number",
+              "expected": "{{v}}"
+            },
+            {
+              "id": "opening",
+              "label": "Opening direction",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "down",
+                  "label": "Downward"
+                },
+                {
+                  "id": "up",
+                  "label": "Upward"
+                }
+              ],
+              "expected": "down"
+            },
+            {
+              "id": "interval",
+              "label": "Strict-positive solution set",
+              "inputProfile": "interval",
+              "expected": "({{u}},{{v}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Harder algebra can still use the same routine sign-chart reasoning.",
+            "reasoning": [
+              "Factoring the expanded quadratic gives $-{{a}}(x-({{u}}))(x-({{v}}))$.",
+              "The negative leading coefficient makes the parabola positive between the roots.",
+              "The strict inequality excludes both endpoints."
+            ],
+            "answerSummary": "$({{u}},{{v}})$"
+          },
+          "attemptFeedback": [
+            "Find the zeros first; then use the opening direction to choose the positive interval."
+          ],
+          "supportHints": [
+            "A downward-opening quadratic with two roots is above the x-axis between them."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "u": {
+                "type": "int",
+                "min": -8,
+                "max": -2
+              },
+              "v": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              }
+            },
+            "derived": {
+              "B": "a*(u+v)",
+              "C": "-a*u*v"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_4H_v2_number-line-exterior-inclusive",
@@ -455,7 +613,89 @@
             "max": 8
           }
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-endpoint-inclusion-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student solves $(x+2)(x-3)\\le0$ and writes $(-2,3)$ because the expression is negative between the roots. Diagnose the incomplete conclusion, verify what happens at each root, and give the corrected interval.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What is missing?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "endpoints",
+                  "label": "The ≤ relation includes the roots because the expression equals 0 there."
+                },
+                {
+                  "id": "outside",
+                  "label": "The solution should be outside the roots."
+                }
+              ],
+              "expected": "endpoints"
+            },
+            {
+              "id": "left-value",
+              "label": "Expression value at x=-2",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "right-value",
+              "label": "Expression value at x=3",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "interval",
+              "label": "Corrected complete solution set",
+              "inputProfile": "interval",
+              "expected": "[-2,3]"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Endpoint logic is part of the inequality, not an optional notation detail.",
+            "reasoning": [
+              "Both roots make the quadratic equal 0.",
+              "The symbol ≤ accepts equality, so both roots belong to the solution.",
+              "The corrected interval is [-2,3]."
+            ],
+            "answerSummary": "$[-2,3]$"
+          },
+          "attemptFeedback": [
+            "Repair the endpoint reasoning and the final interval notation."
+          ],
+          "supportHints": [
+            "Substitute each root and compare 0 with the ≤ relation."
+          ],
+          "generator": {
+            "parameters": {
+              "u": {
+                "type": "choice",
+                "values": [
+                  -2
+                ]
+              },
+              "v": {
+                "type": "choice",
+                "values": [
+                  3
+                ]
+              }
+            }
+          }
+        }
+      ]
     }
   ]
 }
