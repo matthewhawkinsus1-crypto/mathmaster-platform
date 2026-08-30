@@ -176,7 +176,97 @@
           "y2": "2*m+b",
           "py": "pm*px+newb"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d2b2-simple-perpendicular-from-table",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "The two table rows lie on a line with slope {{m}}. Determine the perpendicular slope and write the equation of the perpendicular line through $({{px}},{{py}})$.",
+          "stimulus": {
+            "kind": "table",
+            "table": {
+              "headers": [
+                "x",
+                "y"
+              ],
+              "rows": [
+                [
+                  "{{x1}}",
+                  "{{y1}}"
+                ],
+                [
+                  "{{x2}}",
+                  "{{y2}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "reference-slope",
+              "label": "Reference slope",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "perpendicular-slope",
+              "label": "Perpendicular slope",
+              "inputProfile": "number",
+              "expected": "{{pm}}"
+            },
+            {
+              "id": "equation",
+              "label": "Perpendicular-line equation",
+              "inputProfile": "equation",
+              "expected": "y={{pm}}x{{newb|signed}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  1
+                ]
+              },
+              "x1": {
+                "type": "int",
+                "min": -3,
+                "max": 1
+              },
+              "span": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "refb": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "px": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "newb": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              }
+            },
+            "derived": {
+              "pm": "-1/m",
+              "x2": "x1+span",
+              "y1": "m*x1+refb",
+              "y2": "m*x2+refb",
+              "py": "pm*px+newb"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_2F_v2_standard-form-reference",
@@ -331,7 +421,88 @@
           "pm": "-1/m",
           "y": "pm*x+newb"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d3b3-compare-perpendicular-candidates",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "The reference line has slope {{m}}. A perpendicular line must pass through $({{px}},{{py}})$. Candidate A changes only the sign and uses slope {{wrongm}}. Candidate B uses the negative reciprocal {{pm}} but has intercept {{wrongb}}, so it misses the required point. Diagnose both proposals and write the correct perpendicular line.",
+          "responseFields": [
+            {
+              "id": "candidate-a",
+              "label": "Why does Candidate A fail?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "not-reciprocal",
+                  "label": "Changing only the sign does not make the slopes negative reciprocals."
+                },
+                {
+                  "id": "misses-point",
+                  "label": "Its only problem is the point."
+                }
+              ],
+              "expected": "not-reciprocal"
+            },
+            {
+              "id": "candidate-b",
+              "label": "Why does Candidate B fail?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "misses-point",
+                  "label": "Its slope is perpendicular, but the intercept makes it miss the required point."
+                },
+                {
+                  "id": "not-perpendicular",
+                  "label": "Its slope is not perpendicular."
+                }
+              ],
+              "expected": "misses-point"
+            },
+            {
+              "id": "perpendicular-slope",
+              "label": "Correct perpendicular slope",
+              "inputProfile": "number",
+              "expected": "{{pm}}"
+            },
+            {
+              "id": "equation",
+              "label": "Correct perpendicular-line equation",
+              "inputProfile": "equation",
+              "expected": "y={{pm}}x{{newb|signed}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "choice",
+                "values": [
+                  -2,
+                  2
+                ]
+              },
+              "px": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "newb": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              }
+            },
+            "derived": {
+              "pm": "-1/m",
+              "py": "pm*px+newb",
+              "wrongm": "-m",
+              "wrongb": "newb+1"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_2F_v2_two-point-reference",
