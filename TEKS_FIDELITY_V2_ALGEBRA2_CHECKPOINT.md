@@ -389,7 +389,10 @@ Resume here. Do not reopen A2.2A–A2.4D unless a failing gate names them.
 - Added square-root coefficient entry/model rendering to Data Modeling Lab — commit `4846c176460d6417fee3ac0bdc7415214431f13a`.
 - Added client/server parity, whole-table-fit, secure parameter grading, fixed prediction, and public nonleakage tests — commit `b73c4c41d1ce313e258c0ac50e33ee61e98f5232`.
 - Added all Data Modeling capability files/tests to the dedicated Algebra II certification workflow — commit `fb213109ed5fdcfda39dd70b095434a627454dfe`.
-- Capability certification run `33320344200`: **RUNNING** at this checkpoint.
+- Capability certification run `33320344200`: **FAILED only at production build** after all generated/server parity tests passed.
+- Build failure was a JSX syntax error in the new Data Modeling Lab model-summary branch: the square-root/linear ternary expression was missing its closing `}` before the MAE/RMSE line.
+- Fixed the JSX without changing any grading or math behavior — commit `9122824194e9f46eb838996a6c925da355b3fd41`.
+- Replacement capability certification is triggered; A2.4E remains locked as FIRST UNFINISHED until the build is green.
 - A2.4E remains FIRST UNFINISHED until this capability gate is green and its five Fidelity V2 families are authored/certified.
 
 - Fidelity V2 content requirements after capability work:
