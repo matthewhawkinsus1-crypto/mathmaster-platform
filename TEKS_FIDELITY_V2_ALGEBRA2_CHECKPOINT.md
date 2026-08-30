@@ -243,7 +243,7 @@ Do **not** re-audit A2.3F unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.3G — PENDING AUDIT
+### A2.3G — ENHANCE — AUDITED / AUTHORING
 
 Official construct: **Determine possible solutions in the solution set of systems of two or more linear inequalities in two variables.**
 
@@ -252,6 +252,33 @@ Official construct: **Determine possible solutions in the solution set of system
 ### A2.3G
 
 Resume here. Do not reopen A2.2A–A2.3F unless a failing gate names them.
+
+
+### 2026-08-30 — A2.3G audit finding
+- Official construct: **determine possible solutions in the solution set of systems of two or more linear inequalities in two variables**.
+- Verdict: **ENHANCE**.
+- The legacy bank is closer to the TEKS than A2.3E/F because it already reasons about feasible points, but the evidence is too narrow:
+  - most families use the same first-quadrant cap model $x\ge0$, $y\ge0$, $x+y\le c$;
+  - several ask recognition-only “why is this feasible?” questions;
+  - only one family deliberately rejects an infeasible point;
+  - strict/inclusive boundary behavior is not tested across a full two- or three-inequality system;
+  - students rarely have to produce an actual possible solution of a nontrivial system.
+- A2.3G must remain distinct from A2.3F:
+  - A2.3F constructs the complete solution region;
+  - A2.3G uses a solved/visible system to decide whether a proposed ordered pair is possible and to produce a feasible ordered pair.
+- The existing secure `systemsWorkspace` inequality **analyze** mode is the correct interaction:
+  - `ask: ["testPoint", "candidate"]` requires a yes/no determination for a marked point and an independently entered feasible ordered pair;
+  - the server recomputes whether both points satisfy every inequality;
+  - the browser may display the solution region because interpreting that set is the skill being assessed here.
+- Fidelity V2 requirements:
+  - all five families must use systems of **at least two** inequalities;
+  - repeatedly include three-inequality systems;
+  - include both feasible and infeasible marked points;
+  - include strict-boundary cases where a point on the dashed boundary is correctly rejected;
+  - include inclusive-boundary cases where a point on the solid boundary is correctly accepted;
+  - include contextual transfer and genuine error analysis;
+  - require the student to provide an actual feasible candidate in every family.
+- No new Path tool capability is required; reuse the secure inequality analyze contract rather than creating a parallel candidate checker.
 
 
 ### 2026-08-30 — A2.3F audit finding
