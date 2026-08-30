@@ -912,7 +912,7 @@ const CONTRACTS = {
       parts: answerFieldsOf(question).map((part, index) => ({
         id: String(part?.id || `part-${index + 1}`),
         expected: part?.expected ?? part?.answer ?? null,
-        accepted: list(part?.acceptedAnswers),
+        accepted: [...list(part?.accepted), ...list(part?.acceptedAnswers)],
         tolerance: Number(part?.numericTolerance ?? question.numericTolerance ?? 1e-6),
       })),
     }),
