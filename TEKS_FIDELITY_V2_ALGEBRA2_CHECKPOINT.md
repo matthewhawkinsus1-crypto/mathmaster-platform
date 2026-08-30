@@ -474,7 +474,7 @@ Do **not** re-audit A2.5B unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.5C — ENHANCE — AUDITED / AUTHORING
+### A2.5C — ENHANCE — STAGED / CERTIFICATION RUNNING
 
 Official construct: **Rewrite exponential equations as corresponding logarithmic equations and logarithmic equations as corresponding exponential equations.**
 
@@ -507,6 +507,21 @@ Resume here. Do not reopen A2.2A–A2.5B unless a failing gate names them.
   - do not turn the task into solving for the exponent/input — A2.5D owns equation solving;
   - error analysis must repair the incorrect base/argument/exponent placement and write the corrected equivalent form.
 - Generic secure equation fields are sufficient; no new Path capability is required.
+
+
+### 2026-08-30 — A2.5C staged and gated
+- Staged five A2.5C Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.5C.json` — commit `a51e7c2d80105777a7e847ec551437297d85559d`.
+- Package/build run `33325233108`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - student-written numeric exponential → logarithmic rewrite;
+  - student-written numeric logarithmic → exponential rewrite;
+  - symbolic exponent-expression role mapping without solving;
+  - common-log and natural-log rewrites;
+  - complete base/argument role-error repair followed by rewriting back in the opposite direction.
+- Added A2.5C-specific generated certification — commit `812c9bfaa2e90bff5012c8f02b9e4f2adcfd4132`.
+- The gate samples 200+ generated instances, independently verifies numeric role mappings, requires written equation fields rather than multiple-choice recognition, requires both directions repeatedly, checks symbolic/common/natural-log breadth, rejects a non-equivalent rewrite in every family, and checks public answer-key stripping.
+- Full A2.5C assertion run `33325264164`: **RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.5C** until that run is green.
 
 
 ### 2026-08-30 — A2.5B audit finding
