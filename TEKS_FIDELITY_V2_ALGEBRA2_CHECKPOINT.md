@@ -397,7 +397,9 @@ Resume here. Do not reopen A2.2A–A2.4D unless a failing gate names them.
 - Square-root regression technology is now locked as a real supported capability for A2.4E.
 - Staged five A2.4E Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4E.json` — commit `ec00fd6befe3bfa8db693810fba89c8adca20265`.
 - Staged coverage includes two quadratic-regression families, two square-root-regression families, and one regression-entry error-repair family. Every family uses Data Modeling Lab technology, every table has five observations, and every family requires both the complete fitted coefficients and a prediction from that fitted model.
-- Package/build run `33323381039`: **QUEUED/RUNNING** at this checkpoint.
+- Package/build run `33323381039`: **FAILED at the global staged-package identity gate** before content certification because three newly authored document ids used `_v2-` instead of the required `_v2_` marker.
+- Normalized those three A2.4E document ids without changing any math, prompts, grading, or family logic — commit `4b114c29d757cc07169f009c894d706a856b556c`.
+- A2.4E generated certification was added in commit `e69de80988066473f67957e3e1f19764857d73e5`; the replacement run will test the full package after the id repair.
 - A2.4E remains FIRST UNFINISHED until the staged package receives its generated certification gate and that gate is green.
 
 - Fidelity V2 content requirements after capability work:
