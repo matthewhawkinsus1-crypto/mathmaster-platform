@@ -1,0 +1,531 @@
+{
+  "standard": "A2.3B",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-three-by-three-solve-substitution-gaussian-elimination-matrix-technology",
+  "rationale": "A2.3B explicitly names three methods for solving 3×3 linear systems. Fidelity V2 preserves useful legacy solving ideas but makes the method evidence visible: substitution families collect substituted equations, Gaussian-elimination families collect reduced rows, and the matrix-technology family requires the secure 3×3 RREF workspace.",
+  "documents": [
+    {
+      "id": "mm_A2_3B_v2_substitution-backsolve",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3B:v2-substitution-backsolve",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3B",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "solutionMethod": "substitution",
+      "prompt": "Solve the 3×3 system by substitution/back-substitution. Show the substitution into the second equation and then into the first equation before giving $x,y,z$: $z={{z}}$, $y+z={{b}}$, $x+2y-z={{c}}$.",
+      "responseFields": [
+        {
+          "id": "sub-y",
+          "label": "After substituting the known z-value into $y+z={{b}}$",
+          "inputProfile": "equation",
+          "expected": "y+{{z}}={{b}}"
+        },
+        {
+          "id": "y",
+          "label": "y",
+          "inputProfile": "number",
+          "expected": "{{y}}"
+        },
+        {
+          "id": "sub-x",
+          "label": "After substituting y and z into $x+2y-z={{c}}$",
+          "inputProfile": "equation",
+          "expected": "x+{{twoY}}-({{z}})={{c}}"
+        },
+        {
+          "id": "x",
+          "label": "x",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        },
+        {
+          "id": "z",
+          "label": "z",
+          "inputProfile": "number",
+          "expected": "{{z}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Substitution uses a known variable to reduce the system one equation at a time.",
+        "reasoning": [
+          "Start with $z={{z}}$ and substitute into $y+z={{b}}$ to get $y={{y}}$.",
+          "Then substitute both known values into $x+2y-z={{c}}$ to get $x={{x}}$."
+        ],
+        "answerSummary": "$(x,y,z)=({{x}},{{y}},{{z}})$"
+      },
+      "attemptFeedback": [
+        "Do not skip the substitution equations; this family is measuring the substitution method as well as the final triple."
+      ],
+      "supportHints": [
+        "Start with the equation that already isolates z, then work upward."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": -6,
+            "max": 7
+          },
+          "y": {
+            "type": "int",
+            "min": -6,
+            "max": 7
+          },
+          "z": {
+            "type": "int",
+            "min": -6,
+            "max": 7
+          }
+        },
+        "derived": {
+          "b": "y+z",
+          "c": "x+2*y-z",
+          "twoY": "2*y"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3B_v2_gaussian-elimination-rows",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3B:v2-gaussian-elimination-rows",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3B",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "solutionMethod": "gaussianElimination",
+      "prompt": "Use Gaussian elimination on the system. Record the reduced equations created by the stated row operations, then solve for $x,y,z$: $E_1:x+y+z={{c1}}$, $E_2:2x-y+z={{c2}}$, $E_3:x+2y-z={{c3}}$.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Required elimination path",
+        "steps": [
+          {
+            "id": "r2",
+            "label": "Row operation 1",
+            "work": "$R_2\\leftarrow R_2-2R_1$"
+          },
+          {
+            "id": "r3",
+            "label": "Row operation 2",
+            "work": "$R_3\\leftarrow R_3-R_1$"
+          },
+          {
+            "id": "r4",
+            "label": "Eliminate y",
+            "work": "Add the new $R_2$ to 3 times the new $R_3$."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "row2",
+          "label": "New equation from $R_2-2R_1$",
+          "inputProfile": "equation",
+          "expected": "-3y-z={{r2}}"
+        },
+        {
+          "id": "row3",
+          "label": "New equation from $R_3-R_1$",
+          "inputProfile": "equation",
+          "expected": "y-2z={{r3}}"
+        },
+        {
+          "id": "row4",
+          "label": "Equation after eliminating y",
+          "inputProfile": "equation",
+          "expected": "-7z={{r4}}"
+        },
+        {
+          "id": "x",
+          "label": "x",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        },
+        {
+          "id": "y",
+          "label": "y",
+          "inputProfile": "number",
+          "expected": "{{y}}"
+        },
+        {
+          "id": "z",
+          "label": "z",
+          "inputProfile": "number",
+          "expected": "{{z}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Gaussian elimination creates a triangular system through row operations.",
+        "reasoning": [
+          "$R_2-2R_1$ gives $-3y-z={{r2}}$ and $R_3-R_1$ gives $y-2z={{r3}}$.",
+          "Adding the new $R_2$ to three times the new $R_3$ gives $-7z={{r4}}$, so $z={{z}}$.",
+          "Back-substitution then gives $y={{y}}$ and $x={{x}}$."
+        ],
+        "answerSummary": "$(x,y,z)=({{x}},{{y}},{{z}})$"
+      },
+      "attemptFeedback": [
+        "Apply each row operation to every coefficient and to the right-hand side."
+      ],
+      "supportHints": [
+        "The goal of the first two row operations is to remove x from rows 2 and 3."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 6
+          },
+          "y": {
+            "type": "int",
+            "min": -5,
+            "max": 6
+          },
+          "z": {
+            "type": "int",
+            "min": -5,
+            "max": 6
+          }
+        },
+        "derived": {
+          "c1": "x+y+z",
+          "c2": "2*x-y+z",
+          "c3": "x+2*y-z",
+          "r2": "c2-2*c1",
+          "r3": "c3-c1",
+          "r4": "r2+3*r3"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3B_v2_matrix-technology-rref",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3B:v2-matrix-technology-rref",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3B",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "solutionMethod": "matrixTechnology",
+      "type": "systemsWorkspace",
+      "mode": "matrix3",
+      "requireTechnology": true,
+      "prompt": "Use matrix technology to compute the RREF of this 3×3 augmented matrix. Then interpret the RREF, classify the system, and report $x,y,z$.",
+      "matrix": {
+        "rows": [
+          [
+            1,
+            1,
+            1,
+            "{{c1}}"
+          ],
+          [
+            2,
+            -1,
+            1,
+            "{{c2}}"
+          ],
+          [
+            1,
+            2,
+            -1,
+            "{{c3}}"
+          ]
+        ]
+      },
+      "context": "This is the matrix-technology method. Invoke the RREF command in the workspace before submitting.",
+      "solutionReview": {
+        "headline": "RREF technology turns the augmented matrix into an equivalent solved system.",
+        "reasoning": [
+          "The matrix command performs valid row operations until pivot columns are reduced.",
+          "For this generated system the coefficient side reduces to the identity matrix, so the augmented column gives x, y, and z directly."
+        ],
+        "answerSummary": "$(x,y,z)=({{x}},{{y}},{{z}})$"
+      },
+      "attemptFeedback": [
+        "Use the RREF technology control; this family is not asking you to imitate matrix technology by hand."
+      ],
+      "supportHints": [
+        "After RREF, read the augmented entry in the x-row, y-row, and z-row."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": -6,
+            "max": 7
+          },
+          "y": {
+            "type": "int",
+            "min": -6,
+            "max": 7
+          },
+          "z": {
+            "type": "int",
+            "min": -6,
+            "max": 7
+          }
+        },
+        "derived": {
+          "c1": "x+y+z",
+          "c2": "2*x-y+z",
+          "c3": "x+2*y-z"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3B_v2_context-gaussian-elimination",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3B:v2-context-gaussian-elimination",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3B",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "application",
+      "solutionMethod": "gaussianElimination",
+      "prompt": "A cafeteria models three meal counts $x,y,z$ with $x+y+z={{t}}$, $2x+3y+4z={{w}}$, and $x+2y+z={{p}}$. Use elimination to reduce the system and determine all three meal counts.",
+      "responseFields": [
+        {
+          "id": "elim1",
+          "label": "Equation from $E_2-2E_1$",
+          "inputProfile": "equation",
+          "expected": "y+2z={{e1}}"
+        },
+        {
+          "id": "elim2",
+          "label": "Equation from $E_3-E_1$",
+          "inputProfile": "equation",
+          "expected": "y={{e2}}"
+        },
+        {
+          "id": "x",
+          "label": "Meal count x",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        },
+        {
+          "id": "y",
+          "label": "Meal count y",
+          "inputProfile": "number",
+          "expected": "{{y}}"
+        },
+        {
+          "id": "z",
+          "label": "Meal count z",
+          "inputProfile": "number",
+          "expected": "{{z}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Elimination can simplify a contextual 3×3 system without losing the meaning of the variables.",
+        "reasoning": [
+          "$E_2-2E_1$ gives $y+2z={{e1}}$.",
+          "$E_3-E_1$ gives $y={{e2}}$, so $y={{y}}$ immediately.",
+          "Substitute that value into the reduced equation to find $z={{z}}$, then use the total equation to find $x={{x}}$."
+        ],
+        "answerSummary": "$x={{x}},\\;y={{y}},\\;z={{z}}$"
+      },
+      "attemptFeedback": [
+        "Keep the row-operation arithmetic separate from the contextual interpretation until the final counts are found."
+      ],
+      "supportHints": [
+        "Subtract multiples of the total-count equation to remove x from the other two equations."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "y": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "z": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "t": "x+y+z",
+          "w": "2*x+3*y+4*z",
+          "p": "x+2*y+z",
+          "e1": "w-2*t",
+          "e2": "p-t"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3B_v2_gaussian-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3B:v2-gaussian-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3B",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "solutionMethod": "gaussianElimination",
+      "prompt": "A student is solving $E_1:x+y+z={{c1}}$, $E_2:2x-y+z={{c2}}$, $E_3:x+2y-z={{c3}}$ by Gaussian elimination. Analyze the row-operation error, repair it, and finish the complete 3×3 solve.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's elimination work",
+        "steps": [
+          {
+            "id": "s1",
+            "label": "Operation",
+            "work": "$R_2\\leftarrow R_2-2R_1$"
+          },
+          {
+            "id": "s2",
+            "label": "Student result",
+            "work": "$-3y+z={{r2}}$"
+          },
+          {
+            "id": "s3",
+            "label": "Second reduction",
+            "work": "$R_3\\leftarrow R_3-R_1$, giving $y-2z={{r3}}$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What is wrong in the student's new R2?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "z-sign",
+              "label": "The z-coefficient should be $1-2(1)=-1$, so the term is $-z$."
+            },
+            {
+              "id": "x-remains",
+              "label": "The x-term should remain $2x$."
+            },
+            {
+              "id": "y-zero",
+              "label": "The y-term should cancel to zero."
+            }
+          ],
+          "expected": "z-sign"
+        },
+        {
+          "id": "correct-row2",
+          "label": "Corrected new R2 equation",
+          "inputProfile": "equation",
+          "expected": "-3y-z={{r2}}"
+        },
+        {
+          "id": "eliminate-y",
+          "label": "Equation after adding corrected R2 to 3 times the new R3",
+          "inputProfile": "equation",
+          "expected": "-7z={{r4}}"
+        },
+        {
+          "id": "x",
+          "label": "x",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        },
+        {
+          "id": "y",
+          "label": "y",
+          "inputProfile": "number",
+          "expected": "{{y}}"
+        },
+        {
+          "id": "z",
+          "label": "z",
+          "inputProfile": "number",
+          "expected": "{{z}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A row operation must change every entry in that row, including the z-coefficient.",
+        "reasoning": [
+          "In $R_2-2R_1$, the z-entry is $1-2(1)=-1$, so the corrected row is $-3y-z={{r2}}$.",
+          "Combining that row with three times $y-2z={{r3}}$ gives $-7z={{r4}}$.",
+          "Then back-substitution recovers $z={{z}}$, $y={{y}}$, and $x={{x}}$."
+        ],
+        "answerSummary": "Correct the z-term to $-z$; $(x,y,z)=({{x}},{{y}},{{z}})$."
+      },
+      "attemptFeedback": [
+        "Do not stop after naming the row-operation mistake; the standard still requires solving the entire 3×3 system."
+      ],
+      "supportHints": [
+        "Apply $R_2-2R_1$ column by column: x, y, z, then the augmented constant."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 6
+          },
+          "y": {
+            "type": "int",
+            "min": -5,
+            "max": 6
+          },
+          "z": {
+            "type": "int",
+            "min": -5,
+            "max": 6
+          }
+        },
+        "derived": {
+          "c1": "x+y+z",
+          "c2": "2*x-y+z",
+          "c3": "x+2*y-z",
+          "r2": "c2-2*c1",
+          "r3": "c3-c1",
+          "r4": "r2+3*r3"
+        }
+      }
+    }
+  ]
+}
