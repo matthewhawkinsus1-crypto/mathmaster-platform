@@ -182,17 +182,36 @@ Certification result:
 
 Do **not** re-audit A2.3C unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.3D
 
-### A2.3D — REBUILD — STAGED / CERTIFICATION RUNNING
+### A2.3D — REBUILD — CERTIFIED
 
 Official construct: **Determine the reasonableness of solutions to systems consisting of a linear equation and a quadratic equation in two variables.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- every family uses concrete equation-output/residual evidence rather than recognition-only rules;
+- both reasonable and unreasonable exact candidates are represented;
+- algebraically valid but contextually unreasonable candidates are represented;
+- numerical/rounded candidates are judged against an explicit residual tolerance;
+- error analysis performs the omitted check and changes the verdict;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- targeted Algebra II Fidelity V2 Certification run `33318356389`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.3D unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.3E — PENDING AUDIT
+
+Official construct: **Formulate systems of at least two linear inequalities in two variables.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.3D
+### A2.3E
 
-Resume here. Do not reopen A2.2A–A2.3C unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.3D unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.3D audit finding
@@ -231,7 +250,10 @@ Resume here. Do not reopen A2.2A–A2.3C unless a failing gate names them.
 - Corrected the gate to inspect the explicit `quad-residual` field — commit `42cbb3b7ce812504275136816dcda422883e5bdd`.
 - No content was weakened; the invalid-candidate family still must have a nonzero quadratic residual.
 - Replacement certification is triggered from the corrected gate.
-- FIRST UNFINISHED STANDARD remains **A2.3D** until the replacement run is green.
+- Replacement A2.3D certification run `33318356389`: **PASS**.
+- Generated content, production issue gate, secure self-grading, public-key stripping, exact keep/reject cases, context/domain reasoning, numerical tolerance evidence, error-analysis correction, and student/runtime build all passed.
+- A2.3D is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.3E**.
 
 
 ### 2026-08-30 — A2.3C audit finding
