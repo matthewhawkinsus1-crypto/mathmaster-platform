@@ -1380,7 +1380,99 @@
           "d!=f",
           "e!=f"
         ]
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-clean-restriction-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student correctly simplifies the quotient of two rational expressions but lists only the zeros of the final denominator as restrictions. Diagnose why canceled factors and zeros of the divisor still matter, then give the complete restriction set and simplified quotient.",
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -4,
+                  -3,
+                  -2,
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "b": {
+                "type": "choice",
+                "values": [
+                  -5,
+                  -1,
+                  1,
+                  5
+                ]
+              },
+              "c": {
+                "type": "choice",
+                "values": [
+                  -6,
+                  -2,
+                  2,
+                  6
+                ]
+              },
+              "d": {
+                "type": "choice",
+                "values": [
+                  -7,
+                  -3,
+                  3,
+                  7
+                ]
+              },
+              "e": {
+                "type": "choice",
+                "values": [
+                  -8,
+                  -4,
+                  4,
+                  8
+                ]
+              },
+              "f": {
+                "type": "choice",
+                "values": [
+                  -9,
+                  -5,
+                  5,
+                  9
+                ]
+              }
+            },
+            "constraints": [
+              "a!=b",
+              "a!=c",
+              "a!=d",
+              "a!=e",
+              "a!=f",
+              "b!=c",
+              "b!=d",
+              "b!=e",
+              "b!=f",
+              "c!=d",
+              "c!=e",
+              "c!=f",
+              "d!=e",
+              "d!=f",
+              "e!=f"
+            ]
+          }
+        }
+      ]
     }
   ]
 }
