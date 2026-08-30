@@ -165,7 +165,7 @@ Do **not** re-audit A2.3B unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.3C — REBUILD — AUDITED / AUTHORING
+### A2.3C — REBUILD — STAGED / CERTIFICATION RUNNING
 
 ## FIRST UNFINISHED STANDARD
 
@@ -191,6 +191,21 @@ Resume here. Do not reopen A2.2A–A2.3B unless a failing gate names them.
   - factoring and quadratic-formula pathways must both appear;
   - error analysis must repair an algebraic solve and finish the complete ordered pairs, not merely identify a conceptual mistake.
 - Generic secure multi-response grading is sufficient; no new Path tool capability is needed for A2.3C.
+
+
+### 2026-08-30 — A2.3C staged and gated
+- Staged five A2.3C Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.3C.json` — commit `fec874332e4735c7eeecfb79f82c004ce298a337`.
+- Coverage now includes:
+  - two real intersections solved by factoring with both complete ordered pairs;
+  - a tangent/repeated-root system with the single complete ordered pair;
+  - a no-real-solution system certified through the reduced quadratic and negative discriminant;
+  - an exact quadratic-formula system requiring both exact ordered pairs;
+  - algebra error analysis that repairs the reduced quadratic and still finishes both ordered pairs.
+- Package-only Algebra II certification run `33318148646`: **PASS**, including student/runtime build.
+- Added A2.3C-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `6c45e1bdd15972052cf099b92ed1e533226b64b0`.
+- The A2.3C gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public-key stripping, repeated complete ordered-pair solves, two/one/zero-real-solution coverage, factoring, quadratic formula, discriminant reasoning, and complete error-analysis repair.
+- Full A2.3C assertion run `33318173657`: **QUEUED/RUNNING** at this checkpoint.
+- FIRST UNFINISHED STANDARD remains **A2.3C** until that run is green.
 
 
 ### 2026-08-30 — A2.3B audit finding
