@@ -3934,6 +3934,3737 @@
           "rise": "m*step"
         }
       }
+    },
+    {
+      "id": "mm_A_3B_v2_distance-rate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:v2-distance-rate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A traveler covers {{distance}} miles in {{hours}} hours at a constant speed. Find the speed in miles per hour.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Speed is distance divided by time.",
+          "The generated distance is a whole-number multiple of the hours."
+        ],
+        "answerSummary": "The speed is ${{speed}}$ miles per hour."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "speed": {
+            "type": "int",
+            "min": 20,
+            "max": 70
+          },
+          "hours": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "distance": "speed*hours"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{speed}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3B_v2_recover-change",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:v2-recover-change",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "reverseReasoning",
+      "representation": "context",
+      "prompt": "A quantity changes at {{rate}} units per hour for {{hours}} hours. What is the total change?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Rate times elapsed input gives total change.",
+          "Multiply {{rate}} by {{hours}}."
+        ],
+        "answerSummary": "The total change is ${{change}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          },
+          "hours": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          }
+        },
+        "derived": {
+          "change": "rate*hours"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{change}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3B_v2_table-rate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:v2-table-rate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "Use the table to find the constant rate of change.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Compare the difference in outputs to the difference in inputs.",
+          "The ratio is the same constant rate used to generate the table."
+        ],
+        "answerSummary": "The rate is ${{rate}}$."
+      },
+      "attemptFeedback": [
+        "Compute change in output divided by change in input using the two displayed rows."
+      ],
+      "supportHints": [
+        "Rate of change is $(y_2-y_1)/(x_2-x_1)$."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "x0": {
+            "type": "int",
+            "min": 0,
+            "max": 4
+          },
+          "step": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "y0": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          }
+        },
+        "derived": {
+          "x1": "x0+step",
+          "y1": "y0+rate*step"
+        }
+      },
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "x",
+            "y"
+          ],
+          "rows": [
+            [
+              "{{x0}}",
+              "{{y0}}"
+            ],
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{rate}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3B_v2_temperature-rate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:v2-temperature-rate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "interpretation",
+      "representation": "verbal",
+      "prompt": "A temperature changes by {{change}} degrees over {{hours}} hours. What is the hourly rate of change?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Average rate of change divides the total change by elapsed time.",
+          "The sign tells whether the quantity increased or decreased."
+        ],
+        "answerSummary": "The rate is ${{rate}}$ degrees per hour."
+      },
+      "attemptFeedback": [
+        "Keep the sign of the total temperature change when dividing by elapsed hours."
+      ],
+      "supportHints": [
+        "A negative rate means the temperature decreases each hour."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "hours": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "change": "rate*hours"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{rate}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3B_v2_unit-rate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:v2-unit-rate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "A machine makes {{items}} parts in {{minutes}} minutes at a constant rate. How many parts per minute?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "A constant rate is output divided by elapsed input.",
+          "Divide {{items}} by {{minutes}}."
+        ],
+        "answerSummary": "The rate is ${{rate}}$ parts per minute."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          },
+          "minutes": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        },
+        "derived": {
+          "items": "rate*minutes"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{rate}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3C_v2_error-zero-vs-intercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3C:v2-error-zero-vs-intercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3C",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "For $y={{m}}x{{b|signed}}$, a student says “the zero is {{b}} because {{b}} is the y-intercept.” Correct the student by giving the actual zero and the y-intercept.",
+      "responseFields": [
+        {
+          "id": "zero",
+          "label": "Zero (x-value where y=0)",
+          "inputProfile": "number",
+          "expected": "{{root}}"
+        },
+        {
+          "id": "yint",
+          "label": "y-intercept",
+          "inputProfile": "number",
+          "expected": "{{b}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A zero is an x-value; a y-intercept is an output when x=0.",
+        "reasoning": [
+          "Setting y=0 gives $0={{m}}x{{b|signed}}$, so the zero is x={{root}}.",
+          "Setting x=0 gives y={{b}}, so {{b}} is the y-intercept, not the zero."
+        ]
+      },
+      "attemptFeedback": [
+        "Decide which coordinate is forced to 0 for each kind of intercept."
+      ],
+      "supportHints": [
+        "x-intercept/zero: y=0. y-intercept: x=0."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "root": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "b": "-m*root"
+        }
+      }
+    },
+    {
+      "id": "mm_A_3C_v2_graph-point-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3C:v2-graph-point-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "graphing2",
+      "mode": "pointSlope",
+      "point": [
+        "{{x1}}",
+        "{{y1}}"
+      ],
+      "slope": "{{m}}",
+      "prompt": "Graph the line through $({{x1}},{{y1}})$ with slope {{m}}. Use the given point and the rate of change to construct a second point.",
+      "graphBounds": {
+        "xMin": -7,
+        "xMax": 7,
+        "yMin": -9,
+        "yMax": 9
+      },
+      "solutionReview": {
+        "headline": "Point-slope information is enough to construct the line.",
+        "reasoning": [
+          "The given point $({{x1}},{{y1}})$ belongs on the graph.",
+          "A slope of {{m}} means moving 1 unit right changes y by {{m}}; that creates a second point."
+        ]
+      },
+      "attemptFeedback": [
+        "Anchor the graph at the given point before applying the slope."
+      ],
+      "supportHints": [
+        "From the given point, move right 1 and up/down by the slope."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "x1": {
+            "type": "int",
+            "min": -4,
+            "max": 2
+          },
+          "y1": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3C_v2_graph-slope-intercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3C:v2-graph-slope-intercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "graphing2",
+      "mode": "slopeIntercept",
+      "line": {
+        "m": "{{m}}",
+        "b": "{{b}}"
+      },
+      "prompt": "Graph $y={{m}}x{{b|signed}}$ by constructing the line from two accurate points.",
+      "graphBounds": {
+        "xMin": -7,
+        "xMax": 7,
+        "yMin": -9,
+        "yMax": 9
+      },
+      "solutionReview": {
+        "headline": "Slope-intercept form gives a direct construction plan.",
+        "reasoning": [
+          "Start at the y-intercept $(0,{{b}})$.",
+          "Use slope {{m}} to locate a second point; the line through the two points is the graph."
+        ]
+      },
+      "attemptFeedback": [
+        "If one point is right, keep it and use the slope to reposition the other."
+      ],
+      "supportHints": [
+        "Plot the y-intercept first."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3C_v2_graph-standard-form",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3C:v2-graph-standard-form",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "graphing2",
+      "mode": "standardForm",
+      "standard": {
+        "A": "{{A}}",
+        "B": "{{B}}",
+        "C": "{{C}}"
+      },
+      "prompt": "Graph the standard-form line ${{A}}x+{{B}}y={{C}}$. Construct it from two points or intercepts.",
+      "graphBounds": {
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -8,
+        "yMax": 8
+      },
+      "solutionReview": {
+        "headline": "Standard form can be graphed from intercepts or by rearranging.",
+        "reasoning": [
+          "Setting x=0 gives y-intercept {{b}}.",
+          "Rearranging also gives slope {{m}}, so any second point consistent with that rate determines the same line."
+        ]
+      },
+      "attemptFeedback": [
+        "Try finding an intercept before choosing the second point."
+      ],
+      "supportHints": [
+        "Set x=0 or y=0 to get an easy point."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "B": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "A": "-m*B",
+          "C": "b*B"
+        }
+      }
+    },
+    {
+      "id": "mm_A_3C_v2_multi-feature-intercepts",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3C:v2-multi-feature-intercepts",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3C",
+      "taskType": "interpretation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "For $y={{m}}x{{b|signed}}$, plot BOTH axis intercepts, then report the slope. The x-intercept is also the zero of the function.",
+      "functionSpec": {
+        "type": "linear",
+        "m": "{{m}}",
+        "b": "{{b}}"
+      },
+      "pointTasks": [
+        {
+          "id": "yint",
+          "label": "Plot the y-intercept",
+          "x": 0,
+          "expected": [
+            0,
+            "{{b}}"
+          ]
+        },
+        {
+          "id": "xint",
+          "label": "Plot the x-intercept",
+          "x": "{{root}}",
+          "expected": [
+            "{{root}}",
+            0
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "slope",
+          "label": "Slope",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{m}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A line's intercepts and slope describe the same graph from three connected perspectives.",
+        "reasoning": [
+          "The y-intercept is $(0,{{b}})$ and the x-intercept/zero is $({{root}},0)$.",
+          "The slope between those points equals {{m}}."
+        ]
+      },
+      "attemptFeedback": [
+        "An x-intercept must have y=0; a y-intercept must have x=0."
+      ],
+      "supportHints": [
+        "Set y=0 to locate the zero."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "root": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "b": "-m*root"
+        }
+      }
+    },
+    {
+      "id": "mm_A_3D_v2_graph-context-constraint",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3D:v2-graph-context-constraint",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3D",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A feasible plan is represented by $y\\le {{m}}x{{b|signed}}$. Construct the TWO-VARIABLE solution graph that shows every feasible ordered pair.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m}}",
+          "b": "{{b}}",
+          "relation": "<="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 10
+      },
+      "context": {
+        "title": "Feasible-plan constraint"
+      },
+      "solutionReview": {
+        "headline": "Every point in a half-plane can be a solution.",
+        "reasoning": [
+          "Use the equation $y={{m}}x{{b|signed}}$ for the boundary.",
+          "Because the inequality is inclusive and uses $\\le$, draw a solid boundary and shade below it."
+        ]
+      },
+      "attemptFeedback": [
+        "A two-variable inequality solution is a region, not one number or one interval on a number line."
+      ],
+      "supportHints": [
+        "Pick two x-values to construct the boundary line, then apply the inequality symbol."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -4,
+            "max": 6
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3D_v2_graph-dashed-above",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3D:v2-graph-dashed-above",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3D",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Construct the complete solution graph for $y>{{m}}x{{b|signed}}$.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m}}",
+          "b": "{{b}}",
+          "relation": ">"
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 10
+      },
+      "solutionReview": {
+        "headline": "A two-variable inequality graph has three decisions.",
+        "reasoning": [
+          "Graph the boundary equation using two points.",
+          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
+        ]
+      },
+      "attemptFeedback": [
+        "Check the boundary points first, then line style, then which side is shaded."
+      ],
+      "supportHints": [
+        "For $y>mx+b$ or $y\\ge mx+b$, shade above; for $y<mx+b$ or $y\\le mx+b$, shade below."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3D_v2_graph-dashed-below",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3D:v2-graph-dashed-below",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3D",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Graph the solution set of $y<{{m}}x{{b|signed}}$. Construct the boundary yourself and shade the solution region.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m}}",
+          "b": "{{b}}",
+          "relation": "<"
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 10
+      },
+      "solutionReview": {
+        "headline": "A two-variable inequality graph has three decisions.",
+        "reasoning": [
+          "Graph the boundary equation using two points.",
+          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
+        ]
+      },
+      "attemptFeedback": [
+        "Check the boundary points first, then line style, then which side is shaded."
+      ],
+      "supportHints": [
+        "For $y>mx+b$ or $y\\ge mx+b$, shade above; for $y<mx+b$ or $y\\le mx+b$, shade below."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3D_v2_graph-solid-above",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3D:v2-graph-solid-above",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3D",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Graph the solution set of $y\\ge {{m}}x{{b|signed}}$ by constructing its boundary and shading the correct half-plane.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m}}",
+          "b": "{{b}}",
+          "relation": ">="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 10
+      },
+      "solutionReview": {
+        "headline": "A two-variable inequality graph has three decisions.",
+        "reasoning": [
+          "Graph the boundary equation using two points.",
+          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
+        ]
+      },
+      "attemptFeedback": [
+        "Check the boundary points first, then line style, then which side is shaded."
+      ],
+      "supportHints": [
+        "For $y>mx+b$ or $y\\ge mx+b$, shade above; for $y<mx+b$ or $y\\le mx+b$, shade below."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3D_v2_graph-solid-below",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3D:v2-graph-solid-below",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3D",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Construct the complete graph of $y\\le {{m}}x{{b|signed}}$, including boundary style and shading.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m}}",
+          "b": "{{b}}",
+          "relation": "<="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 10
+      },
+      "solutionReview": {
+        "headline": "A two-variable inequality graph has three decisions.",
+        "reasoning": [
+          "Graph the boundary equation using two points.",
+          "Use solid for an inclusive inequality and dashed for a strict inequality, then shade the side indicated by the y-inequality."
+        ]
+      },
+      "attemptFeedback": [
+        "Check the boundary points first, then line style, then which side is shaded."
+      ],
+      "supportHints": [
+        "For $y>mx+b$ or $y\\ge mx+b$, shade above; for $y<mx+b$ or $y\\le mx+b$, shade below."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3E_v2_context-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3E:v2-context-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3E",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A linear model starts at {{b}} units and grows by {{m}} units per period. A revised model adds {{k}} units to every output. What is the revised initial value?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Adding a constant to every output is a vertical translation.",
+          "The starting value is one of those outputs, so it also increases by {{k}}."
+        ],
+        "answerSummary": "The revised initial value is ${{newb}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "int",
+            "min": 5,
+            "max": 40
+          },
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 10
+          },
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          }
+        },
+        "derived": {
+          "newb": "b+k"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{newb}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3E_v2_recover-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3E:v2-recover-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3E",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "A vertical shift changes the intercept from {{old}} to {{new}}. By how many units was the graph shifted?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "A vertical shift changes the intercept by exactly the shift amount.",
+          "Subtract the original intercept from the new intercept."
+        ],
+        "answerSummary": "The shift is ${{shift}}$ units."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "old": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "shift": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "new": "old+shift"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{shift}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3E_v2_reflection-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3E:v2-reflection-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3E",
+      "taskType": "conceptual",
+      "representation": "symbolic",
+      "prompt": "The graph of $f(x)={{m}}x{{b|signed}}$ is reflected across the $x$-axis. Determine the slope of the reflected line.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Reflecting across the $x$-axis multiplies every output by $-1$.",
+          "That reverses the sign of the rate of change."
+        ],
+        "answerSummary": "The new slope is ${{newm}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "newm": "-m"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{newm}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3E_v2_vertical-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3E:v2-vertical-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3E",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "The graph of $f(x)={{m}}x {{b|signed}}$ is shifted up {{k}} units. What is the new $y$-intercept?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "A vertical shift adds the same amount to every output.",
+          "The intercept therefore increases by {{k}}."
+        ],
+        "answerSummary": "The new intercept is ${{newb}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "newb": "b+k"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{newb}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3E_v2_vertical-stretch",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3E:v2-vertical-stretch",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3E",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "If $g(x)={{a}}f(x)$ and the linear function $f$ has slope {{m}}, determine the slope of $g$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Multiplying a function by {{a}} multiplies every output difference by the same factor.",
+          "Therefore the slope is also multiplied by {{a}}."
+        ],
+        "answerSummary": "The new slope is ${{newm}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "newm": "a*m"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{newm}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3F_v2_classify-parallel",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3F:v2-classify-parallel",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3F",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student says two lines with the same slope must be the same line and therefore have infinitely many solutions. For $y={{m}}x{{b1|signed}}$ and $y={{m}}x{{b2|signed}}$, correct the claim by entering the number of solutions.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The slopes are equal but the intercepts are different.",
+          "Distinct parallel lines never intersect."
+        ],
+        "answerSummary": "The system has {{solutions}} solutions."
+      },
+      "attemptFeedback": [
+        "Compare both slope and y-intercept; equal slopes alone do not make two equations identical."
+      ],
+      "supportHints": [
+        "Equal slopes with different intercepts produce distinct parallel lines."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b1": {
+            "type": "int",
+            "min": -9,
+            "max": 0
+          },
+          "b2": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          }
+        },
+        "derived": {
+          "solutions": "0"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{solutions}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3F_v2_context-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3F:v2-context-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3F",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "Two services charge ${{m1}}x {{b1|signed}}$ and ${{m2}}x {{b2|signed}}$ dollars for $x$ units. At how many units are their costs equal?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Equal costs occur at the intersection of the two linear models.",
+          "Set the expressions equal and solve; the constructed crossing occurs at the generated input."
+        ],
+        "answerSummary": "The costs are equal at $x={{x}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "m2": {
+            "type": "int",
+            "min": 6,
+            "max": 10
+          },
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "b1": {
+            "type": "int",
+            "min": 20,
+            "max": 60
+          }
+        },
+        "derived": {
+          "y": "m1*x+b1",
+          "b2": "y-m2*x"
+        },
+        "constraints": [
+          "b2>=0"
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3F_v2_recover-intercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3F:v2-recover-intercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3F",
+      "taskType": "reverseReasoning",
+      "representation": "symbolic",
+      "prompt": "The lines $y={{m1}}x {{b1|signed}}$ and $y={{m2}}x+b$ intersect at $({{x}},{{y}})$. Find $b$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "At the intersection, the point lies on both lines.",
+          "Substitute $({{x}},{{y}})$ into the second equation and solve for its intercept."
+        ],
+        "answerSummary": "$b={{b2}}$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "m2": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 5
+          },
+          "b1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y": "m1*x+b1",
+          "b2": "y-m2*x"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{b2}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3F_v2_substitution",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3F:v2-substitution",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3F",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve the system $y={{m1}}x {{b1|signed}}$ and $y={{m2}}x {{b2|signed}}$. Give the solution as an ordered pair.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Set the two expressions for $y$ equal and solve for $x$.",
+          "Substitute that value into either equation to get $y$."
+        ],
+        "answerSummary": "$({{x}},{{y}})$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "m2": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        },
+        "derived": {
+          "y": "m1*x+b1",
+          "b2": "y-m2*x"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "orderedPair",
+          "expected": "({{x}},{{y}})"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3F_v2_workspace-solve",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3F"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3F:v2-workspace-solve",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3F",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Graph the system $y={{m1}}x {{b1|signed}}$ and $y={{m2}}x {{b2|signed}}$ and identify the intersection.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The solution is the point that satisfies both equations.",
+          "The generated lines share the point $({{x}},{{y}})$ and have different slopes, so the solution is unique."
+        ],
+        "answerSummary": "The solution is $({{x}},{{y}})$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "m2": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        },
+        "derived": {
+          "y": "m1*x+b1",
+          "b2": "y-m2*x"
+        }
+      },
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "system": {
+        "m1": "{{m1}}",
+        "b1": "{{b1}}",
+        "m2": "{{m2}}",
+        "b2": "{{b2}}"
+      }
+    },
+    {
+      "id": "mm_A_3G_v2_error-read-intersection",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3G:v2-error-read-intersection",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "none",
+      "assessedConstruct": "A.3G",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "numericTolerance": 0.12,
+      "prompt": "A student reads an axis intercept instead of the crossing point when estimating where two real-world models are equal. Use the workspace graph to correct the error and enter the actual intersection estimate.",
+      "context": {
+        "scenario": "Checking a student's graphical system estimate"
+      },
+      "system": {
+        "m1": "{{m1}}",
+        "b1": "{{b1}}",
+        "m2": "{{m2}}",
+        "b2": "{{b2}}"
+      },
+      "graph": {
+        "xMin": 0,
+        "xMax": 10,
+        "yMin": -10,
+        "yMax": 36
+      },
+      "solutionReview": {
+        "headline": "A graphical solution is the coordinate where both real-world models have the same output.",
+        "reasoning": [
+          "The two lines intersect at approximately $({{xstar}},{{ystar}})$.",
+          "Because the task is graphical estimation, a coordinate read to about the nearest tenth is appropriate; substituting into both models can verify the estimate."
+        ]
+      },
+      "attemptFeedback": [
+        "Read both coordinates from the crossing point, not from where either line crosses an axis."
+      ],
+      "supportHints": [
+        "Trace both lines to their intersection, then project to the x- and y-axes."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": 4,
+            "max": 6
+          },
+          "xstar": {
+            "type": "choice",
+            "values": [
+              1.5,
+              2.5,
+              3.5,
+              4.5,
+              5.5
+            ]
+          },
+          "b1": {
+            "type": "int",
+            "min": 6,
+            "max": 16
+          }
+        },
+        "derived": {
+          "ystar": "m1*xstar+b1",
+          "b2": "ystar-m2*xstar"
+        },
+        "constraints": [
+          "b2>=-10",
+          "b2<=16",
+          "ystar<=34"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_3G_v2_graph-then-verify",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3G:v2-graph-then-verify",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "none",
+      "assessedConstruct": "A.3G",
+      "taskType": "transfer",
+      "representation": "multipleRepresentation",
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "numericTolerance": 0.15,
+      "prompt": "Estimate the solution of the two models from their graph to the nearest tenth. Then use the equations shown in the workspace to mentally verify that your estimated point is reasonable before submitting it.",
+      "context": {
+        "scenario": "Comparing two competing linear models"
+      },
+      "system": {
+        "m1": "{{m1}}",
+        "b1": "{{b1}}",
+        "m2": "{{m2}}",
+        "b2": "{{b2}}"
+      },
+      "graph": {
+        "xMin": 0,
+        "xMax": 10,
+        "yMin": -10,
+        "yMax": 36
+      },
+      "solutionReview": {
+        "headline": "A graphical solution is the coordinate where both real-world models have the same output.",
+        "reasoning": [
+          "The two lines intersect at approximately $({{xstar}},{{ystar}})$.",
+          "Because the task is graphical estimation, a coordinate read to about the nearest tenth is appropriate; substituting into both models can verify the estimate."
+        ]
+      },
+      "attemptFeedback": [
+        "Read both coordinates from the crossing point, not from where either line crosses an axis."
+      ],
+      "supportHints": [
+        "Trace both lines to their intersection, then project to the x- and y-axes."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": 4,
+            "max": 6
+          },
+          "xstar": {
+            "type": "choice",
+            "values": [
+              1.5,
+              2.5,
+              3.5,
+              4.5,
+              5.5
+            ]
+          },
+          "b1": {
+            "type": "int",
+            "min": 6,
+            "max": 16
+          }
+        },
+        "derived": {
+          "ystar": "m1*xstar+b1",
+          "b2": "ystar-m2*xstar"
+        },
+        "constraints": [
+          "b2>=-10",
+          "b2<=16",
+          "ystar<=34"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_3G_v2_pricing-estimate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3G:v2-pricing-estimate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "none",
+      "assessedConstruct": "A.3G",
+      "taskType": "application",
+      "representation": "context",
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "numericTolerance": 0.12,
+      "prompt": "Two pricing plans are modeled by the two lines in the workspace. Use the GRAPH to estimate the break-even point to about the nearest tenth; classify the system and enter the intersection coordinates.",
+      "context": {
+        "scenario": "Two pricing plans with different starting fees and rates"
+      },
+      "system": {
+        "m1": "{{m1}}",
+        "b1": "{{b1}}",
+        "m2": "{{m2}}",
+        "b2": "{{b2}}"
+      },
+      "graph": {
+        "xMin": 0,
+        "xMax": 10,
+        "yMin": -10,
+        "yMax": 36
+      },
+      "solutionReview": {
+        "headline": "A graphical solution is the coordinate where both real-world models have the same output.",
+        "reasoning": [
+          "The two lines intersect at approximately $({{xstar}},{{ystar}})$.",
+          "Because the task is graphical estimation, a coordinate read to about the nearest tenth is appropriate; substituting into both models can verify the estimate."
+        ]
+      },
+      "attemptFeedback": [
+        "Read both coordinates from the crossing point, not from where either line crosses an axis."
+      ],
+      "supportHints": [
+        "Trace both lines to their intersection, then project to the x- and y-axes."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": 4,
+            "max": 6
+          },
+          "xstar": {
+            "type": "choice",
+            "values": [
+              1.5,
+              2.5,
+              3.5,
+              4.5,
+              5.5
+            ]
+          },
+          "b1": {
+            "type": "int",
+            "min": 6,
+            "max": 16
+          }
+        },
+        "derived": {
+          "ystar": "m1*xstar+b1",
+          "b2": "ystar-m2*xstar"
+        },
+        "constraints": [
+          "b2>=-10",
+          "b2<=16",
+          "ystar<=34"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_3G_v2_savings-estimate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3G:v2-savings-estimate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "none",
+      "assessedConstruct": "A.3G",
+      "taskType": "application",
+      "representation": "context",
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "numericTolerance": 0.12,
+      "prompt": "The workspace graphs two savings models. Estimate graphically when the balances are equal and what that common balance is. Enter the intersection you read from the graph.",
+      "context": {
+        "scenario": "Two savings strategies growing at different constant rates"
+      },
+      "system": {
+        "m1": "{{m1}}",
+        "b1": "{{b1}}",
+        "m2": "{{m2}}",
+        "b2": "{{b2}}"
+      },
+      "graph": {
+        "xMin": 0,
+        "xMax": 10,
+        "yMin": -10,
+        "yMax": 36
+      },
+      "solutionReview": {
+        "headline": "A graphical solution is the coordinate where both real-world models have the same output.",
+        "reasoning": [
+          "The two lines intersect at approximately $({{xstar}},{{ystar}})$.",
+          "Because the task is graphical estimation, a coordinate read to about the nearest tenth is appropriate; substituting into both models can verify the estimate."
+        ]
+      },
+      "attemptFeedback": [
+        "Read both coordinates from the crossing point, not from where either line crosses an axis."
+      ],
+      "supportHints": [
+        "Trace both lines to their intersection, then project to the x- and y-axes."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": 4,
+            "max": 6
+          },
+          "xstar": {
+            "type": "choice",
+            "values": [
+              1.5,
+              2.5,
+              3.5,
+              4.5,
+              5.5
+            ]
+          },
+          "b1": {
+            "type": "int",
+            "min": 6,
+            "max": 16
+          }
+        },
+        "derived": {
+          "ystar": "m1*xstar+b1",
+          "b2": "ystar-m2*xstar"
+        },
+        "constraints": [
+          "b2>=-10",
+          "b2<=16",
+          "ystar<=34"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_3G_v2_transport-estimate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3G"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3G:v2-transport-estimate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "none",
+      "assessedConstruct": "A.3G",
+      "taskType": "application",
+      "representation": "context",
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "numericTolerance": 0.12,
+      "prompt": "Two transportation options have different fixed costs and per-unit rates. Use their graphs—not algebra first—to estimate where the costs are equal.",
+      "context": {
+        "scenario": "Two transportation cost models"
+      },
+      "system": {
+        "m1": "{{m1}}",
+        "b1": "{{b1}}",
+        "m2": "{{m2}}",
+        "b2": "{{b2}}"
+      },
+      "graph": {
+        "xMin": 0,
+        "xMax": 10,
+        "yMin": -10,
+        "yMax": 36
+      },
+      "solutionReview": {
+        "headline": "A graphical solution is the coordinate where both real-world models have the same output.",
+        "reasoning": [
+          "The two lines intersect at approximately $({{xstar}},{{ystar}})$.",
+          "Because the task is graphical estimation, a coordinate read to about the nearest tenth is appropriate; substituting into both models can verify the estimate."
+        ]
+      },
+      "attemptFeedback": [
+        "Read both coordinates from the crossing point, not from where either line crosses an axis."
+      ],
+      "supportHints": [
+        "Trace both lines to their intersection, then project to the x- and y-axes."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": 4,
+            "max": 6
+          },
+          "xstar": {
+            "type": "choice",
+            "values": [
+              1.5,
+              2.5,
+              3.5,
+              4.5,
+              5.5
+            ]
+          },
+          "b1": {
+            "type": "int",
+            "min": 6,
+            "max": 16
+          }
+        },
+        "derived": {
+          "ystar": "m1*xstar+b1",
+          "b2": "ystar-m2*xstar"
+        },
+        "constraints": [
+          "b2>=-10",
+          "b2<=16",
+          "ystar<=34"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_3H_v2_system-context-feasible-region",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3H:v2-system-context-feasible-region",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3H",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "Two constraints on a feasible plan are $y\\ge {{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$. Construct the graph of all ordered pairs satisfying BOTH constraints.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">="
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "A system keeps only points satisfying both inequalities.",
+        "reasoning": [
+          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
+          "The system solution is the overlap of the two shaded half-planes."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after one inequality; the final region must satisfy both at once."
+      ],
+      "supportHints": [
+        "Build one boundary and shade first, then repeat for the second inequality and keep only the overlap."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "b2": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3H_v2_system-dashed-overlap",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3H:v2-system-dashed-overlap",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3H",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Construct the solution graph of $y>{{m1}}x{{b1|signed}}$ and $y<{{m2}}x{{b2|signed}}$. Show both strict boundaries and the overlap.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">"
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<"
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "A system keeps only points satisfying both inequalities.",
+        "reasoning": [
+          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
+          "The system solution is the overlap of the two shaded half-planes."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after one inequality; the final region must satisfy both at once."
+      ],
+      "supportHints": [
+        "Build one boundary and shade first, then repeat for the second inequality and keep only the overlap."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "b2": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3H_v2_system-error-no-overlap",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3H:v2-system-error-no-overlap",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3H",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student graphs $y>{{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$ but shades the UNION of the two half-planes. Correct the error by constructing both graphs and showing only the system's overlap.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">"
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "A system keeps only points satisfying both inequalities.",
+        "reasoning": [
+          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
+          "The system solution is the overlap of the two shaded half-planes."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after one inequality; the final region must satisfy both at once."
+      ],
+      "supportHints": [
+        "Build one boundary and shade first, then repeat for the second inequality and keep only the overlap."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "b2": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3H_v2_system-mixed-boundaries",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3H:v2-system-mixed-boundaries",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3H",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Graph the system $y\\ge {{m1}}x{{b1|signed}}$ and $y<{{m2}}x{{b2|signed}}$. Your graph must distinguish the two boundary styles and shade only the common region.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">="
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<"
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "A system keeps only points satisfying both inequalities.",
+        "reasoning": [
+          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
+          "The system solution is the overlap of the two shaded half-planes."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after one inequality; the final region must satisfy both at once."
+      ],
+      "supportHints": [
+        "Build one boundary and shade first, then repeat for the second inequality and keep only the overlap."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "b2": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3H_v2_system-solid-overlap",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3H:v2-system-solid-overlap",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3H",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Graph the SYSTEM $y\\ge {{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$. Construct both boundaries and the overlapping solution region.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">="
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "A system keeps only points satisfying both inequalities.",
+        "reasoning": [
+          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
+          "The system solution is the overlap of the two shaded half-planes."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after one inequality; the final region must satisfy both at once."
+      ],
+      "supportHints": [
+        "Build one boundary and shade first, then repeat for the second inequality and keep only the overlap."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "b2": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_4A_v2_correlation-context-study",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4A:v2-correlation-context-study",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4A",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A study records practice time $x$ and a performance measure $y$; one generated response is {{y0}} when $x=0$. Calculate $r$ using technology, then interpret its direction and strength for this study.",
+      "type": "dataModelingLab",
+      "mode": "correlation",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        },
+        {
+          "x": 5,
+          "y": "{{y5}}"
+        }
+      ],
+      "correlationTolerance": 0.03,
+      "context": {
+        "title": "Practice-time study",
+        "variables": {
+          "x": "practice-time index",
+          "y": "performance measure"
+        }
+      },
+      "solutionReview": {
+        "headline": "Context does not change what $r$ measures.",
+        "reasoning": [
+          "Use all six observations in a correlation calculation.",
+          "State whether the linear association is positive or negative and how strong it is from the magnitude of $r$."
+        ]
+      },
+      "attemptFeedback": [
+        "Use every observation; leaving out one pair changes the coefficient."
+      ],
+      "supportHints": [
+        "Correlation describes linear association between the two measured variables."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 35,
+            "max": 65
+          },
+          "step": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a+step+1",
+          "y2": "a+2*step",
+          "y3": "a+3*step-1",
+          "y4": "a+4*step+2",
+          "y5": "a+5*step"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4A_v2_correlation-error-visual-guess",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4A:v2-correlation-error-visual-guess",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4A",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student says, “The points are not perfectly on one line, so $r=0$.” For the data set whose first response is {{y0}}, use technology to calculate the actual $r$ and give the correct direction and strength.",
+      "type": "dataModelingLab",
+      "mode": "correlation",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "correlationTolerance": 0.025,
+      "solutionReview": {
+        "headline": "Not perfect does not mean no correlation.",
+        "reasoning": [
+          "Calculate $r$ from all of the points instead of assigning a value from a visual rule.",
+          "Only the computed sign and magnitude justify the direction-and-strength description."
+        ]
+      },
+      "attemptFeedback": [
+        "The mistake is treating “not perfect” as “no linear association.” Calculate the coefficient."
+      ],
+      "supportHints": [
+        "Only a perfect positive line has $r=1$, but many nonperfect data sets still have a strong positive correlation."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 10,
+            "max": 30
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a+m",
+          "y2": "a+2*m+2",
+          "y3": "a+3*m-1",
+          "y4": "a+4*m+1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4A_v2_correlation-negative-noisy",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4A:v2-correlation-negative-noisy",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "For this generated data set, the first point is $(0,{{y0}})$. Calculate $r$ using technology and report the direction and strength of the linear association.",
+      "type": "dataModelingLab",
+      "mode": "correlation",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "correlationTolerance": 0.025,
+      "solutionReview": {
+        "headline": "Negative association still requires a numerical calculation.",
+        "reasoning": [
+          "Enter all five points and run the correlation calculation.",
+          "A negative sign means the variables move in opposite directions; use the magnitude to judge strength."
+        ]
+      },
+      "attemptFeedback": [
+        "Check that you did not drop the negative direction when interpreting the coefficient."
+      ],
+      "supportHints": [
+        "Direction comes from the sign, not from how steep a sketched line looks."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": 24,
+            "max": 40
+          }
+        },
+        "derived": {
+          "y0": "b",
+          "y1": "b-m+1",
+          "y2": "b-2*m-1",
+          "y3": "b-3*m+1",
+          "y4": "b-4*m-1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4A_v2_correlation-positive-noisy",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4A:v2-correlation-positive-noisy",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "The data set begins with $(0,{{y0}})$. Use statistical technology to calculate the correlation coefficient $r$, then classify its direction and strength.",
+      "type": "dataModelingLab",
+      "mode": "correlation",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "correlationTolerance": 0.025,
+      "solutionReview": {
+        "headline": "Calculate first; interpret second.",
+        "reasoning": [
+          "Use the full set of ordered pairs in a correlation or linear-regression calculation rather than estimating from the picture.",
+          "The sign of $r$ gives direction and $|r|$ gives the strength of the linear association."
+        ]
+      },
+      "attemptFeedback": [
+        "Re-enter every ordered pair in the technology and check the sign of the reported $r$."
+      ],
+      "supportHints": [
+        "A value of $r$ near 1 is strong positive; near -1 is strong negative; near 0 is weak linear association."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": 4,
+            "max": 18
+          }
+        },
+        "derived": {
+          "y0": "b",
+          "y1": "b+m+1",
+          "y2": "b+2*m-1",
+          "y3": "b+3*m+1",
+          "y4": "b+4*m-1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4A_v2_correlation-scattered",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4A:v2-correlation-scattered",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "A five-point data set has first response {{y0}} at $x=0$. Use statistical technology—not visual guessing—to calculate $r$ and interpret the direction and strength.",
+      "type": "dataModelingLab",
+      "mode": "correlation",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "correlationTolerance": 0.03,
+      "solutionReview": {
+        "headline": "Scattered data make technology especially important.",
+        "reasoning": [
+          "A scatter plot can suggest a trend, but the requested coefficient must be calculated from the numerical pairs.",
+          "Interpret the computed coefficient by sign and by how close its magnitude is to 1."
+        ]
+      },
+      "attemptFeedback": [
+        "If your visual impression and calculated value disagree, trust the correctly entered calculation and re-check the data entry."
+      ],
+      "supportHints": [
+        "Do not round individual data values before running the correlation calculation."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 22
+          },
+          "k": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a+3*k",
+          "y2": "a-k",
+          "y3": "a+4*k",
+          "y4": "a+2*k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4B_v2_confounder-season",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4B:v2-confounder-season",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.4B",
+      "taskType": "conceptual",
+      "representation": "context",
+      "prompt": "{{item1}} sales and {{item2}} incidents both rise during hot months. Which explanation best shows why correlation does not establish causation?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Two variables can move together because a third variable affects both.",
+          "Seasonal temperature is a plausible lurking variable in this context."
+        ],
+        "answerSummary": "Hot weather can influence both variables."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "item1": {
+            "type": "choice",
+            "values": [
+              "ice cream",
+              "cold drink",
+              "pool pass",
+              "sunscreen"
+            ]
+          },
+          "item2": {
+            "type": "choice",
+            "values": [
+              "swimming",
+              "heat-related",
+              "beach rescue",
+              "water-park"
+            ]
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "choice",
+          "expected": "opt-1"
+        }
+      ],
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "hot weather can influence both variables"
+        },
+        {
+          "id": "opt-2",
+          "label": "the first variable must cause the second"
+        },
+        {
+          "id": "opt-3",
+          "label": "the second variable must cause the first"
+        },
+        {
+          "id": "opt-4",
+          "label": "correlation proves the variables are identical"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_4B_v2_headline-error",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4B:v2-headline-error",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.4B",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A headline incorrectly claims, “People who {{behavior}} have {{pct}}% better outcomes, so {{behavior}} causes improvement.” What is the main flaw if the data came only from an observational study?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Observed association alone does not control all alternative explanations.",
+          "The headline changes an association into a causal claim without sufficient design evidence."
+        ],
+        "answerSummary": "The conclusion confuses association with causation."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "behavior": {
+            "type": "choice",
+            "values": [
+              "walk daily",
+              "eat breakfast",
+              "read nightly",
+              "use planners"
+            ]
+          },
+          "pct": {
+            "type": "int",
+            "min": 8,
+            "max": 30
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "choice",
+          "expected": "opt-1"
+        }
+      ],
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "it confuses association with causation"
+        },
+        {
+          "id": "opt-2",
+          "label": "percentages can never be compared"
+        },
+        {
+          "id": "opt-3",
+          "label": "observational data can never show any pattern"
+        },
+        {
+          "id": "opt-4",
+          "label": "the sample must have exactly 100 people"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_4B_v2_improve-evidence",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4B:v2-improve-evidence",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.4B",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "A strong association is found between {{x}} and {{y}}. Which follow-up most improves evidence for causation when an experiment is ethical?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "To investigate causation, deliberately vary the proposed cause and compare outcomes.",
+          "Random assignment reduces systematic differences between treatment and comparison groups."
+        ],
+        "answerSummary": "Use a randomized controlled experiment."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "choice",
+            "values": [
+              "a study strategy",
+              "a practice schedule",
+              "a tutoring method",
+              "a review game"
+            ]
+          },
+          "y": {
+            "type": "choice",
+            "values": [
+              "test performance",
+              "retention",
+              "quiz scores",
+              "accuracy"
+            ]
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "choice",
+          "expected": "opt-1"
+        }
+      ],
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "use a randomized controlled experiment"
+        },
+        {
+          "id": "opt-2",
+          "label": "collect the same correlation again"
+        },
+        {
+          "id": "opt-3",
+          "label": "choose only participants with high outcomes"
+        },
+        {
+          "id": "opt-4",
+          "label": "remove all low data values"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_4B_v2_observational-limit",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4B:v2-observational-limit",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.4B",
+      "taskType": "interpretation",
+      "representation": "context",
+      "prompt": "A survey of {{n}} students finds that those who report {{habit}} also report higher grades. What can the survey establish by itself?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "An observational survey can reveal an association between measured variables.",
+          "Without random assignment or another strong causal design, it cannot by itself establish cause and effect."
+        ],
+        "answerSummary": "It can establish an association, not causation."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "habit": {
+            "type": "choice",
+            "values": [
+              "more sleep",
+              "more reading",
+              "eating breakfast",
+              "less screen time",
+              "more exercise"
+            ]
+          },
+          "n": {
+            "type": "int",
+            "min": 50,
+            "max": 300
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "choice",
+          "expected": "opt-1"
+        }
+      ],
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "an association, not causation"
+        },
+        {
+          "id": "opt-2",
+          "label": "that the habit definitely causes higher grades"
+        },
+        {
+          "id": "opt-3",
+          "label": "that grades cause the habit"
+        },
+        {
+          "id": "opt-4",
+          "label": "that no lurking variables exist"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_4B_v2_random-assignment",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4B:v2-random-assignment",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.4B",
+      "taskType": "comparison",
+      "representation": "context",
+      "prompt": "Researchers have {{group}} students and want to know whether a tutoring program CAUSES higher scores. Which design gives the strongest causal evidence?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Causal claims are strongest when subjects are randomly assigned to treatment and comparison groups.",
+          "Random assignment helps balance lurking variables between the groups."
+        ],
+        "answerSummary": "Randomly assign participants to tutoring and no-tutoring groups."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "group": {
+            "type": "int",
+            "min": 40,
+            "max": 160
+          }
+        }
+      },
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Design",
+            "Assignment"
+          ],
+          "rows": [
+            [
+              "Experiment",
+              "random assignment"
+            ],
+            [
+              "Observation",
+              "self-selected groups"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "choice",
+          "expected": "opt-1"
+        }
+      ],
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "randomly assign participants to tutoring and no-tutoring groups"
+        },
+        {
+          "id": "opt-2",
+          "label": "survey students who already chose tutoring"
+        },
+        {
+          "id": "opt-3",
+          "label": "compare this year with a different school last year"
+        },
+        {
+          "id": "opt-4",
+          "label": "ask students whether tutoring felt helpful"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_4C_v2_linear-regression-clean",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4C:v2-linear-regression-clean",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "The generated data include $(0,{{y0}})$. Use linear-regression technology to WRITE the fitted function $y=mx+b$, then predict $y$ when $x=6$.",
+      "type": "dataModelingLab",
+      "mode": "linearFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 6,
+      "solutionReview": {
+        "headline": "Regression produces the equation before the prediction.",
+        "reasoning": [
+          "Use linear regression on all five points and record both the slope and intercept in $y=mx+b$.",
+          "Substitute the requested input into that fitted equation, then decide whether the prediction is interpolation or extrapolation."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not predict until you have written both regression coefficients."
+      ],
+      "supportHints": [
+        "Use all data points in the regression; a line through only two selected points is not the requested fitted model."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 12
+          }
+        },
+        "derived": {
+          "y0": "b",
+          "y1": "b+m",
+          "y2": "b+2*m",
+          "y3": "b+3*m",
+          "y4": "b+4*m"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4C_v2_linear-regression-context-extrapolation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4C:v2-linear-regression-context-extrapolation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4C",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A school tracks an input $x$ and an outcome $y$; the generated set starts at $(0,{{y0}})$. Use technology to WRITE the linear regression model and predict the outcome at $x=8$.",
+      "type": "dataModelingLab",
+      "mode": "linearFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 8,
+      "context": {
+        "title": "School trend data"
+      },
+      "solutionReview": {
+        "headline": "Regression produces the equation before the prediction.",
+        "reasoning": [
+          "Use linear regression on all five points and record both the slope and intercept in $y=mx+b$.",
+          "Substitute the requested input into that fitted equation, then decide whether the prediction is interpolation or extrapolation."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not predict until you have written both regression coefficients."
+      ],
+      "supportHints": [
+        "Use all data points in the regression; a line through only two selected points is not the requested fitted model."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": 40,
+            "max": 75
+          }
+        },
+        "derived": {
+          "y0": "b",
+          "y1": "b+m+2",
+          "y2": "b+2*m-1",
+          "y3": "b+3*m+1",
+          "y4": "b+4*m"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4C_v2_linear-regression-error-two-points",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4C:v2-linear-regression-error-two-points",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4C",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student uses only the first and last data points (the first response is {{y0}}) and calls that line “the regression model.” Use ALL the data with technology to WRITE the fitted linear function and predict at $x=6$.",
+      "type": "dataModelingLab",
+      "mode": "linearFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 6,
+      "solutionReview": {
+        "headline": "Regression produces the equation before the prediction.",
+        "reasoning": [
+          "Use linear regression on all five points and record both the slope and intercept in $y=mx+b$.",
+          "Substitute the requested input into that fitted equation, then decide whether the prediction is interpolation or extrapolation."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not predict until you have written both regression coefficients."
+      ],
+      "supportHints": [
+        "Use all data points in the regression; a line through only two selected points is not the requested fitted model."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "b": {
+            "type": "int",
+            "min": 8,
+            "max": 25
+          }
+        },
+        "derived": {
+          "y0": "b",
+          "y1": "b+m+3",
+          "y2": "b+2*m-2",
+          "y3": "b+3*m+1",
+          "y4": "b+4*m"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4C_v2_linear-regression-interpolation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4C:v2-linear-regression-interpolation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4C",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A calibration data set has first measurement {{y0}} at $x=0$. Use regression technology to WRITE the fitted linear function, then estimate the response at $x=2.5$.",
+      "type": "dataModelingLab",
+      "mode": "linearFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 2.5,
+      "context": {
+        "title": "Calibration data"
+      },
+      "solutionReview": {
+        "headline": "Regression produces the equation before the prediction.",
+        "reasoning": [
+          "Use linear regression on all five points and record both the slope and intercept in $y=mx+b$.",
+          "Substitute the requested input into that fitted equation, then decide whether the prediction is interpolation or extrapolation."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not predict until you have written both regression coefficients."
+      ],
+      "supportHints": [
+        "Use all data points in the regression; a line through only two selected points is not the requested fitted model."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          },
+          "b": {
+            "type": "int",
+            "min": 10,
+            "max": 30
+          }
+        },
+        "derived": {
+          "y0": "b",
+          "y1": "b+m-1",
+          "y2": "b+2*m+1",
+          "y3": "b+3*m",
+          "y4": "b+4*m-1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4C_v2_linear-regression-noisy",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4C:v2-linear-regression-noisy",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "A noisy data set begins at $(0,{{y0}})$. Use linear regression to WRITE a best-fit function and use it to predict the response at $x=7$.",
+      "type": "dataModelingLab",
+      "mode": "linearFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 7,
+      "solutionReview": {
+        "headline": "Regression produces the equation before the prediction.",
+        "reasoning": [
+          "Use linear regression on all five points and record both the slope and intercept in $y=mx+b$.",
+          "Substitute the requested input into that fitted equation, then decide whether the prediction is interpolation or extrapolation."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not predict until you have written both regression coefficients."
+      ],
+      "supportHints": [
+        "Use all data points in the regression; a line through only two selected points is not the requested fitted model."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "b": {
+            "type": "int",
+            "min": 5,
+            "max": 20
+          }
+        },
+        "derived": {
+          "y0": "b",
+          "y1": "b+m+1",
+          "y2": "b+2*m-1",
+          "y3": "b+3*m+2",
+          "y4": "b+4*m-1"
+        }
+      }
     }
   ]
 }
