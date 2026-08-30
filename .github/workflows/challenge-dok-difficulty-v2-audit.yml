@@ -1,0 +1,39 @@
+name: Algebra I II Challenge DOK Difficulty Audit
+
+on:
+  push:
+    paths:
+      - "drafts/fidelity-v2/algebra1/**"
+      - "drafts/fidelity-v2/algebra2/**"
+      - "scripts/audit-challenge-dok-difficulty-v2.mjs"
+      - "tests/platform/challengeDokDifficultyV2Audit.test.mjs"
+      - "ALGEBRA1_2_CHALLENGE_DOK_DIFFICULTY_FOLLOWUP.md"
+      - ".github/workflows/challenge-dok-difficulty-v2-audit.yml"
+  pull_request:
+    paths:
+      - "drafts/fidelity-v2/algebra1/**"
+      - "drafts/fidelity-v2/algebra2/**"
+      - "scripts/audit-challenge-dok-difficulty-v2.mjs"
+      - "tests/platform/challengeDokDifficultyV2Audit.test.mjs"
+      - "ALGEBRA1_2_CHALLENGE_DOK_DIFFICULTY_FOLLOWUP.md"
+      - ".github/workflows/challenge-dok-difficulty-v2-audit.yml"
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Run adaptive coverage non-regression tests
+        run: node --test tests/platform/challengeDokDifficultyV2Audit.test.mjs
+      - name: Print variant-aware Challenge and DOK/difficulty report
+        run: node scripts/audit-challenge-dok-difficulty-v2.mjs
+      # Strict mode is intentionally NOT enabled until the current upgrade pass
+      # closes every preferred adaptive cell or records a justified exception.
+      # Final completion gate:
+      # node scripts/audit-challenge-dok-difficulty-v2.mjs --strict
