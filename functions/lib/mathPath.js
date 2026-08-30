@@ -37,7 +37,9 @@ async function instantiateQuestion(question, seedKey, {
   preferredDifficultyBand = null,
 } = {}) {
   const generation = await pathGeneration();
-  if (!generation.hasPathGenerator(question)) return { question, parameters: null, reason: null };
+  if (!generation.hasPathGenerator(question) && !generation.hasPathVariants(question)) {
+    return { question, parameters: null, reason: null };
+  }
   return generation.generatePathInstanceWithRetries(question, seedKey, 4, {
     preferredDok,
     preferredDifficultyBand,
@@ -55,7 +57,7 @@ async function instantiateQuestion(question, seedKey, {
  */
 async function buildTemplateIssuePlan(question, { samples = 8 } = {}) {
   const generation = await pathGeneration();
-  if (!generation.hasPathGenerator(question)) {
+  if (!generation.hasPathGenerator(question) && !generation.hasPathVariants(question)) {
     const plan = await buildIssuePlan(question);
     return { issuable: plan.issuable, reason: plan.reason, samples: 0 };
   }
