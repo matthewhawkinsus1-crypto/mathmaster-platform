@@ -157,7 +157,96 @@
           "y3": "b+3*m+2",
           "y4": "b+4*m-1"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-seven-point-regression-extrapolation",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Use linear regression technology on all SEVEN noisy observations to WRITE the best-fit function y=mx+b, then use that fitted model to predict the response at x=10. Do not replace regression with a line through two selected points.",
+          "points": [
+            {
+              "x": 0,
+              "y": "{{y0}}"
+            },
+            {
+              "x": 1,
+              "y": "{{y1}}"
+            },
+            {
+              "x": 2,
+              "y": "{{y2}}"
+            },
+            {
+              "x": 3,
+              "y": "{{y3}}"
+            },
+            {
+              "x": 4,
+              "y": "{{y4}}"
+            },
+            {
+              "x": 5,
+              "y": "{{y5}}"
+            },
+            {
+              "x": 6,
+              "y": "{{y6}}"
+            }
+          ],
+          "predictionX": 10,
+          "slopeTolerance": 0.03,
+          "interceptTolerance": 0.05,
+          "predictionTolerance": 0.15,
+          "context": {
+            "title": "Seven-observation linear regression",
+            "note": "The target x=10 is outside the observed range 0 through 6."
+          },
+          "solutionReview": {
+            "headline": "More observations and a farther target increase computational/structural difficulty without changing the reasoning level.",
+            "reasoning": [
+              "Run linear regression on all seven observations and record both fitted coefficients.",
+              "Use the fitted equation—not a two-point line—to evaluate the model at x=10.",
+              "Because x=10 lies beyond the observed range, the numerical result is an extrapolation."
+            ],
+            "answerSummary": "Write the regression line and its x=10 prediction."
+          },
+          "attemptFeedback": [
+            "Use all seven pairs in the regression list before evaluating x=10."
+          ],
+          "supportHints": [
+            "Regression first; prediction second."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              },
+              "b": {
+                "type": "int",
+                "min": 5,
+                "max": 20
+              }
+            },
+            "derived": {
+              "y0": "b+1",
+              "y1": "b+m-1",
+              "y2": "b+2*m+2",
+              "y3": "b+3*m-2",
+              "y4": "b+4*m+1",
+              "y5": "b+5*m-1",
+              "y6": "b+6*m"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_4C_v2_linear-regression-interpolation",
