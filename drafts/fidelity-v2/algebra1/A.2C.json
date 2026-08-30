@@ -439,7 +439,122 @@
           "y2": "m*x2+b",
           "y3": "m*x3+b"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-inconsistent-third-representation-repair",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "A linear relationship has $f({{x1}})={{y1}}$ and $f({{x2}})={{y2}}$. A student then reports that $({{x3}},{{wrongY3}})$ is also on the same line. Use the first two reliable points to determine the model, test the reported third point, and repair it if necessary.",
+          "responseFields": [
+            {
+              "id": "slope",
+              "label": "Slope from the first two points",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "intercept",
+              "label": "y-intercept",
+              "inputProfile": "number",
+              "expected": "{{b}}"
+            },
+            {
+              "id": "equation",
+              "label": "Correct function equation",
+              "inputProfile": "equation",
+              "expected": "f(x)={{m}}x{{b|signed}}"
+            },
+            {
+              "id": "reported-point",
+              "label": "Is the reported third point on the line?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "no",
+                  "label": "No; its y-value is inconsistent with the model."
+                },
+                {
+                  "id": "yes",
+                  "label": "Yes; any third point can be added to a linear model."
+                }
+              ],
+              "expected": "no"
+            },
+            {
+              "id": "correct-y3",
+              "label": "Correct y-value when x={{x3}}",
+              "inputProfile": "number",
+              "expected": "{{y3}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A single linear model must make all representations agree.",
+            "reasoning": [
+              "The first two points give slope {{m}} and intercept {{b}}.",
+              "That model is $f(x)={{m}}x{{b|signed}}$.",
+              "At x={{x3}} it gives {{y3}}, not {{wrongY3}}, so the reported third point must be repaired."
+            ],
+            "answerSummary": "$f(x)={{m}}x{{b|signed}}$ and the corrected third point is $({{x3}},{{y3}})$."
+          },
+          "attemptFeedback": [
+            "Build the line from the reliable information before deciding whether the third representation is consistent."
+          ],
+          "supportHints": [
+            "Evaluate your equation at x={{x3}} and compare with the reported y-value."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -10,
+                "max": 10
+              },
+              "x1": {
+                "type": "int",
+                "min": -5,
+                "max": -1
+              },
+              "gap1": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              },
+              "gap2": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "offset": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              }
+            },
+            "derived": {
+              "x2": "x1+gap1",
+              "x3": "x2+gap2",
+              "y1": "m*x1+b",
+              "y2": "m*x2+b",
+              "y3": "m*x3+b",
+              "wrongY3": "y3+offset"
+            }
+          }
+        }
+      ]
     }
   ]
 }
