@@ -338,7 +338,159 @@
       },
       "variants": [
         {
-          "coverageKey": "core-d2b4"
+          "coverageKey": "core-d2b4",
+          "dok": 2,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d2b2-simple-area-factor-pair",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "application",
+          "representation": "context",
+          "prompt": "A rectangle has area $x^2+{{sum}}x+{{prod}}$. The integer side-length constants are positive. Factor the area polynomial to write the two side-length expressions.",
+          "responseFields": [
+            {
+              "id": "factor1",
+              "label": "First factor",
+              "inputProfile": "expression",
+              "expected": "x+{{p}}"
+            },
+            {
+              "id": "factor2",
+              "label": "Second factor",
+              "inputProfile": "expression",
+              "expected": "x+{{q}}"
+            },
+            {
+              "id": "answer",
+              "label": "Complete factorization",
+              "inputProfile": "expression",
+              "expected": "(x+{{p}})*(x+{{q}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Find two constants whose sum gives the x coefficient and whose product gives the constant term.",
+            "reasoning": [
+              "{{p}}+{{q}}={{sum}}.",
+              "{{p}}·{{q}}={{prod}}."
+            ],
+            "answerSummary": "$(x+{{p}})(x+{{q}})$"
+          },
+          "attemptFeedback": [
+            "Use both the sum and product conditions."
+          ],
+          "supportHints": [
+            "Positive constant term and positive middle coefficient lead to two positive constants here."
+          ],
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              },
+              "q": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              }
+            },
+            "derived": {
+              "sum": "p+q",
+              "prod": "p*q"
+            },
+            "constraints": [
+              "p!=q"
+            ]
+          }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-factor-pair-claim-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student factors $x^2+{{sum}}x+{{prod}}$ as $(x+{{wrongP}})(x+{{wrongQ}})$. The proposed constants have the correct product {{prod}} but the wrong sum. Diagnose the claim, identify the correct pair, write the factorization, and verify both sum and product.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Why is the proposed pair wrong?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "sum",
+                  "label": "The constants multiply correctly but do not add to the x coefficient."
+                },
+                {
+                  "id": "product",
+                  "label": "Only the product matters when factoring a monic trinomial."
+                }
+              ],
+              "expected": "sum"
+            },
+            {
+              "id": "correct-sum",
+              "label": "Correct factor sum",
+              "inputProfile": "number",
+              "expected": "{{sum}}"
+            },
+            {
+              "id": "correct-product",
+              "label": "Correct factor product",
+              "inputProfile": "number",
+              "expected": "{{prod}}"
+            },
+            {
+              "id": "answer",
+              "label": "Correct factorization",
+              "inputProfile": "expression",
+              "expected": "(x+{{p}})*(x+{{q}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A valid factor pair must satisfy both coefficient conditions.",
+            "reasoning": [
+              "The correct constants {{p}} and {{q}} add to {{sum}} and multiply to {{prod}}.",
+              "The proposed pair matches only the product, so it cannot reproduce the middle term."
+            ],
+            "answerSummary": "$(x+{{p}})(x+{{q}})$"
+          },
+          "attemptFeedback": [
+            "Check the sum and product before accepting a factor pair."
+          ],
+          "supportHints": [
+            "For x²+Bx+C, factor constants must sum to B and multiply to C."
+          ],
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "q": {
+                "type": "int",
+                "min": 3,
+                "max": 6
+              },
+              "wrongP": {
+                "type": "int",
+                "min": -6,
+                "max": -2
+              }
+            },
+            "derived": {
+              "sum": "p+q",
+              "prod": "p*q",
+              "wrongQ": "prod/wrongP"
+            },
+            "constraints": [
+              "p!=q",
+              "prod%wrongP==0",
+              "wrongP+wrongQ!=sum"
+            ]
+          }
         },
         {
           "coverageKey": "challenge-d3b4-zero-factor-sign-error",
