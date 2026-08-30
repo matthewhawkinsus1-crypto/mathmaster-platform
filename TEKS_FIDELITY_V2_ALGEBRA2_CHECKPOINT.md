@@ -107,7 +107,7 @@ Do **not** re-audit A2.2C unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.2D — PENDING AUDIT
+### A2.2D — REBUILD — AUDITED / AUTHORING
 
 Official construct: **Use composition of functions, including necessary domain restrictions, to determine whether two functions are inverses.**
 
@@ -116,6 +116,21 @@ Official construct: **Use composition of functions, including necessary domain r
 ### A2.2D
 
 Resume here. Do not reopen A2.2A, A2.2B, or A2.2C unless a failing gate names them.
+
+
+### 2026-08-30 — A2.2D audit finding
+- Official construct: use **composition of functions**, including necessary **domain restrictions**, to determine whether two functions are inverses.
+- Verdict: **REBUILD**.
+- Legacy weaknesses:
+  - family 1 simplifies only one composition order, so it does not establish the two-sided inverse condition;
+  - family 2 is ordinary composition evaluation and never determines whether the functions are inverses;
+  - family 3 correctly exposes `sqrt(x^2)=|x|` and a needed restriction, but checks only one composition direction;
+  - family 4 is labeled error analysis but asks what to do next after one function evaluation rather than analyzing an actual composition error;
+  - family 5 follows a two-row table to get one composition value and never tests inverse status.
+- Fidelity V2 requirement for all five families: the student must use composition evidence to make or justify an inverse determination. At least three families must require **both** `f(g(x))` and `g(f(x))` or an equivalent two-direction table/representation.
+- Domain restrictions must be operational, not decorative: include right-branch and left-branch quadratic/square-root cases and at least one case where a proposed pair fails because the restriction is missing or wrong.
+- Linear and nonlinear pairs should both appear; one genuine error-analysis family must diagnose the false step `sqrt(u^2)=u` without a sign/domain condition.
+- No new Path tool contract is required. The existing `inverseComposition` classroom tool is not server-contracted for Path, and adding a new secure adapter is unnecessary here because multi-response symbolic/table composition can capture the TEKS action directly and securely.
 
 ---
 
