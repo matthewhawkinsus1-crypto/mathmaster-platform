@@ -238,6 +238,32 @@ test('every Algebra I and Algebra II preferred adaptive cell can be issued throu
   assert.equal(checked, (49 + 48) * TARGETS.length);
 });
 
+
+
+test('frozen weekly slot rigor outranks open-practice pass escalation and enrichment', () => {
+  const source = readFileSync('functions/index.js', 'utf8');
+
+  assert.match(
+    source,
+    /const onAssignedWeeklyTarget = Boolean\(session\.weeklySlotKey[\s\S]*?session\.intendedDifficultyBand[\s\S]*?session\.intendedDok/,
+    'weekly sessions must resolve their frozen intended rigor before any open-practice escalation',
+  );
+
+  assert.match(
+    source,
+    /if \(!session\.assessmentFramework && session\.sessionKind !== "retentionProbe" && !onAssignedWeeklyTarget\)/,
+    'course pass Level 2/3 escalation must not rewrite a frozen weekly target',
+  );
+
+  const enrichmentBlock = /if \(\s*!session\.assessmentFramework([\s\S]*?)\n  \) \{\s*preferredDifficultyBand = 4;/.exec(source);
+  assert.ok(enrichmentBlock, 'fresh enrichment override block is missing');
+  assert.match(
+    enrichmentBlock[1],
+    /!onAssignedWeeklyTarget/,
+    'fresh enrichment must not turn an assigned weekly core/retention slot into Challenge work',
+  );
+});
+
 test('server wiring passes target preferences and honors fresh enrichment', () => {
   const source = readFileSync('functions/index.js', 'utf8');
   assert.match(
