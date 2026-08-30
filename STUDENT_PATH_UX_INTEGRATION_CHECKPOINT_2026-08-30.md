@@ -85,13 +85,54 @@ The gate covers:
 - adaptive target-aware variant selection;
 - student runtime build.
 
+## Scheduler / weekly-goal / recommendation audit — LOCKED COMPLETE
+
+Verified and repaired:
+
+- Frozen weekly slots are server-authoritative for TEKS, assessment context, DOK and difficulty.
+  - Weekly launches are resolved against the server-owned weekly-goal snapshot.
+  - `intendedDok` and `intendedDifficultyBand` survive into secure question selection.
+  - An unrelated free-choice Path pass level cannot overwrite assigned weekly rigor.
+- Challenge/Extension requests the certified DOK 3 / Band 4 course content when earned.
+- Free-choice Level 2 / Level 3 passes continue to request their intended adaptive cells through target-aware variant selection.
+- Honors compressed weeks preserve course Challenge instead of trimming it behind CCMR Transfer.
+- Honors 4-session weeks can carry both Challenge and CCMR Transfer.
+- When CCMR is disabled for the week, Transfer is excluded during planning and the planner backfills with course work rather than creating fewer cards than the weekly goal.
+- Weekly CCMR cards name the actual framework instead of showing a generic Transfer label.
+- Weekly sessions and numbered free-choice Path passes are now separate:
+  - weekly work still contributes mastery evidence and weekly completion;
+  - weekly sessions do not advance the Foundation → Deeper practice → Mastery challenge pass counter;
+  - issued weekly questions carry no course-pass level;
+  - active/completed weekly sessions show the frozen weekly purpose instead of a contradictory free-choice level.
+- Retention and repair routing remain separate purposes/actions; only genuine enrichment uses the student-facing Challenge language.
+
+Key commits include:
+- `eaa89b8a126b9b4edb8f56109a878376ae9d7fb0` — frozen weekly rigor authority.
+- `9d93aaf98d9a129d8c113713093510e8d2111169` — compressed Honors Challenge preservation.
+- `861a1158462edc84eea3885f7ef7677c9940fc18`, `3c90975f678c1672d1dc60215517e2390ec2c1f5`, `61f56e842c9454bc7e04915058c048698f06126a` — full CCMR-disabled course weeks.
+- `fdd934f152e762285a3d26bfce13a8b9d62a3a52` — weekly sessions separated from numbered Path passes.
+- `cc3235c1517bb4c4f6d1fabba8ef39062474f586`, `3fcf759eddd447c02454f51a430e08355e400c29` — weekly-purpose presentation.
+- `93ee40556dd146fc481f394c5a6efaa3cd73dfea` — server regression certification.
+
+Final routing/integration gates:
+- Student Path UX Certification `33342328598`: **PASS**.
+- Algebra I II Challenge DOK Difficulty Audit `33342328600`: **PASS**.
+
+Do not reopen this scheduler phase unless a named regression gate fails.
+
 ## Current next active audit
 
-Verify the scheduler / weekly-goal / recommendation side of the integration:
-- Challenge/Extension should request DOK3/Band4 content when earned;
-- Deeper-practice passes should request the intended independent adaptive cells rather than only relabeling the UI;
-- weekly Honors/above-level mixes should include CCMR transfer without replacing course-TEKS Challenge work;
-- remediation / retention should not be mislabeled as Challenge;
-- the student-facing level should agree with the server-issued target purpose and course pass level.
+Run an end-to-end Path scenario matrix across the same production/shared engines used by students and the Teacher Path Simulator. Verify complete journeys, not isolated helpers:
 
-Do not make additional visual labels until this routing audit identifies a real mismatch.
+- fresh regular student;
+- below-level student with a real foundation bridge and return;
+- on-level Honors student with course Challenge + CCMR Transfer;
+- above-level regular student receiving Challenge;
+- CCMR-disabled week retaining its full session count;
+- retention-due student receiving a retention check without being relabelled Challenge;
+- Band-4 miss reducing complexity on the same TEKS rather than causing prerequisite descent;
+- repeated misses causing diagnose → bounded repair excursion → bridge/return or teacher support;
+- free-choice Level 1 → Level 2 → Level 3 progression;
+- weekly assigned work remaining separate from that free-choice pass progression.
+
+The Teacher Path Simulator and live student route must consume the same recommendation/routing decisions and present the same purpose/next-step explanation for each scenario.
