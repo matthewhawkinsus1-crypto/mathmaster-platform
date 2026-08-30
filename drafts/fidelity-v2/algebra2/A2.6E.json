@@ -234,7 +234,110 @@
           "left": "h-s",
           "right": "h+s"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-duplicate-positive-case-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student correctly isolates $|2x{{b|signed}}|={{D}}$ but then writes the positive case twice, so both branches are $2x{{b|signed}}={{D}}$. Diagnose the reasoning error, write the correct positive and negative cases, and finish both real solutions.",
+          "responseFields": [
+            {
+              "id": "isolated",
+              "label": "Correct isolated absolute-value equation",
+              "inputProfile": "equation",
+              "equivalence": "absoluteLinearRelation",
+              "expected": "abs(2x{{b|signed}})={{D}}"
+            },
+            {
+              "id": "diagnosis",
+              "label": "Diagnosis",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "negative-branch",
+                  "label": "The second branch must set the inside expression equal to -{{D}}, not +{{D}} again."
+                },
+                {
+                  "id": "same",
+                  "label": "Both branches should use +{{D}}."
+                },
+                {
+                  "id": "none",
+                  "label": "There should be no second branch."
+                }
+              ],
+              "expected": "negative-branch"
+            },
+            {
+              "id": "case-plus",
+              "label": "Positive case",
+              "inputProfile": "equation",
+              "expected": "2x{{b|signed}}={{D}}"
+            },
+            {
+              "id": "case-minus",
+              "label": "Negative case",
+              "inputProfile": "equation",
+              "expected": "2x{{b|signed}}=-{{D}}"
+            },
+            {
+              "id": "left",
+              "label": "Smaller solution",
+              "inputProfile": "number",
+              "expected": "{{left}}"
+            },
+            {
+              "id": "right",
+              "label": "Larger solution",
+              "inputProfile": "number",
+              "expected": "{{right}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A positive absolute-value target produces two opposite linear cases.",
+            "reasoning": [
+              "The isolated equation is $|2x{{b|signed}}|={{D}}$.",
+              "The two cases are $2x{{b|signed}}={{D}}$ and $2x{{b|signed}}=-{{D}}$.",
+              "Solving both gives x={{left}} and x={{right}}."
+            ],
+            "answerSummary": "Correct both branches; solutions x={{left}}, {{right}}."
+          },
+          "attemptFeedback": [
+            "The two branches differ only in the sign of the isolated positive target."
+          ],
+          "supportHints": [
+            "For |u|=D with D>0, solve u=D and u=-D."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "s": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              }
+            },
+            "derived": {
+              "b": "-2*h",
+              "D": "2*s",
+              "left": "h-s",
+              "right": "h+s"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_6E_v2_zero-distance-one-solution",
@@ -529,102 +632,7 @@
         "derived": {
           "y": "k-a*d"
         }
-      },
-      "variants": [
-        {
-          "coverageKey": "core-d3b4",
-          "dok": 3,
-          "difficultyBand": 4
-        },
-        {
-          "coverageKey": "adaptive-d3b3-zero-distance-repair",
-          "dok": 3,
-          "difficultyBand": 3,
-          "taskType": "errorAnalysis",
-          "representation": "verbal",
-          "prompt": "A student solves $|{{m}}x{{b|signed}}|=0$ by creating two different cases, ${{m}}x{{b|signed}}=0$ and ${{m}}x{{b|signed}}=-0$, then claims there are two distinct solutions. Diagnose the reasoning error and give the correct solution count and solution.",
-          "responseFields": [
-            {
-              "id": "diagnosis",
-              "label": "Diagnosis",
-              "inputProfile": "choice",
-              "choices": [
-                {
-                  "id": "same-case",
-                  "label": "The two cases are identical because -0=0, so they produce the same single solution."
-                },
-                {
-                  "id": "two",
-                  "label": "Absolute value always creates two distinct solutions."
-                },
-                {
-                  "id": "none",
-                  "label": "An absolute value equal to zero has no real solution."
-                }
-              ],
-              "expected": "same-case"
-            },
-            {
-              "id": "solution-count",
-              "label": "Number of distinct real solutions",
-              "inputProfile": "choice",
-              "choices": [
-                {
-                  "id": "one",
-                  "label": "1"
-                },
-                {
-                  "id": "two",
-                  "label": "2"
-                },
-                {
-                  "id": "zero",
-                  "label": "0"
-                }
-              ],
-              "expected": "one"
-            },
-            {
-              "id": "solution",
-              "label": "Real solution",
-              "inputProfile": "number",
-              "expected": "{{h}}"
-            }
-          ],
-          "solutionReview": {
-            "headline": "A zero absolute-value target collapses the two usual cases into one.",
-            "reasoning": [
-              "Because -0=0, the positive and negative cases are the same equation.",
-              "So {{m}}x{{b|signed}}=0 is solved only once.",
-              "The unique solution is x={{h}}."
-            ],
-            "answerSummary": "One distinct real solution: x={{h}}."
-          },
-          "attemptFeedback": [
-            "Focus on whether the two cases are actually different when the right side is zero."
-          ],
-          "supportHints": [
-            "Compare +0 and -0 before solving."
-          ],
-          "generator": {
-            "parameters": {
-              "m": {
-                "type": "int",
-                "min": 2,
-                "max": 5
-              },
-              "h": {
-                "type": "int",
-                "min": -8,
-                "max": 8
-              }
-            },
-            "derived": {
-              "b": "-m*h"
-            }
-          }
-        }
-      ]
+      }
     }
   ]
 }
