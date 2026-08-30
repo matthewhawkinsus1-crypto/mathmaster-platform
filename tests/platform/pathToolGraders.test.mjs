@@ -72,6 +72,23 @@ const CASES = {
       ['empty work', {}, false],
     ],
   },
+  graphing2: {
+    question: {
+      type: 'graphing2',
+      prompt: 'Graph 2x + y = 4.',
+      mode: 'standardForm',
+      standard: { A: 2, B: 1, C: 4 },
+      graphBounds: { xMin: -5, xMax: 5, yMin: -5, yMax: 6 },
+    },
+    correct: { points: [[0, 4], [2, 0]], studentLine: { kind: 'forged', isCorrect: false } },
+    variants: [
+      ['different correct points', { points: [[1, 2], [3, -2]] }, true],
+      ['one point off', { points: [[0, 4], [2, 1]] }, false],
+      ['wrong parallel line', { points: [[0, 3], [2, -1]] }, false],
+      ['one point only', { points: [[0, 4]] }, 'reject'],
+      ['same point twice', { points: [[0, 4], [0, 4]] }, 'reject'],
+    ],
+  },
   relationMapping: {
     question: { type: 'relationMapping', prompt: 'Map', pairs: [{ x: 1, y: 2 }, { x: 2, y: 4 }], ask: ['domain', 'range', 'isFunction'] },
     correct: { domain: [1, 2], range: [2, 4], isFunction: true },
