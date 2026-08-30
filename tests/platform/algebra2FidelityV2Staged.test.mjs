@@ -10,6 +10,7 @@ import {
   isPathEligible,
 } from '../../functions/shared/pathToolContracts.mjs';
 import { REPRESENTATIONS, TASK_TYPES } from '../../functions/shared/pathQuestionQuality.mjs';
+import { parsePolynomial, splitEquationSides } from '../../functions/shared/algebraicForm.mjs';
 import {
   feasibleRegionPolygon,
   satisfiesLinearInequality,
@@ -1115,5 +1116,135 @@ test('A2.3G determines possible solutions and requires a feasible candidate acro
   assert.equal(spoiledVerdictsRejected, entry.documents.length);
   assert.equal(spoiledCandidatesRejected, entry.documents.length);
   assert.ok(representations.size >= 4);
+});
+
+test('A2.4A requires a complete quadratic authored from exactly three specified points', async () => {
+  const entry = payload('A2.4A');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /student-authored-quadratic-functions-from-exactly-three-specified-points/);
+
+  const representations = new Set();
+  const taskTypes = new Set();
+  let generatedCount = 0;
+  let noZeroXFamilies = 0;
+  let coefficientSetupFamilies = 0;
+  let errorRepairFamilies = 0;
+
+  const rowCells = (row) => (Array.isArray(row) ? row : (Array.isArray(row?.cells) ? row.cells : []));
+  const sourcePoints = (question) => {
+    if (question.stimulus?.table?.rows?.length) {
+      return question.stimulus.table.rows.map((row) => {
+        const cells = rowCells(row);
+        return { x:Number(cells[0]), y:Number(cells[1]) };
+      });
+    }
+    if (question.stimulus?.orderedPairs?.length) {
+      return question.stimulus.orderedPairs.map((pair) => (
+        Array.isArray(pair)
+          ? { x:Number(pair[0]), y:Number(pair[1]) }
+          : { x:Number(pair.x), y:Number(pair.y) }
+      ));
+    }
+    if (question.stimulus?.graph?.points?.length) {
+      return question.stimulus.graph.points.map((point) => ({ x:Number(point.x), y:Number(point.y) }));
+    }
+    return [];
+  };
+
+  const evaluateQuadraticAnswerAt = (equation, x) => {
+    const sides = splitEquationSides(equation);
+    assert.ok(sides, `cannot split generated quadratic answer: ${equation}`);
+    const poly = parsePolynomial(sides.right);
+    assert.ok(poly, `cannot parse generated quadratic answer: ${equation}`);
+    return [...poly.entries()].reduce((sum, [key, coefficient]) => {
+      if (key === '') return sum + coefficient;
+      if (key === 'x') return sum + coefficient * x;
+      if (key === 'x^2') return sum + coefficient * x * x;
+      assert.fail(`unexpected monomial ${key} in A2.4A standard-form key ${equation}`);
+    }, 0);
+  };
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    taskTypes.add(doc.taskType);
+
+    const authoredPoints = sourcePoints(doc);
+    assert.equal(authoredPoints.length, 3, `${doc.id} must visibly provide exactly three specified points`);
+    assert.equal(
+      JSON.stringify({ prompt:doc.prompt, stimulus:doc.stimulus }).includes('{{a}}'),
+      false,
+      `${doc.id} leaks the generated leading coefficient into the given information`,
+    );
+
+    const finalField = (doc.responseFields || []).find((field) => field.id === 'quadratic');
+    assert.ok(finalField, `${doc.id} must require the complete quadratic function`);
+    assert.equal(finalField.inputProfile, 'equation');
+
+    if (authoredPoints.every((point) => Number(point.x) !== 0)) noZeroXFamilies += 1;
+    const setupFields = (doc.responseFields || []).filter((field) => (
+      field.inputProfile === 'equation' && field.id !== 'quadratic'
+    ));
+    if (setupFields.length >= 3) coefficientSetupFamilies += 1;
+    if (doc.taskType === 'errorAnalysis' && setupFields.length >= 3) errorRepairFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const points = sourcePoints(question);
+      assert.equal(points.length, 3, `${doc.id} lost one of its three source points after generation`);
+      assert.ok(points.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)));
+
+      const quadraticKey = question.responseFields?.find((field) => field.id === 'quadratic')?.expected;
+      assert.ok(quadraticKey);
+      points.forEach((point) => {
+        assert.ok(
+          Math.abs(evaluateQuadraticAnswerAt(quadraticKey, point.x) - point.y) <= 1e-8,
+          `${doc.id} generated a quadratic key that misses source point (${point.x}, ${point.y}): ${quadraticKey}`,
+        );
+      });
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const result = await gradeResponse(grading, { responses });
+      assert.equal(
+        result.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(result.fieldResults)}`,
+      );
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+      assert.equal(sourcePoints(publicQuestion).length, 3, `${doc.id} public payload does not render all three specified points`);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(noZeroXFamilies >= 2, 'A2.4A must repeatedly prevent the shortcut of always reading c from an x=0 point');
+  assert.ok(coefficientSetupFamilies >= 2, 'A2.4A must include repeated three-equation coefficient setup, not only final-answer boxes');
+  assert.ok(errorRepairFamilies >= 1, 'A2.4A error analysis must repair the coefficient system and finish the quadratic');
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('orderedPairs'));
+  assert.ok(representations.has('graph'));
+  assert.ok(representations.has('context'));
+  assert.ok(representations.has('verbal'));
+  assert.ok(taskTypes.has('procedural'));
+  assert.ok(taskTypes.has('reverseReasoning'));
+  assert.ok(taskTypes.has('representationTranslation'));
+  assert.ok(taskTypes.has('modeling'));
+  assert.ok(taskTypes.has('errorAnalysis'));
 });
 
