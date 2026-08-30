@@ -2377,3 +2377,136 @@ test('A2.5A determines transformed exponential and logarithmic graph attributes 
   assert.ok(representations.has('verbal'));
 });
 
+test('A2.5B formulates explicit, recursive, and logarithmic real-world models', async () => {
+  const entry = payload('A2.5B');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /explicit-recursive-exponential-and-authentic-logarithmic-models/);
+
+  let generatedCount = 0;
+  let growthFamilies = 0;
+  let decayFamilies = 0;
+  let recursiveFamilies = 0;
+  let tableFamilies = 0;
+  let logarithmicFamilies = 0;
+  let errorFamilies = 0;
+  let wrongModelRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const text = stringValues(doc).join(' ').toLowerCase();
+    if (/growth/.test(text)) growthFamilies += 1;
+    if (/decay|loses|retained/.test(text)) decayFamilies += 1;
+    if ((doc.responseFields || []).some((field) => field.id === 'recursive')) recursiveFamilies += 1;
+    if (doc.representation === 'table') tableFamilies += 1;
+    if (/logarithmic model|log-scale|log base 10|log_10/.test(text)) logarithmicFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    if (doc.id.includes('growth') || doc.id.includes('decay') || doc.id.includes('table-infer')) {
+      const ids = new Set((doc.responseFields || []).map((field) => field.id));
+      assert.ok(ids.has('explicit'), `${doc.id} must require an explicit exponential equation`);
+      assert.ok(ids.has('initial'), `${doc.id} must require a recursive initial condition`);
+      assert.ok(ids.has('recursive'), `${doc.id} must require a recursive multiplier equation`);
+    }
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let spoiledChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const fields = Object.fromEntries(
+        (question.responseFields || []).map((field) => [field.id, field]),
+      );
+
+      if (doc.id.includes('growth-explicit')) {
+        const factor = Number(fields.factor?.expected);
+        assert.ok(factor > 1, `${doc.id} growth factor must be greater than 1`);
+        assert.ok(String(fields.explicit?.expected).includes(String(factor)));
+        assert.ok(String(fields.recursive?.expected).includes(String(factor)));
+      }
+
+      if (doc.id.includes('decay-explicit')) {
+        const factor = Number(fields.factor?.expected);
+        assert.ok(factor > 0 && factor < 1, `${doc.id} decay factor must lie between 0 and 1`);
+        assert.ok(String(fields.explicit?.expected).includes(String(factor)));
+        assert.ok(String(fields.recursive?.expected).includes(String(factor)));
+      }
+
+      if (doc.id.includes('table-infer-ratio')) {
+        const rows = question.stimulus?.table?.rows || [];
+        assert.equal(rows.length, 4);
+        const values = rows.map((row) => Number(row[1]));
+        const ratio = Number(fields.ratio?.expected);
+        assert.ok(Number.isFinite(ratio) && ratio > 1);
+        assert.ok(values.slice(1).every((value,index) => Math.abs(value / values[index] - ratio) <= 1e-9));
+        assert.ok(String(fields.explicit?.expected).includes(`(${ratio})^n`));
+        assert.ok(String(fields.recursive?.expected).includes(String(ratio)));
+      }
+
+      if (doc.id.includes('logarithmic-ratio-scale')) {
+        assert.match(String(fields.ratio?.expected), /^I\//);
+        assert.match(String(fields.model?.expected), /^L=10log_10\(I\//);
+        assert.equal(fields.domain?.expected, 'positive');
+      }
+
+      if (doc.id.includes('growth-factor-error')) {
+        const factor = Number(fields.factor?.expected);
+        assert.ok(factor > 1);
+        assert.equal(fields.diagnosis?.expected, 'whole');
+        assert.ok(String(fields.explicit?.expected).includes(String(factor)));
+        assert.ok(String(fields.recursive?.expected).includes(String(factor)));
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(correct.fieldResults)}`,
+      );
+
+      if (!spoiledChecked) {
+        const modelField = grading.fields.find((field) => ['explicit','model','recursive'].includes(field.id));
+        assert.ok(modelField, `${doc.id} must contain a student-authored model field`);
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, [modelField.id]:'y=x+1' },
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted a nonmatching model equation`);
+        wrongModelRejected += 1;
+        spoiledChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(growthFamilies >= 2, 'A2.5B must repeatedly formulate exponential growth models');
+  assert.ok(decayFamilies >= 1, 'A2.5B must formulate exponential decay models');
+  assert.ok(recursiveFamilies >= 4, 'A2.5B must repeatedly formulate recursive exponential relationships');
+  assert.ok(tableFamilies >= 1, 'A2.5B must infer an exponential ratio from tabular data before formulating the model');
+  assert.ok(logarithmicFamilies >= 1, 'A2.5B must include authentic logarithmic real-world model formulation');
+  assert.ok(errorFamilies >= 1, 'A2.5B must repair a faulty model and still write the corrected equations');
+  assert.equal(wrongModelRejected, entry.documents.length);
+  assert.ok(representations.has('context'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('multipleRepresentation'));
+  assert.ok(representations.has('verbal'));
+});
+
