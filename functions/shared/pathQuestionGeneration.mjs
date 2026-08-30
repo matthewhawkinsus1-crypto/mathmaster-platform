@@ -465,13 +465,123 @@ export const hasPathGenerator = (question) => Boolean(
   || (Array.isArray(question?.variants) && question.variants.some((variant) => hasDirectPathGenerator(variant)))
 );
 
-const selectPathVariant = (template, seedKey) => {
-  const variants = Array.isArray(template?.variants) ? template.variants.filter((entry) => entry && typeof entry === 'object') : [];
+const finitePreference = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const mergedPathVariant = (template, variant) => {
+  const { variants: unusedVariants, ...base } = template || {};
+  return variant ? { ...base, ...variant } : base;
+};
+
+/**
+ * Every effective variant row a family can issue.
+ *
+ * A family with no variants has one row: itself. A family with variants has one
+ * row per authored variant; the base document supplies inherited fields exactly
+ * the same way generation does.
+ */
+export const effectivePathVariants = (template) => {
+  const variants = Array.isArray(template?.variants)
+    ? template.variants.filter((entry) => entry && typeof entry === 'object')
+    : [];
+  if (!variants.length) {
+    return [{
+      template: mergedPathVariant(template, null),
+      variant: null,
+      variantIndex: null,
+      dok: finitePreference(template?.dok) ?? 2,
+      difficultyBand: finitePreference(template?.difficultyBand) ?? 3,
+    }];
+  }
+  return variants.map((variant, variantIndex) => {
+    const effective = mergedPathVariant(template, variant);
+    return {
+      template: effective,
+      variant,
+      variantIndex,
+      dok: finitePreference(effective?.dok) ?? 2,
+      difficultyBand: finitePreference(effective?.difficultyBand) ?? 3,
+    };
+  });
+};
+
+/**
+ * Rank a family's effective variants against an adaptive target.
+ *
+ * Complexity remains the first accessibility axis, mirroring
+ * pathQuestionSelection: nearest band first, easier side at an equal distance,
+ * then nearest DOK. Exact authored cells therefore always win, while a target
+ * above the authored ceiling (for example legacy pass-level Band 5) degrades to
+ * the nearest real cell instead of producing an empty session.
+ */
+export const rankPathVariantsForTarget = (template, {
+  preferredDok = null,
+  preferredDifficultyBand = null,
+} = {}) => {
+  const targetDok = finitePreference(preferredDok);
+  const targetBand = finitePreference(preferredDifficultyBand);
+  return effectivePathVariants(template)
+    .map((entry) => {
+      const bandDistance = targetBand == null ? 0 : Math.abs(entry.difficultyBand - targetBand);
+      const dokDistance = targetDok == null ? 0 : Math.abs(entry.dok - targetDok);
+      const easierTie = targetBand == null ? 0 : entry.difficultyBand - targetBand;
+      return { ...entry, bandDistance, dokDistance, easierTie };
+    })
+    .sort((a, b) => (
+      a.bandDistance - b.bandDistance
+      || a.easierTie - b.easierTie
+      || a.dokDistance - b.dokDistance
+      || (a.variantIndex ?? -1) - (b.variantIndex ?? -1)
+    ));
+};
+
+export const bestPathVariantForTarget = (template, options = {}) => (
+  rankPathVariantsForTarget(template, options)[0] || {
+    template: mergedPathVariant(template, null),
+    variant: null,
+    variantIndex: null,
+    dok: finitePreference(template?.dok) ?? 2,
+    difficultyBand: finitePreference(template?.difficultyBand) ?? 3,
+    bandDistance: 0,
+    dokDistance: 0,
+    easierTie: 0,
+  }
+);
+
+const selectPathVariant = (template, seedKey, options = {}) => {
+  const variants = Array.isArray(template?.variants)
+    ? template.variants.filter((entry) => entry && typeof entry === 'object')
+    : [];
   if (!variants.length) return { template, variantIndex: null };
+
+  const targetDok = finitePreference(options?.preferredDok);
+  const targetBand = finitePreference(options?.preferredDifficultyBand);
   const random = createSeededRandom(`${template.id || 'template'}|${seedKey}|variant`);
-  const variantIndex = Math.floor(random() * variants.length);
-  const { variants: unusedVariants, ...base } = template;
-  return { template: { ...base, ...variants[variantIndex] }, variantIndex };
+
+  // No adaptive target means legacy deterministic-random variant selection.
+  if (targetDok == null && targetBand == null) {
+    const variantIndex = Math.floor(random() * variants.length);
+    return { template: mergedPathVariant(template, variants[variantIndex]), variantIndex };
+  }
+
+  const ranked = rankPathVariantsForTarget(template, {
+    preferredDok: targetDok,
+    preferredDifficultyBand: targetBand,
+  });
+  const best = ranked[0];
+  if (!best) return { template: mergedPathVariant(template, null), variantIndex: null };
+
+  // If more than one variant is equally good, retain seeded variety among only
+  // those equally good rows. A reload therefore reproduces the same choice.
+  const tied = ranked.filter((entry) => (
+    entry.bandDistance === best.bandDistance
+    && entry.dokDistance === best.dokDistance
+    && entry.easierTie === best.easierTie
+  ));
+  const selected = tied[Math.floor(random() * tied.length)] || best;
+  return { template: selected.template, variantIndex: selected.variantIndex };
 };
 
 /**
@@ -482,8 +592,8 @@ const selectPathVariant = (template, seedKey) => {
  * broken template, and it has to be refused at import rather than at the moment
  * a student asks for a question.
  */
-export const generatePathInstance = (template, seedKey) => {
-  const selected = selectPathVariant(template, seedKey);
+export const generatePathInstance = (template, seedKey, options = {}) => {
+  const selected = selectPathVariant(template, seedKey, options);
   const resolvedTemplate = selected.template;
   if (!hasDirectPathGenerator(resolvedTemplate)) {
     return { question: resolvedTemplate, parameters: selected.variantIndex == null ? null : { __variantIndex: selected.variantIndex }, reason: null };
@@ -567,13 +677,13 @@ export const samplePathInstances = (template, count = 8) => Array.from({ length:
  * deterministic: the first seed that works is a function of the input, so a
  * reload returns the same question.
  */
-export const generatePathInstanceWithRetries = (template, seedKey, retries = 4) => {
-  const first = generatePathInstance(template, seedKey);
+export const generatePathInstanceWithRetries = (template, seedKey, retries = 4, options = {}) => {
+  const first = generatePathInstance(template, seedKey, options);
   if (first.question || !hasPathGenerator(template)) return first;
   // An unbound placeholder is a fault in the document and no seed will fix it.
   if (String(first.reason || '').startsWith('unbound_placeholders')) return first;
   for (let attempt = 1; attempt <= retries; attempt += 1) {
-    const next = generatePathInstance(template, `${seedKey}|retry-${attempt}`);
+    const next = generatePathInstance(template, `${seedKey}|retry-${attempt}`, options);
     if (next.question) return next;
   }
   return first;
