@@ -262,17 +262,38 @@ Certification result:
 
 Do **not** re-audit A2.3G unless a named regression/certification test fails.
 
-## Active standard
+## Completed: A2.4A
 
-### A2.4A — REBUILD — STAGED / CERTIFICATION RUNNING
+### A2.4A — REBUILD — CERTIFIED
 
 Official construct: **Write a quadratic function given three specified points in the plane.**
 
+Certification result:
+- five Fidelity V2 families staged;
+- every family visibly provides exactly three specified points and requires the complete quadratic function;
+- no family gives away the generated leading coefficient;
+- table, ordered-pair, graph, contextual, and error-analysis representations are all present;
+- multiple families omit x=0 so c cannot always be read directly;
+- multiple families require the three-equation coefficient setup before the final function;
+- generated final equations are verified against all three source points;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- public payloads retain all three source points while stripping answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33319282779`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4A unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.4B — PENDING AUDIT
+
+Official construct: **Write the equation of a parabola using given attributes, including vertex, focus, directrix, axis of symmetry, and direction of opening.**
+
 ## FIRST UNFINISHED STANDARD
 
-### A2.4A
+### A2.4B
 
-Resume here. Do not reopen A2.2A–A2.3G unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.4A unless a failing gate names them.
 
 
 ### 2026-08-30 — A2.4A audit finding
@@ -312,8 +333,11 @@ Resume here. Do not reopen A2.2A–A2.3G unless a failing gate names them.
   - error analysis that repairs the three-equation coefficient setup and still writes the complete quadratic.
 - Added A2.4A-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `55008332f7b5837fc72f24ec957c271a8fc687e2`.
 - The A2.4A gate samples 200+ generated instances, requires exactly three visible source points per family, forbids leaking the generated leading coefficient into the givens, verifies the generated final quadratic numerically passes all three points, self-grades the exact generated response through the secure field grader, checks public answer-key stripping, requires repeated no-x=0 families, repeated coefficient-system setup, and complete error repair.
-- Full A2.4A assertion run `33319277754`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.4A** until that run is green.
+- The initial assertion run `33319277754` was superseded by an overlapping certification commit before its tests started.
+- Replacement Algebra II Fidelity V2 Certification run `33319282779`: **PASS**.
+- Generated source-point visibility, production issue gate, secure self-grading, three-point equation fit, representation breadth, coefficient-setup breadth, public-key stripping, and student/runtime build all passed.
+- A2.4A is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4B**.
 
 
 ### 2026-08-30 — A2.3G audit finding
