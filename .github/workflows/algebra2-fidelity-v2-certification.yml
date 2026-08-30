@@ -29,6 +29,7 @@ on:
       - "tests/platform/polynomialRelationAnswerEquivalence.test.mjs"
       - "tests/platform/absoluteValueLinearRelationAnswerEquivalence.test.mjs"
       - "tests/platform/modelEquationAnswerEquivalence.test.mjs"
+      - "tests/platform/setBuilderAnswerEquivalence.test.mjs"
       - "tests/platform/systemsMatrix3Technology.test.mjs"
       - "tests/platform/pathDataModelingGrading.test.mjs"
       - ".github/workflows/algebra2-fidelity-v2-certification.yml"
@@ -56,6 +57,7 @@ on:
       - "tests/platform/polynomialRelationAnswerEquivalence.test.mjs"
       - "tests/platform/absoluteValueLinearRelationAnswerEquivalence.test.mjs"
       - "tests/platform/modelEquationAnswerEquivalence.test.mjs"
+      - "tests/platform/setBuilderAnswerEquivalence.test.mjs"
       - "tests/platform/systemsMatrix3Technology.test.mjs"
       - "tests/platform/pathDataModelingGrading.test.mjs"
       - ".github/workflows/algebra2-fidelity-v2-certification.yml"
@@ -84,6 +86,7 @@ jobs:
             tests/platform/polynomialRelationAnswerEquivalence.test.mjs \
             tests/platform/absoluteValueLinearRelationAnswerEquivalence.test.mjs \
             tests/platform/modelEquationAnswerEquivalence.test.mjs \
+            tests/platform/setBuilderAnswerEquivalence.test.mjs \
             tests/platform/systemsMatrix3Technology.test.mjs
       - name: Build student/runtime bundle
         run: npm run build
