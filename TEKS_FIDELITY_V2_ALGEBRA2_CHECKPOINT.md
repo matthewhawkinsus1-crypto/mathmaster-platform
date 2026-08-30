@@ -683,9 +683,36 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.7C
+### A2.7D
 
-Resume here. Do not reopen A2.2A–A2.7B unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.7C unless a failing gate names them.
+
+
+### 2026-08-30 — A2.7D audit finding
+- Official construct: **determine the linear factors of a polynomial function of degree three and of degree four using algebraic methods**.
+- TEA breakout requires both:
+  - determine linear factors of a degree-3 polynomial function using algebraic methods;
+  - determine linear factors of a degree-4 polynomial function using algebraic methods.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - Factor Theorem language, rational-root candidates, cubic factorization, and one factor-check misconception are represented.
+- Legacy limitations:
+  - several families **give the zeros first** and merely ask students to translate a zero into a factor;
+  - one family uses a graph/x-intercept instead of the required algebraic method;
+  - the Rational Root Theorem family asks only for the candidate rule and never tests candidates or determines factors;
+  - quartic polynomial functions are effectively absent from actual factor determination;
+  - the error-analysis family only rules out one proposed factor and does not finish the polynomial's linear factors;
+  - multiplicity and non-integer rational roots are absent.
+- Fidelity V2 requirements:
+  - start from expanded cubic/quartic polynomial functions rather than handing students the complete zero list;
+  - repeatedly use algebraic methods such as Rational Root Theorem candidate testing, direct evaluation, synthetic division, and factoring of the reduced polynomial;
+  - include both degree 3 and degree 4 multiple times;
+  - include a non-monic polynomial with a non-integer rational zero;
+  - include a repeated-root/multiplicity case;
+  - require students to connect each determined zero to its matching linear factor;
+  - include complete algebraic-method error analysis and finish all requested linear factors;
+  - exclude graph-only factor identification from Fidelity V2 because the standard explicitly requires algebraic methods.
+- Generic secure numeric/expression grading is sufficient; no new Path tool is required.
 
 
 ### 2026-08-30 — A2.7C audit finding
@@ -726,8 +753,10 @@ Resume here. Do not reopen A2.2A–A2.7B unless a failing gate names them.
 - Added A2.7C-specific generated certification — commit `f009bb00bf85b0100e1b659749a92c6756a2896a`.
 - First dedicated run `33330956049`: **FAIL** due only to a certification selector: `quartic-linear-remainder` unintentionally matched the broader `linear-remainder` condition and the test tried to read quadratic-family parameters that do not exist. No generated division mathematics failed.
 - Narrowed the selector to `quartic-quadratic-linear-remainder` — commit `879f45acf8447883bb700088e284d2e398528c1c`.
-- Replacement full certification run `33330999085`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.7C** until the replacement run is green.
+- Replacement full certification run `33330999085`: **PASS**.
+- All four TEA quotient degree combinations, exact/nonexact remainder mathematics, production issuability, secure self-grading, equivalent quotient/remainder ordering, wrong quotient rejection, DOK-vs-difficulty discipline, public key stripping, and student/runtime build passed.
+- A2.7C is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7D**.
 
 
 ### 2026-08-30 — A2.7B audit finding
