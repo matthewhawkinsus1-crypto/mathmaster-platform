@@ -1,0 +1,60 @@
+name: Algebra II Fidelity V2 Certification
+
+concurrency:
+  group: algebra2-fidelity-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - audit/teks-fidelity-v2-algebra2-current
+    paths:
+      - "drafts/fidelity-v2/algebra2/**"
+      - "functions/shared/pathQuestionGeneration.mjs"
+      - "functions/shared/pathToolContracts.mjs"
+      - "src/InteractiveGraphWorkspace.jsx"
+      - "src/components/student/PathQuestionStimulus.jsx"
+      - "tests/platform/algebra2FidelityV2Staged.test.mjs"
+      - "tests/platform/inverseReflectionExperience.test.mjs"
+      - "tests/platform/inverseRadicalAnswerEquivalence.test.mjs"
+      - "tests/platform/inverseFunctionEquationAnswer.test.mjs"
+      - "tests/platform/pathQuestionGeneration.test.mjs"
+      - ".github/workflows/algebra2-fidelity-v2-certification.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "drafts/fidelity-v2/algebra2/**"
+      - "functions/shared/pathQuestionGeneration.mjs"
+      - "functions/shared/pathToolContracts.mjs"
+      - "src/InteractiveGraphWorkspace.jsx"
+      - "src/components/student/PathQuestionStimulus.jsx"
+      - "tests/platform/algebra2FidelityV2Staged.test.mjs"
+      - "tests/platform/inverseReflectionExperience.test.mjs"
+      - "tests/platform/inverseRadicalAnswerEquivalence.test.mjs"
+      - "tests/platform/inverseFunctionEquationAnswer.test.mjs"
+      - "tests/platform/pathQuestionGeneration.test.mjs"
+      - ".github/workflows/algebra2-fidelity-v2-certification.yml"
+  workflow_dispatch:
+
+jobs:
+  certify-staged-algebra2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Run staged Algebra II generated-instance and inverse-contract gates
+        run: |
+          node --test \
+            tests/platform/algebra2FidelityV2Staged.test.mjs \
+            tests/platform/inverseReflectionExperience.test.mjs \
+            tests/platform/inverseRadicalAnswerEquivalence.test.mjs \
+            tests/platform/inverseFunctionEquationAnswer.test.mjs \
+            tests/platform/pathQuestionGeneration.test.mjs
+      - name: Build student/runtime bundle
+        run: npm run build
