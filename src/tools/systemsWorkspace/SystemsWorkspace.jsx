@@ -393,6 +393,243 @@ function LinearQuadraticMode({ questionData, onAction }) {
   </ToolSplit>;
 }
 
+const matrix3Rows = (value = {}) => {
+  const rows = Array.isArray(value) ? value : (Array.isArray(value?.rows) ? value.rows : []);
+  if (rows.length !== 3) return [];
+  const clean = rows.map((row) => (
+    Array.isArray(row) ? row.slice(0, 4).map(Number) : [row.a, row.b, row.c, row.d].map(Number)
+  ));
+  return clean.every((row) => row.length === 4 && row.every(Number.isFinite)) ? clean : [];
+};
+
+const matrix3Operation = (matrix, operation = {}) => {
+  const rows = matrix3Rows({ rows:matrix });
+  const target = Number(operation.targetRow);
+  const source = Number(operation.sourceRow);
+  const factor = Number(operation.factor);
+  if (!rows.length || ![target, source, factor].every(Number.isFinite)
+    || target < 0 || target > 2 || source < 0 || source > 2 || target === source) return null;
+  const next = rows.map((row) => [...row]);
+  next[target] = next[target].map((entry, index) => entry - factor * next[source][index]);
+  return next;
+};
+
+const solveMatrix3Local = (value = {}) => {
+  const rows = matrix3Rows(value);
+  if (!rows.length) return { type:null, matrix:[], solution:null };
+  const a = rows.map((row) => [...row]);
+  let pivotRow = 0;
+  const pivotColumns = [];
+  for (let col = 0; col < 3 && pivotRow < 3; col += 1) {
+    let best = pivotRow;
+    for (let row = pivotRow + 1; row < 3; row += 1) {
+      if (Math.abs(a[row][col]) > Math.abs(a[best][col])) best = row;
+    }
+    if (Math.abs(a[best][col]) <= 1e-9) continue;
+    [a[pivotRow], a[best]] = [a[best], a[pivotRow]];
+    const pivot = a[pivotRow][col];
+    a[pivotRow] = a[pivotRow].map((entry) => entry / pivot);
+    for (let row = 0; row < 3; row += 1) {
+      if (row === pivotRow) continue;
+      const factor = a[row][col];
+      if (Math.abs(factor) <= 1e-9) continue;
+      a[row] = a[row].map((entry, index) => entry - factor * a[pivotRow][index]);
+    }
+    pivotColumns.push(col);
+    pivotRow += 1;
+  }
+  const matrix = a.map((row) => row.map((entry) => Math.abs(entry) <= 1e-9 ? 0 : entry));
+  if (matrix.some((row) => row.slice(0,3).every((entry) => Math.abs(entry) <= 1e-9) && Math.abs(row[3]) > 1e-9)) {
+    return { type:'none', matrix, solution:null };
+  }
+  if (pivotColumns.length < 3) return { type:'infinite', matrix, solution:null };
+  return { type:'one', matrix, solution:{ x:matrix[0][3], y:matrix[1][3], z:matrix[2][3] } };
+};
+
+const rowClose = (left, right, tolerance = 0.03) => (
+  Array.isArray(left) && Array.isArray(right) && left.length === 4
+  && left.every((entry, index) => Number.isFinite(Number(entry))
+    && Math.abs(Number(entry) - Number(right[index])) <= tolerance)
+);
+
+function Matrix3Mode({ questionData, onAction }) {
+  const matrix = useMemo(() => matrix3Rows(questionData.matrix), [questionData.matrix]);
+  const method = questionData.method === 'rref' ? 'rref' : 'gaussian';
+  const operations = Array.isArray(questionData.rowOperations) ? questionData.rowOperations : [];
+  const solution = useMemo(() => solveMatrix3Local({ rows:matrix }), [matrix]);
+  const expectedCheckpoints = useMemo(() => {
+    let working = matrix;
+    const rows = [];
+    operations.forEach((operation) => {
+      const next = matrix3Operation(working, operation);
+      if (!next) return;
+      working = next;
+      rows.push([...working[Number(operation.targetRow)]]);
+    });
+    return rows;
+  }, [matrix, operations]);
+  const revealAnswers = useRevealAnswers();
+  const [classification, setClassification] = useState('one');
+  const [x, setX] = useState('');
+  const [y, setY] = useState('');
+  const [z, setZ] = useState('');
+  const [checkpoints, setCheckpoints] = useState(() => operations.map(() => ['', '', '', '']));
+  const [rrefRows, setRrefRows] = useState(() => Array.from({ length:3 }, () => ['', '', '', '']));
+  const { feedback, submit } = useToolSubmission(onAction);
+
+  const updateCheckpoint = (rowIndex, cellIndex, value) => {
+    setCheckpoints((current) => current.map((row, index) => (
+      index === rowIndex ? row.map((cell, cIndex) => cIndex === cellIndex ? value : cell) : row
+    )));
+  };
+  const updateRref = (rowIndex, cellIndex, value) => {
+    setRrefRows((current) => current.map((row, index) => (
+      index === rowIndex ? row.map((cell, cIndex) => cIndex === cellIndex ? value : cell) : row
+    )));
+  };
+
+  const numericCheckpoints = checkpoints.map((row) => row.map((entry) => parseNumericAnswer(entry)));
+  const numericRref = rrefRows.map((row) => row.map((entry) => parseNumericAnswer(entry)));
+
+  const check = () => {
+    const parts = [];
+    const classCorrect = classification === solution.type;
+    parts.push(classCorrect);
+
+    if (method === 'gaussian') {
+      expectedCheckpoints.forEach((expected, index) => {
+        parts.push(rowClose(numericCheckpoints[index], expected));
+      });
+    } else {
+      parts.push(numericRref.length === 3 && numericRref.every((row, index) => rowClose(row, solution.matrix[index])));
+    }
+
+    const solutionCorrect = solution.type !== 'one'
+      || (
+        matchesNumericAnswer(x, solution.solution?.x, 0.03)
+        && matchesNumericAnswer(y, solution.solution?.y, 0.03)
+        && matchesNumericAnswer(z, solution.solution?.z, 0.03)
+      );
+    if (solution.type === 'one') parts.push(solutionCorrect);
+
+    const response = method === 'gaussian'
+      ? { classification, checkpoints:numericCheckpoints, x, y, z }
+      : { classification, rref:numericRref, x, y, z };
+
+    submit(
+      { isCorrect:parts.length > 0 && parts.every(Boolean), score:parts.length ? parts.filter(Boolean).length / parts.length : 0 },
+      response,
+      { mode:'matrix3', method, checks:{ classCorrect, solutionCorrect } },
+    );
+  };
+
+  const operationLabel = (operation) => {
+    const target = Number(operation.targetRow) + 1;
+    const source = Number(operation.sourceRow) + 1;
+    const factor = Number(operation.factor);
+    return `R${target} ← R${target} − (${factor})R${source}`;
+  };
+
+  const message = () => {
+    if (feedback?.isCorrect) return 'Correct — your row-reduction evidence and final classification agree with the 3×3 system.';
+    if (feedback?.metadata?.checks?.classCorrect === false) return 'Recheck the reduced rows before classifying the system. A contradiction row means no solution; a free variable means infinitely many.';
+    return method === 'gaussian'
+      ? 'At least one row-operation checkpoint or final value needs revision. Apply each displayed row operation to the CURRENT matrix, not the original one.'
+      : 'At least one RREF entry or final value needs revision. Re-run the matrix RREF calculation and copy all twelve entries carefully.';
+  };
+
+  if (!matrix.length) {
+    return <Panel title="3×3 matrix"><p>This 3×3 system is missing a valid augmented matrix. Tell your teacher.</p></Panel>;
+  }
+
+  return <ToolSplit>
+    <Panel title="3×3 augmented matrix">
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,minmax(58px,78px))',justifyContent:'center',gap:7,fontSize:19,fontWeight:800,margin:'20px 0'}}>
+        {matrix.flatMap((row, rowIndex) => row.map((value, colIndex) => (
+          <div key={`${rowIndex}-${colIndex}`} style={{padding:10,textAlign:'center',background:colIndex===3?'#fff5e6':'#eef4ff',borderRadius:8}}>
+            {value}
+          </div>
+        )))}
+      </div>
+      <p style={{color:'#5f6b7a',lineHeight:1.55}}>
+        Columns 1–3 are the coefficients of x, y, and z. The shaded fourth column is the constant.
+      </p>
+
+      {method === 'gaussian' ? (
+        <>
+          <h4 style={{marginBottom:8}}>Gaussian-elimination checkpoints</h4>
+          {operations.map((operation, index) => (
+            <div key={index} style={{marginTop:12,padding:12,border:'1px solid #dfe5ef',borderRadius:10}}>
+              <strong>Step {index + 1}: {operationLabel(operation)}</strong>
+              <p style={{margin:'6px 0 9px',fontSize:13,color:'#5f6b7a'}}>Enter the four entries of the NEW target row after this operation.</p>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:7}}>
+                {checkpoints[index]?.map((value, cellIndex) => (
+                  <input key={cellIndex} type="number" inputMode="decimal" step="0.01" value={value}
+                    aria-label={`Step ${index + 1} row entry ${cellIndex + 1}`}
+                    onChange={(event)=>updateCheckpoint(index,cellIndex,event.target.value)} style={inputStyle}/>
+                ))}
+              </div>
+              {revealAnswers && expectedCheckpoints[index] ? (
+                <p style={{fontSize:12,color:'#5f6b7a',marginBottom:0}}>Teacher check: [{expectedCheckpoints[index].map((value)=>round(value,3)).join(', ')}]</p>
+              ) : null}
+            </div>
+          ))}
+        </>
+      ) : (
+        <>
+          <h4 style={{marginBottom:8}}>Technology RREF</h4>
+          <p style={{fontSize:13,color:'#5f6b7a'}}>Use approved matrix technology to calculate RREF, then enter the complete 3×4 result.</p>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:7}}>
+            {rrefRows.flatMap((row,rowIndex)=>row.map((value,cellIndex)=>(
+              <input key={`${rowIndex}-${cellIndex}`} type="number" inputMode="decimal" step="0.01" value={value}
+                aria-label={`RREF row ${rowIndex + 1} entry ${cellIndex + 1}`}
+                onChange={(event)=>updateRref(rowIndex,cellIndex,event.target.value)} style={inputStyle}/>
+            )))}
+          </div>
+        </>
+      )}
+    </Panel>
+
+    <Panel title="Classify and finish">
+      <Field label="How many solutions does this system have?">
+        <select value={classification} onChange={(event)=>setClassification(event.target.value)} style={inputStyle}>
+          <option value="one">Exactly one solution</option>
+          <option value="none">No solution</option>
+          <option value="infinite">Infinitely many solutions</option>
+        </select>
+      </Field>
+      {classification === 'one' ? (
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:9,marginTop:12}}>
+          <Field label="x"><input type="number" inputMode="decimal" step="0.01" value={x} onChange={(event)=>setX(event.target.value)} style={inputStyle}/></Field>
+          <Field label="y"><input type="number" inputMode="decimal" step="0.01" value={y} onChange={(event)=>setY(event.target.value)} style={inputStyle}/></Field>
+          <Field label="z"><input type="number" inputMode="decimal" step="0.01" value={z} onChange={(event)=>setZ(event.target.value)} style={inputStyle}/></Field>
+        </div>
+      ) : null}
+      <button type="button" onClick={check} style={actionStyle}>Check 3×3 system</button>
+      {feedback ? (
+        <div style={{marginTop:14}}>
+          <ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'Correct' : 'Not yet'}</ResultPill>
+          <p style={{margin:'9px 0 0',color:'#3c4756',lineHeight:1.55}}>{message()}</p>
+        </div>
+      ) : null}
+      <HintPanel
+        hints={method === 'gaussian'
+          ? [
+            'A row operation changes one equation without changing the solution set.',
+            'For Rᵢ ← Rᵢ − kRⱼ, multiply every entry of the source row by k, then subtract entry-by-entry.',
+            'Use the row produced by one step when the next step references that row.',
+          ]
+          : [
+            'Enter the matrix exactly as the technology reports it — three rows and four columns.',
+            'In RREF, pivot columns reveal the solved variables. A contradiction row such as [0,0,0|1] means no solution.',
+            'A missing pivot variable creates a free variable and infinitely many solutions.',
+          ]}
+        onHintUsed={()=>onAction?.('HINT_USED')}
+      />
+    </Panel>
+  </ToolSplit>;
+}
+
 function MatrixMode({ questionData, onAction }) {
   const matrix = questionData.matrix || DEFAULT_MATRIX;
   const solution = useMemo(() => solve2x2System(matrix), [matrix]);
