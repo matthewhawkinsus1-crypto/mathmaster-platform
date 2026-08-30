@@ -127,8 +127,13 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
   const weeklyPurposeLabel = session?.weeklySlotKey
     ? (PURPOSE_LABEL[session?.weeklyPurpose] || String(session?.weeklyPurpose || 'Weekly Path'))
     : null;
+  const courseChallengeIntent = !weeklyPurposeLabel
+    && !directFramework
+    && !bridgeFramework
+    && !isRetention
+    && String(questionInstance?.coursePracticeIntent || session?.coursePracticeIntent || '') === 'challenge';
   const rawCoursePassLevel = Number(questionInstance?.coursePassLevel || session?.coursePassLevel || 0);
-  const coursePassLevel = !weeklyPurposeLabel && !directFramework && !bridgeFramework && !isRetention && Number.isFinite(rawCoursePassLevel) && rawCoursePassLevel > 0
+  const coursePassLevel = !courseChallengeIntent && !weeklyPurposeLabel && !directFramework && !bridgeFramework && !isRetention && Number.isFinite(rawCoursePassLevel) && rawCoursePassLevel > 0
     ? Math.max(1, Math.min(3, Math.floor(rawCoursePassLevel)))
     : 0;
   const assessmentReferences = directFramework && questionCode
@@ -175,6 +180,11 @@ function SessionHeader({ session, questionInstance, attemptsLeft, attemptsAllowe
       {session?.weeklySlotKey && (
         <div role="status" style={{ marginTop: 8, padding: '9px 11px', borderRadius: 9, background: '#e6f4ea', border: '1px solid #b7e0c4', color: '#12633a', fontSize: 12.5, fontWeight: 850, lineHeight: 1.45 }}>
           WEEKLY PATH · {weeklyPurposeLabel || 'Assigned practice'} · Session {session?.weeklySlot || '?'}{weeklyGoalRequired ? ` of ${weeklyGoalRequired}` : ''} · Completing this session counts toward your weekly target.
+        </div>
+      )}
+      {courseChallengeIntent && (
+        <div role="status" style={{ margin: '9px 0 0', padding: '9px 11px', width: 'fit-content', maxWidth: '100%', borderRadius: 9, background: '#f3ecfd', border: '1px solid #d9c9f7', color: '#5b21b6', fontSize: 12.5, fontWeight: 900, lineHeight: 1.45 }}>
+          MY MATH PATH · Challenge · Ahead of your class, and earned
         </div>
       )}
       {coursePassLevel > 0 && (
