@@ -583,3 +583,90 @@ test('A2.3B certifies substitution, Gaussian elimination, and matrix technology 
   assert.ok(representations.size >= 5, 'A2.3B method coverage must transfer across symbolic, table, context, and error-analysis representations');
 });
 
+test('A2.3C algebraically solves linear-quadratic systems through complete ordered pairs', async () => {
+  const entry = payload('A2.3C');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /algebraic-linear-quadratic-system-solving/);
+
+  const methods = new Set();
+  const taskTypes = new Set();
+  let generatedCount = 0;
+  let completePairFamilies = 0;
+  let factoringFamilies = 0;
+  let quadraticFormulaFamilies = 0;
+  let noRealFamilies = 0;
+  let tangentFamilies = 0;
+  let errorFamilies = 0;
+
+  for (const doc of entry.documents) {
+    methods.add(doc.solutionMethod);
+    taskTypes.add(doc.taskType);
+
+    const fields = doc.responseFields || [];
+    const fieldIds = new Set(fields.map((field) => String(field.id)));
+    assert.ok(fieldIds.has('reduced'), `${doc.id} must collect the reduced quadratic equation`);
+
+    const pairFields = fields.filter((field) => field.inputProfile === 'orderedPair');
+    if (pairFields.length) completePairFamilies += 1;
+    if (doc.solutionMethod === 'factoring') factoringFamilies += 1;
+    if (doc.solutionMethod === 'quadraticFormula') quadraticFormulaFamilies += 1;
+    if (fieldIds.has('conclusion') && stringValues(doc).join(' ').includes('No real')) noRealFamilies += 1;
+    if (fieldIds.has('factor') && pairFields.length === 1) tangentFamilies += 1;
+    if (doc.taskType === 'errorAnalysis' && pairFields.length === 2) errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      const generatedFields = question.responseFields || [];
+      assert.ok(generatedFields.some((field) => field.id === 'reduced'));
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const result = await gradeResponse(grading, { responses });
+      assert.equal(
+        result.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(result.fieldResults)}`,
+      );
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(completePairFamilies >= 4, 'A2.3C must usually finish the system with complete ordered-pair solutions');
+  assert.ok(factoringFamilies >= 3, 'A2.3C must repeatedly solve by algebraic factoring/repeated-root reasoning');
+  assert.ok(quadraticFormulaFamilies >= 1, 'A2.3C must include an exact quadratic-formula solve');
+  assert.ok(noRealFamilies >= 1, 'A2.3C must include a zero-real-solution system');
+  assert.ok(tangentFamilies >= 1, 'A2.3C must include a one-solution/tangent system');
+  assert.ok(errorFamilies >= 1, 'A2.3C error analysis must repair the algebra and finish both ordered pairs');
+  assert.ok(methods.has('factoring'));
+  assert.ok(methods.has('quadraticFormula'));
+  assert.ok(methods.has('discriminant'));
+  assert.ok(taskTypes.has('procedural'));
+  assert.ok(taskTypes.has('interpretation'));
+  assert.ok(taskTypes.has('errorAnalysis'));
+
+  const twoPointFamily = entry.documents.find((doc) => doc.id.includes('factor-two-intersections'));
+  assert.equal(
+    (twoPointFamily.responseFields || []).filter((field) => field.inputProfile === 'orderedPair').length,
+    2,
+    'The legacy x-only failure must not return: a two-intersection system needs both complete ordered pairs',
+  );
+});
+
