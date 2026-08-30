@@ -125,7 +125,10 @@ templates.forEach((template) => {
     sampled += 1;
     const strings = collectStrings(result.question);
     const joined = strings.join('  ');
-    fingerprints.add(joined);
+    // Distinctness must include numeric/table/graph coordinates. The previous
+    // string-only fingerprint made a generated numeric table look fixed because
+    // every changing value lived as a number rather than a string.
+    fingerprints.add(JSON.stringify(result.question));
 
     if (LEFTOVER.test(joined)) findings.leftoverBraces.push(`${id} (seed ${index})`);
     if (BAD_NUMBER.test(joined)) {
