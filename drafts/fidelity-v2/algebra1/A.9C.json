@@ -322,7 +322,110 @@
       },
       "variants": [
         {
-          "coverageKey": "core-2b4"
+          "coverageKey": "core-2b4",
+          "dok": 2,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-table-model-claim-verification",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "table",
+          "prompt": "The table follows one constant multiplicative pattern. A student claims the relationship is linear because the outputs increase each row. Determine the common ratio, write the exponential model $y=ab^x$, use it to predict y(3), and decide whether the student's linear claim is supported.",
+          "stimulus": {
+            "kind": "table",
+            "table": {
+              "headers": [
+                "x",
+                "y"
+              ],
+              "rows": [
+                [
+                  0,
+                  "{{a}}"
+                ],
+                [
+                  1,
+                  "{{y1}}"
+                ],
+                [
+                  2,
+                  "{{y2}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "ratio",
+              "label": "Common ratio",
+              "inputProfile": "number",
+              "expected": "{{b}}"
+            },
+            {
+              "id": "equation",
+              "label": "Exponential model",
+              "inputProfile": "equation",
+              "expected": "y={{a}}({{b}})^x"
+            },
+            {
+              "id": "prediction",
+              "label": "Predicted y(3)",
+              "inputProfile": "number",
+              "expected": "{{y3}}"
+            },
+            {
+              "id": "judgment",
+              "label": "Evaluate the student's claim",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "exponential",
+                  "label": "The claim is not supported; a constant ratio indicates exponential change."
+                },
+                {
+                  "id": "linear",
+                  "label": "The claim is supported because any increasing table is linear."
+                }
+              ],
+              "expected": "exponential"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A constant ratio, not merely increasing outputs, distinguishes exponential data from linear data.",
+            "reasoning": [
+              "Each output is {{b}} times the previous output, so the common ratio is {{b}}.",
+              "The model is $y={{a}}({{b}})^x$.",
+              "It predicts y(3)={{y3}}, supporting the exponential interpretation rather than a linear one."
+            ],
+            "answerSummary": "$y={{a}}({{b}})^x$; y(3)={{y3}}."
+          },
+          "attemptFeedback": [
+            "Check ratios between successive y-values before deciding whether the pattern is linear or exponential."
+          ],
+          "supportHints": [
+            "Linear patterns have constant differences; exponential patterns have constant ratios."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 20
+              },
+              "b": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "y1": "a*b",
+              "y2": "a*b*b",
+              "y3": "a*b*b*b"
+            }
+          }
         },
         {
           "coverageKey": "challenge-d3b4-nonconsecutive-exponential-reconstruction-and-check",
