@@ -433,7 +433,7 @@
       "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
-      "prompt": "A student analyzes $f(x)=-{{a}}\\sqrt{x-({{h}})}+({{k}})$ and writes the range as $({{k}},\\infty)$, $y>{{k}}$, and ${y|y>{{k}}}$. Diagnose the errors and repair the range in interval, inequality, and set-builder notation.",
+      "prompt": "A student analyzes $f(x)=-{{a}}\\sqrt{x-({{h}})}+({{k}})$ and writes the range as $({{k}},\\infty)$, $y>{{k}}$, and $\\{y\\mid y>{{k}}\\}$. Diagnose the errors and repair the range in interval, inequality, and set-builder notation.",
       "stimulus": {
         "kind": "steps",
         "title": "Student range",
@@ -451,7 +451,7 @@
           {
             "id": "set",
             "label": "Set-builder",
-            "work": "${y|y>{{k}}}$"
+            "work": "$\\{y\\mid y>{{k}}\\}$"
           }
         ]
       },
