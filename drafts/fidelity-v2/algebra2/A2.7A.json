@@ -541,7 +541,80 @@
           "re!=0",
           "im!=0"
         ]
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-coefficient-i-square-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student multiplies $({{a}}+({{b}})i)({{c}}+({{d}})i)$ but uses $i^2=+1$. Diagnose the mistake, correct the real and imaginary components, and write the repaired product in standard form.",
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "b": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "c": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "d": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            "derived": {
+              "wrongRe": "a*c+b*d",
+              "re": "a*c-b*d",
+              "im": "a*d+b*c"
+            },
+            "constraints": [
+              "wrongRe!=re",
+              "re!=0",
+              "im!=0"
+            ]
+          }
+        }
+      ]
     }
   ]
 }
