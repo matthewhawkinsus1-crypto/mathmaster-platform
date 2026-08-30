@@ -40,7 +40,7 @@
           "label": "Domain — set-builder notation",
           "inputProfile": "expression",
           "equivalence": "setBuilder",
-          "expected": "{x|x>=({{h}})}"
+          "expected": "{x|x>={{h}}}"
         },
         {
           "id": "range-interval",
@@ -59,7 +59,7 @@
           "label": "Range — set-builder notation",
           "inputProfile": "expression",
           "equivalence": "setBuilder",
-          "expected": "{y|y>=({{k}})}"
+          "expected": "{y|y>={{k}}}"
         }
       ],
       "solutionReview": {
@@ -149,7 +149,7 @@
           "label": "Domain — set-builder notation",
           "inputProfile": "expression",
           "equivalence": "setBuilder",
-          "expected": "{x|x>=({{h}})}"
+          "expected": "{x|x>={{h}}}"
         },
         {
           "id": "range-interval",
@@ -168,7 +168,7 @@
           "label": "Range — set-builder notation",
           "inputProfile": "expression",
           "equivalence": "setBuilder",
-          "expected": "{y|y<=({{k}})}"
+          "expected": "{y|y<={{k}}}"
         }
       ],
       "solutionReview": {
@@ -262,7 +262,7 @@
           "label": "Range — set-builder notation",
           "inputProfile": "expression",
           "equivalence": "setBuilder",
-          "expected": "{y|y>=({{k}})}"
+          "expected": "{y|y>={{k}}}"
         }
       ],
       "solutionReview": {
@@ -356,7 +356,7 @@
           "label": "Domain — set-builder notation",
           "inputProfile": "expression",
           "equivalence": "setBuilder",
-          "expected": "{x|x!=({{h}})}"
+          "expected": "{x|x!={{h}}}"
         },
         {
           "id": "range-interval",
@@ -375,7 +375,7 @@
           "label": "Range — set-builder notation",
           "inputProfile": "expression",
           "equivalence": "setBuilder",
-          "expected": "{y|y!=({{k}})}"
+          "expected": "{y|y!={{k}}}"
         }
       ],
       "solutionReview": {
@@ -493,7 +493,7 @@
           "label": "Correct range — set-builder notation",
           "inputProfile": "expression",
           "equivalence": "setBuilder",
-          "expected": "{y|y<=({{k}})}"
+          "expected": "{y|y<={{k}}}"
         }
       ],
       "solutionReview": {
