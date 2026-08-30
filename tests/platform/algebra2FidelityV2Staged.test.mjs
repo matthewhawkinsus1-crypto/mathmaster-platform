@@ -779,7 +779,10 @@ test('A2.3E requires students to formulate complete systems of linear inequaliti
 
     assert.ok(inequalityFields.length >= 2, `${doc.id} must make the student write a system of at least two inequalities`);
     if (inequalityFields.length >= 3) threePlusConstraintFamilies += 1;
-    if (/\d+x.*\d+y|x\+3y|2x\+y/.test(authoredText.replace(/\\/g, ''))) coupledConstraintFamilies += 1;
+    if (inequalityFields.some((field) => {
+      const expected = String(field.expected || '').replace(/\\/g, '');
+      return expected.includes('x') && expected.includes('y');
+    })) coupledConstraintFamilies += 1;
     if (/strict|excluded|dashed/.test(authoredText.toLowerCase()) && /y</.test(authoredText.replace(/\\/g, ''))) strictBoundaryFamilies += 1;
     if (/x>=0|y>=0|nonnegative|nonnegativity/.test(authoredText.replace(/\\/g, ''))) nonnegativeFamilies += 1;
     if (doc.taskType === 'errorAnalysis' && inequalityFields.length >= 3) errorRepairFamilies += 1;
