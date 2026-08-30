@@ -26,9 +26,27 @@ import { join } from 'node:path';
 import { generatePathInstance, hasPathGenerator } from '../functions/shared/pathQuestionGeneration.mjs';
 
 const SEED_DIR = 'seed/pathQuestionBank';
-const SAMPLES = Number(process.argv[2]) || 24;
+const argValue = (name) => {
+  const index = process.argv.indexOf(name);
+  return index >= 0 ? process.argv[index + 1] : null;
+};
+const requestedBank = argValue('--bank');
+const requestedSamples = Number(argValue('--samples'));
+const legacySamples = Number(process.argv[2]);
+const SAMPLES = Number.isFinite(requestedSamples) && requestedSamples > 0
+  ? requestedSamples
+  : (Number.isFinite(legacySamples) && legacySamples > 0 ? legacySamples : 24);
+const STRICT = process.argv.includes('--strict');
 
 const load = () => {
+  if (requestedBank) {
+    const parsed = JSON.parse(readFileSync(requestedBank, 'utf8'));
+    return (parsed.documents || []).filter((doc) => doc.active !== false).map((doc) => ({
+      ...doc,
+      bank: requestedBank,
+    }));
+  }
+
   const docs = [];
   readdirSync(SEED_DIR).filter((name) => name.endsWith('.json')).forEach((name) => {
     const parsed = JSON.parse(readFileSync(join(SEED_DIR, name), 'utf8'));
@@ -174,15 +192,18 @@ blocking += section('Non-finite generated parameter', findings.divisionByZero, t
 blocking += section('Constraints unsatisfiable — no instance can be produced', findings.unsatisfiable, true);
 
 console.log('\n## Instances that would reach a student ugly\n');
-section('Double sign, e.g. "5 + -3"', findings.doubleSign, true);
+const ugly = section('Double sign, e.g. "5 + -3"', findings.doubleSign, true);
 
 console.log('\n## Templates that do not really generate\n');
-section('No generator at all — fixed question', findings.noGenerator, true);
-section('Degenerate — same instance from every seed', findings.degenerate, true);
+const fixed = section('No generator at all — fixed question', findings.noGenerator, true);
+const degenerate = section('Degenerate — same instance from every seed', findings.degenerate, true);
 
 console.log('');
 console.log(blocking === 0
   ? 'No template produced a broken instance in any sampled draw.'
   : `${blocking} template(s) can produce a broken instance. These reach students silently.`);
+if (STRICT) {
+  console.log(`Strict quality findings: ${ugly + fixed + degenerate}`);
+}
 
-process.exitCode = blocking === 0 ? 0 : 1;
+process.exitCode = blocking === 0 && (!STRICT || (ugly + fixed + degenerate) === 0) ? 0 : 1;
