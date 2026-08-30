@@ -378,3 +378,81 @@ test('A2.2D uses composition as the inverse-decision evidence and enforces domai
   );
 });
 
+test('A2.3A requires students to author three-variable and linear-quadratic systems', async () => {
+  const entry = payload('A2.3A');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /authored-system-formulation/);
+
+  const representations = new Set();
+  const taskTypes = new Set();
+  let generatedCount = 0;
+  let threeEquationFamilies = 0;
+  let linearQuadraticFamilies = 0;
+  let errorRepairFamilies = 0;
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    taskTypes.add(doc.taskType);
+
+    const equationFields = (doc.responseFields || []).filter((field) => field.inputProfile === 'equation');
+    assert.ok(equationFields.length >= 2, `${doc.id} must make the student write the system, not only recognize it`);
+    if (equationFields.length >= 3) threeEquationFamilies += 1;
+
+    const authoredText = stringValues(doc).join(' ');
+    if (/parabola|quadratic/i.test(authoredText) && /line|linear/i.test(authoredText) && equationFields.length >= 2) {
+      linearQuadraticFamilies += 1;
+    }
+    if (doc.taskType === 'errorAnalysis' && equationFields.length >= 2) errorRepairFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+
+      assert.deepEqual([...placeholdersUsed(question)], []);
+      const generatedEquationFields = (question.responseFields || []).filter((field) => field.inputProfile === 'equation');
+      assert.ok(generatedEquationFields.length >= 2);
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const result = await gradeResponse(grading, { responses });
+      assert.equal(
+        result.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(result.fieldResults)}`,
+      );
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+      assert.ok(publicQuestion.responseFields?.every((field) => field.expected === undefined && field.answer === undefined));
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(threeEquationFamilies >= 2, 'A2.3A must repeatedly formulate three linear equations in three variables');
+  assert.ok(linearQuadraticFamilies >= 2, 'A2.3A must repeatedly formulate systems containing one linear and one quadratic equation');
+  assert.ok(errorRepairFamilies >= 1, 'A2.3A error analysis must require the corrected system, not just a diagnosis');
+  assert.ok(representations.size >= 4, 'A2.3A must formulate systems from varied representations');
+  assert.ok(taskTypes.has('modeling'));
+  assert.ok(taskTypes.has('representationTranslation'));
+  assert.ok(taskTypes.has('errorAnalysis'));
+
+  const threeEquationDocs = entry.documents.filter((doc) => (
+    (doc.responseFields || []).filter((field) => field.inputProfile === 'equation').length >= 3
+  ));
+  assert.ok(threeEquationDocs.every((doc) => (
+    (doc.responseFields || []).filter((field) => field.inputProfile === 'equation').every((field) => field.expected)
+  )));
+});
+
