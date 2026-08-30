@@ -1,0 +1,658 @@
+{
+  "standard": "A2.6A",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-full-cubic-cube-root-transform-analysis-a-b-h-k-positive-negative-parameters",
+  "rationale": "A2.6A requires transformation analysis for both cubic and cube-root parents with positive and negative real parameters. Fidelity V2 uses the full y=a·f(b(x-h))+k model, including reciprocal horizontal scale, both reflection types, center translation, and exact point mapping.",
+  "documents": [
+    {
+      "id": "mm_A2_6A_v2_cubic-combined-symbolic-effects",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6A:v2-cubic-combined-symbolic-effects",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6A",
+      "representation": "symbolic",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "Compared with $y=x^3$, analyze ALL major effects of $g(x)={{a}}[{{b}}(x-({{h}}))]^3{{k|signed}}$ using the model $a\\,f(b(x-h))+k$.",
+      "responseFields": [
+        {
+          "id": "vertical-scale",
+          "label": "Vertical scale factor $|a|$",
+          "inputProfile": "number",
+          "expected": "{{verticalScale}}"
+        },
+        {
+          "id": "horizontal-scale",
+          "label": "Horizontal scale factor $1/|b|$",
+          "inputProfile": "number",
+          "expected": "{{horizontalScale}}"
+        },
+        {
+          "id": "x-reflection",
+          "label": "Reflection across the x-axis?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "yes",
+              "label": "Yes"
+            },
+            {
+              "id": "no",
+              "label": "No"
+            }
+          ],
+          "expected": "yes"
+        },
+        {
+          "id": "horizontal-reflection",
+          "label": "Horizontal reflection before translation?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "yes",
+              "label": "Yes"
+            },
+            {
+              "id": "no",
+              "label": "No"
+            }
+          ],
+          "expected": "no"
+        },
+        {
+          "id": "center",
+          "label": "Transformed cubic center/inflection point",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{k}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Outside and inside parameters control different axes.",
+        "reasoning": [
+          "$|a|={{verticalScale}}$ gives the vertical scale, and a<0 reflects across the x-axis.",
+          "$1/|b|={{horizontalScale}}$ gives the horizontal scale. Since b>0 there is no horizontal reflection.",
+          "The cubic center/inflection point moves to $({{h}},{{k}})$."
+        ],
+        "answerSummary": "Vertical factor {{verticalScale}}, horizontal factor {{horizontalScale}}, x-axis reflection, no horizontal reflection, center $({{h}},{{k}})$."
+      },
+      "attemptFeedback": [
+        "Do not use |b| itself as the horizontal scale; the inside factor acts reciprocally."
+      ],
+      "supportHints": [
+        "Outside negative changes y-values; inside negative changes x-direction."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              -3,
+              -2
+            ]
+          },
+          "b": {
+            "type": "choice",
+            "values": [
+              2,
+              4
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "verticalScale": "abs(a)",
+          "horizontalScale": "1/abs(b)"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6A_v2_cube-root-negative-b-point-map",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6A:v2-cube-root-negative-b-point-map",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6A",
+      "representation": "table",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "Map parent cube-root points through $g(x)={{a}}\\sqrt[3]{{{{b}}(x-({{h}}))}}{{k|signed}}$ and use the mapping to analyze the negative inside parameter.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Parent points to transform",
+        "table": {
+          "headers": [
+            "Parent input u",
+            "Parent point on $y=\\sqrt[3]{u}$",
+            "Transformed point"
+          ],
+          "rows": [
+            [
+              "-8",
+              "$(-8,-2)$",
+              "?"
+            ],
+            [
+              "0",
+              "$(0,0)$",
+              "?"
+            ],
+            [
+              "8",
+              "$(8,2)$",
+              "?"
+            ]
+          ]
+        },
+        "note": "For $g(x)=a f(b(x-h))+k$, parent input u maps to $x=h+u/b$ and parent output maps to $y=k+a f(u)$."
+      },
+      "responseFields": [
+        {
+          "id": "left-parent-image",
+          "label": "Image of parent point $(-8,-2)$",
+          "inputProfile": "orderedPair",
+          "expected": "({{xm8}},{{ym8}})"
+        },
+        {
+          "id": "center",
+          "label": "Image of $(0,0)$",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{k}})"
+        },
+        {
+          "id": "right-parent-image",
+          "label": "Image of parent point $(8,2)$",
+          "inputProfile": "orderedPair",
+          "expected": "({{x8}},{{y8}})"
+        },
+        {
+          "id": "horizontal-scale",
+          "label": "Horizontal scale factor",
+          "inputProfile": "number",
+          "expected": "0.25"
+        },
+        {
+          "id": "horizontal-reflection",
+          "label": "Effect of b=-4",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "yes",
+              "label": "Horizontal reflection plus compression to one fourth of parent horizontal distances."
+            },
+            {
+              "id": "xaxis",
+              "label": "Only reflection across the x-axis."
+            },
+            {
+              "id": "none",
+              "label": "No reflection or horizontal scaling."
+            }
+          ],
+          "expected": "yes"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A negative inside factor both reverses horizontal direction and scales horizontal distances reciprocally.",
+        "reasoning": [
+          "With b=-4, each parent input displacement is divided by -4 before adding h.",
+          "Thus -8 maps two units to the right of h, while +8 maps two units to the left.",
+          "The horizontal scale is 1/4 and the negative sign creates the horizontal reflection."
+        ],
+        "answerSummary": "Images $({{xm8}},{{ym8}})$, $({{h}},{{k}})$, $({{x8}},{{y8}})$; horizontal reflection and factor 1/4."
+      },
+      "attemptFeedback": [
+        "Track the sign of b in the x-coordinate mapping; it reverses left and right."
+      ],
+      "supportHints": [
+        "Divide parent input displacement by b, not multiply by b."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "b": "-4",
+          "xm8": "h+2",
+          "ym8": "k-2*a",
+          "x8": "h-2",
+          "y8": "k+2*a"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6A_v2_cubic-graph-horizontal-stretch",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6A:v2-cubic-graph-horizontal-stretch",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6A",
+      "representation": "graph",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "The graph compares parent cubic points with $g(x)=2[0.5(x-({{h}}))]^3{{k|signed}}$. Analyze the vertical and horizontal scale by comparing distances from the center.",
+      "stimulus": {
+        "kind": "graph",
+        "title": "Parent and transformed cubic point sets",
+        "graph": {
+          "xMin": -8,
+          "xMax": 8,
+          "yMin": -10,
+          "yMax": 10,
+          "ariaLabel": "Parent cubic reference points and transformed cubic reference points",
+          "points": [
+            {
+              "x": -1,
+              "y": -1,
+              "label": "Parent (-1,-1)"
+            },
+            {
+              "x": 0,
+              "y": 0,
+              "label": "Parent center"
+            },
+            {
+              "x": 1,
+              "y": 1,
+              "label": "Parent (1,1)"
+            },
+            {
+              "x": "{{xm}}",
+              "y": "{{ym}}",
+              "label": "Transformed left"
+            },
+            {
+              "x": "{{h}}",
+              "y": "{{k}}",
+              "label": "Transformed center"
+            },
+            {
+              "x": "{{xp}}",
+              "y": "{{yp}}",
+              "label": "Transformed right"
+            }
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "center",
+          "label": "Transformed center",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{k}})"
+        },
+        {
+          "id": "left",
+          "label": "Transformed image of parent $(-1,-1)$",
+          "inputProfile": "orderedPair",
+          "expected": "({{xm}},{{ym}})"
+        },
+        {
+          "id": "right",
+          "label": "Transformed image of parent $(1,1)$",
+          "inputProfile": "orderedPair",
+          "expected": "({{xp}},{{yp}})"
+        },
+        {
+          "id": "horizontal-scale",
+          "label": "Horizontal scale factor",
+          "inputProfile": "number",
+          "expected": "2"
+        },
+        {
+          "id": "vertical-scale",
+          "label": "Vertical scale factor",
+          "inputProfile": "number",
+          "expected": "2"
+        },
+        {
+          "id": "horizontal-effect",
+          "label": "Horizontal effect",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "stretch",
+              "label": "Horizontal stretch by factor 2"
+            },
+            {
+              "id": "compress",
+              "label": "Horizontal compression by factor 2"
+            },
+            {
+              "id": "none",
+              "label": "No horizontal scale"
+            }
+          ],
+          "expected": "stretch"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Inside b=0.5 stretches horizontal distances by the reciprocal factor 2.",
+        "reasoning": [
+          "Parent x-displacements ±1 map to transformed x-displacements ±2.",
+          "Parent y-displacements ±1 map to transformed y-displacements ±2 because a=2.",
+          "The transformed center is $({{h}},{{k}})$."
+        ],
+        "answerSummary": "Horizontal stretch 2, vertical stretch 2, center $({{h}},{{k}})$."
+      },
+      "attemptFeedback": [
+        "Compare displacements from the center rather than raw coordinates."
+      ],
+      "supportHints": [
+        "Horizontal scale is $1/0.5=2$."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          }
+        },
+        "derived": {
+          "xm": "h-2",
+          "ym": "k-2",
+          "xp": "h+2",
+          "yp": "k+2"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6A_v2_cube-root-reverse-parameters",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6A:v2-cube-root-reverse-parameters",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6A",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "reverseReasoning",
+      "prompt": "A transformed cube-root graph has center $({{h}},{{k}})$. Parent point $(8,2)$ maps to $({{x8}},{{y8}})$ and parent point $(-8,-2)$ maps to $({{xm8}},{{ym8}})$. Recover the transformation parameters in $g(x)=a\\sqrt[3]{b(x-h)}+k$.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Mapped cube-root points",
+        "table": {
+          "headers": [
+            "Parent point",
+            "Transformed point"
+          ],
+          "rows": [
+            [
+              "$(0,0)$",
+              "$({{h}},{{k}})$"
+            ],
+            [
+              "$(8,2)$",
+              "$({{x8}},{{y8}})$"
+            ],
+            [
+              "$(-8,-2)$",
+              "$({{xm8}},{{ym8}})$"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "a",
+          "label": "Outside parameter a",
+          "inputProfile": "number",
+          "expected": "-2"
+        },
+        {
+          "id": "b",
+          "label": "Inside parameter b",
+          "inputProfile": "number",
+          "expected": "0.5"
+        },
+        {
+          "id": "h",
+          "label": "Horizontal translation parameter h",
+          "inputProfile": "number",
+          "expected": "{{h}}"
+        },
+        {
+          "id": "k",
+          "label": "Vertical translation parameter k",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "effects",
+          "label": "Which combined effects match a=-2 and b=0.5?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "correct",
+              "label": "x-axis reflection, vertical stretch 2, horizontal stretch 2"
+            },
+            {
+              "id": "wrong1",
+              "label": "horizontal reflection, vertical compression 1/2, horizontal compression 2"
+            },
+            {
+              "id": "wrong2",
+              "label": "no reflection and no scaling"
+            }
+          ],
+          "expected": "correct"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Mapped displacements recover outside and inside parameters.",
+        "reasoning": [
+          "Vertical parent displacement +2 becomes -4, so a=-2.",
+          "Horizontal parent displacement +8 becomes +16, so the horizontal scale is 2 and therefore b=0.5.",
+          "The parent center maps directly to $({{h}},{{k}})$."
+        ],
+        "answerSummary": "$a=-2$, $b=0.5$, $h={{h}}$, $k={{k}}$."
+      },
+      "attemptFeedback": [
+        "Use displacement ratios from the center; do not confuse the horizontal scale factor with b itself."
+      ],
+      "supportHints": [
+        "If horizontal distances double, then $1/|b|=2$."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          }
+        },
+        "derived": {
+          "x8": "h+16",
+          "y8": "k-4",
+          "xm8": "h-16",
+          "ym8": "k+4"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6A_v2_two-negative-parameter-error",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6A:v2-two-negative-parameter-error",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6A",
+      "representation": "verbal",
+      "difficultyBand": 5,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "For either odd parent $f(u)=u^3$ or $f(u)=\\sqrt[3]{u}$, a student analyzes $g(x)=-3f(-4(x-({{h}}))){{k|signed}}$ and says, “The two negatives mean there are no reflections, and 4 is the horizontal scale factor.” Diagnose the parameter effects correctly.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's claims",
+        "steps": [
+          {
+            "id": "negative",
+            "label": "Claim 1",
+            "work": "Two negative signs cancel, so neither reflection occurs."
+          },
+          {
+            "id": "scale",
+            "label": "Claim 2",
+            "work": "Inside magnitude 4 means horizontal scale factor 4."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "a-effect",
+          "label": "Effect of a=-3",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "xaxis",
+              "label": "x-axis reflection and vertical stretch by 3"
+            },
+            {
+              "id": "horizontal",
+              "label": "horizontal reflection and vertical compression by 1/3"
+            },
+            {
+              "id": "none",
+              "label": "no reflection or vertical scale"
+            }
+          ],
+          "expected": "xaxis"
+        },
+        {
+          "id": "b-effect",
+          "label": "Effect of b=-4",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "horizontal",
+              "label": "horizontal reflection and horizontal compression to factor 1/4"
+            },
+            {
+              "id": "xaxis",
+              "label": "x-axis reflection and horizontal stretch by 4"
+            },
+            {
+              "id": "none",
+              "label": "no horizontal effect"
+            }
+          ],
+          "expected": "horizontal"
+        },
+        {
+          "id": "vertical-scale",
+          "label": "Vertical scale factor",
+          "inputProfile": "number",
+          "expected": "3"
+        },
+        {
+          "id": "horizontal-scale",
+          "label": "Horizontal scale factor",
+          "inputProfile": "number",
+          "expected": "0.25"
+        },
+        {
+          "id": "center",
+          "label": "Translated center/inflection point",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{k}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The two negative signs act on different axes before their net odd-function shape is considered.",
+        "reasoning": [
+          "a=-3 reflects outputs across the x-axis and stretches vertical displacements by 3.",
+          "b=-4 reflects horizontally and compresses horizontal distances to 1/4.",
+          "Both transformations occur even though two reflections of an odd parent can preserve the graph's overall increasing orientation around its translated center."
+        ],
+        "answerSummary": "x-axis reflection + vertical stretch 3; horizontal reflection + horizontal compression 1/4; center $({{h}},{{k}})$."
+      },
+      "attemptFeedback": [
+        "Do not cancel parameters that act on different axes."
+      ],
+      "supportHints": [
+        "Analyze a and b separately: outside controls outputs, inside controls inputs."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    }
+  ]
+}
