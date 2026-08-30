@@ -327,13 +327,33 @@ Do **not** re-audit A2.4C unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4D — PENDING AUDIT
+### A2.4D — REBUILD — AUDITED / AUTHORING
 
 ## FIRST UNFINISHED STANDARD
 
 ### A2.4D
 
 Resume here. Do not reopen A2.2A–A2.4C unless a failing gate names them.
+
+
+### 2026-08-30 — A2.4D audit finding
+- Official construct: **transform a quadratic function from standard form to vertex form to identify its attributes**.
+- Verdict: **REBUILD**.
+- The legacy bank separates pieces of the skill instead of requiring the complete transformation:
+  - family 1 asks only for the vertex from standard form;
+  - family 2 is the one family that actually rewrites standard form into vertex form;
+  - family 3 asks only for a minimum and even supplies hidden vertex-form attributes in a table;
+  - family 4 starts in vertex form and graphs it, so it skips the required standard→vertex transformation;
+  - family 5 identifies a sign convention error without completing the square or finishing the transformed function.
+- Fidelity V2 requirements:
+  - **every family starts from standard form** and requires the student to produce the complete vertex form;
+  - every family must then use that vertex form to identify meaningful attributes rather than treating conversion as an isolated rewrite;
+  - repeatedly require vertex and axis of symmetry, and cover minimum/maximum, opening direction, and range;
+  - include both positive and negative leading coefficients so minimum and maximum behavior are both real;
+  - include repeated cases with $|a|>1$, where students must factor a from the quadratic/linear terms before completing the square;
+  - at least two families must collect completing-square evidence before the final vertex form;
+  - one genuine error-analysis family must repair a completing-square/factoring mistake, finish vertex form, and identify the corrected attributes.
+- The standard is algebraic transformation first; no new graph tool is required. Secure generic equation/number/choice fields are sufficient, and the existing form-preserving equation grader should remain strict enough that simply re-entering the original standard form does not satisfy a vertex-form response.
 
 
 ### 2026-08-30 — A2.4C audit finding
