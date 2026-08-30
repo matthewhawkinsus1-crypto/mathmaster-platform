@@ -518,3 +518,38 @@ test('an empty row set returns an empty week rather than throwing', () => {
   assert.deepEqual(result.sessions, []);
   assert.deepEqual(result.considered, []);
 });
+
+
+test('a CCMR-disabled Honors week backfills with course work instead of shrinking', () => {
+  const slots = weeklyMixFor({
+    band: INSTRUCTIONAL_BAND.ON,
+    honors: true,
+    sessions: 5,
+    allowTransfer: false,
+  });
+  assert.equal(slots.length, 5);
+  assert.ok(!slots.includes(PURPOSE.TRANSFER));
+  assert.ok(slots.includes(PURPOSE.EXTENSION),
+    'turning CCMR off must not also remove the course Challenge');
+  assert.ok(slots.includes(PURPOSE.CURRENT_LEARNING));
+});
+
+test('a compressed Honors week protects Challenge before optional transfer', () => {
+  const four = weeklyMixFor({
+    band: INSTRUCTIONAL_BAND.ON,
+    honors: true,
+    sessions: 4,
+  });
+  assert.equal(four.length, 4);
+  assert.ok(four.includes(PURPOSE.EXTENSION));
+  assert.ok(four.includes(PURPOSE.TRANSFER));
+
+  const three = weeklyMixFor({
+    band: INSTRUCTIONAL_BAND.ON,
+    honors: true,
+    sessions: 3,
+  });
+  assert.equal(three.length, 3);
+  assert.ok(three.includes(PURPOSE.EXTENSION),
+    'Challenge survives even when a teacher compresses Honors to the minimum');
+});
