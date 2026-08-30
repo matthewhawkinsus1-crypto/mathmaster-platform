@@ -132,7 +132,54 @@
           "A": "m",
           "C": "m*x1-y1"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d2b2-given-slope-point-two-forms",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "A line has slope {{m}} and passes through $({{x1}},{{y1}})$. Write the line first in point-slope form using the given point, then write the equivalent slope-intercept form.",
+          "responseFields": [
+            {
+              "id": "point-slope",
+              "label": "Point-slope equation",
+              "inputProfile": "equation",
+              "expected": "y-({{y1}})={{m}}*(x-({{x1}}))"
+            },
+            {
+              "id": "slope-intercept",
+              "label": "Slope-intercept equation",
+              "inputProfile": "equation",
+              "expected": "y={{m}}x{{b|signed}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              },
+              "x1": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "b": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "y1": "m*x1+b"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_2B_v2_table-to-slope-intercept",
@@ -292,7 +339,76 @@
           "negx1": "-x1",
           "negy1": "-y1"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "adaptive-d3b3-competing-equations-verify-point",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A line has slope {{m}} and passes through $({{x1}},{{y1}})$. Student A writes $y-({{y1}})={{m}}(x-({{x1}}))$. Student B writes $y+({{y1}})={{m}}(x+({{x1}}))$. Determine which equation actually uses the point correctly, rewrite the valid equation in slope-intercept form, and verify it by substituting the given point.",
+          "responseFields": [
+            {
+              "id": "choice",
+              "label": "Which equation is valid?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "a",
+                  "label": "Student A"
+                },
+                {
+                  "id": "b",
+                  "label": "Student B"
+                }
+              ],
+              "expected": "a"
+            },
+            {
+              "id": "equation",
+              "label": "Slope-intercept equation",
+              "inputProfile": "equation",
+              "expected": "y={{m}}x{{b|signed}}"
+            },
+            {
+              "id": "verify",
+              "label": "y-value produced when x={{x1}}",
+              "inputProfile": "number",
+              "expected": "{{y1}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              },
+              "x1": {
+                "type": "int",
+                "min": -4,
+                "max": 4,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "y1": "m*x1+b"
+            },
+            "constraints": [
+              "y1!=0"
+            ]
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_2B_v2_two-points-transfer",
