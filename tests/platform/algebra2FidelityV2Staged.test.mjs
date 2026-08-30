@@ -25,6 +25,11 @@ import {
   satisfiesLinearInequality,
   solve3x3System,
 } from '../../src/tools/systemsWorkspace/systemsMath.js';
+import {
+  behaviorForSpec,
+  investigationFeatures,
+} from '../../src/tools/functionInvestigation2/functionInvestigationMath.js';
+import { evaluateFunctionSpec } from '../../src/tools/shared/toolMath.js';
 
 const require = createRequire(import.meta.url);
 const {
@@ -2191,6 +2196,183 @@ test('A2.4H solves quadratic inequalities through complete sign-set reasoning', 
   assert.ok(representations.has('symbolic'));
   assert.ok(representations.has('multipleRepresentation'));
   assert.ok(representations.has('numberLine'));
+  assert.ok(representations.has('table'));
+  assert.ok(representations.has('verbal'));
+});
+
+test('A2.5A determines transformed exponential and logarithmic graph attributes with scale, reflection, and translation', async () => {
+  const entry = payload('A2.5A');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /exp-log-key-attribute-effects/);
+
+  let generatedCount = 0;
+  let exponentialFamilies = 0;
+  let logarithmicFamilies = 0;
+  let graphConstructionFamilies = 0;
+  let reflectedFamilies = 0;
+  let compressionFamilies = 0;
+  let errorFamilies = 0;
+  let wrongOutcomeRejected = 0;
+  const representations = new Set();
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    const text = stringValues(doc).join(' ').toLowerCase();
+    if (/exponential/.test(text)) exponentialFamilies += 1;
+    if (/logarithm/.test(text)) logarithmicFamilies += 1;
+    if (doc.type === 'functionInvestigation') graphConstructionFamilies += 1;
+    if (/reflect/.test(text)) reflectedFamilies += 1;
+    if (/compression/.test(text)) compressionFamilies += 1;
+    if (doc.taskType === 'errorAnalysis') errorFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    let spoiledChecked = false;
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+      assert.deepEqual([...placeholdersUsed(question)], []);
+
+      if (doc.type === 'functionInvestigation') {
+        assert.equal(isPathEligible(question), true, `${doc.id} produced a Path-ineligible graph investigation`);
+
+        const spec = question.functionSpec;
+        assert.ok(['exponential','logarithmic'].includes(spec.type));
+        const features = investigationFeatures(spec);
+        const behavior = behaviorForSpec(spec);
+
+        if (spec.type === 'exponential') {
+          assert.equal(features.horizontalAsymptotes[0], Number(spec.k));
+          assert.equal(features.domainCode, 'allReal');
+          assert.equal(features.rangeCode, Number(spec.a) > 0 ? 'yGtK' : 'yLtK');
+        } else {
+          assert.equal(features.verticalAsymptotes[0], Number(spec.h));
+          assert.equal(features.domainCode, 'xGtH');
+          assert.equal(features.rangeCode, 'allReal');
+        }
+
+        const privateGrading = buildPrivateToolGrading(question);
+        const placements = Object.fromEntries(
+          (question.pointTasks || []).map((task) => [task.id, task.expected.map(Number)]),
+        );
+        const answers = {};
+        for (const part of privateGrading.definition.analysis) {
+          answers[part.id] = String(part.accepted?.[0] ?? part.expected?.[0] ?? '');
+        }
+        const correct = gradePathResponse({
+          privateGrading,
+          raw: { placements, answers },
+        });
+        assert.equal(correct.rejected, false);
+        assert.equal(
+          correct.isCorrect,
+          true,
+          `${doc.id} failed secure transformed-graph self-acceptance: ${JSON.stringify(correct.parts)}`,
+        );
+
+        for (const task of question.pointTasks || []) {
+          const x = Number(task.expected[0]);
+          const y = Number(task.expected[1]);
+          assert.ok(Number.isFinite(x) && Number.isFinite(y));
+          assert.ok(
+            Math.abs(evaluateFunctionSpec(spec, x) - y) <= 1e-6,
+            `${doc.id} authored point ${task.id} is not on the generated transformed function`,
+          );
+        }
+
+        const behaviorPart = privateGrading.definition.analysis.find((part) => part.id === 'behavior');
+        if (behaviorPart) {
+          assert.ok(
+            [...behaviorPart.expected, ...behaviorPart.accepted]
+              .map(String)
+              .some((value) => value.toLowerCase().includes(behavior)),
+            `${doc.id} authored behavior answer disagrees with the function specification`,
+          );
+        }
+
+        if (!spoiledChecked) {
+          const spoiledPlacements = structuredClone(placements);
+          const firstId = Object.keys(spoiledPlacements)[0];
+          spoiledPlacements[firstId] = [spoiledPlacements[firstId][0], spoiledPlacements[firstId][1] + 3];
+          const wrong = gradePathResponse({
+            privateGrading,
+            raw: { placements:spoiledPlacements, answers },
+          });
+          assert.equal(wrong.isCorrect, false, `${doc.id} accepted a point off the transformed graph`);
+          wrongOutcomeRejected += 1;
+          spoiledChecked = true;
+        }
+
+        const publicPayload = buildPublicToolPayload(question);
+        const publicText = JSON.stringify(publicPayload.tool);
+        assert.equal(publicText.includes('"expected"'), false);
+        assert.equal(publicText.includes('"acceptedAnswers"'), false);
+        continue;
+      }
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const correct = await gradeResponse(grading, { responses });
+      assert.equal(
+        correct.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(correct.fieldResults)}`,
+      );
+
+      if (doc.id.includes('exponential-compression')) {
+        assert.equal(Number(question.responseFields.find((field) => field.id === 'vertical-scale')?.expected), 0.5);
+        assert.equal(question.responseFields.find((field) => field.id === 'vertical-effect')?.expected, 'compression');
+        const k = Number(question.responseFields.find((field) => field.id === 'vertical-shift')?.expected);
+        assert.equal(question.responseFields.find((field) => field.id === 'asymptote')?.expected, `y=${k}`);
+      }
+
+      if (doc.id.includes('logarithmic-reflection')) {
+        assert.equal(question.responseFields.find((field) => field.id === 'reflection')?.expected, 'xaxis');
+        assert.equal(question.responseFields.find((field) => field.id === 'behavior')?.expected, 'decreasing');
+        assert.equal(question.responseFields.find((field) => field.id === 'range')?.expected, '(-inf,inf)');
+      }
+
+      if (!spoiledChecked) {
+        let target = grading.fields.find((field) => ['behavior','reflection','vertical-effect'].includes(field.id));
+        let wrongValue = 'wrong';
+        if (target?.id === 'behavior') wrongValue = String(target.expected) === 'decreasing' ? 'increasing' : 'decreasing';
+        if (target?.id === 'reflection') wrongValue = 'none';
+        if (target?.id === 'vertical-effect') wrongValue = 'stretch';
+        if (!target) target = grading.fields[0];
+        const wrong = await gradeResponse(grading, {
+          responses: { ...responses, [target.id]:wrongValue },
+        });
+        assert.equal(wrong.isCorrect, false, `${doc.id} accepted an incorrect transformation attribute`);
+        wrongOutcomeRejected += 1;
+        spoiledChecked = true;
+      }
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(exponentialFamilies >= 2, 'A2.5A must repeatedly cover exponential transformations');
+  assert.ok(logarithmicFamilies >= 3, 'A2.5A must repeatedly cover logarithmic transformations');
+  assert.ok(graphConstructionFamilies >= 2, 'A2.5A must construct at least one exponential and one logarithmic transformed graph');
+  assert.ok(reflectedFamilies >= 3, 'A2.5A must repeatedly determine vertical-reflection effects');
+  assert.ok(compressionFamilies >= 1, 'A2.5A must include vertical compression as well as stretch');
+  assert.ok(errorFamilies >= 1, 'A2.5A must repair transformed-attribute reasoning and finish the corrected attribute set');
+  assert.equal(wrongOutcomeRejected, entry.documents.length);
+  assert.ok(representations.has('graph'));
+  assert.ok(representations.has('symbolic'));
   assert.ok(representations.has('table'));
   assert.ok(representations.has('verbal'));
 });
