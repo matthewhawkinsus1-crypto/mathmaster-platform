@@ -391,7 +391,136 @@
           "y2": "y1+rise",
           "wrong": "run/rise"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b3"
+        },
+        {
+          "coverageKey": "challenge-d3b4-slope-cross-representation-consistency",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "The points $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$ lie on a line that can also be written as ${{A}}x+{{B}}y={{C}}$. A student reports slope {{wrong}} after dividing run by rise. Determine the slope from the points AND independently from standard form, decide whether the two correct methods agree, and diagnose the student's reciprocal error.",
+          "responseFields": [
+            {
+              "id": "run",
+              "label": "Run Δx",
+              "inputProfile": "number",
+              "expected": "{{run}}"
+            },
+            {
+              "id": "rise",
+              "label": "Rise Δy",
+              "inputProfile": "number",
+              "expected": "{{rise}}"
+            },
+            {
+              "id": "point-slope",
+              "label": "Slope from the two points",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "standard-slope",
+              "label": "Slope from standard form",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "agreement",
+              "label": "Do the two correct methods agree?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes; both give the same slope."
+                },
+                {
+                  "id": "no",
+                  "label": "No; different representations must have different slopes."
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "diagnosis",
+              "label": "Student error",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "reciprocal",
+                  "label": "The student used Δx/Δy instead of Δy/Δx."
+                },
+                {
+                  "id": "sign",
+                  "label": "The only error is the sign of the intercept."
+                }
+              ],
+              "expected": "reciprocal"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Equivalent representations of one line must produce the same rate of change.",
+            "reasoning": [
+              "From the points, slope is {{rise}}/{{run}}={{m}}.",
+              "For ${{A}}x+{{B}}y={{C}}$, solving for y gives slope $-{{A}}/{{B}}={{m}}$.",
+              "The student's {{wrong}} is the reciprocal because run and rise were reversed."
+            ],
+            "answerSummary": "Both valid methods give slope {{m}}."
+          },
+          "attemptFeedback": [
+            "Compute the slope two different ways and use agreement as a check on your reasoning."
+          ],
+          "supportHints": [
+            "In Ax+By=C, slope is -A/B."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "run": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "x1": {
+                "type": "int",
+                "min": -4,
+                "max": 0
+              },
+              "y1": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "B": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              }
+            },
+            "derived": {
+              "x2": "x1+run",
+              "rise": "m*run",
+              "y2": "y1+rise",
+              "wrong": "run/rise",
+              "b": "y1-m*x1",
+              "A": "-m*B",
+              "C": "b*B"
+            }
+          }
+        }
+      ]
     }
   ]
 }
