@@ -51,7 +51,9 @@ function ResidualPlot({ rows, xMin, xMax }) {
 }
 
 export default function DataModelingLab({ questionData = {}, onAction }) {
-  const points = questionData.points || DEFAULT_POINTS;
+  const points = (questionData.points || DEFAULT_POINTS).map((pair) => (
+    Array.isArray(pair) ? pair : [Number(pair?.x), Number(pair?.y)]
+  ));
   const mode = questionData.mode || 'full';
   const regression = useMemo(() => linearRegression(points), [points]);
   const candidateModels = useMemo(() => buildCandidateModels(points, regression), [points, regression]);
