@@ -2,7 +2,7 @@
   "standard": "A2.7H",
   "verdict": "REBUILD",
   "certificationStatus": "candidate-rational-exponent-equation-solution-sets-shifted-even-odd-two-none-extraneous-repair",
-  "rationale": "A2.7H requires solving rational-exponent equations. Fidelity V2 replaces method-recognition and reverse-engineering drift with complete solution-set work across shifted equations, even/odd rational-exponent behavior, two-solution and no-real-solution cases, and explicit extraneous-candidate checking.",
+  "rationale": "A2.7H requires solving rational-exponent equations. Fidelity V2 replaces method-recognition and reverse-engineering drift with complete solution-set work across shifted equations, even/odd rational-exponent behavior, two-solution and no-real-solution cases, explicit domain inequalities, and extraneous-candidate checking.",
   "documents": [
     {
       "id": "mm_A2_7H_v2_shifted-cube-root-one-solution",
@@ -129,10 +129,10 @@
       },
       "responseFields": [
         {
-          "id": "domain-bound",
-          "label": "Smallest allowed x-value",
-          "inputProfile": "number",
-          "expected": "{{h}}"
+          "id": "domain",
+          "label": "Real-domain restriction",
+          "inputProfile": "inequality",
+          "expected": "x>=({{h}})"
         },
         {
           "id": "isolated-power",
