@@ -432,6 +432,30 @@ test('square-root fit uses the whole table for a rather than one hand-picked poi
 });
 
 test('A2.8B fit-only modes grade regression coefficients without requiring prediction', () => {
+  const linearPoints = [-2, -1, 0, 1, 2].map((x, index) => {
+    const residuals = [1, -2, 2, -2, 1];
+    return [x, 3 * x + 5 + residuals[index]];
+  });
+  const linear = buildDataModelingPrivateDefinition({
+    points: linearPoints,
+    mode: 'linearFit',
+    slopeTolerance: 0.001,
+    interceptTolerance: 0.001,
+  });
+  assert.equal(linear.mode, 'linearFit');
+  assert.equal(linear.expectedModelId, 'linear');
+  assert.deepEqual(linear.requiredParts, ['fit']);
+  nearly(linear.regression.m, 3);
+  nearly(linear.regression.b, 5);
+
+  const linearRight = gradeDataModelingResponse(linear, { m: 3, b: 5 });
+  assert.equal(linearRight.isCorrect, true);
+  assert.equal(linearRight.score, 1);
+
+  const linearWrong = gradeDataModelingResponse(linear, { m: 4, b: 5 });
+  assert.equal(linearWrong.isCorrect, false);
+  assert.equal(linearWrong.score, 0);
+
   const quadraticPoints = [-2, -1, 0, 1, 2].map((x, index) => {
     const residuals = [1, -2, 0, 2, -1];
     return [x, 2 * x * x - 3 * x + 4 + residuals[index]];
