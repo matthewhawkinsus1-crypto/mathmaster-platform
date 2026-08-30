@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { samplePathInstances, placeholdersUsed } from '../../functions/shared/pathQuestionGeneration.mjs';
 import {
   buildPrivateToolGrading,
@@ -9,6 +10,14 @@ import {
   isPathEligible,
 } from '../../functions/shared/pathToolContracts.mjs';
 import { REPRESENTATIONS, TASK_TYPES } from '../../functions/shared/pathQuestionQuality.mjs';
+
+const require = createRequire(import.meta.url);
+const {
+  buildSanitizedQuestion,
+  buildTemplateIssuePlan,
+  gradeResponse,
+  privateGradingDefinition,
+} = require('../../functions/lib/mathPath.js');
 
 const read = (path) => JSON.parse(readFileSync(path, 'utf8'));
 const stagedDir = 'drafts/fidelity-v2/algebra2';
@@ -188,5 +197,80 @@ test('A2.2B repeatedly requires graph-reflect-write inverse evidence across repr
     ['linear', 'quadratic', 'rational', 'squareRoot'].sort(),
   );
   assert.ok(nonlinearCount >= 3, 'A2.2B must not collapse inverse mastery to linear functions only');
+});
+
+test('A2.2C centers quadratic/root and exponential/log inverse relationships with real restriction analysis', async () => {
+  const entry = payload('A2.2C');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'ENHANCE');
+  assert.match(entry.certificationStatus, /inverse-relationship-analysis/);
+
+  const representations = new Set();
+  const taskTypes = new Set();
+  let generatedCount = 0;
+  let quadraticRootCount = 0;
+  let exponentialLogCount = 0;
+  let leftBranchCount = 0;
+  let rightBranchCount = 0;
+  let errorAnalysisCount = 0;
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    taskTypes.add(doc.taskType);
+
+    const authoredText = JSON.stringify(doc);
+    if (/quadratic|square-root|\\sqrt/.test(authoredText)) quadraticRootCount += 1;
+    if (/exponential|logarithm|\\log_/.test(authoredText)) exponentialLogCount += 1;
+    if (/x\\le/.test(authoredText)) leftBranchCount += 1;
+    if (/x\\ge/.test(authoredText)) rightBranchCount += 1;
+    if (doc.taskType === 'errorAnalysis') errorAnalysisCount += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+
+      assert.deepEqual([...placeholdersUsed(question)], []);
+      assert.ok(question.responseFields?.length >= 2, `${doc.id} must analyze more than a one-box inverse fact`);
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const result = await gradeResponse(grading, { responses });
+      assert.equal(
+        result.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(result.fieldResults)}`,
+      );
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      assert.ok(publicQuestion);
+      assert.equal(JSON.stringify(publicQuestion).includes('"expected"'), false);
+      assert.equal(JSON.stringify(publicQuestion).includes('"acceptedAnswers"'), false);
+      assert.ok(publicQuestion.responseFields?.every((field) => field.expected === undefined && field.answer === undefined));
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(quadraticRootCount >= 3, 'A2.2C must repeatedly analyze the quadratic/square-root inverse relationship');
+  assert.ok(exponentialLogCount >= 2, 'A2.2C must repeatedly analyze the exponential/logarithmic inverse relationship');
+  assert.ok(leftBranchCount >= 1, 'A2.2C must include a valid left-branch quadratic restriction');
+  assert.ok(rightBranchCount >= 2, 'A2.2C must include the principal-root/right-branch restriction and its error analysis');
+  assert.ok(errorAnalysisCount >= 1);
+  assert.ok(representations.size >= 4, 'A2.2C must not collapse to one representation');
+  assert.ok(taskTypes.has('comparison'));
+  assert.ok(taskTypes.has('reverseReasoning'));
+  assert.ok(taskTypes.has('errorAnalysis'));
+
+  const errorFamily = entry.documents.find((doc) => doc.taskType === 'errorAnalysis');
+  const errorSamples = samplePathInstances(errorFamily, 25).map((item) => item.question).filter(Boolean);
+  assert.ok(errorSamples.every((question) => /\\sqrt\{u\^2\}=\|u\|/.test(JSON.stringify(question.solutionReview))));
 });
 
