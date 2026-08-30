@@ -18,7 +18,7 @@
       "assessedConstruct": "A.2H",
       "taskType": "modeling",
       "representation": "context",
-      "prompt": "A club can spend at most ${{budget}} dollars on shirts and hats. Shirts cost ${{s}} each and hats cost ${{h}} each. Let $x$ be shirts and $y$ be hats. Write the linear inequality that models the spending limit.",
+      "prompt": "A club can spend at most {{budget}} dollars on shirts and hats. Shirts cost {{s}} dollars each and hats cost {{h}} dollars each. Let $x$ be shirts and $y$ be hats. Write the linear inequality that models the spending limit.",
       "responseFields": [{"id": "answer", "label": "Inequality", "inputProfile": "inequality", "expected": "{{s}}x+{{h}}y<={{budget}}"}],
       "solutionReview": {
         "headline": "Translate the total cost and the limiting phrase separately.",
@@ -26,7 +26,7 @@
           "The total cost is ${{s}}x+{{h}}y$.",
           "At most means the total may equal {{budget}} but cannot exceed it, so use $\\le$."
         ],
-        "answerSummary": "$${{s}}x+{{h}}y \\le {{budget}}$"
+        "answerSummary": "${{s}}x+{{h}}y \\le {{budget}}$"
       },
       "attemptFeedback": ["Build the total cost first, then translate the phrase ‘at most’."],
       "supportHints": ["Does spending exactly the full budget still satisfy the situation?"],
@@ -72,7 +72,7 @@
         "answerSummary": "$y \\le {{m}}x{{b|signed}}$"
       },
       "attemptFeedback": ["First write the equation of the boundary line. Then decide whether equality is included."],
-      "supportHints": ["Below corresponds to less than; a solid/included boundary adds equality."],
+      "supportHints": ["Below corresponds to less than; an included boundary adds equality."],
       "generator": {
         "parameters": {
           "m": {"type": "int", "min": -5, "max": 5, "exclude": [0]},
@@ -90,7 +90,7 @@
       }
     },
     {
-      "id": "mm_A_2H_v2-boundary-points-shading-to-inequality",
+      "id": "mm_A_2H_v2_boundary-points-shading-to-inequality",
       "active": true,
       "alignmentKeys": ["texas:A.2H"],
       "courseId": "algebra1",
@@ -176,7 +176,7 @@
       "assessedConstruct": "A.2H",
       "taskType": "modeling",
       "representation": "context",
-      "prompt": "A fundraiser sells adult tickets for ${{a}} and student tickets for ${{s}}. The room can hold at most {{cap}} people, and ticket revenue must be at least ${{goal}}. Let $x$ be adult tickets and $y$ be student tickets. Write the REVENUE inequality only.",
+      "prompt": "A fundraiser sells adult tickets for {{a}} dollars and student tickets for {{s}} dollars. The room can hold at most {{cap}} people, and ticket revenue must be at least {{goal}} dollars. Let $x$ be adult tickets and $y$ be student tickets. Write the REVENUE inequality only.",
       "responseFields": [{"id": "answer", "label": "Revenue inequality", "inputProfile": "inequality", "expected": "{{a}}x+{{s}}y>={{goal}}"}],
       "solutionReview": {
         "headline": "Decide which quantities belong in the requested constraint.",
@@ -184,7 +184,7 @@
           "Capacity uses counts, but the requested revenue constraint uses ticket prices times ticket counts.",
           "Must be at least {{goal}} means the revenue is greater than or equal to {{goal}}."
         ],
-        "answerSummary": "$${{a}}x+{{s}}y \\ge {{goal}}$"
+        "answerSummary": "${{a}}x+{{s}}y \\ge {{goal}}$"
       },
       "attemptFeedback": ["Do not mix the capacity constraint with the revenue constraint; identify what each coefficient represents."],
       "supportHints": ["Revenue is price times quantity for each ticket type."],
