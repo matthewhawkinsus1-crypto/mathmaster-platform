@@ -266,7 +266,7 @@
       "assessedConstruct": "A.4B",
       "taskType": "errorAnalysis",
       "representation": "verbal",
-      "prompt": "A headline says, “People who {{behavior}} have {{pct}}% better outcomes, so {{behavior}} causes improvement.” What is the main flaw if the data came only from an observational study?",
+      "prompt": "A headline incorrectly claims, “People who {{behavior}} have {{pct}}% better outcomes, so {{behavior}} causes improvement.” What is the main flaw if the data came only from an observational study?",
       "solutionReview": {
         "headline": "Connect the representation to the mathematics.",
         "reasoning": [
