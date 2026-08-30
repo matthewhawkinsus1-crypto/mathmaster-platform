@@ -428,7 +428,10 @@ Resume here. Do not reopen A2.2A–A2.4F unless a failing gate names them.
   - a case proving radical-domain membership alone is insufficient because the original right side is negative;
   - contextual candidate verification where both candidate times are contextually allowed but one is algebraically extraneous;
   - complete error repair for the misconception that every root of the squared equation is automatically valid.
-- Package/build run `33323815028`: **RUNNING** at this checkpoint.
+- Package/build run `33323815028`: **PASS**, including student/runtime build.
+- Added A2.4G-specific generated certification — commit `add83900854ba59784796772560728a660cea066`.
+- The A2.4G gate samples 200+ generated instances, requires original-equation LHS/RHS substitution evidence, verifies repeated one-extraneous cases plus a no-extraneous case, proves domain membership alone is insufficient, requires context/error-repair breadth, rejects a spoiled extraneous/valid conclusion in every family, and checks public answer-key stripping.
+- Full A2.4G assertion run `33323859773`: **RUNNING** at this checkpoint.
 - FIRST UNFINISHED STANDARD remains **A2.4G** until generated certification is added and green.
 
 
