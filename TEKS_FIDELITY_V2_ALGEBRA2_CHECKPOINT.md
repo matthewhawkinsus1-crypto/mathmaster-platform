@@ -703,7 +703,11 @@ Resume here. Do not reopen A2.2A–A2.6F unless a failing gate names them.
 - Added A2.6G-specific generated certification — commit `222c08b8649ad4957543e5c0bfc648e5eba5b1a5`.
 - The gate samples 200+ generated instances, checks production issuability and secure self-grading, independently verifies point mapping and graph distances, requires positive/negative parameter and stretch/compression breadth, checks asymptotes and a/b, rejects incorrect effects, and strips public answer keys.
 - Package run `33326640125` and full assertion run `33326658552` are **RUNNING/QUEUED** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.6G** until the full run is green.
+- Full A2.6G run `33326658552` failed one substantive coverage assertion: the negative-b point-mapping family did not explicitly ask the student to preserve both asymptotes, even though the prompt/equation implied them.
+- Strengthened that family by adding graded vertical- and horizontal-asymptote fields — commit `4291bd7e4ff51ea605bbbd39c7e240a759972cd5`.
+- No gate was weakened; the content was improved to meet the gate.
+- Replacement certification is triggered.
+- FIRST UNFINISHED STANDARD remains **A2.6G** until the replacement run is green.
 
 
 ### 2026-08-30 — A2.6F audit finding
