@@ -183,5 +183,8 @@ For each standard:
 - Full A2.2C assertion run `33315936785`: **QUEUED/RUNNING when this checkpoint was written**.
 - Full A2.2C assertion run `33315936785` failed on the production issue gate because the new generic families declared `type: "response"`. In Path, `type` is interpreted as a named tool; generic field-graded questions must omit it. The server correctly failed closed with `generated_no_server_grader_for_this_tool`.
 - Removed the false tool declaration from all five A2.2C families — commit `5bbb92df1ca961c49c12db204967517b107d312b`.
-- Replacement certification is now triggered from the corrected package.
+- Replacement run `33315977704` reached all generation/issuability/self-grading checks, then failed only on the certification test's branch-coverage detector. The test inspected `JSON.stringify(doc)`, which doubles backslashes and hid authored `x\\le` / `x\\ge` from the intended match.
+- Replaced that brittle JSON-string inspection with recursive raw-string inspection — commit `948fd32a5c7c2e8d57f0d906d184bdcf68db1aa3`.
+- Content was not weakened or waived; the left-branch and right-branch requirements remain mandatory.
+- Replacement certification is triggered from the corrected test.
 - FIRST UNFINISHED STANDARD remains **A2.2C** until the replacement run is green.
