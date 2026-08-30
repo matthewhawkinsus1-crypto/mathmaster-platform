@@ -181,4 +181,7 @@ For each standard:
 - Added A2.2C certification to `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `1a72808866ad245d2e1f7b35e147c4298e5e51e6`.
 - The A2.2C gate now samples 200+ generated instances, runs the production template issue gate, self-grades generated correct answers with the legacy secure field grader, checks public-payload key stripping, requires both quadratic/root and exponential/log breadth, and explicitly requires left/right restriction evidence plus error analysis.
 - Full A2.2C assertion run `33315936785`: **QUEUED/RUNNING when this checkpoint was written**.
-- FIRST UNFINISHED STANDARD remains **A2.2C** until that run is green.
+- Full A2.2C assertion run `33315936785` failed on the production issue gate because the new generic families declared `type: "response"`. In Path, `type` is interpreted as a named tool; generic field-graded questions must omit it. The server correctly failed closed with `generated_no_server_grader_for_this_tool`.
+- Removed the false tool declaration from all five A2.2C families — commit `5bbb92df1ca961c49c12db204967517b107d312b`.
+- Replacement certification is now triggered from the corrected package.
+- FIRST UNFINISHED STANDARD remains **A2.2C** until the replacement run is green.
