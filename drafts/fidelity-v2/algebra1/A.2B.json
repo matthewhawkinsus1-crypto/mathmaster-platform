@@ -177,6 +177,25 @@
             "derived": {
               "y1": "m*x1+b"
             }
+          },
+          "solutionReview": {
+            "headline": "One point and the slope determine the line.",
+            "reasoning": [
+              "Point-slope form is y-({{y1}})={{m}}(x-({{x1}})).",
+              "Expanding and isolating y gives y={{m}}x{{b|signed}}.",
+              "Both forms describe the same line through the given point."
+            ],
+            "answerSummary": "Point-slope and slope-intercept forms are equivalent."
+          },
+          "attemptFeedback": [
+            "Substitute the coordinates into y-y₁=m(x-x₁) before simplifying."
+          ],
+          "supportHints": [
+            "The intercept can be found from b=y₁-mx₁."
+          ],
+          "context": {
+            "title": "Two forms of one line",
+            "note": "Use the given point in point-slope form, then translate to slope-intercept form."
           }
         }
       ]
@@ -406,7 +425,22 @@
             "constraints": [
               "y1!=0"
             ]
-          }
+          },
+          "solutionReview": {
+            "headline": "Point-slope form subtracts the coordinates of the known point.",
+            "reasoning": [
+              "Student A correctly uses y-({{y1}})={{m}}(x-({{x1}})).",
+              "Simplifying gives y={{m}}x{{b|signed}}.",
+              "Substituting x={{x1}} returns y={{y1}}, verifying the model."
+            ],
+            "answerSummary": "Student A is correct; the equivalent slope-intercept form is y={{m}}x{{b|signed}}."
+          },
+          "attemptFeedback": [
+            "Check each candidate by substituting the given point instead of relying on the visual sign pattern."
+          ],
+          "supportHints": [
+            "A valid line equation must produce y₁ when x=x₁."
+          ]
         }
       ]
     },
