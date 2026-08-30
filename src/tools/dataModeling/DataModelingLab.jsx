@@ -66,7 +66,6 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const yMax = Math.ceil(Math.max(...ys, 1) + 3);
 
   const forcedModelId = FIT_PREDICTION_MODELS[mode] || null;
-  const forcedModel = forcedModelId ? candidateModels.find((entry) => entry.id === forcedModelId) : null;
   const startingModel = questionData.startingModel || {};
 
   const [m, setM] = useState(questionData.startingModel?.m ?? round(regression.m * 0.75, 2));
@@ -79,11 +78,14 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
   const [predictionY, setPredictionY] = useState('');
   const [predictionType, setPredictionType] = useState('interpolation');
   const [correlationEntry, setCorrelationEntry] = useState('');
-  const [quadraticA, setQuadraticA] = useState(startingModel.a ?? round(Number(forcedModel?.model?.a ?? 1) * 0.8, 3));
-  const [quadraticB, setQuadraticB] = useState(startingModel.b ?? round(Number(forcedModel?.model?.b ?? 0), 3));
-  const [quadraticC, setQuadraticC] = useState(startingModel.c ?? round(Number(forcedModel?.model?.c ?? 0), 3));
-  const [exponentialA, setExponentialA] = useState(startingModel.a ?? round(Number(forcedModel?.model?.a ?? 1) * 0.8, 3));
-  const [exponentialBase, setExponentialBase] = useState(startingModel.base ?? round(Number(forcedModel?.model?.base ?? 1.1), 3));
+  // Neutral defaults are deliberate. Initialising these fields from the
+  // regression result would put most of the answer in the boxes before the
+  // student used technology to calculate it.
+  const [quadraticA, setQuadraticA] = useState(startingModel.a ?? 1);
+  const [quadraticB, setQuadraticB] = useState(startingModel.b ?? 0);
+  const [quadraticC, setQuadraticC] = useState(startingModel.c ?? 0);
+  const [exponentialA, setExponentialA] = useState(startingModel.a ?? 1);
+  const [exponentialBase, setExponentialBase] = useState(startingModel.base ?? 1.1);
   const { feedback, submit, clearFeedback } = useToolSubmission(onAction);
 
   const studentPredict = useMemo(() => {
