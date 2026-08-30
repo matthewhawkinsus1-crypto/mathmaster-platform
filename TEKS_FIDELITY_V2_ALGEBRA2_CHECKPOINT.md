@@ -264,7 +264,7 @@ Do **not** re-audit A2.3G unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.4A — PENDING AUDIT
+### A2.4A — REBUILD — AUDITED / AUTHORING
 
 Official construct: **Write a quadratic function given three specified points in the plane.**
 
@@ -273,6 +273,27 @@ Official construct: **Write a quadratic function given three specified points in
 ### A2.4A
 
 Resume here. Do not reopen A2.2A–A2.3G unless a failing gate names them.
+
+
+### 2026-08-30 — A2.4A audit finding
+- Official construct: **write a quadratic function given three specified points in the plane**.
+- Verdict: **REBUILD**.
+- Only the first legacy family consistently reaches the TEKS verb, and even that family gives away the leading coefficient before the student writes the function.
+- Legacy drift:
+  - family 1 supplies three points but also supplies $a$, reducing the three-point determination problem to finding fewer unknowns;
+  - family 2 uses only one point and asks only for $c$;
+  - family 3 adds a stated vertex and asks students to choose a prewritten equation;
+  - family 4 diagnoses an omitted term from only part of the coefficient setup and never writes the quadratic;
+  - family 5 again chooses a prewritten quadratic instead of authoring one.
+- Fidelity V2 requirements:
+  - every family must provide **exactly three specified points** as the data that determines the quadratic;
+  - every family must require the student to **write the complete quadratic function**, not choose it or identify one coefficient;
+  - the leading coefficient must not be supplied as a shortcut;
+  - include table, ordered-pair, graph, contextual, and error-analysis representations;
+  - include at least one family whose three x-values do **not** include zero, so the student cannot always read $c$ directly;
+  - include at least one family that collects the three substitution equations for $a,b,c$ before the final quadratic;
+  - error analysis must repair the coefficient setup and finish the complete function.
+- Generic secure equation fields are sufficient; no new Path tool contract is required. The existing expanded/form-preserving equation equivalence keeps harmless coefficient/term formatting from marking correct standard-form answers wrong.
 
 
 ### 2026-08-30 — A2.3G audit finding
