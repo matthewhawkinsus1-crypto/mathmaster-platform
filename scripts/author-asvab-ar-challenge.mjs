@@ -2358,6 +2358,224 @@ arc('7.4D', 'percent-rise-between-two-readings', {
   feedback: 'Measuring the rise against the later figure uses the wrong base.',
 });
 
+// ================================================================ 7.4E
+// Converting between measurement systems.
+
+arc('7.4E', 'drums-then-cost-from-a-tank', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'Using 1 gallon = 4 litres, a {{litres}}-litre tank is emptied into {{size}}-gallon drums. Each drum costs $\$\{{each}}$ to ship. What is the shipping bill?',
+  generator: {
+    parameters: {
+      size: { type: 'int', min: 2, max: 6 },
+      drums: { type: 'int', min: 5, max: 24 },
+      each: { type: 'int', min: 3, max: 15 },
+      billed: { type: 'int', min: 25, max: 235, step: 5 },
+    },
+    derived: {
+      gallons: 'size*drums',
+      litres: 'gallons*4',
+      answer: 'drums*each',
+      d_unitConversion: 'litres*each',
+      d_forgotFinalStep: 'drums',
+      d_usedGivenValue: 'billed',
+    },
+    constraints: ['billed!=answer'],
+  },
+  choices: [
+    { label: money('{{answer}}'), correct: true },
+    { label: money('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: money('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: money('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{litres}} litres is {{gallons}} gallons, which fills {{drums}} drums of {{size}} gallons.', 'At $\$\{{each}}$ a drum that is $\$\{{answer}}$.'],
+  answerSummary: { headline: 'Litres to gallons to drums, then price the drums.', text: 'The bill is $\$\{{answer}}$.' },
+  hint: 'The shipping is charged per drum, not per litre.',
+  feedback: 'Pricing every litre charges far more than the drums cost.',
+});
+
+arc('7.4E', 'litres-needed-to-fill-an-order', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'Using 1 gallon = 4 litres, an order needs {{drums}} drums holding {{size}} gallons each. {{have}} litres are already in store. How many more litres are needed?',
+  generator: {
+    parameters: {
+      size: { type: 'int', min: 2, max: 6 },
+      drums: { type: 'int', min: 6, max: 26 },
+      have: { type: 'int', min: 20, max: 200, step: 10 },
+      quoted: { type: 'int', min: 20, max: 480, step: 10 },
+    },
+    derived: {
+      gallons: 'size*drums',
+      needLitres: 'gallons*4',
+      answer: 'needLitres-have',
+      d_unitConversion: 'gallons-have',
+      d_forgotFinalStep: 'needLitres',
+      d_usedGivenValue: 'quoted',
+    },
+    constraints: ['needLitres-have>0', 'gallons-have>0', 'quoted!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{drums}} drums of {{size}} gallons is {{gallons}} gallons, or {{needLitres}} litres.', 'With {{have}} already in store, {{answer}} more are needed.'],
+  answerSummary: { headline: 'Convert the order to litres before subtracting the stock.', text: '${{answer}}$ more litres are needed.' },
+  hint: 'The stock is measured in litres, so the order has to be too.',
+  feedback: 'Subtracting litres from gallons compares two different units.',
+});
+
+arc('7.4E', 'heavier-load-across-two-systems', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Using 1 kilogram = 1000 grams, two loads were weighed as shown. What is the heavier load in grams?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Load', 'Weight'],
+    rows: [['A', '{{kg}} kilograms'], ['B', '{{grams}} grams']],
+  },
+  generator: {
+    parameters: {
+      kg: { type: 'int', min: 2, max: 9 },
+      gramsK: { type: 'int', min: 1, max: 9 },
+      gapHundreds: { type: 'int', min: 1, max: 9 },
+      docket: { type: 'int', min: 4000, max: 10500, step: 100 },
+    },
+    derived: {
+      grams: 'gramsK*1000+gapHundreds*100',
+      kgGrams: 'kg*1000',
+      answer: 'max(kgGrams,grams)',
+      d_unitConversion: 'min(kgGrams,grams)',
+      d_partialTotal: 'kgGrams+grams',
+      d_usedGivenValue: 'docket',
+    },
+    constraints: ['kgGrams!=grams', 'docket!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_unitConversion}}'), error: 'unitConversion' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{kg}} kilograms is {{kgGrams}} grams, against load B at {{grams}} grams.', 'The heavier of the two is {{answer}} grams.'],
+  answerSummary: { headline: 'Put both weights in one unit before comparing.', text: 'The heavier load is ${{answer}}$ grams.' },
+  hint: 'A number of kilograms cannot be compared with a number of grams directly.',
+  feedback: 'The lighter of the two loads is not what the question asks for.',
+});
+
+// ================================================================ 7.3B
+// Operations with signed and rational numbers.
+
+arc('7.3B', 'temperature-over-two-nights', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A reading of {{start}} degrees fell {{d1}} overnight, rose {{r1}} by afternoon, then fell {{d2}} the next night. What does it read?',
+  generator: {
+    parameters: {
+      start: { type: 'int', min: 30, max: 70 },
+      d1: { type: 'int', min: 8, max: 30 },
+      r1: { type: 'int', min: 5, max: 25 },
+      d2: { type: 'int', min: 6, max: 28 },
+      gauge: { type: 'int', min: 20, max: 59 },
+    },
+    derived: {
+      answer: 'start-d1+r1-d2',
+      d_signError: 'start-d1-r1-d2',
+      d_forgotFinalStep: 'start-d1+r1',
+      d_usedGivenValue: 'gauge',
+    },
+    constraints: ['gauge!=answer', 'start-d1+r1-d2>0', 'start-d1-r1-d2>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['{{start}} less {{d1}} then plus {{r1}} reaches {{d_forgotFinalStep}}.', 'A further fall of {{d2}} leaves {{answer}}.'],
+  answerSummary: { headline: 'Apply the changes in the order they happened.', text: 'It reads ${{answer}}$ degrees.' },
+  hint: 'Each change acts on the reading the one before it left.',
+  feedback: 'Treating the afternoon rise as another fall moves the reading the wrong way.',
+});
+
+arc('7.3B', 'stock-before-four-adjustments', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'table',
+  prompt: 'The adjustments below were applied to a stock of {{item}}, leaving {{end}}. What was the stock before them?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Adjustment', 'Change'],
+    rows: [['1', '+{{a}}'], ['2', '-{{b}}'], ['3', '+{{c}}'], ['4', '-{{d}}']],
+  },
+  generator: {
+    parameters: {
+      item: GOODS,
+      a: { type: 'int', min: 10, max: 60 },
+      b: { type: 'int', min: 10, max: 60 },
+      c: { type: 'int', min: 10, max: 60 },
+      d: { type: 'int', min: 10, max: 60 },
+      start: { type: 'int', min: 120, max: 400, step: 10 },
+      counted: { type: 'int', min: 140, max: 400, step: 10 },
+    },
+    derived: {
+      net: 'a-b+c-d',
+      end: 'start+net',
+      answer: 'start',
+      d_offByOneStep: 'end-2*net',
+      d_forgotFinalStep: 'end',
+      d_usedGivenValue: 'counted',
+    },
+    // net stays positive so the closing figure is dependably above the opening
+    // one and the two numeric distractors bracket rather than drift together.
+    constraints: ['net>0', 'counted!=answer', 'end-2*net>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The four adjustments come to a net change of {{net}}.', 'Taking that off the {{end}} left gives {{answer}}.'],
+  answerSummary: { headline: 'Total the changes, then undo them.', text: 'The stock was ${{answer}}$.' },
+  hint: 'Work out the single net change the four adjustments make.',
+  feedback: 'Taking the net change off twice removes more than the adjustments did.',
+});
+
+arc('7.3B', 'share-of-what-is-left', {
+  difficultyBand: 5, dok: 3, taskType: 'errorAnalysis', representation: 'context',
+  prompt: 'A {{machine}} finished {{n1}} of every {{d1}} of a run of {{total}} {{item}}, then {{n2}} of every {{d2}} of what was left. The sheet expected {{expected}}. How many remain?',
+  generator: {
+    parameters: {
+      machine: MACHINES,
+      item: GOODS,
+      base: { type: 'int', min: 4, max: 16 },
+      n1: { type: 'int', min: 1, max: 2 },
+      d1: { type: 'int', min: 3, max: 4 },
+      n2: { type: 'int', min: 1, max: 2 },
+      d2: { type: 'int', min: 3, max: 4 },
+      expected: { type: 'int', min: 18, max: 96 },
+    },
+    derived: {
+      total: 'base*d1*d2',
+      firstDone: 'total*n1/d1',
+      leftAfterFirst: 'total-firstDone',
+      secondDone: 'leftAfterFirst*n2/d2',
+      answer: 'leftAfterFirst-secondDone',
+      d_wrongPercentBase: 'total-firstDone-total*n2/d2',
+      d_forgotFinalStep: 'leftAfterFirst',
+      d_usedGivenValue: 'expected',
+    },
+    constraints: ['n1<d1', 'n2<d2', 'total-firstDone-total*n2/d2>0', 'expected!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_wrongPercentBase}}'), error: 'wrongPercentBase' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The first stage finishes {{firstDone}}, leaving {{leftAfterFirst}}.', 'The second finishes {{secondDone}} of those, leaving {{answer}}.'],
+  answerSummary: { headline: 'The second fraction is taken of what was left.', text: '${{answer}}$ remain.' },
+  hint: 'The second stage works on the remainder, not on the whole run.',
+  feedback: 'The sheet figure is what was expected, not what the two stages leave.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
