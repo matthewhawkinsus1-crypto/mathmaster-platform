@@ -738,6 +738,22 @@
               "r2": "c2-2*c1",
               "r3": "c3-c1"
             }
+          },
+          "stimulus": {
+            "kind": "steps",
+            "title": "Student's row operation",
+            "steps": [
+              {
+                "id": "op",
+                "label": "Operation",
+                "work": "$R_2\\leftarrow R_2-2R_1$"
+              },
+              {
+                "id": "wrong",
+                "label": "Student result",
+                "work": "$-3y+z={{r2}}$"
+              }
+            ]
           }
         }
       ]
