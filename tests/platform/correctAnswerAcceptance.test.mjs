@@ -88,6 +88,25 @@ test('secure My Math Path accepts reordered expanded polynomial expressions', as
   assert.deepEqual(result.fieldResults, [{ id: 'answer', isCorrect: true }]);
 });
 
+test('geometric sequence formulas accept conventional implicit multiplication', async () => {
+  const generatedKey = '5*(4)^(n-1)';
+
+  assert.equal(sameValue('5(4)^(n-1)', generatedKey), true);
+  assert.equal(sameValue('5(4)^(n−1)', generatedKey), true);
+
+  const grading = mathPath.privateGradingDefinition({
+    responseFields: [{
+      id: 'formula',
+      inputProfile: 'expression',
+      expected: generatedKey,
+    }],
+  });
+  const result = await mathPath.gradeResponse(grading, {
+    responses: { formula: '5(4)^(n-1)' },
+  });
+  assert.equal(result.isCorrect, true);
+});
+
 test('expanded-expression equivalence does not erase a required factored form', async () => {
   const grading = mathPath.privateGradingDefinition({
     responseFields: [{
