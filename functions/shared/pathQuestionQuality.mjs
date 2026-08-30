@@ -274,7 +274,7 @@ export const auditPathQuestionQuality = (question = {}) => {
   // towards avoiding the word rather than supplying the graph.
   const POINTS_AT_A_GRAPH = /\b(?:use|using|read|from|on|in)\s+the\s+(?:displayed\s+|shown\s+|given\s+|following\s+)?graph\b|\bthe\s+(?:displayed|shown|given|following)\s+graph\b|\bgraph\s+(?:below|above|shown)\b|\bcoordinate plane below\b/i;
   if (POINTS_AT_A_GRAPH.test(prompt)
-      && !(question.graph || question.function || question.functionSpec || question.candidateGraphs || usesTool)) {
+      && !(question.graph || question.stimulus?.graph || question.function || question.functionSpec || question.candidateGraphs || usesTool)) {
     addIssue(issues, 'blocker', 'missing-graph-representation',
       'The prompt points the student at a graph, but no graph representation is supplied.', 35);
   }
