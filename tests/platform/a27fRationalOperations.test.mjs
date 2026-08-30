@@ -84,7 +84,7 @@ test('A2.7F covers all twelve rational-operation degree breakouts with preserved
       assert.equal(fields.restrictions && fields.restrictions.equivalence, 'setBuilder');
 
       const key = question.coverageKey || null;
-      if (key) {
+      if (key && !isError) {
         seen.add(key);
         assert.ok(expectedCoverage.has(key), 'unexpected A2.7F coverage key ' + key);
         assert.equal(question.dok, 2);
