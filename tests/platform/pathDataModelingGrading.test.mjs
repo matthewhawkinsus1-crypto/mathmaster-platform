@@ -32,6 +32,25 @@ const datasets = [
   [[-2, 8], [-1, 4], [0, 2], [1, 1], [2, 0.5]],
 ];
 
+test('Firestore-safe {x,y} point objects grade identically to array pairs', () => {
+  const arrays = [[0, 2], [1, 5], [2, 8], [3, 11]];
+  const objects = arrays.map(([x, y]) => ({ x, y }));
+  nearly(pathCorrelation(objects), pathCorrelation(arrays));
+  const fromObjects = buildDataModelingPrivateDefinition({
+    points: objects,
+    mode: 'linearFitPrediction',
+    predictionX: 5,
+  });
+  const fromArrays = buildDataModelingPrivateDefinition({
+    points: arrays,
+    mode: 'linearFitPrediction',
+    predictionX: 5,
+  });
+  nearly(fromObjects.expectedModel.model.m, fromArrays.expectedModel.model.m);
+  nearly(fromObjects.expectedModel.model.b, fromArrays.expectedModel.model.b);
+  assert.deepEqual(sanitizeDataModelingPublicQuestion({ points: objects }).points, arrays);
+});
+
 test('server correlation and linear regression remain in parity with the client math', () => {
   for (const points of datasets) {
     nearly(pathCorrelation(points), correlation(points));
