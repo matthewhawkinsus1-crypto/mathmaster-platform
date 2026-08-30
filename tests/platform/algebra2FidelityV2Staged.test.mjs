@@ -294,3 +294,87 @@ test('A2.2C centers quadratic/root and exponential/log inverse relationships wit
   );
 });
 
+test('A2.2D uses composition as the inverse-decision evidence and enforces domain restrictions', async () => {
+  const entry = payload('A2.2D');
+  assert.ok(entry);
+  assert.equal(entry.verdict, 'REBUILD');
+  assert.match(entry.certificationStatus, /two-direction-composition-inverse-determination/);
+
+  const representations = new Set();
+  const taskTypes = new Set();
+  let generatedCount = 0;
+  let bothDirectionsFamilies = 0;
+  let restrictionFamilies = 0;
+  let leftBranchFamilies = 0;
+  let rightBranchFamilies = 0;
+  let nonInverseFamilies = 0;
+
+  for (const doc of entry.documents) {
+    representations.add(doc.representation);
+    taskTypes.add(doc.taskType);
+
+    const fieldIds = new Set((doc.responseFields || []).map((field) => String(field.id)));
+    if (fieldIds.has('fog') && fieldIds.has('gof')) bothDirectionsFamilies += 1;
+
+    const authoredText = stringValues(doc).join(' ');
+    if (/restriction|domain/.test(authoredText.toLowerCase())) restrictionFamilies += 1;
+    if (authoredText.includes('x\\le')) leftBranchFamilies += 1;
+    if (authoredText.includes('x\\ge')) rightBranchFamilies += 1;
+    if (/not inverses|not inverse|claim fails|inverse claim fails/i.test(authoredText)) nonInverseFamilies += 1;
+
+    const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
+    assert.equal(issuePlan.issuable, true, `${doc.id} is not production-issuable: ${issuePlan.reason}`);
+
+    for (const generated of samplePathInstances(doc, 40)) {
+      assert.ok(generated.question, `${doc.id} failed generation: ${generated.reason}`);
+      const question = generated.question;
+      generatedCount += 1;
+
+      assert.deepEqual([...placeholdersUsed(question)], []);
+      assert.ok(question.responseFields?.length >= 3, `${doc.id} must grade composition evidence plus an inverse determination/restriction`);
+
+      const grading = privateGradingDefinition(question);
+      const responses = Object.fromEntries(
+        grading.fields.map((field) => [field.id, field.expected ?? field.accepted?.[0] ?? '']),
+      );
+      const result = await gradeResponse(grading, { responses });
+      assert.equal(
+        result.isCorrect,
+        true,
+        `${doc.id} failed generated correct-answer self-acceptance: ${JSON.stringify(result.fieldResults)}`,
+      );
+
+      const publicQuestion = buildSanitizedQuestion(question, {
+        questionInstanceId: `qa-${doc.id}-${generatedCount}`,
+        attemptsAllowed: 3,
+      });
+      const publicText = JSON.stringify(publicQuestion);
+      assert.equal(publicText.includes('"expected"'), false);
+      assert.equal(publicText.includes('"acceptedAnswers"'), false);
+      assert.ok(publicQuestion.responseFields?.every((field) => field.expected === undefined && field.answer === undefined));
+    }
+  }
+
+  assert.ok(generatedCount >= 200);
+  assert.ok(bothDirectionsFamilies >= 3, 'A2.2D must repeatedly require both f(g(x)) and g(f(x)) rather than treating one composition as proof');
+  assert.ok(restrictionFamilies >= 3, 'A2.2D must repeatedly make domain restrictions part of the inverse decision');
+  assert.ok(leftBranchFamilies >= 1, 'A2.2D must include a valid left-branch quadratic inverse composition');
+  assert.ok(rightBranchFamilies >= 2, 'A2.2D must include the principal-root/right-branch restriction and its repair case');
+  assert.ok(nonInverseFamilies >= 2, 'A2.2D must include composition evidence that disproves proposed inverse pairs');
+  assert.ok(representations.size >= 4, 'A2.2D must not collapse composition to one representation');
+  assert.ok(taskTypes.has('interpretation'));
+  assert.ok(taskTypes.has('reverseReasoning'));
+  assert.ok(taskTypes.has('errorAnalysis'));
+
+  const errorFamily = entry.documents.find((doc) => doc.taskType === 'errorAnalysis');
+  const errorSamples = samplePathInstances(errorFamily, 25).map((item) => item.question).filter(Boolean);
+  assert.ok(
+    errorSamples.every((question) => {
+      const counterexample = question.responseFields?.find((field) => field.id === 'counterexample');
+      const match = String(counterexample?.label || '').match(/f\((-?\d+)\)/);
+      return match && Number(counterexample.expected) !== Number(match[1]);
+    }),
+    'Every generated A2.2D error-analysis item must contain a concrete reverse-composition counterexample',
+  );
+});
+
