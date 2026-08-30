@@ -63,7 +63,7 @@ const MAGNITUDE_ANSWERABLE_CEILING = Object.freeze({
   geometryTrigonometry: 0,
   problemSolvingData: 0,
   advancedMath: 91,
-  algebra: 35,
+  algebra: 26,
 });
 
 test('no Digital SAT family is answerable by the size of its options alone', () => {

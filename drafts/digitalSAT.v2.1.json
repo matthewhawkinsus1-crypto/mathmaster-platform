@@ -35577,7 +35577,16 @@
           "inputProfile": "choice",
           "expected": "choice-d"
         }
-      ]
+      ],
+      "generator": {
+        "parameters": {
+          "variant": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        }
+      }
     },
     {
       "id": "mm_sat_A_12A_5_which-equation-function_v21",
@@ -35956,7 +35965,16 @@
           "inputProfile": "choice",
           "expected": "choice-d"
         }
-      ]
+      ],
+      "generator": {
+        "parameters": {
+          "variant": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        }
+      }
     },
     {
       "id": "mm_sat_A_12B_1_evaluate-linear_v21",
@@ -36916,7 +36934,16 @@
           "inputProfile": "choice",
           "expected": "choice-a"
         }
-      ]
+      ],
+      "generator": {
+        "parameters": {
+          "variant": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        }
+      }
     },
     {
       "id": "mm_sat_A_12E_2_rectangle-perimeter_v21",
@@ -37002,7 +37029,16 @@
           "inputProfile": "choice",
           "expected": "choice-d"
         }
-      ]
+      ],
+      "generator": {
+        "parameters": {
+          "variant": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        }
+      }
     },
     {
       "id": "mm_sat_A_12E_3_slope-intercept-solve-x_v21",
@@ -37088,7 +37124,16 @@
           "inputProfile": "choice",
           "expected": "choice-d"
         }
-      ]
+      ],
+      "generator": {
+        "parameters": {
+          "variant": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        }
+      }
     },
     {
       "id": "mm_sat_A_12E_4_triangle-area_v21",
@@ -37174,7 +37219,16 @@
           "inputProfile": "choice",
           "expected": "choice-b"
         }
-      ]
+      ],
+      "generator": {
+        "parameters": {
+          "variant": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        }
+      }
     },
     {
       "id": "mm_sat_A_12E_5_temperature-conversion_v21",
@@ -37260,7 +37314,16 @@
           "inputProfile": "choice",
           "expected": "choice-c"
         }
-      ]
+      ],
+      "generator": {
+        "parameters": {
+          "variant": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        }
+      }
     },
     {
       "id": "mm_sat_A_12E_challenge_1_simple-interest-rate_v21",
@@ -37347,7 +37410,16 @@
           "inputProfile": "choice",
           "expected": "choice-b"
         }
-      ]
+      ],
+      "generator": {
+        "parameters": {
+          "variant": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        }
+      }
     },
     {
       "id": "mm_sat_A_12E_challenge_2_solve-parameter-generated_v21",
@@ -37531,7 +37603,16 @@
           "inputProfile": "choice",
           "expected": "choice-b"
         }
-      ]
+      ],
+      "generator": {
+        "parameters": {
+          "variant": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        }
+      }
     },
     {
       "id": "mm_sat_A_2B_1_point_slope_to_equation_v21",
