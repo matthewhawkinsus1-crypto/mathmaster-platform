@@ -7665,6 +7665,3669 @@
           "y4": "b+4*m-1"
         }
       }
+    },
+    {
+      "id": "mm_A_5A_v2_balance-workspace",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5A:v2-balance-workspace",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve ${{a}}x {{b|signed}} = {{c}}x {{d|signed}}$ in the balance workspace.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Move variable terms so all $x$ terms are on one side.",
+          "Then undo the remaining constant; the equation was constructed to solve to $x={{x}}$."
+        ],
+        "answerSummary": "$x={{x}}$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 3,
+            "max": 9
+          },
+          "c": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "x": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "b": {
+            "type": "int",
+            "min": -12,
+            "max": 12
+          }
+        },
+        "derived": {
+          "d": "a*x+b-c*x"
+        },
+        "constraints": [
+          "a!=c"
+        ]
+      },
+      "type": "stepAlgebra",
+      "equation": "{{a}}x {{b|signed}} = {{c}}x {{d|signed}}",
+      "variable": "x",
+      "workspaceDifficulty": "standard",
+      "answer": "{{x}}"
+    },
+    {
+      "id": "mm_A_5A_v2_context-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5A:v2-context-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5A",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A service charges a fixed fee of {{fee}} dollars plus {{rate}} dollars per unit. A bill of {{total}} dollars represents how many units?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Model the bill with ${{fee}}+{{rate}}x={{total}}$.",
+          "Subtract the fee, then divide by the per-unit rate."
+        ],
+        "answerSummary": "The bill represents {{x}} units."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "fee": {
+            "type": "int",
+            "min": 5,
+            "max": 30
+          },
+          "rate": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "x": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          }
+        },
+        "derived": {
+          "total": "fee+rate*x"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_5A_v2_distribution",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5A:v2-distribution",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5A",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student distributes in ${{a}}(x{{b|signed}})={{rhs}}$ but forgets to multiply the second term inside the parentheses by {{a}}. Correct the student's error by solving the original equation for $x$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "You may divide by {{a}} first or distribute; both preserve equality.",
+          "After undoing the multiplication, solve the remaining one-step equation."
+        ],
+        "answerSummary": "$x={{x}}$"
+      },
+      "attemptFeedback": [
+        "The outside factor multiplies every term inside the parentheses before you continue solving."
+      ],
+      "supportHints": [
+        "You can distribute first or divide both sides by {{a}} first; both valid methods lead to the same $x$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "inside": "x+b",
+          "rhs": "a*inside"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_5A_v2_reverse-constant",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5A:v2-reverse-constant",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5A",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "The equation ${{a}}x+b={{rhs}}$ has solution $x={{x}}$. Find $b$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "A solution makes the equation true.",
+          "Substitute $x={{x}}$ and solve for the missing constant."
+        ],
+        "answerSummary": "$b={{b}}$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "x": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "b": {
+            "type": "int",
+            "min": -12,
+            "max": 12
+          }
+        },
+        "derived": {
+          "rhs": "a*x+b"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{b}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_5A_v2_two-step",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5A:v2-two-step",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve ${{a}}x {{b|signed}}={{rhs}}$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Undo the constant term first.",
+          "Then divide by the coefficient of $x$ to isolate the variable."
+        ],
+        "answerSummary": "$x={{x}}$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "x": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          },
+          "b": {
+            "type": "int",
+            "min": -12,
+            "max": 12
+          }
+        },
+        "derived": {
+          "rhs": "a*x+b"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_5B_v2_context-capacity",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5B:v2-context-capacity",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5B",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A service charges a fixed fee of {{fee}} dollars plus {{rate}} dollars per hour. A customer can spend at most {{budget}} dollars. Let $h$ be the number of hours. Write and solve the inequality that describes the possible hours.",
+      "responseFields": [
+        {
+          "id": "model",
+          "label": "Budget inequality",
+          "inputProfile": "inequality",
+          "expected": "{{fee}}+{{rate}}h<={{budget}}"
+        },
+        {
+          "id": "solution",
+          "label": "Solved inequality",
+          "inputProfile": "inequality",
+          "expected": "h<={{maxh}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Model the maximum before solving it.",
+        "reasoning": [
+          "The total cost is ${{fee}}+{{rate}}h$ and 'at most' means $\\le {{budget}}$.",
+          "Subtract the fee and divide by {{rate}} to get $h\\le {{maxh}}$."
+        ],
+        "answerSummary": "${{fee}}+{{rate}}h\\le{{budget}}$, so $h\\le{{maxh}}$."
+      },
+      "attemptFeedback": [
+        "Translate 'at most' into an inequality before solving."
+      ],
+      "supportHints": [
+        "Keep the fixed fee separate from the hourly charge."
+      ],
+      "generator": {
+        "parameters": {
+          "fee": {
+            "type": "int",
+            "min": 5,
+            "max": 30
+          },
+          "rate": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "maxh": {
+            "type": "int",
+            "min": 2,
+            "max": 10
+          }
+        },
+        "derived": {
+          "budget": "fee+rate*maxh"
+        }
+      }
+    },
+    {
+      "id": "mm_A_5B_v2_distribute-inequality",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5B:v2-distribute-inequality",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve ${{g}}(x{{s|signed}}) \\le {{rhs}}$. Write the solution as an inequality.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Solution inequality",
+          "inputProfile": "inequality",
+          "expected": "x<={{bound}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Distribute or divide first, then isolate x.",
+        "reasoning": [
+          "Dividing both sides by the positive number {{g}} gives $x{{s|signed}}\\le {{t}}$.",
+          "Undo the shift {{s}} to obtain $x\\le {{bound}}$."
+        ],
+        "answerSummary": "$x\\le {{bound}}$"
+      },
+      "attemptFeedback": [
+        "The outside factor applies to the entire quantity in parentheses."
+      ],
+      "supportHints": [
+        "Because {{g}} is positive, the inequality direction does not change when you divide."
+      ],
+      "generator": {
+        "parameters": {
+          "g": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "s": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "t": {
+            "type": "int",
+            "min": -8,
+            "max": 10
+          }
+        },
+        "derived": {
+          "rhs": "g*t",
+          "bound": "t-s"
+        }
+      }
+    },
+    {
+      "id": "mm_A_5B_v2_error-negative-division",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5B:v2-error-negative-division",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5B",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student solves $-{{g}}x \\le {{rhs}}$ and writes $x\\le {{wrong}}$. The student divided by a negative number but did not reverse the inequality. Correct the solution.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct solution inequality",
+          "inputProfile": "inequality",
+          "expected": "x>={{correct}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A negative division reverses the order relation.",
+        "reasoning": [
+          "Dividing $-{{g}}x\\le{{rhs}}$ by $-{{g}}$ changes $\\le$ to $\\ge$.",
+          "The boundary value is {{correct}}, so the correct solution is $x\\ge {{correct}}$."
+        ],
+        "answerSummary": "$x\\ge {{correct}}$"
+      },
+      "attemptFeedback": [
+        "The boundary number may be right even when the inequality direction is wrong."
+      ],
+      "supportHints": [
+        "Multiplying or dividing both sides of an inequality by a negative reverses the symbol."
+      ],
+      "generator": {
+        "parameters": {
+          "g": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "correct": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "rhs": "-g*correct",
+          "wrong": "correct"
+        }
+      }
+    },
+    {
+      "id": "mm_A_5B_v2_negative-coefficient-number-line",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5B:v2-negative-coefficient-number-line",
+      "familyVersion": 3,
+      "questionType": "tool",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5B",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Solve $-{{g}}x{{b|signed}} \\ge {{rhs}}$, then graph the solution on the number line and enter the matching interval notation.",
+      "type": "intervalNumberLine",
+      "min": -12,
+      "max": 12,
+      "step": 1,
+      "variable": "x",
+      "ask": [
+        "graph",
+        "interval"
+      ],
+      "expectedIntervals": [
+        {
+          "min": null,
+          "max": "{{bound}}",
+          "minClosed": false,
+          "maxClosed": true
+        }
+      ],
+      "expectedNotation": "(-inf,{{bound}}]",
+      "solutionReview": {
+        "headline": "Dividing by a negative reverses the inequality.",
+        "reasoning": [
+          "Subtract {{b}} to get $-{{g}}x\\ge {{right}}$.",
+          "Dividing by $-{{g}}$ reverses the comparison, so $x\\le {{bound}}$. The graph is a closed point at {{bound}} shaded left."
+        ],
+        "answerSummary": "$x\\le {{bound}}$, or $(-\\infty,{{bound}}]$."
+      },
+      "attemptFeedback": [
+        "Watch the inequality direction when the final coefficient of x is negative."
+      ],
+      "supportHints": [
+        "A closed endpoint is used because equality is included."
+      ],
+      "generator": {
+        "parameters": {
+          "g": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "bound": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "right": "-g*bound",
+          "rhs": "b+right"
+        }
+      }
+    },
+    {
+      "id": "mm_A_5B_v2_variables-both-sides",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5B:v2-variables-both-sides",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve ${{a}}x{{b|signed}} \\le {{c}}x{{d|signed}}$. Write the solution as an inequality.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Solution inequality",
+          "inputProfile": "inequality",
+          "expected": "x<={{bound}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Move variable terms to one side before isolating x.",
+        "reasoning": [
+          "Subtract {{c}}x from both sides to get ${{delta}}x{{b|signed}}\\le {{d}}$.",
+          "Then subtract {{b}} and divide by positive {{delta}}, giving $x\\le {{bound}}$."
+        ],
+        "answerSummary": "$x\\le {{bound}}$"
+      },
+      "attemptFeedback": [
+        "Collect the x-terms together before handling the constants."
+      ],
+      "supportHints": [
+        "The constructed coefficient difference {{delta}} is positive, so the final division does not reverse the inequality."
+      ],
+      "generator": {
+        "parameters": {
+          "c": {
+            "type": "int",
+            "min": -4,
+            "max": 5
+          },
+          "delta": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          },
+          "bound": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "a": "c+delta",
+          "d": "b+delta*bound"
+        }
+      }
+    },
+    {
+      "id": "mm_A_5C_v2_classify-identical",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5C:v2-classify-identical",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5C",
+      "taskType": "errorAnalysis",
+      "representation": "graph",
+      "prompt": "A student says that because the same line is written twice, the system has exactly two solutions. Use the workspace to classify the system $y={{m}}x{{b|signed}}$ and $y={{m}}x{{b|signed}}$ and correct the claim.",
+      "solutionReview": {
+        "headline": "Identical equations describe one line, so every point on that line solves the system.",
+        "reasoning": [
+          "Both equations have the same slope and the same intercept, so their graphs coincide.",
+          "A coincident pair of lines has infinitely many solutions, not two solutions."
+        ],
+        "answerSummary": "Infinitely many solutions."
+      },
+      "attemptFeedback": [
+        "Check whether the two equations describe distinct lines or exactly the same line."
+      ],
+      "supportHints": [
+        "Same slope AND same intercept means the lines coincide."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        }
+      },
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "system": {
+        "m1": "{{m}}",
+        "b1": "{{b}}",
+        "m2": "{{m}}",
+        "b2": "{{b}}"
+      }
+    },
+    {
+      "id": "mm_A_5C_v2_context-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5C:v2-context-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5C",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A total of {{n}} items consists of two types costing {{a}} and {{b}} dollars each. The total cost is {{total}} dollars. How many of the first type were bought?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Use one equation for the item count and one for total cost.",
+          "Elimination or substitution gives the generated first-type count."
+        ],
+        "answerSummary": "{{x}} of the first type were bought."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "b": {
+            "type": "int",
+            "min": 8,
+            "max": 15
+          },
+          "x": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          },
+          "y": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          }
+        },
+        "derived": {
+          "n": "x+y",
+          "total": "a*x+b*y"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_5C_v2_recover-second-intercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5C:v2-recover-second-intercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5C",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "A system has solution $({{x}},{{y}})$. One line is $y={{m}}x+b$. Find $b$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "A system solution lies on each equation.",
+          "Substitute the known solution point into the line and solve for its intercept."
+        ],
+        "answerSummary": "$b={{b}}$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          }
+        },
+        "derived": {
+          "y": "m*x+b"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{b}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_5C_v2_substitution-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5C:v2-substitution-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5C",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "Solve $y={{m1}}x {{b1|signed}}$ and $y={{m2}}x {{b2|signed}}$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Set the right-hand sides equal because both equal $y$.",
+          "Solve for $x$, then substitute back for $y$."
+        ],
+        "answerSummary": "$({{x}},{{y}})$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "m2": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y": "m1*x+b1",
+          "b2": "y-m2*x"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "orderedPair",
+          "expected": "({{x}},{{y}})"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_5C_v2_systems-workspace",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5C:v2-systems-workspace",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5C",
+      "taskType": "procedural",
+      "representation": "graph",
+      "prompt": "Solve the system $y={{m1}}x {{b1|signed}}$ and $y={{m2}}x {{b2|signed}}$ using the workspace.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The solution must satisfy both equations at the same time.",
+          "The two generated lines meet at $({{x}},{{y}})$."
+        ],
+        "answerSummary": "$({{x}},{{y}})$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "m2": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 6
+          },
+          "b1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y": "m1*x+b1",
+          "b2": "y-m2*x"
+        }
+      },
+      "type": "systemsWorkspace",
+      "mode": "linear",
+      "system": {
+        "m1": "{{m1}}",
+        "b1": "{{b1}}",
+        "m2": "{{m2}}",
+        "b2": "{{b2}}"
+      }
+    },
+    {
+      "id": "mm_A_6A_v2_downward-range-error",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6A:v2-downward-range-error",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6A",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "For $g(x)=-{{a}}(x-{{h}})^2{{k|signed}}$, a student writes the range as $[{{k}},\\infty)$ because the vertex y-value is {{k}}. Correct the range in interval notation.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct range",
+          "inputProfile": "interval",
+          "expected": "(-inf,{{k}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The vertex is a maximum when the parabola opens downward.",
+        "reasoning": [
+          "The negative leading coefficient makes every other output less than or equal to {{k}}.",
+          "Therefore the range extends downward without bound and includes {{k}}: $(-\\infty,{{k}}]$."
+        ]
+      },
+      "attemptFeedback": [
+        "First decide whether the vertex is a minimum or maximum."
+      ],
+      "supportHints": [
+        "Opening downward means the vertex is the greatest y-value."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_6A_v2_graph-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6A:v2-graph-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Graph $f(x)={{a}}(x-{{h}})^2{{k|signed}}$ by plotting its vertex, then write the domain and range.",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": "{{a}}",
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "pointTasks": [
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": "{{h}}",
+          "expected": [
+            "{{h}}",
+            "{{k}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "domain",
+          "label": "Domain",
+          "kind": "domain",
+          "notation": "interval",
+          "responseMode": "text",
+          "expected": [
+            "(-inf,inf)"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "kind": "range",
+          "notation": "interval",
+          "responseMode": "text",
+          "expected": [
+            "[{{k}},inf)"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "An upward-opening quadratic extends forever left and right but has a lowest output.",
+        "reasoning": [
+          "There is no restriction on x, so the domain is all real numbers.",
+          "The vertex $({{h}},{{k}})$ is the minimum, so the range is $[{{k}},\\infty)$."
+        ]
+      },
+      "attemptFeedback": [
+        "Separate horizontal extent (domain) from vertical extent (range)."
+      ],
+      "supportHints": [
+        "The vertex gives the range endpoint; the parabola continues indefinitely in both x-directions."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_6A_v2_projectile-context-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6A:v2-projectile-context-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6A",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A projectile is modeled by $h(t)=-{{a}}(t-{{v}})^2+{{maxh}}$ only from launch until it returns to the ground. Write the reasonable domain of time and the corresponding range of height in interval notation.",
+      "responseFields": [
+        {
+          "id": "domain",
+          "label": "Reasonable time domain",
+          "inputProfile": "interval",
+          "expected": "[0,{{end}}]"
+        },
+        {
+          "id": "range",
+          "label": "Height range",
+          "inputProfile": "interval",
+          "expected": "[0,{{maxh}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Context can restrict a quadratic that is mathematically defined for every real input.",
+        "reasoning": [
+          "Because {{maxh}}={{a}}({{v}})^2, the model reaches ground level at t=0 and t={{end}}.",
+          "During the physical flight, time runs from 0 to {{end}} and height runs from 0 to the vertex height {{maxh}}."
+        ]
+      },
+      "attemptFeedback": [
+        "Use the physical interval of flight, not the unrestricted algebraic domain of the formula."
+      ],
+      "supportHints": [
+        "The vertex occurs halfway between the two ground times."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "v": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "maxh": "a*v*v",
+          "end": "2*v"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6A_v2_restricted-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6A:v2-restricted-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6A",
+      "taskType": "application",
+      "representation": "symbolic",
+      "prompt": "For $q(x)={{a}}(x-{{h}})^2{{k|signed}}$ restricted to ${{h}}\\le x\\le {{hi}}$, write BOTH the domain and range in interval notation.",
+      "responseFields": [
+        {
+          "id": "domain",
+          "label": "Domain",
+          "inputProfile": "interval",
+          "expected": "[{{h}},{{hi}}]"
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "inputProfile": "interval",
+          "expected": "[{{k}},{{top}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A restricted domain changes the range because only part of the parabola is allowed.",
+        "reasoning": [
+          "The domain starts at the vertex x={{h}} and ends at {{hi}}.",
+          "On this right-hand branch the function increases from {{k}} to {{top}}, so the range is $[{{k}},{{top}}]$."
+        ]
+      },
+      "attemptFeedback": [
+        "Evaluate the function at the restricted endpoint as well as at the vertex."
+      ],
+      "supportHints": [
+        "Because the domain begins at the vertex and moves right, the outputs increase."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 2
+          },
+          "k": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "span": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          }
+        },
+        "derived": {
+          "hi": "h+span",
+          "top": "a*span*span+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6A_v2_translate-inequality-to-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6A:v2-translate-inequality-to-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6A",
+      "taskType": "transfer",
+      "representation": "multipleRepresentation",
+      "prompt": "A quadratic has domain all real numbers, opens upward, and has vertex $({{h}},{{k}})$. Write its range in interval notation and give the inequality statement that describes the same y-values.",
+      "responseFields": [
+        {
+          "id": "interval",
+          "label": "Range in interval notation",
+          "inputProfile": "interval",
+          "expected": "[{{k}},inf)"
+        },
+        {
+          "id": "inequality",
+          "label": "Equivalent range inequality",
+          "inputProfile": "inequality",
+          "expected": "y>={{k}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The same range can be represented as an interval or as an inequality.",
+        "reasoning": [
+          "Opening upward makes {{k}} the minimum output.",
+          "The vertex is included, so the range is $[{{k}},\\infty)$, equivalently $y\\ge {{k}}$."
+        ]
+      },
+      "attemptFeedback": [
+        "Both representations must say that y is greater than or equal to the vertex output."
+      ],
+      "supportHints": [
+        "Upward-opening quadratics have a minimum at the vertex."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_6B_v2_error-forgets-square-offset",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6B:v2-error-forgets-square-offset",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6B",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A quadratic has vertex $({{h}},{{k}})$ and passes through $({{x2}},{{y2}})$. A student says $a={{wrongA}}$ after subtracting k but FORGETS to divide by $({{offset}})^2$. Correct the work by writing the complete vertex-form equation.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct quadratic equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}(x{{nh|signed}})^2{{k|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The distance from the vertex is squared in vertex form.",
+        "reasoning": [
+          "After subtracting k, the remaining value equals $a({{offset}})^2$, not a by itself.",
+          "Dividing by {{offset}}² gives a={{a}}, so the correct equation is $y={{a}}(x{{nh|signed}})^2{{k|signed}}$."
+        ]
+      },
+      "attemptFeedback": [
+        "Use the whole factor $(x-h)^2$ when solving for a."
+      ],
+      "supportHints": [
+        "The student's {{wrongA}} still contains the squared horizontal distance."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "k": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "offset": {
+            "type": "int",
+            "min": 2,
+            "max": 3
+          }
+        },
+        "derived": {
+          "nh": "-h",
+          "x2": "h+offset",
+          "y2": "a*offset*offset+k",
+          "wrongA": "y2-k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6B_v2_graph-to-vertex-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6B:v2-graph-to-vertex-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6B",
+      "taskType": "reverseReasoning",
+      "representation": "graph",
+      "prompt": "The graph shows a quadratic. Read its vertex and one additional point, then write the COMPLETE equation in vertex form.",
+      "stimulus": {
+        "kind": "graph",
+        "title": "Quadratic graph",
+        "graph": {
+          "xMin": -7,
+          "xMax": 7,
+          "yMin": -10,
+          "yMax": 20,
+          "ariaLabel": "Graph of a quadratic function",
+          "curves": [
+            {
+              "label": "Quadratic",
+              "points": [
+                [
+                  "{{xm2}}",
+                  "{{ym2}}"
+                ],
+                [
+                  "{{xm1}}",
+                  "{{ym1}}"
+                ],
+                [
+                  "{{h}}",
+                  "{{k}}"
+                ],
+                [
+                  "{{xp1}}",
+                  "{{yp1}}"
+                ],
+                [
+                  "{{xp2}}",
+                  "{{yp2}}"
+                ]
+              ]
+            }
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Vertex-form equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}(x{{nh|signed}})^2{{k|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A graph gives h and k at the vertex, then another point determines a.",
+        "reasoning": [
+          "The vertex is $({{h}},{{k}})$, so begin with $y=a(x{{nh|signed}})^2{{k|signed}}$.",
+          "Using the point one unit from the vertex gives output {{yp1}}, so a={{a}}."
+        ]
+      },
+      "attemptFeedback": [
+        "Read the vertex first; then use a nearby point to determine the coefficient a."
+      ],
+      "supportHints": [
+        "At x=h+1, $(x-h)^2=1$, making a easy to read."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "nh": "-h",
+          "xm2": "h-2",
+          "xm1": "h-1",
+          "xp1": "h+1",
+          "xp2": "h+2",
+          "ym2": "4*a+k",
+          "ym1": "a+k",
+          "yp1": "a+k",
+          "yp2": "4*a+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6B_v2_vertex-point-full-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6B:v2-vertex-point-full-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6B",
+      "taskType": "modeling",
+      "representation": "orderedPairs",
+      "prompt": "A quadratic has vertex $({{h}},{{k}})$ and passes through $({{x2}},{{y2}})$. Write its COMPLETE equation in vertex form.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Quadratic equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}(x{{nh|signed}})^2{{k|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The extra point determines the vertical stretch/reflection a.",
+        "reasoning": [
+          "Substitute the vertex into $y=a(x-h)^2+k$, then use $({{x2}},{{y2}})$ to solve ${{y2}}={{a}}({{offset}})^2{{k|signed}}$.",
+          "The resulting coefficient is a={{a}}, so the complete model is $y={{a}}(x{{nh|signed}})^2{{k|signed}}$."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after solving for a; put a back into the full vertex-form equation."
+      ],
+      "supportHints": [
+        "Subtract k first, then divide by $(x-h)^2$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "offset": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "nh": "-h",
+          "x2": "h+offset",
+          "y2": "a*offset*offset+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6B_v2_vertex-to-standard-full",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6B:v2-vertex-to-standard-full",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6B",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "Convert $y={{a}}(x{{nh|signed}})^2{{k|signed}}$ to COMPLETE standard form $y=ax^2+bx+c$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Standard-form equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}x^2{{bcoef|signed}}x{{ccoef|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Conversion means expanding the entire square and combining every term.",
+        "reasoning": [
+          "$(x-h)^2=x^2-2hx+h^2$; multiplying by {{a}} gives the quadratic and linear coefficients.",
+          "After adding {{k}}, the standard form is $y={{a}}x^2{{bcoef|signed}}x{{ccoef|signed}}$."
+        ]
+      },
+      "attemptFeedback": [
+        "A complete conversion needs the $x^2$ term, x term, and constant—not just one coefficient."
+      ],
+      "supportHints": [
+        "Expand the binomial square before multiplying by a."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "nh": "-h",
+          "bcoef": "-2*a*h",
+          "ccoef": "a*h*h+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6B_v2_write-from-vertex-a",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6B:v2-write-from-vertex-a",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Write the complete quadratic in vertex form with vertex $({{h}},{{k}})$ and $a={{a}}$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Vertex-form equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}(x{{nh|signed}})^2{{k|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Vertex form places the vertex directly inside the equation.",
+        "reasoning": [
+          "Use $y=a(x-h)^2+k$ with a={{a}}, h={{h}}, and k={{k}}.",
+          "That gives $y={{a}}(x{{nh|signed}})^2{{k|signed}}$."
+        ]
+      },
+      "attemptFeedback": [
+        "Use the opposite sign of the vertex x-coordinate inside the parentheses."
+      ],
+      "supportHints": [
+        "Vertex $(h,k)$ corresponds to $(x-h)^2+k$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "nh": "-h"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6C_v2_error-signs-from-zeros",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6C:v2-error-signs-from-zeros",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6C",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student is told the zeros are {{r1}} and {{r2}} but writes $y=(x{{r1|signed}})(x{{r2|signed}})$, using the zero signs directly. Correct the student's equation for a MONIC quadratic.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct factored equation",
+          "inputProfile": "equation",
+          "expected": "y=(x{{nr1|signed}})(x{{nr2|signed}})",
+          "accepted": [
+            "y=(x{{nr2|signed}})(x{{nr1|signed}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Factors use the opposite sign of the zeros.",
+        "reasoning": [
+          "A factor must equal 0 when x equals its zero.",
+          "Therefore zeros {{r1}} and {{r2}} produce $(x{{nr1|signed}})$ and $(x{{nr2|signed}})$."
+        ]
+      },
+      "attemptFeedback": [
+        "Test each factor by substituting the stated zero."
+      ],
+      "supportHints": [
+        "Zero r corresponds to factor x-r."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "gap": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          }
+        },
+        "derived": {
+          "r2": "r1+gap",
+          "nr1": "-r1",
+          "nr2": "-r2"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6C_v2_graph-to-factored-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6C:v2-graph-to-factored-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6C",
+      "taskType": "reverseReasoning",
+      "representation": "graph",
+      "prompt": "The visible parabola is monic. Read its two x-intercepts from the graph and write the COMPLETE quadratic equation in factored form.",
+      "stimulus": {
+        "kind": "graph",
+        "title": "Quadratic graph",
+        "graph": {
+          "xMin": -8,
+          "xMax": 8,
+          "yMin": -12,
+          "yMax": 18,
+          "ariaLabel": "Parabola crossing the x-axis at two visible zeros",
+          "curves": [
+            {
+              "label": "Parabola",
+              "points": [
+                [
+                  "{{xm1}}",
+                  "{{ym1}}"
+                ],
+                [
+                  "{{r1}}",
+                  0
+                ],
+                [
+                  "{{mid}}",
+                  "{{ymid}}"
+                ],
+                [
+                  "{{r2}}",
+                  0
+                ],
+                [
+                  "{{xp1}}",
+                  "{{yp1}}"
+                ]
+              ]
+            }
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Equation from graph",
+          "inputProfile": "equation",
+          "expected": "y=(x{{nr1|signed}})(x{{nr2|signed}})",
+          "accepted": [
+            "y=(x{{nr2|signed}})(x{{nr1|signed}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The x-intercepts are the real solutions of the quadratic.",
+        "reasoning": [
+          "The graph crosses the x-axis at {{r1}} and {{r2}}, so those are the zeros.",
+          "Because the graph is monic, the equation is $y=(x{{nr1|signed}})(x{{nr2|signed}})$."
+        ]
+      },
+      "attemptFeedback": [
+        "Read the x-values where the curve crosses y=0, then turn each zero into a factor."
+      ],
+      "supportHints": [
+        "The graph's x-intercepts are the zeros."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "gap": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "r2": "r1+gap",
+          "nr1": "-r1",
+          "nr2": "-r2",
+          "mid": "(r1+r2)/2",
+          "xm1": "r1-1",
+          "xp1": "r2+1",
+          "ym1": "(xm1-r1)*(xm1-r2)",
+          "ymid": "(mid-r1)*(mid-r2)",
+          "yp1": "(xp1-r1)*(xp1-r2)"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6C_v2_leading-coefficient-from-zeros",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6C:v2-leading-coefficient-from-zeros",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6C",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "A quadratic has zeros ${{r1}}$ and ${{r2}}$ and leading coefficient {{a}}. Write the COMPLETE equation in factored form.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Factored quadratic equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}(x{{nr1|signed}})(x{{nr2|signed}})",
+          "accepted": [
+            "y={{a}}(x{{nr2|signed}})(x{{nr1|signed}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Zeros determine the factors; the leading coefficient scales the whole product.",
+        "reasoning": [
+          "Use $(x{{nr1|signed}})(x{{nr2|signed}})$ for the two real zeros.",
+          "Multiplying by {{a}} gives the required leading coefficient."
+        ]
+      },
+      "attemptFeedback": [
+        "Keep the leading coefficient outside the full product."
+      ],
+      "supportHints": [
+        "Start with $a(x-r_1)(x-r_2)$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "r1": {
+            "type": "int",
+            "min": -5,
+            "max": 2
+          },
+          "gap": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "r2": "r1+gap",
+          "nr1": "-r1",
+          "nr2": "-r2"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6C_v2_monic-from-zeros",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6C:v2-monic-from-zeros",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6C",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Write the complete MONIC quadratic equation whose real zeros are $x={{r1}}$ and $x={{r2}}$. Leave the equation in factored form.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Factored quadratic equation",
+          "inputProfile": "equation",
+          "expected": "y=(x{{nr1|signed}})(x{{nr2|signed}})",
+          "accepted": [
+            "y=(x{{nr2|signed}})(x{{nr1|signed}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A real zero r creates the factor $(x-r)$.",
+        "reasoning": [
+          "The zeros {{r1}} and {{r2}} give factors $(x{{nr1|signed}})$ and $(x{{nr2|signed}})$.",
+          "Monic means leading coefficient 1, so $y=(x{{nr1|signed}})(x{{nr2|signed}})$."
+        ]
+      },
+      "attemptFeedback": [
+        "Use the opposite sign of each zero inside its factor."
+      ],
+      "supportHints": [
+        "If x=r makes a factor zero, that factor is x-r."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -5,
+            "max": 3
+          },
+          "gap": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "r2": "r1+gap",
+          "nr1": "-r1",
+          "nr2": "-r2"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6C_v2_projectile-model-from-roots-point",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6C:v2-projectile-model-from-roots-point",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6C",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "Let $x$ be time and $y$ be height. A projectile is on the ground at $x=0$ and $x={{r}}$ and passes through $(1,{{y1}})$. Write the COMPLETE quadratic model in factored form.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Projectile quadratic model",
+          "inputProfile": "equation",
+          "expected": "y={{a}}x(x{{nr|signed}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The two ground times are zeros, and the extra point determines the scale.",
+        "reasoning": [
+          "Zeros 0 and {{r}} give the structure $y=ax(x-{{r}})$.",
+          "Substituting $(1,{{y1}})$ gives a={{a}}, so the complete model is $y={{a}}x(x{{nr|signed}})$."
+        ]
+      },
+      "attemptFeedback": [
+        "Use both ground times as factors before using the extra point to determine a."
+      ],
+      "supportHints": [
+        "A zero at x=0 contributes a factor x."
+      ],
+      "generator": {
+        "parameters": {
+          "mag": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "r": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        },
+        "derived": {
+          "a": "-mag",
+          "nr": "-r",
+          "y1": "a*(1-r)"
+        }
+      }
+    },
+    {
+      "id": "mm_A_7A_v2_error-vertex-is-yintercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7A:v2-error-vertex-is-yintercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7A",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "type": "functionInvestigation",
+      "prompt": "A student says, “The vertex of $y={{a}}(x-({{h}}))^2{{k|signed}}$ must also be the $y$-intercept.” Correct the claim by constructing the graph, then report the actual vertex and $y$-intercept value.",
+      "equationLatex": "y={{a}}(x-({{h}}))^2{{k|signed}}",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": "{{a}}",
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "graph": {
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -36,
+        "yMax": 36,
+        "snapStep": 1
+      },
+      "pointTasks": [
+        {
+          "id": "yintPoint",
+          "label": "Plot the y-intercept",
+          "x": 0,
+          "expected": [
+            0,
+            "{{yint}}"
+          ]
+        },
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": "{{h}}",
+          "expected": [
+            "{{h}}",
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "mirror",
+          "label": "Plot a point symmetric to the y-intercept across the axis",
+          "x": "{{mirrorX}}",
+          "expected": [
+            "{{mirrorX}}",
+            "{{yint}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "vertexPair",
+          "label": "Actual vertex ordered pair",
+          "kind": "value",
+          "responseMode": "text",
+          "acceptedAnswers": [
+            "({{h}},{{k}})",
+            "{{h}},{{k}}"
+          ]
+        },
+        {
+          "id": "yint",
+          "label": "Actual y-intercept value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{yint}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The vertex is the turning point; the y-intercept is where x equals zero.",
+        "reasoning": [
+          "The vertex is $({{h}},{{k}})$ from vertex form.",
+          "The y-intercept is found by substituting $x=0$, which gives {{yint}}. They coincide only when the vertex lies on the y-axis."
+        ],
+        "answerSummary": "Vertex $({{h}},{{k}})$; y-intercept {{yint}}."
+      },
+      "attemptFeedback": [
+        "Use the definitions: vertex means turning point; y-intercept means x=0."
+      ],
+      "supportHints": [
+        "Substitute x=0 into the function for the y-intercept."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              -3,
+              -2,
+              -1,
+              1,
+              2,
+              3
+            ]
+          },
+          "h": {
+            "type": "choice",
+            "values": [
+              -3,
+              -2,
+              -1,
+              1,
+              2,
+              3
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "yint": "a*h*h+k",
+          "mirrorX": "2*h"
+        }
+      }
+    },
+    {
+      "id": "mm_A_7A_v2_projectile-context-full-features",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7A:v2-projectile-context-full-features",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7A",
+      "taskType": "application",
+      "representation": "context",
+      "type": "functionInvestigation",
+      "prompt": "A projectile's height is modeled by $h(t)=-{{a}}(t-{{v}})^2+{{maxh}}$. Construct the graph for the relevant time interval, then identify the maximum point and the axis of symmetry.",
+      "equationLatex": "h(t)=-{{a}}(t-{{v}})^2+{{maxh}}",
+      "context": {
+        "scenario": "Projectile height over time"
+      },
+      "functionSpec": {
+        "type": "quadratic",
+        "a": "{{negA}}",
+        "h": "{{v}}",
+        "k": "{{maxh}}"
+      },
+      "graph": {
+        "xMin": -1,
+        "xMax": 12,
+        "yMin": -5,
+        "yMax": 45,
+        "snapStep": 1
+      },
+      "pointTasks": [
+        {
+          "id": "before",
+          "label": "Plot the height one second before the maximum",
+          "x": "{{leftT}}",
+          "expected": [
+            "{{leftT}}",
+            "{{sideH}}"
+          ]
+        },
+        {
+          "id": "vertex",
+          "label": "Plot the maximum point",
+          "x": "{{v}}",
+          "expected": [
+            "{{v}}",
+            "{{maxh}}"
+          ]
+        },
+        {
+          "id": "after",
+          "label": "Plot the height one second after the maximum",
+          "x": "{{rightT}}",
+          "expected": [
+            "{{rightT}}",
+            "{{sideH}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "maxPoint",
+          "label": "Maximum ordered pair",
+          "kind": "value",
+          "responseMode": "text",
+          "acceptedAnswers": [
+            "({{v}},{{maxh}})",
+            "{{v}},{{maxh}}"
+          ]
+        },
+        {
+          "id": "axis",
+          "label": "Axis of symmetry t-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{v}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The maximum of a downward-opening projectile model is its vertex.",
+        "reasoning": [
+          "The vertex is $({{v}},{{maxh}})$, so the projectile reaches its maximum height {{maxh}} at time {{v}}.",
+          "The graph is symmetric about $t={{v}}$; one second before and after the maximum, the height is {{sideH}}."
+        ],
+        "answerSummary": "Maximum $({{v}},{{maxh}})$; axis $t={{v}}$."
+      },
+      "attemptFeedback": [
+        "The negative leading coefficient guarantees a maximum rather than a minimum."
+      ],
+      "supportHints": [
+        "In $-a(t-v)^2+H$, the vertex is $(v,H)$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "v": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "maxh": {
+            "type": "int",
+            "min": 18,
+            "max": 38
+          }
+        },
+        "derived": {
+          "negA": "-a",
+          "leftT": "v-1",
+          "rightT": "v+1",
+          "sideH": "maxh-a"
+        }
+      }
+    },
+    {
+      "id": "mm_A_7A_v2_standard-form-to-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7A:v2-standard-form-to-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Graph $y={{A}}x^2{{B|signed}}x{{C|signed}}$. Use the equation to construct the parabola, then identify the vertex and axis of symmetry.",
+      "equationLatex": "y={{A}}x^2{{B|signed}}x{{C|signed}}",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": "{{A}}",
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "graph": {
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -12,
+        "yMax": 12,
+        "snapStep": 1
+      },
+      "pointTasks": [
+        {
+          "id": "left",
+          "label": "Plot the point at x = {{xl}}",
+          "x": "{{xl}}",
+          "expected": [
+            "{{xl}}",
+            "{{yl}}"
+          ]
+        },
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": "{{h}}",
+          "expected": [
+            "{{h}}",
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "right",
+          "label": "Plot the point at x = {{xr}}",
+          "x": "{{xr}}",
+          "expected": [
+            "{{xr}}",
+            "{{yr}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "vertexPair",
+          "label": "Vertex ordered pair",
+          "kind": "value",
+          "responseMode": "text",
+          "acceptedAnswers": [
+            "({{h}},{{k}})",
+            "{{h}},{{k}}"
+          ]
+        },
+        {
+          "id": "axis",
+          "label": "Axis of symmetry x-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{h}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Standard form and vertex form describe the same parabola.",
+        "reasoning": [
+          "For $Ax^2+Bx+C$, the axis is $x=-B/(2A)={{h}}$; evaluating there gives vertex output {{k}}.",
+          "Points one unit to either side of the axis have equal outputs {{yl}}, which anchors the symmetric sketch."
+        ],
+        "answerSummary": "Vertex $({{h}},{{k}})$; axis $x={{h}}$."
+      },
+      "attemptFeedback": [
+        "Find the axis with $-B/(2A)$ before trying to sketch the curve."
+      ],
+      "supportHints": [
+        "Once the vertex is known, use symmetry to generate a matching point on each side."
+      ],
+      "generator": {
+        "parameters": {
+          "A": {
+            "type": "choice",
+            "values": [
+              -2,
+              -1,
+              1,
+              2
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "B": "-2*A*h",
+          "C": "A*h*h+k",
+          "xl": "h-1",
+          "xr": "h+1",
+          "yl": "A+k",
+          "yr": "A+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_7A_v2_vertex-form-construct-and-analyze",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7A:v2-vertex-form-construct-and-analyze",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Graph $y={{a}}(x-({{h}}))^2{{k|signed}}$ by plotting the three requested points and sketching the parabola. Then report the axis of symmetry and whether the vertex is a minimum or maximum.",
+      "equationLatex": "y={{a}}(x-({{h}}))^2{{k|signed}}",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": "{{a}}",
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "graph": {
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -10,
+        "yMax": 12,
+        "snapStep": 1
+      },
+      "pointTasks": [
+        {
+          "id": "left",
+          "label": "Plot the point one unit left of the vertex",
+          "x": "{{xl}}",
+          "expected": [
+            "{{xl}}",
+            "{{yl}}"
+          ]
+        },
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": "{{h}}",
+          "expected": [
+            "{{h}}",
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "right",
+          "label": "Plot the point one unit right of the vertex",
+          "x": "{{xr}}",
+          "expected": [
+            "{{xr}}",
+            "{{yr}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "axis",
+          "label": "Axis of symmetry x-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{h}}"
+          ]
+        },
+        {
+          "id": "extremumType",
+          "label": "Enter MINIMUM",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "minimum"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Vertex form gives both the center of the graph and its symmetry.",
+        "reasoning": [
+          "The vertex is $({{h}},{{k}})$. Points one unit to either side have the same output, so they anchor the symmetric parabola.",
+          "The axis of symmetry is $x={{h}}$. Because $a>0$ in this family, the parabola opens upward and the vertex is a minimum."
+        ],
+        "answerSummary": "Axis $x={{h}}$; vertex type: minimum."
+      },
+      "attemptFeedback": [
+        "Check the vertex first, then use symmetry to compare the left and right points."
+      ],
+      "supportHints": [
+        "In $y=a(x-h)^2+k$, the vertex is $(h,k)$ and the sign of $a$ controls opening direction."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              1,
+              2,
+              3
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "xl": "h-1",
+          "xr": "h+1",
+          "yl": "a+k",
+          "yr": "a+k",
+          "extremum": "1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_7A_v2_zeros-intercepts-full-attributes",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7A:v2-zeros-intercepts-full-attributes",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7A",
+      "taskType": "interpretation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Construct the graph of $y={{a}}(x-({{h}}))^2{{k|signed}}$. After the sketch is complete, identify BOTH zeros, the $y$-intercept, the vertex, and the axis of symmetry.",
+      "equationLatex": "y={{a}}(x-({{h}}))^2{{k|signed}}",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": "{{a}}",
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "graph": {
+        "xMin": -9,
+        "xMax": 9,
+        "yMin": -24,
+        "yMax": 24,
+        "snapStep": 1
+      },
+      "pointTasks": [
+        {
+          "id": "p1",
+          "label": "Plot a point left of the vertex",
+          "x": "{{xl}}",
+          "expected": [
+            "{{xl}}",
+            "{{yl}}"
+          ]
+        },
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": "{{h}}",
+          "expected": [
+            "{{h}}",
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Plot a point right of the vertex",
+          "x": "{{xr}}",
+          "expected": [
+            "{{xr}}",
+            "{{yr}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "zeros",
+          "label": "List both zero x-values, separated by a comma",
+          "kind": "value",
+          "responseMode": "text",
+          "acceptedAnswers": [
+            "{{r1}},{{r2}}",
+            "{{r2}},{{r1}}"
+          ]
+        },
+        {
+          "id": "yint",
+          "label": "y-intercept value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{yint}}"
+          ]
+        },
+        {
+          "id": "vertexPair",
+          "label": "Vertex ordered pair",
+          "kind": "value",
+          "responseMode": "text",
+          "acceptedAnswers": [
+            "({{h}},{{k}})",
+            "{{h}},{{k}}"
+          ]
+        },
+        {
+          "id": "axis",
+          "label": "Axis of symmetry x-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{h}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The key quadratic features all come from the same graph.",
+        "reasoning": [
+          "The generated value $k=-a s^2$ makes the zeros exactly $x={{r1}}$ and $x={{r2}}$, symmetric around $x={{h}}$.",
+          "Substituting $x=0$ gives the $y$-intercept {{yint}}, while the vertex remains $({{h}},{{k}})$."
+        ],
+        "answerSummary": "Zeros {{r1}}, {{r2}}; y-intercept {{yint}}; vertex $({{h}},{{k}})$; axis $x={{h}}$."
+      },
+      "attemptFeedback": [
+        "Use symmetry: the two zeros must be the same horizontal distance from the axis."
+      ],
+      "supportHints": [
+        "Set $y=0$ to find zeros and set $x=0$ to find the y-intercept."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              1,
+              2,
+              -1,
+              -2
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "s": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "k": "-a*s*s",
+          "r1": "h-s",
+          "r2": "h+s",
+          "xl": "h-1",
+          "xr": "h+1",
+          "yl": "a+k",
+          "yr": "a+k",
+          "yint": "a*h*h+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_7B_v2_check-factor",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7B:v2-check-factor",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7B",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student says the factor $x-{{r}}$ produces the zero $x=-{{r}}$. Correct the sign error: what zero does the factor actually produce?",
+      "solutionReview": {
+        "headline": "Set the factor equal to zero instead of copying its visible sign.",
+        "reasoning": [
+          "Solve $x-{{r}}=0$.",
+          "Adding {{r}} to both sides gives the zero $x={{r}}$."
+        ],
+        "answerSummary": "Zero {{r}}."
+      },
+      "attemptFeedback": [
+        "Connect each linear factor to the x-value that makes that factor equal zero."
+      ],
+      "supportHints": [
+        "A factor x-r produces the zero x=r; the sign inside the factor is opposite the zero's sign."
+      ],
+      "generator": {
+        "parameters": {
+          "r": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{r}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7B_v2_context-roots",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7B:v2-context-roots",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7B",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A height function is $h(t)=-{{a}}t(t-{{r}})$. At what positive time does the object return to height 0?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The object is on the ground when the height equals zero.",
+          "The factored model has zeros at 0 and {{r}}."
+        ],
+        "answerSummary": "It returns at $t={{r}}$."
+      },
+      "attemptFeedback": [
+        "Connect each linear factor to the x-value that makes that factor equal zero."
+      ],
+      "supportHints": [
+        "A factor x-r produces the zero x=r; the sign inside the factor is opposite the zero's sign."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{r}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7B_v2_factor-from-zeros",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7B:v2-factor-from-zeros",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7B",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "A monic quadratic has zeros {{r1}} and {{r2}}. What is its constant term?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The factored form is $(x-r_1)(x-r_2)$.",
+          "The constant term is the product of the zeros."
+        ],
+        "answerSummary": "The constant term is ${{c}}$."
+      },
+      "attemptFeedback": [
+        "Connect each linear factor to the x-value that makes that factor equal zero."
+      ],
+      "supportHints": [
+        "A factor x-r produces the zero x=r; the sign inside the factor is opposite the zero's sign."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "r2": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        },
+        "derived": {
+          "c": "r1*r2"
+        },
+        "constraints": [
+          "r1!=r2"
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{c}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7B_v2_missing-root-from-sum",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7B:v2-missing-root-from-sum",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7B",
+      "taskType": "reverseReasoning",
+      "representation": "symbolic",
+      "prompt": "The sum of the zeros of a monic quadratic is {{sumr}}. One zero is {{r1}}. Find the other zero.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The two zeros must add to the stated sum.",
+          "Subtract the known zero from the sum."
+        ],
+        "answerSummary": "The other zero is ${{r2}}$."
+      },
+      "attemptFeedback": [
+        "Connect each linear factor to the x-value that makes that factor equal zero."
+      ],
+      "supportHints": [
+        "A factor x-r produces the zero x=r; the sign inside the factor is opposite the zero's sign."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "r2": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "sumr": "r1+r2"
+        },
+        "constraints": [
+          "r1!=r2"
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{r2}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7B_v2_zeros-from-factors",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7B:v2-zeros-from-factors",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Find the greater zero of $(x-{{r1}})(x-{{r2}})=0$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Set each factor equal to zero.",
+          "The two zeros are {{r1}} and {{r2}}, and {{r2}} is greater."
+        ],
+        "answerSummary": "The greater zero is ${{r2}}$."
+      },
+      "attemptFeedback": [
+        "Connect each linear factor to the x-value that makes that factor equal zero."
+      ],
+      "supportHints": [
+        "A factor x-r produces the zero x=r; the sign inside the factor is opposite the zero's sign."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -6,
+            "max": 0
+          },
+          "r2": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{r2}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7C_v2_horizontal-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7C:v2-horizontal-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7C",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "For $y=(x-{{h}})^2$, how many units to the right is the parent graph translated?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Inside the function, subtracting {{h}} shifts the graph right by {{h}}.",
+          "The vertex moves from $(0,0)$ to $({{h}},0)$."
+        ],
+        "answerSummary": "The shift is {{h}} units right."
+      },
+      "attemptFeedback": [
+        "Use vertex form to separate horizontal shift, vertical shift, reflection, and vertical stretch/compression."
+      ],
+      "supportHints": [
+        "In y=a(x-h)^2+k, (h,k) is the vertex and the sign/magnitude of a controls opening and vertical scale."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{h}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7C_v2_recover-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7C:v2-recover-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7C",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "A parabola has vertex $({{h}},{{k}})$. Relative to $y=x^2$, what is the vertical translation?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The parent vertex is $(0,0)$.",
+          "The new vertex output directly gives the vertical translation."
+        ],
+        "answerSummary": "The vertical translation is ${{k}}$."
+      },
+      "attemptFeedback": [
+        "Use vertex form to separate horizontal shift, vertical shift, reflection, and vertical stretch/compression."
+      ],
+      "supportHints": [
+        "In y=a(x-h)^2+k, (h,k) is the vertex and the sign/magnitude of a controls opening and vertical scale."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "k": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7C_v2_reflection",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7C:v2-reflection",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7C",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student claims reflecting $y={{a}}(x-{{h}})^2{{k|signed}}$ across the x-axis changes only the vertical shift and leaves the leading multiplier unchanged. What is the correct new leading multiplier?",
+      "solutionReview": {
+        "headline": "An x-axis reflection negates the whole function output.",
+        "reasoning": [
+          "Reflecting across the x-axis multiplies every output by -1.",
+          "That changes the leading multiplier from {{a}} to {{newa}}."
+        ],
+        "answerSummary": "New leading multiplier {{newa}}."
+      },
+      "attemptFeedback": [
+        "Use vertex form to separate horizontal shift, vertical shift, reflection, and vertical stretch/compression."
+      ],
+      "supportHints": [
+        "In y=a(x-h)^2+k, (h,k) is the vertex and the sign/magnitude of a controls opening and vertical scale."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        },
+        "derived": {
+          "newa": "-a"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{newa}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7C_v2_transform-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7C:v2-transform-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Graph $y={{a}}(x-{{h}})^2 {{k|signed}}$ and identify its vertex.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Relative to $y=x^2$, the values $h$ and $k$ locate the translated vertex.",
+          "The coefficient $a$ controls reflection and vertical stretch/compression."
+        ],
+        "answerSummary": "The vertex is $({{h}},{{k}})$."
+      },
+      "attemptFeedback": [
+        "Use vertex form to separate horizontal shift, vertical shift, reflection, and vertical stretch/compression."
+      ],
+      "supportHints": [
+        "In y=a(x-h)^2+k, (h,k) is the vertex and the sign/magnitude of a controls opening and vertical scale."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        }
+      },
+      "type": "functionInvestigation",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": "{{a}}",
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "graph": {
+        "xMin": -9,
+        "xMax": 9,
+        "yMin": -18,
+        "yMax": 20
+      },
+      "pointTasks": [
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": "{{h}}",
+          "expected": [
+            "{{h}}",
+            "{{k}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "k",
+          "label": "What is the vertical shift?",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{k}}"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7C_v2_vertical-context",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7C:v2-vertical-context",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7C",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A quadratic model is increased by {{k}} units at every input. By how much does the vertex $y$-coordinate change?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Adding a constant to every output is a vertical translation.",
+          "Every point, including the vertex, moves up by that amount."
+        ],
+        "answerSummary": "The vertex output increases by {{k}}."
+      },
+      "attemptFeedback": [
+        "Use vertex form to separate horizontal shift, vertical shift, reflection, and vertical stretch/compression."
+      ],
+      "supportHints": [
+        "In y=a(x-h)^2+k, (h,k) is the vertex and the sign/magnitude of a controls opening and vertical scale."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 1,
+            "max": 15
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_8A_v2_error-missing-plus-minus",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8A:v2-error-missing-plus-minus",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.8A",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student solves $(x-({{h}}))^2={{sq}}$ and writes only $x={{r2}}$. Correct the student's work by writing the COMPLETE solution set.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Solution set",
+          "inputProfile": "set",
+          "expected": "{ {{r1}}, {{r2}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The student kept only the positive square-root branch.",
+        "reasoning": [
+          "Taking square roots gives $x-({{h}})=\\pm{{s}}$, not only $+{{s}}$.",
+          "The negative branch gives {{r1}} and the positive branch gives {{r2}}."
+        ],
+        "answerSummary": "$\\{ {{r1}}, {{r2}} \\}$"
+      },
+      "attemptFeedback": [
+        "Find the branch the student omitted when taking the square root."
+      ],
+      "supportHints": [
+        "A positive squared value usually has two real square roots."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "s": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          }
+        },
+        "derived": {
+          "sq": "s*s",
+          "r1": "h-s",
+          "r2": "h+s"
+        }
+      }
+    },
+    {
+      "id": "mm_A_8A_v2_solve-by-factoring",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8A:v2-solve-by-factoring",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.8A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve $x^2{{B|signed}}x{{C|signed}}=0$ by FACTORING. Write the complete solution set.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Solution set",
+          "inputProfile": "set",
+          "expected": "{ {{r1}}, {{r2}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Factoring turns one quadratic equation into two linear equations.",
+        "reasoning": [
+          "The quadratic factors as $(x-({{r1}}))(x-({{r2}}))=0$.",
+          "Set each factor equal to zero to get $x={{r1}}$ and $x={{r2}}$."
+        ],
+        "answerSummary": "$\\{ {{r1}}, {{r2}} \\}$"
+      },
+      "attemptFeedback": [
+        "Find two integers whose sum matches the middle coefficient and whose product matches the constant."
+      ],
+      "supportHints": [
+        "After factoring, apply the zero-product property to both factors."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -8,
+            "max": 2
+          },
+          "span": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "r2": "r1+span",
+          "B": "-(r1+r2)",
+          "C": "r1*r2"
+        }
+      }
+    },
+    {
+      "id": "mm_A_8A_v2_solve-completing-square",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8A:v2-solve-completing-square",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.8A",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "Solve $x^2{{mid|signed}}x={{rhs}}$ by COMPLETING THE SQUARE. Write the complete solution set.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Solution set",
+          "inputProfile": "set",
+          "expected": "{ {{r1}}, {{r2}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Add the same square-completing value to both sides.",
+        "reasoning": [
+          "Half of the $x$-coefficient is {{p}}, so add ${{psq}}$ to both sides and rewrite the left as $(x+{{p}})^2$.",
+          "The right side becomes {{tsq}}, so $x+{{p}}=\\pm{{t}}$, giving {{r1}} and {{r2}}."
+        ],
+        "answerSummary": "$\\{ {{r1}}, {{r2}} \\}$"
+      },
+      "attemptFeedback": [
+        "Take half the coefficient of $x$, square it, and add that value to BOTH sides."
+      ],
+      "supportHints": [
+        "Your left side should become a perfect-square trinomial before you take square roots."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "t": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "mid": "2*p",
+          "psq": "p*p",
+          "tsq": "t*t",
+          "rhs": "tsq-psq",
+          "r1": "-p-t",
+          "r2": "-p+t"
+        }
+      }
+    },
+    {
+      "id": "mm_A_8A_v2_solve-quadratic-formula",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8A:v2-solve-quadratic-formula",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.8A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve ${{A}}x^2{{B|signed}}x{{C|signed}}=0$ using the QUADRATIC FORMULA. Write the complete solution set.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Solution set",
+          "inputProfile": "set",
+          "expected": "{ {{r1}}, {{r2}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Substitute $a$, $b$, and $c$ into the quadratic formula without dropping either sign.",
+        "reasoning": [
+          "Here $a={{A}}$, $b={{B}}$, and $c={{C}}$.",
+          "Evaluating $(-b\\pm\\sqrt{b^2-4ac})/(2a)$ simplifies to the two roots {{r1}} and {{r2}}."
+        ],
+        "answerSummary": "$\\{ {{r1}}, {{r2}} \\}$"
+      },
+      "attemptFeedback": [
+        "Identify $a$, $b$, and $c$ with their signs before substituting."
+      ],
+      "supportHints": [
+        "The $\\pm$ creates two solutions; calculate both."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "r1": {
+            "type": "int",
+            "min": -7,
+            "max": 1
+          },
+          "span": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "r2": "r1+span",
+          "A": "a",
+          "B": "-a*(r1+r2)",
+          "C": "a*r1*r2"
+        }
+      }
+    },
+    {
+      "id": "mm_A_8A_v2_solve-square-root-property",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8A:v2-solve-square-root-property",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.8A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve $(x-({{h}}))^2={{sq}}$ using the SQUARE-ROOT PROPERTY. Write the complete solution set.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Solution set",
+          "inputProfile": "set",
+          "expected": "{ {{r1}}, {{r2}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Taking a square root creates two branches.",
+        "reasoning": [
+          "From $(x-({{h}}))^2={{sq}}$, write $x-({{h}})=\\pm {{s}}$.",
+          "Adding {{h}} gives the two solutions {{r1}} and {{r2}}."
+        ],
+        "answerSummary": "$\\{ {{r1}}, {{r2}} \\}$"
+      },
+      "attemptFeedback": [
+        "Do not lose the positive/negative pair when taking the square root."
+      ],
+      "supportHints": [
+        "If $u^2={{sq}}$, then $u=\\pm{{s}}$."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "s": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "sq": "s*s",
+          "r1": "h-s",
+          "r2": "h+s"
+        }
+      }
     }
   ]
 }
