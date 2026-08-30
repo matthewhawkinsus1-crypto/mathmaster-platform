@@ -277,6 +277,15 @@ test('A2.2C centers quadratic/root and exponential/log inverse relationships wit
 
   const errorFamily = entry.documents.find((doc) => doc.taskType === 'errorAnalysis');
   const errorSamples = samplePathInstances(errorFamily, 25).map((item) => item.question).filter(Boolean);
-  assert.ok(errorSamples.every((question) => /\\sqrt\{u\^2\}=\|u\|/.test(JSON.stringify(question.solutionReview))));
+  assert.ok(
+    stringValues(errorFamily.supportHints).some((value) => value.includes('\\sqrt{u^2}=|u|')),
+    'A2.2C error analysis must explicitly preserve the square-root absolute-value identity',
+  );
+  assert.ok(
+    errorSamples.every((question) => stringValues(question.solutionReview).some((value) => value.includes('principal square root'))),
+  );
+  assert.ok(
+    errorSamples.every((question) => stringValues(question.solutionReview).some((value) => value.includes('|x-'))),
+  );
 });
 
