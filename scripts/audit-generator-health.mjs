@@ -57,12 +57,39 @@ const load = () => {
   return docs;
 };
 
-/** Every string anywhere in the instance, so nothing hides in a nested field. */
-const collectStrings = (node, out = []) => {
+/**
+ * Every STUDENT-VISIBLE string anywhere in the generated instance.
+ *
+ * Identity / routing metadata is intentionally excluded. A machine id such as
+ * "slope-undefined" is a perfectly valid slug, while the word "undefined" in
+ * mathematical prose is also correct for a vertical-line slope. The health
+ * audit exists to catch broken rendered math (NaN, Infinity, x=undefined),
+ * not vocabulary inside ids, family keys, or routing metadata.
+ */
+const NON_RENDERED_STRING_KEYS = new Set([
+  'id',
+  'familyId',
+  'alignmentKeys',
+  'courseId',
+  'assessedConstruct',
+  'taskType',
+  'representation',
+  'questionType',
+  'activityRole',
+  'calculatorPolicy',
+  'type',
+  'mode',
+]);
+
+const collectStrings = (node, out = [], parentKey = '') => {
+  if (NON_RENDERED_STRING_KEYS.has(parentKey)) return out;
   if (typeof node === 'string') { out.push(node); return out; }
-  if (Array.isArray(node)) { node.forEach((item) => collectStrings(item, out)); return out; }
+  if (Array.isArray(node)) {
+    node.forEach((item) => collectStrings(item, out, parentKey));
+    return out;
+  }
   if (node && typeof node === 'object') {
-    Object.values(node).forEach((value) => collectStrings(value, out));
+    Object.entries(node).forEach(([key, value]) => collectStrings(value, out, key));
   }
   return out;
 };
