@@ -27,6 +27,12 @@ const codes = readdirSync(stagedDir)
   .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 const staged = codes.map((code) => read(`${stagedDir}/${code}.json`));
 const payload = (code) => staged.find((entry) => entry.standard === code);
+const stringValues = (value) => {
+  if (typeof value === 'string') return [value];
+  if (Array.isArray(value)) return value.flatMap(stringValues);
+  if (value && typeof value === 'object') return Object.values(value).flatMap(stringValues);
+  return [];
+};
 
 test('every staged Algebra II Fidelity V2 package has five new families', () => {
   const ids = new Set();
@@ -218,11 +224,11 @@ test('A2.2C centers quadratic/root and exponential/log inverse relationships wit
     representations.add(doc.representation);
     taskTypes.add(doc.taskType);
 
-    const authoredText = JSON.stringify(doc);
+    const authoredText = stringValues(doc).join(' ');
     if (/quadratic|square-root|\\sqrt/.test(authoredText)) quadraticRootCount += 1;
     if (/exponential|logarithm|\\log_/.test(authoredText)) exponentialLogCount += 1;
-    if (/x\\le/.test(authoredText)) leftBranchCount += 1;
-    if (/x\\ge/.test(authoredText)) rightBranchCount += 1;
+    if (authoredText.includes('x\\le')) leftBranchCount += 1;
+    if (authoredText.includes('x\\ge')) rightBranchCount += 1;
     if (doc.taskType === 'errorAnalysis') errorAnalysisCount += 1;
 
     const issuePlan = await buildTemplateIssuePlan(doc, { samples: 24 });
