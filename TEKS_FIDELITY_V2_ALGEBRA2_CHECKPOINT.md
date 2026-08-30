@@ -683,9 +683,41 @@ Official construct: **Formulate rational equations that model real-world situati
 
 ## FIRST UNFINISHED STANDARD
 
-### A2.7D
+### A2.7E
 
-Resume here. Do not reopen A2.2A–A2.7C unless a failing gate names them.
+Resume here. Do not reopen A2.2A–A2.7D unless a failing gate names them.
+
+
+### 2026-08-30 — A2.7E audit finding
+- Official construct: **determine linear and quadratic factors of a polynomial expression of degree three and of degree four, including factoring the sum and difference of two cubes and factoring by grouping**.
+- TEA breakout requires:
+  - degree-3 linear factors from sum of cubes;
+  - degree-3 linear factors from difference of cubes;
+  - degree-3 linear factors from grouping;
+  - degree-4 linear factors from grouping;
+  - degree-3 quadratic factors from sum of cubes;
+  - degree-3 quadratic factors from difference of cubes;
+  - degree-3 quadratic factors from grouping;
+  - degree-4 quadratic factors from grouping.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - correct full factorizations are already present for sum of cubes and difference of cubes;
+  - cubic factoring by grouping is present and yields a linear factor times a quadratic factor;
+  - the cube identities and grouping structure are mathematically sound.
+- Legacy limitations:
+  - degree-4 factoring by grouping is absent;
+  - two of five families stop at strategy recognition or a single sign correction rather than determining the required factors;
+  - the legacy response usually gives one complete product, so it does not separately verify that students can identify the linear factor and quadratic factor required by the breakout;
+  - the error-analysis family identifies the cube-sign error but does not finish both factors;
+  - quartic grouping does not connect to both linear and quadratic factor determination.
+- Fidelity V2 requirements:
+  - preserve sum-of-cubes, difference-of-cubes, and cubic grouping;
+  - separately grade the linear and quadratic factors rather than relying only on one combined product;
+  - add a degree-4 grouping family that ultimately exposes both linear and quadratic factors;
+  - include complete factorization evidence for cube identities, including correct middle-term signs in the quadratic factor;
+  - include complete grouping error analysis that repairs the common factor/grouping structure and finishes the required factors;
+  - keep routine factoring DOK 2 even when algebraically longer; reserve DOK 3 for full error analysis.
+- Generic secure expression grading is sufficient for the factor fields; no new Path tool is required.
 
 
 ### 2026-08-30 — A2.7D audit finding
@@ -720,8 +752,10 @@ Resume here. Do not reopen A2.2A–A2.7C unless a failing gate names them.
 - Coverage includes a cubic with three integer roots, a quartic with four integer roots, a non-monic cubic with a non-integer rational root, a quartic repeated-root/multiplicity case, and complete synthetic-division sign-error repair.
 - Base Algebra II certification run `33331116456`: **PASS**.
 - Added A2.7D-specific generated certification — commit `2dfbe054ee7e71ad28b71c5ba332811a58c69136`.
-- Full A2.7D certification run `33331166467`: **RUNNING** at this checkpoint.
-- FIRST UNFINISHED STANDARD remains **A2.7D** until full generated certification is green.
+- Full A2.7D certification run `33331166467`: **PASS**.
+- Generated cubic/quartic roots and factors, rational half-integer root, repeated multiplicity, synthetic quotients, production issuability, secure self-grading, equivalent factor ordering, changed-root rejection, algebraic-method boundary, public key stripping, and student/runtime build all passed.
+- A2.7D is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7E**.
 
 
 ### 2026-08-30 — A2.7C audit finding
