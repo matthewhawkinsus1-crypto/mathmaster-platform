@@ -13,6 +13,7 @@ on:
       - "functions/shared/pathQuestionGeneration.mjs"
       - "functions/shared/pathToolContracts.mjs"
       - "functions/shared/answerEquivalence.mjs"
+      - "functions/shared/rationalExpressionEquivalence.mjs"
       - "functions/lib/mathPath.js"
       - "src/InteractiveGraphWorkspace.jsx"
       - "src/components/student/PathQuestionStimulus.jsx"
@@ -30,6 +31,7 @@ on:
       - "tests/platform/absoluteValueLinearRelationAnswerEquivalence.test.mjs"
       - "tests/platform/modelEquationAnswerEquivalence.test.mjs"
       - "tests/platform/setBuilderAnswerEquivalence.test.mjs"
+      - "tests/platform/rationalExpressionAnswerEquivalence.test.mjs"
       - "tests/platform/systemsMatrix3Technology.test.mjs"
       - "tests/platform/pathDataModelingGrading.test.mjs"
       - ".github/workflows/algebra2-fidelity-v2-certification.yml"
@@ -41,6 +43,7 @@ on:
       - "functions/shared/pathQuestionGeneration.mjs"
       - "functions/shared/pathToolContracts.mjs"
       - "functions/shared/answerEquivalence.mjs"
+      - "functions/shared/rationalExpressionEquivalence.mjs"
       - "functions/lib/mathPath.js"
       - "src/InteractiveGraphWorkspace.jsx"
       - "src/components/student/PathQuestionStimulus.jsx"
@@ -58,6 +61,7 @@ on:
       - "tests/platform/absoluteValueLinearRelationAnswerEquivalence.test.mjs"
       - "tests/platform/modelEquationAnswerEquivalence.test.mjs"
       - "tests/platform/setBuilderAnswerEquivalence.test.mjs"
+      - "tests/platform/rationalExpressionAnswerEquivalence.test.mjs"
       - "tests/platform/systemsMatrix3Technology.test.mjs"
       - "tests/platform/pathDataModelingGrading.test.mjs"
       - ".github/workflows/algebra2-fidelity-v2-certification.yml"
@@ -87,6 +91,7 @@ jobs:
             tests/platform/absoluteValueLinearRelationAnswerEquivalence.test.mjs \
             tests/platform/modelEquationAnswerEquivalence.test.mjs \
             tests/platform/setBuilderAnswerEquivalence.test.mjs \
+            tests/platform/rationalExpressionAnswerEquivalence.test.mjs \
             tests/platform/systemsMatrix3Technology.test.mjs
       - name: Build student/runtime bundle
         run: npm run build
