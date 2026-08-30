@@ -2576,6 +2576,235 @@ arc('7.3B', 'share-of-what-is-left', {
   feedback: 'The sheet figure is what was expected, not what the two stages leave.',
 });
 
+// ================================================================ A.3B
+// Rate of change.
+
+arc('A.3B', 'hours-until-a-tank-reaches-a-level', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A tank held {{start}} litres and {{end}} litres {{hours}} hours later. At that rate, how many more hours until it holds {{floor}} litres?',
+  generator: {
+    parameters: {
+      rate: { type: 'int', min: 6, max: 30 },
+      hours: { type: 'int', min: 2, max: 6 },
+      moreHours: { type: 'int', min: 3, max: 14 },
+      floor: { type: 'int', min: 20, max: 120, step: 10 },
+      logged: { type: 'int', min: 3, max: 14 },
+    },
+    derived: {
+      end: 'floor+rate*moreHours',
+      start: 'end+rate*hours',
+      answer: 'moreHours',
+      d_operationInverted: 'round(end/rate)',
+      d_forgotFinalStep: 'round(floor/rate)',
+      d_usedGivenValue: 'logged',
+    },
+    constraints: ['logged!=answer', 'round(floor/rate)!=moreHours', 'round(end/rate)!=moreHours'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The tank falls {{rate}} litres an hour, and {{end}} less {{floor}} is {{rate}}x{{moreHours}}.', 'That takes {{answer}} more hours.'],
+  answerSummary: { headline: 'Only the fall still to come takes more time.', text: 'It takes ${{answer}}$ more hours.' },
+  hint: 'Work out the hourly fall from the two readings first.',
+  feedback: 'Emptying the tank altogether goes further than the level asked for.',
+});
+
+arc('A.3B', 'level-the-tank-started-from', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'table',
+  prompt: 'A tank falls by the same amount every hour. Using the readings below, how much did it hold at hour zero?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Hour', 'Litres'],
+    rows: [['{{h1}}', '{{l1}}'], ['{{h2}}', '{{l2}}']],
+  },
+  generator: {
+    parameters: {
+      rate: { type: 'int', min: 5, max: 25 },
+      h1: { type: 'int', min: 2, max: 5 },
+      gap: { type: 'int', min: 2, max: 6 },
+      base: { type: 'int', min: 60, max: 300, step: 10 },
+      dial: { type: 'int', min: 70, max: 420, step: 10 },
+    },
+    derived: {
+      h2: 'h1+gap',
+      answer: 'base+rate*h1',
+      l1: 'base',
+      l2: 'base-rate*gap',
+      d_forgotFinalStep: 'l1',
+      d_partialTotal: 'answer+rate*h1',
+      d_usedGivenValue: 'dial',
+    },
+    constraints: ['base-rate*gap>0', 'dial!=answer'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_partialTotal}}'), error: 'partialTotal' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Between the readings the tank loses {{rate}} litres an hour.', 'Adding {{h1}} hours of that back to {{l1}} gives {{answer}}.'],
+  answerSummary: { headline: 'Run the rate backwards to hour zero.', text: 'It held ${{answer}}$ litres.' },
+  hint: 'The first reading is already some hours into the fall.',
+  feedback: 'The first reading is not the starting level.',
+});
+
+arc('A.3B', 'faster-of-a-rising-and-a-falling-tank', {
+  difficultyBand: 5, dok: 3, taskType: 'interpretation', representation: 'table',
+  prompt: 'Two tanks were logged over the same {{hours}} hours. How many litres an hour does the falling one lose?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Tank', 'Start', 'End'],
+    rows: [['A', '{{aStart}}', '{{aEnd}}'], ['B', '{{bStart}}', '{{bEnd}}']],
+  },
+  generator: {
+    parameters: {
+      fall: { type: 'int', min: 8, max: 30 },
+      rise: { type: 'int', min: 8, max: 32 },
+      hours: { type: 'int', min: 3, max: 8 },
+      aStart: { type: 'int', min: 200, max: 500, step: 10 },
+      bStart: { type: 'int', min: 40, max: 200, step: 10 },
+    },
+    derived: {
+      aEnd: 'aStart-fall*hours',
+      bEnd: 'bStart+rise*hours',
+      answer: 'fall',
+      d_forgotFinalStep: 'fall*hours',
+      // Counting the readings rather than the gaps between them always lands
+      // below the true rate.
+      d_offByOneStep: 'round(fall*hours/(hours+1))',
+      d_usedGivenValue: 'rise',
+    },
+    constraints: ['aStart-fall*hours>0', 'rise!=fall', 'round(fall*hours/(hours+1))!=fall'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Tank A goes from {{aStart}} to {{aEnd}}, a fall of {{d_forgotFinalStep}} litres over {{hours}} hours.', 'That is {{answer}} litres an hour.'],
+  answerSummary: { headline: 'A rate is the change shared over the time.', text: 'It loses ${{answer}}$ litres an hour.' },
+  hint: 'One tank rises and one falls; only the falling one is asked about.',
+  feedback: 'The rising tank\'s rate answers about the wrong tank.',
+});
+
+// ================================================================ A2.6L
+// Inverse variation, in practical terms.
+
+arc('A2.6L', 'hours-after-the-crew-changes', {
+  difficultyBand: 4, dok: 2, taskType: 'application', representation: 'context',
+  prompt: 'A {{crew}} of {{w1}} would finish a job in {{h1}} hours. After {{worked}} hours, {{extra}} more people join. How many more hours does it take?',
+  generator: {
+    parameters: {
+      crew: WORKERS,
+      w1: { type: 'int', min: 2, max: 6 },
+      h1: { type: 'int', min: 8, max: 24, step: 2 },
+      worked: { type: 'int', min: 2, max: 6 },
+      extra: { type: 'int', min: 1, max: 4 },
+      quoted: { type: 'int', min: 2, max: 14 },
+    },
+    derived: {
+      totalWork: 'w1*h1',
+      doneWork: 'w1*worked',
+      leftWork: 'totalWork-doneWork',
+      w2: 'w1+extra',
+      answer: 'round(leftWork/w2)',
+      d_forgotFinalStep: 'h1-worked',
+      d_offByOneStep: 'round(leftWork/(w2+extra))',
+      d_usedGivenValue: 'quoted',
+    },
+    constraints: ['worked<h1', 'quoted!=answer', 'round(leftWork/w2)>0', 'round(leftWork/(w2+extra))!=round(leftWork/w2)'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The job is {{totalWork}} worker-hours and {{doneWork}} are done, leaving {{leftWork}}.', 'Shared by {{w2}} people that is {{answer}} hours.'],
+  answerSummary: { headline: 'Count the work in worker-hours, not in hours.', text: 'It takes ${{answer}}$ more hours.' },
+  hint: 'More people on the same work means fewer hours.',
+  feedback: 'The hours the original crew had left assume the crew never grew.',
+});
+
+arc('A2.6L', 'crew-needed-to-meet-a-deadline', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'context',
+  prompt: 'A {{crew}} of {{w1}} takes {{h1}} hours on a job. To finish it in {{h2}} hours instead, how many more people are needed?',
+  generator: {
+    parameters: {
+      crew: WORKERS,
+      w1: { type: 'int', min: 2, max: 5 },
+      mult: { type: 'int', min: 2, max: 4 },
+      h2: { type: 'int', min: 3, max: 9 },
+      rostered: { type: 'int', min: 2, max: 12 },
+    },
+    derived: {
+      h1: 'h2*mult',
+      totalWork: 'w1*h1',
+      w2: 'w1*mult',
+      answer: 'w2-w1',
+      d_forgotFinalStep: 'w2',
+      d_offByOneStep: 'mult-1',
+      d_usedGivenValue: 'rostered',
+    },
+    constraints: ['rostered!=answer', 'w2-w1>0', 'mult-1!=w2-w1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_offByOneStep}}'), error: 'offByOneStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The job is {{totalWork}} worker-hours, so {{h2}} hours needs {{w2}} people.', 'That is {{answer}} more than the {{w1}} already there.'],
+  answerSummary: { headline: 'Work out the crew needed, then the extra people.', text: '${{answer}}$ more are needed.' },
+  hint: 'Halving the time doubles the people, and so on.',
+  feedback: 'How many times faster the job must go is not how many people to add.',
+});
+
+arc('A2.6L', 'setting-that-keeps-the-product-fixed', {
+  difficultyBand: 5, dok: 3, taskType: 'errorAnalysis', representation: 'table',
+  prompt: 'Setting and speed vary inversely, so every pair below should give one product. One does not. What speed should it show?',
+  stimulus: {
+    kind: 'table',
+    columns: ['Setting', 'Speed'],
+    rows: [['{{x1}}', '{{y1}}'], ['{{x2}}', '{{y2}}'], ['{{x3}}', '{{yBad}}'], ['{{x4}}', '{{y4}}']],
+  },
+  generator: {
+    parameters: {
+      k1: { type: 'int', min: 2, max: 6 },
+      k2: { type: 'int', min: 8, max: 20 },
+      off: { type: 'int', min: 3, max: 20 },
+      dial: { type: 'int', min: 32, max: 80 },
+    },
+    derived: {
+      product: 'k1*k2*12',
+      x1: 'k1', y1: 'product/k1',
+      x2: 'k1*2', y2: 'product/(k1*2)',
+      x3: 'k1*3',
+      answer: 'product/(k1*3)',
+      yBad: 'answer+off',
+      x4: 'k1*4', y4: 'product/(k1*4)',
+      d_forgotFinalStep: 'yBad',
+      d_operationInverted: 'y4',
+      d_usedGivenValue: 'dial',
+    },
+    constraints: ['off!=k1', 'dial!=answer', 'yBad!=y4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The pairs that agree all multiply to {{product}}.', 'A setting of {{x3}} therefore pairs with {{answer}}, not {{yBad}}.'],
+  answerSummary: { headline: 'Recover the fixed product from the pairs that agree.', text: 'It should show ${{answer}}$.' },
+  hint: 'Multiply the settings by their speeds and see which pair breaks the pattern.',
+  feedback: 'The speed printed against that setting is the error, not the correction.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
