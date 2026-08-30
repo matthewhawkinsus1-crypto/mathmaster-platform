@@ -465,7 +465,84 @@
             }
           ]
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b3"
+        },
+        {
+          "coverageKey": "challenge-d3b4-swap-input-output-function-analysis",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "reverseReasoning",
+          "representation": "multipleRepresentation",
+          "prompt": "The relation contains the points $({{x1}},{{y}})$, $({{x2}},{{y}})$, and $({{x3}},{{z}})$. First classify the ORIGINAL relation as a function. Then swap every ordered pair to make $({{y}},{{x1}})$, $({{y}},{{x2}})$, and $({{z}},{{x3}})$ and classify the SWAPPED relation. Explain the input-output conflict created by the swap.",
+          "responseFields": [
+            {
+              "id": "original",
+              "label": "Original relation",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "function",
+                  "label": "FUNCTION"
+                },
+                {
+                  "id": "not-function",
+                  "label": "NOT A FUNCTION"
+                }
+              ],
+              "expected": "function"
+            },
+            {
+              "id": "swapped",
+              "label": "Swapped relation",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "function",
+                  "label": "FUNCTION"
+                },
+                {
+                  "id": "not-function",
+                  "label": "NOT A FUNCTION"
+                }
+              ],
+              "expected": "not-function"
+            },
+            {
+              "id": "repeated-input",
+              "label": "Repeated input in the swapped relation",
+              "inputProfile": "number",
+              "expected": "{{y}}"
+            },
+            {
+              "id": "conflicting-outputs",
+              "label": "Two outputs assigned to that repeated input",
+              "inputProfile": "expression",
+              "expected": "{{x1}},{{x2}}",
+              "accepted": [
+                "{{x2}},{{x1}}"
+              ]
+            }
+          ],
+          "solutionReview": {
+            "headline": "Function status depends on which coordinate is serving as the input.",
+            "reasoning": [
+              "The original x-values {{x1}}, {{x2}}, and {{x3}} are distinct, so every original input has only one output.",
+              "After swapping coordinates, the repeated value {{y}} becomes an input.",
+              "That one input is paired with both {{x1}} and {{x2}}, so the swapped relation is not a function."
+            ],
+            "answerSummary": "Original: function. Swapped: not a function because input {{y}} has two outputs."
+          },
+          "attemptFeedback": [
+            "Track which coordinate is the input before and after the swap."
+          ],
+          "supportHints": [
+            "Repeated outputs are allowed in a function; one input with two different outputs is not."
+          ]
+        }
+      ]
     }
   ]
 }
