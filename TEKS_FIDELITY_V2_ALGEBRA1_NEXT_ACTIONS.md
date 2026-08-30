@@ -1,4 +1,26 @@
-# Algebra I TEKS Fidelity V2 — Final Candidate Checkpoint
+# Algebra I TEKS Fidelity V2 — PROMOTED CHECKPOINT
+
+## Current resume anchor — August 30, 2026
+
+- Branch: `audit/teks-fidelity-v2-algebra1`
+- Draft PR: **#80**
+- Authoring sweep: **COMPLETE — 49/49 standards, 245/245 V2 families**
+- Final pre-promotion release gates: **5/5 GREEN**
+- Canonical promotion: **COMPLETE**
+  - `drafts/algebra1.json` now contains the certified 245-family V2 bank.
+  - `seed/pathQuestionBank/algebra1_pathQuestionBank_seed.json` matches the canonical draft.
+  - `functions/seeds/pathQuestionBank/algebra1_pathQuestionBank_seed.json` is byte-identical to the primary mirror.
+  - Both Path coverage manifests were rebuilt from the actual nine shipping seed banks.
+- Rebuilt manifest totals: **3,334 documents; 226 Texas standards overall; 1,161 course documents; 2,173 assessment documents.**
+- Firestore/content deployment: **NOT STARTED**. Do not deploy until the post-promotion suite on the final branch head is green.
+- Exact next action after resuming:
+  1. inspect post-promotion workflows on the latest PR #80 head;
+  2. if green (ignoring only the known Vercel build-rate-limit), treat Algebra I as release-certified;
+  3. create the Algebra II Fidelity V2 continuation branch FROM THAT EXACT CERTIFIED HEAD;
+  4. audit Algebra II from its canonical shipping source and produce the full standard-by-standard decision matrix before bulk rewriting.
+- Do **not** use the older Algebra II audit branch if it predates this certified Algebra I adapter/tool work.
+
+---
 
 ## Resume anchor — August 30, 2026
 
