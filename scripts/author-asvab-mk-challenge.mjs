@@ -7275,6 +7275,745 @@ mkc('A.2D', 'claim-about-chained-constants', {
   feedback: 'Both rules pass through the origin, so the chain does too.',
 });
 
+// ================================================================ A.2E
+// Parallel lines.
+
+mkc('A.2E', 'parallel-to-a-standard-form-line-through-a-point', {
+  difficultyBand: 4, dok: 2, taskType: 'representationTranslation', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Which line is parallel to ${{a}}x + {{b}}y = {{c}}$ and passes through $({{x1}}, {{y1}})$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 14 },
+      b: { type: 'int', min: 2, max: 14 },
+      c: { type: 'int', min: 10, max: 200 },
+      x1: { type: 'int', min: 2, max: 16 },
+      y1: { type: 'int', min: 2, max: 16 },
+    },
+    derived: { d: 'a*x1+b*y1', d2: 'a*x1-b*y1' },
+    constraints: ['a!=b', 'a*x1+b*y1!=c', 'a*x1-b*y1!=a*x1+b*y1'],
+  },
+  choices: [
+    { label: plain('{{a}}x + {{b}}y = {{d}}'), correct: true },
+    { label: plain('{{a}}x + {{b}}y = {{c}}'), error: 'usedGivenValue' },
+    { label: plain('{{b}}x + {{a}}y = {{d}}'), error: 'ratioReversed' },
+    { label: plain('{{a}}x - {{b}}y = {{d2}}'), error: 'signError' },
+  ],
+  reasoning: ['Parallel lines in standard form keep both coefficients and change only the constant.', 'Substituting $({{x1}}, {{y1}})$ gives that constant as ${{d}}$.'],
+  answerSummary: { headline: 'Keep the coefficients; recompute the constant.', text: 'It is ${{a}}x + {{b}}y = {{d}}$.' },
+  hint: 'The slope comes from the two coefficients alone.',
+  feedback: 'Swapping the coefficients changes the slope, so the line is no longer parallel.',
+});
+
+mkc('A.2E', 'gap-between-two-parallel-lines-at-an-input', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Parallel lines of slope ${{m}}$ cross the vertical axis at ${{c1}}$ and ${{c2}}$. At $x = {{v}}$, how far apart are they?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 16 },
+      c1: { type: 'int', min: 2, max: 60 },
+      c2: { type: 'int', min: 20, max: 160 },
+      v: { type: 'int', min: 2, max: 16 },
+    },
+    derived: {
+      answer: 'c2-c1',
+      // Added the two crossing points instead of comparing them.
+      d_operationInverted: 'c1+c2',
+      // Answered how far the lines have climbed by ${{v}}.
+      d_ratioReversed: 'm*v',
+      // Compared the two the other way round.
+      d_signError: 'c1-c2',
+    },
+    constraints: ['c2-c1>6', 'abs(m*v-(c2-c1))>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['Both lines climb ${{m}}$ for every step, so the climb cancels when they are compared.', 'The gap stays ${{c2}} - {{c1}} = {{answer}}$ at every input.'],
+  answerSummary: { headline: 'Parallel lines keep a constant vertical gap.', text: 'They are ${{answer}}$ apart.' },
+  hint: 'Work out both heights at $x = {{v}}$ and subtract.',
+  feedback: 'The climb by $x = {{v}}$ is the same on both lines, so it cannot widen the gap.',
+});
+
+mkc('A.2E', 'claim-about-two-parallel-lines-crossing', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'Two different lines both have slope ${{m}}$. Which statement is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 18 },
+      c: { type: 'int', min: 2, max: 60 },
+    },
+    constraints: ['m>1'],
+  },
+  choices: [
+    { label: 'They cross the vertical axis at the same point.', correct: true },
+    { label: 'They never meet.', error: 'operationInverted' },
+    { label: 'A vertical shift carries one onto the other.', error: 'partialTotal' },
+    { label: 'They rise by ${{m}}$ for each step in $x$.', error: 'usedGivenValue' },
+  ],
+  reasoning: ['Two lines with the same slope and the same crossing point are the same line.', 'Being different forces the crossing points apart.'],
+  answerSummary: { headline: 'Same slope and same intercept means one line, not two.', text: 'The crossing points must differ.' },
+  hint: 'Ask what would happen if both facts held at once.',
+  feedback: 'Never meeting is exactly what equal slopes and different intercepts give.',
+});
+
+// ================================================================ A.2F
+// Perpendicular lines.
+
+mkc('A.2F', 'axis-crossing-of-a-perpendicular-line', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Line B is perpendicular to ${{a}}x + {{b}}y = {{c}}$ and passes through $({{x1}}, {{y1}})$. Where does B cross the vertical axis?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 12 },
+      b: { type: 'int', min: 2, max: 14 },
+      c: { type: 'int', min: 10, max: 200 },
+      u: { type: 'int', min: 2, max: 32 },
+      y1: { type: 'int', min: 20, max: 200 },
+    },
+    derived: {
+      x1: 'a*u',
+      answer: 'y1-b*u',
+      // Answered the height of the point.
+      d_usedGivenValue: 'y1',
+      // Answered how far the perpendicular climbs to reach the point.
+      d_ratioReversed: 'b*u',
+      // Took the difference the other way round.
+      d_signError: 'b*u-y1',
+    },
+    constraints: ['y1-b*u>4', 'abs(b*u-(y1-b*u))>4', 'b*u>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+  ],
+  reasoning: ['Line A has slope $-\\frac{{{a}}}{{{b}}}$, so line B has slope $\\frac{{{b}}}{{{a}}}$.', 'Walking back ${{x1}}$ from $({{x1}}, {{y1}})$ drops ${{b}} \\times {{u}}$, leaving ${{answer}}$.'],
+  answerSummary: { headline: 'Flip and negate the slope, then walk back to the axis.', text: 'It crosses at ${{answer}}$.' },
+  hint: 'The perpendicular slope is the reciprocal with the sign changed.',
+  feedback: 'The point itself is not on the axis; the climb still has to come off.',
+});
+
+mkc('A.2F', 'horizontal-crossing-of-a-perpendicular', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A line perpendicular to $y = \\frac{{{p}}}{{{q}}}x + {{c}}$ passes through $({{x1}}, {{y1}})$. Where does it cross the horizontal axis?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 12 },
+      q: { type: 'int', min: 2, max: 12 },
+      w: { type: 'int', min: 2, max: 14 },
+      x1: { type: 'int', min: 2, max: 40 },
+      c: { type: 'int', min: 2, max: 40 },
+    },
+    derived: {
+      y1: 'q*w',
+      answer: 'x1+p*w',
+      // Answered the point's own input.
+      d_usedGivenValue: 'x1',
+      // Used the fraction the right way up.
+      d_ratioReversed: 'x1+q*w',
+      // Applied both parts of the fraction.
+      d_exponentError: 'x1+p*q*w',
+    },
+    constraints: ['gcd(p,q)==1', 'p!=q', 'abs(p-q)*w>3', 'p*w>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+  ],
+  reasoning: ['The perpendicular slope is $-\\frac{{{q}}}{{{p}}}$, so falling ${{y1}}$ takes ${{p}} \\times {{w}}$ across.', 'That puts the crossing at ${{answer}}$.'],
+  answerSummary: { headline: 'The reciprocal slope swaps the roles of the two parts.', text: 'It crosses at ${{answer}}$.' },
+  hint: 'How far across does the line travel while dropping ${{y1}}$?',
+  feedback: 'Using $\\frac{{{q}}}{{{p}}}$ the right way up travels the wrong distance.',
+});
+
+mkc('A.2F', 'pair-of-slopes-that-are-perpendicular', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'Which pair of slopes belongs to perpendicular lines?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 2, max: 14 },
+      q: { type: 'int', min: 2, max: 14 },
+    },
+    constraints: ['p!=q', 'p>1'],
+  },
+  choices: [
+    { label: '${{p}}$ and $-\\frac{1}{{{p}}}$', correct: true },
+    { label: '${{p}}$ and $\\frac{1}{{{p}}}$', error: 'signError' },
+    { label: '${{p}}$ and $-{{p}}$', error: 'operationInverted' },
+    { label: '${{p}}$ and $\\frac{{{p}}}{{{q}}}$', error: 'ratioReversed' },
+  ],
+  reasoning: ['Perpendicular slopes multiply to $-1$.', 'Only ${{p}} \\times -\\frac{1}{{{p}}}$ comes to $-1$.'],
+  answerSummary: { headline: 'Flip the fraction and change the sign.', text: '${{p}}$ and $-\\frac{1}{{{p}}}$.' },
+  hint: 'Multiply each pair together and look for $-1$.',
+  feedback: 'Changing the sign alone leaves the product at $-{{p}}^{2}$.',
+});
+
+// ================================================================ A.2G
+// Horizontal and vertical lines.
+
+mkc('A.2G', 'perimeter-fenced-by-four-rails', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Rails run along $x = {{p}}$, $x = {{q}}$, $y = {{r}}$ and $y = {{s}}$. What is the perimeter they enclose?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 1, max: 12 },
+      wide: { type: 'int', min: 2, max: 24 },
+      r: { type: 'int', min: 1, max: 12 },
+      tall: { type: 'int', min: 2, max: 24 },
+    },
+    derived: {
+      q: 'p+wide',
+      s: 'r+tall',
+      answer: '2*(wide+tall)',
+      // Doubled every coordinate instead of the two gaps.
+      d_operationInverted: '2*(p+q+r+s)',
+      // Answered one width plus one height.
+      d_forgotFinalStep: 'wide+tall',
+      // Answered the distance round only the two named rails.
+      d_usedGivenValue: 'p+q+r+s',
+    },
+    constraints: ['abs(p+q+r+s-2*(wide+tall))>5', 'wide!=tall'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The two vertical rails stand ${{wide}}$ apart and the two horizontal rails ${{tall}}$ apart.', 'The perimeter is $2({{wide}} + {{tall}}) = {{answer}}$.'],
+  answerSummary: { headline: 'The gaps between the rails give the two side lengths.', text: 'It is ${{answer}}$.' },
+  hint: 'A rail at $x = {{p}}$ is a vertical line, not a length.',
+  feedback: 'Adding the four positions measures nothing on the rectangle.',
+});
+
+mkc('A.2G', 'crossing-of-two-midway-rails', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'orderedPairs', courseId: 'algebra1',
+  prompt: 'One line runs midway between $x = {{p}}$ and $x = {{q}}$, another midway between $y = {{r}}$ and $y = {{s}}$. Where do they cross?',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 1, max: 20 },
+      wide: { type: 'int', min: 2, max: 24, step: 2 },
+      r: { type: 'int', min: 1, max: 20 },
+      tall: { type: 'int', min: 2, max: 24, step: 2 },
+    },
+    derived: {
+      q: 'p+wide',
+      s: 'r+tall',
+      mx: 'p+wide/2',
+      my: 'r+tall/2',
+      halfW: 'wide/2',
+      halfT: 'tall/2',
+      sumX: 'p+q',
+      sumY: 'r+s',
+    },
+    constraints: ['wide!=tall', 'p!=r', 'mx!=my', 'sumX!=sumY'],
+  },
+  choices: [
+    { label: plain('({{mx}}, {{my}})'), correct: true },
+    { label: plain('({{my}}, {{mx}})'), error: 'ratioReversed' },
+    { label: plain('({{sumX}}, {{sumY}})'), error: 'forgotFinalStep' },
+    { label: plain('({{halfW}}, {{halfT}})'), error: 'operationInverted' },
+  ],
+  reasoning: ['Midway between two vertical rails is the average of their two $x$ values.', 'The same holds for the horizontal pair, giving $({{mx}}, {{my}})$.'],
+  answerSummary: { headline: 'A midway line sits at the average, not at half the gap.', text: 'They cross at $({{mx}}, {{my}})$.' },
+  hint: 'Average each pair of positions.',
+  feedback: 'Half the gap measures a distance, not a position.',
+});
+
+mkc('A.2G', 'claim-about-a-line-through-two-points-sharing-an-x', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'A line passes through $({{a}}, {{y1}})$ and $({{a}}, {{y2}})$. Which statement is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 30 },
+      y1: { type: 'int', min: 1, max: 30 },
+      y2: { type: 'int', min: 31, max: 90 },
+    },
+    constraints: ['y1!=y2', 'a>1'],
+  },
+  choices: [
+    { label: 'Its slope is zero.', correct: true },
+    { label: 'Its equation is $x = {{a}}$.', error: 'operationInverted' },
+    { label: 'Its slope is undefined.', error: 'usedGivenValue' },
+    { label: 'It never crosses the vertical axis.', error: 'partialTotal' },
+  ],
+  reasoning: ['The two points share an $x$ value, so the run between them is zero.', 'Dividing by zero leaves the slope undefined, not zero.'],
+  answerSummary: { headline: 'A vertical line has no slope at all.', text: 'The slope is undefined, not zero.' },
+  hint: 'Work out the rise and the run between the two points.',
+  feedback: 'A slope of zero belongs to a horizontal line.',
+});
+
+// ================================================================ A.2I
+// Writing a system for a situation.
+
+mkc('A.2I', 'system-with-a-refund', {
+  difficultyBand: 4, dok: 2, taskType: 'representationTranslation', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A canteen sold ${{n}}$ items, sandwiches at $\\${{a}}$ and soups at $\\${{b}}$, taking $\\${{t}}$ after a $\\${{d}}$ refund. Which system fits?',
+  generator: {
+    parameters: {
+      n: { type: 'int', min: 20, max: 200 },
+      a: { type: 'int', min: 3, max: 12 },
+      b: { type: 'int', min: 2, max: 10 },
+      t: { type: 'int', min: 100, max: 900 },
+      d: { type: 'int', min: 5, max: 60 },
+    },
+    derived: { td: 't+d' },
+    // The takings have to sit between what the cheapest and dearest mix would bring in.
+    constraints: ['a>b', 't>d', 't+d>n*b', 't+d<n*a'],
+  },
+  choices: [
+    { label: plain('x + y = {{n}} \\text{ and } {{a}}x + {{b}}y = {{td}}'), correct: true },
+    { label: plain('x + y = {{n}} \\text{ and } {{a}}x + {{b}}y = {{t}}'), error: 'forgotFinalStep' },
+    { label: plain('{{a}}x + {{b}}y = {{n}} \\text{ and } x + y = {{td}}'), error: 'ratioReversed' },
+    { label: plain('x + y = {{n}} \\text{ and } {{b}}x + {{a}}y = {{td}}'), error: 'operationInverted' },
+  ],
+  reasoning: ['One equation counts the items and one totals the money taken.', 'The refund reduced the takings, so the sales came to ${{t}} + {{d}}$.'],
+  answerSummary: { headline: 'Counting has coefficients of one; money carries the prices.', text: 'It is $x + y = {{n}}$ with ${{a}}x + {{b}}y = {{td}}$.' },
+  hint: 'Ask what each equation is measuring.',
+  feedback: 'Prices belong in the money equation, not the counting one.',
+});
+
+mkc('A.2I', 'product-behind-a-sum-and-a-difference', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Two numbers add to ${{s}}$ and differ by ${{g}}$. What is their product?',
+  generator: {
+    parameters: {
+      big: { type: 'int', min: 6, max: 200 },
+      small: { type: 'int', min: 2, max: 190 },
+    },
+    derived: {
+      s: 'big+small',
+      g: 'big-small',
+      answer: 'big*small',
+      // Multiplied the two given totals.
+      d_operationInverted: 's*g',
+      // Answered the larger number.
+      d_forgotFinalStep: 'big',
+      // Squared half the total.
+      d_exponentError: 's*s/4',
+    },
+    constraints: ['big>small', 'big-small>3', 'big<3*small', '(big+small)%2==0', 'abs(s*g-big*small)>5', 'abs(s*s/4-big*small)>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+  ],
+  reasoning: ['Half the total plus half the difference gives ${{big}}$, and half the total minus half the difference gives ${{small}}$.', 'Their product is ${{answer}}$.'],
+  answerSummary: { headline: 'A sum and a difference fix both numbers.', text: 'The product is ${{answer}}$.' },
+  hint: 'Recover the two numbers before multiplying anything.',
+  feedback: 'The total and the difference are not the two numbers themselves.',
+});
+
+mkc('A.2I', 'claim-about-a-counting-and-money-system', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'A canteen sells sandwiches at $\\${{a}}$ and soups at $\\${{b}}$, and ${{n}}$ items go in all. Which statement about the system is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 12 },
+      b: { type: 'int', min: 2, max: 10 },
+      n: { type: 'int', min: 20, max: 200 },
+    },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: 'Both equations carry the two prices as coefficients.', correct: true },
+    { label: 'The counting equation has coefficients of one.', error: 'partialTotal' },
+    { label: 'The money equation carries the prices as coefficients.', error: 'usedGivenValue' },
+    { label: 'Both equations use the same two unknowns.', error: 'ratioReversed' },
+  ],
+  reasoning: ['The counting equation adds up items, so each item counts once whatever it cost.', 'Only the money equation weights the two unknowns by price.'],
+  answerSummary: { headline: 'Counting and money weight the unknowns differently.', text: 'Only one equation carries the prices.' },
+  hint: 'Write both equations out before deciding.',
+  feedback: 'Both equations really do describe the same two counts.',
+});
+
+// ================================================================ A.3A
+// Rate of change from different forms.
+
+mkc('A.3A', 'fall-across-a-run-in-standard-form', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'On the line ${{a}}x + {{b}}y = {{c}}$, by how much does $y$ fall as $x$ rises by ${{g}}$?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 2, max: 20 },
+      k: { type: 'int', min: 2, max: 16 },
+      g: { type: 'int', min: 2, max: 16 },
+      c: { type: 'int', min: 10, max: 300 },
+    },
+    derived: {
+      a: 'b*k',
+      answer: 'k*g',
+      // Used the coefficient of $x$ as the whole rate.
+      d_operationInverted: 'b*k*g',
+      // Answered the rate for a single step.
+      d_forgotFinalStep: 'k',
+      // Used the coefficient of $y$ as the rate.
+      d_ratioReversed: 'b*g',
+    },
+    constraints: ['b!=k', 'k*g>7', 'abs(b*g-k*g)>4', 'abs(k-k*g)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Solving for $y$ gives a slope of $-\\frac{{{a}}}{{{b}}} = -{{k}}$.', 'Over a run of ${{g}}$ that is a fall of ${{answer}}$.'],
+  answerSummary: { headline: 'The slope is the ratio of the two coefficients, not either one.', text: 'It falls by ${{answer}}$.' },
+  hint: 'Rearrange into $y = mx + c$ first.',
+  feedback: 'The coefficient of $x$ still has to be divided by the coefficient of $y$.',
+});
+
+mkc('A.3A', 'input-where-a-bill-reaches-a-total', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A bill follows $y - {{y1}} = {{m}}(x - {{x1}})$, with $x$ in hours. At which $x$ does it reach ${{t}}$?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 20 },
+      x1: { type: 'int', min: 2, max: 14 },
+      y1: { type: 'int', min: 20, max: 200 },
+      u: { type: 'int', min: 2, max: 120 },
+    },
+    derived: {
+      t: 'y1+m*u',
+      answer: 'x1+u',
+      // Added the whole shortfall as if it were hours.
+      d_forgotFinalStep: 'x1+m*u',
+      // Answered the hours already accounted for.
+      d_usedGivenValue: 'x1',
+      // Multiplied the given hours by the rate.
+      d_ratioReversed: 'm*x1',
+    },
+    constraints: ['abs(m*x1-(x1+u))>4', 'x1+u>7', 'u>1'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The bill has to rise ${{t}} - {{y1}}$, and it rises ${{m}}$ an hour.', 'That takes ${{u}}$ more hours, reaching $x = {{answer}}$.'],
+  answerSummary: { headline: 'Divide the shortfall by the rate before adding the known hours.', text: '$x = {{answer}}$.' },
+  hint: 'Point-slope form measures from $({{x1}}, {{y1}})$.',
+  feedback: 'The shortfall is money; it becomes hours only after dividing by the rate.',
+});
+
+mkc('A.3A', 'claim-about-the-slope-in-standard-form', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'For the line ${{a}}x + {{b}}y = {{c}}$, which statement is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 16 },
+      b: { type: 'int', min: 2, max: 16 },
+      c: { type: 'int', min: 10, max: 200 },
+    },
+    constraints: ['a!=b'],
+  },
+  choices: [
+    { label: 'Its slope is ${{a}}$.', correct: true },
+    { label: 'Its slope is $-\\frac{{{a}}}{{{b}}}$.', error: 'partialTotal' },
+    { label: 'It crosses the vertical axis at $\\frac{{{c}}}{{{b}}}$.', error: 'usedGivenValue' },
+    { label: 'Doubling all three numbers leaves the line unchanged.', error: 'ratioReversed' },
+  ],
+  reasoning: ['Rearranging gives $y = -\\frac{{{a}}}{{{b}}}x + \\frac{{{c}}}{{{b}}}$.', 'The coefficient of $x$ in standard form is not the slope on its own.'],
+  answerSummary: { headline: 'Standard form hides the slope until it is rearranged.', text: 'The slope is $-\\frac{{{a}}}{{{b}}}$.' },
+  hint: 'Solve the equation for $y$.',
+  feedback: 'Scaling every term really does leave the same line.',
+});
+
+// ================================================================ A.3C
+// Intercepts and zeros.
+
+mkc('A.3C', 'litres-left-before-a-tank-empties', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A tank holds $y = {{b}} - {{m}}x$ litres after $x$ minutes. How much is left ${{g}}$ minutes before it empties?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 20 },
+      z: { type: 'int', min: 3, max: 30 },
+      g: { type: 'int', min: 2, max: 16 },
+    },
+    derived: {
+      b: 'm*z',
+      answer: 'm*g',
+      // Answered the tank's starting amount.
+      d_usedGivenValue: 'b',
+      // Answered the number of minutes.
+      d_forgotFinalStep: 'g',
+      // Answered the amount left ${{g}} minutes after the start.
+      d_ratioReversed: 'b-m*g',
+    },
+    constraints: ['z>g', 'm*g>7', 'abs(b-2*m*g)>4', 'abs(g-m*g)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['The tank empties at $x = {{b}} \\div {{m}} = {{z}}$ minutes.', 'With ${{g}}$ minutes still to run it holds ${{m}} \\times {{g}} = {{answer}}$ litres.'],
+  answerSummary: { headline: 'Work from the emptying time backwards at the drain rate.', text: 'It holds ${{answer}}$ litres.' },
+  hint: 'Find when the tank runs dry first.',
+  feedback: 'Counting ${{g}}$ minutes from the start measures from the wrong end.',
+});
+
+mkc('A.3C', 'vertical-crossing-from-a-horizontal-one', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'A line ${{a}}x + {{b}}y = c$ crosses the horizontal axis at ${{h}}$. Where does it cross the vertical axis?',
+  generator: {
+    parameters: {
+      b: { type: 'int', min: 2, max: 18 },
+      k: { type: 'int', min: 2, max: 16 },
+      h: { type: 'int', min: 2, max: 20 },
+    },
+    derived: {
+      a: 'b*k',
+      c: 'b*k*h',
+      answer: 'k*h',
+      // Answered the constant on the right.
+      d_forgotFinalStep: 'c',
+      // Answered the crossing that was given.
+      d_usedGivenValue: 'h',
+      // Divided by the wrong coefficient.
+      d_ratioReversed: 'b*h',
+    },
+    constraints: ['b!=k', 'k*h>7', 'abs(b*h-k*h)>4', 'abs(h-k*h)>3'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['Setting $y = 0$ gives $c = {{a}} \\times {{h}}$.', 'Setting $x = 0$ then gives $y = c \\div {{b}} = {{answer}}$.'],
+  answerSummary: { headline: 'One crossing fixes the constant; the other follows.', text: 'It crosses at ${{answer}}$.' },
+  hint: 'Recover the constant from the crossing you are given.',
+  feedback: 'Each crossing divides the constant by its own coefficient.',
+});
+
+mkc('A.3C', 'claim-about-a-zero-and-an-intercept', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'For $f(x) = {{m}}x - {{p}}$, which statement is wrong?',
+  generator: {
+    parameters: {
+      m: { type: 'int', min: 2, max: 16 },
+      p: { type: 'int', min: 4, max: 90 },
+    },
+    derived: { diff: 'p-m' },
+    constraints: ['p>m'],
+  },
+  choices: [
+    { label: 'Its zero is at $x = {{diff}}$.', correct: true },
+    { label: 'Its zero is at $x = \\frac{{{p}}}{{{m}}}$.', error: 'partialTotal' },
+    { label: 'It crosses the vertical axis at $-{{p}}$.', error: 'usedGivenValue' },
+    { label: 'It rises by ${{m}}$ for each step in $x$.', error: 'ratioReversed' },
+  ],
+  reasoning: ['A zero is where ${{m}}x = {{p}}$, so $x = \\frac{{{p}}}{{{m}}}$.', 'Subtracting ${{m}}$ from ${{p}}$ is not the same operation at all.'],
+  answerSummary: { headline: 'A zero divides the constant by the slope.', text: 'The zero is $\\frac{{{p}}}{{{m}}}$.' },
+  hint: 'Set the rule to zero and solve.',
+  feedback: 'The vertical crossing really is $-{{p}}$, at $x = 0$.',
+});
+
+// ================================================================ A.3F
+// Systems: crossing, parallel and identical lines.
+
+mkc('A.3F', 'cost-in-the-month-two-plans-level', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Plan A costs $\\${{f1}}$ plus $\\${{m1}}$ a month and Plan B $\\${{f2}}$ plus $\\${{m2}}$ a month. What do they each cost in the month they level?',
+  generator: {
+    parameters: {
+      m1: { type: 'int', min: 5, max: 40 },
+      gap: { type: 'int', min: 2, max: 14 },
+      u: { type: 'int', min: 3, max: 20 },
+      f2: { type: 'int', min: 40, max: 600 },
+    },
+    derived: {
+      m2: 'm1+gap',
+      f1: 'f2+gap*u',
+      answer: 'f1+m1*u',
+      // Answered the month rather than the cost.
+      d_forgotFinalStep: 'u',
+      // Added both fees to the monthly charges.
+      d_operationInverted: 'f1+f2+m1*u',
+      // Answered the total of the two fees.
+      d_usedGivenValue: 'f1+f2',
+    },
+    constraints: ['f1+m1*u>20', 'abs(f1+f2-(f1+m1*u))>5', 'gap*u>4'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['The fees differ by ${{gap}} \\times {{u}}$ and the monthly charges by ${{gap}}$, so they level after ${{u}}$ months.', 'Plan A then costs ${{f1}} + {{m1}} \\times {{u}} = {{answer}}$.'],
+  answerSummary: { headline: 'Find the month first, then put it back into either plan.', text: 'Each costs $\\${{answer}}$.' },
+  hint: 'Solve for the month before working out any money.',
+  feedback: 'The month they level is a count, not a cost.',
+});
+
+mkc('A.3F', 'coefficient-that-makes-one-line-twice', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'For which $a_2$ do ${{a}}x + {{b}}y = {{c}}$ and $a_2x + {{b2}}y = {{c2}}$ describe the same line?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 18 },
+      b: { type: 'int', min: 2, max: 18 },
+      c: { type: 'int', min: 10, max: 200 },
+      k: { type: 'int', min: 2, max: 6 },
+    },
+    derived: {
+      b2: 'b*k',
+      c2: 'c*k',
+      answer: 'a*k',
+      // Answered the coefficient that was already given.
+      d_usedGivenValue: 'a',
+      // Answered the other scaled coefficient.
+      d_ratioReversed: 'b*k',
+      // Applied the factor twice.
+      d_exponentError: 'a*k*k',
+    },
+    constraints: ['a!=b', 'abs(b*k-a*k)>4', 'a*k>7'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+    { label: plain('{{d_exponentError}}'), error: 'exponentError' },
+  ],
+  reasoning: ['The second equation is the first multiplied by ${{b2}} \\div {{b}} = {{k}}$.', 'So $a_2$ has to be ${{a}} \\times {{k}} = {{answer}}$.'],
+  answerSummary: { headline: 'Identical lines differ by one factor applied to every term.', text: '$a_2 = {{answer}}$.' },
+  hint: 'Compare the two constants to find the factor.',
+  feedback: 'The factor is applied once to each term, not twice.',
+});
+
+mkc('A.3F', 'claim-about-a-system-with-no-solution', {
+  difficultyBand: 4, dok: 3, taskType: 'conceptual', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'The system ${{a}}x + {{b}}y = {{c}}$ and ${{a2}}x + {{b2}}y = {{c2}}$ has no solution. Which statement is wrong?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 16 },
+      b: { type: 'int', min: 2, max: 16 },
+      c: { type: 'int', min: 10, max: 150 },
+      k: { type: 'int', min: 2, max: 5 },
+      off: { type: 'int', min: 3, max: 40 },
+    },
+    derived: { a2: 'a*k', b2: 'b*k', c2: 'c*k+off' },
+    constraints: ['a!=b', 'off>2'],
+  },
+  choices: [
+    { label: 'The two lines cross a long way from the origin.', correct: true },
+    { label: 'The two lines are parallel.', error: 'operationInverted' },
+    { label: 'The two lines have the same slope.', error: 'usedGivenValue' },
+    { label: 'No pair of values satisfies both equations.', error: 'partialTotal' },
+  ],
+  reasoning: ['The coefficients scale by ${{k}}$ but the constants do not, so the lines are parallel and distinct.', 'Parallel lines never cross, however far out they are followed.'],
+  answerSummary: { headline: 'No solution means no crossing anywhere.', text: 'They do not cross at all.' },
+  hint: 'Check whether one equation is a multiple of the other.',
+  feedback: 'Equal slopes with different constants is exactly the no-solution case.',
+});
+
+// ================================================================ A.5A
+// Solving linear equations in one variable.
+
+mkc('A.5A', 'solve-a-grouped-quotient-with-a-shift', {
+  difficultyBand: 4, dok: 2, taskType: 'procedural', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'Solve $\\frac{x + {{p}}}{{{d}}} - {{q}} = {{r}}$.',
+  generator: {
+    parameters: {
+      p: { type: 'int', min: 3, max: 260 },
+      d: { type: 'int', min: 2, max: 12 },
+      q: { type: 'int', min: 2, max: 20 },
+      r: { type: 'int', min: 2, max: 30 },
+    },
+    derived: {
+      answer: 'd*(r+q)-p',
+      // Stopped at the numerator.
+      d_forgotFinalStep: 'd*(r+q)',
+      // Subtracted the shift instead of adding it back.
+      d_operationInverted: 'd*(r-q)-p',
+      // Answered the constant inside the fraction.
+      d_usedGivenValue: 'p',
+    },
+    constraints: ['d*(r+q)-p>6', 'abs(p-(d*(r+q)-p))>5', 'd*(r-q)-p!=d*(r+q)-p'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_operationInverted}}'), error: 'operationInverted' },
+    { label: plain('{{d_usedGivenValue}}'), error: 'usedGivenValue' },
+  ],
+  reasoning: ['Adding ${{q}}$ to both sides gives $\\frac{x + {{p}}}{{{d}}} = {{r}} + {{q}}$.', 'Multiplying by ${{d}}$ and subtracting ${{p}}$ leaves $x = {{answer}}$.'],
+  answerSummary: { headline: 'Undo the outside shift, then the division, then the inside shift.', text: '$x = {{answer}}$.' },
+  hint: 'The ${{q}}$ sits outside the fraction, so it comes off first.',
+  feedback: 'The numerator still has ${{p}}$ inside it.',
+});
+
+mkc('A.5A', 'constant-that-fixes-a-bracketed-solution', {
+  difficultyBand: 4, dok: 3, taskType: 'reverseReasoning', representation: 'symbolic', courseId: 'algebra1',
+  prompt: 'For which $c$ does ${{a}}(x + {{p}}) = {{b}}x + c$ have the solution $x = {{v}}$?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 3, max: 18 },
+      b: { type: 'int', min: 2, max: 16 },
+      p: { type: 'int', min: 2, max: 16 },
+      v: { type: 'int', min: 2, max: 60 },
+    },
+    derived: {
+      answer: '(a-b)*v+a*p',
+      // Left the second coefficient out.
+      d_forgotFinalStep: 'a*p+a*v',
+      // Took the difference off instead of adding it.
+      d_signError: 'a*p-(a-b)*v',
+      // Answered what the right-hand coefficient contributes.
+      d_ratioReversed: 'b*v',
+    },
+    constraints: ['a>b', '(a-b)*v+a*p>8', 'abs(b*v-((a-b)*v+a*p))>5', 'a*p-(a-b)*v>0'],
+  },
+  choices: [
+    { label: plain('{{answer}}'), correct: true },
+    { label: plain('{{d_forgotFinalStep}}'), error: 'forgotFinalStep' },
+    { label: plain('{{d_signError}}'), error: 'signError' },
+    { label: plain('{{d_ratioReversed}}'), error: 'ratioReversed' },
+  ],
+  reasoning: ['At $x = {{v}}$ the left side comes to ${{a}}({{v}} + {{p}})$.', 'Taking ${{b}} \\times {{v}}$ off leaves $c = {{answer}}$.'],
+  answerSummary: { headline: 'Expand, substitute, and read off what is left.', text: '$c = {{answer}}$.' },
+  hint: 'The bracket multiplies both terms inside it.',
+  feedback: 'The right-hand side still carries ${{b}}x$, which has to be accounted for.',
+});
+
+mkc('A.5A', 'sound-first-step-on-two-brackets', {
+  difficultyBand: 4, dok: 3, taskType: 'interpretation', representation: 'verbal', courseId: 'algebra1',
+  prompt: 'For ${{a}}(x + {{p}}) = {{b}}(x - {{q}})$, which first step is sound?',
+  generator: {
+    parameters: {
+      a: { type: 'int', min: 2, max: 16 },
+      b: { type: 'int', min: 2, max: 16 },
+      p: { type: 'int', min: 2, max: 30 },
+      q: { type: 'int', min: 2, max: 30 },
+    },
+    constraints: ['a!=b', 'p!=q'],
+  },
+  choices: [
+    { label: 'Expand both brackets, then collect the $x$ terms.', correct: true },
+    { label: 'Divide the left by ${{a}}$ and the right by ${{b}}$.', error: 'operationInverted' },
+    { label: 'Cancel the brackets, since both sides have one.', error: 'partialTotal' },
+    { label: 'Subtract ${{p}}$ from both sides.', error: 'signError' },
+  ],
+  reasoning: ['Whatever is done to one side has to be done to the other in full.', 'Expanding changes neither side\'s value, so it is always safe.'],
+  answerSummary: { headline: 'Expanding is the one step that changes nothing.', text: 'Expand both brackets first.' },
+  hint: 'Ask whether each step keeps the two sides equal.',
+  feedback: 'Dividing the two sides by different numbers breaks the equality.',
+});
+
 // ---------------------------------------------------------------- emit
 const seen = new Set();
 for (const item of ITEMS) {
