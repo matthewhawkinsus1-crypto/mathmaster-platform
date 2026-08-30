@@ -84,7 +84,86 @@
           "y3": "a+b+c",
           "y4": "4*a+2*b+c"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-clean-symmetric-quadratic-regression",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use quadratic-regression technology on the five clean symmetric data points to WRITE the fitted quadratic and predict y at x=1.5. Record all three coefficients before the prediction.",
+          "mode": "quadraticFitPrediction",
+          "points": [
+            {
+              "x": -2,
+              "y": "{{y0}}"
+            },
+            {
+              "x": -1,
+              "y": "{{y1}}"
+            },
+            {
+              "x": 0,
+              "y": "{{y2}}"
+            },
+            {
+              "x": 1,
+              "y": "{{y3}}"
+            },
+            {
+              "x": 2,
+              "y": "{{y4}}"
+            }
+          ],
+          "predictionX": 1.5,
+          "quadraticATolerance": 0.02,
+          "quadraticBTolerance": 0.03,
+          "quadraticCTolerance": 0.04,
+          "predictionTolerance": 0.08,
+          "context": {
+            "title": "Clean symmetric quadratic data",
+            "note": "The prediction target 1.5 lies inside the observed range."
+          },
+          "solutionReview": {
+            "headline": "Clean quadratic data make the technology workflow accessible.",
+            "reasoning": [
+              "Quadratic regression returns the exact model y=x²+{{c}}.",
+              "At x=1.5 the fitted model predicts {{pred}}.",
+              "Because 1.5 is inside -2 through 2, the prediction is interpolation."
+            ],
+            "answerSummary": "Fit y=x²+{{c}}; predict {{pred}}."
+          },
+          "attemptFeedback": [
+            "Enter all five points, record a,b,c, then evaluate the fitted model at x=1.5."
+          ],
+          "supportHints": [
+            "Symmetry suggests b=0, but still use the required quadratic-regression technology."
+          ],
+          "generator": {
+            "parameters": {
+              "c": {
+                "type": "int",
+                "min": 0,
+                "max": 8
+              }
+            },
+            "derived": {
+              "a": "1",
+              "b": "0",
+              "y0": "4+c",
+              "y1": "1+c",
+              "y2": "c",
+              "y3": "1+c",
+              "y4": "4+c",
+              "pred": "2.25+c"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_8B_v2_quadratic-regression-downward",
@@ -168,7 +247,111 @@
           "y3": "a+b+c",
           "y4": "4*a+2*b+c"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-seven-point-noisy-quadratic-regression",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Use quadratic regression on all SEVEN noisy observations to WRITE the fitted quadratic, then predict y at x=5. The data do not lie perfectly on a parabola, so do not fit only three convenient points.",
+          "mode": "quadraticFitPrediction",
+          "points": [
+            {
+              "x": -3,
+              "y": "{{ym3}}"
+            },
+            {
+              "x": -2,
+              "y": "{{ym2}}"
+            },
+            {
+              "x": -1,
+              "y": "{{ym1}}"
+            },
+            {
+              "x": 0,
+              "y": "{{y0}}"
+            },
+            {
+              "x": 1,
+              "y": "{{y1}}"
+            },
+            {
+              "x": 2,
+              "y": "{{y2}}"
+            },
+            {
+              "x": 3,
+              "y": "{{y3}}"
+            }
+          ],
+          "predictionX": 5,
+          "quadraticATolerance": 0.03,
+          "quadraticBTolerance": 0.05,
+          "quadraticCTolerance": 0.08,
+          "predictionTolerance": 0.2,
+          "context": {
+            "title": "Seven-point noisy quadratic regression",
+            "note": "Use every observation; x=5 is outside the observed range -3 through 3."
+          },
+          "solutionReview": {
+            "headline": "More noisy observations and extrapolation increase difficulty while the regression reasoning remains routine.",
+            "reasoning": [
+              "Run quadratic regression on all seven points and record a,b,c.",
+              "Use the fitted equation at x=5 rather than selecting three points to force an exact parabola.",
+              "The target lies outside the data range, so the result is extrapolation."
+            ],
+            "answerSummary": "Use the seven-point regression model for the x=5 prediction."
+          },
+          "attemptFeedback": [
+            "Do not drop noisy observations; the regression model must use the full data set."
+          ],
+          "supportHints": [
+            "Enter all seven pairs before running quadratic regression."
+          ],
+          "generator": {
+            "parameters": {
+              "aMag": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "b": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "c": {
+                "type": "int",
+                "min": 18,
+                "max": 40
+              },
+              "e": {
+                "type": "choice",
+                "values": [
+                  1,
+                  2
+                ]
+              }
+            },
+            "derived": {
+              "a": "-aMag",
+              "ym3": "9*a-3*b+c+e",
+              "ym2": "4*a-2*b+c-e",
+              "ym1": "a-b+c+2*e",
+              "y0": "c-2*e",
+              "y1": "a+b+c+e",
+              "y2": "4*a+2*b+c-e",
+              "y3": "9*a+3*b+c+e"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A_8B_v2_quadratic-regression-interpolation",
