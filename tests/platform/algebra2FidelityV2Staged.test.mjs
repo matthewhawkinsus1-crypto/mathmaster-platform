@@ -87,24 +87,27 @@ test('A2.2A covers every required parent family through authentic secure graph c
   assert.ok(allGenerated.some((q) => q.functionSpec?.type === 'logarithmic' && q.taskType === 'errorAnalysis'));
 });
 
-const correctRawWork = (privateGrading) => ({
-  placements: Object.fromEntries(
-    (privateGrading.points || []).map((part) => [part.id, part.expected]),
-  ),
-  markerPlacements: Object.fromEntries(
-    (privateGrading.markers || []).map((part) => [part.id, part.marker]),
-  ),
-  selections: Object.fromEntries(
-    (privateGrading.analysis || [])
-      .filter((part) => ['point', 'inversePoint'].includes(part.kind))
-      .map((part) => [part.id, part.expected]),
-  ),
-  answers: Object.fromEntries(
-    (privateGrading.analysis || [])
-      .filter((part) => !['point', 'inversePoint'].includes(part.kind))
-      .map((part) => [part.id, (part.accepted?.length ? part.accepted : part.expected)?.[0] ?? '']),
-  ),
-});
+const correctRawWork = (privateGrading) => {
+  const definition = privateGrading?.definition || {};
+  return {
+    placements: Object.fromEntries(
+      (definition.points || []).map((part) => [part.id, part.expected]),
+    ),
+    markerPlacements: Object.fromEntries(
+      (definition.markers || []).map((part) => [part.id, part.marker]),
+    ),
+    selections: Object.fromEntries(
+      (definition.analysis || [])
+        .filter((part) => ['point', 'inversePoint'].includes(part.kind))
+        .map((part) => [part.id, part.expected]),
+    ),
+    answers: Object.fromEntries(
+      (definition.analysis || [])
+        .filter((part) => !['point', 'inversePoint'].includes(part.kind))
+        .map((part) => [part.id, (part.accepted?.length ? part.accepted : part.expected)?.[0] ?? '']),
+    ),
+  };
+};
 
 test('A2.2B repeatedly requires graph-reflect-write inverse evidence across representations', () => {
   const entry = payload('A2.2B');
@@ -168,7 +171,11 @@ test('A2.2B repeatedly requires graph-reflect-write inverse evidence across repr
         raw: correctRawWork(privateGrading),
       });
       assert.equal(grading.rejected, false, `${doc.id} rejected correctly-shaped generated work`);
-      assert.equal(grading.isCorrect, true, `${doc.id} failed secure correct-answer self-acceptance`);
+      assert.equal(
+        grading.isCorrect,
+        true,
+        `${doc.id} failed secure correct-answer self-acceptance: ${JSON.stringify(grading.parts)}`,
+      );
     }
   }
 
