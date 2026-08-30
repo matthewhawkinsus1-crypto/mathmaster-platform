@@ -269,7 +269,116 @@
           "r2": "3*x+y+2*z",
           "r3": "2*x+3*y+z"
         }
-      }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-signed-coefficient-table-system",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "representationTranslation",
+          "representation": "table",
+          "prompt": "Each row gives signed coefficients of x, y, and z and a measured total. Formulate all three equations exactly as represented. The mixed signs increase arithmetic/reading difficulty but do not change the modeling reasoning.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Signed coefficient measurements",
+            "table": {
+              "headers": [
+                "Row",
+                "x coefficient",
+                "y coefficient",
+                "z coefficient",
+                "Total"
+              ],
+              "rows": [
+                [
+                  "1",
+                  "2",
+                  "-3",
+                  "1",
+                  "{{r1}}"
+                ],
+                [
+                  "2",
+                  "-1",
+                  "4",
+                  "2",
+                  "{{r2}}"
+                ],
+                [
+                  "3",
+                  "3",
+                  "1",
+                  "-2",
+                  "{{r3}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "eq1",
+              "label": "Equation from row 1",
+              "inputProfile": "equation",
+              "expected": "2x-3y+z={{r1}}"
+            },
+            {
+              "id": "eq2",
+              "label": "Equation from row 2",
+              "inputProfile": "equation",
+              "expected": "-x+4y+2z={{r2}}"
+            },
+            {
+              "id": "eq3",
+              "label": "Equation from row 3",
+              "inputProfile": "equation",
+              "expected": "3x+y-2z={{r3}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Read signed coefficients directly into each equation.",
+            "reasoning": [
+              "Row 1 becomes 2x-3y+z={{r1}}.",
+              "Rows 2 and 3 preserve their negative coefficients as written."
+            ],
+            "answerSummary": "Three signed linear equations."
+          },
+          "attemptFeedback": [
+            "Treat each negative table entry as part of that variable's coefficient."
+          ],
+          "supportHints": [
+            "Do not move terms or solve; this standard asks you to formulate the system."
+          ],
+          "generator": {
+            "parameters": {
+              "x": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "y": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "z": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            },
+            "derived": {
+              "r1": "2*x-3*y+z",
+              "r2": "-x+4*y+2*z",
+              "r3": "3*x+y-2*z"
+            }
+          }
+        }
+      ]
     },
     {
       "id": "mm_A2_3A_v2_graph-linear-quadratic-system",
