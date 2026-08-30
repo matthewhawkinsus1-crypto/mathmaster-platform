@@ -452,7 +452,7 @@ Do **not** re-audit A2.5A unless a named regression/certification test fails.
 
 ## Active standard
 
-### A2.5B — PENDING AUDIT
+### A2.5B — REBUILD — AUDITED / AUTHORING
 
 Official construct: **Formulate exponential and logarithmic equations that model real-world situations, including exponential relationships written recursively.**
 
@@ -461,6 +461,31 @@ Official construct: **Formulate exponential and logarithmic equations that model
 ### A2.5B
 
 Resume here. Do not reopen A2.2A–A2.5A unless a failing gate names them.
+
+
+### 2026-08-30 — A2.5B audit finding
+- Official construct: **formulate exponential and logarithmic equations that model real-world situations, including exponential relationships written recursively**.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - growth/decay contexts are mathematically correct;
+  - a recursive exponential relationship appears;
+  - one logarithmic equation is connected to an exponential model.
+- Legacy drift:
+  - four of five families are multiple-choice recognition rather than formulation;
+  - the recursive family converts an already-given recurrence to explicit form instead of formulating the recurrence from a situation/table;
+  - the logarithmic family is really an A2.5D-style “solve for time” rewrite, not formulation of a logarithmic real-world model;
+  - no family makes the student author both the explicit and recursive forms of the same exponential situation;
+  - no authentic logarithmic measurement/modeling context is present.
+- Fidelity V2 requirements:
+  - students must **write** the model equations, not select a prewritten option;
+  - include both growth and decay real-world situations;
+  - repeatedly formulate both explicit exponential and recursive forms from the same evidence;
+  - include at least one table/data representation where the common ratio must be inferred before writing the model;
+  - include authentic logarithmic real-world modeling (for example, a log scale or ratio-based measurement) rather than using logarithms only as a solving trick;
+  - include contextual interpretation of parameters/base;
+  - include genuine error analysis that repairs a faulty growth/decay factor or recurrence and still writes the complete corrected model.
+- Keep A2.5B distinct from A2.5C/D: this standard is model formulation, not conversion practice or equation solving.
+- Generic secure equation/number fields are sufficient; no new Path tool capability is required.
 
 
 ### 2026-08-30 — A2.5A audit finding
