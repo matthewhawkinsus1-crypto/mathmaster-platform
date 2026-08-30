@@ -295,8 +295,9 @@ export const gradeDataModelingResponse = (definition = {}, raw = {}) => {
       && Math.abs(b - definition.regression.b) <= definition.interceptTolerance;
   }
 
-  results.association = String(raw.direction) === definition.descriptor.direction
-    && String(raw.strength) === definition.descriptor.strength
+  results.correlationInterpretation = String(raw.direction) === definition.descriptor.direction
+    && String(raw.strength) === definition.descriptor.strength;
+  results.association = results.correlationInterpretation
     && String(raw.causation) === definition.causationExpected;
 
   const enteredR = Number(raw.r);
