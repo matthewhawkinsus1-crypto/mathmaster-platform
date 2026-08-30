@@ -307,7 +307,7 @@ export const scoreCandidate = ({
  * "Adapt the MIX, not the student's permanent identity." A below-level student
  * still needs course-level work; an above-level student still needs retention.
  */
-export const weeklyMixFor = ({ band, honors = false, sessions = 4 }) => {
+export const weeklyMixFor = ({ band, honors = false, sessions = 4, allowTransfer = true }) => {
   const count = Math.max(0, Math.floor(Number(sessions) || 0));
 
   // Honors differentiation must survive a teacher reducing the weekly session
@@ -326,7 +326,7 @@ export const weeklyMixFor = ({ band, honors = false, sessions = 4 }) => {
       // second current-learning session.
       : [PURPOSE.CURRENT_LEARNING, PURPOSE.RETENTION, PURPOSE.EXTENSION];
 
-    if (band !== INSTRUCTIONAL_BAND.BELOW && count >= 4) slots.push(PURPOSE.TRANSFER);
+    if (allowTransfer && band !== INSTRUCTIONAL_BAND.BELOW && count >= 4) slots.push(PURPOSE.TRANSFER);
     if (count >= 5) slots.splice(1, 0, PURPOSE.CURRENT_LEARNING);
     while (slots.length < count) slots.push(PURPOSE.CURRENT_LEARNING);
     return slots.slice(0, count);
@@ -383,12 +383,14 @@ export const optimizeWeeklySet = ({
   band = INSTRUCTIONAL_BAND.ON,
   honors = false,
   interventionMode = false,
+  allowTransfer = true,
   saturation = { strand: 0.35, representation: 0.2 },
 }) => {
-  const wanted = weeklyMixFor({ band, honors, sessions });
+  const wanted = weeklyMixFor({ band, honors, sessions, allowTransfer });
   const bridgeCap = foundationBridgeCap(sessions, interventionMode);
 
-  const pool = list(candidates).filter((entry) => entry?.eligibility?.eligible !== false);
+  const pool = list(candidates).filter((entry) => entry?.eligibility?.eligible !== false
+    && (allowTransfer || entry?.purpose !== PURPOSE.TRANSFER));
   const chosen = [];
   const usedStrands = new Map();
   const usedRepresentations = new Map();
@@ -499,6 +501,7 @@ export const buildWeeklyRecommendations = ({
   sessions = 4,
   honors = false,
   interventionMode = false,
+  allowTransfer = true,
   coverage = undefined,
   now = Date.now(),
 } = {}) => {
@@ -585,7 +588,7 @@ export const buildWeeklyRecommendations = ({
     };
   });
 
-  const week = optimizeWeeklySet({ candidates, sessions, band: profile?.instructionalBand, honors, interventionMode });
+  const week = optimizeWeeklySet({ candidates, sessions, band: profile?.instructionalBand, honors, interventionMode, allowTransfer });
 
   return {
     ...week,
