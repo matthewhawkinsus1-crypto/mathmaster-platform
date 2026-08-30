@@ -20,7 +20,7 @@ import { teksCodeFromSkillId, teksSkillId } from '../../platform/path/skillGraph
 import { statusForSkill } from '../../platform/path/pathMap.js';
 import { buildStudentLearningProfile } from '../../platform/profile/studentLearningProfile.js';
 import { buildWeeklyPathPlan } from '../../platform/path/weeklyPathPlan.js';
-import { buildWeeklyGoal, deriveCompletionsFromEvidence, evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions, normalizeWeeklyGoalConfig } from '../../platform/path/weeklyPathGoal.js';
+import { CCMR_EXPECTATION, buildWeeklyGoal, deriveCompletionsFromEvidence, evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions, normalizeWeeklyGoalConfig } from '../../platform/path/weeklyPathGoal.js';
 import { resolveWeeklyPathGoalSnapshot } from '../../platform/path/pathStore.js';
 import { STATUS } from '../../platform/path/recommendationEngine.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
@@ -246,6 +246,7 @@ export const MyMathPathExperience = ({
     sessions: normalizeWeeklyGoalConfig(weeklyGoalConfig || {}, { honors }).sessions,
     honors,
     interventionMode: Boolean(weeklyGoalConfig?.interventionMode),
+    allowTransfer: normalizeWeeklyGoalConfig(weeklyGoalConfig || {}, { honors }).ccmrExpectation !== CCMR_EXPECTATION.NONE,
     pinnedSkills: weeklyGoalConfig?.pinnedSkills || [],
     coverage,
   }) : null), [pathOptions, courseId, learningProfile, masteryData, evidenceEvents, honors, weeklyGoalConfig, coverage]);
