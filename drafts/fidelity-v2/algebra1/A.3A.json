@@ -257,6 +257,11 @@
       },
       "variants": [
         {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
           "coverageKey": "adaptive-d2b4-fractional-standard-form-slope",
           "dok": 2,
           "difficultyBand": 4,
