@@ -30,6 +30,7 @@ export const getGoogleClassroomDiagnostics = call("getGoogleClassroomDiagnostics
 export const getClassroomConnectionStatus = call("getClassroomConnectionStatus");
 export const listGoogleCourses = call("listGoogleCourses");
 export const listClassroomStudents = call("listClassroomStudents");
+export const listClassroomRosterLinks = call("listClassroomRosterLinks");
 export const linkStudentToClassroom = call("linkStudentToClassroom");
 export const linkClassroomRosterBatch = call("linkClassroomRosterBatch");
 export const listClassroomCourseMappings = call("listClassroomCourseMappings");
