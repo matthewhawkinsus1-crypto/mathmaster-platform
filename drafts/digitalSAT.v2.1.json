@@ -10612,35 +10612,42 @@
         "stemProfile": "challenge-y-intercept-from-roots",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "A monic quadratic has zeros {{r1}} and {{r2}}. What is its $y$-intercept?",
+      "prompt": "A quadratic with leading coefficient {{a}} has zeros {{r1}} and {{r2}}. What is its $y$-intercept?",
       "generator": {
         "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
           "r1": {
             "type": "int",
-            "min": -8,
-            "max": -2
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "r2": {
             "type": "int",
-            "min": 2,
-            "max": 8
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
-          "yint": "r1*r2",
-          "f1": "-r1",
-          "f2": "-r2",
-          "satDistractor1": "(r1+r2)",
-          "satDistractor2": "r1",
-          "satDistractor3": "r2"
+          "yint": "a*r1*r2",
+          "dNoLeading": "r1*r2",
+          "dDoubleLeading": "a*a*r1*r2",
+          "dSum": "a*(r1+r2)"
         },
         "constraints": [
-          "satDistractor1!=yint",
-          "satDistractor2!=yint",
-          "satDistractor3!=yint",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "r1!=r2",
+          "dSum!=yint",
+          "dSum!=dNoLeading",
+          "dSum!=dDoubleLeading"
         ]
       },
       "attemptFeedback": [
@@ -10650,11 +10657,12 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "The $y$-intercept is the value at $x=0$.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "The quadratic is ${{a}}(x-({{r1}}))(x-({{r2}}))$.",
+          "At $x=0$ that is ${{a}}({{r1}})({{r2}})={{yint}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "answerSummary": "${{yint}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -10672,15 +10680,15 @@
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dNoLeading}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
+          "label": "{{dDoubleLeading}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSum}}"
         }
       ]
     },
@@ -11726,25 +11734,36 @@
         "parameters": {
           "r1": {
             "type": "int",
-            "min": -8,
-            "max": -1
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "r2": {
             "type": "int",
-            "min": 2,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
-          "nr1": "-r1",
-          "r1p": "r1+1",
-          "r2p": "r2+1",
           "f1": "-r1",
-          "f2": "-r2"
+          "f2": "-r2",
+          "dNegated": "-r1",
+          "dOtherNegated": "-r2",
+          "dSum": "r1+r2"
         },
         "constraints": [
+          "r1!=r2",
           "-r1!=r2",
-          "-r1!=r2+1"
+          "-r2!=r1",
+          "r1+r2!=r2",
+          "-r1!=-r2",
+          "r1+r2!=-r1",
+          "r1+r2!=-r2"
         ]
       },
       "attemptFeedback": [
@@ -11754,11 +11773,12 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "A product is zero when a factor is zero.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "$x {{f1|signed}}=0$ gives $x={{r1}}$.",
+          "Of the values offered, {{r1}} is a solution."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "answerSummary": "$x={{r1}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -11768,15 +11788,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{nr1}}$"
+          "label": "${{dNegated}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{r1p}}$"
+          "label": "${{dOtherNegated}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{r2p}}$"
+          "label": "${{dSum}}$"
         }
       ],
       "responseFields": [
@@ -18419,32 +18439,45 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "A horizontal line through the vertex meets the parabola once.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "The vertex of $y=(x {{nh|signed}})^2 {{v|signed}}$ is $({{h}},{{v}})$.",
+          "The line $y={{v}}$ passes through it, so the single solution has $x={{h}}$."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "answerSummary": "$x={{h}}$"
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "The system $y=(x-{{h}})^2 {{v|signed}}$ and $y={{v}}$ has exactly one solution. What is the $x$-coordinate of the solution?",
+      "prompt": "The system $y=(x {{nh|signed}})^2 {{v|signed}}$ and $y={{v}}$ has exactly one solution. What is the $x$-coordinate of the solution?",
       "generator": {
         "parameters": {
           "h": {
             "type": "int",
-            "min": 1,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "v": {
             "type": "int",
-            "min": -8,
-            "max": 10
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
-          "hm1": "h-1",
-          "hp1": "h+1",
-          "hneg": "-h"
-        }
+          "nh": "-h",
+          "dNegated": "-h",
+          "dVertexY": "v",
+          "dSumOfConstants": "h+v"
+        },
+        "constraints": [
+          "v!=h",
+          "v!=-h",
+          "v!=-2*h"
+        ]
       },
       "choices": [
         {
@@ -18453,15 +18486,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{hm1}}$"
+          "label": "${{dNegated}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{hp1}}$"
+          "label": "${{dVertexY}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{hneg}}$"
+          "label": "${{dSumOfConstants}}$"
         }
       ],
       "responseFields": [
@@ -18616,11 +18649,12 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "Compare the line with the vertex.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "The vertex of $y=(x-{{h}})^2 {{v|signed}}$ is at $y={{v}}$, and the line is $y={{top}}$.",
+          "A line above the vertex meets the parabola twice, one through it once, one below it not at all: {{count}}."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "answerSummary": "{{count}}"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "How many points of intersection do the graphs of $y=(x-{{h}})^2 {{v|signed}}$ and $y={{top}}$ have?",
@@ -18640,28 +18674,38 @@
             "type": "int",
             "min": 1,
             "max": 9
+          },
+          "kind": {
+            "type": "int",
+            "min": 0,
+            "max": 2
           }
         },
         "derived": {
-          "top": "v+gap"
-        }
+          "count": "kind",
+          "altOne": "(kind==0)*1",
+          "altTwo": "(kind<2)*2+(kind==2)*1",
+          "altThree": "3",
+          "top": "v+gap*((kind==2)-(kind==0))"
+        },
+        "constraints": []
       },
       "choices": [
         {
           "id": "choice-a",
-          "label": "$2$"
+          "label": "${{count}}$"
         },
         {
           "id": "choice-b",
-          "label": "$0$"
+          "label": "${{altOne}}$"
         },
         {
           "id": "choice-c",
-          "label": "$1$"
+          "label": "${{altTwo}}$"
         },
         {
           "id": "choice-d",
-          "label": "$3$"
+          "label": "${{altThree}}$"
         }
       ],
       "responseFields": [
@@ -18849,11 +18893,12 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "Tangency means the system has a repeated root.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "$x^2={{twoR}}x+k$ gives $x^2-{{twoR}}x-k=0$, whose discriminant is $({{twoR}})^2+4k$.",
+          "Setting it to zero gives $k=-{{r}}^2={{k}}$."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "The line $y={{twoR}}x+k$ is tangent to the parabola $y=x^2$. What is the value of $k$?",
@@ -18863,22 +18908,24 @@
             "type": "int",
             "min": 2,
             "max": 10
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "twoR": "2*r",
           "k": "-(r*r)",
-          "satDistractor1": "r*r",
-          "satDistractor2": "-2*r",
-          "satDistractor3": "-r"
+          "dNoSign": "r*r",
+          "dFullCoefficientSquared": "-4*r*r",
+          "dSquareSlip": "hi*(-r)+(1-hi)*(-2*r*r)"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "dSquareSlip!=k",
+          "dSquareSlip!=dNoSign",
+          "dSquareSlip!=dFullCoefficientSquared"
         ]
       },
       "responseFields": [
@@ -18896,15 +18943,15 @@
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dNoSign}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
+          "label": "{{dFullCoefficientSquared}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSquareSlip}}"
         }
       ]
     },
@@ -19053,20 +19100,24 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "The two intersections are symmetric about the vertex.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "$(x {{nh|signed}})^2={{r}}^2$ gives $x={{h}}\\pm{{r}}$.",
+          "Their sum is $2({{h}})={{answer}}$."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "answerSummary": "${{answer}}$"
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "The graphs of $y=(x-{{h}})^2 {{v|signed}}$ and $y={{top}}$ intersect at two points. What is the sum of the $x$-coordinates of the two points?",
+      "prompt": "The graphs of $y=(x {{nh|signed}})^2 {{v|signed}}$ and $y={{top}}$ intersect at two points. What is the sum of the $x$-coordinates of the two points?",
       "generator": {
         "parameters": {
           "h": {
             "type": "int",
-            "min": 1,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "v": {
             "type": "int",
@@ -19080,11 +19131,12 @@
           }
         },
         "derived": {
+          "nh": "-h",
           "top": "v+r*r",
           "answer": "2*h",
-          "d1": "2*r",
-          "d2": "h+r",
-          "d3": "h-r"
+          "dTwiceRadius": "2*r",
+          "dOneRoot": "h+r",
+          "dOtherRoot": "h-r"
         },
         "constraints": [
           "2*h!=2*r",
@@ -19102,15 +19154,15 @@
         },
         {
           "id": "choice-d",
-          "label": "${{d1}}$"
+          "label": "${{dTwiceRadius}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d2}}$"
+          "label": "${{dOneRoot}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d3}}$"
+          "label": "${{dOtherRoot}}$"
         }
       ],
       "responseFields": [
@@ -19394,14 +19446,15 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "Set the two expressions equal and read the discriminant.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "With $u=x-{{h}}$ the equation becomes $u^2-2u+{{c}}=0$, whose discriminant is $4-4({{c}})$.",
+          "Its sign gives the count: {{count}}."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "answerSummary": "{{count}}"
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "The graphs of $y=(x-{{h}})^2 {{v|signed}}$ and $y=2(x-{{h}}) {{vm2|signed}}$ are in the same coordinate plane. How many points do the graphs have in common?",
+      "prompt": "The graphs of $y=(x-{{h}})^2 {{v|signed}}$ and $y=2(x-{{h}}) {{lineConstant|signed}}$ are in the same coordinate plane. How many points do the graphs have in common?",
       "generator": {
         "parameters": {
           "h": {
@@ -19413,28 +19466,44 @@
             "type": "int",
             "min": -4,
             "max": 8
+          },
+          "gap": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "kind": {
+            "type": "int",
+            "min": 0,
+            "max": 2
           }
         },
         "derived": {
-          "vm2": "v-2"
-        }
+          "count": "kind",
+          "altOne": "(kind==0)*1",
+          "altTwo": "(kind<2)*2+(kind==2)*1",
+          "altThree": "3",
+          "c": "1+gap*((kind==0)-(kind==2))",
+          "lineConstant": "v-c"
+        },
+        "constraints": []
       },
       "choices": [
         {
           "id": "choice-b",
-          "label": "$0$"
+          "label": "${{count}}$"
         },
         {
           "id": "choice-c",
-          "label": "$1$"
+          "label": "${{altOne}}$"
         },
         {
           "id": "choice-d",
-          "label": "$2$"
+          "label": "${{altTwo}}$"
         },
         {
           "id": "choice-a",
-          "label": "$3$"
+          "label": "${{altThree}}$"
         }
       ],
       "responseFields": [
@@ -19497,14 +19566,15 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "Set the two expressions equal and isolate the square.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "Equating gives $2(x-{{h}})^2={{w}}-({{v}})$.",
+          "A positive right side gives two solutions, zero gives one, a negative gives none: {{count}}."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "answerSummary": "{{count}}"
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "How many real solutions does the system $y=(x-{{h}})^2 {{v|signed}}$ and $y={{v}}$ have?",
+      "prompt": "How many real solutions does the system $y=(x-{{h}})^2 {{v|signed}}$ and $y=-(x-{{h}})^2 {{w|signed}}$ have?",
       "generator": {
         "parameters": {
           "h": {
@@ -19516,25 +19586,43 @@
             "type": "int",
             "min": -5,
             "max": 8
+          },
+          "gap": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          },
+          "kind": {
+            "type": "int",
+            "min": 0,
+            "max": 2
           }
-        }
+        },
+        "derived": {
+          "count": "kind",
+          "altOne": "(kind==0)*1",
+          "altTwo": "(kind<2)*2+(kind==2)*1",
+          "altThree": "3",
+          "w": "v+gap*((kind==2)-(kind==0))"
+        },
+        "constraints": []
       },
       "choices": [
         {
           "id": "choice-c",
-          "label": "$1$"
+          "label": "${{count}}$"
         },
         {
           "id": "choice-d",
-          "label": "$0$"
+          "label": "${{altOne}}$"
         },
         {
           "id": "choice-a",
-          "label": "$2$"
+          "label": "${{altTwo}}$"
         },
         {
           "id": "choice-b",
-          "label": "$3$"
+          "label": "${{altThree}}$"
         }
       ],
       "responseFields": [
@@ -19702,11 +19790,12 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "Substitute the shared point into the line.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "The point is $({{p}},{{y0}})$, so ${{y0}}={{m}}({{p}})+b$.",
+          "Therefore $b={{b}}$."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "answerSummary": "$b={{b}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "The point $({{p}},{{y0}})$ is a solution of $y=x^2 {{c|signed}}$ and $y={{m}}x+b$. What is the value of $b$?",
@@ -19714,35 +19803,39 @@
         "parameters": {
           "p": {
             "type": "int",
-            "min": 1,
-            "max": 8
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
           },
           "c": {
             "type": "int",
-            "min": -5,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "m": {
             "type": "int",
             "min": -5,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "y0": "p*p+c",
           "b": "y0-m*p",
-          "satDistractor1": "y0+m*p",
-          "satDistractor2": "y0",
-          "satDistractor3": "y0-m+p"
+          "dSignError": "y0+m*p",
+          "dIgnoredSlope": "y0",
+          "dDroppedConstant": "p*p-m*p"
         },
         "constraints": [
-          "m!=0",
-          "satDistractor1!=b",
-          "satDistractor2!=b",
-          "satDistractor3!=b",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "c!=-m*p",
+          "c!=-2*m*p"
         ]
       },
       "responseFields": [
@@ -19760,15 +19853,15 @@
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSignError}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
+          "label": "{{dIgnoredSlope}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dDroppedConstant}}"
         }
       ]
     },
@@ -19824,11 +19917,12 @@
         "Use substitution, algebraic structure, or the relationship between equations and graphs to determine the common solution."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear system.",
+        "headline": "Compare the line with the tangent line of the same slope.",
         "reasoning": [
-          "A solution to a system must satisfy both equations. Substitute or equate the expressions, solve, and verify each candidate in the original system."
+          "$x^2={{twoR}}x {{k|signed}}$ gives $x^2-{{twoR}}x-({{k}})=0$, whose discriminant is $({{twoR}})^2+4({{k}})$.",
+          "Its sign gives the count: {{count}}."
         ],
-        "answerSummary": "Check the reported intersection or solution in both equations."
+        "answerSummary": "{{count}}"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "The line $y={{twoR}}x {{k|signed}}$ and the parabola $y=x^2$ are graphed in the same plane. How many points of intersection do they have?",
@@ -19843,29 +19937,39 @@
             "type": "int",
             "min": 1,
             "max": 8
+          },
+          "kind": {
+            "type": "int",
+            "min": 0,
+            "max": 2
           }
         },
         "derived": {
+          "count": "kind",
+          "altOne": "(kind==0)*1",
+          "altTwo": "(kind<2)*2+(kind==2)*1",
+          "altThree": "3",
           "twoR": "2*r",
-          "k": "-(r*r)-gap"
-        }
+          "k": "-(r*r)+gap*((kind==2)-(kind==0))"
+        },
+        "constraints": []
       },
       "choices": [
         {
           "id": "choice-c",
-          "label": "$0$"
+          "label": "${{count}}$"
         },
         {
           "id": "choice-d",
-          "label": "$1$"
+          "label": "${{altOne}}$"
         },
         {
           "id": "choice-a",
-          "label": "$2$"
+          "label": "${{altTwo}}$"
         },
         {
           "id": "choice-b",
-          "label": "$3$"
+          "label": "${{altThree}}$"
         }
       ],
       "responseFields": [
@@ -21493,11 +21597,12 @@
         "Connect points, coefficients, vertex form, and standard form that describe the same quadratic function."
       ],
       "solutionReview": {
-        "headline": "Connect the quadratic representations.",
+        "headline": "Expand the vertex form and match constants.",
         "reasoning": [
-          "Use the given points or coefficients to identify an equivalent quadratic representation and verify it against the original information."
+          "$(x-{{h}})^2 {{k|signed}}=x^2-{{twoh}}x+{{h}}^2 {{k|signed}}$.",
+          "So $p={{h}}^2+({{k}})={{p}}$."
         ],
-        "answerSummary": "Check that the resulting quadratic satisfies the stated points or coefficients."
+        "answerSummary": "$p={{p}}$"
       },
       "id": "mm_sat_A2_4D_constant-parameter-from-vertex-form_v21",
       "familyId": "mathmaster:sat:A2.4D:ccmr-challenge-constant-parameter-from-vertex-form",
@@ -21507,29 +21612,28 @@
         "parameters": {
           "h": {
             "type": "int",
-            "min": 2,
+            "min": 3,
             "max": 9
           },
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "twoh": "2*h",
           "p": "h*h+k",
-          "satDistractor1": "h*h-k",
-          "satDistractor2": "h*h",
-          "satDistractor3": "h+h+k"
+          "dSignError": "h*h-k",
+          "dDoubledNotSquared": "2*h+k",
+          "dFullCoefficientSquared": "4*h*h+k"
         },
         "constraints": [
-          "satDistractor1!=p",
-          "satDistractor2!=p",
-          "satDistractor3!=p",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "2*k!=h*h-2*h",
+          "2*k!=-3*h*h"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -21548,15 +21652,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSignError}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dDoubledNotSquared}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dFullCoefficientSquared}}"
         }
       ]
     },
@@ -21788,14 +21892,15 @@
         "Isolate the nonlinear expression and use an inverse operation. Check the result in the original equation."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear equation.",
+        "headline": "Square both sides, then solve the linear equation.",
         "reasoning": [
-          "Use algebraic structure and inverse operations, then substitute the result into the original equation."
+          "$\\sqrt{ {{m}}x {{a|signed}} }={{b}}$ gives ${{m}}x {{a|signed}}={{b}}^2$.",
+          "Solving gives $x={{xsol}}$."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "What is the solution to $\\sqrt{{{m}}x {{a|signed}}}={{b}}$?",
+      "prompt": "What is the solution to $\\sqrt{ {{m}}x {{a|signed}} }={{b}}$?",
       "generator": {
         "parameters": {
           "m": {
@@ -21803,26 +21908,35 @@
             "min": 2,
             "max": 6
           },
-          "xsol": {
+          "t": {
             "type": "int",
             "min": 2,
-            "max": 12
+            "max": 5
           },
-          "b": {
+          "c": {
             "type": "int",
-            "min": 5,
-            "max": 14
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
-          "a": "b*b-m*xsol",
-          "d1": "xsol+1",
-          "d2": "xsol-1",
-          "d3": "xsol+3"
+          "a": "m*c",
+          "b": "m*t",
+          "xsol": "m*t*t-c",
+          "dNoSquare": "t-c",
+          "dNoDivide": "m*(m*t*t-c)",
+          "dSignError": "m*t*t+c"
         },
         "constraints": [
-          "d3!=d1",
-          "d3!=d2"
+          "m*t*t!=c",
+          "dNoSquare!=xsol",
+          "dNoSquare!=dNoDivide",
+          "dNoSquare!=dSignError",
+          "dNoDivide!=dSignError",
+          "dSignError!=xsol"
         ]
       },
       "choices": [
@@ -21832,15 +21946,15 @@
         },
         {
           "id": "choice-d",
-          "label": "${{d1}}$"
+          "label": "${{dNoDivide}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d2}}$"
+          "label": "${{dNoSquare}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d3}}$"
+          "label": "${{dSignError}}$"
         }
       ],
       "responseFields": [
@@ -21994,11 +22108,12 @@
         "Isolate the nonlinear expression and use an inverse operation. Check the result in the original equation."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear equation.",
+        "headline": "Square both sides, then isolate $x$.",
         "reasoning": [
-          "Use algebraic structure and inverse operations, then substitute the result into the original equation."
+          "$\\sqrt{{{A}}-x}={{b}}$ gives ${{A}}-x={{b}}^2$.",
+          "So $x={{A}}-{{b}}^2={{xsol}}$."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "What is the solution to $\\sqrt{{{A}}-x}={{b}}$?",
@@ -22006,8 +22121,11 @@
         "parameters": {
           "xsol": {
             "type": "int",
-            "min": 1,
-            "max": 12
+            "min": -12,
+            "max": 12,
+            "exclude": [
+              0
+            ]
           },
           "b": {
             "type": "int",
@@ -22017,10 +22135,18 @@
         },
         "derived": {
           "A": "b*b+xsol",
-          "d1": "xsol+1",
-          "d2": "xsol+2",
-          "d3": "xsol+4"
-        }
+          "dNoSquare": "A-b",
+          "dDoubleSubtracted": "A-2*b*b",
+          "dReversed": "b*b-A"
+        },
+        "constraints": [
+          "dNoSquare!=xsol",
+          "dNoSquare!=dDoubleSubtracted",
+          "dNoSquare!=dReversed",
+          "dDoubleSubtracted!=xsol",
+          "dDoubleSubtracted!=dReversed",
+          "dReversed!=xsol"
+        ]
       },
       "choices": [
         {
@@ -22029,15 +22155,15 @@
         },
         {
           "id": "choice-d",
-          "label": "${{d1}}$"
+          "label": "${{dNoSquare}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d2}}$"
+          "label": "${{dDoubleSubtracted}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d3}}$"
+          "label": "${{dReversed}}$"
         }
       ],
       "responseFields": [
@@ -22100,14 +22226,15 @@
         "Isolate the nonlinear expression and use an inverse operation. Check the result in the original equation."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear equation.",
+        "headline": "Divide by the coefficient before squaring.",
         "reasoning": [
-          "Use algebraic structure and inverse operations, then substitute the result into the original equation."
+          "${{c}}\\sqrt{x {{nh|signed}}}={{d}}$ gives $\\sqrt{x {{nh|signed}}}={{r}}$.",
+          "Squaring gives $x {{nh|signed}}={{r}}^2$, so $x={{xsol}}$."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "What is the solution to ${{c}}\\sqrt{x-{{h}}}={{d}}$?",
+      "prompt": "What is the solution to ${{c}}\\sqrt{x {{nh|signed}}}={{d}}$?",
       "generator": {
         "parameters": {
           "c": {
@@ -22117,8 +22244,11 @@
           },
           "h": {
             "type": "int",
-            "min": 1,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "r": {
             "type": "int",
@@ -22127,12 +22257,19 @@
           }
         },
         "derived": {
+          "nh": "-h",
           "d": "c*r",
           "xsol": "h+r*r",
-          "d1": "xsol+1",
-          "d2": "xsol-1",
-          "d3": "xsol+3"
-        }
+          "dNoDivide": "h+d*d",
+          "dNoSquare": "h+r",
+          "dNoShift": "r*r"
+        },
+        "constraints": [
+          "dNoShift!=xsol",
+          "dNoShift!=dNoDivide",
+          "dNoShift!=dNoSquare",
+          "dNoSquare!=dNoDivide"
+        ]
       },
       "choices": [
         {
@@ -22141,15 +22278,15 @@
         },
         {
           "id": "choice-d",
-          "label": "${{d1}}$"
+          "label": "${{dNoDivide}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d2}}$"
+          "label": "${{dNoSquare}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d3}}$"
+          "label": "${{dNoShift}}$"
         }
       ],
       "responseFields": [
@@ -22214,11 +22351,12 @@
         "Isolate the nonlinear expression and use an inverse operation. Check the result in the original equation."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear equation.",
+        "headline": "Square both sides, then substitute the known solution.",
         "reasoning": [
-          "Use algebraic structure and inverse operations, then substitute the result into the original equation."
+          "$\\sqrt{x+k}={{b}}$ gives $x+k={{b}}^2$.",
+          "With $x={{xsol}}$, $k={{b}}^2-({{xsol}})={{k}}$."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "The equation $\\sqrt{x+k}={{b}}$ has solution $x={{xsol}}$. What is the value of $k$?",
@@ -22226,28 +22364,35 @@
         "parameters": {
           "xsol": {
             "type": "int",
-            "min": 2,
-            "max": 15
+            "min": -30,
+            "max": 30,
+            "exclude": [
+              0
+            ]
           },
           "b": {
             "type": "int",
-            "min": 4,
-            "max": 12
+            "min": 3,
+            "max": 8
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "k": "b*b-xsol",
-          "satDistractor1": "b*b+xsol",
-          "satDistractor2": "b*b",
-          "satDistractor3": "b+b-xsol"
+          "dSignError": "b*b+xsol",
+          "dNoSubtraction": "b*b",
+          "dPowerSlip": "hi*(b*b*b-xsol)+(1-hi)*(2*b-xsol)"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "dPowerSlip!=k",
+          "dPowerSlip!=dSignError",
+          "dPowerSlip!=dNoSubtraction",
+          "dSignError!=dNoSubtraction",
+          "dNoSubtraction!=k"
         ]
       },
       "responseFields": [
@@ -22265,15 +22410,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSignError}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dNoSubtraction}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dPowerSlip}}"
         }
       ]
     },
@@ -22330,11 +22475,12 @@
         "Isolate the nonlinear expression and use an inverse operation. Check the result in the original equation."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the nonlinear equation.",
+        "headline": "Square both sides, then divide by the constant.",
         "reasoning": [
-          "Use algebraic structure and inverse operations, then substitute the result into the original equation."
+          "$d=\\sqrt{{{k}}t}$ gives ${{dval}}^2={{k}}t$.",
+          "So $t=\\dfrac{{{dval}}^2}{{{k}}}={{t}}$."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "answerSummary": "$t={{t}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "A model relates two positive quantities by $d=\\sqrt{{{k}}t}$. If $d={{dval}}$, what is the value of $t$?",
@@ -22343,7 +22489,7 @@
           "s": {
             "type": "int",
             "min": 2,
-            "max": 5
+            "max": 7
           },
           "r": {
             "type": "int",
@@ -22355,17 +22501,15 @@
           "k": "s*s",
           "t": "r*r",
           "dval": "s*r",
-          "satDistractor1": "(r+r)",
-          "satDistractor2": "r",
-          "satDistractor3": "dval*dval"
+          "dNoSquare": "r",
+          "dNoDivide": "dval*dval",
+          "dConstant": "s*s"
         },
         "constraints": [
-          "satDistractor1!=t",
-          "satDistractor2!=t",
-          "satDistractor3!=t",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "s!=r",
+          "r!=s*s",
+          "r!=dval*dval",
+          "s*s!=dval*dval"
         ]
       },
       "responseFields": [
@@ -22383,15 +22527,15 @@
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dNoSquare}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
+          "label": "{{dConstant}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dNoDivide}}"
         }
       ]
     },
@@ -22543,11 +22687,12 @@
         "After squaring, substitute each candidate into the original equation and check that the nonradical side is nonnegative where required."
       ],
       "solutionReview": {
-        "headline": "Check for an extraneous solution.",
+        "headline": "Only a candidate that keeps the right side non-negative can work.",
         "reasoning": [
-          "Squaring can create a candidate that satisfies the squared equation but not the original radical equation. Verify each candidate in the original."
+          "The right side is $x-{{b}}$, so a solution needs $x\\ge{{b}}$.",
+          "Of the two candidates, only $x={{p}}$ does; ${{q}}$ is extraneous."
         ],
-        "answerSummary": "Reject any candidate that fails the original equation."
+        "answerSummary": "$x={{p}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "Squaring $\\sqrt{x {{a|signed}}}=x-{{b}}$ gives candidates $x={{p}}$ and $x={{q}}$. Which candidate satisfies the original equation?",
@@ -22555,24 +22700,29 @@
         "parameters": {
           "b": {
             "type": "int",
-            "min": 5,
-            "max": 11
+            "min": 2,
+            "max": 9
           },
           "r": {
             "type": "int",
-            "min": 2,
-            "max": 5
+            "min": 3,
+            "max": 9
           }
         },
         "derived": {
           "p": "b+r",
           "q": "b+1-r",
-          "a": "b*b-p*q",
-          "np": "-p",
-          "nq": "-q"
+          "a": "b*b-(b+r)*(b+1-r)",
+          "dExtraneous": "b+1-r",
+          "dRadicandConstant": "b*b-(b+r)*(b+1-r)",
+          "dSquaredConstant": "b*b"
         },
         "constraints": [
-          "q>=1"
+          "dRadicandConstant!=p",
+          "dRadicandConstant!=q",
+          "dRadicandConstant!=b*b",
+          "b*b!=p",
+          "b*b!=q"
         ]
       },
       "choices": [
@@ -22582,15 +22732,15 @@
         },
         {
           "id": "choice-a",
-          "label": "${{q}}$"
+          "label": "${{dExtraneous}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{np}}$"
+          "label": "${{dSquaredConstant}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{nq}}$"
+          "label": "${{dRadicandConstant}}$"
         }
       ],
       "responseFields": [
@@ -22653,11 +22803,12 @@
         "After squaring, substitute each candidate into the original equation and check that the nonradical side is nonnegative where required."
       ],
       "solutionReview": {
-        "headline": "Check for an extraneous solution.",
+        "headline": "An extraneous candidate makes the right side negative.",
         "reasoning": [
-          "Squaring can create a candidate that satisfies the squared equation but not the original radical equation. Verify each candidate in the original."
+          "The right side is ${{c}}-x$, so a solution needs $x\\le{{c}}$.",
+          "$x={{q}}$ fails that, so it is the extraneous candidate."
         ],
-        "answerSummary": "Reject any candidate that fails the original equation."
+        "answerSummary": "$x={{q}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "Squaring $\\sqrt{x {{a|signed}}}={{c}}-x$ gives candidates $x={{p}}$ and $x={{q}}$. Which candidate is extraneous?",
@@ -22665,24 +22816,28 @@
         "parameters": {
           "c": {
             "type": "int",
-            "min": 6,
+            "min": 5,
             "max": 14
           },
           "r": {
             "type": "int",
-            "min": 2,
-            "max": 5
+            "min": 3,
+            "max": 7
           }
         },
         "derived": {
           "p": "c-r",
           "q": "c+1+r",
-          "a": "c*c-p*q",
-          "np": "-p",
-          "nq": "-q"
+          "a": "c*c-(c-r)*(c+1+r)",
+          "dValidRoot": "c-r",
+          "dRadicandConstant": "c*c-(c-r)*(c+1+r)",
+          "dSquaredConstant": "c*c"
         },
         "constraints": [
-          "p>=1"
+          "p>=1",
+          "dRadicandConstant!=p",
+          "dRadicandConstant!=q",
+          "dRadicandConstant!=c*c"
         ]
       },
       "choices": [
@@ -22692,15 +22847,15 @@
         },
         {
           "id": "choice-c",
-          "label": "${{p}}$"
+          "label": "${{dValidRoot}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{np}}$"
+          "label": "${{dRadicandConstant}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{nq}}$"
+          "label": "${{dSquaredConstant}}$"
         }
       ],
       "responseFields": [
@@ -22871,52 +23026,69 @@
         "After squaring, substitute each candidate into the original equation and check that the nonradical side is nonnegative where required."
       ],
       "solutionReview": {
-        "headline": "Check for an extraneous solution.",
+        "headline": "A candidate counts only where the right side is not negative.",
         "reasoning": [
-          "Squaring can create a candidate that satisfies the squared equation but not the original radical equation. Verify each candidate in the original."
+          "The right side is $x-{{b}}$, so a candidate works only when $x\\ge{{b}}$.",
+          "Testing ${{p}}$ and ${{q}}$ against that leaves {{count}}."
         ],
-        "answerSummary": "Reject any candidate that fails the original equation."
+        "answerSummary": "{{count}}"
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "Squaring $\\sqrt{2x {{a|signed}}}=x-{{b}}$ gives two real candidates $x={{p}}$ and $x={{q}}$, where $q<b<p$. How many solutions does the original equation have?",
+      "prompt": "Squaring $\\sqrt{ {{m}}x {{a|signed}} }=x-{{b}}$ gives two real candidates $x={{p}}$ and $x={{q}}$. How many solutions does the original equation have?",
       "generator": {
         "parameters": {
+          "m": {
+            "type": "int",
+            "min": 3,
+            "max": 6
+          },
           "b": {
             "type": "int",
             "min": 6,
             "max": 12
           },
-          "r": {
+          "e": {
             "type": "int",
-            "min": 3,
-            "max": 5
+            "min": 1,
+            "max": 4
+          },
+          "kind": {
+            "type": "int",
+            "min": 1,
+            "max": 2
           }
         },
         "derived": {
-          "p": "b+r",
-          "q": "b+2-r",
-          "a": "b*b-p*q"
+          "count": "kind",
+          "altOne": "(kind==0)*1",
+          "altTwo": "(kind<2)*2+(kind==2)*1",
+          "altThree": "3",
+          "u": "1-(kind==1)*(1+e)",
+          "v": "m-u",
+          "p": "b+v",
+          "q": "b+u",
+          "a": "b*b-(b+v)*(b+u)"
         },
         "constraints": [
-          "q>=1"
+          "u!=v"
         ]
       },
       "choices": [
         {
           "id": "choice-b",
-          "label": "$1$"
+          "label": "${{count}}$"
         },
         {
           "id": "choice-c",
-          "label": "$0$"
+          "label": "${{altOne}}$"
         },
         {
           "id": "choice-d",
-          "label": "$2$"
+          "label": "${{altTwo}}$"
         },
         {
           "id": "choice-a",
-          "label": "$3$"
+          "label": "${{altThree}}$"
         }
       ],
       "responseFields": [
@@ -23095,11 +23267,12 @@
         "After squaring, substitute each candidate into the original equation and check that the nonradical side is nonnegative where required."
       ],
       "solutionReview": {
-        "headline": "Check for an extraneous solution.",
+        "headline": "The candidate below the boundary is the extraneous one.",
         "reasoning": [
-          "Squaring can create a candidate that satisfies the squared equation but not the original radical equation. Verify each candidate in the original."
+          "The right side is $x-{{b}}$, so a solution needs $x\\ge{{b}}$.",
+          "${{q}}$ is below ${{b}}$, so it is extraneous."
         ],
-        "answerSummary": "Reject any candidate that fails the original equation."
+        "answerSummary": "$x={{q}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "Squaring $\\sqrt{{{m}}x {{a|signed}}}=x-{{b}}$ gives roots $x={{p}}$ and $x={{q}}$, where $q<b<p$. What is the extraneous root?",
@@ -23107,37 +23280,33 @@
         "parameters": {
           "m": {
             "type": "int",
-            "min": 1,
+            "min": 2,
             "max": 3
           },
           "b": {
             "type": "int",
-            "min": 8,
-            "max": 14
+            "min": 4,
+            "max": 11
           },
           "extra": {
             "type": "int",
             "min": 2,
-            "max": 4
+            "max": 5
           }
         },
         "derived": {
           "r": "m+extra",
-          "p": "b+r",
-          "q": "b+m-r",
-          "a": "b*b-p*q",
-          "satDistractor1": "b-m-r",
-          "satDistractor2": "b+m",
-          "satDistractor3": "b"
+          "p": "b+m+extra",
+          "q": "b-extra",
+          "a": "b*b-(b+m+extra)*(b-extra)",
+          "dValidRoot": "b+m+extra",
+          "dNegatedValid": "-(b+m+extra)",
+          "dRadicandConstant": "b*b-(b+m+extra)*(b-extra)"
         },
         "constraints": [
-          "q>=1",
-          "satDistractor1!=q",
-          "satDistractor2!=q",
-          "satDistractor3!=q",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "dRadicandConstant!=q",
+          "dRadicandConstant!=p",
+          "dRadicandConstant!=-(b+m+extra)"
         ]
       },
       "responseFields": [
@@ -23155,15 +23324,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dValidRoot}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dNegatedValid}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dRadicandConstant}}"
         }
       ]
     },
@@ -23220,11 +23389,12 @@
         "After squaring, substitute each candidate into the original equation and check that the nonradical side is nonnegative where required."
       ],
       "solutionReview": {
-        "headline": "Check for an extraneous solution.",
+        "headline": "Substitute the known solution and square.",
         "reasoning": [
-          "Squaring can create a candidate that satisfies the squared equation but not the original radical equation. Verify each candidate in the original."
+          "$\\sqrt{{{p}}+k}={{p}}-{{b}}={{r}}$, so ${{p}}+k={{r}}^2$.",
+          "Therefore $k={{k}}$."
         ],
-        "answerSummary": "Reject any candidate that fails the original equation."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "The equation $\\sqrt{x+k}=x-{{b}}$ has $x={{p}}$ as a solution. What is the value of $k$?",
@@ -23232,8 +23402,8 @@
         "parameters": {
           "b": {
             "type": "int",
-            "min": 3,
-            "max": 9
+            "min": 4,
+            "max": 12
           },
           "r": {
             "type": "int",
@@ -23243,18 +23413,16 @@
         },
         "derived": {
           "p": "b+r",
-          "k": "r*r-p",
-          "satDistractor1": "r*r+p",
-          "satDistractor2": "r*r",
-          "satDistractor3": "r+r-p"
+          "k": "r*r-b-r",
+          "dSignError": "r*r+b+r",
+          "dNoSquare": "2*r-b-r",
+          "dRightConstant": "b"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "dRightConstant!=k",
+          "dRightConstant!=dSignError",
+          "dRightConstant!=dNoSquare",
+          "dNoSquare!=k"
         ]
       },
       "responseFields": [
@@ -23272,15 +23440,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSignError}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dNoSquare}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dRightConstant}}"
         }
       ]
     },
@@ -23336,11 +23504,12 @@
         "After squaring, substitute each candidate into the original equation and check that the nonradical side is nonnegative where required."
       ],
       "solutionReview": {
-        "headline": "Check for an extraneous solution.",
+        "headline": "A time only counts where the right side is not negative.",
         "reasoning": [
-          "Squaring can create a candidate that satisfies the squared equation but not the original radical equation. Verify each candidate in the original."
+          "The right side is ${{c}}-t$, so a candidate needs $t\\le{{c}}$.",
+          "$t={{p}}$ satisfies that; $t={{q}}$ does not."
         ],
-        "answerSummary": "Reject any candidate that fails the original equation."
+        "answerSummary": "$t={{p}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "A model uses the equation $\\sqrt{t {{a|signed}}}={{c}}-t$. Algebra gives candidate times $t={{p}}$ and $t={{q}}$, with $p<c<q$. Which candidate time can satisfy the original model?",
@@ -23360,10 +23529,18 @@
         "derived": {
           "p": "c-r",
           "q": "c+1+r",
-          "a": "c*c-p*q"
+          "a": "c*c-(c-r)*(c+1+r)",
+          "dExtraneous": "c+1+r",
+          "dSubtractedSquare": "c-r*r",
+          "dRadicandConstant": "c*c-(c-r)*(c+1+r)"
         },
         "constraints": [
-          "p>=1"
+          "p>=1",
+          "dSubtractedSquare!=p",
+          "dSubtractedSquare!=q",
+          "dSubtractedSquare!=a",
+          "dRadicandConstant!=p",
+          "dRadicandConstant!=q"
         ]
       },
       "choices": [
@@ -23373,15 +23550,15 @@
         },
         {
           "id": "choice-d",
-          "label": "${{q}}$"
+          "label": "${{dExtraneous}}$"
         },
         {
           "id": "choice-a",
-          "label": "$0$"
+          "label": "${{dSubtractedSquare}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{c}}$"
+          "label": "${{dRadicandConstant}}$"
         }
       ],
       "responseFields": [
@@ -23981,11 +24158,12 @@
         "Identify a known input-output pair, the multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Formulate the exponential model.",
+        "headline": "Count the growth intervals, then apply the factor once each.",
         "reasoning": [
-          "Anchor the model at a known input and use an exponent that counts how many multiplicative intervals have elapsed."
+          "From $f(2)={{M}}$ to $f(5)={{N}}$ the value grows by a factor of ${{b}}^3$.",
+          "From $f(5)$ to $f(8)$ is the same three intervals again, so $f(8)={{F8}}$."
         ],
-        "answerSummary": "Check that the model gives the stated value at the reference input and uses the correct factor for each interval."
+        "answerSummary": "$f(8)={{F8}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "An exponential function satisfies $f(2)={{M}}$ and $f(5)={{N}}$. What is the value of $f(8)$?",
@@ -23994,20 +24172,27 @@
           "M": {
             "type": "int",
             "min": 2,
-            "max": 12
+            "max": 6
           },
           "b": {
             "type": "int",
             "min": 2,
-            "max": 4
+            "max": 3
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
-          "N": "M*b^3",
-          "F8": "N*b^3",
-          "oneStep": "N*b",
-          "twoSteps": "N*b*b"
-        }
+          "N": "M*b*b*b",
+          "F8": "M*b^6",
+          "dTwoIntervals": "M*b^5",
+          "dFourIntervals": "M*b^7",
+          "dIntervalSlip": "hi*(M*b^4)+(1-hi)*(M*b^8)"
+        },
+        "constraints": []
       },
       "choices": [
         {
@@ -24016,15 +24201,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{N}}"
+          "label": "{{dTwoIntervals}}"
         },
         {
           "id": "choice-b",
-          "label": "{{oneStep}}"
+          "label": "{{dFourIntervals}}"
         },
         {
           "id": "choice-c",
-          "label": "{{twoSteps}}"
+          "label": "{{dIntervalSlip}}"
         }
       ],
       "responseFields": [
@@ -24400,13 +24585,14 @@
         "Substitute the stated input or use the function's structure to connect the input and output."
       ],
       "solutionReview": {
-        "headline": "Use the nonlinear function relationship.",
+        "headline": "Equal powers of the same base have equal exponents.",
         "reasoning": [
-          "Evaluate or reverse the function relationship while preserving all stated conditions."
+          "${{value}}={{b}}^{ {{n}} }$, so $x {{h|signed}}={{n}}$.",
+          "Therefore $x={{x0}}$."
         ],
-        "answerSummary": "Verify the result in the original function."
+        "answerSummary": "$x={{x0}}$"
       },
-      "prompt": "What is the solution to ${{b}}^{x+{{h}}}={{value}}$?",
+      "prompt": "What is the solution to ${{b}}^{x {{h|signed}} }={{value}}$?",
       "generator": {
         "parameters": {
           "b": {
@@ -24416,22 +24602,31 @@
           },
           "h": {
             "type": "int",
-            "min": 1,
-            "max": 5
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
           },
           "x0": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 8
           }
         },
         "derived": {
           "n": "x0+h",
           "value": "b^n",
-          "d1": "x0+1",
-          "d2": "x0-1",
-          "d3": "x0+h+2"
-        }
+          "dAddedShift": "n+h",
+          "dNoShift": "n",
+          "dBase": "b"
+        },
+        "constraints": [
+          "n>=1",
+          "b!=x0",
+          "b!=n",
+          "b!=n+h"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -24441,15 +24636,15 @@
         },
         {
           "id": "choice-a",
-          "label": "${{d1}}$"
+          "label": "${{dAddedShift}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d2}}$"
+          "label": "${{dNoShift}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d3}}$"
+          "label": "${{dBase}}$"
         }
       ],
       "responseFields": [
@@ -24602,11 +24797,12 @@
         "Substitute the stated input or use the function's structure to connect the input and output."
       ],
       "solutionReview": {
-        "headline": "Use the nonlinear function relationship.",
+        "headline": "Equal powers of the same base have equal exponents.",
         "reasoning": [
-          "Evaluate or reverse the function relationship while preserving all stated conditions."
+          "${{value}}={{b}}^{ {{n}} }$, so $x-{{h}}={{n}}$.",
+          "Therefore $x={{x0}}$."
         ],
-        "answerSummary": "Verify the result in the original function."
+        "answerSummary": "$x={{x0}}$"
       },
       "prompt": "What is the solution to ${{b}}^{x-{{h}}}={{value}}$?",
       "generator": {
@@ -24625,15 +24821,27 @@
             "type": "int",
             "min": 1,
             "max": 4
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "value": "b^n",
           "x0": "n+h",
-          "d1": "n-h",
-          "d2": "n",
-          "d3": "n+h+1"
-        }
+          "dSubtractedShift": "n-h",
+          "dValue": "b^n",
+          "dShiftSlip": "hi*n+(1-hi)*(n+2*h)"
+        },
+        "constraints": [
+          "dShiftSlip!=x0",
+          "dShiftSlip!=dSubtractedShift",
+          "dShiftSlip!=b^n",
+          "b^n!=x0",
+          "b^n!=n-h"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -24643,15 +24851,15 @@
         },
         {
           "id": "choice-c",
-          "label": "${{d1}}$"
+          "label": "${{dSubtractedShift}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d2}}$"
+          "label": "${{dValue}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d3}}$"
+          "label": "${{dShiftSlip}}$"
         }
       ],
       "responseFields": [
@@ -24805,11 +25013,12 @@
         "Substitute the stated input or use the function's structure to connect the input and output."
       ],
       "solutionReview": {
-        "headline": "Use the nonlinear function relationship.",
+        "headline": "Write both sides over the same base.",
         "reasoning": [
-          "Evaluate or reverse the function relationship while preserving all stated conditions."
+          "${{r2}}^x=({{r}}^2)^x={{r}}^{2x}$ and the right side is ${{r}}^{ {{twoX0}} }$.",
+          "So $2x=2({{x0}})$ and $x={{x0}}$."
         ],
-        "answerSummary": "Verify the result in the original function."
+        "answerSummary": "$x={{x0}}$"
       },
       "prompt": "For which value of $x$ is ${{r2}}^x={{rhs}}$?",
       "generator": {
@@ -24822,16 +25031,23 @@
           "x0": {
             "type": "int",
             "min": 2,
-            "max": 5
+            "max": 12
           }
         },
         "derived": {
           "r2": "r*r",
           "rhs": "r^(2*x0)",
-          "d1": "2*x0",
-          "d2": "x0+1",
-          "d3": "x0-1"
-        }
+          "dDoubledExponent": "2*x0",
+          "dRoot": "r",
+          "dBaseValue": "r*r",
+          "twoX0": "2*x0"
+        },
+        "constraints": [
+          "r!=x0",
+          "r*r!=x0",
+          "2*x0!=r",
+          "2*x0!=r*r"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -24841,15 +25057,15 @@
         },
         {
           "id": "choice-c",
-          "label": "${{d1}}$"
+          "label": "${{dDoubledExponent}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d2}}$"
+          "label": "${{dRoot}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d3}}$"
+          "label": "${{dBaseValue}}$"
         }
       ],
       "responseFields": [
@@ -25015,13 +25231,14 @@
         "Substitute the stated input or use the function's structure to connect the input and output."
       ],
       "solutionReview": {
-        "headline": "Use the nonlinear function relationship.",
+        "headline": "Equal powers of the same base have equal exponents.",
         "reasoning": [
-          "Evaluate or reverse the function relationship while preserving all stated conditions."
+          "$x+k={{n}}$, and $x={{p}}$.",
+          "So $k={{n}}-({{p}})={{k}}$."
         ],
-        "answerSummary": "Verify the result in the original function."
+        "answerSummary": "$k={{k}}$"
       },
-      "prompt": "The equation ${{b}}^{x+k}={{b}}^{{n}}$ has solution $x={{p}}$. What is the value of $k$?",
+      "prompt": "The equation ${{b}}^{x+k}={{b}}^{ {{n}} }$ has solution $x={{p}}$. What is the value of $k$?",
       "generator": {
         "parameters": {
           "b": {
@@ -25031,8 +25248,11 @@
           },
           "n": {
             "type": "int",
-            "min": 4,
-            "max": 12
+            "min": -6,
+            "max": 12,
+            "exclude": [
+              0
+            ]
           },
           "p": {
             "type": "int",
@@ -25042,17 +25262,15 @@
         },
         "derived": {
           "k": "n-p",
-          "satDistractor1": "n+p",
-          "satDistractor2": "n",
-          "satDistractor3": "p"
+          "dAdded": "n+p",
+          "dDoubleSubtracted": "n-2*p",
+          "dReversed": "p-n"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "dReversed!=k",
+          "dReversed!=dAdded",
+          "dReversed!=dDoubleSubtracted",
+          "n!=p"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -25071,15 +25289,15 @@
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dAdded}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
+          "label": "{{dDoubleSubtracted}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dReversed}}"
         }
       ]
     },
@@ -25220,23 +25438,36 @@
             "min": 2,
             "max": 6
           },
-          "xsol": {
+          "t": {
             "type": "int",
-            "min": 2,
-            "max": 12
+            "min": 1,
+            "max": 2
           },
-          "r": {
+          "c": {
             "type": "int",
-            "min": 2,
-            "max": 6
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
-          "a": "r*r*r-m*xsol",
-          "d1": "xsol+1",
-          "d2": "xsol-1",
-          "d3": "xsol+3"
-        }
+          "a": "m*c",
+          "r": "m*t",
+          "xsol": "m*m*t*t*t-c",
+          "dSquaredNotCubed": "m*t*t-c",
+          "dNoDivide": "m*(m*m*t*t*t-c)",
+          "dSignError": "m*m*t*t*t+c"
+        },
+        "constraints": [
+          "m*m*t*t*t!=c",
+          "dSquaredNotCubed!=xsol",
+          "dSquaredNotCubed!=dNoDivide",
+          "dSquaredNotCubed!=dSignError",
+          "dNoDivide!=dSignError",
+          "dSignError!=xsol"
+        ]
       },
       "attemptFeedback": [
         "Use the inverse relationship between cubing and taking a cube root, then verify the result in the original equation."
@@ -25245,11 +25476,12 @@
         "Isolate the cube-root expression before cubing both sides. Odd roots allow real positive and negative values."
       ],
       "solutionReview": {
-        "headline": "Solve the cube-root equation.",
+        "headline": "Cube both sides, then solve the linear equation.",
         "reasoning": [
-          "Isolate the radical, cube both sides, solve the resulting linear relationship, and verify the result."
+          "$\\sqrt[3]{ {{m}}x {{a|signed}} }={{r}}$ gives ${{m}}x {{a|signed}}={{r}}^3$.",
+          "Solving gives $x={{xsol}}$."
         ],
-        "answerSummary": "Check the value in the original cube-root equation."
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -25259,15 +25491,15 @@
         },
         {
           "id": "choice-d",
-          "label": "${{d1}}$"
+          "label": "${{dNoDivide}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d2}}$"
+          "label": "${{dSquaredNotCubed}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d3}}$"
+          "label": "${{dSignError}}$"
         }
       ],
       "responseFields": [
@@ -25525,7 +25757,7 @@
         "officialSkillFamily": "nonlinear equations in one variable and systems of equations in two variables",
         "stemProfile": "scaled-cube-root"
       },
-      "prompt": "What is the solution to ${{c}}\\sqrt[3]{x-{{h}}}={{d}}$?",
+      "prompt": "What is the solution to ${{c}}\\sqrt[3]{x {{nh|signed}}}={{d}}$?",
       "generator": {
         "parameters": {
           "c": {
@@ -25535,8 +25767,11 @@
           },
           "h": {
             "type": "int",
-            "min": 1,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "r": {
             "type": "int",
@@ -25545,12 +25780,19 @@
           }
         },
         "derived": {
+          "nh": "-h",
           "d": "c*r",
           "xsol": "h+r*r*r",
-          "d1": "xsol+1",
-          "d2": "xsol-1",
-          "d3": "h+r"
-        }
+          "dNoDivide": "h+d*d*d",
+          "dSquaredNotCubed": "h+r*r",
+          "dNoShift": "r*r*r"
+        },
+        "constraints": [
+          "dNoShift!=xsol",
+          "dNoShift!=dNoDivide",
+          "dNoShift!=dSquaredNotCubed",
+          "dSquaredNotCubed!=dNoDivide"
+        ]
       },
       "attemptFeedback": [
         "Use the inverse relationship between cubing and taking a cube root, then verify the result in the original equation."
@@ -25559,11 +25801,12 @@
         "Isolate the cube-root expression before cubing both sides. Odd roots allow real positive and negative values."
       ],
       "solutionReview": {
-        "headline": "Solve the cube-root equation.",
+        "headline": "Divide by the coefficient before cubing.",
         "reasoning": [
-          "Isolate the radical, cube both sides, solve the resulting linear relationship, and verify the result."
+          "${{c}}\\sqrt[3]{x {{nh|signed}}}={{d}}$ gives $\\sqrt[3]{x {{nh|signed}}}={{r}}$.",
+          "Cubing gives $x {{nh|signed}}={{r}}^3$, so $x={{xsol}}$."
         ],
-        "answerSummary": "Check the value in the original cube-root equation."
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -25573,15 +25816,15 @@
         },
         {
           "id": "choice-a",
-          "label": "${{d1}}$"
+          "label": "${{dNoDivide}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d2}}$"
+          "label": "${{dSquaredNotCubed}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d3}}$"
+          "label": "${{dNoShift}}$"
         }
       ],
       "responseFields": [
@@ -25644,28 +25887,35 @@
         "parameters": {
           "p": {
             "type": "int",
-            "min": 2,
-            "max": 15
+            "min": -15,
+            "max": 15,
+            "exclude": [
+              0
+            ]
           },
           "r": {
             "type": "int",
             "min": 2,
             "max": 7
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "k": "r*r*r-p",
-          "satDistractor1": "r*r*r+p",
-          "satDistractor2": "r*r*r",
-          "satDistractor3": "r+r*r-p"
+          "dSignError": "r*r*r+p",
+          "dNoSubtraction": "r*r*r",
+          "dPowerSlip": "hi*(r*r*r*r-p)+(1-hi)*(r*r-p)"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "dPowerSlip!=k",
+          "dPowerSlip!=dSignError",
+          "dPowerSlip!=dNoSubtraction",
+          "dSignError!=dNoSubtraction",
+          "dNoSubtraction!=k"
         ]
       },
       "attemptFeedback": [
@@ -25675,11 +25925,12 @@
         "Isolate the cube-root expression before cubing both sides. Odd roots allow real positive and negative values."
       ],
       "solutionReview": {
-        "headline": "Solve the cube-root equation.",
+        "headline": "Cube both sides, then substitute the known solution.",
         "reasoning": [
-          "Isolate the radical, cube both sides, solve the resulting linear relationship, and verify the result."
+          "$\\sqrt[3]{x+k}={{r}}$ gives $x+k={{r}}^3$.",
+          "With $x={{p}}$, $k={{r}}^3-({{p}})={{k}}$."
         ],
-        "answerSummary": "Check the value in the original cube-root equation."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -25697,15 +25948,15 @@
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSignError}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
+          "label": "{{dNoSubtraction}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dPowerSlip}}"
         }
       ]
     },
@@ -25754,13 +26005,16 @@
         "officialSkillFamily": "nonlinear equations in one variable and systems of equations in two variables",
         "stemProfile": "ccmr-challenge-context-volume-side"
       },
-      "prompt": "A cube has volume $V=(x+{{a}})^3$ cubic units. If its side length is {{s}} units, what is the value of $x$?",
+      "prompt": "A cube has volume $V=(x {{a|signed}})^3$ cubic units. If its side length is {{s}} units, what is the value of $x$?",
       "generator": {
         "parameters": {
           "a": {
             "type": "int",
-            "min": 2,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "s": {
             "type": "int",
@@ -25770,10 +26024,18 @@
         },
         "derived": {
           "xsol": "s-a",
-          "d1": "s+a",
-          "d2": "s*a",
-          "d3": "s-a+1"
-        }
+          "dAddedInstead": "s+a",
+          "dReversed": "a-s",
+          "dCubedSide": "s*s*s-a"
+        },
+        "constraints": [
+          "dAddedInstead!=xsol",
+          "dReversed!=xsol",
+          "dCubedSide!=xsol",
+          "dAddedInstead!=dReversed",
+          "dAddedInstead!=dCubedSide",
+          "dReversed!=dCubedSide"
+        ]
       },
       "attemptFeedback": [
         "Use the inverse relationship between cubing and taking a cube root, then verify the result in the original equation."
@@ -25782,11 +26044,12 @@
         "Isolate the cube-root expression before cubing both sides. Odd roots allow real positive and negative values."
       ],
       "solutionReview": {
-        "headline": "Solve the cube-root equation.",
+        "headline": "Take the cube root of the volume first.",
         "reasoning": [
-          "Isolate the radical, cube both sides, solve the resulting linear relationship, and verify the result."
+          "$\\sqrt[3]{V}=x {{a|signed}}$, and the side length is {{s}}.",
+          "So $x {{a|signed}}={{s}}$ and $x={{xsol}}$."
         ],
-        "answerSummary": "Check the value in the original cube-root equation."
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -25796,15 +26059,15 @@
         },
         {
           "id": "choice-c",
-          "label": "${{d1}}$"
+          "label": "${{dAddedInstead}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d2}}$"
+          "label": "${{dReversed}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d3}}$"
+          "label": "${{dCubedSide}}$"
         }
       ],
       "responseFields": [
@@ -26050,11 +26313,12 @@
         "An absolute-value equation describes one or two values at a specified distance from a center."
       ],
       "solutionReview": {
-        "headline": "Use the absolute-value relationship.",
+        "headline": "An absolute value equals a positive number in two ways.",
         "reasoning": [
-          "Solve the equation and substitute the result into the original absolute-value equation."
+          "$|{{a}}x {{b|signed}}|={{c}}$ gives ${{a}}x {{b|signed}}=\\pm{{c}}$.",
+          "The positive branch gives $x={{xsol}}$."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "Which value is a solution to $|{{a}}x {{b|signed}}|={{c}}$?",
@@ -26065,23 +26329,39 @@
             "min": 2,
             "max": 6
           },
-          "xsol": {
+          "h": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "r": {
             "type": "int",
             "min": 2,
-            "max": 12
-          },
-          "c": {
-            "type": "int",
-            "min": 5,
-            "max": 18
+            "max": 9
           }
         },
         "derived": {
-          "b": "c-a*xsol",
-          "d1": "xsol+1",
-          "d2": "xsol-1",
-          "d3": "xsol+3"
-        }
+          "b": "-a*h",
+          "c": "a*r",
+          "xsol": "h+r",
+          "dSignError": "r-h",
+          "dNoShift": "r",
+          "dNoDivide": "a*(h+r)"
+        },
+        "constraints": [
+          "dSignError!=xsol",
+          "dNoShift!=xsol",
+          "dNoDivide!=xsol",
+          "dSignError!=dNoShift",
+          "dSignError!=dNoDivide",
+          "dNoShift!=dNoDivide",
+          "dSignError!=h-r",
+          "dNoShift!=h-r",
+          "dNoDivide!=h-r"
+        ]
       },
       "choices": [
         {
@@ -26090,15 +26370,15 @@
         },
         {
           "id": "choice-a",
-          "label": "${{d1}}$"
+          "label": "${{dSignError}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d2}}$"
+          "label": "${{dNoShift}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d3}}$"
+          "label": "${{dNoDivide}}$"
         }
       ],
       "responseFields": [
@@ -26350,11 +26630,12 @@
         "An absolute-value equation describes one or two values at a specified distance from a center."
       ],
       "solutionReview": {
-        "headline": "Use the absolute-value relationship.",
+        "headline": "An absolute value is never negative.",
         "reasoning": [
-          "Solve the equation and substitute the result into the original absolute-value equation."
+          "$|{{a}}x {{b|signed}}|={{c}}$ has two solutions when the right side is positive, one when it is zero, none when it is negative.",
+          "Here the right side is {{c}}, so there are {{count}}."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "answerSummary": "{{count}}"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "How many distinct real solutions does $|{{a}}x {{b|signed}}|={{c}}$ have?",
@@ -26368,31 +26649,47 @@
           "b": {
             "type": "int",
             "min": -12,
-            "max": 12
+            "max": 12,
+            "exclude": [
+              0
+            ]
           },
-          "c": {
+          "g": {
             "type": "int",
-            "min": 2,
+            "min": 1,
             "max": 15
+          },
+          "kind": {
+            "type": "int",
+            "min": 0,
+            "max": 2
           }
-        }
+        },
+        "derived": {
+          "count": "kind",
+          "altOne": "(kind==0)*1",
+          "altTwo": "(kind<2)*2+(kind==2)*1",
+          "altThree": "3",
+          "c": "g*((kind==2)-(kind==0))"
+        },
+        "constraints": []
       },
       "choices": [
         {
           "id": "choice-b",
-          "label": "$2$"
+          "label": "${{count}}$"
         },
         {
           "id": "choice-c",
-          "label": "$0$"
+          "label": "${{altOne}}$"
         },
         {
           "id": "choice-d",
-          "label": "$1$"
+          "label": "${{altTwo}}$"
         },
         {
           "id": "choice-a",
-          "label": "$3$"
+          "label": "${{altThree}}$"
         }
       ],
       "responseFields": [
@@ -26545,11 +26842,12 @@
         "An absolute-value equation describes one or two values at a specified distance from a center."
       ],
       "solutionReview": {
-        "headline": "Use the absolute-value relationship.",
+        "headline": "The two solutions are symmetric about the centre.",
         "reasoning": [
-          "Solve the equation and substitute the result into the original absolute-value equation."
+          "$|{{a}}x {{b|signed}}|={{c}}$ gives $x={{h}}\\pm{{r}}$.",
+          "Their sum is $2({{h}})={{sum}}$."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "answerSummary": "${{sum}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "The equation $|{{a}}x {{b|signed}}|={{c}}$ has two real solutions. What is the sum of the solutions?",
@@ -26563,7 +26861,10 @@
           "h": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "r": {
             "type": "int",
@@ -26575,17 +26876,17 @@
           "b": "-a*h",
           "c": "a*r",
           "sum": "2*h",
-          "satDistractor1": "(2+h)",
-          "satDistractor2": "2",
-          "satDistractor3": "h"
+          "dGreaterSolution": "h+r",
+          "dLesserSolution": "h-r",
+          "dCentre": "h"
         },
         "constraints": [
-          "satDistractor1!=sum",
-          "satDistractor2!=sum",
-          "satDistractor3!=sum",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "dGreaterSolution!=sum",
+          "dLesserSolution!=sum",
+          "dCentre!=sum",
+          "dGreaterSolution!=dLesserSolution",
+          "dGreaterSolution!=dCentre",
+          "dLesserSolution!=dCentre"
         ]
       },
       "responseFields": [
@@ -26603,15 +26904,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dGreaterSolution}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dLesserSolution}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dCentre}}"
         }
       ]
     },
@@ -26667,11 +26968,12 @@
         "An absolute-value equation describes one or two values at a specified distance from a center."
       ],
       "solutionReview": {
-        "headline": "Use the absolute-value relationship.",
+        "headline": "The solutions are symmetric about $-b/a$.",
         "reasoning": [
-          "Solve the equation and substitute the result into the original absolute-value equation."
+          "The centre of ${{left}}$ and ${{right}}$ is ${{h}}$, and that centre is $-b/a$.",
+          "So $b/a={{ratio}}$."
         ],
-        "answerSummary": "Accept only values that satisfy the original equation."
+        "answerSummary": "$\\dfrac{b}{a}={{ratio}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "For positive $a$, the equation $|ax+b|={{c}}$ has solutions $x={{left}}$ and $x={{right}}$. What is the value of $\\dfrac{b}{a}$?",
@@ -26684,8 +26986,11 @@
           },
           "h": {
             "type": "int",
-            "min": 2,
-            "max": 10
+            "min": -10,
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "r": {
             "type": "int",
@@ -26699,12 +27004,17 @@
           "left": "h-r",
           "right": "h+r",
           "ratio": "-h",
-          "d1": "h",
-          "d2": "-h-r",
-          "d3": "-h+r"
+          "dPositive": "h",
+          "dLeftRoot": "h-r",
+          "dRightRoot": "h+r"
         },
         "constraints": [
-          "r!=2*h"
+          "r!=2*h",
+          "dPositive!=ratio",
+          "dLeftRoot!=ratio",
+          "dRightRoot!=ratio",
+          "dLeftRoot!=dPositive",
+          "dRightRoot!=dPositive"
         ]
       },
       "choices": [
@@ -26714,15 +27024,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{d1}}$"
+          "label": "${{dPositive}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d2}}$"
+          "label": "${{dLeftRoot}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d3}}$"
+          "label": "${{dRightRoot}}$"
         }
       ],
       "responseFields": [
@@ -27269,11 +27579,12 @@
         "An absolute value measures distance. Translate the distance condition into the corresponding interval or pair of intervals."
       ],
       "solutionReview": {
-        "headline": "Use the distance condition.",
+        "headline": "Turn the absolute value into an interval, then take integers.",
         "reasoning": [
-          "Rewrite the absolute-value inequality as the equivalent interval condition, then apply any integer or contextual restriction."
+          "$|{{a}}(x {{neg_h|signed}})|<{{c}}$ gives ${{h}}-{{r}}<x<{{h}}+{{r}}$.",
+          "The greatest integer strictly inside is {{answer}}."
         ],
-        "answerSummary": "Check the result in the original inequality."
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "What is the greatest integer value of $x$ that satisfies $|{{a}}(x {{neg_h|signed}})|<{{c}}$?",
       "generator": {
@@ -27286,7 +27597,10 @@
           "h": {
             "type": "int",
             "min": -7,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              0
+            ]
           },
           "r": {
             "type": "int",
@@ -27298,17 +27612,17 @@
           "neg_h": "-h",
           "c": "a*r",
           "answer": "h+r-1",
-          "satDistractor1": "h-r-1",
-          "satDistractor2": "h+r",
-          "satDistractor3": "h"
+          "dInclusiveBound": "h+r",
+          "dLeastValue": "h-r+1",
+          "dNoShift": "r-1"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "dInclusiveBound!=answer",
+          "dLeastValue!=answer",
+          "dNoShift!=answer",
+          "dInclusiveBound!=dLeastValue",
+          "dInclusiveBound!=dNoShift",
+          "dLeastValue!=dNoShift"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -27327,15 +27641,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dLeastValue}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dInclusiveBound}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dNoShift}}"
         }
       ]
     },
@@ -27480,11 +27794,12 @@
         "An absolute value measures distance. Translate the distance condition into the corresponding interval or pair of intervals."
       ],
       "solutionReview": {
-        "headline": "Use the distance condition.",
+        "headline": "Subtract the offset first, then read the interval.",
         "reasoning": [
-          "Rewrite the absolute-value inequality as the equivalent interval condition, then apply any integer or contextual restriction."
+          "$|{{a}}x {{b|signed}}|\\le{{T}}-{{m}}$ gives ${{h}}-{{r}}\\le x\\le{{h}}+{{r}}$.",
+          "So $u+v=2({{h}})={{answer}}$."
         ],
-        "answerSummary": "Check the result in the original inequality."
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "The inequality ${{m}}+|{{a}}x {{b|signed}}|\\le {{T}}$ has solution interval $[u,v]$. What is the value of $u+v$?",
       "generator": {
@@ -27497,7 +27812,10 @@
           "h": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "r": {
             "type": "int",
@@ -27514,17 +27832,17 @@
           "b": "-a*h",
           "T": "m+a*r",
           "answer": "2*h",
-          "satDistractor1": "(2+h)",
-          "satDistractor2": "2",
-          "satDistractor3": "h"
+          "dOneEndpoint": "h+r",
+          "dCentre": "h",
+          "dOtherEndpoint": "h-r"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "dOneEndpoint!=answer",
+          "dCentre!=answer",
+          "dOtherEndpoint!=answer",
+          "dOneEndpoint!=dCentre",
+          "dOneEndpoint!=dOtherEndpoint",
+          "dCentre!=dOtherEndpoint"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -27543,15 +27861,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dOneEndpoint}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dCentre}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dOtherEndpoint}}"
         }
       ]
     },
@@ -28244,11 +28562,12 @@
         "Substitute the stated input or use the function's structure to connect the input and output."
       ],
       "solutionReview": {
-        "headline": "Use the nonlinear function relationship.",
+        "headline": "Undo the shift, then multiply by the distance.",
         "reasoning": [
-          "Evaluate or reverse the function relationship while preserving all stated conditions."
+          "$f({{x0}})={{y}}$ gives $\\dfrac{a}{{{x0}} {{nh|signed}}}={{y}}-({{k}})={{m}}$.",
+          "The denominator is {{d}}, so $a={{m}}\\cdot{{d}}={{a0}}$."
         ],
-        "answerSummary": "Verify the result in the original function."
+        "answerSummary": "$a={{a0}}$"
       },
       "prompt": "For $f(x)=\\dfrac{a}{x {{nh|signed}}} {{k|signed}}$, $f({{x0}})={{y}}$. What is the value of $a$?",
       "generator": {
@@ -28256,7 +28575,10 @@
           "h": {
             "type": "int",
             "min": -6,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              0
+            ]
           },
           "d": {
             "type": "int",
@@ -28271,7 +28593,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -28279,17 +28604,17 @@
           "x0": "h+d",
           "a0": "m*d",
           "y": "m+k",
-          "satDistractor1": "(m+d)",
-          "satDistractor2": "m",
-          "satDistractor3": "d"
+          "dSum": "m+d",
+          "dUsedOutput": "(m+k)*d",
+          "dUsedInput": "m*(h+d)"
         },
         "constraints": [
-          "satDistractor1!=a0",
-          "satDistractor2!=a0",
-          "satDistractor3!=a0",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "dSum!=a0",
+          "dUsedOutput!=a0",
+          "dUsedInput!=a0",
+          "dSum!=dUsedOutput",
+          "dSum!=dUsedInput",
+          "dUsedOutput!=dUsedInput"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -28308,15 +28633,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSum}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dUsedOutput}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dUsedInput}}"
         }
       ]
     },
@@ -28373,11 +28698,12 @@
         "Substitute the stated input or use the function's structure to connect the input and output."
       ],
       "solutionReview": {
-        "headline": "Use the nonlinear function relationship.",
+        "headline": "Inputs equidistant from the asymptote give opposite fractions.",
         "reasoning": [
-          "Evaluate or reverse the function relationship while preserving all stated conditions."
+          "$f({{hp}})={{k}}+\\dfrac{{{a}}}{{{d}}}$ and $f({{hm}})={{k}}-\\dfrac{{{a}}}{{{d}}}$.",
+          "The fractions cancel, leaving $2({{k}})={{answer}}$."
         ],
-        "answerSummary": "Verify the result in the original function."
+        "answerSummary": "${{answer}}$"
       },
       "prompt": "For $f(x)=\\dfrac{{{a}}}{x {{nh|signed}}} {{k|signed}}$, let $p={{hp}}$ and $q={{hm}}$. What is the value of $f(p)+f(q)$?",
       "generator": {
@@ -28390,12 +28716,18 @@
           "h": {
             "type": "int",
             "min": -6,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              0
+            ]
           },
           "k": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "d": {
             "type": "int",
@@ -28408,17 +28740,16 @@
           "hp": "h+d",
           "hm": "h-d",
           "answer": "2*k",
-          "satDistractor1": "(2+k)",
-          "satDistractor2": "2",
-          "satDistractor3": "k"
+          "dSingleShift": "k",
+          "dAddedNumerator": "2*k+a",
+          "dSubtractedNumerator": "2*k-a"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "dSingleShift!=answer",
+          "dAddedNumerator!=answer",
+          "dSubtractedNumerator!=answer",
+          "dSingleShift!=dAddedNumerator",
+          "dSingleShift!=dSubtractedNumerator"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -28437,15 +28768,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSingleShift}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dAddedNumerator}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSubtractedNumerator}}"
         }
       ]
     },
@@ -28680,14 +29011,23 @@
         "parameters": {
           "r": {
             "type": "int",
-            "min": 2,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           }
         },
         "derived": {
           "twor": "2*r",
-          "xsol": "2*r"
-        }
+          "xsol": "2*r",
+          "dRightDenominator": "r",
+          "dSumOfDenominators": "3*r",
+          "dNegated": "-2*r"
+        },
+        "constraints": []
       },
       "attemptFeedback": [
         "Solve the rational equation and check the result in the original equation, including all denominator restrictions."
@@ -28696,11 +29036,12 @@
         "Clear denominators or use equivalent algebraic relationships, but keep track of values that make an original denominator zero."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the rational equation.",
+        "headline": "Isolate the reciprocal, then invert.",
         "reasoning": [
-          "Use an efficient algebraic method, then check the result against the original denominator restrictions."
+          "$\\dfrac{1}{x}=\\dfrac{1}{{{r}}}-\\dfrac{1}{{{twor}}}=\\dfrac{1}{{{twor}}}$.",
+          "So $x={{xsol}}$."
         ],
-        "answerSummary": "Only values in the original domain can be solutions."
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -28710,15 +29051,15 @@
         },
         {
           "id": "choice-c",
-          "label": "${{r}}$"
+          "label": "${{dRightDenominator}}$"
         },
         {
           "id": "choice-d",
-          "label": "$-{{r}}$"
+          "label": "${{dSumOfDenominators}}$"
         },
         {
           "id": "choice-a",
-          "label": "$-{{xsol}}$"
+          "label": "${{dNegated}}$"
         }
       ],
       "responseFields": [
@@ -28784,8 +29125,8 @@
           },
           "s": {
             "type": "int",
-            "min": 1,
-            "max": 5
+            "min": 2,
+            "max": 7
           },
           "t": {
             "type": "int",
@@ -28797,9 +29138,9 @@
           "a": "s*t",
           "den": "r+s",
           "xsol": "r*t",
-          "d1": "s*t",
-          "d2": "(r+s)*t",
-          "d3": "r+s"
+          "dDenominatorConstant": "s*t",
+          "dWholeDenominator": "(r+s)*t",
+          "dRatioDenominator": "r+s"
         },
         "constraints": [
           "r!=s",
@@ -28815,11 +29156,12 @@
         "Clear denominators or use equivalent algebraic relationships, but keep track of values that make an original denominator zero."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the rational equation.",
+        "headline": "Match the parts of the two equal ratios.",
         "reasoning": [
-          "Use an efficient algebraic method, then check the result against the original denominator restrictions."
+          "$\\dfrac{x}{x+{{a}}}=\\dfrac{{{r}}}{{{den}}}$ scales the right ratio by {{t}}.",
+          "So $x={{r}}\\cdot{{t}}={{xsol}}$."
         ],
-        "answerSummary": "Only values in the original domain can be solutions."
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -28829,15 +29171,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{d1}}$"
+          "label": "${{dDenominatorConstant}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d2}}$"
+          "label": "${{dWholeDenominator}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d3}}$"
+          "label": "${{dRatioDenominator}}$"
         }
       ],
       "responseFields": [
@@ -28898,8 +29240,11 @@
         "parameters": {
           "h": {
             "type": "int",
-            "min": -5,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "r": {
             "type": "int",
@@ -28921,11 +29266,18 @@
           "d": "c+gap",
           "A": "r*gap",
           "xsol": "h+r",
-          "d1": "h-r",
-          "d2": "h+r+1",
-          "d3": "h+r+2",
-          "nh": "-h"
-        }
+          "nh": "-h",
+          "dSubtracted": "h-r",
+          "dNoShift": "r",
+          "dNoDivide": "h+r*gap"
+        },
+        "constraints": [
+          "dNoShift!=xsol",
+          "dNoShift!=dSubtracted",
+          "dNoShift!=dNoDivide",
+          "dNoDivide!=xsol",
+          "dNoDivide!=dSubtracted"
+        ]
       },
       "attemptFeedback": [
         "Solve the rational equation and check the result in the original equation, including all denominator restrictions."
@@ -28934,11 +29286,12 @@
         "Clear denominators or use equivalent algebraic relationships, but keep track of values that make an original denominator zero."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the rational equation.",
+        "headline": "Isolate the fraction, then undo the shift.",
         "reasoning": [
-          "Use an efficient algebraic method, then check the result against the original denominator restrictions."
+          "$\\dfrac{{{A}}}{x {{nh|signed}}}={{d}}-{{c}}={{gap}}$, so $x {{nh|signed}}={{r}}$.",
+          "Therefore $x={{xsol}}$."
         ],
-        "answerSummary": "Only values in the original domain can be solutions."
+        "answerSummary": "$x={{xsol}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -28948,15 +29301,15 @@
         },
         {
           "id": "choice-a",
-          "label": "${{d1}}$"
+          "label": "${{dSubtracted}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d2}}$"
+          "label": "${{dNoShift}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d3}}$"
+          "label": "${{dNoDivide}}$"
         }
       ],
       "responseFields": [
@@ -29212,31 +29565,54 @@
         "officialSkillFamily": "nonlinear equations in one variable and systems of equations in two variables",
         "stemProfile": "ccmr-challenge-factored-rational-sum-roots"
       },
-      "prompt": "The rational equation $\\dfrac{(x-{{p}})(x-{{q}})}{x-{{r}}}=0$ has two real solutions. What is the sum of the solutions?",
+      "prompt": "The rational equation $\\dfrac{(x {{np|signed}})(x {{nq|signed}})}{x {{nr|signed}}}=0$ has two real solutions. What is the sum of the solutions?",
       "generator": {
         "parameters": {
           "p": {
             "type": "int",
-            "min": 1,
-            "max": 6
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "q": {
             "type": "int",
-            "min": 8,
-            "max": 14
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "r": {
             "type": "int",
-            "min": 15,
-            "max": 20
+            "min": -12,
+            "max": 12,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
+          "np": "-p",
+          "nq": "-q",
+          "nr": "-r",
           "answer": "p+q",
-          "d1": "p*q",
-          "d2": "q-p",
-          "d3": "p+q+1"
-        }
+          "dProduct": "p*q",
+          "dDifference": "q-p",
+          "dIncludedExcluded": "p+q+r"
+        },
+        "constraints": [
+          "p!=q",
+          "r!=p",
+          "r!=q",
+          "dProduct!=answer",
+          "dDifference!=answer",
+          "dIncludedExcluded!=answer",
+          "dProduct!=dDifference",
+          "dProduct!=dIncludedExcluded",
+          "dDifference!=dIncludedExcluded"
+        ]
       },
       "attemptFeedback": [
         "Solve the rational equation and check the result in the original equation, including all denominator restrictions."
@@ -29245,11 +29621,12 @@
         "Clear denominators or use equivalent algebraic relationships, but keep track of values that make an original denominator zero."
       ],
       "solutionReview": {
-        "headline": "Solve and verify the rational equation.",
+        "headline": "A quotient is zero when its numerator is, and the denominator is not.",
         "reasoning": [
-          "Use an efficient algebraic method, then check the result against the original denominator restrictions."
+          "The numerator is zero at $x={{p}}$ and $x={{q}}$, and neither equals {{r}}.",
+          "Their sum is {{answer}}."
         ],
-        "answerSummary": "Only values in the original domain can be solutions."
+        "answerSummary": "${{answer}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -29259,15 +29636,15 @@
         },
         {
           "id": "choice-a",
-          "label": "${{d1}}$"
+          "label": "${{dProduct}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d2}}$"
+          "label": "${{dDifference}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d3}}$"
+          "label": "${{dIncludedExcluded}}$"
         }
       ],
       "responseFields": [
@@ -29423,30 +29800,41 @@
         "officialSkillFamily": "nonlinear equations in one variable and systems of equations in two variables",
         "stemProfile": "choose-valid-candidate"
       },
-      "prompt": "For $\\dfrac{(x-{{p}})(x-{{q}})}{x-{{q}}}=0$, which value is a solution of the original equation?",
+      "prompt": "For $\\dfrac{(x {{np|signed}})(x {{nq|signed}})}{x {{nq|signed}}}=0$, which value is a solution of the original equation?",
       "generator": {
         "parameters": {
           "p": {
             "type": "int",
-            "min": 1,
-            "max": 7
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "q": {
             "type": "int",
-            "min": 9,
-            "max": 16
-          },
-          "d1": {
-            "type": "int",
-            "min": 18,
-            "max": 22
-          },
-          "d2": {
-            "type": "int",
-            "min": 23,
-            "max": 27
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
-        }
+        },
+        "derived": {
+          "np": "-p",
+          "nq": "-q",
+          "dExcludedValue": "q",
+          "dSum": "p+q",
+          "dDifference": "p-q"
+        },
+        "constraints": [
+          "p!=q",
+          "dSum!=p",
+          "dSum!=q",
+          "dDifference!=p",
+          "dDifference!=q",
+          "dSum!=dDifference"
+        ]
       },
       "attemptFeedback": [
         "A rational equation is defined only where every original denominator is nonzero. Check candidate values in the original equation."
@@ -29455,11 +29843,12 @@
         "A value can satisfy a simplified equation and still be invalid if it makes an original denominator zero."
       ],
       "solutionReview": {
-        "headline": "Verify the rational-equation solution.",
+        "headline": "Cancelling a factor removes a value from the domain.",
         "reasoning": [
-          "Identify excluded values from the original denominators, then check each candidate in the original equation."
+          "The numerator is zero at $x={{p}}$ and $x={{q}}$, but $x={{q}}$ makes the denominator zero.",
+          "So the only solution is $x={{p}}$."
         ],
-        "answerSummary": "Reject values outside the domain of the original rational equation."
+        "answerSummary": "$x={{p}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -29469,15 +29858,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{q}}$"
+          "label": "${{dExcludedValue}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d1}}$"
+          "label": "${{dSum}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d2}}$"
+          "label": "${{dDifference}}$"
         }
       ],
       "responseFields": [
@@ -29643,20 +30032,54 @@
         "officialSkillFamily": "nonlinear equations in one variable and systems of equations in two variables",
         "stemProfile": "solution-count-after-cancellation"
       },
-      "prompt": "How many real solutions does $\\dfrac{(x-{{p}})(x-{{q}})}{x-{{q}}}=0$ have?",
+      "prompt": "How many real solutions does $\\dfrac{(x {{np|signed}})(x {{nq|signed}})}{x {{nden|signed}}}=0$ have?",
       "generator": {
         "parameters": {
           "p": {
             "type": "int",
-            "min": 1,
-            "max": 7
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "q": {
             "type": "int",
-            "min": 9,
-            "max": 16
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          },
+          "s": {
+            "type": "int",
+            "min": -14,
+            "max": 14,
+            "exclude": [
+              0
+            ]
+          },
+          "kind": {
+            "type": "int",
+            "min": 1,
+            "max": 2
           }
-        }
+        },
+        "derived": {
+          "np": "-p",
+          "nq": "-q",
+          "den": "(kind==1)*q+(kind==2)*s",
+          "nden": "-den",
+          "count": "kind",
+          "altOne": "(count==1)*0+(count==2)*1",
+          "altTwo": "(count==1)*2+(count==2)*0",
+          "altThree": "3"
+        },
+        "constraints": [
+          "p!=q",
+          "s!=p",
+          "s!=q"
+        ]
       },
       "attemptFeedback": [
         "A rational equation is defined only where every original denominator is nonzero. Check candidate values in the original equation."
@@ -29665,29 +30088,30 @@
         "A value can satisfy a simplified equation and still be invalid if it makes an original denominator zero."
       ],
       "solutionReview": {
-        "headline": "Verify the rational-equation solution.",
+        "headline": "A zero of the numerator counts only if it is in the domain.",
         "reasoning": [
-          "Identify excluded values from the original denominators, then check each candidate in the original equation."
+          "The numerator is zero at $x={{p}}$ and $x={{q}}$; the denominator excludes $x={{den}}$.",
+          "That leaves {{count}}."
         ],
-        "answerSummary": "Reject values outside the domain of the original rational equation."
+        "answerSummary": "{{count}}"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
         {
           "id": "choice-b",
-          "label": "$1$"
+          "label": "${{count}}$"
         },
         {
           "id": "choice-c",
-          "label": "$0$"
+          "label": "${{altOne}}$"
         },
         {
           "id": "choice-d",
-          "label": "$2$"
+          "label": "${{altTwo}}$"
         },
         {
           "id": "choice-a",
-          "label": "$3$"
+          "label": "${{altThree}}$"
         }
       ],
       "responseFields": [
@@ -29743,40 +30167,45 @@
         "officialSkillFamily": "nonlinear equations in one variable and systems of equations in two variables",
         "stemProfile": "original-domain-check"
       },
-      "prompt": "The equation $\\dfrac{x+{{a}}}{x-{{q}}}={{c}}$ is solved algebraically. Which value can never be a solution of the original equation?",
+      "prompt": "The equation $\\dfrac{x {{a|signed}}}{x {{nq|signed}}}={{c}}$ is solved algebraically. Which value can never be a solution of the original equation?",
       "generator": {
         "parameters": {
           "a": {
             "type": "int",
-            "min": 1,
-            "max": 8
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "q": {
             "type": "int",
-            "min": 9,
-            "max": 16
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "c": {
             "type": "int",
             "min": 2,
             "max": 5
-          },
-          "d1": {
-            "type": "int",
-            "min": 18,
-            "max": 22
-          },
-          "d2": {
-            "type": "int",
-            "min": 23,
-            "max": 27
-          },
-          "d3": {
-            "type": "int",
-            "min": 28,
-            "max": 32
           }
-        }
+        },
+        "derived": {
+          "nq": "-q",
+          "dNumeratorZero": "-a",
+          "dNegatedExcluded": "-q",
+          "dRightSide": "c"
+        },
+        "constraints": [
+          "dNumeratorZero!=q",
+          "dNegatedExcluded!=q",
+          "dRightSide!=q",
+          "dNumeratorZero!=dNegatedExcluded",
+          "dNumeratorZero!=dRightSide",
+          "dNegatedExcluded!=dRightSide"
+        ]
       },
       "attemptFeedback": [
         "A rational equation is defined only where every original denominator is nonzero. Check candidate values in the original equation."
@@ -29785,11 +30214,12 @@
         "A value can satisfy a simplified equation and still be invalid if it makes an original denominator zero."
       ],
       "solutionReview": {
-        "headline": "Verify the rational-equation solution.",
+        "headline": "The denominator of the original equation fixes the domain.",
         "reasoning": [
-          "Identify excluded values from the original denominators, then check each candidate in the original equation."
+          "$x {{nq|signed}}=0$ at $x={{q}}$, so that value is outside the domain.",
+          "No algebra can make it a solution."
         ],
-        "answerSummary": "Reject values outside the domain of the original rational equation."
+        "answerSummary": "$x={{q}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -29799,15 +30229,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{d1}}$"
+          "label": "${{dNumeratorZero}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d2}}$"
+          "label": "${{dNegatedExcluded}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d3}}$"
+          "label": "${{dRightSide}}$"
         }
       ],
       "responseFields": [
@@ -29864,30 +30294,41 @@
         "officialSkillFamily": "nonlinear equations in one variable and systems of equations in two variables",
         "stemProfile": "ccmr-challenge-hidden-hole"
       },
-      "prompt": "After simplifying $\\dfrac{(x-{{h}})(x-{{p}})}{x-{{h}}}=0$, a student reports $x={{h}}$ and $x={{p}}$. Which value is actually a solution of the original equation?",
+      "prompt": "After simplifying $\\dfrac{(x {{nh|signed}})(x {{np|signed}})}{x {{nh|signed}}}=0$, a student reports $x={{h}}$ and $x={{p}}$. Which value is actually a solution of the original equation?",
       "generator": {
         "parameters": {
           "h": {
             "type": "int",
-            "min": 1,
-            "max": 7
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "p": {
             "type": "int",
-            "min": 9,
-            "max": 16
-          },
-          "d1": {
-            "type": "int",
-            "min": 18,
-            "max": 22
-          },
-          "d2": {
-            "type": "int",
-            "min": 23,
-            "max": 27
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
-        }
+        },
+        "derived": {
+          "nh": "-h",
+          "np": "-p",
+          "dHole": "h",
+          "dSum": "h+p",
+          "dNegated": "-p"
+        },
+        "constraints": [
+          "h!=p",
+          "dSum!=p",
+          "dSum!=h",
+          "dNegated!=p",
+          "dNegated!=h",
+          "dSum!=dNegated"
+        ]
       },
       "attemptFeedback": [
         "A rational equation is defined only where every original denominator is nonzero. Check candidate values in the original equation."
@@ -29896,11 +30337,12 @@
         "A value can satisfy a simplified equation and still be invalid if it makes an original denominator zero."
       ],
       "solutionReview": {
-        "headline": "Verify the rational-equation solution.",
+        "headline": "Cancelling a factor removes a value from the domain.",
         "reasoning": [
-          "Identify excluded values from the original denominators, then check each candidate in the original equation."
+          "$x={{h}}$ makes the original denominator zero, so it is not a solution.",
+          "Only $x={{p}}$ satisfies the original equation."
         ],
-        "answerSummary": "Reject values outside the domain of the original rational equation."
+        "answerSummary": "$x={{p}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -29910,15 +30352,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{h}}$"
+          "label": "${{dHole}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d1}}$"
+          "label": "${{dSum}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d2}}$"
+          "label": "${{dNegated}}$"
         }
       ],
       "responseFields": [
@@ -30929,43 +31371,55 @@
         "stemProfile": "two-quadratics-x2-coefficient",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "The product $(x^2+{{p}}x+{{q}})(x^2+{{r}}x+{{s}})$ has the form $x^4+Ax^3+Bx^2+Cx+D$. What is the value of $B$?",
+      "prompt": "The product $(x^2 {{p|signed}}x {{q|signed}})(x^2 {{r|signed}}x {{s|signed}})$ has the form $x^4+Ax^3+Bx^2+Cx+D$. What is the value of $B$?",
       "generator": {
         "parameters": {
           "p": {
             "type": "int",
-            "min": 1,
-            "max": 7
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
           },
           "q": {
             "type": "int",
-            "min": 1,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "r": {
             "type": "int",
-            "min": 2,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "s": {
             "type": "int",
-            "min": 1,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "B": "q+s+p*r",
-          "satDistractor1": "q-s+p*r",
-          "satDistractor2": "q+s",
-          "satDistractor3": "q+s+p+r"
+          "dSignError": "q-s+p*r",
+          "dConstantsOnly": "q+s",
+          "dAddedNotMultiplied": "q+s+p+r"
         },
         "constraints": [
-          "satDistractor1!=B",
-          "satDistractor2!=B",
-          "satDistractor3!=B",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "dSignError!=B",
+          "dConstantsOnly!=B",
+          "dAddedNotMultiplied!=B",
+          "dSignError!=dConstantsOnly",
+          "dSignError!=dAddedNotMultiplied",
+          "dConstantsOnly!=dAddedNotMultiplied"
         ]
       },
       "attemptFeedback": [
@@ -30975,11 +31429,12 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Collect every way to reach $x^2$.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "$x^2$ comes from $x^2\\cdot({{s}})$, $({{q}})\\cdot x^2$, and $({{p}}x)({{r}}x)$.",
+          "So $B=({{q}})+({{s}})+({{p}})({{r}})={{B}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "answerSummary": "$B={{B}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -30997,15 +31452,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSignError}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dConstantsOnly}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dAddedNotMultiplied}}"
         }
       ]
     },
@@ -31723,35 +32178,56 @@
         "officialSkillFamily": "equivalent expressions",
         "stemProfile": "remainder-constructed-dividend"
       },
-      "prompt": "When $P(x)=(x-{{p}})(x^2+{{q}}x+{{r}})+{{rem}}$ is divided by $x-{{p}}$, what is the remainder?",
+      "prompt": "When $P(x)=(x {{np|signed}})(x^2 {{q|signed}}x {{r|signed}}) {{rem|signed}}$ is divided by $x {{np|signed}}$, what is the remainder?",
       "generator": {
         "parameters": {
           "p": {
             "type": "int",
-            "min": 2,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "q": {
             "type": "int",
-            "min": 1,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "r": {
             "type": "int",
-            "min": 1,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "rem": {
             "type": "int",
-            "min": 2,
-            "max": 12
+            "min": -12,
+            "max": 12,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
-          "rem1": "rem+1",
-          "rem2": "rem+2",
-          "rem3": "rem+3"
-        }
+          "np": "-p",
+          "dQuotientConstant": "r",
+          "dDivisorRoot": "p",
+          "dValueAtZero": "rem-p*r"
+        },
+        "constraints": [
+          "dQuotientConstant!=rem",
+          "dDivisorRoot!=rem",
+          "dValueAtZero!=rem",
+          "dQuotientConstant!=dDivisorRoot",
+          "dQuotientConstant!=dValueAtZero",
+          "dDivisorRoot!=dValueAtZero"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -31760,11 +32236,12 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "The remainder is the value at the divisor’s root.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "At $x={{p}}$ the first product is zero, leaving only the constant term.",
+          "So the remainder is {{rem}}."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "answerSummary": "${{rem}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -31774,15 +32251,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{rem1}}$"
+          "label": "${{dQuotientConstant}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{rem2}}$"
+          "label": "${{dDivisorRoot}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{rem3}}$"
+          "label": "${{dValueAtZero}}$"
         }
       ],
       "responseFields": [
@@ -33503,7 +33980,7 @@
           "p": {
             "type": "int",
             "min": 2,
-            "max": 8
+            "max": 9
           },
           "k": {
             "type": "int",
@@ -33513,17 +33990,18 @@
         },
         "derived": {
           "t": "p*k",
-          "satDistractor1": "(p+k)",
-          "satDistractor2": "p",
-          "satDistractor3": "k"
+          "dSum": "p+k",
+          "dSquaredFirst": "p*p",
+          "dCollectedAll": "p*k+p+k"
         },
         "constraints": [
-          "satDistractor1!=t",
-          "satDistractor2!=t",
-          "satDistractor3!=t",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "p!=k",
+          "dSum!=t",
+          "dSquaredFirst!=t",
+          "dCollectedAll!=t",
+          "dSum!=dSquaredFirst",
+          "dSum!=dCollectedAll",
+          "dSquaredFirst!=dCollectedAll"
         ]
       },
       "attemptFeedback": [
@@ -33533,11 +34011,12 @@
         "Use polynomial operations, factor structure, or polynomial division as appropriate."
       ],
       "solutionReview": {
-        "headline": "Use the polynomial structure.",
+        "headline": "Multiply out and match the constant terms.",
         "reasoning": [
-          "Rewrite, factor, multiply, or divide while preserving the polynomial relationship."
+          "$(x+{{p}})(x^2+{{k}})=x^3+{{p}}x^2+{{k}}x+{{p}}\\cdot{{k}}$.",
+          "So $t={{t}}$."
         ],
-        "answerSummary": "Check the result by multiplication, substitution, or the factor theorem."
+        "answerSummary": "$t={{t}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -33555,15 +34034,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSum}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dSquaredFirst}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dCollectedAll}}"
         }
       ]
     },
@@ -34485,28 +34964,40 @@
         "stemProfile": "numerator-coefficient-parameter",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For all allowed values of $x$, $\\dfrac{{{a}}x+{{b}}}{x+{{p}}}+\\dfrac{{{c}}x+{{d}}}{x+{{p}}}=\\dfrac{kx+{{B}}}{x+{{p}}}$. What is the value of $k$?",
+      "prompt": "For all allowed values of $x$, $\\dfrac{{{a}}x {{b|signed}}}{x+{{p}}}+\\dfrac{{{c}}x {{d|signed}}}{x+{{p}}}=\\dfrac{kx {{B|signed}}}{x+{{p}}}$. What is the value of $k$?",
       "generator": {
         "parameters": {
           "a": {
             "type": "int",
-            "min": 2,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "b": {
             "type": "int",
-            "min": 1,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "c": {
             "type": "int",
-            "min": 2,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "d": {
             "type": "int",
-            "min": 1,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "p": {
             "type": "int",
@@ -34517,17 +35008,14 @@
         "derived": {
           "B": "b+d",
           "k": "a+c",
-          "satDistractor1": "a-c",
-          "satDistractor2": "a",
-          "satDistractor3": "c"
+          "dSubtracted": "a-c",
+          "dFirstOnly": "a",
+          "dSecondOnly": "c"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "a!=c",
+          "a!=2*c",
+          "b+d!=0"
         ]
       },
       "attemptFeedback": [
@@ -34537,11 +35025,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Like denominators add straight across.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "The numerators add to $({{a}}+{{c}})x+({{b}}+{{d}})$.",
+          "So $k={{k}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -34559,15 +35048,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSubtracted}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dFirstOnly}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSecondOnly}}"
         }
       ]
     },
@@ -35214,28 +35703,29 @@
           "a": {
             "type": "int",
             "min": 2,
-            "max": 8
+            "max": 9
           },
           "xval": {
             "type": "int",
             "min": 2,
-            "max": 10
+            "max": 9
           }
         },
         "derived": {
           "a2": "a*a",
           "answer": "a*xval*xval",
-          "satDistractor1": "a*xval",
-          "satDistractor2": "xval*xval",
-          "satDistractor3": "(a+xval+xval)"
+          "dDroppedCoefficient": "xval*xval",
+          "dRoundedUp": "a*xval*xval*xval",
+          "dSquaredCoefficient": "a*a*xval"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "a!=xval",
+          "dDroppedCoefficient!=answer",
+          "dRoundedUp!=answer",
+          "dSquaredCoefficient!=answer",
+          "dDroppedCoefficient!=dSquaredCoefficient",
+          "dDroppedCoefficient!=dRoundedUp",
+          "dSquaredCoefficient!=dRoundedUp"
         ]
       },
       "attemptFeedback": [
@@ -35245,11 +35735,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Combine under one radical before taking the root.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$\\dfrac{\\sqrt{{{a2}}x^5}}{\\sqrt{x}}=\\sqrt{{{a2}}x^4}={{a}}x^2$.",
+          "At $x={{xval}}$ that is {{answer}}."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "${{answer}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -35267,15 +35758,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dDroppedCoefficient}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dRoundedUp}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSquaredCoefficient}}"
         }
       ]
     },
@@ -35325,28 +35816,35 @@
         "stemProfile": "radical-exponent-parameter",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For $x>0$, $\\sqrt{x^n}=x^{{k}}\\sqrt{x}$, where $n$ is an odd positive integer. What is the value of $n$?",
+      "prompt": "For $x>0$, $\\sqrt{x^n}=x^{ {{k}} }\\sqrt{x^{ {{m}} }}$, where $n$ and $m$ are positive integers. What is the value of $n$?",
       "generator": {
         "parameters": {
           "k": {
             "type": "int",
             "min": 1,
             "max": 6
+          },
+          "j": {
+            "type": "int",
+            "min": 0,
+            "max": 3
           }
         },
         "derived": {
-          "n": "2*k+1",
-          "satDistractor1": "2*k-1",
-          "satDistractor2": "2*k",
-          "satDistractor3": "2+k+1"
+          "m": "2*j+1",
+          "n": "2*k+2*j+1",
+          "dNoDouble": "k+2*j+1",
+          "dDoubledBoth": "2*k+4*j+2",
+          "dDoubledWrong": "4*j+2+k"
         },
         "constraints": [
-          "satDistractor1!=n",
-          "satDistractor2!=n",
-          "satDistractor3!=n",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "k!=2*j+1",
+          "dNoDouble!=n",
+          "dDoubledBoth!=n",
+          "dDoubledWrong!=n",
+          "dNoDouble!=dDoubledBoth",
+          "dNoDouble!=dDoubledWrong",
+          "dDoubledBoth!=dDoubledWrong"
         ]
       },
       "attemptFeedback": [
@@ -35356,11 +35854,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Move the outside factor back under the radical.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$x^{ {{k}} }\\sqrt{x^{ {{m}} }}=\\sqrt{x^{2({{k}})+{{m}}}}$.",
+          "So $n=2({{k}})+{{m}}={{n}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "$n={{n}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -35378,15 +35877,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dNoDouble}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dDoubledBoth}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dDoubledWrong}}"
         }
       ]
     },

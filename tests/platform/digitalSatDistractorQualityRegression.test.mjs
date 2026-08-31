@@ -51,10 +51,13 @@ const EXPECTED = Object.freeze({
   'mathmaster:sat:A.5C:ccmr-challenge-combined-value': ['satDistractor3', 'y'],
   'mathmaster:sat:A.8A:ccmr-challenge-challenge-one-solution-parameter': ['dFourTimes', '4*h*h'],
   'mathmaster:sat:A.9D:ccmr-challenge-shifted-center-value': ['dShiftOnly', 'k'],
-  'mathmaster:sat:A2.4F:ccmr-challenge-context-square-root-model': ['satDistractor3', 'dval*dval'],
-  'mathmaster:sat:A2.5D:ccmr-challenge-exponent-parameter-from-solution': ['satDistractor3', 'p'],
-  'mathmaster:sat:A2.7F:ccmr-challenge-numerator-coefficient-parameter': ['satDistractor3', 'c'],
-  'mathmaster:sat:A2.7G:ccmr-challenge-radical-quotient-variable': ['satDistractor2', 'xval*xval'],
+  'mathmaster:sat:A2.4F:ccmr-challenge-context-square-root-model': ['dNoDivide', 'dval*dval'],
+  // Replaced. Offering the solution itself always sat on the same side of n-p,
+  // so the key could only take two ranks; subtracting the solution twice is the
+  // option that lands below the key whichever way the constants fall.
+  'mathmaster:sat:A2.5D:ccmr-challenge-exponent-parameter-from-solution': ['dDoubleSubtracted', 'n-2*p'],
+  'mathmaster:sat:A2.7F:ccmr-challenge-numerator-coefficient-parameter': ['dSecondOnly', 'c'],
+  'mathmaster:sat:A2.7G:ccmr-challenge-radical-quotient-variable': ['dDroppedCoefficient', 'xval*xval'],
   // The eight entries above were renamed in the V2.1 certification sweep, not
   // weakened: each still pins the same expression, now under a name that says
   // which misconception it encodes.

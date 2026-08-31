@@ -53,16 +53,15 @@ test('every Digital SAT multiple-choice family keys a choice that exists', () =>
 // magnitude alone: read nothing, pick the biggest number, score. This is the
 // gate the ASVAB rebuild added after 476 of 730 families were found building
 // every distractor as key + 1, + 2, + 3.
-// The certification sweep found 177 families answerable this way. Geometry and
-// Trigonometry, Problem-Solving and Data Analysis, and Algebra have been
-// repaired and are asserted clean outright. Advanced Math is pinned to its
-// exact remaining count so the number can only fall:
-// repairing families fails this test and forces the ceiling down, and any new
-// family that regresses fails it too. See DIGITAL_SAT_V2_1_CERTIFICATION_AUDIT.md.
+// The certification sweep found 177 families answerable this way, across all
+// four domains. Every one has been repaired, so every count is asserted at
+// zero: a new family that is answerable by magnitude fails this test, and so
+// does an edit that pushes a repaired one back over the line.
+// See DIGITAL_SAT_V2_1_CERTIFICATION_AUDIT.md.
 const MAGNITUDE_ANSWERABLE_CEILING = Object.freeze({
   geometryTrigonometry: 0,
   problemSolvingData: 0,
-  advancedMath: 53,
+  advancedMath: 0,
   algebra: 0,
 });
 
@@ -85,7 +84,7 @@ test('no Digital SAT family is answerable by the size of its options alone', () 
       `${domain}: ${counts[domain]} families answerable by magnitude, above the recorded ${ceiling} (rank tolerance ${RANK_TOLERANCE}, extreme ${EXTREME_TOLERANCE})\n  ${(flagged[domain] || []).slice(0, 15).join('\n  ')}`);
   }
   assert.deepEqual(counts, MAGNITUDE_ANSWERABLE_CEILING,
-    'the recorded magnitude-answerable counts have fallen - lower MAGNITUDE_ANSWERABLE_CEILING to the new numbers');
+    'the magnitude-answerable counts moved - every domain is expected to be clean');
   assert.deepEqual(Object.keys(flagged).filter((d) => !(d in MAGNITUDE_ANSWERABLE_CEILING)), [],
     'a domain outside the recorded list is now answerable by magnitude');
 });
