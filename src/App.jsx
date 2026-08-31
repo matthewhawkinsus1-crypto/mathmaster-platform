@@ -4055,15 +4055,15 @@ function App() {
     const inspection = inspectLibraryContentRepair(assignment, assignments);
     if (!inspection.source || !inspection.questionIds.length) {
       toastError(
-        'No safe Library repair found',
-        'MathMaster could not find one unambiguous Library source with the same question identity and the richer workflow. No student work was changed.',
+        'No safe repair source found',
+        'MathMaster could not find one unambiguous saved assignment with the same question identity and the richer workflow. No student work was changed.',
       );
       return;
     }
 
     const proceed = await confirmAction({
       title: `Repair ${inspection.questionIds.length} corrupted question${inspection.questionIds.length === 1 ? '' : 's'}?`,
-      message: 'MathMaster will restore only the collapsed workflow question content from the matching Library source. The live assignment ID, question IDs/order, dates, classes, and every other question stay unchanged. Because the corrupted question was not valid work, students receive fresh attempts on that repaired question only; they do not restart the assignment.',
+      message: 'MathMaster will restore only the collapsed workflow question content from the matching intact assignment source. The live assignment ID, question IDs/order, dates, classes, and every other question stay unchanged. Because the corrupted question was not valid work, students receive fresh attempts on that repaired question only; they do not restart the assignment.',
       confirmLabel: 'Repair assignment',
     });
     if (!proceed) return;
@@ -5951,7 +5951,7 @@ function App() {
                             { key: 'dates-classes', label: isLibraryAssignment(assignment) ? 'Assign to Class / Dates' : 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
                             ...(libraryRepair.source && libraryRepair.questionIds.length ? [{
                               key: 'repair-library-content',
-                              label: `Repair Corrupted Question${libraryRepair.questionIds.length === 1 ? '' : 's'} from Library`,
+                              label: `Repair Corrupted Question${libraryRepair.questionIds.length === 1 ? '' : 's'} from Original`,
                               onClick: () => handleRepairAssignmentFromLibrary(assignment),
                             }] : []),
                             { key: 'move-folder', label: 'Move to Folder', onClick: () => { setMovingFolderAssignmentId(assignment.id); setMovingFolderValue(assignment.folder || ''); } },
