@@ -644,7 +644,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.4G",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "A student squares $\\sqrt{x{{c|signed}}}=x-({{k}})$, solves the resulting quadratic, gets x={{u}} and x={{v}}, and declares BOTH answers valid because both satisfy the squared equation. Repair the student's conclusion by checking the original equation.",
@@ -756,7 +756,7 @@
         {
           "coverageKey": "core-d3b5",
           "dok": 3,
-          "difficultyBand": 5
+          "difficultyBand": 4
         },
         {
           "coverageKey": "adaptive-d3b3-small-number-squaring-audit",
