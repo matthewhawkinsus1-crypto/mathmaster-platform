@@ -147,6 +147,39 @@ export const applyHonorsDepthAiSections = (currentAssignment = {}, aiAssignment 
   };
 };
 
+export const separateHonorsDepthAiRepair = (currentAssignment = {}, guardedCandidate = {}) => {
+  const sourceSections = Array.isArray(currentAssignment?.sections) ? currentAssignment.sections : [];
+  const candidateSections = Array.isArray(guardedCandidate?.sections) ? guardedCandidate.sections : [];
+  let honorsEnrichmentQuestion = null;
+
+  const sourceOnlySections = candidateSections.map((section, sectionIndex) => {
+    const sourceSection = sourceSections[sectionIndex] || {};
+    const originalCount = sectionQuestions(sourceSection).length;
+    const questions = sectionQuestions(section);
+    const added = questions.slice(originalCount);
+    if (added.length) {
+      const [question] = added;
+      honorsEnrichmentQuestion = {
+        ...question,
+        activityRole: question.activityRole || section.role || 'classwork',
+        sectionId: question.sectionId || section.id || null,
+      };
+    }
+    return {
+      ...section,
+      questions: questions.slice(0, originalCount),
+    };
+  });
+
+  return {
+    assignmentV5: {
+      ...currentAssignment,
+      sections: sourceOnlySections,
+    },
+    honorsEnrichmentQuestion,
+  };
+};
+
 export const buildHonorsDepthAiRepairRequest = ({
   assignmentV5,
   honorsReport = {},
