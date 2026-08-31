@@ -11,7 +11,15 @@ export const studentNameParts = (student = {}) => {
   const firstName = cleanName(student.firstName);
   const lastName = cleanName(student.lastName);
   if (firstName || lastName) return { firstName, lastName };
-  return splitLegacyDisplayName(student.displayName || student.name || '');
+  return splitLegacyDisplayName(
+    student.displayName
+      || student.name
+      || student.googleName
+      || student.profile?.displayName
+      || student.profile?.name
+      || student.profile?.googleName
+      || '',
+  );
 };
 
 export const formatStudentName = (student = {}, { lastFirst = true, fallbackToId = true } = {}) => {
@@ -19,7 +27,14 @@ export const formatStudentName = (student = {}, { lastFirst = true, fallbackToId
   if (lastFirst && lastName) return firstName ? `${lastName}, ${firstName}` : lastName;
   const natural = [firstName, lastName].filter(Boolean).join(' ');
   if (natural) return natural;
-  const displayName = cleanName(student.displayName || student.name);
+  const displayName = cleanName(
+    student.displayName
+      || student.name
+      || student.googleName
+      || student.profile?.displayName
+      || student.profile?.name
+      || student.profile?.googleName,
+  );
   if (displayName) return displayName;
   if (!fallbackToId) return '';
   return String(student.studentId || student.id || 'Student');
@@ -46,6 +61,10 @@ export const studentSearchText = (student = {}) => {
     firstName,
     lastName,
     student.displayName,
+    student.googleName,
+    student.profile?.displayName,
+    student.profile?.name,
+    student.profile?.googleName,
     student.classPeriod,
     student.assignedTeacherEmail,
     student.linkedEmail,
