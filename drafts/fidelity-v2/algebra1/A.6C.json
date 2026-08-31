@@ -549,7 +549,7 @@
             "Do not assume a=1 unless monic behavior is actually given."
           ],
           "supportHints": [
-            "Substitute x=1 and y={{y1}} into ax(x-r) to determine a."
+            "Substitute the given nonzero point into $y=ax(x-r)$, then solve the resulting equation for the scale coefficient."
           ],
           "generator": {
             "parameters": {
