@@ -387,3 +387,58 @@ Post-normalization evidence:
 - promoted Algebra II shipping seed: 240 families; **0 Band-5 base or variant rows**.
 
 The next required evidence is a complete expanded Full Platform Test Suite run on a normal commit after `13cf652b`, so CI evaluates the post-promotion seed state together with the selector/test repairs.
+
+
+## 2026-08-30 — expanded full-suite repeat blocker repair
+
+The expanded Full Platform Test Suite was reduced from eight failures to one. The remaining failure was the five-question no-repeat contract.
+
+### What the repeat diagnostic proved
+
+The selector was no longer the problem after `5fd28e171ccd1e2696f762cc67790887b5deb98c`.
+It correctly:
+- exhausts unused Production/Candidate families before repeating;
+- refuses to choose Operational/Blocked content merely to avoid a repeat.
+
+The remaining repeats occurred because each affected standard had one unused family that the quality audit marked Blocked.
+
+Diagnostics:
+- `b2065fef1e7282bf61c0c9f67089b0574b7b60d6` — repeat ranking diagnostics;
+- `22569c7b6a18ed98f4888ccddea6c49eebda0304` — ranking exposes blocker codes;
+- `296b5561e3b3c3543c3d85ada0977bbaedc945fd` — session gate prints blocker codes.
+
+### Quality-audit repairs
+
+1. Choice answer ids are internal routing keys, not visible answers:
+   - `e0b54f8f5d66f28f54bdc338da24137fd2b3cb04` — hint audit now compares hints to visible choice labels.
+2. Short answer tokens require real boundaries:
+   - `94c69e1001ec511fbd2acfa03eba535c5ed1ac45` — repaired boundary matcher after catching and correcting a malformed intermediate edit.
+   - `7a19fc7550d0f91e449f4954dad7152e3adbff56` — regression tests for choice ids, short-token boundaries, and true choice-answer leaks.
+3. Systems Workspace matrix grading is securely server-derivable:
+   - `186ad9e0bdc8ab0864d34c1fac98e5e570bced14` — quality audit now recognizes `systemsWorkspace` matrix3/linear secure grading contracts already enforced by the runtime.
+
+### Genuine answer-giving hints repaired
+
+A static effective-variant scan found 11 real hint leaks across five source families. These were revised to give strategy without a response-field answer:
+- A.2G — `e2da381835eac680b2541acf1e5c3ccf3edd9046`;
+- A.3C — `95ff27babd66871d8763de5d3503b7220d927317`;
+- A.12A — `2697705ca0a486901c657c49c978be36f1f4f803`;
+- A2.2D — `e7ef595653dfecc51e915af4945e1d75d26484e8`;
+- A2.4C — `d917c1f82f886f2e734efbb0cb9c10996b21c6ab`.
+
+Post-edit static scan: **0 remaining hint leaks** in the repaired effective rows.
+
+### Promotion
+
+Promotion run `33345584250`: **PASS**.
+- certified seed build PASS;
+- seed parity PASS;
+- strict adaptive metadata PASS;
+- strict Challenge quality PASS;
+- runtime adaptive targeting PASS;
+- shipping-seed commit PASS.
+
+Promoted shipping commit: `4c4917030ecb`.
+
+Next evidence required:
+- one complete expanded Full Platform Test Suite run on a normal checkpoint commit after `4c4917030ecb`.
