@@ -482,7 +482,7 @@
             "Swap coordinates; do not take reciprocals of the outputs."
           ],
           "supportHints": [
-            "If 2^x=y, then log₂(y)=x."
+            "Reverse each exponential ordered pair so the original output becomes the inverse input, then read the inverse values from those swapped pairs."
           ]
         }
       ]
@@ -603,7 +603,7 @@
           "difficultyBand": 3,
           "taskType": "errorAnalysis",
           "representation": "multipleRepresentation",
-          "prompt": "For the inverse pair $f(x)=2^x$ and $g(x)=\\log_2x$, a student says the horizontal asymptote y=0 of f stays horizontal on g. Use reflection across y=x to evaluate the claim, identify the corresponding intercepts, and give the correct asymptote relationship.",
+          "prompt": "For the inverse pair $f(x)=2^x$ and $g(x)=\\log_2x$, a student says the horizontal asymptote $y=0$ of $f$ stays horizontal on $g$. Use the geometry of inverse graphs to evaluate the claim, identify the corresponding intercepts, and give the correct asymptote relationship.",
           "stimulus": {
             "kind": "expressions",
             "title": "Fixed inverse pair",
@@ -671,7 +671,7 @@
             "Reflect a few points on the asymptote line across y=x to see its new orientation."
           ],
           "supportHints": [
-            "Reflection across y=x swaps x- and y-coordinates."
+            "Track what happens to horizontal and vertical features when the input-output coordinates of an inverse pair trade roles."
           ]
         }
       ]
