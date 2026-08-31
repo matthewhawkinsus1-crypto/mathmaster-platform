@@ -6,6 +6,17 @@ import { normalizeLessonPublishingIntentV5 } from '../../platform/authoring/less
 import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
 import InteractiveModelingLabPlayer from '../labs/InteractiveModelingLabPlayer.jsx';
 import { buildHonorsEnrichmentQuestion, inspectHonorsRigor } from '../../platform/rigor/courseRigor.js';
+import {
+  applyHonorsDepthAiSections,
+  buildHonorsDepthAiRepairRequest,
+  honorsMissingLabels,
+  nonCcmrHonorsMissing,
+  separateHonorsDepthAiRepair,
+} from '../../platform/contract/honorsDepthAiRepair.js';
+import {
+  assignmentAiFallbackRecommended,
+  buildAssignmentWithAI,
+} from '../../services/assignmentAiService.js';
 import RepresentationAudit from './RepresentationAudit';
 import SectionBalanceRigorAudit from './SectionBalanceRigorAudit.jsx';
 import {
@@ -143,6 +154,8 @@ export const LessonPreflightModal = ({
   const [showDemoControls, setShowDemoControls] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [honorsEnrichmentQuestion, setHonorsEnrichmentQuestion] = useState(null);
+  const [honorsAiBusy, setHonorsAiBusy] = useState(false);
+  const [honorsAiMessage, setHonorsAiMessage] = useState('');
   const [workingAssignmentV5, setWorkingAssignmentV5] = useState(() => assignmentV5);
   const [repairTargetIndex, setRepairTargetIndex] = useState(null);
   const [repairInstruction, setRepairInstruction] = useState('');
@@ -328,6 +341,58 @@ export const LessonPreflightModal = ({
     }
   };
 
+  const buildHonorsDepthWithAi = async () => {
+    if (!allowQuestionRepair) {
+      setHonorsAiMessage('Student records already exist for this assignment. Duplicate it before using AI to rewrite Honors content so historical evidence stays attached to what students actually saw.');
+      return;
+    }
+    setHonorsAiBusy(true);
+    setHonorsAiMessage('');
+    try {
+      const request = buildHonorsDepthAiRepairRequest({
+        assignmentV5: effectiveAssignmentV5,
+        honorsReport,
+      });
+      const built = await buildAssignmentWithAI(request);
+      const returned = JSON.parse(built.assignmentJson);
+      const guardedCandidate = applyHonorsDepthAiSections(effectiveAssignmentV5, returned);
+      const candidateModel = buildAssignmentV5PreflightModel(guardedCandidate);
+
+      const newErrors = newlyIntroducedPreflightErrors(validationErrors, candidateModel.errors);
+      if (newErrors.length) {
+        throw new Error(`The AI repair introduced a new assignment blocker:\n${newErrors.join('\n')}`);
+      }
+
+      const candidateReport = inspectHonorsRigor(candidateModel.questions, { allowNarrowCheckpoint: true });
+      const unresolved = nonCcmrHonorsMissing(candidateReport);
+      if (unresolved.length) {
+        throw new Error(`MathMaster AI could not safely resolve: ${honorsMissingLabels(unresolved).join(', ')}. The original assignment was kept unchanged.`);
+      }
+
+      const separated = separateHonorsDepthAiRepair(effectiveAssignmentV5, candidateModel.assignmentV5);
+      const sourceOnlyModel = buildAssignmentV5PreflightModel(separated.assignmentV5);
+      const sourceOnlyNewErrors = newlyIntroducedPreflightErrors(validationErrors, sourceOnlyModel.errors);
+      if (sourceOnlyNewErrors.length) {
+        throw new Error(`The source assignment gained a new blocker while separating the Honors-only extension:\n${sourceOnlyNewErrors.join('\n')}`);
+      }
+      setWorkingAssignmentV5(sourceOnlyModel.assignmentV5);
+      setHonorsEnrichmentQuestion(separated.honorsEnrichmentQuestion);
+      setHonorsAiMessage(
+        candidateReport.checks.ccmrEnrichment
+          ? 'MathMaster AI repaired the Honors depth requirements and the assignment passed Preflight again.'
+          : 'MathMaster AI repaired the Honors depth requirements. Audited CCMR Practice will be sourced from Fidelity V2.1 at publish.',
+      );
+    } catch (error) {
+      setHonorsAiMessage(
+        assignmentAiFallbackRecommended(error)
+          ? 'Built-in MathMaster AI is unavailable right now. The assignment was not changed. You can try again, or use the local depth extension only when Core TEKS is already present.'
+          : error.message,
+      );
+    } finally {
+      setHonorsAiBusy(false);
+    }
+  };
+
   const sectionVariantMode = (role) => (
     draft.sectionVariantModes?.[role]
     || assignmentV5?.variantPolicy?.sectionModes?.[role]
@@ -505,16 +570,47 @@ export const LessonPreflightModal = ({
         {honorsSelected && honorsReport.isNarrowCheckpoint && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#e8f0fe', color: '#174ea6', fontSize: 12, lineHeight: 1.5 }}><strong>Narrow Honors checkpoint.</strong> Warm-Ups and DOLs with three or fewer items may stay focused on the current TEKS. Depth, prerequisite repair, and CCMR are balanced across the recent Honors sequence instead of forced into every short check.</div>}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(190px, 1fr))', gap: 7 }}>{[
           ['coreTeks', 'Core TEKS'], ['higherOrderReasoning', 'Higher-order reasoning'], ['multipleRepresentations', 'Multiple representations'], ['justification', 'Explanation / justification'], ['modelingApplication', 'Modeling / application'], ['ccmrEnrichment', 'Authentic CCMR Practice'],
-        ].map(([key, label]) => <div key={key} style={{ padding: '8px 10px', borderRadius: 8, background: honorsReport.checks[key] ? '#e6f4ea' : '#fff4ce', color: honorsReport.checks[key] ? '#137333' : '#7a4f00', fontWeight: 800, fontSize: 12 }}>{honorsReport.checks[key] ? '✓' : '!'} {label}</div>)}</div>}
+        ].map(([key, label]) => {
+          const present = honorsReport.checks[key];
+          const queuedAtPublish = key === 'ccmrEnrichment' && !present;
+          return (
+            <div key={key} style={{ padding: '8px 10px', borderRadius: 8, background: present ? '#e6f4ea' : queuedAtPublish ? '#e8f0fe' : '#fff4ce', color: present ? '#137333' : queuedAtPublish ? '#174ea6' : '#7a4f00', fontWeight: 800, fontSize: 12 }}>
+              {present ? '✓' : queuedAtPublish ? '↻' : '!'} {queuedAtPublish ? 'Audited CCMR at publish' : label}
+            </div>
+          );
+        })}</div>}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.checks.ccmrEnrichment && (
           <div style={{ marginTop: 11, padding: '11px 13px', borderRadius: 9, background: '#fff4ce', border: '1px solid #f0d489', color: '#7a4f00', fontSize: 12.5, lineHeight: 1.55 }}>
             <strong>Audited CCMR Practice will be sourced at publish.</strong> Because an Honors destination is selected, MathMaster will replace matching Practice work with an audited CCMR Fidelity V2.1 family on the same lesson TEKS. Standard destinations keep the regular course Practice. Exam-looking wording by itself never counts as authentic CCMR.
           </div>
         )}
-        {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.isHonorsReady && honorsReport.missing.some((key) => key !== 'ccmrEnrichment') && <button type="button" onClick={() => {
-          const firstHonorsClass = selectedClassChoices.find((entry) => entry.courseLevel === 'honors');
-          setHonorsEnrichmentQuestion(buildHonorsEnrichmentQuestion({ questions: sourceRigorQuestions, course: firstHonorsClass?.course || 'algebra1' }));
-        }} style={{ marginTop: 12, minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: '#6f2da8', color: '#fff', fontWeight: 900 }}>Build Honors Depth Extension</button>}
+        {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.isHonorsReady && honorsReport.missing.some((key) => key !== 'ccmrEnrichment') && (
+          <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={buildHonorsDepthWithAi}
+              disabled={honorsAiBusy || !allowQuestionRepair}
+              title={!allowQuestionRepair ? 'Duplicate the assignment before rewriting Honors content because student records already exist.' : 'Use MathMaster’s embedded AI to repair the missing Honors depth requirements, then rerun Preflight.'}
+              style={{ minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: honorsAiBusy || !allowQuestionRepair ? '#c9b5df' : '#6f2da8', color: '#fff', fontWeight: 900, cursor: honorsAiBusy || !allowQuestionRepair ? 'not-allowed' : 'pointer' }}
+            >
+              {honorsAiBusy ? '✨ Repairing Honors depth…' : '✨ Build Honors Depth with MathMaster AI'}
+            </button>
+            {honorsReport.checks.coreTeks && (
+              <button type="button" disabled={!allowQuestionRepair || honorsAiBusy} onClick={() => {
+                const firstHonorsClass = selectedClassChoices.find((entry) => entry.courseLevel === 'honors');
+                setHonorsEnrichmentQuestion(buildHonorsEnrichmentQuestion({ questions: sourceRigorQuestions, course: firstHonorsClass?.course || 'algebra1' }));
+                setHonorsAiMessage('Local MathMaster extension added. This fallback can add depth, but it does not invent missing TEKS alignment.');
+              }} style={{ minHeight: 44, padding: '9px 15px', border: '1px solid #c7a9ea', borderRadius: 8, background: '#fff', color: '#6f2da8', fontWeight: 900 }}>
+                Add local depth extension
+              </button>
+            )}
+          </div>
+        )}
+        {honorsAiMessage && (
+          <div role="status" style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#f5effc', border: '1px solid #d8c2ef', color: '#5b2788', fontSize: 12.5, lineHeight: 1.5 }}>
+            {honorsAiMessage}
+          </div>
+        )}
         {honorsEnrichmentQuestion && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#e6f4ea', color: '#137333', fontSize: 12 }}><strong>MathMaster depth extension prepared.</strong> It strengthens modeling/justification for the Honors destination, but it does not substitute for an authentic CCMR-style Practice item.</div>}
         {honorsSelected && honorsReport.isHonorsReady && !honorsReport.isNarrowCheckpoint && !honorsEnrichmentQuestion && <div style={{ marginTop: 10, color: '#137333', fontWeight: 800, fontSize: 12 }}>✓ Source assignment already satisfies the Honors contract; MathMaster will not rewrite it.</div>}
       </fieldset>

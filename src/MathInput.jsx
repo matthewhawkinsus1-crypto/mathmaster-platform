@@ -19,6 +19,10 @@ const BASIC_KEYS = [
 const MOBILE_ENTRY_KEYS = [
   ...['7', '8', '9', '4', '5', '6', '1', '2', '3', '0'].map((label) => ({ label, command: label, ariaLabel: `Insert ${label}` })),
   { label: '.', command: '.', ariaLabel: 'Insert decimal point' },
+  // Commas are structural math notation, not punctuation students should have
+  // to borrow from the phone keyboard. Keeping one on the base touch pad also
+  // protects ordered pairs when older content is missing an answerFormat tag.
+  { label: ',', command: ',', ariaLabel: 'Insert comma' },
   { label: '−', command: '-', ariaLabel: 'Insert negative sign' },
   { label: '+', command: '+', ariaLabel: 'Insert plus sign' },
   { label: '=', command: '=', ariaLabel: 'Insert equals sign' },
@@ -77,6 +81,7 @@ const algebraOperationKeysForContext = (contextSymbols = []) => {
 
 const INTERVAL_KEYS = [
   { label: '(', command: '(', ariaLabel: 'Insert open parenthesis' },
+  { label: ',', command: ',', ariaLabel: 'Insert comma' },
   { label: ')', command: ')', ariaLabel: 'Insert close parenthesis' },
   { label: '[', command: '[', ariaLabel: 'Insert open bracket' },
   { label: ']', command: ']', ariaLabel: 'Insert close bracket' },

@@ -7,6 +7,7 @@ const functionsIndex = fs.readFileSync('functions/index.js', 'utf8');
 const provider = fs.readFileSync('functions/lib/assignmentAi.js', 'utf8');
 const service = fs.readFileSync('src/services/assignmentAiService.js', 'utf8');
 const intake = fs.readFileSync('src/AssignmentIntake.jsx', 'utf8');
+const preflight = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx', 'utf8');
 
 test('OpenAI credential is defined and read only in server Functions code', () => {
   assert.match(config, /defineSecret\("OPENAI_API_KEY"\)/);
@@ -53,6 +54,15 @@ test('integrated and external AI results share the same MathMaster accept/valida
   assert.match(intake, /await onJsonReady\(\{ text, sourceName \}\)/);
   assert.match(intake, /await acceptJson\(built\.assignmentJson/);
   assert.match(intake, /await acceptJson\(text, 'Pasted from clipboard'\)/);
+});
+
+test('existing-assignment Honors review uses the same embedded AI instead of copy-paste', () => {
+  assert.match(preflight, /Build Honors Depth with MathMaster AI/);
+  assert.match(preflight, /buildHonorsDepthWithAi/);
+  assert.match(preflight, /buildAssignmentWithAI\(request\)/);
+  assert.match(preflight, /applyHonorsDepthAiSections/);
+  assert.match(preflight, /buildAssignmentV5PreflightModel\(guardedCandidate\)/);
+  assert.match(preflight, /Audited CCMR Practice will be sourced from Fidelity V2\.1 at publish/);
 });
 
 test('provider boundary uses current Responses API and Structured Outputs', () => {

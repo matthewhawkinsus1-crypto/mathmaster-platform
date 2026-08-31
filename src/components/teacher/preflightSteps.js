@@ -30,6 +30,17 @@ export const PREFLIGHT_STEP_IDS = Object.freeze(PREFLIGHT_STEPS.map((step) => st
 
 const blocker = (stepId, message) => ({ stepId, message });
 
+const HONORS_BLOCKER_LABELS = Object.freeze({
+  coreTeks: 'Core TEKS alignment',
+  higherOrderReasoning: 'higher-order reasoning',
+  multipleRepresentations: 'multiple representations',
+  justification: 'explanation / justification',
+  modelingApplication: 'modeling / application',
+  unknownHonorsRequirement: 'an unclassified Honors requirement',
+});
+
+const honorsBlockerLabel = (key) => HONORS_BLOCKER_LABELS[key] || String(key || 'Honors requirement');
+
 const parseDate = (value) => {
   const time = new Date(value).getTime();
   return Number.isFinite(time) ? time : null;
@@ -92,7 +103,7 @@ export const collectReviewBlockers = ({
       : ['unknownHonorsRequirement'];
     const unresolved = reportedMissing.filter((key) => key !== 'ccmrEnrichment');
     if (unresolved.length) {
-      blockers.push(blocker('classes', 'An Honors class is selected, so the missing Honors depth elements have to be resolved first.'));
+      blockers.push(blocker('classes', `An Honors class is selected. Fix: ${unresolved.map(honorsBlockerLabel).join(', ')}.`));
     }
     // CCMR alone is not a blocker here. The destination is now known, so final
     // creation can source the audited V2.1 Practice family without contaminating

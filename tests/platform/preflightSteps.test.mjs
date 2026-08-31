@@ -113,6 +113,22 @@ test('non-CCMR Honors depth still blocks before publish', () => {
   });
   assert.equal(blockers.length, 1);
   assert.equal(blockers[0].stepId, 'classes');
+  assert.match(blockers[0].message, /higher-order reasoning/);
+});
+
+test('Core TEKS blocker is named explicitly instead of looking like a generic depth failure', () => {
+  const blockers = collectReviewBlockers({
+    draft: validDraft,
+    classPeriods: ['Period 1'],
+    honorsSelected: true,
+    honorsReport: {
+      isHonorsReady: false,
+      missing: ['coreTeks', 'ccmrEnrichment'],
+    },
+  });
+  assert.equal(blockers.length, 1);
+  assert.match(blockers[0].message, /Core TEKS alignment/);
+  assert.doesNotMatch(blockers[0].message, /CCMR/);
 });
 
 test('the DOL window is range checked only when the DOL is on', () => {
