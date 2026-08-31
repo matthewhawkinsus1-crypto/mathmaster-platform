@@ -332,7 +332,7 @@
         "Complete the grouping step first; then inspect the remaining cubic for a special pattern."
       ],
       "supportHints": [
-        "Factor the first pair and second pair separately, compare the resulting common binomial, then factor the remaining cubic expression."
+        "Factor each grouped pair and look for a common binomial factor before continuing the factorization."
       ],
       "generator": {
         "parameters": {
