@@ -34,6 +34,7 @@ on:
       - tests/platform/pathSessionRobustness.test.mjs
       - tests/platform/pathHomeStates.test.mjs
       - tests/platform/pathInputAndProgressionRecovery.test.mjs
+      - seed/pathQuestionBank/*_pathQuestionBank_seed.json
       - .github/workflows/student-path-ux-certification.yml
 
 jobs:
