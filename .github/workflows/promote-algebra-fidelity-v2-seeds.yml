@@ -56,6 +56,8 @@ jobs:
         shell: bash
         run: |
           if git diff --quiet -- \
+            drafts/algebra1.json \
+            drafts/algebra2.json \
             seed/pathQuestionBank/algebra1_pathQuestionBank_seed.json \
             seed/pathQuestionBank/algebra2_pathQuestionBank_seed.json \
             functions/seeds/pathQuestionBank/algebra1_pathQuestionBank_seed.json \
@@ -68,6 +70,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
+            drafts/algebra1.json \
+            drafts/algebra2.json \
             seed/pathQuestionBank/algebra1_pathQuestionBank_seed.json \
             seed/pathQuestionBank/algebra2_pathQuestionBank_seed.json \
             functions/seeds/pathQuestionBank/algebra1_pathQuestionBank_seed.json \
