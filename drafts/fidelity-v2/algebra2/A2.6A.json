@@ -674,7 +674,7 @@
         "Compare displacements from the center rather than raw coordinates."
       ],
       "supportHints": [
-        "Compute horizontal scale from the reciprocal of the inside coefficient's magnitude, and vertical scale from the outside coefficient."
+        "Horizontal scale uses the reciprocal of the inside coefficient; compute that reciprocal before comparing point distances."
       ],
       "generator": {
         "parameters": {
