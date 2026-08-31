@@ -783,7 +783,7 @@ export const LessonPreflightModal = ({
       <SectionBalanceRigorAudit assignmentV5={effectiveAssignmentV5} />
 
       <div style={{ padding: '12px 14px', marginBottom: 16, background: '#e8f0fe', color: '#174ea6', border: '1px solid #aecbfa', borderRadius: 9, fontSize: 13, lineHeight: 1.5 }}>
-        <strong>AI-prepared Classroom and notes package.</strong> MathMaster carries the AI-written topic, post text, grade-passback settings, and 1–2 page student-notes plan into the saved lesson. The teacher still chooses classes and dates here before anything is published.
+        <strong>AI-prepared Classroom and notes package.</strong> MathMaster carries the AI-written topic, post text, grade-passback settings, and two-page student-notes plan into the saved lesson. The teacher still chooses classes and dates here before anything is published.
         {(publishingIntent.classroomPackage || publishingIntent.lessonResources?.notesPdf) && (
           <div style={{ marginTop: 9, padding: '9px 10px', borderRadius: 8, background: '#fff', border: '1px solid #c5d5ef', color: '#3c4043' }}>
             <div><strong>Classroom topic:</strong> {publishingIntent.classroomPackage?.topic?.name || 'MathMaster will infer this from the folder.'}</div>
@@ -794,16 +794,36 @@ export const LessonPreflightModal = ({
         )}
         {notesNeedAuthoring && (
           <div style={{ marginTop: 10, padding: '10px 11px', borderRadius: 8, background: '#fff4ce', border: '1px solid #f0d489', color: '#7a4f00' }}>
-            <strong>Student notes are turned on, but this saved lesson has no note content.</strong>
-            <div style={{ marginTop: 5 }}>MathMaster will not post a blank handout. Build the missing notes here; the assignment questions will not be rewritten.</div>
-            <button
-              type="button"
-              disabled={publishingAiBusy}
-              onClick={buildMissingPublishingPackageWithAi}
-              style={{ marginTop: 9, minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: '#fff', color: '#7a4f00', fontWeight: 900, cursor: publishingAiBusy ? 'wait' : 'pointer' }}
-            >
-              {publishingAiBusy ? 'Building notes…' : 'Build missing notes with MathMaster AI'}
-            </button>
+            <strong>Student notes are required, but this saved lesson has no authored note content.</strong>
+            <div style={{ marginTop: 5, lineHeight: 1.5 }}>
+              MathMaster will not post a blank handout. Finish the two-page notes package here. All repair paths below are publishing-only: assignment questions are protected from the notes import.
+            </div>
+            <div style={{ marginTop: 9, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                disabled={publishingAiBusy}
+                onClick={buildMissingPublishingPackageWithAi}
+                style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: '#fff', color: '#7a4f00', fontWeight: 900, cursor: publishingAiBusy ? 'wait' : 'pointer' }}
+              >
+                {publishingAiBusy ? 'Building notes…' : 'Build notes with MathMaster AI'}
+              </button>
+              <button type="button" disabled={publishingAiBusy} onClick={copyPublishingRepairRequest} style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: '#fff', color: '#7a4f00', fontWeight: 900 }}>
+                Copy notes request
+              </button>
+              <button type="button" disabled={publishingAiBusy} onClick={pastePublishingRepairResult} style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: '#fff', color: '#7a4f00', fontWeight: 900 }}>
+                Paste AI notes result
+              </button>
+              <button type="button" disabled={publishingAiBusy} onClick={() => notesRepairFileRef.current?.click()} style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: '#fff', color: '#7a4f00', fontWeight: 900 }}>
+                Upload notes JSON
+              </button>
+              <input
+                ref={notesRepairFileRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={(event) => uploadPublishingRepairResult(event.target.files?.[0])}
+                style={{ display: 'none' }}
+              />
+            </div>
           </div>
         )}
         {publishingAiMessage && (
