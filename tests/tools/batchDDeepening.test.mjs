@@ -46,8 +46,16 @@ test('transformation engine evaluates a/h/k form and maps parent points both dir
 
 test('transformation descriptors distinguish reflection, scale, and translation directions', () => {
   assert.deepEqual(transformationDescriptor({ type: 'squareRoot', a: -0.5, h: 3, k: 2 }), {
-    reflection: true, verticalScale: 0.5, verticalScaleKind: 'compression',
-    horizontalDirection: 'right', horizontalDistance: 3, verticalDirection: 'up', verticalDistance: 2,
+    reflection: true,
+    verticalScale: 0.5,
+    verticalScaleKind: 'compression',
+    horizontalReflection: false,
+    horizontalScale: 1,
+    horizontalScaleKind: 'unchanged',
+    horizontalDirection: 'right',
+    horizontalDistance: 3,
+    verticalDirection: 'up',
+    verticalDistance: 2,
   });
   const score = transformationParameterScore({ a: -2, h: 1, k: 0 }, { a: -2, h: 1, k: 3 });
   assert.equal(score.isCorrect, false);
