@@ -15,6 +15,27 @@ const visible = (q) => JSON.stringify({
   data: q.data || null, choices: (q.choices || []).map((c) => c.label),
 });
 
+// Control characters, read from the field values rather than from the JSON.
+//
+// This used to test `JSON.stringify(q)` against /\u000[0-8bcef]/, which could
+// not see a carriage return twice over: stringify had already turned it into
+// the two characters backslash-r, and `d` was not in the character class. A
+// stray carriage return is exactly what a mis-escaped `\right` leaves behind —
+// three families here carried one, and the prompt reached the renderer as
+// "left|x - 23<CR>ight|". Line feeds stay allowed; authored text may wrap.
+const hasControlCharacter = (value) => {
+  if (typeof value === 'string') {
+    for (const character of value) {
+      const code = character.charCodeAt(0);
+      if (code < 32 && code !== 10) return true;
+    }
+    return false;
+  }
+  if (Array.isArray(value)) return value.some(hasControlCharacter);
+  if (value && typeof value === 'object') return Object.values(value).some(hasControlCharacter);
+  return false;
+};
+
 const result = {
   total: documents.length, standards: new Set(documents.map(codeOf)).size,
   mcq: 0, ar: 0, mk: 0, badFormat: [], thin: [], duplicateChoices: [],
@@ -45,7 +66,7 @@ for (const q of documents) {
   if (q?.assessmentContext?.framework !== 'asvab' || q?.assessmentContext?.examStyle !== true) result.badFramework.push(q.id);
   if (q.calculatorPolicy !== 'none' || q.examCalculatorMode !== 'none') result.badCalculator.push(q.id);
   if ((q.responseFields || []).some((f) => Array.isArray(f.accepted) && f.accepted.length)) result.acceptedArrays.push(q.id);
-  if (/\u000[0-8bcef]/i.test(JSON.stringify(q))) result.controlChars.push(q.id);
+  if (hasControlCharacter(q)) result.controlChars.push(q.id);
   const qa = auditPathQuestionQuality(q);
   if (qa.level !== QUESTION_QUALITY.PRODUCTION) result.qualityFailures.push({ id: q.id, level: qa.level, warnings: qa.warnings?.map((x) => x.code) });
 
