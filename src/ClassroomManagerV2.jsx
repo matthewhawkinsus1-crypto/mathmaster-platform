@@ -6,6 +6,7 @@ import {
   getGoogleClassroomDiagnostics,
   linkClassroomRosterBatch,
   listClassroomCourseMappings,
+  listClassroomRosterLinks,
   listClassroomGradeSyncs,
   listGoogleCourses,
   listClassroomStudents,
@@ -22,9 +23,11 @@ import {
 import { assertPublishable, isLibraryAssignment } from './assignmentDestinations';
 import { summarizeAssignmentSync } from './classroomSyncState';
 import {
+  applyRosterIdentityRows,
   buildRosterMatchPlan,
   buildTopicPlan,
   mathMasterStudentLabel,
+  parseRosterIdentityText,
   studentsForClass,
   suggestClassroomTopic,
 } from './classroomRosterMatching';
@@ -81,7 +84,11 @@ export default function ClassroomManagerV2({
   const [selectedCourseIds, setSelectedCourseIds] = useState([]);
   const [rosterCourseId, setRosterCourseId] = useState('');
   const [roster, setRoster] = useState([]);
+  const [rosterLinks, setRosterLinks] = useState([]);
   const [manualMatches, setManualMatches] = useState({});
+  const [identityText, setIdentityText] = useState('');
+  const [identityRows, setIdentityRows] = useState([]);
+  const [identityRejected, setIdentityRejected] = useState([]);
   const [assignmentId, setAssignmentId] = useState('');
   const [topicName, setTopicName] = useState('');
   const [instructions, setInstructions] = useState('');
@@ -112,9 +119,17 @@ export default function ClassroomManagerV2({
     () => studentsForClass(students, mappedClass, classes),
     [students, mappedClass, classes],
   );
+  const identityAugmentedStudents = useMemo(
+    () => applyRosterIdentityRows(classStudents, identityRows),
+    [classStudents, identityRows],
+  );
   const matchPlan = useMemo(
-    () => buildRosterMatchPlan({ classroomStudents: roster, mathMasterStudents: classStudents }),
-    [roster, classStudents],
+    () => buildRosterMatchPlan({ classroomStudents: roster, mathMasterStudents: identityAugmentedStudents }),
+    [roster, identityAugmentedStudents],
+  );
+  const rosterLinkByGoogleUserId = useMemo(
+    () => new Map(rosterLinks.map((link) => [String(link.googleUserId || ''), link])),
+    [rosterLinks],
   );
   const topicPlan = useMemo(() => buildTopicPlan(assignments.filter((a) => !a.archived)), [assignments]);
   const syncByAssignment = useMemo(
@@ -187,10 +202,14 @@ export default function ClassroomManagerV2({
     if (!mappingByCourse.get(String(rosterCourseId))) {
       throw new Error('Map this Google Classroom course to a MathMaster class before importing its roster.');
     }
-    const response = await listClassroomStudents({ courseId: rosterCourseId });
+    const [response, linkResponse] = await Promise.all([
+      listClassroomStudents({ courseId: rosterCourseId }),
+      listClassroomRosterLinks({ courseId: rosterCourseId }),
+    ]);
     setRoster(response.students || []);
+    setRosterLinks(linkResponse.links || []);
     setManualMatches({});
-    setStatus(`Loaded ${(response.students || []).length} Google Classroom students.`);
+    setStatus(`Loaded ${(response.students || []).length} Google Classroom students and ${(linkResponse.links || []).length} existing MathMaster link${(linkResponse.links || []).length === 1 ? '' : 's'}.`);
   });
 
   const handleAutoLink = () => run(async () => {
@@ -209,15 +228,22 @@ export default function ClassroomManagerV2({
       classId: rosterMapping.classId,
       links: exact,
     });
+    const refreshed = await listClassroomRosterLinks({ courseId: rosterCourseId });
+    setRosterLinks(refreshed.links || []);
     setStatus(`Linked ${exact.length} exact school-email match${exact.length === 1 ? '' : 'es'} for grade passback.`);
   });
 
   const handleLinkOne = (item) => run(async () => {
     if (!rosterMapping) throw new Error('Map this course first.');
+    const linked = rosterLinkByGoogleUserId.get(String(item.classroomStudent.googleUserId));
     const selectedId = manualMatches[item.classroomStudent.googleUserId]
+      || linked?.studentId
       || item.suggestedStudent?.id;
-    if (!selectedId) throw new Error('Choose the MathMaster student.');
-    await linkClassroomRosterBatch({
+    if (!selectedId) throw new Error('Type or choose the MathMaster student ID.');
+    const validStudent = classStudents.some((student) => String(student.id) === String(selectedId));
+    if (!validStudent) throw new Error(`MathMaster ID ${selectedId} is not in the mapped class.`);
+
+    const result = await linkClassroomRosterBatch({
       courseId: rosterCourseId,
       classId: rosterMapping.classId,
       links: [{
@@ -227,7 +253,62 @@ export default function ClassroomManagerV2({
         name: item.classroomStudent.name || null,
       }],
     });
-    setStatus(`Linked ${item.classroomStudent.name} to MathMaster ID ${selectedId}.`);
+    const refreshed = await listClassroomRosterLinks({ courseId: rosterCourseId });
+    setRosterLinks(refreshed.links || []);
+    setStatus(
+      result.replaced
+        ? `Changed the Classroom link for ${item.classroomStudent.name} to MathMaster ID ${selectedId}. The old grade-passback route was removed.`
+        : `Linked ${item.classroomStudent.name} to MathMaster ID ${selectedId}. Google name/email are now attached to that MathMaster student for identification and grade passback.`
+    );
+  });
+
+  const handleApplyIdentityBridge = () => {
+    const parsed = parseRosterIdentityText(identityText);
+    const classIds = new Set(classStudents.map((student) => String(student.id)));
+    const accepted = parsed.rows.filter((row) => classIds.has(String(row.studentId)));
+    const outsideClass = parsed.rows
+      .filter((row) => !classIds.has(String(row.studentId)))
+      .map((row) => ({ ...row, reason: 'ID is not in the mapped MathMaster class' }));
+    setIdentityRows(accepted);
+    setIdentityRejected([...parsed.rejected, ...outsideClass]);
+    setManualMatches({});
+    setStatus(
+      `Applied ${accepted.length} ID/name/email row${accepted.length === 1 ? '' : 's'} to this roster.`
+      + (outsideClass.length || parsed.rejected.length
+        ? ` ${outsideClass.length + parsed.rejected.length} row${outsideClass.length + parsed.rejected.length === 1 ? '' : 's'} need review.`
+        : '')
+    );
+  };
+
+  const handleLinkSuggested = () => run(async () => {
+    if (!rosterMapping) throw new Error('Map this course first.');
+    const proposals = matchPlan
+      .filter((item) => ['exact-email', 'exact-name'].includes(item.status) && item.suggestedStudent)
+      .map((item) => ({
+        studentId: String(item.suggestedStudent.id),
+        googleUserId: String(item.classroomStudent.googleUserId),
+        email: item.classroomStudent.email || null,
+        name: item.classroomStudent.name || null,
+      }));
+
+    const countsByStudent = proposals.reduce((map, item) => {
+      map.set(item.studentId, (map.get(item.studentId) || 0) + 1);
+      return map;
+    }, new Map());
+    const safe = proposals.filter((item) => countsByStudent.get(item.studentId) === 1);
+    if (!safe.length) throw new Error('There are no unique suggested matches to link.');
+
+    const result = await linkClassroomRosterBatch({
+      courseId: rosterCourseId,
+      classId: rosterMapping.classId,
+      links: safe,
+    });
+    const refreshed = await listClassroomRosterLinks({ courseId: rosterCourseId });
+    setRosterLinks(refreshed.links || []);
+    setStatus(
+      `Linked ${safe.length} teacher-reviewed roster suggestion${safe.length === 1 ? '' : 's'}.`
+      + (result.replaced ? ` Replaced ${result.replaced} older incorrect link${result.replaced === 1 ? '' : 's'}.` : '')
+    );
   });
 
   const handleAssignmentChange = (value) => {
@@ -443,7 +524,7 @@ export default function ClassroomManagerV2({
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end', marginTop: 12 }}>
             <div style={{ flex: '1 1 320px' }}>
               <label style={label}>Google Classroom course</label>
-              <select style={input} value={rosterCourseId} onChange={(event) => { setRosterCourseId(event.target.value); setRoster([]); }} disabled={busy}>
+              <select style={input} value={rosterCourseId} onChange={(event) => { setRosterCourseId(event.target.value); setRoster([]); setRosterLinks([]); setManualMatches({}); setIdentityRows([]); setIdentityRejected([]); }} disabled={busy}>
                 <option value="">Choose a course…</option>
                 {courses.map((course) => <option key={course.id} value={course.id}>{courseLabel(course)}</option>)}
               </select>
@@ -454,8 +535,41 @@ export default function ClassroomManagerV2({
             </button>
           </div>
           {rosterCourseId && !rosterMapping && <p style={{ color: '#a50e0e', fontSize: 12 }}>Map this course to a MathMaster class first.</p>}
+          {rosterCourseId && rosterMapping && (
+            <div style={{ marginTop: 12, padding: 12, border: '1px solid #d8dee6', borderRadius: 10, background: '#f8fafc' }}>
+              <strong style={{ fontSize: 13 }}>ID-only students: paste an identity list (optional)</strong>
+              <p style={{ margin: '6px 0 9px', color: '#5f6368', fontSize: 12, lineHeight: 1.45 }}>
+                Google already supplies the name, school email, and Google user ID shown below. If MathMaster only knows district IDs,
+                paste one student per line as <code>ID, Name, Email</code> or <code>ID, Name</code>. You can copy rows from a spreadsheet
+                or have an AI convert a roster picture into that text first. MathMaster only links students after teacher confirmation.
+              </p>
+              <textarea
+                value={identityText}
+                onChange={(event) => setIdentityText(event.target.value)}
+                placeholder={'123456, Jane Doe, jane.doe@district.org\n123457, John Smith'}
+                rows={5}
+                style={{ ...input, resize: 'vertical', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
+              />
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                <button type="button" style={secondary} disabled={busy || !identityText.trim()} onClick={handleApplyIdentityBridge}>Apply ID/name list</button>
+                <button type="button" style={primary} disabled={busy || !matchPlan.some((item) => ['exact-email', 'exact-name'].includes(item.status) && item.suggestedStudent)} onClick={handleLinkSuggested}>Link unique suggestions</button>
+                {(identityRows.length > 0 || identityRejected.length > 0) && (
+                  <button type="button" style={secondary} disabled={busy} onClick={() => { setIdentityText(''); setIdentityRows([]); setIdentityRejected([]); setManualMatches({}); }}>Clear list</button>
+                )}
+              </div>
+              {identityRows.length > 0 && <div style={{ marginTop: 7, color: '#137333', fontSize: 12, fontWeight: 800 }}>{identityRows.length} MathMaster ID{identityRows.length === 1 ? '' : 's'} enriched for matching.</div>}
+              {identityRejected.length > 0 && <div style={{ marginTop: 7, color: '#a50e0e', fontSize: 12 }}>{identityRejected.length} pasted row{identityRejected.length === 1 ? '' : 's'} could not be used for this mapped class.</div>}
+            </div>
+          )}
           {matchPlan.length > 0 && (
-            <div style={{ overflowX: 'auto', marginTop: 12 }}>
+            <>
+              <p style={{ margin: '12px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.45 }}>
+                Confirming a link copies the Google Classroom name and school email onto that MathMaster ID. That identity is then used for teacher/student names and the Google user ID becomes the grade-passback route.
+              </p>
+              <datalist id="mathmaster-roster-id-options">
+                {identityAugmentedStudents.map((student) => <option key={student.id} value={student.id}>{mathMasterStudentLabel(student)} · ID {student.id}</option>)}
+              </datalist>
+              <div style={{ overflowX: 'auto', marginTop: 12 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead><tr style={{ textAlign: 'left', color: '#5f6368' }}>
                   <th style={{ padding: 8 }}>Google Classroom</th><th style={{ padding: 8 }}>MathMaster match</th><th style={{ padding: 8 }}>Match</th><th></th>
@@ -463,28 +577,54 @@ export default function ClassroomManagerV2({
                 <tbody>
                   {matchPlan.map((item) => {
                     const google = item.classroomStudent;
-                    const selected = manualMatches[google.googleUserId] || item.suggestedStudent?.id || '';
+                    const linked = rosterLinkByGoogleUserId.get(String(google.googleUserId));
+                    const selected = manualMatches[google.googleUserId] || linked?.studentId || item.suggestedStudent?.id || '';
+                    const alreadyLinked = Boolean(linked && String(linked.studentId) === String(selected));
                     return (
                       <tr key={google.googleUserId} style={{ borderTop: '1px solid #edf0f2' }}>
-                        <td style={{ padding: 8 }}><strong>{google.name}</strong><div style={{ color: '#5f6368' }}>{google.email}</div></td>
                         <td style={{ padding: 8 }}>
-                          <select style={input} value={selected} onChange={(event) => setManualMatches((current) => ({ ...current, [google.googleUserId]: event.target.value }))}>
-                            <option value="">Choose student…</option>
-                            {classStudents.map((student) => <option key={student.id} value={student.id}>{mathMasterStudentLabel(student)} · ID {student.id}</option>)}
-                          </select>
+                          <strong>{google.name}</strong>
+                          <div style={{ color: '#5f6368' }}>{google.email}</div>
+                          <div style={{ color: '#80868b', fontSize: 11 }}>Google ID {google.googleUserId}</div>
+                        </td>
+                        <td style={{ padding: 8, minWidth: 220 }}>
+                          <input
+                            list="mathmaster-roster-id-options"
+                            style={input}
+                            value={selected}
+                            placeholder="Type MathMaster ID…"
+                            onChange={(event) => setManualMatches((current) => ({ ...current, [google.googleUserId]: event.target.value.trim() }))}
+                          />
+                          <div style={{ marginTop: 4, color: '#5f6368', fontSize: 11 }}>
+                            {selected
+                              ? (identityAugmentedStudents.find((student) => String(student.id) === String(selected))
+                                ? mathMasterStudentLabel(identityAugmentedStudents.find((student) => String(student.id) === String(selected)))
+                                : 'ID must belong to the mapped class')
+                              : 'Type or choose the exact district/MathMaster ID.'}
+                          </div>
                         </td>
                         <td style={{ padding: 8 }}>
-                          <span style={item.status === 'exact-email' ? okPill : item.status === 'exact-name' ? warnPill : item.status === 'ambiguous' ? warnPill : badPill}>
-                            {item.status === 'exact-email' ? 'EXACT EMAIL' : item.status === 'exact-name' ? 'NAME — REVIEW' : item.status === 'ambiguous' ? 'AMBIGUOUS' : 'NO MATCH'}
+                          <span style={alreadyLinked ? okPill : item.status === 'exact-email' ? okPill : item.status === 'exact-name' ? warnPill : item.status === 'ambiguous' ? warnPill : badPill}>
+                            {alreadyLinked ? 'LINKED' : item.status === 'exact-email' ? 'EXACT EMAIL' : item.status === 'exact-name' ? 'NAME — REVIEW' : item.status === 'ambiguous' ? 'AMBIGUOUS' : 'NO MATCH'}
                           </span>
+                          {linked && <div style={{ marginTop: 4, color: '#5f6368', fontSize: 11 }}>Current ID {linked.studentId}</div>}
                         </td>
-                        <td style={{ padding: 8 }}><button style={secondary} disabled={busy || !selected} onClick={() => handleLinkOne(item)}>Confirm link</button></td>
+                        <td style={{ padding: 8 }}>
+                          <button
+                            style={secondary}
+                            disabled={busy || !selected || alreadyLinked}
+                            onClick={() => handleLinkOne(item)}
+                          >
+                            {linked && !alreadyLinked ? 'Change link' : alreadyLinked ? 'Linked' : 'Confirm link'}
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-            </div>
+              </div>
+            </>
           )}
         </section>
       )}
