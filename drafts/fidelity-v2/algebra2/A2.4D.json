@@ -294,7 +294,7 @@
         "After converting form, use the sign of a to decide whether k is a minimum or maximum."
       ],
       "supportHints": [
-        "Negative a means downward opening and y-values at or below the vertex height."
+        "Use the sign of the leading coefficient to decide whether the vertex is an upper or lower extreme, then translate that extreme into a range inequality."
       ],
       "generator": {
         "parameters": {
@@ -422,7 +422,7 @@
         "Do not identify the vertex directly from b and c; first perform the standard-to-vertex transformation."
       ],
       "supportHints": [
-        "The sign of a determines whether the vertex is a minimum or maximum."
+        "After writing vertex form, use the leading coefficient and nearby y-values to decide which kind of extreme the vertex represents."
       ],
       "generator": {
         "parameters": {
