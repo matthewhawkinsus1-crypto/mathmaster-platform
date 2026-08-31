@@ -59,3 +59,18 @@ test('editing Dates & Classes publishes newly added Classroom destinations befor
   assert.ok(publishAt >= 0, 'newly assigned classes must be published');
   assert.ok(updateAt > publishAt, 'existing Classroom posts should be due-date synced after missing posts are created');
 });
+
+
+test('adding a new Standard or Honors destination reuses the assignment instead of requiring manual duplication', () => {
+  const app = fs.readFileSync('src/App.jsx', 'utf8');
+  const start = app.indexOf('if (changesDestination)');
+  const end = app.indexOf('const hasDOL', start);
+  const block = app.slice(start, end);
+
+  assert.match(block, /addedClassIds/);
+  assert.match(block, /keptEveryOriginalClass/);
+  assert.match(block, /openStoredAssignmentForPreflight\(assignment/);
+  assert.match(block, /assignedClassIds:\s*addedClassIds/);
+  assert.match(block, /existing class assignment stays unchanged/i);
+  assert.doesNotMatch(block, /Duplicate it to the library/);
+});
