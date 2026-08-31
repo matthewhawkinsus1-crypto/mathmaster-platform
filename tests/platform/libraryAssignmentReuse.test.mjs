@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
+import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { getStoredAssignmentQuestions, storedAssignmentToV5 } from '../../src/platform/contract/storedAssignmentV5.js';
 import {
@@ -198,4 +199,25 @@ test('stored reuse recovers Classroom post details and authored note sections ke
   assert.equal(reusable.outputProfiles.lessonNotesPdf.sections.length, 1);
   assert.equal(reusable.outputProfiles.lessonNotesPdf.sections[0].heading, 'Quantity roles');
   assert.equal(reusable.outputProfiles.lessonNotesPdf.asset, undefined, 'delivery-specific generated PDF assets are not copied into a new class delivery');
+});
+
+
+test('MathMaster portable self-export re-import keeps the exact composed workflow contract', () => {
+  const library = buildCanonicalLibraryLesson();
+  const sourceQuestion = getStoredAssignmentQuestions(library)[0];
+  const portable = {
+    ...storedAssignmentToV5(library, { resetAssignmentKey: true }),
+    portableContract: {
+      kind: 'mathmasterCanonicalAssignmentV5',
+      version: 1,
+    },
+  };
+
+  const imported = parseAssignmentBlueprintText(JSON.stringify(portable));
+  const importedQuestion = imported.questions[0];
+  assert.equal(importedQuestion.type, 'functionGraph');
+  assert.deepEqual(importedQuestion.workflow, sourceQuestion.workflow);
+  assert.deepEqual(importedQuestion.grading, sourceQuestion.grading);
+  assert.equal(importedQuestion.studentChoosesX, undefined);
+  assert.ok(imported.repairs.some((message) => /preserved MathMaster canonical V5 renderer contracts/i.test(message)));
 });
