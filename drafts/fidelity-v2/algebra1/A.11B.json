@@ -469,7 +469,7 @@
             "Apply the product-of-powers law before simplifying the fraction in the exponent."
           ],
           "supportHints": [
-            "The denominator stays {{q}} when fractions already have the same denominator."
+            "Because the two rational exponents already share a denominator, combine their numerators first and reduce the resulting exponent afterward."
           ]
         }
       ]
