@@ -44,6 +44,7 @@ const COURSES = [
     expectedStandards: 49,
     expectedDocuments: 245,
     seedName: 'algebra1_pathQuestionBank_seed.json',
+    compatibilityDraft: 'algebra1.json',
   },
   {
     courseId: 'algebra2',
@@ -52,6 +53,7 @@ const COURSES = [
     expectedStandards: 48,
     expectedDocuments: 240,
     seedName: 'algebra2_pathQuestionBank_seed.json',
+    compatibilityDraft: 'algebra2.json',
   },
 ];
 
@@ -164,6 +166,12 @@ for (const course of COURSES) {
     documents,
   };
   const rendered = `${JSON.stringify(payload, null, 2)}\n`;
+  // drafts/algebra{1,2}.json predate the per-standard Fidelity V2 packages.
+  // Keep them only as generated compatibility mirrors so older diagnostics and
+  // scripts cannot disagree with the certified source of truth.
+  const compatibilityPayload = { documents };
+  const compatibilityRendered = `${JSON.stringify(compatibilityPayload, null, 2)}\n`;
+  const compatibilityPath = path.join(root, 'drafts', course.compatibilityDraft);
 
   const mirrors = [
     path.join(root, 'seed', 'pathQuestionBank', course.seedName),
@@ -171,6 +179,14 @@ for (const course of COURSES) {
   ];
 
   if (checkOnly) {
+    const compatibility = parse(compatibilityPath);
+    if (JSON.stringify(compatibility.documents || []) !== JSON.stringify(documents)) {
+      drift += 1;
+      console.error(`✗ ${path.relative(root, compatibilityPath)} drifts from certified Fidelity V2 source`);
+    } else {
+      console.log(`✓ ${path.relative(root, compatibilityPath)} matches certified Fidelity V2 source`);
+    }
+
     for (const mirror of mirrors) {
       const current = parse(mirror);
       const sameDocuments = JSON.stringify(current.documents || []) === JSON.stringify(documents);
@@ -183,6 +199,8 @@ for (const course of COURSES) {
       }
     }
   } else {
+    writeFileSync(compatibilityPath, compatibilityRendered);
+    console.log(`Wrote ${path.relative(root, compatibilityPath)} compatibility mirror`);
     for (const mirror of mirrors) {
       writeFileSync(mirror, rendered);
       console.log(`Wrote ${path.relative(root, mirror)}`);
