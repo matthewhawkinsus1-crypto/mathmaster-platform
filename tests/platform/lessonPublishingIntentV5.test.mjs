@@ -12,7 +12,7 @@ test('folder hierarchy becomes a reusable Classroom topic, not a course id', () 
   assert.equal(topicNameFromFolder('Algebra II/Module 1/Transformations/Lesson 3'), 'Module 1 • Transformations');
 });
 
-test('AI notes normalize to a one or two page student handout and never expose an answer key', () => {
+test('notes normalization remains backward-compatible while publishing requires two pages', () => {
   const notes = normalizeNotesPdfIntent({
     targetPages: 1,
     includeAnswerKey: true,
@@ -32,7 +32,7 @@ test('missing lesson-note content stays disabled instead of creating a blank Cla
   const validation = validateLessonPublishingIntent({
     lessonResources: { notesPdf: { ...notes, enabled: true } },
   });
-  assert.ok(validation.errors.some((message) => /no authored sections/i.test(message)));
+  assert.ok(validation.errors.some((message) => /at least two authored content sections/i.test(message)));
 });
 
 test('Classroom intent defaults to a separate material post and finalized grade passback', () => {
@@ -66,12 +66,27 @@ test('complete V5 publishing intent carries AI classroom metadata and notes into
   assert.equal(result.classroomPackage.additionalLinks.length, 1);
 });
 
-test('notes validator warns when authored content is too long for its requested page target', () => {
-  const long = Array.from({ length: 400 }, (_, i) => `word${i}`).join(' ');
-  const result = validateLessonPublishingIntent({
+test('notes validator requires two pages, a learning goal, and at least two content sections', () => {
+  const incomplete = validateLessonPublishingIntent({
     classroomPackage: { enabled: true, topic: { name: 'Module 1' } },
-    lessonResources: { notesPdf: { enabled: true, targetPages: 1, sections: [{ content: [long] }] } },
+    lessonResources: { notesPdf: { enabled: true, targetPages: 1, sections: [{ content: ['Short notes'] }] } },
   });
-  assert.equal(result.errors.length, 0);
-  assert.ok(result.warnings.some((warning) => /shorten/i.test(warning)));
+  assert.ok(incomplete.errors.some((message) => /target 2 pages/i.test(message)));
+  assert.ok(incomplete.errors.some((message) => /learning goal/i.test(message)));
+  assert.ok(incomplete.errors.some((message) => /at least two authored content sections/i.test(message)));
+
+  const long = Array.from({ length: 800 }, (_, i) => `word${i}`).join(' ');
+  const complete = validateLessonPublishingIntent({
+    classroomPackage: { enabled: true, topic: { name: 'Module 1' } },
+    lessonResources: {
+      notesPdf: {
+        enabled: true,
+        targetPages: 2,
+        learningGoal: 'Interpret transformations.',
+        sections: [{ heading: 'Key ideas', content: [long] }, { heading: 'Reference', bullets: ['Check the parent function first.'] }],
+      },
+    },
+  });
+  assert.equal(complete.errors.length, 0);
+  assert.ok(complete.warnings.some((warning) => /shorten/i.test(warning)));
 });
