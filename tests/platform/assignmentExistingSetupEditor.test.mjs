@@ -8,7 +8,10 @@ const modal = fs.readFileSync('src/components/teacher/LessonPreflightModal.jsx',
 test('assignment menu exposes one no-code setup editor', () => {
   assert.match(app, /Review \/ Edit Setup/);
   assert.match(app, /beginEditAssignmentSetup\(assignment\)/);
-  assert.match(app, /storedAssignmentToV5\(assignment\)/);
+  assert.match(app, /prepareStoredAssignmentForReuse\(assignment, \{ resetAssignmentKey: false \}\)/);
+  const start = app.indexOf('const beginEditAssignmentSetup');
+  const end = app.indexOf('const beginEditAssignmentDates', start);
+  assert.doesNotMatch(app.slice(start, end), /readAssignmentJson\(/);
   assert.match(app, /mode:\s*'update'[\s\S]{0,220}existingAssignmentId:\s*assignment\.id/);
 });
 
