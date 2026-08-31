@@ -225,7 +225,7 @@
         "Account for the negative leading coefficient before choosing inside versus outside."
       ],
       "supportHints": [
-        "Determine the opening from the leading coefficient, then test the sign of the expression in the intervals created by the two zeros."
+        "Use the sign of the leading coefficient to decide on which side of the roots the expression is positive."
       ],
       "generator": {
         "parameters": {
@@ -308,7 +308,7 @@
             "Find the zeros first; then use the opening direction to choose the positive interval."
           ],
           "supportHints": [
-            "Use the leading coefficient and a test point between the zeros to determine where the quadratic is positive."
+            "Use the leading coefficient and the two boundary roots to determine where the expression has the required sign."
           ],
           "generator": {
             "parameters": {
@@ -676,7 +676,7 @@
             "Repair the endpoint reasoning and the final interval notation."
           ],
           "supportHints": [
-            "Evaluate the original expression at each boundary, then use the inequality symbol to decide whether those boundary points belong in the solution set."
+            "Evaluate the original inequality at each boundary value and decide whether equality is allowed there."
           ],
           "generator": {
             "parameters": {
