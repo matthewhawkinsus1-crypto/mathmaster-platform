@@ -24,9 +24,21 @@ test('AI notes normalize to a one or two page student handout and never expose a
   assert.match(notes.fileName, /\.pdf$/i);
 });
 
+test('missing lesson-note content stays disabled instead of creating a blank Classroom handout', () => {
+  const notes = normalizeNotesPdfIntent({}, { title: 'Transformations' });
+  assert.equal(notes.enabled, false);
+  assert.equal(notes.sections.length, 0);
+
+  const validation = validateLessonPublishingIntent({
+    lessonResources: { notesPdf: { ...notes, enabled: true } },
+  });
+  assert.ok(validation.errors.some((message) => /no authored sections/i.test(message)));
+});
+
 test('Classroom intent defaults to a separate material post and finalized grade passback', () => {
   const classroom = normalizeClassroomIntent({}, { title: 'Linear Functions', folder: 'Algebra I/Module 2/Linear Functions' }, { enabled: true });
   assert.equal(classroom.resourcesPost.postingMode, 'separateMaterial');
+  assert.equal(classroom.resourcesPost.enabled, true);
   assert.equal(classroom.gradePassback.enabled, true);
   assert.equal(classroom.gradePassback.when, 'finalized');
   assert.equal(classroom.topic.name, 'Module 2 • Linear Functions');
