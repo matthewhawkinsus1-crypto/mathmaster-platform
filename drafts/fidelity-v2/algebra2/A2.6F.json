@@ -83,6 +83,15 @@
           "left": "h-s",
           "right": "h+s"
         }
+      },
+      "solutionReview": {
+        "headline": "Dividing by a negative reverses the inequality before the absolute-value rule is applied.",
+        "reasoning": [
+          "After moving {{k}} and dividing by the negative outside coefficient, the inequality becomes $|{{m}}x{{b|signed}}|\\le {{D}}$.",
+          "A less-than-or-equal absolute-value inequality means the inside stays between -{{D}} and {{D}}.",
+          "Solving those bounds gives the closed interval $[{{left}},{{right}}]$."
+        ],
+        "answerSummary": "$[{{left}},{{right}}]$."
       }
     },
     {
@@ -320,7 +329,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "Greater-than absolute-value inequalities describe points outside two boundaries.",
+        "reasoning": [
+          "Isolation gives $|{{m}}x{{b|signed}}|>{{D}}$.",
+          "Being more than {{D}} units from the center means $x<{{left}}$ OR $x>{{right}}$.",
+          "Because the inequality is strict, both interval endpoints are open."
+        ],
+        "answerSummary": "$(-\\infty,{{left}})\\cup({{right}},\\infty)$."
+      }
     },
     {
       "id": "mm_A2_6F_v2_negative-bound-contrast",
@@ -417,6 +435,14 @@
             "max": 8
           }
         }
+      },
+      "solutionReview": {
+        "headline": "Use the nonnegative nature of absolute value before doing algebra.",
+        "reasoning": [
+          "An absolute value can never be less than a negative number, so the '< negative' inequality has no real solutions.",
+          "An absolute value is always greater than any strictly negative number, so the '> negative' inequality is true for every real x."
+        ],
+        "answerSummary": "First inequality: no real solutions. Second inequality: $(-\\infty,\\infty)$."
       }
     },
     {
@@ -493,6 +519,15 @@
           "early": "h-s",
           "late": "h+s"
         }
+      },
+      "solutionReview": {
+        "headline": "Within a tolerance means an absolute deviation no larger than that tolerance.",
+        "reasoning": [
+          "Subtract the target from the reading to get the deviation ${{m}}t{{inside|signed}}$.",
+          "The condition 'within {{tol}} units' becomes $|{{m}}t{{inside|signed}}|\\le {{tol}}$.",
+          "The resulting compound inequality keeps t between {{early}} and {{late}}, inclusive."
+        ],
+        "answerSummary": "Acceptable interval $[{{early}},{{late}}]$."
       }
     },
     {
@@ -657,7 +692,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "Greater than an absolute distance uses OR, not AND.",
+        "reasoning": [
+          "$|{{m}}x{{b|signed}}|>{{D}}$ asks for points farther than the boundary distance from the center.",
+          "Those points lie outside the two boundary values, so the branches are $x<{{left}}$ OR $x>{{right}}$.",
+          "The corrected union is $(-\\infty,{{left}})\\cup({{right}},\\infty)$."
+        ],
+        "answerSummary": "$x<{{left}}$ or $x>{{right}}$."
+      }
     }
   ]
 }
