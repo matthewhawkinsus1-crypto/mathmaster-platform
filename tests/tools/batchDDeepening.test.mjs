@@ -59,7 +59,9 @@ test('transformation descriptors distinguish reflection, scale, and translation 
   });
   const score = transformationParameterScore({ a: -2, h: 1, k: 0 }, { a: -2, h: 1, k: 3 });
   assert.equal(score.isCorrect, false);
-  assert.equal(score.score, 2 / 3);
+  // Horizontal scale/reflection is now an independent transformation axis,
+  // so this response gets three of the four parameter groups correct.
+  assert.equal(score.score, 3 / 4);
 });
 
 test('transformation anchors are family-specific and preserve rational structural center semantics', () => {
