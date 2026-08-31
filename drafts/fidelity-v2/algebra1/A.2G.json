@@ -438,7 +438,7 @@
         "Check whether the unchanging coordinate causes the numerator or denominator of rise/run to be zero."
       ],
       "supportHints": [
-        "Zero rise gives slope 0; zero run gives undefined slope."
+        "Compare the vertical change and horizontal change, then decide which one becomes the denominator of the slope ratio."
       ],
       "generator": {
         "parameters": {
@@ -531,7 +531,7 @@
             "For slope, ask whether the horizontal change Δx is zero or the vertical change Δy is zero."
           ],
           "supportHints": [
-            "A vertical line has Δx=0, so its slope denominator is zero."
+            "For each line, compare which coordinate changes and which coordinate stays fixed before classifying the slope."
           ],
           "generator": {
             "parameters": {
