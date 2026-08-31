@@ -146,7 +146,15 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "A positive absolute-value equation splits into two linear cases.",
+        "reasoning": [
+          "$|x-{{h}}|={{d}}$ means the inside expression can equal {{d}} or -{{d}}.",
+          "Solving $x-{{h}}={{d}}$ and $x-{{h}}=-{{d}}$ gives the two symmetric solutions {{right}} and {{left}}."
+        ],
+        "answerSummary": "Cases $x-{{h}}={{d}}$ and $x-{{h}}=-{{d}}$; solutions {{left}} and {{right}}."
+      }
     },
     {
       "id": "mm_A2_6E_v2_scaled-linear-inside",
@@ -337,7 +345,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "Isolate the absolute value before splitting into cases.",
+        "reasoning": [
+          "Undo the outside addition and multiplication first to obtain $|{{m}}x{{b|signed}}|={{D}}$.",
+          "Because {{D}} is positive, use the two cases ${{m}}x{{b|signed}}={{D}}$ and ${{m}}x{{b|signed}}=-{{D}}$.",
+          "Solving the two linear equations gives {{left}} and {{right}}."
+        ],
+        "answerSummary": "$|{{m}}x{{b|signed}}|={{D}}$; solutions {{left}} and {{right}}."
+      }
     },
     {
       "id": "mm_A2_6E_v2_zero-distance-one-solution",
@@ -443,6 +460,15 @@
         "derived": {
           "b": "-m*h"
         }
+      },
+      "solutionReview": {
+        "headline": "Absolute value equals zero only when its inside is zero.",
+        "reasoning": [
+          "After isolation the equation is $|{{m}}x{{b|signed}}|=0$.",
+          "An absolute value is zero only at zero, so the single remaining equation is ${{m}}x{{b|signed}}=0$.",
+          "That equation gives the one real solution $x={{h}}$."
+        ],
+        "answerSummary": "One real solution: $x={{h}}$."
       }
     },
     {
@@ -533,6 +559,15 @@
           "early": "h-s",
           "late": "h+s"
         }
+      },
+      "solutionReview": {
+        "headline": "The absolute-value model reaches a positive target on two sides of its center.",
+        "reasoning": [
+          "Isolating the absolute value gives $|{{m}}t{{b|signed}}|={{D}}$.",
+          "Split into ${{m}}t{{b|signed}}={{D}}$ and ${{m}}t{{b|signed}}=-{{D}}$.",
+          "The two solutions are times {{early}} and {{late}}, both of which satisfy the original reading target."
+        ],
+        "answerSummary": "Earlier time {{early}}; later time {{late}}."
       }
     },
     {
@@ -632,6 +667,15 @@
         "derived": {
           "y": "k-a*d"
         }
+      },
+      "solutionReview": {
+        "headline": "An absolute value cannot equal a negative number.",
+        "reasoning": [
+          "The correct isolated equation is $|{{m}}x{{b|signed}}|=-{{d}}$.",
+          "Every absolute value is at least zero, while -{{d}} is negative.",
+          "Therefore splitting into two linear cases would be invalid and the real solution set is empty."
+        ],
+        "answerSummary": "No real solutions."
       }
     }
   ]
