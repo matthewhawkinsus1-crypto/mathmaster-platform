@@ -3324,6 +3324,36 @@ exports.saveClassroomCourseMapping = onCall(async (request) => {
   return { saved: true, mappingId: id };
 });
 
+exports.listClassroomRosterLinks = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const courseId = String(request.data?.courseId || "").trim();
+  if (!courseId) throw new HttpsError("invalid-argument", "courseId is required.");
+
+  // Query by teacher only so this does not require a fragile composite index.
+  // A teacher has a small bounded set of roster links; course scoping happens
+  // in memory and the client receives only the selected course.
+  const snapshot = await getFirestore()
+    .collection("classroomRosterLinks")
+    .where("teacherUid", "==", teacherUid)
+    .limit(1000)
+    .get();
+
+  return {
+    links: snapshot.docs
+      .map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
+      .filter((entry) => String(entry.courseId || "") === courseId)
+      .map((entry) => ({
+        rosterLinkId: entry.rosterLinkId || entry.id,
+        courseId,
+        classId: entry.classId || null,
+        studentId: entry.studentId || null,
+        googleUserId: entry.googleUserId || null,
+        email: entry.email || null,
+        name: entry.name || null,
+      })),
+  };
+});
+
 exports.linkStudentToClassroom = onCall(async (request) => {
   const teacherUid = await requireTeacher(request);
   const { courseId, studentId, googleUserId, email, name, classId } = request.data || {};
@@ -3431,7 +3461,62 @@ exports.linkClassroomRosterBatch = onCall(async (request) => {
     });
   }
 
+  // One Google student can own only one MathMaster ID inside one Classroom
+  // course. Read the teacher's existing links once so a teacher correction can
+  // atomically replace a mistaken link instead of creating two grade-passback
+  // routes for the same child.
+  const existingSnapshot = await db
+    .collection("classroomRosterLinks")
+    .where("teacherUid", "==", teacherUid)
+    .limit(1000)
+    .get();
+  const existingLinks = existingSnapshot.docs.map((doc) => ({
+    ref: doc.ref,
+    id: doc.id,
+    ...(doc.data() || {}),
+  }));
+
+  const linksBeingReplaced = new Map();
+  prepared.forEach((item) => {
+    existingLinks
+      .filter((entry) => (
+        String(entry.courseId || "") === cleanCourseId
+        && String(entry.googleUserId || "") === item.googleUserId
+        && String(entry.studentId || "") !== item.studentId
+      ))
+      .forEach((entry) => linksBeingReplaced.set(entry.id, entry));
+  });
+
   const batch = db.batch();
+  for (const replaced of linksBeingReplaced.values()) {
+    batch.delete(replaced.ref);
+  }
+
+  // Remove the course from any old MathMaster owner. If that old ID has no
+  // other Classroom link after this replacement, also clear the copied Google
+  // identity so the wrong student's name can never remain on the account.
+  const oldStudentIds = [...new Set(
+    [...linksBeingReplaced.values()].map((entry) => String(entry.studentId || "")).filter(Boolean)
+  )];
+  for (const oldStudentId of oldStudentIds) {
+    const hasRemainingLink = existingLinks.some((entry) => (
+      String(entry.studentId || "") === oldStudentId
+      && !linksBeingReplaced.has(entry.id)
+    ));
+    batch.set(
+      db.doc(`grades/${oldStudentId}`),
+      {
+        classroomCourseIds: FieldValue.arrayRemove(cleanCourseId),
+        ...(hasRemainingLink ? {} : {
+          googleUserId: FieldValue.delete(),
+          googleEmail: FieldValue.delete(),
+          googleName: FieldValue.delete(),
+        }),
+      },
+      { merge: true }
+    );
+  }
+
   for (const item of prepared) {
     const rosterLinkId = rosterLinkDocumentId(cleanCourseId, item.studentId);
     batch.set(
@@ -3460,8 +3545,8 @@ exports.linkClassroomRosterBatch = onCall(async (request) => {
       { merge: true }
     );
   }
-  if (prepared.length) await batch.commit();
-  return { linked: prepared.length };
+  if (prepared.length || linksBeingReplaced.size) await batch.commit();
+  return { linked: prepared.length, replaced: linksBeingReplaced.size };
 });
 
 exports.ensureClassroomTopics = onCall(
