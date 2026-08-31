@@ -4697,8 +4697,14 @@ function App() {
     }
   };
 
-  const buildPortableAssignmentPackage = (assignment) => storedAssignmentToV5(assignment, {
-    resetAssignmentKey: true,
+  const buildPortableAssignmentPackage = (assignment) => ({
+    ...storedAssignmentToV5(assignment, {
+      resetAssignmentKey: true,
+    }),
+    portableContract: {
+      kind: 'mathmasterCanonicalAssignmentV5',
+      version: 1,
+    },
   });
 
   const renderExportJsonDialog = () => {
