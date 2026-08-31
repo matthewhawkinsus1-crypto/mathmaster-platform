@@ -300,3 +300,33 @@ Do not reopen certified Algebra I/II content. The remaining audit should validat
 6. final branch/merge cleanliness and deployment-scope review.
 
 Only after that cross-system gate is green should the branch be prepared for merge/deployment and the built-in production Path bank refreshed once.
+
+
+## 2026-08-30 — final preproduction audit: Algebra release authority unified
+
+The expanded full-platform gate exposed a historical split in Algebra I release authority:
+- the certified cross-course builder used `drafts/fidelity-v2/algebra1/*.json` and `drafts/fidelity-v2/algebra2/*.json`;
+- an older Algebra I builder and parity test still treated `drafts/algebra1.json` as an authoring source;
+- the generic `scripts/build-path-bank.mjs` still retained the ability to compile legacy Algebra authoring modules over the certified shipping banks.
+
+The shipping seeds were NOT rolled back. Inspection showed the shipping Algebra I seed already contained the newer V2 families while the aggregate draft contained legacy `gen*` families.
+
+Repairs:
+- `11239357b26a6fb6510a99b95fac4296a67b90b4` — certified cross-course builder now generates `drafts/algebra1.json` and `drafts/algebra2.json` as compatibility mirrors in addition to both shipping seed mirrors.
+- `8668a436f851b0f13609974617a829f6798e5513` — promotion workflow includes the generated compatibility drafts in its atomic release commit.
+- `e087d4d781465fa0cd4918e976c7be94fbb10184` — old Algebra-I-only build command delegates to the certified cross-course builder instead of compiling from `drafts/algebra1.json`.
+- `8c6f3f9bc1dc1436d801ca6ecb91a71d0ea4bf20` — generic Path builder explicitly protects Algebra I and Algebra II from legacy overwrite and uses current certified Algebra seed documents when rebuilding its coverage manifest.
+- `4626e1a184a363fdcc6a50c16135744f58284895` — Algebra I source-parity test now reads the 49 certified per-standard packages directly and treats `drafts/algebra1.json` only as a generated compatibility mirror.
+- `71e83eb7da9880a4c232c143ef8b30168287ba53` — promotion workflow is concurrency-safe and rebases generated changes onto the current audit branch before push.
+- `0ec0c2804987e53f311889e398d5f7d34e0f6bdf` — release-authority audit now covers both Algebra I and Algebra II and fails if compatibility drafts, web seed, Functions seed, or builder authority diverge.
+- `41d5dce51613c260136cdcb983b3c90ad1f4b839` — strict release-authority audit added to the final full-platform gate.
+
+Promotion run `33344256502`: **PASS**.
+Generated compatibility/seed commit: `d5c03626e4573b12a1f99f576041cf8a62c3ec78`.
+
+Post-promotion verification:
+- `drafts/algebra1.json`: 245 certified V2 families; starts with `mm_A_2A_v2_*`.
+- `drafts/algebra2.json`: 240 certified V2 families; starts with `mm_A2_2A_v2_*`.
+- certified adaptive metadata, Challenge quality, runtime targeting, and seed build/parity all passed during promotion.
+
+The next required evidence is one complete expanded Full Platform Test Suite run on a commit that includes `d5c03626`.
