@@ -51,7 +51,7 @@ export const defaultAssignmentCreatorPlan = (courseId = 'algebra1') => ({
     studentWorksheetPdf: false,
     teacherWorksheetPdf: false,
     answerKeyPdf: false,
-    lessonNotesPdf: false,
+    lessonNotesPdf: true,
   },
   teacherNotes: '',
 });
@@ -131,6 +131,7 @@ export const buildAssignmentCreatorRequest = (input = {}, { generatedAt = new Da
     `- Teacher copy PDF with answers/available solutions: ${plan.outputs.teacherWorksheetPdf ? 'enabled' : 'disabled'}.`,
     `- Compact answer-key PDF: ${plan.outputs.answerKeyPdf ? 'enabled' : 'disabled'}.`,
     `- Separate lesson-notes PDF: ${plan.outputs.lessonNotesPdf ? 'enabled' : 'disabled'}.`,
+    ...(plan.outputs.lessonNotesPdf ? ['- When lesson notes are enabled, author substantive student-facing notes now. Include a learning goal and at least two content-bearing sections; never return an enabled notes PDF with an empty sections array.'] : []),
   ];
 
   return [
@@ -160,6 +161,7 @@ export const buildAssignmentCreatorRequest = (input = {}, { generatedAt = new Da
     '## Required quality decisions',
     '- Treat the section counts as targets, not a reason to split one rich composed task into artificial fragments.',
     '- Classwork should support instruction; Practice should preserve lesson rigor with less scaffolding.',
+    '- DOLs are quick foundational checks, not mini-quizzes: keep the DOL to 1–2 short independent items that a prepared student can finish in about 5–7 minutes. Prefer DOK 1–2 essential-skill evidence; do not use extended investigations, multi-stage modeling, direct CCMR/test-prep transfer, or long written justification in a lesson DOL. Put richer assessment work in Quiz.',
     '- Use the source-appropriate representation (graph/table/mapping/number line/modeling workspace) rather than flattening rich tasks into generic text entry.',
     '- Do not add a mapping diagram unless building/reading a mapping is actually part of the student task; ordered pairs plotted on a coordinate plane do not automatically require a mapping.',
     '- Never state a family or discrete/continuous classification in the givens when the student is supposed to determine that classification.',
