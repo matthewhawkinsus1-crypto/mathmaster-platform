@@ -240,7 +240,7 @@
         "If the first differences change, compare how those first differences change."
       ],
       "supportHints": [
-        "Compute first differences in order; if they do not stabilize, compare the differences of those differences and classify from the first level that does stabilize."
+        "For equally spaced inputs, compare first differences and then compare the differences of those differences."
       ],
       "generator": {
         "parameters": {
@@ -297,7 +297,7 @@
         "A decreasing data set can still be exponential; calculate the ratios rather than classifying from direction alone."
       ],
       "supportHints": [
-        "For equal x-steps, compare each output to the previous output and determine whether the same multiplicative change persists."
+        "For equally spaced inputs, compare multiplicative ratios between consecutive outputs rather than additive changes."
       ],
       "variants": [
         {
@@ -772,7 +772,7 @@
         "Compute the change pattern rather than classifying from 'increasing' alone."
       ],
       "supportHints": [
-        "Increasing values alone are not enough to classify a model; compute first and second differences and classify from the change pattern that stabilizes."
+        "Check whether first differences are constant; if not, compare the differences of those differences before choosing a model type."
       ],
       "generator": {
         "parameters": {
