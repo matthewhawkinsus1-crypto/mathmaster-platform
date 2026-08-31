@@ -643,6 +643,7 @@ export const LessonPreflightModal = ({
         : 'Return one JSON object with ONLY lessonNotesPdf and classroomIntegration. Do not return questions.',
       'Do not rewrite, reorder, add, remove, or reinterpret any assignment question.',
       'The student notes must be useful before/during the lesson, not an answer key for this assignment.',
+      'REQUIRED OUTPUT CONTRACT: lessonNotesPdf.enabled=true; targetPages=2; learningGoal required; at least two content-bearing sections.',
       'Set lessonNotesPdf.enabled true and targetPages 2.',
       'Include a clear learningGoal and at least two content-bearing sections. Prefer 3–4 concise sections when the topic needs it.',
       'Include key ideas/vocabulary and at least one general worked example or reference pattern when mathematically appropriate.',
