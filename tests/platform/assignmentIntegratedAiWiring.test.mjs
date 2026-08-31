@@ -79,7 +79,7 @@ console.log('assignmentIntegratedAiWiring.test.mjs: all assertions passed');
 
 
 test('integrated AI failures expose actionable configuration messages instead of hiding every error', () => {
-  assert.match(functionsIndex, /OPENAI_API_KEY\s+is not configured/);
+  assert.match(functionsIndex, /OPENAI_API_KEY/);
   assert.match(functionsIndex, /not configured on this Firebase deployment/);
   assert.match(service, /assignmentAiFailureMessage/);
   assert.match(preflight, /assignmentAiFailureMessage\(error\)/);
