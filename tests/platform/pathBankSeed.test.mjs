@@ -365,16 +365,14 @@ test('nothing a student receives carries the answer', () => {
   });
 });
 
-// Counted from the current CCMR V2.1 production release.
-// ASVAB direct and Challenge tiers are both authored per subtest. A2.6L is
-// assessed in both ASVAB subtests, so it legitimately carries two complete
-// direct/challenge sets rather than a one-sided parity exception.
 const ASSESSMENT_BANK_EXPECTATIONS = Object.freeze({
   digitalSAT: { documents: 664, direct: 415, challenge: 249, standards: 110 },
   act: { documents: 136, direct: 85, challenge: 51, standards: 225 },
   tsia2: { documents: 200, direct: 125, challenge: 75, standards: 224 },
-  // 147 standard-subtest pairs: 147 x 5 direct and 147 x 3 Challenge.
-  // A2.6L is assessed in both ASVAB subtests and is authored separately in each.
+  // Both tiers are authored per subtest across 147 standard-subtest pairs:
+  // 147 x 5 direct and 147 x 3 challenge. A2.6L is assessed in both ASVAB
+  // subtests and is authored separately in each, which is why the counts are
+  // 735 and 441 rather than 146 x 5 and 146 x 3.
   asvab: { documents: 1176, direct: 735, challenge: 441, standards: 146 },
 });
 
