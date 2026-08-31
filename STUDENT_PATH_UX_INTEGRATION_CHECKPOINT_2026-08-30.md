@@ -330,3 +330,60 @@ Post-promotion verification:
 - certified adaptive metadata, Challenge quality, runtime targeting, and seed build/parity all passed during promotion.
 
 The next required evidence is one complete expanded Full Platform Test Suite run on a commit that includes `d5c03626`.
+
+
+## 2026-08-30 — expanded full-suite regression repairs
+
+Expanded Full Platform Test Suite run `33344324191` reached 2,925 platform subtests and exposed eight failures. The failures separated into three categories.
+
+### 1. Real session-family repeat defect — repaired
+
+The selector ranked exact quality tier before unused-family status. This allowed a used Production family to repeat while an unused Candidate family still existed.
+
+Repairs:
+- `5fd28e171ccd1e2696f762cc67790887b5deb98c` — Production and Candidate are treated as one teachable safety tier for no-repeat purposes; unused teachable families now beat repeats. Operational placeholders and Blocked items still stay behind polished repeats.
+- `d3a047ae76d5ad98a6e1eee8854a15f2a379f985` — direct regressions certify both boundaries.
+
+Expected student behavior:
+- exhaust five real teachable families before repeating;
+- never choose a placeholder merely to avoid a repeat.
+
+### 2. Raw-family-shell tests were inspecting the wrong object — repaired
+
+Three failures came from tests inspecting raw family shells even though production issues effective variants:
+- A2.7F variant-only response fields;
+- A2.2C response-field-local choice options;
+- A2.2A logarithm variants supplying the generator that resolves base placeholders.
+
+Repairs:
+- `81a6f43634a0a4f1b09222e27a065e821e0f96ec` — secure-grading audit inspects the concrete issued question and recognizes response-field-local choice options.
+- `e04eed16757c770ca8483cf06733234bda511f1e` — renderability audit checks every effective variant using production family/variant merge semantics.
+- `943435e45497f8daf8092dc410320d7567febc34` — obsolete pre-promotion “V2 ids must not already be published” assertion replaced with V2 identity/uniqueness certification.
+
+### 3. Eleven Algebra II Band-5 labels contradicted the locked adaptive architecture — normalized
+
+The locked Path architecture is:
+- preferred cells: 2/2, 2/3, 2/4, 3/3, 3/4;
+- Challenge/Extension endpoint: DOK 3 / Band 4.
+
+The full-suite ceiling tests correctly found 11 certified Algebra II base families at Band 5, plus four explicit Band-5 variants. These were out-of-policy difficulty labels, not a new target architecture.
+
+Normalized to Band 4 without changing prompts, answers, generators, DOK, task type, representations, or assessed mathematics:
+- A2.2B, A2.2D;
+- A2.4C, A2.4D, A2.4E, A2.4G;
+- A2.5A, A2.5E;
+- A2.6A, A2.6C, A2.6G.
+
+Post-normalization evidence:
+- Algebra I II Challenge DOK Difficulty Audit `33344757114`: **PASS**.
+- Algebra Challenge DOK Difficulty Audit `33344757111`: **PASS**.
+- Certified promotion run `33344757148`: **PASS**.
+  - seed build PASS;
+  - source/shipping parity PASS;
+  - strict adaptive metadata PASS;
+  - strict Challenge quality PASS;
+  - runtime adaptive targeting PASS.
+- promoted compatibility/seed commit: `13cf652b4c9ba4a2f5659dfed22ef781048eed45`.
+- promoted Algebra II shipping seed: 240 families; **0 Band-5 base or variant rows**.
+
+The next required evidence is a complete expanded Full Platform Test Suite run on a normal commit after `13cf652b`, so CI evaluates the post-promotion seed state together with the selector/test repairs.
