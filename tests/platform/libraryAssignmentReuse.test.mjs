@@ -240,3 +240,36 @@ test('Honors CCMR hydration preserves unchanged canonical workflow questions byt
   assert.equal(after.grading.equation, 'V = 12t');
   assert.equal(after.studentChoosesX, undefined);
 });
+
+
+test('safe repair can fall back to an intact sibling class delivery when no Library source remains', () => {
+  const intact = buildCanonicalLibraryLesson();
+  intact.id = 'intact-live-copy';
+  intact.assignedClassIds = ['class-2'];
+  intact.assignedClassPeriods = ['2nd'];
+
+  const sourceQuestion = getStoredAssignmentQuestions(intact)[0];
+  const brokenQuestion = {
+    ...sourceQuestion,
+    type: 'functionGraph',
+    functionSpec: { type: 'linear', m: 1, b: 0 },
+    studentChoosesX: true,
+  };
+  delete brokenQuestion.workflow;
+  delete brokenQuestion.grading;
+
+  const broken = {
+    ...intact,
+    id: 'broken-live-copy',
+    assignedClassIds: ['class-3'],
+    assignedClassPeriods: ['3rd'],
+    sections: [{
+      ...intact.sections[0],
+      questions: [brokenQuestion],
+    }],
+  };
+
+  const inspection = inspectLibraryContentRepair(broken, [broken, intact]);
+  assert.equal(inspection.source.id, 'intact-live-copy');
+  assert.deepEqual(inspection.questionIds, ['0cc8d298-a87d-49d2-82ac-fc71d4aaec09']);
+});
