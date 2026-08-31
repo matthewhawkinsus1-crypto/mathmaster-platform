@@ -46,8 +46,10 @@ test('library assignment reuses canonical V5 directly instead of recompiling sto
   assert.match(app, /Use a destination copy/);
 });
 
-test('platform self-export is V5 and cannot resurrect the retired portable V2 package', () => {
-  assert.match(app, /buildPortableAssignmentPackage = \(assignment\) => storedAssignmentToV5/);
+test('platform self-export is canonical V5 and carries a lossless self-import marker', () => {
+  assert.match(app, /buildPortableAssignmentPackage = \(assignment\) => \(\{/);
+  assert.match(app, /storedAssignmentToV5\(assignment/);
+  assert.match(app, /mathmasterCanonicalAssignmentV5/);
   assert.doesNotMatch(app, /schemaVersion:\s*2[\s\S]{0,500}questions:\s*assignment\.questions/);
 });
 
