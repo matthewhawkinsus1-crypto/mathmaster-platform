@@ -92,6 +92,67 @@ test('a hint that gives away the answer is rejected', () => {
   assert.ok(audit.blockers.some((issue) => issue.code === 'hint-reveals-answer'));
 });
 
+
+test('choice ids are not treated as answer text inside ordinary words', () => {
+  const audit = auditPathQuestionQuality({
+    alignmentKeys: ['texas:A.2A'],
+    dok: 3,
+    difficultyBand: 4,
+    taskType: 'errorAnalysis',
+    representation: 'multipleRepresentation',
+    prompt: 'A student treats a discrete relation as continuous. Diagnose the error.',
+    stimulus: { table: { rows: [['1', '2'], ['2', '4']] } },
+    responseFields: [{
+      id: 'extra-input',
+      label: 'Does the relation include every value between the listed inputs?',
+      inputProfile: 'choice',
+      choices: [
+        { id: 'no', label: 'No; only the listed inputs are included.' },
+        { id: 'yes', label: 'Yes; every value is included.' },
+      ],
+      expected: 'no',
+    }],
+    supportHints: ['A straight-line pattern does not by itself make a discrete relation continuous.'],
+    solutionReview: { reasoning: ['Only the displayed inputs are defined.', 'Intervals would add unlisted inputs.'] },
+  });
+  assert.ok(!audit.blockers.some((issue) => issue.code === 'hint-reveals-answer'));
+});
+
+test('short text answers require a full token match, so no does not match not', () => {
+  const audit = auditPathQuestionQuality({
+    alignmentKeys: ['texas:A.2A'],
+    taskType: 'conceptual',
+    representation: 'verbal',
+    prompt: 'Does the stated relation include an additional unlisted input?',
+    responseFields: [{ id: 'answer', label: 'Answer', inputProfile: 'text', expected: 'no' }],
+    supportHints: ['The definition does not automatically include values between listed inputs.'],
+    solutionReview: { reasoning: ['Only listed inputs are included.', 'No interval was defined.'] },
+  });
+  assert.ok(!audit.blockers.some((issue) => issue.code === 'hint-reveals-answer'));
+});
+
+test('a hint that states the visible correct choice still counts as an answer leak', () => {
+  const audit = auditPathQuestionQuality({
+    alignmentKeys: ['texas:A.5A'],
+    taskType: 'conceptual',
+    representation: 'verbal',
+    prompt: 'Choose the correct slope classification for a vertical line.',
+    responseFields: [{
+      id: 'answer',
+      label: 'Slope classification',
+      inputProfile: 'choice',
+      choices: [
+        { id: 'u', label: 'Undefined' },
+        { id: 'z', label: 'Zero' },
+      ],
+      expected: 'u',
+    }],
+    supportHints: ['The correct classification is undefined.'],
+    solutionReview: { reasoning: ['The run is zero.', 'Division by zero is not defined.'] },
+  });
+  assert.ok(audit.blockers.some((issue) => issue.code === 'hint-reveals-answer'));
+});
+
 test('a DOK 3 label on a procedural task is flagged rather than believed', () => {
   const audit = auditPathQuestionQuality({
     alignmentKeys: ['texas:A.5A'],
@@ -248,4 +309,28 @@ test('bank summary and revision brief expose QA state', () => {
   assert.equal(summary.operational, 1);
   assert.equal(summary.production, 0);
   assert.match(buildPathQuestionRevisionBrief(question), /Secure expected answer/);
+});
+
+
+test('a stimulus graph satisfies a prompt that points to the displayed graph', () => {
+  const audit = auditPathQuestionQuality({
+    alignmentKeys: ['texas:A.6C'],
+    dok: 2,
+    difficultyBand: 4,
+    taskType: 'reverseReasoning',
+    representation: 'graph',
+    prompt: 'Read the two x-intercepts from the graph and write the quadratic equation.',
+    stimulus: {
+      kind: 'graph',
+      graph: {
+        points: [{ x: -2, y: 0 }, { x: 3, y: 0 }],
+      },
+    },
+    responseFields: [
+      { id: 'answer', label: 'Equation', inputProfile: 'equation', expected: 'y=(x+2)(x-3)' },
+    ],
+    supportHints: ['Use the intercepts to identify the factors.'],
+    solutionReview: { reasoning: ['Each zero gives one factor.', 'The monic product gives the equation.'] },
+  });
+  assert.ok(!audit.blockers.some((issue) => issue.code === 'missing-graph-representation'));
 });

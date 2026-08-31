@@ -4,7 +4,7 @@ import MathDisplay from './MathDisplay';
 import QuestionPrompt from './QuestionPrompt';
 import QuestionVisual from './QuestionVisual';
 import GraphDisplay from './GraphDisplay';
-import { looksLikeFiniteSetNotation, matchesFieldAnswer } from './answerUtils';
+import { answerCandidatesForField, looksLikeFiniteSetNotation, matchesFieldAnswer } from './answerUtils';
 import { resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import useUndoHistory from './useUndoHistory';
@@ -42,13 +42,7 @@ const looksLikePlainLanguageAnswer = (value) => {
 };
 
 
-const acceptedAnswersForField = (field) => (
-  Array.isArray(field?.acceptedAnswers) && field.acceptedAnswers.length
-    ? field.acceptedAnswers
-    : field?.answer !== undefined
-      ? [field.answer]
-      : []
-);
+const acceptedAnswersForField = (field) => answerCandidatesForField(field);
 
 const shouldUseSetInput = (field) => {
   if (field?.type === 'set' || field?.notation === 'set' || field?.inputMode === 'set') return true;

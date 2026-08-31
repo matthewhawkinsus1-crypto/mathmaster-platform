@@ -1,0 +1,947 @@
+{
+  "standard": "A2.5A",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-exp-log-key-attribute-effects-vertical-scale-reflection-and-translation",
+  "rationale": "A2.5A requires determining graph-attribute effects for both exponential and logarithmic transformations. Fidelity V2 repeatedly connects a, h, and k to asymptotes, domain/range, key anchor points, monotonicity, vertical scale/reflection, and translation, with authentic graph construction for both function families.",
+  "documents": [
+    {
+      "id": "mm_A2_5A_v2_exponential-reflected-graph-attributes",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5A:v2-exponential-reflected-graph-attributes",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5A",
+      "representation": "graph",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "type": "functionInvestigation",
+      "prompt": "Construct the transformed exponential graph $f(x)={{a}}\\cdot {{base}}^{x-({{h}})}{{k|signed}}$. Plot the required points, then determine the horizontal asymptote, domain, range, and increasing/decreasing effect of the vertical reflection.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "base": "{{base}}",
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "graph": {
+        "xMin": -10,
+        "xMax": 12,
+        "yMin": -14,
+        "yMax": 14
+      },
+      "pointTasks": [
+        {
+          "id": "left",
+          "label": "Plot one unit left of x=h",
+          "x": "{{hm1}}",
+          "expected": [
+            "{{hm1}}",
+            "{{yleft}}"
+          ]
+        },
+        {
+          "id": "anchor",
+          "label": "Plot the transformed reference point at x=h",
+          "x": "{{h}}",
+          "expected": [
+            "{{h}}",
+            "{{yanchor}}"
+          ]
+        },
+        {
+          "id": "right",
+          "label": "Plot one unit right of x=h",
+          "x": "{{hp1}}",
+          "expected": [
+            "{{hp1}}",
+            "{{yright}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "hasym",
+          "label": "Horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "domain",
+          "label": "Domain",
+          "kind": "domain",
+          "notation": "interval",
+          "responseMode": "text",
+          "expected": [
+            "(-∞,∞)",
+            "all real numbers"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "kind": "range",
+          "notation": "interval",
+          "responseMode": "text",
+          "expected": [
+            "(-∞,{{k}})"
+          ]
+        },
+        {
+          "id": "behavior",
+          "label": "Overall behavior for base > 1",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "decreasing"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A negative outside scale reflects the exponential across the x-axis before translation.",
+        "reasoning": [
+          "The magnitude |a|={{scale}} vertically scales distances from the translated asymptote.",
+          "Because a<0 and base>1, the graph is decreasing and lies below the horizontal asymptote $y={{k}}$.",
+          "Horizontal translation moves the reference x-location to h={{h}}; vertical translation moves the asymptote to y={{k}}."
+        ],
+        "answerSummary": "Asymptote $y={{k}}$, domain all real, range $(-\\infty,{{k}})$, decreasing."
+      },
+      "attemptFeedback": [
+        "Use the sign of a to decide the reflection/range direction and k to locate the horizontal asymptote."
+      ],
+      "supportHints": [
+        "At x=h, the exponent is 0, so the transformed anchor is $(h,a+k)$."
+      ],
+      "generator": {
+        "parameters": {
+          "scale": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "base": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          }
+        },
+        "derived": {
+          "a": "-scale",
+          "hm1": "h-1",
+          "hp1": "h+1",
+          "yleft": "k+a/base",
+          "yanchor": "k+a",
+          "yright": "k+a*base"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-unit-reflection-basic-attributes",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "representationTranslation",
+          "representation": "graph",
+          "prompt": "Construct $f(x)=-2^{x-({{h}})}{{k|signed}}$. Plot the three required reference points, then identify the horizontal asymptote, domain, range, and overall behavior.",
+          "generator": {
+            "parameters": {
+              "scale": {
+                "type": "choice",
+                "values": [
+                  1
+                ]
+              },
+              "base": {
+                "type": "choice",
+                "values": [
+                  2
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": -2,
+                "max": 2
+              },
+              "k": {
+                "type": "int",
+                "min": -2,
+                "max": 2
+              }
+            },
+            "derived": {
+              "a": "-scale",
+              "hm1": "h-1",
+              "hp1": "h+1",
+              "yleft": "k+a/base",
+              "yanchor": "k+a",
+              "yright": "k+a*base"
+            }
+          },
+          "solutionReview": {
+            "headline": "A unit vertical reflection keeps the arithmetic accessible while preserving all transformed attributes.",
+            "reasoning": [
+              "The negative outside factor reflects the base-2 exponential across the x-axis.",
+              "The horizontal asymptote is y={{k}}, the domain is all real numbers, and the range is below the asymptote.",
+              "For base 2, the reflected graph is decreasing."
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_5A_v2_logarithmic-scaled-graph-attributes",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5A:v2-logarithmic-scaled-graph-attributes",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5A",
+      "representation": "graph",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "type": "functionInvestigation",
+      "prompt": "Construct $g(x)={{a}}\\log_{{base}}(x-({{h}})){{k|signed}}$. Plot the exact transformed reference points, then determine the vertical asymptote, domain, range, and increasing/decreasing behavior.",
+      "functionSpec": {
+        "type": "logarithmic",
+        "a": "{{a}}",
+        "base": "{{base}}",
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "graph": {
+        "xMin": -10,
+        "xMax": 16,
+        "yMin": -12,
+        "yMax": 12
+      },
+      "pointTasks": [
+        {
+          "id": "low",
+          "label": "Plot the point with log input 1/base",
+          "x": "{{xlow}}",
+          "expected": [
+            "{{xlow}}",
+            "{{ylow}}"
+          ]
+        },
+        {
+          "id": "anchor",
+          "label": "Plot the transformed reference point with log input 1",
+          "x": "{{xanchor}}",
+          "expected": [
+            "{{xanchor}}",
+            "{{k}}"
+          ]
+        },
+        {
+          "id": "high",
+          "label": "Plot the point with log input base",
+          "x": "{{xhigh}}",
+          "expected": [
+            "{{xhigh}}",
+            "{{yhigh}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "vasym",
+          "label": "Vertical asymptote x-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{h}}"
+          ]
+        },
+        {
+          "id": "domain",
+          "label": "Domain",
+          "kind": "domain",
+          "notation": "interval",
+          "responseMode": "text",
+          "expected": [
+            "({{h}},∞)"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "kind": "range",
+          "notation": "interval",
+          "responseMode": "text",
+          "expected": [
+            "(-∞,∞)",
+            "all real numbers"
+          ]
+        },
+        {
+          "id": "behavior",
+          "label": "Overall behavior for base > 1",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "increasing"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Vertical scaling changes output distances but not a logarithm's vertical asymptote or domain boundary.",
+        "reasoning": [
+          "The vertical scale factor is a={{a}} and is positive, so the graph stays increasing for base>1.",
+          "The inside translation moves the asymptote from x=0 to x={{h}} and the domain to x>{{h}}.",
+          "The outside translation moves the anchor $(h+1,0)$ to $({{xanchor}},{{k}})$; the range remains all real numbers."
+        ],
+        "answerSummary": "Asymptote $x={{h}}$, domain $({{h}},\\infty)$, range all real, increasing."
+      },
+      "attemptFeedback": [
+        "Do not move the vertical asymptote with k; it comes from where the logarithm's input reaches zero."
+      ],
+      "supportHints": [
+        "For log input values 1/base, 1, and base, the parent outputs are -1, 0, and 1."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "base": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          }
+        },
+        "derived": {
+          "xlow": "h+1/base",
+          "xanchor": "h+1",
+          "xhigh": "h+base",
+          "ylow": "k-a",
+          "yhigh": "k+a"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-fractional-log-reference-points",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "representationTranslation",
+          "representation": "graph",
+          "prompt": "Construct $g(x)={{a}}\\log_5(x-({{h}})){{k|signed}}$. Plot the exact transformed points corresponding to log inputs 1/5, 1, and 5, then determine asymptote, domain, range, and behavior.",
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  2.5,
+                  3.5
+                ]
+              },
+              "base": {
+                "type": "choice",
+                "values": [
+                  5
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  -2.5,
+                  -1.5,
+                  0.5,
+                  1.5,
+                  2.5
+                ]
+              }
+            },
+            "derived": {
+              "xlow": "h+1/base",
+              "xanchor": "h+1",
+              "xhigh": "h+base",
+              "ylow": "k-a",
+              "yhigh": "k+a"
+            }
+          },
+          "solutionReview": {
+            "headline": "Fractional coordinates increase graph precision without changing the transformation reasoning.",
+            "reasoning": [
+              "The asymptote remains x={{h}} and the domain is x>{{h}}.",
+              "The positive outside scale keeps the base-5 logarithm increasing.",
+              "Exact reference inputs 1/5, 1, and 5 produce outputs -1, 0, and 1 before the outside scale and shift."
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_5A_v2_exponential-compression-translation-analysis",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5A:v2-exponential-compression-translation-analysis",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5A",
+      "representation": "symbolic",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "interpretation",
+      "prompt": "Compared with $y={{base}}^x$, determine the key effects of $f(x)=0.5\\cdot {{base}}^{x-({{h}})}{{k|signed}}$. Give the vertical scale, translations, horizontal asymptote, range, and transformed anchor point.",
+      "responseFields": [
+        {
+          "id": "vertical-scale",
+          "label": "Vertical scale factor",
+          "inputProfile": "number",
+          "expected": "0.5"
+        },
+        {
+          "id": "vertical-effect",
+          "label": "Vertical-scale description",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "compression",
+              "label": "Vertical compression by factor 1/2"
+            },
+            {
+              "id": "stretch",
+              "label": "Vertical stretch by factor 2"
+            },
+            {
+              "id": "reflection",
+              "label": "Reflection across the x-axis"
+            }
+          ],
+          "expected": "compression"
+        },
+        {
+          "id": "horizontal-shift",
+          "label": "Horizontal translation h",
+          "inputProfile": "number",
+          "expected": "{{h}}"
+        },
+        {
+          "id": "vertical-shift",
+          "label": "Vertical translation k",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "asymptote",
+          "label": "Horizontal asymptote",
+          "inputProfile": "equation",
+          "expected": "y={{k}}"
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "inputProfile": "interval",
+          "expected": "({{k}},inf)"
+        },
+        {
+          "id": "anchor",
+          "label": "Transformed point corresponding to parent $(0,1)$",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{anchorY}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Scale, translation, asymptote, range, and anchor point are linked.",
+        "reasoning": [
+          "The outside factor 0.5 compresses vertical distances from the asymptote but does not reflect the graph.",
+          "The exponent x-h shifts the parent horizontally by h, and +k moves the asymptote to y=k.",
+          "At x=h the exponential factor is 1, so the anchor y-value is k+0.5={{anchorY}}."
+        ],
+        "answerSummary": "Compression 1/2; translations h={{h}}, k={{k}}; asymptote $y={{k}}$; range $({{k}},\\infty)$; anchor $({{h}},{{anchorY}})$."
+      },
+      "attemptFeedback": [
+        "Treat a=0.5 as a vertical compression, not a horizontal change."
+      ],
+      "supportHints": [
+        "For positive a, the transformed exponential stays above its horizontal asymptote."
+      ],
+      "generator": {
+        "parameters": {
+          "base": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "anchorY": "k+0.5"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_5A_v2_logarithmic-reflection-combined-effects",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5A:v2-logarithmic-reflection-combined-effects",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5A",
+      "representation": "table",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "interpretation",
+      "prompt": "For $g(x)=-{{scale}}\\log_{{base}}(x-({{h}})){{k|signed}}$, determine how the vertical reflection/scale and translations affect its key attributes.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Parent logarithm attributes",
+        "table": {
+          "headers": [
+            "Parent attribute",
+            "$y=\\log_b x$"
+          ],
+          "rows": [
+            [
+              "Vertical asymptote",
+              "$x=0$"
+            ],
+            [
+              "Domain",
+              "$(0,\\infty)$"
+            ],
+            [
+              "Range",
+              "all real"
+            ],
+            [
+              "Behavior for b>1",
+              "increasing"
+            ],
+            [
+              "Reference point",
+              "$(1,0)$"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "vertical-scale",
+          "label": "Vertical scale factor",
+          "inputProfile": "number",
+          "expected": "{{scale}}"
+        },
+        {
+          "id": "reflection",
+          "label": "Reflection effect",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "xaxis",
+              "label": "Reflect across the x-axis"
+            },
+            {
+              "id": "yaxis",
+              "label": "Reflect across the y-axis"
+            },
+            {
+              "id": "none",
+              "label": "No reflection"
+            }
+          ],
+          "expected": "xaxis"
+        },
+        {
+          "id": "asymptote",
+          "label": "Vertical asymptote",
+          "inputProfile": "equation",
+          "expected": "x={{h}}"
+        },
+        {
+          "id": "domain",
+          "label": "Domain",
+          "inputProfile": "interval",
+          "expected": "({{h}},inf)"
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "inputProfile": "interval",
+          "expected": "(-inf,inf)"
+        },
+        {
+          "id": "behavior",
+          "label": "Behavior for base > 1 after reflection",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "decreasing",
+              "label": "Decreasing"
+            },
+            {
+              "id": "increasing",
+              "label": "Increasing"
+            }
+          ],
+          "expected": "decreasing"
+        },
+        {
+          "id": "anchor",
+          "label": "Translated reference point",
+          "inputProfile": "orderedPair",
+          "expected": "({{hp1}},{{k}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A negative outside scale reverses logarithmic output behavior without changing the input domain boundary.",
+        "reasoning": [
+          "The magnitude {{scale}} gives the vertical scale and the negative sign reflects across the x-axis.",
+          "The vertical asymptote/domain boundary shifts to x={{h}}, so the domain is x>{{h}}.",
+          "The range stays all real; the reflected graph becomes decreasing for base>1; the parent reference point moves to $({{hp1}},{{k}})$."
+        ],
+        "answerSummary": "Scale {{scale}}, x-axis reflection, asymptote $x={{h}}$, domain $({{h}},\\infty)$, range all real, decreasing, anchor $({{hp1}},{{k}})$."
+      },
+      "attemptFeedback": [
+        "A vertical reflection changes outputs/behavior, not the logarithm's domain side."
+      ],
+      "supportHints": [
+        "The log input is still x-h, so the domain boundary remains x=h even after multiplying outputs by a negative number."
+      ],
+      "generator": {
+        "parameters": {
+          "scale": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "base": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "hp1": "h+1"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_5A_v2_log-attribute-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5A:v2-log-attribute-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5A",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student analyzes $g(x)=-2\\log_3(x-({{h}})){{k|signed}}$ and claims: “The -2 moves the vertical asymptote to x=-2, the domain becomes x<-2, and the +{{k}} makes the graph increasing.” Repair the reasoning and give the corrected key attributes.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's transformation claims",
+        "steps": [
+          {
+            "id": "asym",
+            "label": "Asymptote claim",
+            "work": "$x=-2$"
+          },
+          {
+            "id": "domain",
+            "label": "Domain claim",
+            "work": "$x<-2$"
+          },
+          {
+            "id": "behavior",
+            "label": "Behavior claim",
+            "work": "Increasing because of the vertical shift"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "Core correction",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "roles",
+              "label": "The inside shift h controls the asymptote/domain; the outside -2 controls vertical scale/reflection; k is only a vertical translation."
+            },
+            {
+              "id": "all-outside",
+              "label": "Every outside parameter changes the domain."
+            },
+            {
+              "id": "base",
+              "label": "Only the base controls all transformed attributes."
+            }
+          ],
+          "expected": "roles"
+        },
+        {
+          "id": "asymptote",
+          "label": "Correct vertical asymptote",
+          "inputProfile": "equation",
+          "expected": "x={{h}}"
+        },
+        {
+          "id": "domain",
+          "label": "Correct domain",
+          "inputProfile": "interval",
+          "expected": "({{h}},inf)"
+        },
+        {
+          "id": "range",
+          "label": "Correct range",
+          "inputProfile": "interval",
+          "expected": "(-inf,inf)"
+        },
+        {
+          "id": "behavior",
+          "label": "Correct behavior for base 3",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "decreasing",
+              "label": "Decreasing"
+            },
+            {
+              "id": "increasing",
+              "label": "Increasing"
+            }
+          ],
+          "expected": "decreasing"
+        },
+        {
+          "id": "anchor",
+          "label": "Correct translated reference point",
+          "inputProfile": "orderedPair",
+          "expected": "({{hp1}},{{k}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Repair each parameter's role instead of moving every attribute together.",
+        "reasoning": [
+          "The input x-h sets the vertical asymptote at x={{h}} and the domain x>{{h}}.",
+          "The factor -2 vertically stretches by 2 and reflects outputs across the x-axis, making a base-3 log decrease.",
+          "The +{{k}} translates outputs vertically; range remains all real and the reference point is $({{hp1}},{{k}})$."
+        ],
+        "answerSummary": "Asymptote $x={{h}}$, domain $({{h}},\\infty)$, range all real, decreasing, reference point $({{hp1}},{{k}})$."
+      },
+      "attemptFeedback": [
+        "Correct the student's parameter-role confusion, then finish all requested attributes rather than naming only the first mistake."
+      ],
+      "supportHints": [
+        "Set the logarithm input x-h equal to 0 to locate the asymptote."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "hp1": "h+1"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b5",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-single-role-error-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student analyzes $g(x)=-2\\log_3(x-1)+1$ and says the outside -2 moves the vertical asymptote to x=-2. Diagnose that parameter-role error and give the correct asymptote, domain, range, behavior, and reference point.",
+          "stimulus": {
+            "kind": "steps",
+            "title": "Student claim",
+            "steps": [
+              {
+                "id": "claim",
+                "label": "Claim",
+                "work": "\"The -2 outside the logarithm moves the vertical asymptote to x=-2.\""
+              }
+            ]
+          },
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Core correction",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "roles",
+                  "label": "The inside shift controls the asymptote/domain; the outside -2 controls vertical scale and x-axis reflection."
+                },
+                {
+                  "id": "outside",
+                  "label": "The outside coefficient sets the vertical asymptote."
+                }
+              ],
+              "expected": "roles"
+            },
+            {
+              "id": "asymptote",
+              "label": "Correct vertical asymptote",
+              "inputProfile": "equation",
+              "expected": "x=1"
+            },
+            {
+              "id": "domain",
+              "label": "Correct domain",
+              "inputProfile": "interval",
+              "expected": "(1,inf)"
+            },
+            {
+              "id": "range",
+              "label": "Correct range",
+              "inputProfile": "interval",
+              "expected": "(-inf,inf)"
+            },
+            {
+              "id": "behavior",
+              "label": "Correct behavior",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "decreasing",
+                  "label": "Decreasing"
+                },
+                {
+                  "id": "increasing",
+                  "label": "Increasing"
+                }
+              ],
+              "expected": "decreasing"
+            },
+            {
+              "id": "anchor",
+              "label": "Translated reference point",
+              "inputProfile": "orderedPair",
+              "expected": "(2,1)"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Parameter roles must be separated before graph attributes are interpreted.",
+            "reasoning": [
+              "The input x-1 gives asymptote x=1 and domain x>1.",
+              "The outside -2 reflects and vertically stretches the logarithm, making it decreasing.",
+              "The +1 shifts outputs upward, while the range remains all real numbers."
+            ],
+            "answerSummary": "Asymptote x=1, domain (1,∞), all-real range, decreasing, reference point (2,1)."
+          },
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "choice",
+                "values": [
+                  1
+                ]
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  1
+                ]
+              }
+            },
+            "derived": {
+              "hp1": "h+1"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

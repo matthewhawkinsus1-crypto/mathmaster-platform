@@ -131,18 +131,19 @@ const mockQuestionFor = (session) => {
   };
 };
 
-export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind = 'practice', requiredQuestions = 5, assessmentFramework = null, weekKey = null, weeklySlotKey = null, weeklySlot = null }) => {
+export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind = 'practice', requiredQuestions = 5, assessmentFramework = null, coursePracticeIntent = null, weekKey = null, weeklySlotKey = null, weeklySlot = null }) => {
   assertRuntimeAvailable();
   const canonicalKey = toCanonicalKey(targetAlignmentKey);
   if (!canonicalKey) throw new Error('Choose a TEKS standard before starting My Math Path.');
   if (usingMockRuntime()) {
-    const existing = [...mockSessions.values()].find((item) => item.status === 'active' && item.target.alignmentKey === canonicalKey && item.sessionKind === sessionKind && (item.assessmentFramework || null) === (assessmentFramework || null) && (item.weeklySlotKey || null) === (weeklySlotKey || null));
+    const existing = [...mockSessions.values()].find((item) => item.status === 'active' && item.target.alignmentKey === canonicalKey && item.sessionKind === sessionKind && (item.assessmentFramework || null) === (assessmentFramework || null) && (item.coursePracticeIntent || null) === (coursePracticeIntent === 'challenge' ? 'challenge' : null) && (item.weeklySlotKey || null) === (weeklySlotKey || null));
     if (existing) return { success: true, session: clone(existing) };
     const session = {
       sessionId: `path_mock_${generateRuntimeUUID()}`,
       status: 'active',
       sessionKind,
       assessmentFramework: assessmentFramework || null,
+      coursePracticeIntent: coursePracticeIntent === 'challenge' ? 'challenge' : null,
       weekKey: weekKey || null,
       weeklySlotKey: weeklySlotKey || null,
       weeklySlot: weeklySlot || null,
@@ -161,6 +162,7 @@ export const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind
     sessionKind,
     requiredQuestions,
     assessmentFramework: assessmentFramework || null,
+    coursePracticeIntent: coursePracticeIntent === 'challenge' ? 'challenge' : null,
     weekKey: weekKey || null,
     weeklySlotKey: weeklySlotKey || null,
     weeklySlot: weeklySlot || null,

@@ -16,16 +16,19 @@ import {
   assertFails,
   assertSucceeds,
 } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, getDocs, deleteDoc, query, where } from 'firebase/firestore';
 
 const testEnv = await initializeTestEnvironment({
-  projectId: 'demo-mathmaster',
+  projectId: 'mathmaster-rules-test',
   firestore: {
     host: '127.0.0.1',
-    port: 8080,
+    port: 8181,
     rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8'),
   },
 });
+
+const TEACHER_EMAIL = 't@school.org';
+const OTHER_TEACHER_EMAIL = 'other@school.org';
 
 const results = [];
 const check = async (label, promise) => {
@@ -40,9 +43,10 @@ const check = async (label, promise) => {
 // Seed data with rules bypassed.
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const db = ctx.firestore();
-  await setDoc(doc(db, 'grades/S1042'), { classPeriod: 'Period 1' });
-  await setDoc(doc(db, 'grades/S2000'), { classPeriod: 'Period 2' });
-  await setDoc(doc(db, 'grades/S1042/scratchpads/a__question_0'), { dataUrl: 'x' });
+  await setDoc(doc(db, 'grades/S1042'), { classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_EMAIL });
+  await setDoc(doc(db, 'grades/S2000'), { classPeriod: 'Period 2', assignedTeacherEmail: OTHER_TEACHER_EMAIL });
+  await setDoc(doc(db, 'grades/S1042/scratchpads/a__question_0'), { dataUrl: 'x', authorizedTeacherEmails: [TEACHER_EMAIL] });
+  await setDoc(doc(db, 'grades/S1042/scratchpads/a__question_delete'), { dataUrl: 'delete-me', authorizedTeacherEmails: [TEACHER_EMAIL] });
   await setDoc(doc(db, 'assignments/A1'), { title: 'Unit 1' });
   await setDoc(doc(db, 'settings/classSchedule'), { periods: {} });
   await setDoc(doc(db, 'studentCredentials/S1042'), { hash: 'secret' });
@@ -51,9 +55,9 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'adminAuditLog/audit-1'), { action: 'teacher_access_granted' });
   await setDoc(doc(db, 'authThrottle/student_S1042'), { failures: 1 });
   await setDoc(doc(db, 'studentDirectory/kid@school.org'), { studentId: 'S1042' });
-  await setDoc(doc(db, 'grades/S1042/evidenceEvents/ev_existing'), { eventKey: 'ev_existing', studentId: 'S1042', occurredAt: 1 });
-  await setDoc(doc(db, 'studentMasteryProfiles/S1042'), { profiles: { 'A.5A': { mastery: { status: 'Secure' } } } });
-  await setDoc(doc(db, 'studentRetentionSchedules/S1042'), { schedules: {} });
+  await setDoc(doc(db, 'grades/S1042/evidenceEvents/ev_existing'), { eventKey: 'ev_existing', studentId: 'S1042', occurredAt: 1, authorizedTeacherEmails: [TEACHER_EMAIL] });
+  await setDoc(doc(db, 'studentMasteryProfiles/S1042'), { profiles: { 'A.5A': { mastery: { status: 'Secure' } } }, authorizedTeacherEmails: [TEACHER_EMAIL] });
+  await setDoc(doc(db, 'studentRetentionSchedules/S1042'), { schedules: {}, authorizedTeacherEmails: [TEACHER_EMAIL] });
   await setDoc(doc(db, 'pathQuestionBank/P1'), { alignmentKeys: ['texas:A.5A'], grading: { secret: true } });
   await setDoc(doc(db, 'pathSessions/session-1'), { studentId: 'S1042', status: 'active' });
   await setDoc(doc(db, 'modelingLabDefinitions/L1'), { labId: 'L1', evaluation: { targetValue: 9 } });
@@ -64,8 +68,8 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'examIntegrityEvents/integrity-1'), { studentId: 'S1042', type: 'tab_switch' });
 });
 
-const teacher = testEnv.authenticatedContext('teacher-uid', { role: 'teacher' }).firestore();
-const rootAdmin = testEnv.authenticatedContext('root-admin-uid', { role: 'teacher', admin: true, rootAdmin: true }).firestore();
+const teacher = testEnv.authenticatedContext('teacher-uid', { role: 'teacher', email: TEACHER_EMAIL }).firestore();
+const rootAdmin = testEnv.authenticatedContext('root-admin-uid', { role: 'teacher', admin: true, rootAdmin: true, email: 'root@school.org' }).firestore();
 const student = testEnv.authenticatedContext('student:S1042', { role: 'student', studentId: 'S1042' }).firestore();
 // Someone who signed in with Google but has no role claim yet.
 const roleless = testEnv.authenticatedContext('random-uid', {}).firestore();
@@ -82,9 +86,9 @@ await check('student CANNOT read another scratchpad', assertFails(getDoc(doc(stu
 await check('student CANNOT list the roster', assertFails(getDocs(collection(student, 'grades'))));
 await check('student CANNOT delete own record', assertFails(deleteDoc(doc(student, 'grades/S1042'))));
 await check('student CANNOT delete own scratchpad', assertFails(deleteDoc(doc(student, 'grades/S1042/scratchpads/a__question_0'))));
-await check('teacher CAN delete a scratchpad', assertSucceeds(deleteDoc(doc(teacher, 'grades/S1042/scratchpads/a__question_0'))));
+await check('teacher CAN delete an authorized scratchpad', assertSucceeds(deleteDoc(doc(teacher, 'grades/S1042/scratchpads/a__question_delete'))));
 await check('student reads own Phase 5C evidence', assertSucceeds(getDoc(doc(student, 'grades/S1042/evidenceEvents/ev_existing'))));
-await check('student appends own Phase 5C evidence', assertSucceeds(setDoc(doc(student, 'grades/S1042/evidenceEvents/ev_new'), { eventKey: 'ev_new', studentId: 'S1042', occurredAt: 2 })));
+await check('student appends own Phase 5C evidence', assertSucceeds(setDoc(doc(student, 'grades/S1042/evidenceEvents/ev_new'), { eventKey: 'ev_new', studentId: 'S1042', occurredAt: 2, authorizedTeacherEmails: [TEACHER_EMAIL] })));
 await check('student CANNOT mutate existing Phase 5C evidence', assertFails(setDoc(doc(student, 'grades/S1042/evidenceEvents/ev_existing'), { eventKey: 'ev_existing', studentId: 'S1042', occurredAt: 999 }, { merge: true })));
 await check('student CANNOT forge another studentId into evidence', assertFails(setDoc(doc(student, 'grades/S1042/evidenceEvents/ev_forged'), { eventKey: 'ev_forged', studentId: 'S2000', occurredAt: 3 })));
 await check('student CANNOT delete Phase 5C evidence', assertFails(deleteDoc(doc(student, 'grades/S1042/evidenceEvents/ev_existing'))));
@@ -97,12 +101,18 @@ await check('student reads class schedule', assertSucceeds(getDoc(doc(student, '
 await check('student CANNOT write settings', assertFails(setDoc(doc(student, 'settings/classSchedule'), { periods: {} }, { merge: true })));
 
 // --- Teacher ---------------------------------------------------------------
-await check('teacher lists the roster', assertSucceeds(getDocs(collection(teacher, 'grades'))));
-await check('teacher reads any student', assertSucceeds(getDoc(doc(teacher, 'grades/S2000'))));
-await check('teacher writes any student', assertSucceeds(setDoc(doc(teacher, 'grades/S2000'), { classPeriod: 'Period 3' }, { merge: true })));
+await check('teacher CANNOT run an unconstrained roster query', assertFails(getDocs(collection(teacher, 'grades'))));
+await check('teacher lists only their assigned roster', assertSucceeds(getDocs(query(
+  collection(teacher, 'grades'),
+  where('assignedTeacherEmail', '==', TEACHER_EMAIL),
+))));
+await check('teacher reads assigned student', assertSucceeds(getDoc(doc(teacher, 'grades/S1042'))));
+await check('teacher CANNOT read another teacher student', assertFails(getDoc(doc(teacher, 'grades/S2000'))));
+await check('teacher updates assigned student', assertSucceeds(setDoc(doc(teacher, 'grades/S1042'), { classPeriod: 'Period 1' }, { merge: true })));
+await check('teacher CANNOT update another teacher student', assertFails(setDoc(doc(teacher, 'grades/S2000'), { classPeriod: 'Period 3' }, { merge: true })));
 await check('teacher CANNOT directly delete a student record', assertFails(deleteDoc(doc(teacher, 'grades/S2000'))));
 await check('root admin CANNOT bypass audited callable with direct student deletion', assertFails(deleteDoc(doc(rootAdmin, 'grades/S2000'))));
-await check('teacher reads any scratchpad', assertSucceeds(getDoc(doc(teacher, 'grades/S1042/scratchpads/a__question_0'))));
+await check('teacher reads authorized scratchpad', assertSucceeds(getDoc(doc(teacher, 'grades/S1042/scratchpads/a__question_0'))));
 await check('teacher writes assignments', assertSucceeds(setDoc(doc(teacher, 'assignments/A2'), { title: 'Unit 2' })));
 await check('teacher writes settings', assertSucceeds(setDoc(doc(teacher, 'settings/assignmentFolders'), { paths: [] })));
 await check('teacher deletes assignments', assertSucceeds(deleteDoc(doc(teacher, 'assignments/A2'))));

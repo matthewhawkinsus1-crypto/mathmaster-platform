@@ -15,6 +15,10 @@ import {
   splitEquationSides,
 } from './algebraicForm.mjs';
 import { stackDivisions } from './stackDivisions.mjs';
+import { sameExpandedPolynomialExpression } from './expandedPolynomialExpressionEquivalence.mjs';
+import { sameLinearInequality } from './linearInequalityEquivalence.mjs';
+export { sameNonnegativeRadicalExpression } from './nonnegativeRadicalExpressionEquivalence.mjs';
+export { sameRationalExpression } from './rationalExpressionEquivalence.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
 
@@ -309,6 +313,12 @@ const normalizeFormPreservingSide = (value) => {
   //   x-(-5) -> x+5
   //   x+(-5) -> x-5
   let radicalReady = String(value ?? '')
+    // A student naturally writes a geometric sequence as 5(4)^(n-1), while
+    // generated keys often store 5*(4)^(n-1). Preserve that multiplication
+    // BEFORE removing numeric bookkeeping parentheses. Restrict this to a
+    // numeric coefficient immediately followed by a powered numeric base, so
+    // named calls such as sqrt(4) and structural groups are untouched.
+    .replace(/(\d)\((-?\d+(?:\.\d+)?)\)(?=\s*\^)/g, '$1*$2')
     .replace(/\((-?\d+(?:\.\d+)?)\)/g, '$1');
 
   for (let guard = 0; guard < 4; guard += 1) {
@@ -420,6 +430,134 @@ export const sameExpandedPolynomialEquation = (left, right, tolerance = 1e-6) =>
   return samePolynomial(one, two, tolerance);
 };
 
+/**
+ * Compare polynomial EQUATIONS as relations rather than as a requested form.
+ *
+ * This is deliberately NOT called by sameValue. It is opt-in from private
+ * grading metadata for constructs such as a parabola equation, where
+ *
+ *   (x-h)^2 = 4p(y-k)
+ *   4p(y-k) = (x-h)^2
+ *   y = (x-h)^2/(4p) + k
+ *
+ * are the same mathematical equation and should all grade the same. Algebra
+ * questions that ask for a specific form keep the existing strict comparators.
+ */
+export const samePolynomialEquationRelation = (left, right, tolerance = 1e-6) => {
+  const relationPolynomial = (value) => {
+    const sides = splitEquationSides(value);
+    if (!sides) return null;
+    const lhs = parsePolynomial(sides.left);
+    const rhs = parsePolynomial(sides.right);
+    if (!lhs || !rhs) return null;
+    if (polynomialDegree(lhs) > 8 || polynomialDegree(rhs) > 8) return null;
+
+    const delta = new Map(lhs);
+    for (const [key, coefficient] of rhs) {
+      delta.set(key, (delta.get(key) || 0) - coefficient);
+    }
+    for (const [key, coefficient] of [...delta.entries()]) {
+      if (Math.abs(coefficient) <= tolerance) delta.delete(key);
+    }
+    return delta.size ? delta : null;
+  };
+
+  const a = relationPolynomial(left);
+  const b = relationPolynomial(right);
+  if (!a || !b) return false;
+
+  const keys = new Set([...a.keys(), ...b.keys()]);
+  let ratio = null;
+  for (const key of keys) {
+    const av = a.get(key) || 0;
+    const bv = b.get(key) || 0;
+    if (Math.abs(av) <= tolerance && Math.abs(bv) <= tolerance) continue;
+    if (Math.abs(av) <= tolerance || Math.abs(bv) <= tolerance) return false;
+    const current = bv / av;
+    if (!Number.isFinite(current) || Math.abs(current) <= tolerance) return false;
+    if (ratio === null) ratio = current;
+    else if (Math.abs(current - ratio) > tolerance * Math.max(1, Math.abs(ratio))) return false;
+  }
+  return ratio !== null;
+};
+
+
+/**
+ * Compare absolute-value linear equations by the solution set they define.
+ *
+ * This is opt-in for modeling/formulation fields. It accepts harmless
+ * equivalents such as |x-5|=3, |-x+5|=3, or the same equation with its sides
+ * reversed, without changing the form-sensitive default equation grader.
+ */
+export const sameAbsoluteValueLinearEquation = (left, right, tolerance = 1e-6) => {
+  const parse = (value) => {
+    const sides = splitEquationSides(value);
+    if (!sides) return null;
+
+    const readAbsoluteSide = (side) => {
+      const normalized = normalizeStructuralMathLive(side)
+        .replace(/\\lvert|\\rvert|\\vert/g, '|')
+        .replace(/\\operatorname\{abs\}/g, 'abs')
+        .replace(/\\abs/g, 'abs')
+        .trim();
+
+      let inner = null;
+      const bars = normalized.match(/^\|(.+)\|$/);
+      const call = normalized.match(/^abs\((.+)\)$/i);
+      if (bars) inner = bars[1];
+      else if (call) inner = call[1];
+      if (!inner) return null;
+
+      const poly = parsePolynomial(inner);
+      if (!poly || polynomialDegree(poly) > 1) return null;
+      const variableTerms = [...poly.entries()].filter(([key]) => key !== '');
+      if (variableTerms.length !== 1) return null;
+      const [variable, coefficient] = variableTerms[0];
+      if (!/^[a-z]$/.test(variable) || Math.abs(coefficient) <= tolerance) return null;
+      return {
+        variable,
+        coefficient,
+        constant: poly.get('') || 0,
+      };
+    };
+
+    const leftAbs = readAbsoluteSide(sides.left);
+    const rightAbs = readAbsoluteSide(sides.right);
+    const leftConstant = asNumber(sides.left);
+    const rightConstant = asNumber(sides.right);
+
+    let absSide = null;
+    let distanceSide = null;
+    if (leftAbs && rightConstant !== null) {
+      absSide = leftAbs;
+      distanceSide = rightConstant;
+    } else if (rightAbs && leftConstant !== null) {
+      absSide = rightAbs;
+      distanceSide = leftConstant;
+    } else {
+      return null;
+    }
+
+    if (distanceSide < -tolerance) {
+      return { variable: absSide.variable, empty: true };
+    }
+
+    return {
+      variable: absSide.variable,
+      empty: false,
+      center: -absSide.constant / absSide.coefficient,
+      distance: Math.max(0, distanceSide) / Math.abs(absSide.coefficient),
+    };
+  };
+
+  const a = parse(left);
+  const b = parse(right);
+  if (!a || !b || a.variable !== b.variable || a.empty !== b.empty) return false;
+  if (a.empty) return true;
+  return Math.abs(a.center - b.center) <= tolerance
+    && Math.abs(a.distance - b.distance) <= tolerance;
+};
+
 const dedupeEquivalent = (values, tolerance) => {
   const unique = [];
   values.forEach((value) => {
@@ -451,6 +589,151 @@ export const sameFiniteSetNotation = (left, right, tolerance = 1e-6) => {
   });
 };
 
+
+/**
+ * Compare structured modeling equations while allowing only harmless
+ * commutativity of top-level additive terms and reversal of equation sides.
+ *
+ * This is deliberately narrower than algebraic equation equivalence. It is
+ * intended for authored rational-model fields such as work-rate equations,
+ * where 1/a + 1/b = 1/t and 1/b + 1/a = 1/t are the same model, but moving or
+ * cancelling variable-dependent terms would change the formulation being
+ * assessed.
+ */
+export const sameCommutativeModelEquation = (left, right) => {
+  const canonicalSide = (value) => {
+    const text = normalizeAnswer(value);
+    if (!text) return null;
+    const terms = [];
+    let token = '';
+    let sign = '+';
+    let roundDepth = 0;
+    let squareDepth = 0;
+    let braceDepth = 0;
+
+    const push = () => {
+      if (!token) return;
+      terms.push(`${sign}${token}`);
+      token = '';
+    };
+
+    for (let index = 0; index < text.length; index += 1) {
+      const char = text[index];
+      if (char === '(') roundDepth += 1;
+      else if (char === ')') roundDepth = Math.max(0, roundDepth - 1);
+      else if (char === '[') squareDepth += 1;
+      else if (char === ']') squareDepth = Math.max(0, squareDepth - 1);
+      else if (char === '{') braceDepth += 1;
+      else if (char === '}') braceDepth = Math.max(0, braceDepth - 1);
+
+      const topLevel = roundDepth === 0 && squareDepth === 0 && braceDepth === 0;
+      if (topLevel && (char === '+' || char === '-') && token) {
+        push();
+        sign = char;
+      } else if (topLevel && (char === '+' || char === '-') && !token) {
+        sign = char;
+      } else {
+        token += char;
+      }
+    }
+    push();
+    return terms.sort().join('');
+  };
+
+  const a = splitEquationSides(left);
+  const b = splitEquationSides(right);
+  if (!a || !b) return false;
+
+  const al = canonicalSide(a.left);
+  const ar = canonicalSide(a.right);
+  const bl = canonicalSide(b.left);
+  const br = canonicalSide(b.right);
+  if (!al || !ar || !bl || !br) return false;
+
+  return (al === bl && ar === br) || (al === br && ar === bl);
+};
+
+
+const canonicalSetBuilderNotation = (value) => {
+  const text = normalizeAnswer(value)
+    .replace(/\\mathbb\{r\}|ℝ/g, 'r')
+    .replace(/\\in|∈/g, 'in')
+    .replace(/\\mid|∣|｜/g, '|')
+    .replace(/\\colon/g, ':')
+    .replace(/\\land|∧|&&/g, '&')
+    .replace(/and/g, '&')
+    .replace(/;/g, '&');
+
+  const match = /^\{([xy])(?:inr)?[|:]([^{}]+)\}$/.exec(text);
+  if (!match) return null;
+
+  const variable = match[1];
+  const conditionText = match[2]
+    .replace(/,+/g, '&')
+    .replace(/&+/g, '&')
+    .replace(/^&|&$/g, '');
+  if (!conditionText) return null;
+
+  const invert = (operator) => ({
+    '<': '>',
+    '<=': '>=',
+    '>': '<',
+    '>=': '<=',
+  }[operator] || operator);
+
+  const atoms = conditionText.split('&').filter(Boolean).map((condition) => {
+    const direct = new RegExp('^' + variable + '(!=|<=|>=|<|>)(-?\\d+(?:\\.\\d+)?)$').exec(condition);
+    if (direct) return {
+      variable,
+      operator: direct[1],
+      bound: Number(direct[2]),
+    };
+
+    const reversed = new RegExp('^(-?\\d+(?:\\.\\d+)?)(<=|>=|<|>)' + variable + '$').exec(condition);
+    if (reversed) return {
+      variable,
+      operator: invert(reversed[2]),
+      bound: Number(reversed[1]),
+    };
+
+    return null;
+  });
+
+  if (atoms.some((atom) => !atom || !Number.isFinite(atom.bound))) return null;
+
+  const deduped = [];
+  for (const atom of atoms) {
+    if (!deduped.some((entry) => entry.operator === atom.operator && entry.bound === atom.bound)) {
+      deduped.push(atom);
+    }
+  }
+
+  deduped.sort((a, b) => (
+    a.operator.localeCompare(b.operator) || a.bound - b.bound
+  ));
+  return { variable, atoms: deduped };
+};
+
+/**
+ * Compare the simple set-builder forms used for rational-function domain/range
+ * restrictions. This is opt-in so a finite roster set such as {2,5} keeps its
+ * existing semantics.
+ *
+ * Accepted harmless notation differences include real-set membership, "|" vs
+ * ":", inequality reversal such as 4<y vs y>4, and reordered exclusions.
+ * The comparator deliberately refuses compound algebra, unions, or predicates
+ * it cannot parse rather than guessing.
+ */
+export const sameSetBuilderNotation = (left, right, tolerance = 1e-6) => {
+  const a = canonicalSetBuilderNotation(left);
+  const b = canonicalSetBuilderNotation(right);
+  if (!a || !b || a.variable !== b.variable || a.atoms.length !== b.atoms.length) return false;
+  return a.atoms.every((atom, index) => (
+    atom.operator === b.atoms[index].operator
+    && Math.abs(atom.bound - b.atoms[index].bound) <= tolerance
+  ));
+};
+
 export const sameValue = (left, right, tolerance = 1e-6) => {
   const leftSet = parseFiniteSetNotation(left);
   const rightSet = parseFiniteSetNotation(right);
@@ -459,8 +742,15 @@ export const sameValue = (left, right, tolerance = 1e-6) => {
   }
   if (sameAtomicValue(left, right, tolerance)) return true;
   if (sameSimpleInequality(left, right, tolerance)) return true;
+  if (sameLinearInequality(left, right, tolerance)) return true;
   if (sameFormPreservingEquation(left, right)) return true;
   if (sameFormPreservingExpression(left, right)) return true;
+  // Expanded polynomial answers are mathematical expressions, so harmless
+  // term order and coefficient arithmetic must not make a correct student
+  // response wrong. The comparator is deliberately form-specific: if either
+  // side contains a grouped variable expression such as (x+2)(x+3), it
+  // refuses rather than silently turning a factoring task into expansion.
+  if (sameExpandedPolynomialExpression(left, right, tolerance)) return true;
   if (sameInverseFunctionEquation(left, right, tolerance)) return true;
   if (sameExpandedPolynomialEquation(left, right, tolerance)) return true;
   // LAST RESORT, and only for equations. Text equality already handled every

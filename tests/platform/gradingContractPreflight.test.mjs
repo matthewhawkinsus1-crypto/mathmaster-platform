@@ -5,7 +5,7 @@ import { validateQuestionGradingContracts } from '../../src/platform/grading/gra
 import { validateQuestionSemantics } from '../../src/platform/contract/semanticValidation.js';
 import { buildAssignmentV5PreflightModel } from '../../src/platform/preflight/assignmentV5PreflightModel.js';
 
-test('acceptedAnswers cannot silently override the declared correct answer', () => {
+test('legacy answerFields keep the canonical answer when acceptedAnswers add a distinct alternate', () => {
   const question = {
     type: 'multiAnswer',
     prompt: 'Enter the value.',
@@ -16,9 +16,8 @@ test('acceptedAnswers cannot silently override the declared correct answer', () 
       acceptedAnswers: ['5'],
     }],
   };
-  const result = validateQuestionGradingContracts(question, { label: 'Conflict question' });
-  assert.ok(result.errors.some((message) => /acceptedAnswers list/.test(message)));
-  assert.ok(result.errors.some((message) => /could be marked wrong/.test(message)));
+  const result = validateQuestionGradingContracts(question, { label: 'Alternate-answer question' });
+  assert.deepEqual(result.errors, []);
 });
 
 test('mathematically equivalent accepted formatting does not conflict with the primary key', () => {
@@ -119,8 +118,8 @@ test('a choice field must have at least one grading key that matches a displayed
   assert.ok(result.errors.some((message) => /every visible option and still be marked wrong/.test(message)));
 });
 
-test('regular answerFields self-grade their canonical key through the actual MultiAnswer grader', () => {
-  const good = validateQuestionGradingContracts({
+test('regular answerFields keep their canonical key when alternate accepted answers are present', () => {
+  const equivalent = validateQuestionGradingContracts({
     answerFields: [{
       id: 'quadratic',
       label: 'Standard form',
@@ -128,9 +127,9 @@ test('regular answerFields self-grade their canonical key through the actual Mul
       acceptedAnswers: ['y=x^{2}-6x+1'],
     }],
   });
-  assert.deepEqual(good.errors, []);
+  assert.deepEqual(equivalent.errors, []);
 
-  const bad = validateQuestionGradingContracts({
+  const distinctAlternate = validateQuestionGradingContracts({
     answerFields: [{
       id: 'value',
       label: 'Value',
@@ -138,7 +137,11 @@ test('regular answerFields self-grade their canonical key through the actual Mul
       acceptedAnswers: ['5'],
     }],
   });
-  assert.ok(bad.errors.some((message) => /runtime self-grade check/.test(message)));
+  assert.deepEqual(
+    distinctAlternate.errors,
+    [],
+    'acceptedAnswers supplement the canonical answer; they do not replace and invalidate it',
+  );
 });
 
 test('secure responseFields self-grade the canonical key through gradeResponseField', () => {
@@ -193,15 +196,15 @@ test('negative or nonnumeric tolerances are rejected', () => {
   assert.ok(result.errors.some((message) => /relativeTolerance/.test(message)));
 });
 
-test('semantic Preflight includes grading-contract failures', () => {
+test('semantic Preflight includes secure response-field grading-contract failures', () => {
   const question = {
-    type: 'multiAnswer',
     prompt: 'Enter the value.',
-    answerFields: [{
+    responseFields: [{
       id: 'value',
       label: 'Value',
-      answer: '4',
-      acceptedAnswers: ['5'],
+      inputProfile: 'number',
+      expected: '4',
+      accepted: ['5'],
     }],
   };
   const result = validateQuestionSemantics(question, { label: 'Question 1' });
@@ -224,11 +227,12 @@ test('native Assignment V5 Preflight blocks a stale accepted-answer list', () =>
       questions: [{
         type: 'multiAnswer',
         prompt: 'Enter the value.',
-        answerFields: [{
+        responseFields: [{
           id: 'value',
           label: 'Value',
-          answer: '4',
-          acceptedAnswers: ['5'],
+          inputProfile: 'number',
+          expected: '4',
+          accepted: ['5'],
         }],
         alignments: [
           { framework: 'teks', code: 'A.5A', role: 'primary', evidenceLevel: 'assessed' },

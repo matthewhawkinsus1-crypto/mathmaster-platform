@@ -1,0 +1,610 @@
+{
+  "standard": "A.3C",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-multiple-line-graph-constructions-and-features",
+  "documents": [
+    {
+      "id": "mm_A_3C_v2_graph-slope-intercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3C:v2-graph-slope-intercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "graphing2",
+      "mode": "slopeIntercept",
+      "line": {
+        "m": "{{m}}",
+        "b": "{{b}}"
+      },
+      "prompt": "Graph $y={{m}}x{{b|signed}}$ by constructing the line from two accurate points.",
+      "graphBounds": {
+        "xMin": -7,
+        "xMax": 7,
+        "yMin": -9,
+        "yMax": 9
+      },
+      "solutionReview": {
+        "headline": "Slope-intercept form gives a direct construction plan.",
+        "reasoning": [
+          "Start at the y-intercept $(0,{{b}})$.",
+          "Use slope {{m}} to locate a second point; the line through the two points is the graph."
+        ]
+      },
+      "attemptFeedback": [
+        "If one point is right, keep it and use the slope to reposition the other."
+      ],
+      "supportHints": [
+        "Plot the y-intercept first."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3C_v2_graph-point-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3C:v2-graph-point-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "graphing2",
+      "mode": "pointSlope",
+      "point": [
+        "{{x1}}",
+        "{{y1}}"
+      ],
+      "slope": "{{m}}",
+      "prompt": "Graph the line through $({{x1}},{{y1}})$ with slope {{m}}. Use the given point and the rate of change to construct a second point.",
+      "graphBounds": {
+        "xMin": -7,
+        "xMax": 7,
+        "yMin": -9,
+        "yMax": 9
+      },
+      "solutionReview": {
+        "headline": "Point-slope information is enough to construct the line.",
+        "reasoning": [
+          "The given point $({{x1}},{{y1}})$ belongs on the graph.",
+          "A slope of {{m}} means moving 1 unit right changes y by {{m}}; that creates a second point."
+        ]
+      },
+      "attemptFeedback": [
+        "Anchor the graph at the given point before applying the slope."
+      ],
+      "supportHints": [
+        "From the given point, move right 1 and up/down by the slope."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "x1": {
+            "type": "int",
+            "min": -4,
+            "max": 2
+          },
+          "y1": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-unit-slope-yintercept-graph",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Graph the line through the y-intercept $(0,{{y1}})$ with slope {{m}}. Plot the given point, then use the unit slope to construct a second point.",
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  1
+                ]
+              },
+              "x1": {
+                "type": "choice",
+                "values": [
+                  0
+                ]
+              },
+              "y1": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            }
+          },
+          "solutionReview": {
+            "headline": "A y-intercept plus a unit slope gives an accessible two-point construction.",
+            "reasoning": [
+              "The first point is (0,{{y1}}).",
+              "A slope of {{m}} means move right 1 and change y by {{m}} to create the next point."
+            ],
+            "answerSummary": "Construct the unique line through the two points."
+          },
+          "attemptFeedback": [
+            "Start at x=0, then apply the slope once."
+          ],
+          "supportHints": [
+            "For slope 1 move right 1/up 1; for slope -1 move right 1/down 1."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3C_v2_graph-standard-form",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3C:v2-graph-standard-form",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "graphing2",
+      "mode": "standardForm",
+      "standard": {
+        "A": "{{A}}",
+        "B": "{{B}}",
+        "C": "{{C}}"
+      },
+      "prompt": "Graph the standard-form line ${{A}}x+{{B}}y={{C}}$. Construct it from two points or intercepts.",
+      "graphBounds": {
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -8,
+        "yMax": 8
+      },
+      "solutionReview": {
+        "headline": "Standard form can be graphed from intercepts or by rearranging.",
+        "reasoning": [
+          "Setting x=0 gives y-intercept {{b}}.",
+          "Rearranging also gives slope {{m}}, so any second point consistent with that rate determines the same line."
+        ]
+      },
+      "attemptFeedback": [
+        "Try finding an intercept before choosing the second point."
+      ],
+      "supportHints": [
+        "Set x=0 or y=0 to get an easy point."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "B": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "A": "-m*B",
+          "C": "b*B"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-fractional-standard-form-graph",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Graph the standard-form line ${{A}}x+{{B}}y={{C}}$. The slope is fractional, so construct the line accurately by using the y-intercept and the rise/run implied by $-A/B$.",
+          "generator": {
+            "parameters": {
+              "A": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "B": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "b": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            },
+            "derived": {
+              "m": "-A/B",
+              "C": "b*B"
+            },
+            "constraints": [
+              "A!=B",
+              "A%B!=0",
+              "B%A!=0"
+            ]
+          },
+          "solutionReview": {
+            "headline": "Standard form can represent a line with a non-integer slope exactly.",
+            "reasoning": [
+              "The y-intercept is {{b}}.",
+              "The slope is -{{A}}/{{B}}={{m}}, so use the coefficient ratio as rise/run to build another exact point."
+            ],
+            "answerSummary": "Graph the line with intercept {{b}} and slope {{m}}."
+          },
+          "attemptFeedback": [
+            "Keep the slope as the exact ratio -A/B while constructing the second point."
+          ],
+          "supportHints": [
+            "From the y-intercept, move horizontally by B and vertically by -A."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3C_v2_multi-feature-intercepts",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3C:v2-multi-feature-intercepts",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3C",
+      "taskType": "interpretation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "For $y={{m}}x{{b|signed}}$, plot BOTH axis intercepts, then report the slope. The x-intercept is also the zero of the function.",
+      "functionSpec": {
+        "type": "linear",
+        "m": "{{m}}",
+        "b": "{{b}}"
+      },
+      "pointTasks": [
+        {
+          "id": "yint",
+          "label": "Plot the y-intercept",
+          "x": 0,
+          "expected": [
+            0,
+            "{{b}}"
+          ]
+        },
+        {
+          "id": "xint",
+          "label": "Plot the x-intercept",
+          "x": "{{root}}",
+          "expected": [
+            "{{root}}",
+            0
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "slope",
+          "label": "Slope",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{m}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A line's intercepts and slope describe the same graph from three connected perspectives.",
+        "reasoning": [
+          "The y-intercept is $(0,{{b}})$ and the x-intercept/zero is $({{root}},0)$.",
+          "The slope between those points equals {{m}}."
+        ]
+      },
+      "attemptFeedback": [
+        "An x-intercept must have y=0; a y-intercept must have x=0."
+      ],
+      "supportHints": [
+        "Set y=0 to locate the zero."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "root": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "b": "-m*root"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b3"
+        },
+        {
+          "coverageKey": "challenge-d3b4-zero-intercept-label-audit",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "For $y={{m}}x{{b|signed}}$, a student labels the point $(0,{{root}})$ as the x-intercept and $({{b}},0)$ as the y-intercept because the values {{root}} and {{b}} were swapped with the coordinate roles. Repair both intercepts, report the slope, and verify that each corrected intercept satisfies the equation.",
+          "responseFields": [
+            {
+              "id": "slope",
+              "label": "Slope",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "x-intercept-x",
+              "label": "x-coordinate of the x-intercept/zero",
+              "inputProfile": "number",
+              "expected": "{{root}}"
+            },
+            {
+              "id": "x-intercept-y",
+              "label": "y-coordinate of the x-intercept",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "y-intercept-x",
+              "label": "x-coordinate of the y-intercept",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "y-intercept-y",
+              "label": "y-coordinate of the y-intercept",
+              "inputProfile": "number",
+              "expected": "{{b}}"
+            },
+            {
+              "id": "diagnosis",
+              "label": "What was confused?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "coordinate-roles",
+                  "label": "The student confused an intercept VALUE with the coordinate position where the other coordinate must be 0."
+                },
+                {
+                  "id": "slope-only",
+                  "label": "Only the slope was wrong; the intercept coordinates were correct."
+                }
+              ],
+              "expected": "coordinate-roles"
+            }
+          ],
+          "solutionReview": {
+            "headline": "An intercept is a point with one coordinate fixed at zero.",
+            "reasoning": [
+              "The zero satisfies y=0, so x={{root}} and the x-intercept is $({{root}},0)$.",
+              "At x=0, y={{b}}, so the y-intercept is $(0,{{b}})$.",
+              "Both points satisfy the same line of slope {{m}}."
+            ],
+            "answerSummary": "x-intercept $({{root}},0)$; y-intercept $(0,{{b}})$; slope {{m}}."
+          },
+          "attemptFeedback": [
+            "Write each intercept as an ordered pair before labeling it."
+          ],
+          "supportHints": [
+            "Use the definition of each axis intercept to decide which coordinate is constrained, then write each intercept as an ordered pair."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3C_v2_error-zero-vs-intercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3C:v2-error-zero-vs-intercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3C",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "For $y={{m}}x{{b|signed}}$, a student says “the zero is {{b}} because {{b}} is the y-intercept.” Correct the student by giving the actual zero and the y-intercept.",
+      "responseFields": [
+        {
+          "id": "zero",
+          "label": "Zero (x-value where y=0)",
+          "inputProfile": "number",
+          "expected": "{{root}}"
+        },
+        {
+          "id": "yint",
+          "label": "y-intercept",
+          "inputProfile": "number",
+          "expected": "{{b}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A zero is an x-value; a y-intercept is an output when x=0.",
+        "reasoning": [
+          "Setting y=0 gives $0={{m}}x{{b|signed}}$, so the zero is x={{root}}.",
+          "Setting x=0 gives y={{b}}, so {{b}} is the y-intercept, not the zero."
+        ]
+      },
+      "attemptFeedback": [
+        "Decide which coordinate is forced to 0 for each kind of intercept."
+      ],
+      "supportHints": [
+        "x-intercept/zero: y=0. y-intercept: x=0."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "root": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "b": "-m*root"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-intercept-role-verification",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "For $y={{m}}x{{b|signed}}$, Student A says the zero is {{b}} because it is the number visible when x=0. Student B says the zero is {{root}} because that input satisfies the x-intercept condition. Determine which reasoning matches the definition of a zero, identify both intercepts, and verify the proposed zero in the equation.",
+          "responseFields": [
+            {
+              "id": "student",
+              "label": "Which reasoning is valid?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "b",
+                  "label": "Student B"
+                },
+                {
+                  "id": "a",
+                  "label": "Student A"
+                }
+              ],
+              "expected": "b"
+            },
+            {
+              "id": "zero",
+              "label": "Zero",
+              "inputProfile": "number",
+              "expected": "{{root}}"
+            },
+            {
+              "id": "y-intercept",
+              "label": "y-intercept",
+              "inputProfile": "number",
+              "expected": "{{b}}"
+            },
+            {
+              "id": "verify",
+              "label": "y-value when x={{root}}",
+              "inputProfile": "number",
+              "expected": "0"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A zero is defined by output 0; the y-intercept is defined by input 0.",
+            "reasoning": [
+              "At x=0 the output is {{b}}, so {{b}} is the y-intercept.",
+              "At x={{root}}, y={{m}}({{root}})+{{b}}=0, so {{root}} is the zero."
+            ],
+            "answerSummary": "Zero {{root}}; y-intercept {{b}}."
+          },
+          "attemptFeedback": [
+            "Use the definitions x=0 and y=0 to separate the two intercept roles."
+          ],
+          "supportHints": [
+            "Distinguish the input associated with an x-intercept from the output associated with a y-intercept, then substitute the proposed zero to verify it."
+          ]
+        }
+      ]
+    }
+  ]
+}

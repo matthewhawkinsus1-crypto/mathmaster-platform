@@ -30,7 +30,7 @@ import {
 } from '../../../functions/shared/pathToolContracts.mjs';
 import { buildFieldGradingDefinition, hasFieldGradableDefinition } from '../../../functions/shared/legacyFieldGrading.mjs';
 import { buildAttemptSupportPayload, buildPrivateSupport } from '../../../functions/shared/pathSolutionSupport.mjs';
-import { sameValue } from '../../../functions/shared/answerEquivalence.mjs';
+import * as answerEquivalence from '../../../functions/shared/answerEquivalence.mjs';
 import { selectNextFamily, recordFamilyUse } from '../../../functions/shared/pathQuestionSelection.mjs';
 import { generatePathInstanceWithRetries, hasPathGenerator } from '../../../functions/shared/pathQuestionGeneration.mjs';
 import { getQuestionPrimaryTeksCodes } from '../../questionMetadata.js';
@@ -151,14 +151,34 @@ const publicFieldPayload = (question = {}) => ({
 });
 
 const fieldValuesEquivalent = (actual, field) => {
-  const candidates = field.accepted?.length ? field.accepted : [field.expected];
+  const candidates = [field.expected, ...(Array.isArray(field.accepted) ? field.accepted : [])]
+    .filter((value) => value !== undefined && value !== null);
   return candidates.some((expected) => {
     const actualText = String(actual ?? '').trim();
     const expectedText = String(expected ?? '').trim();
     if (field.caseSensitive && !Number.isFinite(Number(actual)) && !Number.isFinite(Number(expected))) {
       return actualText === expectedText;
     }
-    return sameValue(actual, expected, Math.max(0, Number(field.numericTolerance) || 0));
+    const tolerance = Math.max(0, Number(field.numericTolerance) || 0);
+    if (field.equivalence === 'polynomialRelation') {
+      return answerEquivalence.samePolynomialEquationRelation(actual, expected, tolerance);
+    }
+    if (field.equivalence === 'absoluteLinearRelation') {
+      return answerEquivalence.sameAbsoluteValueLinearEquation(actual, expected, tolerance);
+    }
+    if (field.equivalence === 'modelEquation') {
+      return answerEquivalence.sameCommutativeModelEquation(actual, expected);
+    }
+    if (field.equivalence === 'setBuilder') {
+      return answerEquivalence.sameSetBuilderNotation(actual, expected, tolerance);
+    }
+    if (field.equivalence === 'rationalExpression') {
+      return answerEquivalence.sameRationalExpression(actual, expected, tolerance);
+    }
+    if (field.equivalence === 'nonnegativeRadicalExpression') {
+      return answerEquivalence.sameNonnegativeRadicalExpression(actual, expected, tolerance);
+    }
+    return answerEquivalence.sameValue(actual, expected, tolerance);
   });
 };
 
@@ -222,6 +242,13 @@ export const createTeacherPathRuntime = ({
     status: session.status,
     sessionKind: session.sessionKind,
     assessmentFramework: session.assessmentFramework || null,
+    coursePracticeIntent: session.coursePracticeIntent || null,
+    weekKey: session.weekKey || null,
+    weeklySlotKey: session.weeklySlotKey || null,
+    weeklySlot: session.weeklySlot || null,
+    weeklyPurpose: session.weeklyPurpose || null,
+    intendedDok: session.preferredDok || null,
+    intendedDifficultyBand: session.preferredBand || null,
     requiredQuestions: session.requiredQuestions,
     target: { alignmentKey: session.targetAlignmentKey },
     summary: { ...session.summary },
@@ -258,6 +285,7 @@ export const createTeacherPathRuntime = ({
     const byQuestion = new Map(candidates.map((entry) => [entry.question, entry]));
     const choice = selectNextFamily(candidates.map((entry) => entry.question), {
       preferredBand: session.preferredBand || 3,
+      preferredDok: session.preferredDok || 2,
       usage: session.familyUsage || {},
       usedRepresentations: session.usedRepresentations || [],
       usedTaskTypes: session.usedTaskTypes || [],
@@ -280,7 +308,10 @@ export const createTeacherPathRuntime = ({
     // or private grading definition, otherwise a teacher sees literal {{n}}
     // placeholders while a student receives a concrete server-generated item.
     const generated = hasPathGenerator(chosen.question)
-      ? generatePathInstanceWithRetries(chosen.question, `${session.sessionId}|${questionInstanceId}`)
+      ? generatePathInstanceWithRetries(chosen.question, `${session.sessionId}|${questionInstanceId}`, 4, {
+        preferredDok: session.preferredDok || 2,
+        preferredDifficultyBand: session.preferredBand || 3,
+      })
       : { question: chosen.question, parameters: null, reason: null };
     if (!generated.question) {
       session.status = 'blocked';
@@ -333,7 +364,10 @@ export const createTeacherPathRuntime = ({
       selectedRepresentation: selection?.representation || null,
       selectedTaskType: selection?.taskType || null,
       selectedBand: selection?.band ?? null,
-      preferredBand: selection?.preferredBand ?? null,
+      selectedDok: Number(issuedQuestion.dok) || null,
+      preferredBand: selection?.preferredBand ?? session.preferredBand ?? null,
+      preferredDok: session.preferredDok ?? null,
+      weeklyPurpose: session.weeklyPurpose || null,
       unusedFamiliesRemaining: selection?.unusedRemaining ?? null,
       isRepeatFamily: selection?.isRepeat ?? null,
     };
@@ -382,7 +416,19 @@ export const createTeacherPathRuntime = ({
 
   // --- The three calls the container makes -----------------------------------
 
-  const startOrResumePathSession = async ({ targetAlignmentKey, sessionKind = 'practice', requiredQuestions: required = requiredQuestions, assessmentFramework = null }) => {
+  const startOrResumePathSession = async ({
+    targetAlignmentKey,
+    sessionKind = 'practice',
+    requiredQuestions: required = requiredQuestions,
+    assessmentFramework = null,
+    coursePracticeIntent = null,
+    weekKey = null,
+    weeklySlotKey = null,
+    weeklySlot = null,
+    intendedDok = null,
+    intendedDifficultyBand = null,
+    weeklyPurpose = null,
+  }) => {
     const code = toDisplayCode(targetAlignmentKey);
     const skillId = teksSkillId(code);
 
@@ -398,6 +444,8 @@ export const createTeacherPathRuntime = ({
       && candidate.targetAlignmentKey === toCanonicalKey(code)
       && candidate.sessionKind === sessionKind
       && (candidate.assessmentFramework || null) === (assessmentFramework || null)
+      && (candidate.coursePracticeIntent || null) === (coursePracticeIntent === 'challenge' ? 'challenge' : null)
+      && (candidate.weeklySlotKey || null) === (weeklySlotKey || null)
     ));
     if (existing) {
       publish(existing);
@@ -409,6 +457,11 @@ export const createTeacherPathRuntime = ({
       status: 'active',
       sessionKind,
       assessmentFramework: assessmentFramework || null,
+      coursePracticeIntent: coursePracticeIntent === 'challenge' ? 'challenge' : null,
+      weekKey: weekKey || null,
+      weeklySlotKey: weeklySlotKey || null,
+      weeklySlot: weeklySlot || null,
+      weeklyPurpose: weeklyPurpose || null,
       requiredQuestions: Math.max(1, Math.min(10, Number(required) || 5)),
       targetAlignmentKey: toCanonicalKey(code),
       originSkillId: skillId,
@@ -419,7 +472,20 @@ export const createTeacherPathRuntime = ({
       summary: { completedQuestions: 0, correctQuestions: 0, independentSuccesses: 0 },
       evidenceBySkill: { [skillId]: emptyEvidence() },
       // Selection state, identical in shape to the live session document.
-      preferredBand: 3,
+      // A weekly simulated launch receives the same frozen target the live
+      // server resolved from its weekly snapshot. Open-practice simulation
+      // keeps the current baseline until its separate pass/readiness parity
+      // audit supplies a stronger target.
+      preferredBand: coursePracticeIntent === 'challenge' && !weeklySlotKey
+        ? 4
+        : (intendedDifficultyBand != null && Number.isFinite(Number(intendedDifficultyBand))
+          ? Number(intendedDifficultyBand)
+          : 3),
+      preferredDok: coursePracticeIntent === 'challenge' && !weeklySlotKey
+        ? 3
+        : (intendedDok != null && Number.isFinite(Number(intendedDok))
+          ? Number(intendedDok)
+          : 2),
       familyUsage: {},
       usedRepresentations: [],
       usedTaskTypes: [],

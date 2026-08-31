@@ -307,18 +307,42 @@ export const scoreCandidate = ({
  * "Adapt the MIX, not the student's permanent identity." A below-level student
  * still needs course-level work; an above-level student still needs retention.
  */
-export const weeklyMixFor = ({ band, honors = false, sessions = 4 }) => {
-  const mix = honors
-    ? { [PURPOSE.CURRENT_LEARNING]: 2, [PURPOSE.RETENTION]: 1, [PURPOSE.EXTENSION]: 1, [PURPOSE.TRANSFER]: 1 }
-    : { [PURPOSE.CURRENT_LEARNING]: 2, [PURPOSE.RESPONSIVE_REVIEW]: 1, [PURPOSE.RETENTION]: 1 };
+export const weeklyMixFor = ({ band, honors = false, sessions = 4, allowTransfer = true }) => {
+  const count = Math.max(0, Math.floor(Number(sessions) || 0));
+
+  // Honors differentiation must survive a teacher reducing the weekly session
+  // count. The previous implementation authored five desired purposes and then
+  // sliced the array; at four sessions that silently dropped EXTENSION because
+  // TRANSFER happened to appear first in the ordering. That let CCMR transfer
+  // replace the student's course Challenge, even though the two are deliberately
+  // separate Path purposes.
+  if (honors) {
+    const slots = band === INSTRUCTIONAL_BAND.BELOW
+      // Keep contact with the course, repair the blocking foundation, and still
+      // revisit prior learning. Challenge/transfer wait until the foundation holds.
+      ? [PURPOSE.CURRENT_LEARNING, PURPOSE.FOUNDATION_BRIDGE, PURPOSE.RETENTION]
+      // In a compressed Honors week, preserve course Challenge before adding
+      // the extra CCMR transfer slot. A five-session week then restores the
+      // second current-learning session.
+      : [PURPOSE.CURRENT_LEARNING, PURPOSE.RETENTION, PURPOSE.EXTENSION];
+
+    if (allowTransfer && band !== INSTRUCTIONAL_BAND.BELOW && count >= 4) slots.push(PURPOSE.TRANSFER);
+    if (count >= 5) slots.splice(1, 0, PURPOSE.CURRENT_LEARNING);
+    while (slots.length < count) slots.push(PURPOSE.CURRENT_LEARNING);
+    return slots.slice(0, count);
+  }
+
+  const mix = {
+    [PURPOSE.CURRENT_LEARNING]: 2,
+    [PURPOSE.RESPONSIVE_REVIEW]: 1,
+    [PURPOSE.RETENTION]: 1,
+  };
 
   if (band === INSTRUCTIONAL_BAND.BELOW) {
     // Repair, but never at the cost of contact with the course.
-    mix[PURPOSE.FOUNDATION_BRIDGE] = honors ? 1 : 1;
-    mix[PURPOSE.EXTENSION] = 0;
-    mix[PURPOSE.TRANSFER] = 0;
+    mix[PURPOSE.FOUNDATION_BRIDGE] = 1;
   }
-  if (band === INSTRUCTIONAL_BAND.ABOVE && !honors) {
+  if (band === INSTRUCTIONAL_BAND.ABOVE) {
     mix[PURPOSE.EXTENSION] = 1;
     mix[PURPOSE.RESPONSIVE_REVIEW] = 0;
   }
@@ -331,8 +355,8 @@ export const weeklyMixFor = ({ band, honors = false, sessions = 4 }) => {
   order.forEach((purpose) => {
     for (let i = 0; i < (mix[purpose] || 0); i += 1) slots.push(purpose);
   });
-  while (slots.length < sessions) slots.push(PURPOSE.CURRENT_LEARNING);
-  return slots.slice(0, sessions);
+  while (slots.length < count) slots.push(PURPOSE.CURRENT_LEARNING);
+  return slots.slice(0, count);
 };
 
 /**
@@ -359,12 +383,14 @@ export const optimizeWeeklySet = ({
   band = INSTRUCTIONAL_BAND.ON,
   honors = false,
   interventionMode = false,
+  allowTransfer = true,
   saturation = { strand: 0.35, representation: 0.2 },
 }) => {
-  const wanted = weeklyMixFor({ band, honors, sessions });
+  const wanted = weeklyMixFor({ band, honors, sessions, allowTransfer });
   const bridgeCap = foundationBridgeCap(sessions, interventionMode);
 
-  const pool = list(candidates).filter((entry) => entry?.eligibility?.eligible !== false);
+  const pool = list(candidates).filter((entry) => entry?.eligibility?.eligible !== false
+    && (allowTransfer || entry?.purpose !== PURPOSE.TRANSFER));
   const chosen = [];
   const usedStrands = new Map();
   const usedRepresentations = new Map();
@@ -475,6 +501,7 @@ export const buildWeeklyRecommendations = ({
   sessions = 4,
   honors = false,
   interventionMode = false,
+  allowTransfer = true,
   coverage = undefined,
   now = Date.now(),
 } = {}) => {
@@ -561,7 +588,7 @@ export const buildWeeklyRecommendations = ({
     };
   });
 
-  const week = optimizeWeeklySet({ candidates, sessions, band: profile?.instructionalBand, honors, interventionMode });
+  const week = optimizeWeeklySet({ candidates, sessions, band: profile?.instructionalBand, honors, interventionMode, allowTransfer });
 
   return {
     ...week,

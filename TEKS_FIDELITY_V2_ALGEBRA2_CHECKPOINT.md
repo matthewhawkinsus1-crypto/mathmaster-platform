@@ -1,0 +1,2736 @@
+# Algebra II Fidelity V2 — Continuation Checkpoint
+
+Last updated: 2026-08-30
+
+## Branch
+
+`audit/teks-fidelity-v2-algebra2-current`
+
+This branch starts from the certified Algebra I checkpoint. Do not use the older `audit/teks-fidelity-v2-algebra2` branch because it predates the completed Algebra I Path adapter work.
+
+## Durable resume anchor
+
+- Certified Algebra I base: `780b9e6fbf5cf6d7bdfba8417a1fb392b4369572`
+- Algebra I release checkpoint branch head that locked certification: `ddef6dc1260dd718f41e5a4ddad55714fbbb319e`
+- Current Algebra II branch head before this logging update: `a3e9dc13b9036cb81bcf674936e114aa4f516fab`
+- Current source bank: `drafts/algebra2.json`
+- Standards: **48**
+- Legacy families: **240** (5 per standard)
+- Frozen whole-course decision matrix from the certified Algebra I base: **15 KEEP · 15 ENHANCE · 18 REBUILD**
+- No bulk Algebra II promotion or Firestore deployment has started.
+
+## Progress discipline — mandatory
+
+The purpose of this file is to prevent chat interruptions from causing repeated audits.
+
+1. Update this checkpoint **after every completed standard** before opening the next standard.
+2. Also update it immediately after any branch-level architecture discovery that changes the plan.
+3. A completed standard is not reopened unless a named certification/regression test fails.
+4. The **FIRST UNFINISHED STANDARD** section is authoritative for every new chat.
+5. When a standard is completed, record:
+   - verdict,
+   - exact staged file,
+   - student action now measured,
+   - secure/runtime dependency used or added,
+   - certification gate added/extended,
+   - next unfinished standard.
+6. Do not spend a new chat reconstructing old work. Read this file first, then only the current unfinished standard's source/staged package/tests.
+
+---
+
+## Completed standards
+
+### A2.2A — REBUILD — STAGED
+
+Official construct: graph the required Algebra II parent functions and, when applicable, analyze key attributes.
+
+Fidelity V2 status:
+- 5 Path families
+- deterministic sub-variants supported server-side
+- covers all seven required parent types:
+  - square root
+  - reciprocal
+  - cubic
+  - cube root
+  - exponential
+  - absolute value
+  - logarithmic
+- logarithmic coverage includes bases 2, 10, and e
+- student must construct graphs, not merely recognize attributes
+- graph work is connected to domain/range/intercept/symmetry/asymptote analysis
+- secure Path eligibility is checked on generated instances
+
+Files:
+- `drafts/fidelity-v2/algebra2/A2.2A.json`
+- `tests/platform/algebra2FidelityV2Staged.test.mjs`
+- deterministic Path sub-variant support in `functions/shared/pathQuestionGeneration.mjs`
+- sub-variant regression coverage in `tests/platform/pathQuestionGeneration.test.mjs`
+
+Do **not** re-audit A2.2A unless its certification test fails.
+
+---
+
+## Completed: A2.2B
+
+### A2.2B — ENHANCE — CERTIFIED
+
+Official construct: **Graph and write the inverse of a function using inverse-function notation.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- graph → reflect across `y=x` → inverse graph → inverse equation is the recurring assessed action;
+- secure table → graph workflow is preserved in the public Path payload without leaking private keys;
+- nonlinear breadth includes restricted quadratic, square-root, and rational inverse construction;
+- generated secure instances self-grade their own correct work through the server contract;
+- targeted Algebra II Fidelity V2 Certification run `33315723037`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.2B unless a named regression/certification test fails.
+
+## Completed: A2.2C
+
+### A2.2C — ENHANCE — CERTIFIED
+
+Official construct: **Describe and analyze relationships between functions and their inverses, including quadratic/square root and logarithmic/exponential pairs and required domain restrictions.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- quadratic/square-root and exponential/logarithmic inverse pairs are both repeatedly assessed;
+- left-branch and right-branch quadratic restrictions are both represented;
+- domain/range exchange, reflection features, intercept/asymptote exchange, and unrestricted-quadratic error analysis are required;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- public Path payloads strip private answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33316108442`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.2C unless a named regression/certification test fails.
+
+## Completed: A2.2D
+
+### A2.2D — REBUILD — CERTIFIED
+
+Official construct: **Use composition of functions, including necessary domain restrictions, to determine whether two functions are inverses.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- composition is the graded evidence used to decide inverse status in every family;
+- at least three families require both $f(g(x))$ and $g(f(x))$;
+- right-branch and left-branch quadratic/square-root restrictions are both verified;
+- true inverse and non-inverse/counterexample cases are both present;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- public Path payloads strip private answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33316271929`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.2D unless a named regression/certification test fails.
+
+## Completed: A2.3A
+
+### A2.3A — REBUILD — CERTIFIED
+
+Official construct: **Formulate systems of equations, including three linear equations in three variables and systems with one linear and one quadratic equation.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- students author the systems rather than select prewritten models;
+- 3×3 linear-system formulation appears repeatedly from context and tables;
+- linear/quadratic formulation appears repeatedly from graph/verbal information;
+- error analysis requires the corrected system, not only the diagnosis;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- public Path payloads strip private answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33316415151`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.3A unless a named regression/certification test fails.
+
+## Completed: A2.3B
+
+### A2.3B — ENHANCE — CERTIFIED
+
+Official construct: **Solve systems of three linear equations in three variables using Gaussian elimination, technology with matrices, and substitution.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- substitution, Gaussian elimination, and matrix technology are all explicitly represented;
+- matrix technology is authentic 3×3 RREF, not a disguised 2×2 or answer-choice task;
+- Gaussian-elimination families collect intermediate row evidence;
+- the substitution family collects actual substituted equations;
+- complete error analysis repairs the row operation and still solves x, y, z;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- secure matrix grading recomputes the 3×3 solution server-side and requires the RREF technology action;
+- targeted Algebra II Fidelity V2 Certification run `33318007307`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.3B unless a named regression/certification test fails.
+
+## Completed: A2.3C
+
+### A2.3C — REBUILD — CERTIFIED
+
+Official construct: **Solve algebraically systems of two equations in two variables consisting of one linear equation and one quadratic equation.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- every family algebraically reduces the system to a quadratic equation;
+- real solutions are completed as ordered pairs, not x-values only;
+- two-intersection, tangent/one-intersection, and zero-real-solution systems are all covered;
+- factoring, discriminant, and exact quadratic-formula pathways are represented;
+- error analysis repairs the algebra and finishes the complete system solutions;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- targeted Algebra II Fidelity V2 Certification run `33318173657`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.3C unless a named regression/certification test fails.
+
+## Completed: A2.3D
+
+### A2.3D — REBUILD — CERTIFIED
+
+Official construct: **Determine the reasonableness of solutions to systems consisting of a linear equation and a quadratic equation in two variables.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- every family uses concrete equation-output/residual evidence rather than recognition-only rules;
+- both reasonable and unreasonable exact candidates are represented;
+- algebraically valid but contextually unreasonable candidates are represented;
+- numerical/rounded candidates are judged against an explicit residual tolerance;
+- error analysis performs the omitted check and changes the verdict;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- targeted Algebra II Fidelity V2 Certification run `33318356389`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.3D unless a named regression/certification test fails.
+
+## Completed: A2.3E
+
+### A2.3E — REBUILD — CERTIFIED
+
+Official construct: **Formulate systems of at least two linear inequalities in two variables.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- every family makes the student write at least two inequalities;
+- coupled budget/resource constraints, nonnegativity, strict/inclusive boundaries, and region descriptions are represented;
+- equivalent algebraic forms of linear inequalities are accepted securely rather than requiring one printed arrangement;
+- error analysis diagnoses the bad boundary symbol and still writes the complete corrected system;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- Correct Answer Acceptance Audit after inequality-equivalence wiring: **PASS**;
+- targeted Algebra II Fidelity V2 Certification run `33318552461`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.3E unless a named regression/certification test fails.
+
+## Completed: A2.3F
+
+### A2.3F — REBUILD — CERTIFIED
+
+Official construct: **Solve systems of two or more linear inequalities in two variables.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- every family requires secure construction of every boundary and the common solution region;
+- two- and three-inequality systems are both represented repeatedly;
+- inclusive, strict, and mixed boundary styles are required;
+- contextual transfer and union-vs-intersection error repair are included;
+- one contextual three-inequality system has no common solution region;
+- the workspace now visually distinguishes third/fourth/fifth inequality boundaries rather than reusing one color;
+- 200+ generated instances pass production issuability and secure correct-construction self-acceptance;
+- spoiled wrong-shading work is rejected by the server;
+- targeted Algebra II Fidelity V2 Certification run `33318879330`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.3F unless a named regression/certification test fails.
+
+## Completed: A2.3G
+
+### A2.3G — ENHANCE — CERTIFIED
+
+Official construct: **Determine possible solutions in the solution set of systems of two or more linear inequalities in two variables.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- every family determines whether a marked ordered pair is possible and requires a feasible ordered pair;
+- two- and three-inequality systems are both represented;
+- feasible and infeasible marked points are both required;
+- a point on a strict/dashed boundary is rejected;
+- a point on an inclusive/solid boundary is accepted when all other constraints hold;
+- contextual transfer and genuine error analysis are included;
+- 200+ generated instances pass production issuability and secure Path eligibility;
+- opposite marked-point verdicts and infeasible candidate points are rejected by the server;
+- targeted Algebra II Fidelity V2 Certification run `33319070766`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.3G unless a named regression/certification test fails.
+
+## Completed: A2.4A
+
+### A2.4A — REBUILD — CERTIFIED
+
+Official construct: **Write a quadratic function given three specified points in the plane.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- every family visibly provides exactly three specified points and requires the complete quadratic function;
+- no family gives away the generated leading coefficient;
+- table, ordered-pair, graph, contextual, and error-analysis representations are all present;
+- multiple families omit x=0 so c cannot always be read directly;
+- multiple families require the three-equation coefficient setup before the final function;
+- generated final equations are verified against all three source points;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- public payloads retain all three source points while stripping answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33319282779`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4A unless a named regression/certification test fails.
+
+## Completed: A2.4B
+
+### A2.4B — REBUILD — CERTIFIED
+
+Official construct: **Write the equation of a parabola using given attributes, including vertex, focus, directrix, axis of symmetry, and direction of opening.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- every family requires the complete parabola equation rather than attribute recognition;
+- vertical up/down and horizontal right/left orientations are all represented;
+- vertex, focus, directrix, axis of symmetry, and opening direction all appear as meaningful evidence;
+- one graph family infers the vertex from focus/directrix geometry;
+- error analysis repairs orientation reasoning and still writes the corrected equation;
+- opt-in polynomial-relation grading accepts algebraically identical parabola equations without weakening unrelated form-specific grading;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- reversed-side equivalent equations are accepted and wrong relations are rejected;
+- targeted Algebra II Fidelity V2 Certification run `33319560739`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4B unless a named regression/certification test fails.
+
+## Completed: A2.4C
+
+### A2.4C — REBUILD — CERTIFIED
+
+Official construct: **Determine the effect on the graph of the square root parent function when it is vertically or horizontally scaled, reflected, or translated.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- full $a\sqrt{b(x-h)}+k$ transformation reasoning is represented without pretending the current interactive tool supports b;
+- vertical stretch and vertical compression are both explicit;
+- horizontal stretch and reciprocal horizontal compression are both explicit;
+- x-axis reflection and horizontal/y-axis reflection effects are both represented;
+- endpoint translation and left/right ray direction are required;
+- generated point mapping and graph-distance evidence verify the horizontal effects numerically;
+- reverse reasoning and complete error analysis are present;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- targeted Algebra II Fidelity V2 Certification run `33319841981`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4C unless a named regression/certification test fails.
+
+## Completed: A2.4D
+
+### A2.4D — REBUILD — CERTIFIED
+
+Official construct: **Transform a quadratic function from standard form to vertex form to identify its attributes.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- every family explicitly starts from standard form and requires complete vertex form;
+- completing-square evidence is collected repeatedly;
+- repeated |a|>1 cases require factoring before completing the square;
+- positive- and negative-leading-coefficient cases cover minimum/maximum, opening, axis, vertex, and range;
+- contextual projectile interpretation and complete factoring-error repair are included;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- independent probe-value checks confirm standard and vertex forms are equivalent;
+- the original standard form is deliberately rejected when submitted as the requested vertex-form answer;
+- targeted Algebra II Fidelity V2 Certification run `33320130829`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4D unless a named regression/certification test fails.
+
+## Completed: A2.4E
+
+### A2.4E — REBUILD — CERTIFIED
+
+Official construct: **Formulate quadratic and square root equations using technology from a table of data.**
+
+Certification result:
+- added a real secure square-root regression/model-fitting technology path to Data Modeling Lab;
+- client and server independently compute the same endpoint-anchored full-table square-root regression;
+- five Fidelity V2 families staged, all using authentic Data Modeling Lab technology;
+- at least two quadratic-regression and two square-root-regression families are present;
+- every table has five observations, so the task does not collapse into minimum-point hand fitting;
+- every family requires the complete fitted coefficients and a fixed prediction from the fitted model;
+- interpolation, extrapolation, contextual transfer, and technology-entry error repair are represented;
+- secure server grading rejects materially wrong fitted coefficients and rejects changing the authored prediction target;
+- public payloads expose the table/mode/target but not fitted coefficients or private tolerances;
+- generated package certification run `33323489643`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4E unless a named regression/certification test fails.
+
+## Completed: A2.4F
+
+### A2.4F — ENHANCE — CERTIFIED
+
+Official construct: **Solve quadratic and square root equations.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- quadratic solving includes both factoring and an exact quadratic-formula family with a guaranteed non-perfect-square discriminant;
+- square-root solving repeatedly requires isolate → square → solve rather than one-step undoing;
+- contextual interpretation and complete error repair are included;
+- every family finishes the actual solution set rather than stopping at a method-identification step;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- a spoiled final solution is rejected in every family;
+- public payloads strip answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33323687834`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4F unless a named regression/certification test fails.
+
+## Completed: A2.4G
+
+### A2.4G — REBUILD — CERTIFIED
+
+Official construct: **Identify extraneous solutions of square root equations.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- every family checks squared-equation candidates against the original unsquared square-root equation;
+- repeated families collect concrete original-equation LHS/RHS substitution evidence;
+- both one-extraneous and no-extraneous cases are represented;
+- one family proves radical-domain membership alone is insufficient;
+- contextual transfer and complete error repair are included;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect extraneous/valid conclusions are rejected;
+- public payloads strip answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33323859773`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4G unless a named regression/certification test fails.
+
+## Completed: A2.4H
+
+### A2.4H — ENHANCE — CERTIFIED
+
+Official construct: **Solve quadratic inequalities.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- standard-form, factored, positive-leading, and negative-leading quadratic inequalities are represented;
+- strict and inclusive solution sets are both required;
+- a secure interval-number-line family constructs both exterior rays and interval notation;
+- a no-real-zero case uses discriminant/sign reasoning to produce the all-real solution set;
+- error analysis repairs endpoint inclusion and still gives the complete interval;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect interval/end-point work is rejected;
+- public payloads strip answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33324732755`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.4H unless a named regression/certification test fails.
+
+## Completed: A2.5A
+
+### A2.5A — REBUILD — CERTIFIED
+
+Official construct: **Determine effects on key attributes of exponential and logarithmic graphs when they are vertically scaled/reflected or translated.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- both transformed exponential and logarithmic graphs are represented repeatedly;
+- secure Function Investigation constructs one transformed exponential graph and one transformed logarithmic graph;
+- vertical stretch/compression, x-axis reflection, horizontal/vertical translation, asymptotes, domain/range, anchor points, and increasing/decreasing behavior are all assessed;
+- complete error analysis repairs parameter-role confusion and finishes the corrected attribute set;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- generated graph points are independently verified against the function specification;
+- incorrect point/attribute work is rejected;
+- public payloads strip answer keys;
+- replacement Algebra II Fidelity V2 Certification run `33324974453`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.5A unless a named regression/certification test fails.
+
+## Completed: A2.5B
+
+### A2.5B — REBUILD — CERTIFIED
+
+Official construct: **Formulate exponential and logarithmic equations that model real-world situations, including exponential relationships written recursively.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- students author equations rather than select prewritten models;
+- growth and decay contexts both require explicit and recursive exponential forms;
+- a table/data family requires inferring the common multiplier before writing both forms;
+- an authentic logarithmic ratio-scale real-world model is included;
+- error analysis repairs a growth factor and both explicit/recursive equations;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- tabular common ratios and growth/decay factors are independently checked;
+- a spoiled model equation is rejected in every family;
+- public payloads strip answer keys;
+- targeted Algebra II Fidelity V2 Certification run `33325134988`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.5B unless a named regression/certification test fails.
+
+## Completed: A2.5C
+
+### A2.5C — ENHANCE — CERTIFIED
+
+Official construct: **Rewrite exponential equations as corresponding logarithmic equations and logarithmic equations as corresponding exponential equations.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- every family requires a written equivalent equation instead of multiple-choice recognition;
+- exponential→logarithmic and logarithmic→exponential rewrites both occur repeatedly;
+- numeric, symbolic-expression, common-log, and natural-log forms are represented;
+- one family rewrites the same relationship in both directions;
+- error analysis repairs base/argument role confusion and writes the corrected equivalent form;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- numeric role mappings are independently verified;
+- non-equivalent rewrites are rejected;
+- public payloads strip answer keys;
+- replacement Algebra II Fidelity V2 Certification run `33325302232`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.5C unless a named regression/certification test fails.
+
+## Completed: A2.5D
+
+### A2.5D — ENHANCE — CERTIFIED
+
+Official construct: **Solve exponential equations of the form y = ab^x and single logarithmic equations having real solutions.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- same-base solving is preserved;
+- repeated non-power exponential targets require exact logarithmic solutions;
+- affine common-log solving and contextual noninteger time interpretation are included;
+- complete error repair isolates the exponential before logarithms and finishes x;
+- unsupported generated log/round arithmetic was removed from template-derived fields while exact mathematics was preserved;
+- the certification gate is tolerant of harmless signed-template spacing but not mathematical differences;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- wrong final solutions are rejected and public answer keys are stripped;
+- replacement Algebra II Fidelity V2 Certification run `33325560621`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.5D unless a named regression/certification test fails.
+
+## Completed: A2.5E
+
+### A2.5E — REBUILD — CERTIFIED
+
+Official construct: **Determine the reasonableness of a solution to a logarithmic equation.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- every family begins with a proposed solution and evaluates the original logarithmic equation rather than re-solving from scratch;
+- both reasonable and unreasonable candidates are represented;
+- domain-invalid and equation-invalid candidates are distinguished;
+- one family proves that a positive logarithm argument is not sufficient if the original equality is false;
+- a two-log family checks both original arguments and the combined original LHS;
+- contextual error analysis separates algebraic validity from a real-world time restriction;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect reasonableness verdicts are rejected and public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33325685959`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.5E unless a named regression/certification test fails.
+
+## Completed: A2.6A
+
+### A2.6A — REBUILD — CERTIFIED
+
+Official construct: **Analyze transformations of cubic and cube root parent functions for specified positive and negative real parameter values.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- cubic and cube-root parents are both analyzed repeatedly;
+- the full a·f(b(x-h))+k model is used;
+- reciprocal horizontal scale, horizontal stretch/compression, x-axis reflection, horizontal reflection, and translated center/inflection are all explicit;
+- positive and negative a/b parameter effects are represented;
+- exact point-mapping, graph evidence, reverse parameter recovery, and complete error analysis are included;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect transformation effects are rejected and public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33325840476`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.6A unless a named regression/certification test fails.
+
+## Completed: A2.6B
+
+### A2.6B — ENHANCE — CERTIFIED
+
+Official construct: **Solve cube root equations that have real roots.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- every family finishes the cube-root solve rather than returning only a method label;
+- isolate → cube → linear-solve evidence is collected repeatedly;
+- nontrivial linear radicands are used across most families;
+- negative real cube-root values and a noninteger real cube-root value are represented;
+- contextual modeled solving and complete squaring-vs-cubing error repair are included;
+- no artificial square-root-style domain/extraneous restriction is introduced;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- wrong final solutions are rejected and public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33325959758`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.6B unless a named regression/certification test fails.
+
+## Completed: A2.6C
+
+### A2.6C — REBUILD — CERTIFIED
+
+Official construct: **Analyze transformations of the absolute value parent function for specified positive and negative real parameter values.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- the full supplied-parameter model $y=a|b(x-h)|+k$ is analyzed;
+- vertical scale, reciprocal horizontal scale, x-axis reflection, vertex translation, opening/range, and final arm slope are explicit;
+- the even-parent fact that b<0 produces no distinct visible reflection is taught and tested;
+- exact negative-b point mapping, graph evidence, reverse sequence reasoning, and complete error analysis are included;
+- the bank does not falsely claim a and b are separately recoverable from the final V-shape alone;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect transformation effects are rejected and public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33326111449`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.6C unless a named regression/certification test fails.
+
+## Completed: A2.6D
+
+### A2.6D — ENHANCE — CERTIFIED
+
+Official construct: **Formulate absolute value linear equations.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- every family requires the student to author the equation rather than select one;
+- canonical distance form, paired-solution reverse formulation, nontrivial linear-inside models, scaled table formulation, and complete error repair are included;
+- opt-in absolute-value relation grading accepts mathematically equivalent modeled equations without weakening default form-sensitive grading;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- equivalent side-reversed models are accepted and wrong-distance models are rejected;
+- public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33326321807`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.6D unless a named regression/certification test fails.
+
+## Completed: A2.6E
+
+### A2.6E — ENHANCE — CERTIFIED
+
+Official construct: **Solve absolute value linear equations.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- complete isolate → case split → linear solve evidence is collected repeatedly;
+- nontrivial linear expressions inside absolute value are used across most families;
+- exactly two, exactly one, and zero real-solution cases are all represented;
+- contextual interpretation and complete no-solution error repair are included;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect final outcomes are rejected and public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33326432567`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.6E unless a named regression/certification test fails.
+
+## Completed: A2.6F
+
+### A2.6F — ENHANCE — CERTIFIED
+
+Official construct: **Solve absolute value linear inequalities.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- nontrivial linear expressions inside absolute value are used throughout;
+- bounded AND intervals and outside OR unions are both solved repeatedly;
+- a negative outside coefficient forces an inequality reversal during isolation;
+- absolute value < negative and > negative are explicitly contrasted as empty versus all-real solution sets;
+- contextual tolerance solving and complete AND-vs-OR error repair are included;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect solution regions are rejected and public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33326550990`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.6F unless a named regression/certification test fails.
+
+## Completed: A2.6G
+
+### A2.6G — REBUILD — CERTIFIED
+
+Official construct: **Analyze transformations of the reciprocal parent function for specified positive and negative real parameter values.**
+
+Certification result:
+- five Fidelity V2 families staged;
+- supplied a/b/h/k values are analyzed separately while the equivalent final coefficient a/b is also recognized;
+- vertical and reciprocal horizontal scales, x-axis/horizontal reflections, mapped points, asymptotes, and branch orientation are explicit;
+- positive and negative a/b values plus horizontal stretch/compression are represented;
+- the odd-parent fact that horizontal and vertical reflection are visually equivalent for 1/x is handled correctly;
+- the bank does not falsely claim a and b are separately recoverable from the final reciprocal graph alone;
+- 200+ generated instances pass production issuability and secure correct-answer self-acceptance;
+- incorrect transformation effects are rejected and public answer keys are stripped;
+- Algebra II Fidelity V2 Certification run `33326836793`: **PASS**;
+- student/runtime build in the same run: **PASS**.
+
+Do **not** re-audit A2.6G unless a named regression/certification test fails.
+
+## Active standard
+
+### A2.6H — REBUILD — STAGED / CERTIFICATION RUNNING
+
+Official construct: **Formulate rational equations that model real-world situations.**
+
+## FIRST UNFINISHED STANDARD
+
+### CORE ALGEBRA II TEKS FIDELITY COMPLETE
+
+Do not reopen A2.2A–A2.8C unless a named regression/certification gate fails.
+
+Next required work: Algebra I + Algebra II Challenge/Extension and independent DOK/difficulty coverage pass.
+
+
+### 2026-08-30 — A2.7H audit finding
+- Official construct: **solve equations involving rational exponents**.
+- TEA breakout contains one direct action: solve equations involving rational exponents.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - unit-fraction exponent equations such as (x^{1/n}=r) are present;
+  - reciprocal-power language and substitution checking are directionally correct.
+- Legacy limitations:
+  - three of five families primarily ask students to recognize/check a method or choose an equation rather than solve one;
+  - the bank overwhelmingly uses the single structure (x^{1/n}=r);
+  - equations such as (x^{2/3}=a), where two real solutions may occur, are absent;
+  - even-denominator rational exponents and their real-domain restrictions are not meaningfully assessed;
+  - translated/scaled equations are absent;
+  - no-real-solution cases are absent;
+  - error analysis stops at choosing “raise both sides to a power” instead of repairing and finishing the solution set.
+- Fidelity V2 requirements:
+  - every family must solve an actual rational-exponent equation;
+  - include a unit-fraction equation with a translated variable;
+  - include an odd-denominator/even-numerator equation that produces two real solutions;
+  - include an even-denominator equation with an explicit real-domain restriction and one valid solution;
+  - include a translated/scaled or no-real-solution case that requires isolation before applying a reciprocal power;
+  - include complete error analysis that repairs a missed negative branch or domain mistake and finishes the solution set;
+  - require solution-set evidence and substitution/domain reasoning where relevant;
+  - keep routine solving DOK 2; reserve DOK 3 for complete error analysis.
+- Existing secure numeric, finite-set, inequality, and equation grading is sufficient; no new Path tool is expected.
+
+
+### 2026-08-30 — A2.7G audit finding
+- Official construct: **rewrite radical expressions that contain variables to equivalent forms**.
+- TEA breakout contains one direct action: rewrite variable-containing radical expressions into equivalent forms.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - simplifying a square root with a variable factor is present;
+  - rational-exponent ↔ radical-form translation is present;
+  - one misconception about incorrectly removing a non-square variable from a radical is represented.
+- Legacy limitations:
+  - one family rationalizes (1/\sqrt{n}) with **no variable at all**, so it does not satisfy the stated construct;
+  - two families mostly test rule recognition/translation rather than substantial rewriting of a variable radical expression;
+  - the bank repeats the same (\sqrt{k^2x}) structure and does not vary radical index or variable exponent deeply;
+  - it never tests the essential even-root identity (\sqrt{x^2}=|x|) when no sign restriction is given;
+  - higher variable powers such as (\sqrt{x^5}), cube roots, and products/quotients of variable radical expressions are absent;
+  - error analysis stops at selecting a statement rather than repairing the complete equivalent form.
+- Fidelity V2 requirements:
+  - every family must contain a variable inside the radical/exponent structure;
+  - include square-root simplification with variable powers and explicit sign-domain handling;
+  - include an absolute-value case so even-root extraction is mathematically correct without assuming (x\ge0);
+  - include at least one odd-index radical where no absolute value is needed;
+  - include rational-exponent ↔ radical rewriting as an authentic expression transformation, not only multiple-choice recognition;
+  - include product/quotient rewriting of variable radical expressions when it remains within equivalent-form scope;
+  - include complete error analysis that repairs the rewritten expression;
+  - keep routine rewriting DOK 2; reserve DOK 3 for complete error analysis.
+- Before staging, certify that the generic expression grader fairly accepts equivalent radical serialization (MathLive square-root/rational-exponent forms) without accepting mathematically different variable powers.
+
+### 2026-08-30 — A2.7G capability, staging, and certification
+- Added opt-in nonnegative-variable radical equivalence in `functions/shared/nonnegativeRadicalExpressionEquivalence.mjs` with dedicated regression tests.
+- Capability gate `33332862077`: **PASS**.
+- Staged five A2.7G Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7G.json` — initial commit `9cd844ffef1c10c719f7d5033c35c391a7226722`.
+- Coverage includes square-root variable-power extraction, radical quotient rewriting, odd-index cube-root rewriting, rational-exponent-to-indexed-radical rewriting, and unrestricted-sign absolute-value error repair.
+- Stronger review intentionally removed broad semantic equivalence from final fields where the requested **rewritten form** itself is evidence; this prevents the unchanged source expression from earning final-form credit.
+- Rational-exponent indexed-radical generation also enforces a reduced fractional part with `gcd(r,q)==1`.
+- Dedicated A2.7G certification is included in the Algebra II workflow and explicitly rejects unchanged source forms.
+- Latest replacement certification run `33333076780`: **PASS**.
+- Generated exponent decomposition, variable presence, square/cube-root mathematics, absolute-value semantics, requested-form grading, secure self-acceptance, answer-key stripping, and student/runtime build all passed.
+- A2.7G is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7H**.
+
+### 2026-08-30 — A2.7G staged / certification
+- Added opt-in nonnegative monomial radical/rational-exponent equivalence and secure routing; dedicated capability run `33332862077`: **PASS**.
+- Staged five A2.7G Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7G.json`.
+- Coverage includes variable-power square-root rewriting, variable radical quotients, odd-index cube-root rewriting, rational-exponent → indexed-radical rewriting, and complete unrestricted even-root absolute-value error repair.
+- Removed the legacy variable-free rationalization drift.
+- Final requested rewrite fields remain **form-preserving** so the unchanged source does not receive credit merely because it is equivalent.
+- Tightened the rational-exponent family so the residual exponent and indexed-root degree are relatively prime; generated radical form is therefore actually simplified.
+- Strengthened A2.7G generated certification run `33333076780`: **PASS**.
+- Variable-only construct fidelity, square/cube-root exponent decomposition, coprime indexed-radical simplification, unrestricted absolute-value semantics, unchanged-source rejection, production issuability, secure self-grading, public key stripping, and student/runtime build all passed.
+- A2.7G is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7H**.
+
+### 2026-08-30 — A2.7H pre-audit finding
+- Official construct: **solve equations involving rational exponents**.
+- TEA breakout has one direct action: solve rational-exponent equations.
+- Provisional verdict: **REBUILD** after A2.7G locks.
+- Staged five A2.7H Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7H.json`.
+- Coverage includes shifted cube-root equations, shifted 3/2 equations with explicit real-domain inequality, two-solution 2/3 equations, no-real 2/3 equations, and complete square-root extraneous-solution error repair.
+- Final solution sets use true finite-set notation so order is irrelevant.
+- Dedicated generated certification and student/runtime build run `33333254516`: **PASS**.
+- A2.7H is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7I**.
+- Legacy strengths:
+  - basic equations of the forms x^(1/n)=r and x^(p/q)=r are present;
+  - reciprocal-power language and one verification frame are present.
+- Legacy limitations:
+  - only two of five families directly require solving;
+  - one family only verifies a supplied solution, one only chooses an operation, and one reverse-engineers an equation;
+  - equations are almost always already isolated as x^(...) = constant;
+  - transformed/shifted rational-exponent equations are absent;
+  - even-denominator cases with two real solutions are absent;
+  - no-real-solution cases are absent;
+  - extraneous-candidate checking after applying reciprocal powers is absent;
+  - the DOK 3 legacy items do not complete a genuine solve/error-analysis chain.
+- Fidelity V2 direction:
+  - require complete solution sets rather than method recognition;
+  - include isolated and transformed rational-exponent equations;
+  - distinguish odd/even denominator behavior;
+  - include one/two/no-real-solution cases where mathematically appropriate;
+  - require checking candidates in the original equation when an inverse operation can introduce invalid candidates;
+  - include complete error analysis and repair;
+  - keep routine solving DOK 2; reserve DOK 3 for genuine error analysis/strategic solution-set reasoning.
+
+
+### 2026-08-30 — A2.7F audit finding
+- Official construct: **determine the sum, difference, product, and quotient of rational expressions with integral exponents of degree one and of degree two**.
+- TEA breakout contains **12 distinct combinations**:
+  - sum: degree 1; degree 2; mixed degree 1 and degree 2;
+  - difference: degree 1; degree 2; mixed degree 1 and degree 2;
+  - product: degree 1; degree 2; mixed degree 1 and degree 2;
+  - quotient: degree 1; degree 2; mixed degree 1 and degree 2.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - one basic multiplication family, one division-to-reciprocal family, and basic addition/subtraction with like linear denominators are directionally correct;
+  - cancellation and reciprocal language are introduced.
+- Legacy limitations:
+  - degree-2 rational expressions are effectively absent;
+  - mixed degree-1/degree-2 cases are absent;
+  - addition and subtraction use only already-matching linear denominators, so students never construct an LCD;
+  - multiplication uses only an obvious single linear cancellation;
+  - the quotient family stops after rewriting division as multiplication by the reciprocal and does **not** determine the simplified quotient;
+  - one context family simply repeats like-denominator addition and does not add breakout coverage;
+  - original denominator restrictions are not repeatedly captured even when factors cancel.
+- Fidelity V2 requirements:
+  - cover all 12 TEA operation/degree combinations through generated variants inside five coherent families rather than twelve shallow templates;
+  - addition and subtraction families must construct/use an LCD and combine numerators, including degree-2 denominators;
+  - product and quotient families must factor, cancel only legitimate common factors, and finish the simplified result;
+  - require original-domain restrictions separately so cancellation never erases excluded inputs;
+  - include a mixed-operation error-analysis family that diagnoses illegal cancellation or failure to distribute subtraction and finishes the correct rational expression;
+  - keep routine multi-step rational-expression operations DOK 2; reserve DOK 3 for genuine error analysis.
+- Before staging, verify whether generic expression grading fairly accepts equivalent simplified rational expressions. If not, add the smallest opt-in rational-expression equivalence while preserving separately graded original restrictions rather than padding accepted-answer spellings.
+
+### 2026-08-30 — A2.7F grading capability + staged
+- Added opt-in `sameRationalExpression` in `functions/shared/rationalExpressionEquivalence.mjs`.
+- The comparator:
+  - compares reduced rational expressions by polynomial cross-products;
+  - accepts harmless scaling, term order, and factored-vs-expanded polynomial spelling;
+  - preserves numerator and denominator degrees;
+  - rejects extra canceling polynomial factors that would create additional domain holes;
+  - is used only when a response field declares `equivalence: "rationalExpression"`.
+- `functions/lib/mathPath.js` now routes that explicit equivalence mode.
+- Added dedicated regression tests in `tests/platform/rationalExpressionAnswerEquivalence.test.mjs` and included them in the Algebra II certification workflow.
+- Rational-expression capability certification run `33332332450`: **PASS**.
+- Staged five A2.7F Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7F.json` — commit `1c8d466afe6ccd3de8671fbd9c9845bba43d9532`.
+- The four operation families each contain three server-selected variants:
+  - degree 1;
+  - degree 2;
+  - mixed degree 1 / degree 2.
+- This directly covers all 12 TEA sum/difference/product/quotient × degree combinations.
+- Addition/subtraction require LCD numerator work; product/quotient require complete factoring/cancellation; all families separately grade original restrictions.
+- The fifth family is DOK 3 quotient-domain error repair.
+- Base Algebra II certification run `33332488635`: **PASS**.
+- Added focused A2.7F 12-breakout certification in `tests/platform/a27fRationalOperations.test.mjs` — commit `3d35508d7bd94e375b89793cbd8ffd63902101c1`.
+- Full A2.7F certification run `33332649684`: **PASS**.
+- All 12 TEA operation/degree combinations were observed in generated instances; LCD arithmetic, factor cancellation, quotient-domain restrictions, semantic rational-expression grading, extra-hole rejection, secure self-grading, answer-key stripping, and student/runtime build all passed.
+- A2.7F is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7G**.
+
+
+### 2026-08-30 — A2.7E audit finding
+- Official construct: **determine linear and quadratic factors of a polynomial expression of degree three and of degree four, including factoring the sum and difference of two cubes and factoring by grouping**.
+- TEA breakout requires:
+  - degree-3 linear factors from sum of cubes;
+  - degree-3 linear factors from difference of cubes;
+  - degree-3 linear factors from grouping;
+  - degree-4 linear factors from grouping;
+  - degree-3 quadratic factors from sum of cubes;
+  - degree-3 quadratic factors from difference of cubes;
+  - degree-3 quadratic factors from grouping;
+  - degree-4 quadratic factors from grouping.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - correct full factorizations are already present for sum of cubes and difference of cubes;
+  - cubic factoring by grouping is present and yields a linear factor times a quadratic factor;
+  - the cube identities and grouping structure are mathematically sound.
+- Legacy limitations:
+  - degree-4 factoring by grouping is absent;
+  - two of five families stop at strategy recognition or a single sign correction rather than determining the required factors;
+  - the legacy response usually gives one complete product, so it does not separately verify that students can identify the linear factor and quadratic factor required by the breakout;
+  - the error-analysis family identifies the cube-sign error but does not finish both factors;
+  - quartic grouping does not connect to both linear and quadratic factor determination.
+- Fidelity V2 requirements:
+  - preserve sum-of-cubes, difference-of-cubes, and cubic grouping;
+  - separately grade the linear and quadratic factors rather than relying only on one combined product;
+  - add a degree-4 grouping family that ultimately exposes both linear and quadratic factors;
+  - include complete factorization evidence for cube identities, including correct middle-term signs in the quadratic factor;
+  - include complete grouping error analysis that repairs the common factor/grouping structure and finishes the required factors;
+  - keep routine factoring DOK 2 even when algebraically longer; reserve DOK 3 for full error analysis.
+- Generic secure expression grading is sufficient for the factor fields; no new Path tool is required.
+
+### 2026-08-30 — A2.7E staged
+- Staged five A2.7E Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7E.json` — commit `def1ae8c90153bdc0ed84b056c70452594f897a8`.
+- Coverage includes difference of cubes, sum of cubes, cubic factoring by grouping, quartic grouping followed by difference-of-cubes factoring, and complete quartic grouping sign-error repair followed by sum-of-cubes factoring.
+- The required linear and quadratic factors are graded separately rather than inferred from one combined product.
+- Routine factoring remains DOK 2; only complete error repair is DOK 3.
+- Base Algebra II certification run `33331272626`: **PASS**.
+- Added A2.7E-specific generated certification — commit `c9c00b538270140d3a806436fc8fd43fa1b535cd`.
+- First dedicated run `33331366261`: **FAIL** due only to a certification counter that counted both the dedicated degree-3 difference-of-cubes family and the quartic-grouping family whose second factoring step also uses difference of cubes. No generated factoring or grading assertion failed.
+- Narrowed the dedicated-family counter — commit `a1262349f2b063e2cdc952e46b19ea31a3cda90e`.
+- Replacement full certification run `33331430930`: **PASS**.
+- Generated cube/grouping identities, cubic/quartic grouping, separately graded linear/quadratic factors, production issuability, secure self-grading, changed-factor rejection, DOK-vs-difficulty discipline, public key stripping, and student/runtime build all passed.
+- A2.7E is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7F**.
+
+
+### 2026-08-30 — A2.7D audit finding
+- Official construct: **determine the linear factors of a polynomial function of degree three and of degree four using algebraic methods**.
+- TEA breakout requires both:
+  - determine linear factors of a degree-3 polynomial function using algebraic methods;
+  - determine linear factors of a degree-4 polynomial function using algebraic methods.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - Factor Theorem language, rational-root candidates, cubic factorization, and one factor-check misconception are represented.
+- Legacy limitations:
+  - several families **give the zeros first** and merely ask students to translate a zero into a factor;
+  - one family uses a graph/x-intercept instead of the required algebraic method;
+  - the Rational Root Theorem family asks only for the candidate rule and never tests candidates or determines factors;
+  - quartic polynomial functions are effectively absent from actual factor determination;
+  - the error-analysis family only rules out one proposed factor and does not finish the polynomial's linear factors;
+  - multiplicity and non-integer rational roots are absent.
+- Fidelity V2 requirements:
+  - start from expanded cubic/quartic polynomial functions rather than handing students the complete zero list;
+  - repeatedly use algebraic methods such as Rational Root Theorem candidate testing, direct evaluation, synthetic division, and factoring of the reduced polynomial;
+  - include both degree 3 and degree 4 multiple times;
+  - include a non-monic polynomial with a non-integer rational zero;
+  - include a repeated-root/multiplicity case;
+  - require students to connect each determined zero to its matching linear factor;
+  - include complete algebraic-method error analysis and finish all requested linear factors;
+  - exclude graph-only factor identification from Fidelity V2 because the standard explicitly requires algebraic methods.
+- Generic secure numeric/expression grading is sufficient; no new Path tool is required.
+
+### 2026-08-30 — A2.7D staged
+- Staged five A2.7D Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7D.json` — commit `a1db8ea32e39fa1d09f2b32b57dc3531ec2b5682`.
+- All families start from expanded polynomial functions and use algebraic evidence rather than graph-only factor identification.
+- Coverage includes a cubic with three integer roots, a quartic with four integer roots, a non-monic cubic with a non-integer rational root, a quartic repeated-root/multiplicity case, and complete synthetic-division sign-error repair.
+- Base Algebra II certification run `33331116456`: **PASS**.
+- Added A2.7D-specific generated certification — commit `2dfbe054ee7e71ad28b71c5ba332811a58c69136`.
+- Full A2.7D certification run `33331166467`: **PASS**.
+- Generated cubic/quartic roots and factors, rational half-integer root, repeated multiplicity, synthetic quotients, production issuability, secure self-grading, equivalent factor ordering, changed-root rejection, algebraic-method boundary, public key stripping, and student/runtime build all passed.
+- A2.7D is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7E**.
+
+
+### 2026-08-30 — A2.7C audit finding
+- Official construct: **determine the quotient of a polynomial of degree three and of degree four when divided by a polynomial of degree one and of degree two**.
+- TEA breakout requires all four dividend/divisor combinations:
+  - degree 3 ÷ degree 1;
+  - degree 3 ÷ degree 2;
+  - degree 4 ÷ degree 1;
+  - degree 4 ÷ degree 2.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - cubic ÷ linear exact division is present;
+  - the legacy bank recognizes remainder/factor relationships and includes one error-check frame.
+- Legacy limitations:
+  - all five families revolve around a **linear divisor** and a cubic dividend;
+  - degree 3 ÷ degree 2 is absent;
+  - degree 4 ÷ degree 1 is absent;
+  - degree 4 ÷ degree 2 is absent;
+  - several families ask about the Remainder Theorem, Factor Theorem, or reconstructing a dividend rather than requiring the student to determine the quotient;
+  - no family requires polynomial long division with a quadratic divisor;
+  - nonzero remainders are discussed, but students rarely produce a complete quotient/remainder result from actual division.
+- Fidelity V2 requirements:
+  - cover each of the four TEA breakout combinations directly with quotient work;
+  - use synthetic or long division appropriately for linear divisors and polynomial long division for quadratic divisors;
+  - include both exact and nonzero-remainder cases;
+  - require quotient coefficients and the final quotient expression, not only a theorem statement;
+  - when a remainder is nonzero, require it explicitly and keep its degree below the divisor degree;
+  - include complete error analysis that identifies premature stopping or term-alignment failure and finishes the quotient/remainder;
+  - keep routine division DOK 2 despite multi-step computation; reserve DOK 3 for complete error analysis.
+- Existing secure expanded-polynomial expression grading is sufficient for quotient/remainder fields; no new Path tool is required.
+
+### 2026-08-30 — A2.7C staged
+- Staged five A2.7C Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7C.json` — commit `6c2ec51ad0da27bd541b16f045383eba025676ce`.
+- Coverage directly includes all four TEA combinations: cubic÷linear, cubic÷quadratic, quartic÷linear, and quartic÷quadratic.
+- Both exact and nonzero-remainder cases are present; the quartic÷quadratic nonexact case requires a valid linear remainder.
+- The fifth family is complete premature-stopping error analysis on quartic÷quadratic long division.
+- Base Algebra II certification run `33330906469`: **PASS**.
+- Added A2.7C-specific generated certification — commit `f009bb00bf85b0100e1b659749a92c6756a2896a`.
+- First dedicated run `33330956049`: **FAIL** due only to a certification selector: `quartic-linear-remainder` unintentionally matched the broader `linear-remainder` condition and the test tried to read quadratic-family parameters that do not exist. No generated division mathematics failed.
+- Narrowed the selector to `quartic-quadratic-linear-remainder` — commit `879f45acf8447883bb700088e284d2e398528c1c`.
+- Replacement full certification run `33330999085`: **PASS**.
+- All four TEA quotient degree combinations, exact/nonexact remainder mathematics, production issuability, secure self-grading, equivalent quotient/remainder ordering, wrong quotient rejection, DOK-vs-difficulty discipline, public key stripping, and student/runtime build passed.
+- A2.7C is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7D**.
+
+
+### 2026-08-30 — A2.7B audit finding
+- Official construct: **add, subtract, and multiply polynomials**.
+- TEA breakout explicitly requires all three operations:
+  - add polynomials;
+  - subtract polynomials;
+  - multiply polynomials.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - one generated family each already performs addition, subtraction, and binomial multiplication;
+  - coefficient generation includes positive and negative values;
+  - the area family provides one application of polynomial multiplication.
+- Legacy limitations:
+  - one of five legacy families tests degree/leading coefficient rather than adding, subtracting, or multiplying polynomials, so 20% of the bank is off-standard;
+  - addition and subtraction are limited to matching quadratic trinomials and mostly return one final expression;
+  - multiplication is dominated by binomial-by-binomial products and does not reflect the broader Algebra II polynomial degree range;
+  - sparse/missing-degree polynomials are absent, so students are not tested on aligning like powers before adding/subtracting;
+  - no family multiplies a higher-degree polynomial factor (for example cubic by quadratic) to a product above degree 4;
+  - there is no complete operation error analysis that diagnoses a distribution/like-term mistake and repairs the final polynomial.
+- Fidelity V2 requirements:
+  - preserve all three required operations and remove the off-standard degree/leading-coefficient family;
+  - include sparse/missing-term addition and subtraction that require alignment by exponent;
+  - collect key coefficient evidence before the final expanded expression in core families;
+  - include both a product that requires combining like terms and a higher-degree product using factors below degree 4;
+  - include at least one degree-5 or degree-6 product without exceeding the TEKS-supporting polynomial scope;
+  - include complete error analysis that identifies a missed distribution or sign and finishes the corrected operation;
+  - keep routine polynomial arithmetic DOK 2 even when computationally difficult; reserve DOK 3 for genuine error analysis.
+- Existing secure expanded-polynomial expression equivalence should be sufficient; certify harmless term reordering/coefficient arithmetic and reject factored or mathematically changed answers as appropriate.
+
+### 2026-08-30 — A2.7B staged
+- Staged five A2.7B Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7B.json` — commit `760e3119f9f47134b47a4b18e33bfd791833b9d1`.
+- The off-standard degree/leading-coefficient family is removed.
+- Coverage includes sparse quartic addition, sparse quartic subtraction, quadratic-by-quadratic multiplication with like-term combining, sparse cubic-by-quadratic multiplication producing a degree-5 product, and complete subtraction-sign error repair.
+- Routine arithmetic remains DOK 2 even at higher computational difficulty; only the error-repair family is DOK 3.
+- Base Algebra II certification run `33330754534`: **PASS**.
+- Added A2.7B-specific generated certification — commit `08eb995c0cbe00df7d7bf918b206579b6fdc9c56`.
+- Full A2.7B certification run `33330813766`: **PASS**.
+- Generated polynomial coefficients, sparse alignment, degree-5 multiplication, production issuability, secure self-grading, reordered expanded-polynomial acceptance, changed-coefficient rejection, DOK-vs-difficulty discipline, public key stripping, and student/runtime build all passed.
+- A2.7B is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7C**.
+
+
+### 2026-08-30 — A2.7A audit finding
+- Official construct: **add, subtract, and multiply complex numbers**.
+- TEA breakout explicitly requires all three operations:
+  - add complex numbers;
+  - subtract complex numbers;
+  - multiply complex numbers.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - separate generated families already cover addition, subtraction, and multiplication;
+  - multiplication correctly uses (i^2=-1);
+  - a conjugate misconception, symbolic work, and some reverse reasoning are represented;
+  - generated coefficients include positive and negative values.
+- Legacy limitations:
+  - addition and subtraction usually collapse to one final answer with no evidence that real and imaginary parts were combined separately;
+  - multiplication appears only once as a general product, while the second multiplication-related family only asks students to recall (i^2=-1);
+  - the existing error-analysis family diagnoses the fact (i^2=-1) but does not repair and finish the complex-number product;
+  - no family deliberately produces pure-real, pure-imaginary, or zero-component results, so sign/zero edge cases are not tested intentionally;
+  - the bank does not include a mixed-operation expression requiring students to coordinate addition/subtraction with multiplication before writing standard (a+bi) form.
+- Fidelity V2 requirements:
+  - preserve direct addition, subtraction, and general multiplication coverage;
+  - collect real-part and imaginary-coefficient evidence before the final standard-form response in core procedural families;
+  - repeatedly require multiplication simplification through (i^2=-1), including a conjugate product and a non-conjugate product;
+  - deliberately generate edge cases where the real or imaginary component becomes zero while still grading standard complex form fairly;
+  - include one mixed-operation family that combines at least two of the required operations without drifting beyond A2.7A;
+  - include complete error analysis that diagnoses an (i^2) or sign-distribution error and finishes the corrected product;
+  - keep DOK separate from computational difficulty: routine multi-step complex arithmetic remains DOK 2; complete error analysis may be DOK 3.
+- Generic secure expression grading appears sufficient because final responses are simplified linear expressions in (i); certify equivalent term order/sign forms and wrong-operation rejection before locking.
+
+### 2026-08-30 — A2.7A staged
+- Staged five A2.7A Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7A.json` — commit `89a3edc26650c3946da1b59e7574cf87c9450253`.
+- Coverage includes addition with separately graded components, subtraction to a pure-imaginary result, general non-conjugate multiplication, a mixed conjugate-product/subtraction family yielding a pure-real result, and complete (i^2) error repair.
+- Routine multi-step arithmetic remains DOK 2 across difficulty bands 2–4; only complete error repair is DOK 3.
+- Base Algebra II certification run `33330594410`: **PASS**.
+- Added A2.7A-specific generated certification — commit `47f02755b954719d59ee45a1d87088bfebf65461`.
+- Full A2.7A certification run `33330651450`: **PASS**.
+- Generated addition/subtraction/multiplication mathematics, deliberate pure-real/pure-imaginary cases, production issuability, secure self-grading, equivalent complex term-order acceptance, wrong-component rejection, DOK-vs-difficulty discipline, public key stripping, and student/runtime build all passed.
+- A2.7A is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7B**.
+
+
+### 2026-08-30 — A2.6L audit finding
+- Official construct: **formulate and solve equations involving inverse variation**.
+- TEA breakout separates the expectation into two required actions:
+  - formulate equations involving inverse variation;
+  - solve equations involving inverse variation.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - the five families correctly recognize the basic inverse-variation relationship (xy=k) / (y=k/x);
+  - constant-of-variation, table, symbolic, context, and direct-vs-inverse misconception frames are represented;
+  - generated values are generally simple and mathematically valid.
+- Legacy limitations:
+  - the bank fragments the TEKS: some items find (k), some evaluate a supplied equation, and some merely choose the inverse-variation form;
+  - no legacy family repeatedly requires the student to **formulate the equation and then solve it** within the same task;
+  - the context families hand students the model structure instead of requiring them to infer a constant product from the situation;
+  - the table family has only one row, so it does not meaningfully establish inverse variation through constant-product evidence;
+  - the error-analysis family is multiple-choice and stops at correcting (y=kx) to (y=k/x) without using the corrected model to solve;
+  - representation depth is narrow and does not test whether students can move among context, table, equation, constant of variation, and prediction.
+- Fidelity V2 requirements:
+  - every family must require both formulation and solving evidence, even when one verb is the primary emphasis;
+  - include a data/table family with multiple ordered pairs whose constant product supports the inverse-variation model;
+  - include at least two authentic real-world contexts where students infer the inverse relationship, determine the constant, write the equation, and solve a new case;
+  - include a symbolic family that starts from one known pair, requires (k), the inverse-variation equation, and a new value;
+  - include complete error analysis that diagnoses a direct-variation mistake, repairs the model, and solves the requested value;
+  - preserve the distinction from A2.6H: A2.6L must explicitly establish/use inverse variation and finish a prediction, whereas A2.6H handles broader rational-equation formulation;
+  - preserve the distinction from A2.6I: A2.6L is model-building plus prediction, not a general rational-equation solving exercise.
+- Generic secure multi-response grading plus the existing opt-in model-equation equivalence is sufficient; no new Path tool is required.
+
+
+### 2026-08-30 — A2.6L staged
+- Staged five A2.6L Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6L.json` — commit `d6f3b4169cf7b5e2e4f9654da7162d540965ab18`.
+- Every family now requires the full TEKS action sequence: establish the inverse-variation constant, formulate the inverse-variation equation, and solve/predict a new value.
+- Coverage includes:
+  - symbolic formulation and prediction from one known pair;
+  - a multi-row table requiring repeated constant-product evidence before formulation;
+  - a fixed-distance speed/time context;
+  - a fixed-area length/width context;
+  - complete direct-vs-inverse variation error analysis followed by corrected formulation and prediction.
+- DOK and difficulty remain separate: the first four families are DOK 2 across difficulty bands 2–4; only the full error-analysis repair is DOK 3.
+- Base Algebra II certification run `33330439857`: **PASS**.
+- Added A2.6L-specific generated certification — commit `cbc323c785b1f0b9fb527cf8f057bc36ac292afd`.
+- Full A2.6L certification run `33330503100`: **PASS**.
+- Generated inverse-variation constants, model formulation, predictions, production issuability, secure self-grading, equation-side reversal, direct-variation rejection, DOK-vs-difficulty discipline, public key stripping, and student/runtime build all passed.
+- A2.6L is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.7A**.
+
+
+### 2026-08-30 — A2.6K audit finding
+- Official construct: **determine the asymptotic restrictions on the domain of a rational function and represent domain and range using interval notation, inequalities, and set notation**.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - a translated reciprocal correctly identifies its excluded domain value and excluded range value;
+  - interval notation, a number-line representation, domain/range language, and a notation-error frame are present;
+  - the content is directionally aligned to asymptotic restrictions rather than drifting into equation solving.
+- Legacy limitations:
+  - all five families are essentially the single translated reciprocal form with one vertical and one horizontal asymptote;
+  - no family handles multiple vertical asymptotes from a denominator with more than one real zero;
+  - students mostly produce interval notation or choose a statement; they do not repeatedly **represent** the same domain/range in interval, inequality, and set notation;
+  - range is always the two-sided restriction y≠k, so one-sided rational ranges such as y>k or y<k are absent;
+  - error analysis identifies a bad interval but does not repair the full domain/range across the three required notation systems.
+- Fidelity V2 requirements:
+  - repeatedly determine asymptotic restrictions from the actual denominator structure;
+  - include both one and two vertical-asymptote cases;
+  - require student-authored interval notation, inequality descriptions, and set-builder notation rather than a multiple-choice proxy;
+  - include translated reciprocal range y≠k and squared-denominator rational ranges y>k and y<k;
+  - connect vertical asymptotes to domain restrictions and horizontal/one-sided asymptotic behavior to range restrictions without turning the task into A2.6G transformation analysis;
+  - include complete notation error repair across domain and range.
+- Before staging, verify that secure generic grading can fairly accept set-builder notation; if it cannot, add the smallest explicit set-notation equivalence capability rather than lowering the TEKS action.
+- Set-builder grading capability completed before A2.6K staging:
+  - `functions/shared/answerEquivalence.mjs` now has opt-in `sameSetBuilderNotation` for simple rational domain/range restrictions;
+  - `functions/lib/mathPath.js` routes only fields marked `equivalence: "setBuilder"` through that comparator;
+  - common MathLive/textbook forms, real-set membership, "|" vs ":", reversed simple inequalities, and reordered exclusions are accepted;
+  - finite roster-set grading remains unchanged;
+  - dedicated regression file `tests/platform/setBuilderAnswerEquivalence.test.mjs` is included in the Algebra II certification workflow.
+- Correct Answer Acceptance Audit on the repaired comparator: **PASS** (`33329645172`).
+- Final Algebra II set-builder capability certification: **PASS** (`33329689327`).
+- The initial parser-insertion failures were isolated pre-staging capability regressions and were repaired before any A2.6K package was authored.
+
+
+### 2026-08-30 — A2.6K staged and gated
+- Staged five A2.6K Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6K.json` — commit `66106b4db1cc54616202f5a8588c312bfa6beb24`.
+- Coverage now includes:
+  - translated reciprocal domain/range with vertical/horizontal asymptotes and all three required notation systems;
+  - two distinct vertical asymptotes from denominator factors, producing three domain regions plus set-builder exclusions;
+  - positive reciprocal-square range (y>k);
+  - negative reciprocal-square range (y<k);
+  - complete error repair of both domain and range across interval, inequality, and set-builder notation.
+- Base production/build Algebra II certification run `33329780646`: **PASS**.
+- Added A2.6K-specific generated certification — commit `79e3d4abc93bd10322ca4976b787c97f0f14cd81`.
+- The dedicated gate samples 200+ instances, checks production issuability, generated asymptote/domain/range mathematics, DOK-vs-difficulty discipline, secure correct-answer self-acceptance, semantic acceptance of equivalent textbook set-builder forms, wrong set restrictions, public key stripping, and notation/representation breadth.
+- Full A2.6K certification run `33329842560`: **PASS**.
+- Generated asymptote/domain/range mathematics, production issuability, DOK-vs-difficulty discipline, secure self-grading, semantic set-builder acceptance, wrong-restriction rejection, notation breadth, public key stripping, and student/runtime build all passed.
+- A2.6K is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.6L**.
+
+
+### 2026-08-30 — A2.6J audit finding
+- Official construct: **determine the reasonableness of a solution to a rational equation**.
+- Verdict: **REBUILD**.
+- The legacy bank states several correct rules, but it rarely makes the student determine reasonableness from actual evidence:
+  - the excluded-value family simply asks whether a denominator may equal zero;
+  - the domain-check family asks what should be checked first but never performs the check against a full equation;
+  - the negative-time family rejects a supplied negative candidate by context without verifying whether it satisfies the rational equation;
+  - the restriction-error family only asks for the excluded value;
+  - the reverse family chooses the sentence “check domain and substitute” rather than carrying out either calculation.
+- Fidelity V2 requirements:
+  - every family must supply a concrete rational equation and candidate and require evidence from the original equation, not only a memorized rule;
+  - include a valid exact candidate that is kept after both sides are evaluated;
+  - include a defined but invalid candidate that passes denominator restrictions yet fails substitution, proving a domain check alone is insufficient;
+  - include a candidate created by clearing/cancelling denominators that satisfies the transformed polynomial but is excluded from the original rational equation;
+  - include an algebraically valid candidate that is unreasonable in a real-world context;
+  - include a rounded numerical candidate judged against an explicit residual tolerance;
+  - error analysis must perform the missing original-equation check and issue the corrected keep/reject decision.
+- A2.6J must remain distinct from A2.6I: the candidate is supplied here and the primary action is evaluate/justify keep-or-reject, not re-solve the rational equation from scratch.
+- Generic secure multi-response grading is sufficient; no new Path tool capability is needed.
+
+
+### 2026-08-30 — A2.6J staged and gated
+- Staged five A2.6J Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6J.json` — commits `3cc1cd969371b492727cbf5e75425ef742b51458` and `5b21d2fe35e8d7e1c3d867ecd4656e038eeafd97`.
+- The second commit strengthens the rounded-candidate family so the residual is genuinely nonzero; the task therefore tests tolerance reasoning rather than accidentally presenting an exact value.
+- Coverage includes:
+  - an exact valid candidate verified against both original denominators and both original sides;
+  - a root of the cleared polynomial that is excluded from the original rational equation;
+  - an algebraically valid negative elapsed-time candidate rejected by context;
+  - a rounded candidate judged against an explicit 0.01 original-equation residual tolerance;
+  - complete error analysis showing that passing a denominator/domain check is necessary but not sufficient when substitution fails.
+- Package/build runs `33329335915` and `33329354924`: **PASS**.
+- Added A2.6J-specific generated certification — commit `5724d98e9ed7ac4a6ca23d682937e268973c6e6a`.
+- The gate samples 200+ generated instances, independently validates candidate/domain/substitution/context/tolerance mathematics, requires both keep and reject outcomes, routes generated keys through secure self-grading, rejects wrong verdicts, enforces representation breadth, and checks public key stripping.
+- Full A2.6J certification run `33329383765`: **PASS**.
+- Generated candidate evidence, production issuability, secure self-grading, wrong-verdict rejection, domain/original-equation/context/tolerance reasoning, public-key stripping, and student/runtime build all passed.
+- A2.6J is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.6K**.
+
+
+### 2026-08-30 — A2.6I audit finding
+- Official construct: **solve rational equations that have real solutions**.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - all five families are directionally aligned to solving rather than drifting into graph analysis;
+  - basic denominator clearing, shifted reciprocals, a rate context, and a denominator/shift misconception are represented;
+  - generated answers are constructed to be real and avoid an undefined final value.
+- Legacy limitations:
+  - four families collapse to a one-denominator linear equation, so the bank never requires a genuine least-common-denominator solve across multiple rational terms;
+  - no family produces a quadratic after denominators are cleared, even though this is a central Algebra II rational-equation case;
+  - the rate context is algebraically the same one-step quantity/rate solve as the simplest symbolic family;
+  - students usually return only one final number, with little evidence that they can clear denominators and finish every real solution;
+  - the labeled error-analysis family is multiple-choice and does not repair the rational equation through a complete solve.
+- Fidelity V2 requirements:
+  - preserve one accessible shifted/single-rational-term solve, but require isolation and a complete solution;
+  - repeatedly solve equations with rational expressions on both sides or multiple rational terms and clear an authentic LCD;
+  - include equations whose cleared form is quadratic and require all real solutions;
+  - include a supplied real-world rational equation (for example combined work/rate) and solve it rather than reformulate it, keeping A2.6H distinct;
+  - include complete error analysis that corrects denominator clearing and finishes the full real solution set;
+  - keep A2.6I distinct from A2.6J by generating valid real solutions here and reserving explicit reasonableness/extraneous-candidate judgment for A2.6J.
+- Generic secure response fields plus opt-in polynomial-relation equivalence for cleared polynomial equations are sufficient; no new Path tool is required.
+
+
+### 2026-08-30 — A2.6I staged and gated
+- Staged five A2.6I Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6I.json` — commit `869719dae55d1c39cbd239ca4405f0aba85b5770`.
+- Coverage includes:
+  - an accessible shifted rational equation that collects isolation, denominator value, and final solution;
+  - a two-denominator proportion whose cleared form is genuinely quadratic with two valid real roots;
+  - a two-term rational equation requiring the authentic LCD and a quadratic solve;
+  - a supplied combined-work rational model that students solve and interpret without reformulating it;
+  - complete denominator-clearing error analysis that repairs the missing LCD factor and finishes both real roots.
+- Package/build Algebra II certification run `33329107935`: **PASS**, including the student/runtime bundle.
+- Added A2.6I-specific generated certification — commit `3612a26dd420dd4a45c8f980e4bc20a1cf048e00`.
+- The gate samples 200+ generated instances, independently verifies each generated rational equation and root, checks production issuability and secure self-grading, rejects wrong roots, accepts equivalent side-reversed cleared polynomial equations, enforces multi-denominator/quadratic breadth, keeps A2.6I distinct from A2.6J reasonableness, and checks public key stripping.
+- Full A2.6I certification run `33329205726`: **PASS**.
+- Generated content, production issuability, secure self-grading, wrong-root rejection, equivalent cleared-equation acceptance, multi-denominator/quadratic breadth, A2.6J boundary checks, public-key stripping, and student/runtime build all passed.
+- A2.6I is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.6J**.
+
+
+### 2026-08-30 — A2.6H audit finding
+- Official construct: **formulate rational equations that model real-world situations**.
+- Verdict: **REBUILD**.
+- Legacy weaknesses:
+  - all five families are recognition/selection rather than student-authored formulation;
+  - average-speed and concentration families ask for a rational expression, not an equation with an unknown;
+  - the inverse-variation family belongs more naturally to A2.6L, which explicitly owns formulating/solving inverse variation;
+  - the work-rate error family diagnoses “add rates” but does not require the corrected rational equation.
+- Fidelity V2 requirements:
+  - every family must make the student author a rational **equation** from a real-world situation;
+  - use several authentic structures rather than repeating $k/x$: combined work rates, average-speed/time, round-trip motion with current/wind, concentration/dilution, and complete model-error repair;
+  - identify the unknown and units in the context before building the equation;
+  - keep the task formulation-focused: A2.6I will own solving the resulting rational equations;
+  - avoid using pure inverse variation as a substitute because A2.6L owns that construct.
+- Generic secure equation grading is sufficient for the deliberately structured formulation frames; no new Path tool is required.
+
+
+### 2026-08-30 — A2.6H staged and gated
+- Added opt-in commutative model-equation grading so top-level rate terms may be reordered and equation sides reversed without changing the default form-sensitive grader — commits `4fb671aa45787bc5f32da0a13ff73ff3add2374a` and `c28fe1783445735873860e441aa1e2a69344e68b`.
+- Added regression tests and dedicated workflow coverage — commits `3dacfba89ad66c83893b122c641636502bfda861` and `fe0baeca99ae10b6dd67a53f490d321dd3824836`.
+- Model-equation capability run `33326952603`: **PASS**.
+- Staged five A2.6H Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6H.json` — commit `08b8141dc1551712d5b9126a44bb58e79aa32a6e`.
+- Coverage includes combined work, overall average speed, round-trip current, dilution/concentration, and opposing-rate error repair. Every family requires an authored rational equation and none substitutes pure inverse variation for A2.6L.
+- Added A2.6H generated certification — commit `acb7ce856b0257779479fbf61e91be9bd7faf84a`.
+- The gate samples 200+ generated instances, checks production issuability and secure self-grading, requires all four modeling structures plus error repair, verifies side-reversed equivalent equations are accepted, rejects unrelated models, prevents drift into A2.6I solving, and checks public key stripping.
+- Full A2.6H certification is triggered.
+- Full A2.6H run `33327017850` failed only on the certification selector for rate-model breadth: the gate counted ids containing “work” but did not count the staged opposing-rates fill/drain error-repair family.
+- Repaired the selector so the already-authored opposing-rates family is counted as rate modeling — commit `a06ee609cd0215cf2ca64aaae43528d4fbf81e59`.
+- No content requirement was weakened; A2.6H still requires both constructive work-rate modeling and a distinct opposing-rate error-repair model.
+- Replacement certification is triggered.
+- FIRST UNFINISHED STANDARD remains **A2.6H** until the replacement run is green.
+- Replacement A2.6H certification run `33327104027`: **PASS**, including the staged Algebra II generated-instance gates and student/runtime build.
+- A2.6H is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.6I**.
+
+
+### 2026-08-30 — A2.6G audit finding
+- Official construct: **analyze transformations of the reciprocal parent function for specified positive and negative real parameter values**.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - translated asymptotes, reciprocal graphing, outside-sign reflection, and reverse equation recognition are present.
+- Legacy gaps:
+  - the bank uses only the reduced form $a/(x-h)+k$ and never analyzes a separate inside parameter b;
+  - positive/negative parameter breadth is thin and horizontal scaling is absent;
+  - most families isolate one attribute rather than analyzing a combined transformation;
+  - error analysis only repairs the sign of h in the vertical asymptote.
+- Important reciprocal-function structure:
+  - for the full model $y=a\,f(b(x-h))+k$ with $f(x)=1/x$, the equation simplifies to $y=\frac{a/b}{x-h}+k$;
+  - horizontal scale is $1/|b|$ and b<0 is a horizontal reflection, but because $1/x$ is odd that horizontal reflection is visually equivalent to an x-axis reflection;
+  - the final branch orientation/scale depends on the signed ratio a/b, so a and b cannot be recovered separately from the final graph alone unless the transformation sequence is supplied;
+  - the asymptotes remain $x=h$ and $y=k$ regardless of nonzero a and b.
+- Fidelity V2 requirements:
+  - use supplied a/b/h/k values to analyze vertical scale, reciprocal horizontal scale, reflections, asymptotes, mapped points, and final branch orientation;
+  - include both positive and negative a and b values and both horizontal stretch/compression;
+  - explicitly distinguish the separate transformation sequence from the algebraically equivalent final coefficient a/b;
+  - include exact point mapping, graph evidence, reverse reasoning from a supplied sequence, and genuine error analysis;
+  - never claim a and b can be separately inferred from the final reciprocal graph alone.
+- No risky interactive-tool expansion is needed; generic secure fields and generated graph/table evidence can assess the full parameter reasoning, while the existing rational graph tool can represent the equivalent reduced coefficient when needed.
+
+
+### 2026-08-30 — A2.6G staged and gated
+- Staged five A2.6G Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6G.json` — commit `91aad9d53c9124decc1144b296002f03953d419e`.
+- Coverage includes:
+  - combined a/b/h/k symbolic analysis with a<0;
+  - exact point mapping for b=-2, including horizontal reflection and the equivalent signed coefficient a/b;
+  - graph evidence for a true horizontal stretch from b=0.5;
+  - reverse reasoning from a supplied sequence with both reflections, correctly recognizing their visual cancellation for the odd reciprocal parent;
+  - error analysis correcting reciprocal horizontal scale, reflection, asymptote, and effective-coefficient mistakes.
+- Added A2.6G-specific generated certification — commit `222c08b8649ad4957543e5c0bfc648e5eba5b1a5`.
+- The gate samples 200+ generated instances, checks production issuability and secure self-grading, independently verifies point mapping and graph distances, requires positive/negative parameter and stretch/compression breadth, checks asymptotes and a/b, rejects incorrect effects, and strips public answer keys.
+- Package run `33326640125` and full assertion run `33326658552` are **RUNNING/QUEUED** at this checkpoint.
+- Full A2.6G run `33326658552` failed one substantive coverage assertion: the negative-b point-mapping family did not explicitly ask the student to preserve both asymptotes, even though the prompt/equation implied them.
+- Strengthened that family by adding graded vertical- and horizontal-asymptote fields — commit `4291bd7e4ff51ea605bbbd39c7e240a759972cd5`.
+- No gate was weakened; the content was improved to meet the gate.
+- Replacement certification is triggered.
+- Replacement run `33326702004` passed the strengthened asymptote requirement but then failed the repeated-negative-b breadth assertion: only two families explicitly carried negative b.
+- Strengthened the combined symbolic family so both a and b are negative, producing an authentic double-reflection case and positive effective ratio a/b — commit `7e0d8379b96a12883e7acde7f7e6be0b535135ef`.
+- Updated the certification to require the corresponding horizontal reflection and positive effective coefficient — commit `bea36f527b3805475d87098e53064f1588b462d4`.
+- Again, the gate was not weakened; content breadth was increased to meet it.
+- Replacement certification is triggered.
+- Replacement run `33326754196` still reported the negative-b breadth assertion even though the combined family had been strengthened. Inspection showed the gate was counting negative b only from prompt text, not from the actual generator parameter values or graded b field.
+- Repaired the gate to inspect authored b choices and explicit graded b values in addition to textual evidence — commit `4a7dfa0bcca2b9ba339531666f0a729130be919b`.
+- This is a certification-selector repair, not a lowered requirement; the package still has at least three independently authored negative-b families.
+- Replacement certification is triggered.
+- Replacement certification run `33326836793`: **PASS**.
+- Generated point mapping, asymptotes, a/b reasoning, positive/negative parameter breadth, stretch/compression, secure wrong-effect rejection, public-key stripping, and student/runtime build all passed.
+- A2.6G is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.6H**.
+
+
+### 2026-08-30 — A2.6F audit finding
+- Official construct: **solve absolute value linear inequalities**.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - between/AND and outside/OR solution regions are both present;
+  - interval notation, number-line construction, context, a negative-bound edge case, and an AND-vs-OR error frame are represented.
+- Legacy limitations:
+  - almost every inequality is the easiest $|x-h|\;\square\;d$ pattern;
+  - students usually return only the final interval/choice rather than showing isolation and the resulting compound linear inequalities;
+  - nontrivial linear expressions inside the absolute value are absent;
+  - dividing by a negative outside coefficient and correctly flipping the inequality is not represented;
+  - the negative-bound family only covers “absolute value < negative → no solution,” not the complementary “absolute value > negative → all real numbers.”
+- Fidelity V2 requirements:
+  - repeatedly solve nontrivial $|mx+b|\;\square\;d$ inequalities;
+  - collect the isolated absolute-value inequality and the correct AND/OR linear inequalities before the final interval/union;
+  - include a negative outside coefficient that forces an inequality reversal during isolation;
+  - explicitly contrast impossible and automatically true negative-bound cases;
+  - include contextual transfer and complete AND-vs-OR error repair;
+  - require inclusive/strict endpoint control and both bounded intervals and two-ray unions.
+- Generic secure inequality/interval grading is sufficient; no new Path capability is required.
+
+
+### 2026-08-30 — A2.6F staged and gated
+- Staged five A2.6F Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6F.json` — commit `f4ccbcb7d494469e8b26ea9b216e6e1341ef7993`.
+- Replaced chained-compound response fields with separately graded lower/upper inequalities so mathematically equivalent student inequalities use the existing inequality comparator fairly — commit `adae14c3e85044a093d274c49c444c3956d495ee`.
+- Coverage includes:
+  - a negative outside coefficient requiring inequality reversal during isolation and a bounded inclusive interval;
+  - a strict outside/OR system producing a two-ray union;
+  - an explicit contrast of absolute value < negative (empty) versus > negative (all real);
+  - contextual linear-tolerance solving with a nontrivial inside expression;
+  - complete AND-vs-OR error repair through the final interval union.
+- Added A2.6F-specific generated certification — commit `2da78479840d5f1ccbfa6300cbe8d4ff8dc3277b`.
+- The gate samples 200+ generated instances, checks production issuability and secure self-grading, requires nontrivial linear interiors throughout, repeated bounded/union reasoning, negative-coefficient reversal, empty/all-real edge cases, context/error breadth, wrong-region rejection, and public answer-key stripping.
+- Full A2.6F assertion run `33326550990`: **PASS**.
+- Generated bounded/union reasoning, negative-coefficient reversal, empty/all-real edge cases, context/error repair, secure wrong-region rejection, public-key stripping, and student/runtime build all passed.
+- A2.6F is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.6G**.
+
+
+### 2026-08-30 — A2.6E audit finding
+- Official construct: **solve absolute value linear equations**.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - two-case solving, scaled equations, a no-solution negative-distance case, context, and error analysis are all directionally aligned.
+- Legacy limitations:
+  - most equations reduce to the easiest $|x-h|=d$ pattern;
+  - nontrivial linear expressions inside the absolute value are absent;
+  - intermediate evidence is thin: students usually return only final numbers rather than isolate → split into two linear cases → solve;
+  - the no-solution case is recognition-only and the error-analysis family identifies the missing case without repairing a more demanding equation through completion;
+  - one-solution behavior at absolute value = 0 is not explicitly represented.
+- Fidelity V2 requirements:
+  - repeatedly collect isolation of the absolute-value expression, both linear cases when the isolated right side is positive, and the complete solution set;
+  - include nontrivial $|mx+b|=d$ equations and an outside-scaled/shifted equation that must be isolated first;
+  - explicitly cover all three real-solution counts: two solutions for positive isolated distance, one solution for zero, and no real solution for a negative isolated value;
+  - include contextual interpretation and complete error repair;
+  - remain solve-focused: A2.6D owns formulation and A2.6F owns inequalities.
+- Generic secure response grading is sufficient; no new Path capability is required.
+
+
+### 2026-08-30 — A2.6E staged and gated
+- Staged five A2.6E Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6E.json` — commit `47d03fce146924328f341b60e72098cebd92b483`.
+- Package/build run `33326413928`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - complete two-case solving from a basic absolute-value equation;
+  - outside-scaled/shifted equations with a nontrivial linear expression inside;
+  - the exactly-one-solution case when isolated absolute value equals zero;
+  - a contextual two-time solve with full isolate/case evidence;
+  - complete no-solution error repair when the isolated absolute value is negative.
+- Added A2.6E-specific generated certification — commit `38329a76f0a9df8676dbff7e55b067eeb1dfc6a3`.
+- The A2.6E gate samples 200+ generated instances, checks production issuability and secure self-grading, requires repeated two-case evidence, one/two/zero solution-count breadth, repeated nontrivial linear interiors, context/error repair, wrong-outcome rejection, and public answer-key stripping.
+- Full A2.6E assertion run `33326432567`: **PASS**.
+- Generated two/one/zero-solution breadth, nontrivial linear interiors, context/error repair, secure wrong-outcome rejection, public-key stripping, and student/runtime build all passed.
+- A2.6E is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.6F**.
+
+
+### 2026-08-30 — A2.6D audit finding
+- Official construct: **formulate absolute value linear equations**.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - direct distance-from-target formulation and symmetric-table formulation are mathematically aligned;
+  - midpoint/distance reverse reasoning and a distance-model error frame are present.
+- Legacy limitations:
+  - only two of five families actually make the student write the equation; the rest are recognition/selection;
+  - nearly every model collapses to the easiest canonical form $|x-h|=d$;
+  - nontrivial linear expressions inside the absolute value, such as $|mx+b|=d$, are absent;
+  - contexts do not require students to distinguish the measured linear quantity from the underlying independent variable;
+  - error analysis identifies that absolute value is missing but does not make the student author the repaired complete model.
+- Fidelity V2 requirements:
+  - every family must require the student to **author** an absolute-value linear equation;
+  - include canonical distance form, paired-solution/midpoint reverse formulation, and nontrivial linear-inside models;
+  - include context, table/number-line evidence, reverse reasoning, and complete error repair;
+  - remain formulation-focused: A2.6E owns solving these equations.
+- Correct-answer acceptance gap found before authoring:
+  - mathematically equivalent models such as $|x-5|=3$, $|-x+5|=3$, $|2x-10|=6$, or the same equation with sides reversed represent the same solution set;
+  - generic equation grading intentionally preserves form and can reject those equivalent model equations.
+- Added opt-in `sameAbsoluteValueLinearEquation` relation grading — commit `e0681fddbb1dba0110b48b66892ba6cf61763861`.
+- Routed private fields through `equivalence: "absoluteLinearRelation"` without changing default equation grading — commit `8aa1d34a0e51d556c9bd27661f6c09e84e0e0bfe`.
+- Added regression tests for sign reversal, scaled equivalents, side reversal, and wrong-model rejection — commit `226aa126e59ac79240963078ec50395c7f54cfda`.
+- Added the new gate to the dedicated Algebra II workflow — commit `9a3f8cc7d8173f227a7f9e889f1e0e0fdf361679`.
+- Answer-equivalence capability run `33326247865`: **PASS**, including student/runtime build.
+- Staged five A2.6D Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6D.json` — commit `d5626dd38ab7f32db6e6d9c47d6c21ea0daac4cc`.
+- Coverage now includes direct distance modeling, reverse midpoint/pair formulation, nontrivial linear-inside context, scaled-equation formulation from a table, and complete missing-absolute-value error repair.
+- Every family requires an authored equation and opts into `absoluteLinearRelation`; A2.6D does not drift into solving.
+- Added A2.6D generated certification — commit `3212f8c7200ff2154174787aa2e15ef7f50a5a74`.
+- The gate samples 200+ generated instances, checks production issuability and secure self-grading, requires repeated $|mx+b|=d$ formulation, accepts equivalent side-reversed models, rejects wrong-distance models, requires context/reverse/error breadth, and checks public key stripping.
+- Full A2.6D assertion run `33326321807`: **PASS**.
+- Authored-formulation breadth, relation-safe grading, equivalent-model acceptance, wrong-model rejection, public-key stripping, and student/runtime build all passed.
+- A2.6D is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.6E**.
+
+
+### 2026-08-30 — A2.6C audit finding
+- Official construct: **analyze transformations of the absolute value parent function for specified positive and negative real parameter values**.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - vertex translation, vertical scaling, x-axis reflection, graphing, range, and reverse recognition are present;
+  - one interactive graph family authentically plots the V-shape.
+- Legacy gaps:
+  - the bank effectively uses only the reduced form $y=a|x-h|+k$ and never makes students reason about an inside factor b;
+  - positive/negative parameter breadth is thin: most generated a-values are positive and negative values appear mainly as one outside reflection example;
+  - several families are isolated recognition/range questions instead of analyzing a combined transformation;
+  - error analysis only repairs the sign of h and does not compare the different roles of inside/outside parameters.
+- Important mathematical distinction from A2.6A:
+  - for the absolute value parent, $|b(x-h)|=|b|\,|x-h|$;
+  - therefore the **magnitude** of b creates reciprocal horizontal scaling in the transformation mapping, but a negative b produces no visually distinct horizontal reflection because the parent is even;
+  - the final arm steepness is $|ab|$, so a and |b| are not separately identifiable from the final graph alone unless the parameters/transformation sequence are supplied.
+- Fidelity V2 requirements:
+  - use the full reasoning model $y=a|b(x-h)|+k$ when parameters are supplied;
+  - analyze vertical scale $|a|$, reciprocal horizontal scale $1/|b|$, x-axis reflection when a<0, translation to vertex $(h,k)$, and opening/range;
+  - explicitly teach/test the special fact that **b<0 does not create a new visible reflection for an absolute-value graph**;
+  - include positive and negative real parameter values, combined-effect analysis, exact point mapping, graph evidence, reverse reasoning from a supplied transformation sequence, and genuine error analysis;
+  - never pretend a and b can be recovered separately from the final V-shape alone.
+- The existing Function Investigation tool supports the reduced a/h/k absolute-value form, not a separate b. No risky tool expansion is needed: generic secure response fields and generated point/graph evidence can assess the full parameter reasoning, while any graph rendering can use the mathematically equivalent effective outside scale $a|b|$.
+
+
+### 2026-08-30 — A2.6C staged and gated
+- Staged five A2.6C Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6C.json` — commit `db03b9528b371ec863bb909d096ee6e4a83a249b`.
+- Package/build run `33326082648`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - combined a/b/h/k symbolic analysis with negative a and reciprocal horizontal scale;
+  - exact point mapping under b=-4 showing the symmetric arms swap but no distinct visible reflection appears;
+  - graph evidence for horizontal stretch 2 plus vertical compression 1/2 and final arm slope 1/4;
+  - reverse reasoning from an explicitly supplied transform sequence so a and b are not falsely inferred from the final V alone;
+  - error analysis correcting both “two reflections cancel” and “inside factor 3 means horizontal stretch 3.”
+- Added A2.6C-specific generated certification — commit `db0596df11a413fb4fb561c7be2fe158fbec4960`.
+- The A2.6C gate samples 200+ generated instances, checks production issuability and secure self-grading, independently verifies negative-b point mapping, graph distances, reciprocal horizontal scale, effective arm slope, reverse parameter recovery, wrong-effect rejection, and public answer-key stripping.
+- Full A2.6C assertion run `33326111449`: **PASS**.
+- Generated combined-effect analysis, negative-b invariance, point mapping, reciprocal horizontal scale, graph geometry, reverse reasoning, error repair, secure wrong-effect rejection, public-key stripping, and student/runtime build all passed.
+- A2.6C is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.6D**.
+
+
+### 2026-08-30 — A2.6B audit finding
+- Official construct: **solve cube root equations that have real roots**.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - basic and shifted/scaled cube-root equations are mathematically correct;
+  - the inverse operation of cubing is identified;
+  - a context and an error-analysis frame are present.
+- Legacy limitations:
+  - most families collect only the final numeric answer, so the actual isolate → cube → solve process is invisible;
+  - inside expressions are almost always x-h rather than a nontrivial linear expression;
+  - generated cube-root values are integer-only, so students do not see broader real-number cases;
+  - the context is mostly direct cube-root evaluation rather than solving a modeled equation;
+  - error analysis is multiple-choice recognition and does not repair the algebra through the final solution.
+- Fidelity V2 requirements:
+  - repeatedly collect the isolated cube-root equation, the equation after cubing, and the final solution;
+  - include a scaled equation with a nontrivial linear radicand mx+c;
+  - include negative cube-root values/radicands to reinforce that cube roots accept all real radicands;
+  - include at least one noninteger real cube-root value so the standard does not collapse to memorized perfect cubes;
+  - include a contextual modeled equation that must be solved, not merely evaluate a given cube root;
+  - include complete error analysis that replaces an incorrect squaring step with cubing and finishes x.
+- Unlike square-root equations, no extraneous/domain-rejection layer should be invented here; real cube roots are defined for all real radicands.
+- Generic secure response grading is sufficient; no new Path capability is required.
+
+
+### 2026-08-30 — A2.6B staged and gated
+- Staged five A2.6B Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6B.json` — commit `0d275751bf94380f20581ffc3fabddfc85688fae`.
+- Coverage includes complete basic solving, scaled equations with nontrivial linear radicands, a noninteger real cube-root value, a contextual modeled solve, and complete squaring-vs-cubing error repair.
+- Added A2.6B-specific generated certification — commit `9fecebd60cbf73820e4972f9e9482d94a9ef0aa6`.
+- The gate samples 200+ generated instances, requires production issuability and secure self-grading, requires isolate/cube/final evidence, independently checks noninteger cubing, requires repeated negative real cube-root cases, rejects an incorrect final solution in every family, and checks public answer-key stripping.
+- Full A2.6B certification is triggered.
+- Full A2.6B certification run `33325959758`: **PASS**.
+- Generated complete-step solving, negative/noninteger real cube-root breadth, context/error repair, secure wrong-final rejection, public-key stripping, and student/runtime build all passed.
+- A2.6B is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.6C**.
+
+### 2026-08-30 — A2.6A audit finding
+- Official construct: **analyze transformations of cubic and cube root parent functions for specified positive and negative real parameter values**.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - one cube-root graph construction is present;
+  - cubic translation, vertical scaling, and x-axis reflection appear;
+  - center/inflection-point translation is recognized.
+- Legacy gaps are substantial:
+  - four of five families are cubic, so cube-root transformation analysis is far too thin;
+  - the interactive family uses only the a/h/k model and omits the inside factor b;
+  - horizontal scaling by the reciprocal inside factor and horizontal reflection from b<0 are absent;
+  - positive and negative parameter values are not treated systematically across a, b, h, and k;
+  - several families are recognition/evaluation tasks instead of analyzing the combined graph effect.
+- Fidelity V2 will reason from the full transformation model **y = a·f(b(x-h))+k** for both parent functions:
+  - vertical scale factor |a|;
+  - horizontal scale factor 1/|b|;
+  - x-axis reflection when a<0;
+  - horizontal reflection when b<0;
+  - center/inflection point translated to (h,k);
+  - parent points map by x = h + u/b and y = k + a·f(u).
+- Required breadth:
+  - cubic and cube-root families must both appear repeatedly;
+  - positive and negative a and b values must be represented, including both reflections;
+  - horizontal stretch and compression must both appear, not just vertical scaling;
+  - graph/point-mapping evidence, symbolic combined-effect analysis, reverse reasoning, and genuine error analysis must be present;
+  - at least one family must compare several effects simultaneously so students cannot answer by isolated vocabulary.
+- The current Function Investigation tool intentionally lacks b. No risky tool expansion is required: secure generic multi-response fields plus generated table/graph point mappings can directly assess the missing horizontal effects.
+- Generic secure response grading is sufficient; no new Path capability is required.
+
+
+### 2026-08-30 — A2.6A staged and gated
+- Staged five A2.6A Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.6A.json` — commit `1bbbceb89637da07287092994490391d23fdb022`.
+- Coverage now includes repeated cubic and cube-root analysis under the full $a\,f(b(x-h))+k$ model:
+  - combined cubic effects with negative a and reciprocal horizontal compression;
+  - cube-root point mapping with b<0, horizontal reflection, and 1/4 horizontal compression;
+  - cubic graph evidence for a true horizontal stretch from b=0.5;
+  - reverse recovery of cube-root a/b/h/k from mapped points;
+  - error analysis correcting the misconception that negative a and negative b “cancel” or that |b| is the horizontal scale.
+- Added A2.6A-specific generated certification — commit `6ca0d32a4029dcb905c6ead3f82e0df814eff800`.
+- The gate samples 200+ generated instances, requires production issuability and secure self-grading, independently checks mapped-point geometry and reciprocal horizontal scales, requires repeated cubic/cube-root and positive/negative parameter breadth, rejects an incorrect transformation effect in every family, and checks public answer-key stripping.
+- Full A2.6A certification is triggered.
+- FIRST UNFINISHED STANDARD remains **A2.6A** until the generated gate and build are green.
+
+### 2026-08-30 — A2.5E audit finding
+- Official construct: **determine the reasonableness of a solution to a logarithmic equation**.
+- Verdict: **REBUILD**.
+- The legacy bank teaches the domain slogan but usually does not make the student perform a complete reasonableness check:
+  - domain-invalid candidates are recognized by multiple choice rather than evaluated;
+  - a positive log argument is treated as enough evidence even when reasonableness also requires the original equation to be true;
+  - the context family checks an exponential growth result rather than a logarithmic equation directly;
+  - the reverse family asks for a logarithmic function domain, which drifts away from evaluating a proposed equation solution;
+  - error analysis names “check the domain” but does not perform the original-equation verification.
+- Fidelity V2 requirements:
+  - every family begins with a **proposed solution** to a logarithmic equation rather than asking the student to solve from scratch;
+  - students compute the original log argument(s), verify positivity, and evaluate/compare the original equation;
+  - include both reasonable and unreasonable candidates;
+  - include a candidate with a positive argument that is still unreasonable because it does **not** satisfy the equation, proving domain validity alone is insufficient;
+  - include a domain-invalid candidate, a valid exact candidate, a multi-log or multi-condition check, contextual transfer, and genuine error analysis;
+  - context/domain restrictions must be evaluated separately from algebraic equation validity;
+  - keep A2.5E distinct from A2.5D: the candidate is supplied here; the primary action is judging its reasonableness.
+- Generic secure multi-response grading is sufficient; no new Path capability is required.
+
+
+### 2026-08-30 — A2.5E staged and gated
+- Staged five A2.5E Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.5E.json` — commit `f103922b614ee96d90ca8a51cc632e0651a313f6`.
+- Coverage includes:
+  - a domain-invalid proposed solution;
+  - a valid common-log candidate verified in the original equation;
+  - a positive-domain candidate that is still unreasonable because the original equality is false;
+  - a two-log equation requiring both original arguments and the combined original LHS to be checked;
+  - contextual error analysis where the logarithmic equation is algebraically satisfied but a negative elapsed time makes the candidate unreasonable in context.
+- Added A2.5E-specific generated certification — commit `772f6d54fce49157194ba5d85f1be356de5dc64e`.
+- The gate samples 200+ generated instances, requires production issuability and secure self-grading, independently verifies domain/value evidence, requires both valid and rejected candidates, proves domain validity alone is insufficient, checks multi-log and context/error-repair breadth, rejects an incorrect reasonableness verdict in every family, and checks public answer-key stripping.
+- Full A2.5E certification is triggered.
+- FIRST UNFINISHED STANDARD remains **A2.5E** until the generated gate and build are green.
+
+### 2026-08-30 — A2.5D audit finding
+- Official construct: **solve exponential equations of the form y = ab^x and single logarithmic equations having real solutions**.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - same-base exponential solving is correct;
+  - one y=ab^x solve is present;
+  - single logarithmic equations and common-log notation are present;
+  - the “isolate the exponential first” misconception is identified correctly.
+- Legacy limitations:
+  - every exponential target is engineered to be an exact integer power of the base, so logarithmic solving is never truly necessary;
+  - logarithmic equations are mostly one-step rewrites with easy integer outputs;
+  - the error-analysis family asks only what to do first and never completes the solve;
+  - context is thin and does not require interpreting the solved exponent as time/period;
+  - exact noninteger logarithmic solutions are absent.
+- Fidelity V2 requirements:
+  - preserve a same-base pathway, but add a genuine y=ab^x case whose solution must be expressed with logarithms;
+  - include single-log equations with an affine argument so rewriting to exponential form still requires a linear solve;
+  - include common/natural-log notation breadth where appropriate;
+  - include a contextual exponential solve with interpretation of the exponent;
+  - include complete error analysis that repairs the isolation/log step and still finishes x;
+  - keep A2.5D distinct from A2.5E: solve the equation here; reasonableness/domain validation is the next standard's primary action.
+- Generic secure equation/expression/number fields are sufficient; no new Path capability is required.
+
+
+### 2026-08-30 — A2.5D staged and gated
+- Staged five A2.5D Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.5D.json` — commit `78074a1609bf8258c64525cd707f2889f86b192d`.
+- Package/build run `33325402874`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - complete same-base exponential solving;
+  - a genuine y=ab^x solve whose isolated ratio is deliberately not a power of 2 and therefore requires logarithms;
+  - a common-log equation with affine argument that rewrites to exponential form and finishes a linear solve;
+  - contextual noninteger exponential time solved exactly with natural logs and interpreted in hours;
+  - complete error repair for taking logs before isolating the exponential expression.
+- Added A2.5D-specific generated certification — commit `3a1d909beeb2790be8b9f9b20f6b9cfc8ce71658`.
+- The gate samples 200+ generated instances, independently verifies non-power ratios/log approximations, validates affine-log solutions and positive log arguments, requires context/error-repair breadth, rejects a wrong final solved value in every family, and checks public answer-key stripping.
+- Full A2.5D assertion run `33325432153`: **FAILED at generated issuability for the non-power logarithmic solve**.
+- Root cause: the content generator intentionally supports a small safe arithmetic language and does **not** expose `log()`; two families tried to derive rounded logarithmic approximations with `round(log(...),3)`, so the secure generator correctly failed closed as `constraints_unsatisfiable`.
+- Removed those generated decimal keys and kept the mathematically stronger exact solutions `ln(ratio)/ln(2)`; the fixed-context family still supplies an independently valid decimal interpretation where the target ratio is constant — commit `ebfc90d7e328e80d5d245f97488c828486edc299`.
+- Consolidated two overlapping A2.5D certification blocks into one authoritative gate and updated it to require exact logarithmic solutions rather than unsupported generator-side log arithmetic — commit `14841fd43569c5b982f6a752d4c5fb475af24048`.
+- No mathematical requirement was weakened: non-power exponential cases still require logarithms, and the gate independently verifies those ratios are not integer powers of 2.
+- Replacement A2.5D certification is triggered.
+- FIRST UNFINISHED STANDARD remains **A2.5D** until the replacement run is green.
+
+
+### 2026-08-30 — A2.5C audit finding
+- Official construct: **rewrite exponential equations as corresponding logarithmic equations and logarithmic equations as corresponding exponential equations**.
+- Verdict: **ENHANCE**.
+- Legacy mathematical role-mapping is sound:
+  - exponential base remains logarithmic base;
+  - exponential result becomes logarithm argument;
+  - exponent becomes logarithm value;
+  - both conversion directions are represented.
+- The fidelity weakness is the student action:
+  - all five legacy families are multiple-choice recognition;
+  - none requires the student to actually author the corresponding equation;
+  - examples are almost entirely positive-integer numeric triples, so students can pattern-match without transferring the relationship to variables/expressions;
+  - common/natural-log notation and symbolic expressions are absent;
+  - error analysis identifies a role mistake but does not require writing the corrected equation.
+- Fidelity V2 requirements:
+  - every family must require a **written rewritten equation**;
+  - both directions must occur repeatedly;
+  - include numeric role-mapping, variable/expression role-mapping, and common/natural-log notation;
+  - include at least one family that rewrites the same relationship in both directions to make the equivalence explicit;
+  - do not turn the task into solving for the exponent/input — A2.5D owns equation solving;
+  - error analysis must repair the incorrect base/argument/exponent placement and write the corrected equivalent form.
+- Generic secure equation fields are sufficient; no new Path capability is required.
+
+
+### 2026-08-30 — A2.5C staged and gated
+- Staged five A2.5C Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.5C.json` — commit `a51e7c2d80105777a7e847ec551437297d85559d`.
+- Package/build run `33325233108`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - student-written numeric exponential → logarithmic rewrite;
+  - student-written numeric logarithmic → exponential rewrite;
+  - symbolic exponent-expression role mapping without solving;
+  - common-log and natural-log rewrites;
+  - complete base/argument role-error repair followed by rewriting back in the opposite direction.
+- Added A2.5C-specific generated certification — commit `812c9bfaa2e90bff5012c8f02b9e4f2adcfd4132`.
+- The gate samples 200+ generated instances, independently verifies numeric role mappings, requires written equation fields rather than multiple-choice recognition, requires both directions repeatedly, checks symbolic/common/natural-log breadth, rejects a non-equivalent rewrite in every family, and checks public answer-key stripping.
+- Full A2.5C assertion run `33325264164`: **FAILED only on the certification test's rewrite-direction counter** after the generated/self-grading checks passed.
+- Cause: the gate counted exponential→logarithmic families from prompt wording such as “logarithmic equation,” so valid families phrased as “logarithmic form” were not counted even though their authored answer fields were correct.
+- Repaired the gate to count rewrite direction from the actual private authored equation keys: `log_`/ `ln(` for exponential→log and `^` for log→exponential — commit `27867ec9d265191ef568dd9918923d6d5e83e4d9`.
+- No content requirement was weakened; the gate now measures the equations students actually have to write instead of prose wording.
+- Replacement A2.5C certification is triggered.
+- FIRST UNFINISHED STANDARD remains **A2.5C** until the replacement run is green.
+
+
+### 2026-08-30 — A2.5B audit finding
+- Official construct: **formulate exponential and logarithmic equations that model real-world situations, including exponential relationships written recursively**.
+- Verdict: **REBUILD**.
+- Legacy strengths:
+  - growth/decay contexts are mathematically correct;
+  - a recursive exponential relationship appears;
+  - one logarithmic equation is connected to an exponential model.
+- Legacy drift:
+  - four of five families are multiple-choice recognition rather than formulation;
+  - the recursive family converts an already-given recurrence to explicit form instead of formulating the recurrence from a situation/table;
+  - the logarithmic family is really an A2.5D-style “solve for time” rewrite, not formulation of a logarithmic real-world model;
+  - no family makes the student author both the explicit and recursive forms of the same exponential situation;
+  - no authentic logarithmic measurement/modeling context is present.
+- Fidelity V2 requirements:
+  - students must **write** the model equations, not select a prewritten option;
+  - include both growth and decay real-world situations;
+  - repeatedly formulate both explicit exponential and recursive forms from the same evidence;
+  - include at least one table/data representation where the common ratio must be inferred before writing the model;
+  - include authentic logarithmic real-world modeling (for example, a log scale or ratio-based measurement) rather than using logarithms only as a solving trick;
+  - include contextual interpretation of parameters/base;
+  - include genuine error analysis that repairs a faulty growth/decay factor or recurrence and still writes the complete corrected model.
+- Keep A2.5B distinct from A2.5C/D: this standard is model formulation, not conversion practice or equation solving.
+- Generic secure equation/number fields are sufficient; no new Path tool capability is required.
+
+
+### 2026-08-30 — A2.5B staged and gated
+- Staged five A2.5B Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.5B.json` — commit `36d8f6c51ca5eb934b7f8c638bf2c2fa4281f26c`.
+- Package/build run `33325107421`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - growth context with student-authored explicit and recursive exponential models;
+  - decay context with student-authored explicit and recursive models;
+  - table/data family that requires inferring the common multiplier before writing both forms;
+  - authentic logarithmic ratio-scale modeling in a real-world measurement context;
+  - complete growth-factor error repair that fixes both explicit and recursive models.
+- Added A2.5B-specific generated certification — commit `314f162401e54fafb2219121b29f4332b17c77a9`.
+- The gate samples 200+ generated instances, validates growth/decay factors, verifies tabular ratios independently, requires repeated explicit+recursive formulation, requires authentic logarithmic modeling, rejects a nonmatching model in every family, and checks public answer-key stripping.
+- Full A2.5B assertion run `33325134988`: **PASS**.
+- Generated growth/decay/table/log modeling, explicit+recursive formulation, wrong-model rejection, public-key stripping, and student/runtime build all passed.
+- A2.5B is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.5C**.
+
+
+### 2026-08-30 — A2.5A audit finding
+- Official construct: **determine effects on key attributes of exponential and logarithmic graphs when they are vertically scaled/reflected or translated**.
+- Verdict: **REBUILD**.
+- Legacy coverage is too narrow:
+  - four of five families are logarithmic, while the exponential side is reduced to a single horizontal-asymptote question;
+  - most families identify one attribute or select a description instead of determining several graph effects together;
+  - vertical scaling is barely assessed and vertical reflection is effectively absent;
+  - horizontal and vertical translations are not systematically connected to domain/range/asymptotes/key points;
+  - error analysis corrects only a log-asymptote mix-up and does not repair a transformed graph interpretation.
+- Fidelity V2 requirements:
+  - exponential **and** logarithmic transformed graphs must both be represented repeatedly;
+  - include vertical stretches/compressions and reflections through the sign/magnitude of a;
+  - include horizontal and vertical translations through h and k;
+  - require key attributes, not vocabulary only:
+    - exponential: horizontal asymptote, domain, reflected/translated range, anchor point at x=h, and increasing/decreasing behavior;
+    - logarithmic: vertical asymptote, translated domain, range, anchor point at x=h+1, and increasing/decreasing behavior;
+  - include actual graph/point construction for at least one exponential and one logarithmic family;
+  - include combined transformations where several effects must be determined together;
+  - include genuine error analysis that repairs the reflection/translation/attribute reasoning and finishes the corrected attribute set.
+- Existing secure `functionInvestigation` supports transformed exponential/logarithmic specs with a/base/h/k, point tasks, and attribute requests. Use it where graph construction is valuable; secure generic multi-response fields are sufficient for the remaining analysis families.
+
+
+### 2026-08-30 — A2.5A staged and gated
+- Staged five A2.5A Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.5A.json` — commit `b896615efeb833658c5eefa85c411b697dd9af48`.
+- Package/build run `33324866842`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - secure construction of a reflected/vertically scaled/translated exponential graph with asymptote, domain, range, and behavior;
+  - secure construction of a vertically scaled/translated logarithmic graph with asymptote, domain, range, and behavior;
+  - exponential vertical compression plus horizontal/vertical translation and anchor/asymptote/range analysis;
+  - logarithmic vertical stretch/reflection plus translated asymptote/domain/range/anchor behavior;
+  - complete error repair for parameter-role confusion on a reflected logarithmic graph.
+- Added A2.5A-specific generated certification — commit `0fed9f04149a99f4d2f3493058baaad7e0beb167`.
+- The gate samples 200+ generated instances, independently checks transformed exponential/logarithmic function features and point placements against the function specification, exercises secure Function Investigation grading, requires repeated exponential/logarithmic/reflection breadth plus compression and error repair, rejects an incorrect point/attribute in every family, and checks public answer-key stripping.
+- Full A2.5A assertion run `33324924406`: **FAILED on a real renderability gate before content grading**.
+- Cause: the two secure Function Investigation families authored their increasing/decreasing response as analysis `kind: "text"`. The workspace only renders the allowlisted analysis kinds; unrecognized kinds fail closed so students are never graded on a response box they cannot see.
+- Reclassified those behavior prompts as the renderable short-answer `kind: "value"` without changing the expected answer or mathematics — commit `6aef1b8b49489213cec27837f7fb72987c71891f`.
+- This preserves the fail-closed security contract rather than weakening it.
+- Replacement A2.5A certification is triggered.
+- FIRST UNFINISHED STANDARD remains **A2.5A** until the replacement run is green.
+
+
+### 2026-08-30 — A2.4H audit finding
+- Official construct: **solve quadratic inequalities**.
+- Verdict: **ENHANCE**.
+- Legacy strengths worth preserving:
+  - family 1 correctly solves an inclusive between-the-roots inequality in interval notation;
+  - family 2 correctly solves a strict outside-the-roots inequality;
+  - family 3 authentically graphs the solution interval on a number line.
+- Legacy gaps:
+  - all solving examples use an upward-opening factored quadratic with one negative and one positive integer root;
+  - family 4 only asks whether the middle interval belongs, not for the complete solution set;
+  - family 5 reverse-engineers an inequality from a desired interval instead of solving one;
+  - no downward-opening case, no standard-form case requiring zeros to be found first, and no no-real-zero/all-or-none sign case.
+- Fidelity V2 requirements:
+  - every family must finish with the complete solution set;
+  - cover strict and inclusive inequalities and both between-root and exterior solution sets;
+  - include positive and negative leading coefficients;
+  - include at least one standard-form quadratic where the student must find the critical zeros before sign analysis;
+  - include a no-real-zero case where sign/leading coefficient determine all-real or empty solution set;
+  - preserve an authentic number-line construction family;
+  - include genuine error analysis that repairs endpoint inclusion/sign-interval reasoning and still gives the full solution set.
+- Generic secure interval grading plus the existing secure interval-number-line tool are sufficient; no new Path capability is required.
+
+
+### 2026-08-30 — A2.4H staged and gated
+- Staged five A2.4H Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4H.json` — commit `c33ff122d3318e0a95ef4587ac103b5cdd003d30`.
+- Coverage includes:
+  - standard-form solving that requires finding the critical zeros before sign analysis;
+  - a negative-leading-coefficient strict between-roots case;
+  - secure number-line construction of an inclusive exterior solution;
+  - a negative-discriminant/no-real-zero case whose complete solution set is all real numbers;
+  - endpoint-inclusion error repair that still produces the complete interval.
+- Added A2.4H-specific generated certification — commit `a2d697b1b0ed4a55241a1fa4fa5e9b5d4ad798b8`.
+- The gate samples 200+ generated instances, checks production issuability and secure self-grading, validates the secure number-line tool and rejects a wrong endpoint style, independently verifies the no-real-zero discriminant condition, requires positive/negative leading-coefficient breadth plus strict/inclusive cases, rejects a spoiled interval answer in every family, and checks public answer-key stripping.
+
+
+### 2026-08-30 — A2.4G audit finding
+- Official construct: **identify extraneous solutions of square root equations**.
+- Verdict: **REBUILD**.
+- The legacy bank contains two aligned candidate-check ideas, but most families drift away from the actual identification task:
+  - family 1 names which generated candidate is extraneous but does not require substitution evidence;
+  - family 2 names the surviving root but again does not make the student evaluate the original equation;
+  - family 3 graphs the radical domain instead of identifying an extraneous solution;
+  - family 4 explains why checking is important but uses an equation whose generated candidate is actually valid;
+  - family 5 states the domain condition abstractly instead of checking candidates created by squaring.
+- Fidelity V2 requirements:
+  - every family must start from candidate solutions produced after squaring a square-root equation;
+  - students must check candidates in the **original unsquared equation**, not only against the squared equation or radical domain;
+  - repeatedly collect concrete left-side/right-side substitution evidence for each candidate;
+  - include both “one candidate is extraneous” and “no candidate is extraneous” cases so students cannot default to always discarding one root;
+  - include a case where the extraneous candidate is inside the radical domain but fails because the isolated right side is negative, proving domain membership alone is insufficient;
+  - include contextual transfer and genuine error analysis where a student keeps all roots of the squared equation and must repair that conclusion.
+- A2.4G stays distinct from A2.4F: A2.4F owns solving the equation; A2.4G owns deciding which squared-equation candidates survive the original equation.
+- Generic secure multi-response grading is sufficient; no new Path tool capability is required.
+
+
+### 2026-08-30 — A2.4G staged
+- Staged five A2.4G Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4G.json` — commit `d693824a3eb1d5f340bbc5dd0774f86ca7a96cf4`.
+- Coverage includes:
+  - direct substitution of both squared-equation candidates into the original radical equation;
+  - a no-extraneous case where both candidates actually survive;
+  - a case proving radical-domain membership alone is insufficient because the original right side is negative;
+  - contextual candidate verification where both candidate times are contextually allowed but one is algebraically extraneous;
+  - complete error repair for the misconception that every root of the squared equation is automatically valid.
+- Package/build run `33323815028`: **PASS**, including student/runtime build.
+- Added A2.4G-specific generated certification — commit `add83900854ba59784796772560728a660cea066`.
+- The A2.4G gate samples 200+ generated instances, requires original-equation LHS/RHS substitution evidence, verifies repeated one-extraneous cases plus a no-extraneous case, proves domain membership alone is insufficient, requires context/error-repair breadth, rejects a spoiled extraneous/valid conclusion in every family, and checks public answer-key stripping.
+- Full A2.4G assertion run `33323859773`: **PASS**.
+- Generated original-equation checks, no-extraneous breadth, domain-insufficient reasoning, context/error repair, secure wrong-outcome rejection, public-key stripping, and student/runtime build all passed.
+- A2.4G is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4H**.
+
+
+### 2026-08-30 — A2.4F audit finding
+- Official construct: **solve quadratic and square root equations**.
+- Verdict: **ENHANCE**.
+- The legacy bank is directionally aligned, unlike several earlier standards:
+  - it includes factoring and quadratic-formula quadratic solves;
+  - it includes square-root equations, a context, and a squaring error.
+- The remaining fidelity problem is **depth and breadth**, not total misalignment:
+  - both quadratic families are generated from easy integer roots, so the formula family does not really require the quadratic formula or exact irrational reasoning;
+  - square-root families are almost all one-step $\sqrt{x-h}=r$ equations;
+  - the context does not add mathematical complexity;
+  - error analysis identifies a missed square but does not require repairing a multi-step solve.
+- A2.4F must remain distinct from A2.4G:
+  - A2.4F owns carrying the equation-solving process through to the solution set;
+  - A2.4G will explicitly own **identifying extraneous candidates** created by radical solving.
+- Fidelity V2 requirements:
+  - at least two genuinely different quadratic-solving pathways, including factoring and an exact quadratic-formula case with an irrational discriminant;
+  - at least two square-root families that require isolating the radical and then solving the resulting linear equation after squaring;
+  - include a contextual square-root or quadratic solve where the final value is interpreted;
+  - include a complete error-repair family that fixes the algebra and finishes the solution;
+  - require exact solutions where appropriate rather than decimal-only approximations;
+  - do not make every quadratic have obvious integer roots or every radical equation a one-operation undo.
+- Generic secure multi-response grading is sufficient; no new Path tool capability is required for A2.4F.
+
+
+### 2026-08-30 — A2.4F staged
+- Staged five A2.4F Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4F.json` — commit `ad324ff312ee5a4cda44ac374550cbf69d73279a`.
+- Coverage includes:
+  - a complete factoring solve with the factored zero-product equation plus both roots;
+  - a true quadratic-formula family whose discriminant is always a non-perfect square and whose final roots stay exact;
+  - a multi-step square-root equation that must be isolated, squared, then solved linearly;
+  - a contextual square-root model requiring the same complete solve and final time interpretation;
+  - error analysis that repairs the mistake of squaring before isolating the radical and still finishes the solution.
+- Package/build run `33323628362`: **PASS**, including student/runtime build.
+- Added A2.4F-specific generated certification — commit `5854e277a250a85dce6139848da25150813d3fe7`.
+- The A2.4F gate samples 200+ generated instances, checks production issuability and secure self-grading, requires repeated quadratic and square-root solves, verifies a non-perfect-square discriminant for the exact quadratic-formula family, requires repeated isolate→square→solve radical evidence, requires context/error-repair coverage, rejects a spoiled final solution in every family, and checks public answer-key stripping.
+- Full A2.4F assertion run `33323687834`: **PASS**.
+- Generated breadth, exact-formula discrimination, complete radical solve evidence, secure self-grading, wrong-final rejection, public-key stripping, and student/runtime build all passed.
+- A2.4F is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4G**.
+
+
+### 2026-08-30 — A2.4E audit finding
+- Official construct: **formulate quadratic and square root equations using technology from a table of data**.
+- Verdict: **REBUILD with a real technology capability gap**.
+- Legacy drift:
+  - the quadratic-table family writes an exact equation but never requires use of regression/modeling technology;
+  - the square-root table family is multiple-choice recognition;
+  - the “choose family” item identifies quadratic from differences but does not formulate an equation;
+  - the context family gives the fitted quadratic in advance and only asks for a prediction;
+  - the reverse square-root family uses only two structural points and chooses a prewritten model.
+- The existing secure Data Modeling Lab already has authentic **quadratic regression technology** and server recomputation, so A2.4E quadratic work should use it rather than generic answer boxes.
+- Capability audit found the missing half of the TEKS: Data Modeling Lab has linear, quadratic, and exponential fit modes but **no square-root regression/model-fitting mode**.
+- A2.4E must not be certified by calling hand recognition of an endpoint “technology.”
+- Implementation target:
+  1. add a deterministic square-root regression/model fit to client and server Data Modeling math;
+  2. add a `squareRootFitPrediction` technology mode to Data Modeling Lab;
+  3. server-grade fitted $a,h,k$ and a required prediction from the resulting model;
+  4. keep the table public while fitted coefficients remain server-computed;
+  5. certify client/server fit parity and wrong-coefficient rejection.
+### 2026-08-30 — A2.4E square-root technology implemented
+- Added deterministic endpoint-anchored square-root regression for $y=a\sqrt{x-h}+k$ in client math — commit `5939db97251b1d56ec47bd2a77ea2a17fa772560`.
+  - the table endpoint supplies $(h,k)$;
+  - the scale a is fit by least squares using **all remaining observations**, not one hand-picked point.
+- Mirrored the fit server-side and added secure `squareRootFitPrediction` grading — commit `1247833becfe115f45f60839cd77ef67cbdbd618`.
+  - server recomputes a,h,k from the public table;
+  - server grades all three fitted parameters and the requested prediction;
+  - private coefficient tolerances do not enter the public payload.
+- Correct Answer Acceptance Audit on the secure server change: **PASS**.
+- Added square-root coefficient entry/model rendering to Data Modeling Lab — commit `4846c176460d6417fee3ac0bdc7415214431f13a`.
+- Added client/server parity, whole-table-fit, secure parameter grading, fixed prediction, and public nonleakage tests — commit `b73c4c41d1ce313e258c0ac50e33ee61e98f5232`.
+- Added all Data Modeling capability files/tests to the dedicated Algebra II certification workflow — commit `fb213109ed5fdcfda39dd70b095434a627454dfe`.
+- Capability certification run `33320344200`: **FAILED only at production build** after all generated/server parity tests passed.
+- Build failure was a JSX syntax error in the new Data Modeling Lab model-summary branch: the square-root/linear ternary expression was missing its closing `}` before the MAE/RMSE line.
+- Fixed the JSX without changing any grading or math behavior — commit `9122824194e9f46eb838996a6c925da355b3fd41`.
+- Replacement capability certification is triggered; A2.4E remains locked as FIRST UNFINISHED until the build is green.
+- Replacement capability certification run `33323282781`: **PASS**, including the full student/runtime build.
+- Square-root regression technology is now locked as a real supported capability for A2.4E.
+- Staged five A2.4E Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4E.json` — commit `ec00fd6befe3bfa8db693810fba89c8adca20265`.
+- Staged coverage includes two quadratic-regression families, two square-root-regression families, and one regression-entry error-repair family. Every family uses Data Modeling Lab technology, every table has five observations, and every family requires both the complete fitted coefficients and a prediction from that fitted model.
+- Package/build run `33323381039`: **FAILED at the global staged-package identity gate** before content certification because three newly authored document ids used `_v2-` instead of the required `_v2_` marker.
+- Normalized those three A2.4E document ids without changing any math, prompts, grading, or family logic — commit `4b114c29d757cc07169f009c894d706a856b556c`.
+- A2.4E generated certification was added in commit `e69de80988066473f67957e3e1f19764857d73e5`; the replacement run will test the full package after the id repair.
+- The first generated A2.4E certification run also caught unbound prompt placeholders: three prompts referenced `{{predictionX}}` even though the generator binds the actual fixed targets as literal 3, `{{x25}}`, or `{{x625}}`.
+- Rebound those student-visible prompt targets to the actual generated keys/literals — commit `087b0cd4df641608565daeddaecfa5a065eaa886`.
+- This was a template-binding defect only; the secure fixed prediction targets and server grading were already correct.
+- Full A2.4E generated certification run `33323489643`: **PASS**.
+- Production issuability, authentic quadratic/square-root technology use, client/server regression parity, overdetermined-table coverage, secure fitted-coefficient grading, fixed-target enforcement, interpolation/extrapolation breadth, public-key stripping, and student/runtime build all passed.
+- A2.4E is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4F**.
+
+- Fidelity V2 content requirements after capability work:
+  - at least two quadratic-technology families and at least two square-root-technology families;
+  - students must enter the **complete fitted equation/model coefficients**, not choose from equations;
+  - tables should include more observations than the minimum needed to determine a model, reinforcing use of technology;
+  - include contextual transfer and an error-analysis family comparing an incorrect technology entry/model family with the actual fit.
+
+
+### 2026-08-30 — A2.4D audit finding
+- Official construct: **transform a quadratic function from standard form to vertex form to identify its attributes**.
+- Verdict: **REBUILD**.
+- The legacy bank separates pieces of the skill instead of requiring the complete transformation:
+  - family 1 asks only for the vertex from standard form;
+  - family 2 is the one family that actually rewrites standard form into vertex form;
+  - family 3 asks only for a minimum and even supplies hidden vertex-form attributes in a table;
+  - family 4 starts in vertex form and graphs it, so it skips the required standard→vertex transformation;
+  - family 5 identifies a sign convention error without completing the square or finishing the transformed function.
+- Fidelity V2 requirements:
+  - **every family starts from standard form** and requires the student to produce the complete vertex form;
+  - every family must then use that vertex form to identify meaningful attributes rather than treating conversion as an isolated rewrite;
+  - repeatedly require vertex and axis of symmetry, and cover minimum/maximum, opening direction, and range;
+  - include both positive and negative leading coefficients so minimum and maximum behavior are both real;
+  - include repeated cases with $|a|>1$, where students must factor a from the quadratic/linear terms before completing the square;
+  - at least two families must collect completing-square evidence before the final vertex form;
+  - one genuine error-analysis family must repair a completing-square/factoring mistake, finish vertex form, and identify the corrected attributes.
+- The standard is algebraic transformation first; no new graph tool is required. Secure generic equation/number/choice fields are sufficient, and the existing form-preserving equation grader should remain strict enough that simply re-entering the original standard form does not satisfy a vertex-form response.
+
+
+### 2026-08-30 — A2.4D staged and gated
+- Staged five A2.4D Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4D.json` — commit `37fd995d35410853fe03e41a4f79d5a545a7485b`.
+- Corrected one coefficient-table family so its minimum/maximum choice key is deterministic instead of relying on a generated conditional string — commit `e0b91b44b91fd43735e91883ebf0f81ba24fb30d`.
+- Package/build run `33319993800`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - positive-leading-coefficient completing-square work with explicit factoring and square-add evidence;
+  - negative-leading-coefficient transformation tied to downward opening, maximum, and range;
+  - coefficient-table translation from standard form to vertex form and axis/vertex attributes;
+  - contextual projectile transformation to maximum time/height;
+  - genuine factoring/completing-square error repair that still finishes vertex form and attributes.
+- Added A2.4D-specific generated certification — commit `9fe89706c5460b74656a96d35d3268b709dc3881`.
+- The A2.4D gate samples 200+ generated instances, independently checks standard-form and vertex-form equivalence at multiple probe values, requires repeated completing-square evidence and repeated |a|>1 factoring, covers positive/negative a, confirms public-key stripping and secure self-grading, and deliberately submits the original standard form into the vertex-form field to require rejection.
+- Full A2.4D assertion run `33320051645`: **RUNNING** at this checkpoint.
+- Full A2.4D assertion run `33320051645` reached the A2.4D gate and failed only because one prompt said “Transform … to vertex form” without literally saying the supplied expression was **standard form**. The expression itself was standard form, but the gate intentionally requires the starting representation to be explicit to students.
+- Strengthened all affected A2.4D prompts to explicitly say they are starting from standard form — commit `d1ccfb9ea261cff0130433c983cb48d1f9fa4760`.
+- No mathematical requirement was weakened; the student-facing wording now makes the standard→vertex transition clearer.
+- Replacement certification is triggered from the strengthened package.
+- Replacement certification run `33320130829`: **PASS**.
+- Generated standard→vertex equivalence, completing-square breadth, positive/negative leading-coefficient coverage, strict form rejection, secure self-grading, public-key stripping, and student/runtime build all passed.
+- A2.4D is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4E**.
+
+
+### 2026-08-30 — A2.4C audit finding
+- Official construct: **determine the effect on the graph of the square root parent function when it is vertically or horizontally scaled, reflected, or translated**.
+- Verdict: **REBUILD**.
+- The legacy bank covers only part of the transformation model:
+  - family 1 authentically plots a translated/vertically scaled square-root graph, but the current Function Investigation specification has no horizontal-scale parameter;
+  - family 2 recognizes translations only;
+  - family 3 asks for domain rather than determining transformation effects;
+  - family 4 corrects only an outside-negative reflection and never addresses the inside/horizontal reflection;
+  - family 5 chooses a prewritten equation from endpoint/vertical scale.
+- The missing construct is substantial: **horizontal scaling by the reciprocal inside factor** and horizontal reflection are effectively absent.
+- Fidelity V2 will use the full transformation model $y=a\sqrt{b(x-h)}+k$ as reasoning notation:
+  - vertical scale factor $|a|$;
+  - horizontal scale factor $1/|b|$;
+  - reflection across the x-axis when $a<0$;
+  - horizontal reflection when $b<0$;
+  - horizontal translation h and vertical translation k;
+  - endpoint remains $(h,k)$, with the square-root ray extending right for $b>0$ and left for $b<0$.
+- Required breadth:
+  - explicit vertical and horizontal scaling, including a compression/stretch distinction;
+  - both x-axis and horizontal/y-axis reflection effects;
+  - translations with correct inside-sign reasoning;
+  - graph/point-mapping evidence, symbolic transformation analysis, reverse reasoning, and genuine error analysis;
+  - at least one combined transformation where the student determines several effects together rather than answering isolated vocabulary.
+- The current interactive Function Investigation tool intentionally models $a\sqrt{x-h}+k$ and does not support b. A2.4C does **not** need a risky tool expansion to be faithful: secure generic multi-response fields plus generated point-mapping/graph stimuli can assess the missing horizontal effects directly. The existing tool may still be used only where its supported a/h/k model is mathematically sufficient.
+
+
+### 2026-08-30 — A2.4C staged and gated
+- Staged five A2.4C Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4C.json` — commit `ce11794df8fec234200612490fb763f6ead7605d`.
+- Package/build run `33319744204`: **PASS**, including student/runtime build.
+- Coverage now includes:
+  - combined symbolic analysis of $a\sqrt{b(x-h)}+k$ with vertical scale, reciprocal horizontal scale, reflections, endpoint, and ray direction;
+  - exact parent-point mapping through a negative inside factor, showing horizontal compression/reflection and vertical compression;
+  - parent-vs-transformed graph evidence for a true horizontal stretch from $b=0.25$;
+  - reverse reasoning from vertical/horizontal scales, both reflections, and endpoint translation to an equation;
+  - error analysis correcting both the reciprocal horizontal-scale misconception and the inside-vs-outside reflection misconception.
+- No unsupported interactive-tool behavior is claimed; horizontal effects are assessed through secure generic response fields and generated graph/table evidence.
+- Added A2.4C-specific generated certification — commit `abbb471f3184eb96814185f087da81b64e909fdf`.
+- The A2.4C gate samples 200+ generated instances, runs production issuability and secure self-grading, verifies public-key stripping, independently checks the horizontal-reflection point mapping and horizontal-stretch graph distances, requires vertical stretch/compression and horizontal stretch/compression, and requires reverse reasoning plus genuine error analysis.
+- Full A2.4C assertion run `33319791387`: **QUEUED/RUNNING** at this checkpoint.
+- Full A2.4C assertion run `33319791387` passed generation, production issuability, secure self-grading, public-key stripping, point-map arithmetic, graph-distance checks, horizontal-reflection/stretch/compression breadth, reverse reasoning, and error analysis. It failed only because the authored point-mapping family demonstrated a vertical factor of 1/2 without literally naming it “vertical compression,” while the certification intentionally requires that vocabulary to be explicit in more than one family.
+- Strengthened the point-mapping prompt/labels/solution review to explicitly name both **vertical compression** and **horizontal compression** — commit `039b86e86d29a2c332ec66d9a36adc51695b535a`.
+- No mathematical requirement was weakened; the content now makes the intended transformation language more visible to students.
+- Replacement certification is triggered from the strengthened package.
+- Replacement certification run `33319841981`: **PASS**.
+- Generated transformation breadth, secure self-grading, point-map arithmetic, horizontal-stretch graph distances, explicit compression vocabulary, reverse reasoning, error analysis, public-key stripping, and student/runtime build all passed.
+- A2.4C is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4D**.
+
+
+### 2026-08-30 — A2.4B audit finding
+- Official construct: **write the equation of a parabola using given attributes, including vertex, focus, directrix, axis of symmetry, and direction of opening**.
+- Verdict: **REBUILD**.
+- The legacy bank contains correct attribute facts but almost never reaches the TEKS verb:
+  - family 1 gives vertex/focus but asks students to choose a prewritten equation;
+  - family 2 asks only for focal distance p;
+  - family 3 asks only for opening direction;
+  - family 4 corrects a directrix but never writes the parabola;
+  - family 5 chooses a consistent attribute set instead of writing an equation.
+- The legacy bank is also almost entirely **vertical-parabola** work, so horizontal parabolas opening left/right are effectively absent.
+- Fidelity V2 requirements:
+  - every family must require the student to **write the complete parabola equation** in standard focus/directrix conic form;
+  - repeatedly use vertex, focus, directrix, axis, and opening direction as the given evidence rather than as multiple-choice facts;
+  - cover both vertical form $(x-h)^2=4p(y-k)$ and horizontal form $(y-k)^2=4p(x-h)$;
+  - explicitly cover upward, downward, right-opening, and left-opening parabolas;
+  - include at least one family where the vertex must be inferred as the midpoint between focus and directrix;
+  - include a table/attribute representation and a genuine error-analysis family;
+  - error analysis must diagnose the orientation/sign mistake and still write the corrected complete equation.
+- The response remains a secure generic equation field, but A2.4B exposed a grading-fairness issue: a student can write the same parabola relation with the sides reversed or solved for y/x. Those are mathematically the same equation even though they are not the same printed conic arrangement.
+- Added **opt-in** polynomial-relation equation equivalence rather than weakening equation grading platform-wide. Only fields explicitly marked `equivalence: "polynomialRelation"` use it; ordinary form-specific algebra questions remain form-sensitive.
+
+
+### 2026-08-30 — A2.4B staged / relation-grading dependency
+- Staged five A2.4B Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4B.json` — commit `107a71f70b69c733977d88d98ea7a34d51d4e500`.
+- Package/build run `33319412078`: **PASS**.
+- A concurrent audit correctly caught that generic form-preserving grading would reject mathematically identical parabola relations such as reversed sides or a correctly solved-for-variable form.
+- Added opt-in `samePolynomialEquationRelation` support — commit `938d3ef4e32e20298c702e2209e8d3644f7de203`.
+- Routed explicit response fields through `equivalence: "polynomialRelation"` in the secure generic grader — commit `a134a3655f5c7f41dcb19660764c4f6757079949`.
+- Correct Answer Acceptance Audit passed on both relation-grading commits.
+- Added dedicated relation-equivalence regression tests — commit `0fd178ed4db65886e5a2fa03a81bf603b59ee789`.
+- Added those grading files/tests to the Algebra II certification workflow — commit `26c3ff88196744081d45c88ce191b5c784ad2092`.
+- Marked every A2.4B parabola-equation response with the opt-in relation equivalence — commit `dfd6861e5f197ba1afd95d0c9f2465a5fbff6fd3`.
+- This preserves the instructional request for standard conic form while avoiding a false-negative grade when a student's equation is algebraically the identical parabola relation.
+- FIRST UNFINISHED STANDARD remains **A2.4B**. Next gate must certify the generated geometry, orientation breadth, secure answer acceptance, and public-key stripping before advancing.
+- A2.4B generated certification was added in commit `d111f3e2b5d4a8af6c5cd867ce1c887c48065c90`.
+- Run `33319519650` reached the A2.4B test and failed only on a certification-status regex that expected the literal word “attribute”; the package status actually spells out `vertex-focus-directrix-axis-and-opening`.
+- Corrected the test to require that exact status string — commit `f5ee298a75aea9012e6c39bd78921602ab66262c`.
+- No mathematical/content requirement was weakened; the test now names the actual staged certification contract.
+- Replacement certification has been triggered.
+- Replacement certification run `33319560739`: **PASS**.
+- Generated geometry/orientation breadth, relation-aware secure grading, public-key stripping, exact/reversed-answer acceptance, wrong-relation rejection, and student/runtime build all passed.
+- A2.4B is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4C**.
+
+
+### 2026-08-30 — A2.4A audit finding
+- Official construct: **write a quadratic function given three specified points in the plane**.
+- Verdict: **REBUILD**.
+- Only the first legacy family consistently reaches the TEKS verb, and even that family gives away the leading coefficient before the student writes the function.
+- Legacy drift:
+  - family 1 supplies three points but also supplies $a$, reducing the three-point determination problem to finding fewer unknowns;
+  - family 2 uses only one point and asks only for $c$;
+  - family 3 adds a stated vertex and asks students to choose a prewritten equation;
+  - family 4 diagnoses an omitted term from only part of the coefficient setup and never writes the quadratic;
+  - family 5 again chooses a prewritten quadratic instead of authoring one.
+- Fidelity V2 requirements:
+  - every family must provide **exactly three specified points** as the data that determines the quadratic;
+  - every family must require the student to **write the complete quadratic function**, not choose it or identify one coefficient;
+  - the leading coefficient must not be supplied as a shortcut;
+  - include table, ordered-pair, graph, contextual, and error-analysis representations;
+  - include at least one family whose three x-values do **not** include zero, so the student cannot always read $c$ directly;
+  - include at least one family that collects the three substitution equations for $a,b,c$ before the final quadratic;
+  - error analysis must repair the coefficient setup and finish the complete function.
+- Generic secure equation fields are sufficient; no new Path tool contract is required. The existing expanded/form-preserving equation equivalence keeps harmless coefficient/term formatting from marking correct standard-form answers wrong.
+
+
+### 2026-08-30 — A2.4A staged and gated
+- Staged five A2.4A Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.4A.json` — commit `7daff81cf857e6b6e015de5391c20debb69466e7`.
+- Package/build run `33319203889`: **PASS**.
+- Before certification, caught two student-facing representation issues:
+  - the ordered-pair family used the wrong stimulus key (`pairs`) even though the renderer reads `orderedPairs`;
+  - the graph family's generated symmetric points could fall outside the authored y-viewport.
+- Corrected the ordered-pair stimulus to the renderer's real shape, added a visible three-point table to the error-analysis family, and expanded the graph viewport to contain every generated source point — commit `eb9bff6cbb73b4f8da5339309e4c0b2978ff3556`.
+- Post-fix package/build run `33319234997`: **PASS**.
+- Coverage now includes:
+  - a three-row table with no leading coefficient supplied;
+  - a nonzero-x ordered-pair family that requires all three coefficient equations before the function;
+  - a graph with exactly three visible labeled points;
+  - a contextual three-measurement quadratic model;
+  - error analysis that repairs the three-equation coefficient setup and still writes the complete quadratic.
+- Added A2.4A-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `55008332f7b5837fc72f24ec957c271a8fc687e2`.
+- The A2.4A gate samples 200+ generated instances, requires exactly three visible source points per family, forbids leaking the generated leading coefficient into the givens, verifies the generated final quadratic numerically passes all three points, self-grades the exact generated response through the secure field grader, checks public answer-key stripping, requires repeated no-x=0 families, repeated coefficient-system setup, and complete error repair.
+- The initial assertion run `33319277754` was superseded by an overlapping certification commit before its tests started.
+- Replacement Algebra II Fidelity V2 Certification run `33319282779`: **PASS**.
+- Generated source-point visibility, production issue gate, secure self-grading, three-point equation fit, representation breadth, coefficient-setup breadth, public-key stripping, and student/runtime build all passed.
+- A2.4A is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4B**.
+
+
+### 2026-08-30 — A2.3G audit finding
+- Official construct: **determine possible solutions in the solution set of systems of two or more linear inequalities in two variables**.
+- Verdict: **ENHANCE**.
+- The legacy bank is closer to the TEKS than A2.3E/F because it already reasons about feasible points, but the evidence is too narrow:
+  - most families use the same first-quadrant cap model $x\ge0$, $y\ge0$, $x+y\le c$;
+  - several ask recognition-only “why is this feasible?” questions;
+  - only one family deliberately rejects an infeasible point;
+  - strict/inclusive boundary behavior is not tested across a full two- or three-inequality system;
+  - students rarely have to produce an actual possible solution of a nontrivial system.
+- A2.3G must remain distinct from A2.3F:
+  - A2.3F constructs the complete solution region;
+  - A2.3G uses a solved/visible system to decide whether a proposed ordered pair is possible and to produce a feasible ordered pair.
+- The existing secure `systemsWorkspace` inequality **analyze** mode is the correct interaction:
+  - `ask: ["testPoint", "candidate"]` requires a yes/no determination for a marked point and an independently entered feasible ordered pair;
+  - the server recomputes whether both points satisfy every inequality;
+  - the browser may display the solution region because interpreting that set is the skill being assessed here.
+- Fidelity V2 requirements:
+  - all five families must use systems of **at least two** inequalities;
+  - repeatedly include three-inequality systems;
+  - include both feasible and infeasible marked points;
+  - include strict-boundary cases where a point on the dashed boundary is correctly rejected;
+  - include inclusive-boundary cases where a point on the solid boundary is correctly accepted;
+  - include contextual transfer and genuine error analysis;
+  - require the student to provide an actual feasible candidate in every family.
+- No new Path tool capability is required; reuse the secure inequality analyze contract rather than creating a parallel candidate checker.
+
+
+### 2026-08-30 — A2.3G staged and gated
+- Staged five A2.3G Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.3G.json` — commit `5cdcef5489807136e6fb094416412cd82150cc99`.
+- Aligned prompts with the actual secure evidence so they require a feasible candidate but do not claim the server enforces “different from the marked point” — commit `26d28edc29f3e46b57a9a4e72329c501a7aa2f33`.
+- Package/build certification run `33319030625`: **PASS**, including student/runtime build.
+- Coverage includes:
+  - an inclusive two-inequality feasible marked point;
+  - a point lying exactly on a strict/dashed boundary that must be rejected;
+  - a feasible marked point checked against three simultaneous inequalities;
+  - a contextual three-constraint marked point that violates one requirement;
+  - error analysis where a point on an inclusive boundary is correctly retained.
+- Every family uses secure `systemsWorkspace` analyze mode with `ask: ["testPoint", "candidate"]`; A2.3G therefore determines a proposed point's feasibility and requires an actual feasible ordered pair without drifting back into A2.3F graph construction.
+- Added A2.3G-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `c7792a0b06096f9163133f5a0292e0734977bb5f`.
+- The A2.3G gate samples 200+ generated instances, checks production issuability and secure Path eligibility, independently computes marked-point feasibility from the displayed inequalities, finds a feasible candidate inside the graph bounds, self-grades both pieces through the server contract, flips the marked-point verdict and requires rejection, injects a clearly infeasible candidate and requires rejection, and certifies strict-boundary rejection plus inclusive-boundary acceptance.
+- Full A2.3G assertion run `33319070766`: **PASS**.
+- Generated content, production issue gate, secure possible-solution grading, strict/inclusive boundary cases, feasible/infeasible marked points, spoiled-verdict rejection, spoiled-candidate rejection, and student/runtime build all passed.
+- A2.3G is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.4A**.
+
+
+### 2026-08-30 — A2.3F audit finding
+- Official construct: **solve systems of two or more linear inequalities in two variables**.
+- Verdict: **REBUILD**.
+- The five legacy families are mostly recognition/interpretation:
+  - family 1 tests a single proposed point instead of solving the system;
+  - family 2 describes a vertical slice of an overlap rather than constructing the full solution set;
+  - family 3 checks boundary inclusion for one inequality only;
+  - family 4 names a shading error but does not require the corrected graph;
+  - family 5 chooses a prewritten system and therefore drifts back toward A2.3E formulation.
+- A2.3F must own **graph construction and solution-region evidence**. A2.3E now owns formulation; A2.3G will own deciding whether particular ordered pairs are possible solutions.
+- The existing secure `systemsWorkspace` inequality-construction contract is a good fit and already grades, server-side, two boundary points per inequality, solid/dashed boundary style, and the correct shading direction. It supports any number of nonvertical slope-intercept inequalities and displays only the student's constructed overlap.
+- Fidelity V2 requirements:
+  - every family must require construction of the system's boundary lines and solution overlap;
+  - cover inclusive, strict, and mixed boundary systems;
+  - include at least one **three-inequality** system so “two or more” is real rather than nominal;
+  - include a system whose correctly constructed half-planes have **no common solution region**;
+  - include contextual transfer and a genuine union-vs-intersection error-repair family;
+  - do not substitute candidate-point testing for solving the region.
+- No new Path tool capability is required for A2.3F; use `systemsWorkspace` with `mode: "inequalities"`, `interaction: "construct"`, and `ask: ["construction"]`.
+
+
+### 2026-08-30 — A2.3F staged and gated
+- Staged five A2.3F Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.3F.json` — commit `4f993bfc02b143ee44fa53f9eeaf436dec68067b`.
+- Package-only Algebra II certification run `33318706257`: **PASS**, including student/runtime build.
+- All five families use the already-secure `systemsWorkspace` inequality construction contract, so the student must place two points on every boundary, choose solid/dashed, choose the correct half-plane, and produce the actual overlap.
+- Coverage includes:
+  - two inclusive boundaries;
+  - mixed strict/inclusive boundaries;
+  - a three-constraint solution region;
+  - a contextual three-constraint feasible region;
+  - error analysis that repairs an incorrect union by constructing the actual intersection.
+- Upgraded the inequality workspace so third/fourth/fifth boundaries receive distinct visual colors instead of every boundary after the first sharing one color — commit `6f87bd36aaa0d570e4bbe407e22af64cd74d5bf7`.
+- Added A2.3F-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `cc1c0468b5e659d7fbb4ff1d4aac26fe7c27fa15`.
+- The A2.3F gate samples 200+ generated instances, runs the production issue gate, requires secure Path eligibility, checks public-payload nonleakage, self-grades a mathematically correct graph construction through the server contract, deliberately spoils one half-plane per family and requires rejection, requires repeated three-constraint systems, and certifies strict/inclusive/mixed/context/error-analysis breadth.
+- Full A2.3F assertion run `33318812867`: **QUEUED/RUNNING** at this checkpoint.
+- The first full assertion run was superseded by overlapping commits; run `33318819114` then exposed one substantive coverage mismatch: the staged package had only two three-inequality families while the certification correctly required repeated three-inequality solving.
+- Strengthened the contextual no-solution family into a **three-inequality** infeasible system while preserving the no-common-region requirement — commit `97cd9c56a064df056b91c96e38ecc13a23924288`.
+- Consolidated two overlapping A2.3F test blocks into one authoritative gate, retained the stricter repeated-three-constraint requirement, and added an explicit generated no-solution polygon check — commit `2594e6b7e67cf83533ab147351d1ba4be5ffc85d`.
+- No content requirement was weakened: A2.3F now simultaneously requires repeated three-inequality systems, strict/inclusive/mixed boundaries, context, error repair, secure wrong-shade rejection, and a genuine empty solution set.
+- Replacement certification run `33318879330`: **PASS**.
+- Generated content, production issue gate, secure graph-construction grading, no-solution verification, repeated three-constraint coverage, wrong-shade rejection, and student/runtime build all passed.
+- A2.3F is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.3G**.
+
+
+### 2026-08-30 — A2.3E audit finding
+- Official construct: **formulate systems of at least two linear inequalities in two variables**.
+- Verdict: **REBUILD**.
+- All five legacy families are recognition-first: students select a prewritten inequality/system instead of formulating the constraints themselves.
+- Specific drift:
+  - the budget context is authentic but only asks which system matches;
+  - the table family formulates only one inequality, not a system of at least two;
+  - the nonnegativity/cap family chooses prewritten bounds;
+  - the feasible-region family chooses a prewritten pair;
+  - the strict-boundary error family fixes one symbol but does not formulate the complete system.
+- Fidelity V2 requirements:
+  - every family must make students **write at least two inequalities**;
+  - contexts must include realistic coupled constraints, not only independent x/y bounds;
+  - include strict and inclusive boundaries, nonnegativity, capacity/budget, and graph/verbal half-plane descriptions;
+  - one error-analysis family must diagnose the boundary-symbol mistake and then write the entire corrected system;
+  - representations should include context, table, graph/half-plane description, and verbal constraints.
+- This is formulation, not graph solving; generic secure math-response fields are the right evidence. A2.3F will own construction/solution-region behavior.
+
+
+### 2026-08-30 — A2.3E grading capability check
+- Reused the already-existing algebraic half-plane comparator in `functions/shared/linearInequalityEquivalence.mjs` instead of building a second inequality grader.
+- Found that the comparator had never been wired into the shared `sameValue` path used by generic secure response fields. Without that connection, a student could formulate the correct boundary in an equivalent form such as `3y+2x<=120` instead of `2x+3y<=120` and be marked wrong.
+- Wired `sameLinearInequality` into `functions/shared/answerEquivalence.mjs` — commit `612d91513db3f1353e8c38d222be952ae198e951`.
+- Added regression coverage proving generic secure grading accepts reordered terms, equivalent standard/slope-intercept forms, and reversed sides while still preserving strict versus inclusive boundaries — commit `f84b52a8f8b7feebff4e475ec16419b36b173bef`.
+- This closes a grading-fairness dependency before authoring A2.3E; no new inequality parser was introduced.
+
+
+### 2026-08-30 — A2.3E staged and gated
+- Staged five A2.3E Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.3E.json` — commit `cfa8f75eb8a22e94f0d90f768e489e19aa047a74`.
+- Students now author the inequalities instead of selecting a prewritten system.
+- Coverage includes:
+  - budget + minimum quantity constraints;
+  - two coupled resource inequalities plus nonnegativity;
+  - table-based half-plane direction and boundary-inclusion evidence;
+  - region-description formulation with vertical, slanted, and strict horizontal boundaries;
+  - strict-boundary error analysis that diagnoses the symbol and writes the complete corrected system.
+- Package-only Algebra II certification run `33318488825`: **PASS**, including student/runtime build.
+- Added A2.3E-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `0ea64bbbf6308251a59ee9efc4fc01cbd73d66ae`.
+- The A2.3E gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public-key stripping, at least two student-authored inequality fields in every family, repeated 3+ constraint systems, coupled x/y resource constraints, strict/inclusive boundary evidence, nonnegativity, and complete error-analysis repair.
+- Full A2.3E assertion run `33318512713` passed generated/issuability/self-grading and failed only on the certification test's coupled-constraint detector: it looked for literal numeric coefficients and therefore missed the generator-backed budget inequality even though that inequality contains both x and y.
+- Replaced the detector with the actual structural requirement — a constraint is coupled when its expected inequality contains both x and y — commit `b74e688eef84213128aa26f0eac033e4d37ea294`.
+- No content requirement was weakened.
+- Replacement Algebra II certification run `33318552461`: **PASS**.
+- Correct Answer Acceptance Audit for the shared linear-inequality equivalence wiring: **PASS**.
+- Generated content, production issuability, secure self-grading, public-key stripping, coupled constraints, strict/inclusive boundaries, nonnegativity, full error repair, and student/runtime build all passed.
+- A2.3E is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.3F**.
+
+
+### 2026-08-30 — A2.3D audit finding
+- Official construct: **determine the reasonableness of solutions** to a two-variable system containing one linear and one quadratic equation.
+- Verdict: **REBUILD**.
+- The legacy bank teaches the right slogans but mostly asks students to recognize the rule “check both equations” rather than actually determine reasonableness from evidence.
+- Legacy weaknesses:
+  - family 1 asks which check should be done but does not make the student perform it;
+  - family 2 applies a context restriction to a supplied point but does not verify the point in the system;
+  - family 3 states “yes, if outputs are equal” even when the generated table can contain unequal outputs, so the response key does not actually depend on the generated evidence;
+  - family 4 repeats the one-equation-check slogan without performing the missing quadratic check;
+  - family 5 states a domain rule abstractly instead of evaluating a concrete system solution against both algebra and model restrictions.
+- Fidelity V2 requirements:
+  - every family must use concrete substitution/residual/output evidence to judge a candidate solution;
+  - include both reasonable and unreasonable algebraic candidates;
+  - include candidates that satisfy both equations but are unreasonable in context/domain;
+  - include a rounded/approximate candidate where tolerance and scale matter;
+  - error analysis must perform the missing check and issue the corrected keep/reject decision.
+- A2.3D must remain distinct from A2.3C: it evaluates proposed solutions rather than re-solving the full system from scratch.
+- Generic secure multi-response grading is sufficient; no new Path tool capability is needed.
+
+
+### 2026-08-30 — A2.3D staged and gated
+- Staged five A2.3D Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.3D.json` — commit `81859de5e35cddd8cbdd7351a196d250a20c7cf7`.
+- Coverage now includes:
+  - an exact candidate that is retained only after both equations are checked;
+  - an invalid candidate that lies on the line but has a nonzero quadratic residual;
+  - an algebraically valid candidate rejected by a real-world time-domain restriction;
+  - a rounded numerical candidate judged against an explicit 0.05 residual tolerance;
+  - genuine error analysis that performs the quadratic check the student omitted and changes the verdict.
+- The package-only workflow was superseded/cancelled by the immediate certification-test commit; no content gate was waived.
+- Added A2.3D-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `ae9e58b0571d6c84a005bc1258f949a014a8f329`.
+- The A2.3D gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public-key stripping, both keep/reject cases, algebraic-vs-context reasonableness, tolerance-aware numerical evidence, nonzero residuals for invalid candidates, and complete error-analysis correction.
+- Full A2.3D assertion run `33318316744`: **QUEUED/RUNNING** at this checkpoint.
+- Full A2.3D assertion run `33318316744` reached generated/issuability/self-grading checks and failed on the certification test's invalid-candidate residual selector. The test asked for the first field whose id contained “residual,” which selected the intentionally zero **line residual** instead of the nonzero **quadratic residual**.
+- Corrected the gate to inspect the explicit `quad-residual` field — commit `42cbb3b7ce812504275136816dcda422883e5bdd`.
+- No content was weakened; the invalid-candidate family still must have a nonzero quadratic residual.
+- Replacement certification is triggered from the corrected gate.
+- Replacement A2.3D certification run `33318356389`: **PASS**.
+- Generated content, production issue gate, secure self-grading, public-key stripping, exact keep/reject cases, context/domain reasoning, numerical tolerance evidence, error-analysis correction, and student/runtime build all passed.
+- A2.3D is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.3E**.
+
+
+### 2026-08-30 — A2.3C audit finding
+- Official construct: **solve algebraically** a two-variable system containing one linear equation and one quadratic equation.
+- Verdict: **REBUILD**.
+- The legacy bank has correct mathematical ingredients, but only the first two families truly solve a system, and even the two-intersection family returns only the x-values rather than the complete ordered-pair solutions.
+- Legacy drift:
+  - the two-intersection family stops after the two x-coordinates;
+  - the tangent family does return one ordered pair but does not collect the algebraic reduction used to get it;
+  - the table family only counts intersections;
+  - the candidate-error family verifies a supplied point instead of solving;
+  - the reverse family designs a quadratic for prescribed intersections rather than solving the given system.
+- Fidelity V2 requirements:
+  - the student must algebraically reduce the system to one quadratic equation;
+  - every real x-solution must be substituted back to produce the complete ordered-pair solution(s);
+  - the five families must cover systems with **two**, **one/tangent**, and **zero** real solutions;
+  - factoring and quadratic-formula pathways must both appear;
+  - error analysis must repair an algebraic solve and finish the complete ordered pairs, not merely identify a conceptual mistake.
+- Generic secure multi-response grading is sufficient; no new Path tool capability is needed for A2.3C.
+
+
+### 2026-08-30 — A2.3C staged and gated
+- Staged five A2.3C Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.3C.json` — commit `fec874332e4735c7eeecfb79f82c004ce298a337`.
+- Coverage now includes:
+  - two real intersections solved by factoring with both complete ordered pairs;
+  - a tangent/repeated-root system with the single complete ordered pair;
+  - a no-real-solution system certified through the reduced quadratic and negative discriminant;
+  - an exact quadratic-formula system requiring both exact ordered pairs;
+  - algebra error analysis that repairs the reduced quadratic and still finishes both ordered pairs.
+- Package-only Algebra II certification run `33318148646`: **PASS**, including student/runtime build.
+- Added A2.3C-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `6c45e1bdd15972052cf099b92ed1e533226b64b0`.
+- The A2.3C gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public-key stripping, repeated complete ordered-pair solves, two/one/zero-real-solution coverage, factoring, quadratic formula, discriminant reasoning, and complete error-analysis repair.
+- Full A2.3C assertion run `33318173657`: **QUEUED/RUNNING** at this checkpoint.
+- Full A2.3C assertion run `33318173657`: **PASS**.
+- Generated content, production issue gate, secure self-grading, public-key stripping, complete ordered-pair solving, 0/1/2 real-solution breadth, algebraic-method breadth, error-analysis repair, and student/runtime build all passed.
+- A2.3C is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.3D**.
+
+
+### 2026-08-30 — A2.3B audit finding
+- Official construct: solve 3×3 linear systems using **Gaussian elimination, technology with matrices, and substitution**.
+- Verdict: **ENHANCE**, not blind rebuild. The legacy triangular/substitution, elimination, and contextual 3-variable solve families contain sound mathematics worth preserving, but the method coverage is incomplete.
+- Legacy gaps:
+  - the triangular family is a legitimate substitution/back-substitution solve;
+  - the elimination family solves a real 3×3 system but does not expose enough row-operation evidence to certify Gaussian elimination;
+  - the “matrix” family only asks students to choose a candidate triple, so it does not use matrix technology;
+  - the contextual family solves a 3×3 system but leaves the method unspecified;
+  - the error-analysis family examines only two equations and does not complete a 3×3 solve.
+- Capability audit found a real platform gap:
+  - `SystemsWorkspace` matrix mode currently supports only **2×2** matrices;
+  - its Path server contracts also grade only 2-variable systems;
+  - the built-in “graphing” calculator drawer explicitly provides numeric/scientific calculations and does **not** provide matrix/RREF technology.
+- Therefore A2.3B must not be certified by pretending a 2×2 matrix tool satisfies a 3×3 TEKS.
+- Next implementation target:
+  1. extend the matrix workspace/math engine to authentic 3×3 augmented matrices and row reduction/RREF;
+  2. add a secure Path contract that recomputes the 3×3 solution/row-reduction evidence server-side;
+  3. preserve at least one substitution family and one Gaussian-elimination family with meaningful intermediate evidence;
+  4. include a true matrix-technology family using the upgraded 3×3 workspace;
+  5. add a complete 3×3 row-operation error-analysis family.
+- A2.3B remains the FIRST UNFINISHED STANDARD. This capability work is now logged so a new chat cannot skip the 3×3 matrix gap or restart the earlier inverse/system-formulation standards.
+
+
+### 2026-08-30 — A2.3B 3×3 matrix capability implemented
+- Added a real 3×3 augmented-matrix RREF solver to `src/tools/systemsWorkspace/systemsMath.js` — commit `8c7373eaed31aae549522fe68de9009bd56caf4e`.
+- Extended the secure `systemsWorkspace` Path contract with `mode: "matrix3"` — commit `29f8251307b6ec14b050d4935d4656b199ab8c38`.
+  - server recomputes RREF and x/y/z from the public matrix;
+  - public payload contains the matrix but no stored solution/RREF key;
+  - matrix3 responses require classification, all three coordinates for a unique solution, and a recorded RREF-technology action;
+  - existing linear and inequality workspace modes remain intact.
+- Correct Answer Acceptance Audit on the secure contract commit: **PASS**.
+- Algebra II Fidelity V2 Certification on the secure contract commit: **PASS**.
+- Upgraded `SystemsWorkspace` with an authentic 3×3 matrix-technology flow — commit `552e3790fba9d377070d4edc0585f3eb84fe2478`.
+  - displays a 3×4 augmented matrix;
+  - requires the student to invoke **Use matrix technology · Compute RREF**;
+  - renders the computed RREF as the technology output;
+  - requires interpretation/classification and x, y, z;
+  - preserves the existing 2×2 matrix mode.
+- Added `tests/platform/systemsMatrix3Technology.test.mjs` — commit `f06d7ea69e1a94f863d639763c84903433d07f02`.
+  - checks unique/inconsistent/dependent 3×3 systems;
+  - checks secure public-payload nonleakage;
+  - requires the technology action;
+  - rejects a wrong z-coordinate.
+- Added the new workspace/math/test files to the dedicated Algebra II certification workflow — commit `2ce4c346ab6ec6e59adeaa95348af8a3973e755f`.
+- Capability certification run `33317879619`: **RUNNING** when this checkpoint was written.
+- Next: author the five A2.3B Fidelity V2 families around substitution, Gaussian elimination, matrix technology, and complete row-operation error analysis.
+
+
+### 2026-08-30 — A2.3B staged and gated
+- 3×3 matrix capability certification run `33317879619`: **PASS**, including student/runtime build.
+- Staged five A2.3B Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.3B.json` — commit `daf08a24faf5d17cf607a74554fe7d4d12374767`.
+- Coverage now includes:
+  - substitution/back-substitution with the substituted equations collected as graded evidence;
+  - symbolic Gaussian elimination with explicit reduced-row equations and complete x/y/z solve;
+  - secure 3×3 matrix technology using the new RREF workspace;
+  - contextual Gaussian elimination with intermediate reduced equations;
+  - complete Gaussian-elimination error analysis that repairs the row operation and still finishes the full 3×3 solve.
+- Package-only Algebra II certification run `33317978664`: **PASS**, including student/runtime build.
+- Added A2.3B-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `f70f511fe975afaa5540745641c2eff425f60695`.
+- The A2.3B gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public answer-key stripping, explicit substitution evidence, at least three Gaussian-elimination families with row evidence, a real matrix-technology family, client/server 3×3 solution parity, mandatory RREF-technology use, and a complete error-analysis solve.
+- Full A2.3B assertion run `33318007307`: **QUEUED/RUNNING** at this checkpoint.
+- Full A2.3B assertion run `33318007307`: **PASS**.
+- Generated content, production issue gate, secure self-grading, public-key stripping, substitution evidence, Gaussian row evidence, matrix-technology enforcement, client/server 3×3 parity, complete error analysis, and student/runtime build all passed.
+- A2.3B is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.3C**.
+
+
+### 2026-08-30 — A2.3A audit finding
+- Official construct: **formulate systems of equations**, specifically including systems of three linear equations in three variables and systems containing one linear and one quadratic equation.
+- Verdict: **REBUILD**.
+- Core fidelity issue: all five legacy families are primarily recognition tasks. Students choose a prewritten system or identify a modeling error; they rarely formulate the equations themselves.
+- Legacy details:
+  - the store context has a legitimate 3-variable situation but asks which system matches instead of requiring the student to write the three equations;
+  - the line/parabola family asks students to select a prewritten pair;
+  - the table family provides only one row and asks which prewritten rules fit, so it does not formulate a system from sufficient evidence;
+  - the three-equation family simply repeats equations already stated in the prompt;
+  - the error-analysis family diagnoses a sign in vertex form but still does not require a complete corrected system.
+- Fidelity V2 requirement: every family must make the student **author the system**. Three-variable families must collect three equations; linear-quadratic families must collect both equations.
+- At least two families must formulate 3×3 linear systems from authentic contextual/tabular information, and at least two must formulate linear-quadratic systems from independently supplied line/parabola information.
+- One genuine error-analysis family must diagnose a flawed model and then write the corrected system, so “error analysis” is not a label on a multiple-choice recognition item.
+- Secure generic equation fields are sufficient; no new Path tool contract is needed because the assessed evidence is the equations the student formulates, not a graphical manipulation or elimination procedure.
+
+
+### 2026-08-30 — A2.3A staged and gated
+- Staged five A2.3A Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.3A.json` — commit `d3f0949db4f190837108cacd631a6709893d1bc4`.
+- Students now author equations rather than choose a prewritten system.
+- Coverage includes:
+  - school-store 3×3 contextual formulation;
+  - shipment count/weight/volume 3×3 contextual formulation;
+  - table-to-3×3 system translation;
+  - graph-to-linear/quadratic system formulation using exact line and parabola features;
+  - genuine linear/quadratic error analysis that requires both corrected equations after diagnosing the vertex-form error.
+- Package-only Algebra II certification run `33316398426`: **PASS**, including student/runtime build.
+- Added A2.3A generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `e3f778df433dacb522273902c90914b29c1b9c89`.
+- The A2.3A gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public-key stripping, at least two 3-equation families, at least two linear/quadratic formulation families, a corrected-system error-analysis family, and four or more representations.
+- Full A2.3A assertion run `33316415151`: **QUEUED/RUNNING** at this checkpoint.
+- Full A2.3A assertion run `33316415151`: **PASS**.
+- Generated content, production issue gate, secure self-grading, public-key stripping, 3×3 formulation breadth, linear/quadratic formulation breadth, corrected-system error analysis, and student/runtime build all passed.
+- A2.3A is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.3B**.
+
+
+### 2026-08-30 — A2.2D audit finding
+- Official construct: use **composition of functions**, including necessary **domain restrictions**, to determine whether two functions are inverses.
+- Verdict: **REBUILD**.
+- Legacy weaknesses:
+  - family 1 simplifies only one composition order, so it does not establish the two-sided inverse condition;
+  - family 2 is ordinary composition evaluation and never determines whether the functions are inverses;
+  - family 3 correctly exposes `sqrt(x^2)=|x|` and a needed restriction, but checks only one composition direction;
+  - family 4 is labeled error analysis but asks what to do next after one function evaluation rather than analyzing an actual composition error;
+  - family 5 follows a two-row table to get one composition value and never tests inverse status.
+- Fidelity V2 requirement for all five families: the student must use composition evidence to make or justify an inverse determination. At least three families must require **both** `f(g(x))` and `g(f(x))` or an equivalent two-direction table/representation.
+- Domain restrictions must be operational, not decorative: include right-branch and left-branch quadratic/square-root cases and at least one case where a proposed pair fails because the restriction is missing or wrong.
+- Linear and nonlinear pairs should both appear; one genuine error-analysis family must diagnose the false step `sqrt(u^2)=u` without a sign/domain condition.
+- No new Path tool contract is required. The existing `inverseComposition` classroom tool is not server-contracted for Path, and adding a new secure adapter is unnecessary here because multi-response symbolic/table composition can capture the TEKS action directly and securely.
+
+
+### 2026-08-30 — A2.2D staged and gated
+- Staged five A2.2D Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.2D.json` — commit `4689642f8706883b2986408f0bba3df9d82856e6`.
+- Coverage now includes:
+  - two-way symbolic composition proof for a true linear inverse pair;
+  - table-based composition counterexample for a near-miss linear pair;
+  - right-branch quadratic / principal-square-root inverse verification with both composition orders and both relevant domains;
+  - left-branch quadratic / negative-square-root inverse verification;
+  - genuine error analysis where one successful composition is insufficient and the reverse composition supplies a concrete counterexample.
+- Package-only Algebra II certification run `33316242011`: **PASS**, including student/runtime build.
+- Added A2.2D-specific generated certification in `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `dd5871bdd3c981456a38c9a88a5fff92b1fc8dcb`.
+- The A2.2D gate requires 200+ generated instances, production issuability, secure correct-answer self-acceptance, public answer-key stripping, at least three families with both composition orders, repeated domain-restriction evidence, both left/right branch cases, and at least two non-inverse/counterexample families.
+- Full A2.2D assertion run `33316271929`: **RUNNING** at this checkpoint.
+- Full A2.2D assertion run `33316271929`: **PASS**.
+- Generated content, production issue gate, secure self-grading, public-key stripping, composition-direction breadth, domain-restriction breadth, non-inverse counterexamples, and student/runtime build all passed.
+- A2.2D is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.3A**.
+
+---
+
+## Standard-by-standard working rules
+
+For each standard:
+1. Read the exact TEKS verb/construct.
+2. Compare only that standard's five legacy families.
+3. Use the frozen KEEP / ENHANCE / REBUILD verdict unless new evidence proves the verdict wrong.
+4. Fix the student action, representation, DOK/difficulty truthfulness, generator integrity, and secure grading.
+5. Stage exactly five Fidelity V2 families.
+6. Add/extend the generated-instance certification gate.
+7. Update this checkpoint.
+8. Advance immediately to the next standard.
+
+## Master sequence
+
+1. Complete all 48 Algebra II standards.
+2. Finish remaining Grade 8, Grade 7, and Grade 6 TEKS Fidelity V2 banks.
+3. Audit/upgrade remaining CCMR banks.
+4. Upgrade Path student experience, access, navigation, and visual progression.
+
+## Rolling work log
+
+### 2026-08-30 — continuity repair
+- Confirmed the stale `audit/teks-fidelity-v2-algebra2` branch is not the working branch.
+- Confirmed the certified Algebra I base and the current Algebra II continuation branch.
+- Confirmed A2.2A is staged and the first unfinished standard is A2.2B.
+- Added the mandatory per-standard logging rule so a streaming/chat interruption cannot send the audit back to A2.2A.
+
+### 2026-08-30 — A2.2B architecture discovery
+- The secure `functionInvestigation` contract can grade the full inverse reflection chain and its sketch validator already reflects the actual sampled curve, so nonlinear inverse graphs are supported.
+- The current secure sanitizer does **not** pass a question `stimulus` into `functionInvestigation`, and `InteractiveGraphWorkspace` does not render one. Therefore a true table → graph → reflect → write-inverse family would silently lose its table in Path.
+- Required fix before A2.2B certification: add a safe public table-stimulus projection to the secure function-investigation payload and render that stimulus inside the graph workspace.
+- Also replace the remaining UI copy that says “inverse line” with “inverse graph”; nonlinear inverse families make “line” mathematically false.
+- This is an A2.2B capability dependency, not a reason to reopen A2.2A.
+
+
+### 2026-08-30 — A2.2B staged and gated
+- Staged exactly five A2.2B Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.2B.json` — commit `30299481e52b5eac1774cf96d9a439b6e65baa1e`.
+- The five-family set now makes graph → reflect across `y=x` → inverse graph → inverse equation the recurring evidence across linear, table/linear, restricted quadratic, square-root, and rational cases.
+- Closed the secure table-stimulus gap in `functions/shared/pathToolContracts.mjs` — commit `39b491f201cceac4d49b4d58b2d15e795ab2000f`.
+- Rendered the sanitized table inside `InteractiveGraphWorkspace.jsx` and changed nonlinear-safe inverse guidance from “inverse line” to “inverse graph” / authored graph wording — commit `8bb3f824ab59ff8f83f4f87375ec92a99008fb36`.
+- Added leakage/rendering regression coverage in `tests/platform/inverseReflectionExperience.test.mjs` — commit `ccbd0f2828ce3a8cb57c53ca2b63fda5d1f66eff`.
+- Extended `tests/platform/algebra2FidelityV2Staged.test.mjs` with 200+ generated A2.2B instances, secure Path eligibility, private correct-answer self-grading, table preservation, nonlinear breadth, and inverse-key nonleakage checks — commit `7dd5b09ecc441706260e183f904a3616d2dedd2c`.
+- Added a dedicated per-standard `Algebra II Fidelity V2 Certification` workflow that runs the staged/generated inverse gates and builds the student/runtime bundle — commit `10f7c2273f37f761c9d95ab9e0c8d145e2bf98a9`.
+- Correct Answer Acceptance Audit was GREEN on the secure table-contract commit and the graph-workspace commit.
+- Current targeted Algebra II certification run: GitHub Actions run `33315642444` — **QUEUED/RUNNING when this checkpoint was written**.
+- Vercel remains red only for the known deployment build-rate-limit and is not being counted as a code failure.
+- Initial targeted run `33315642444` failed for two concrete test-harness issues, not a waived content failure:
+  - the newly inserted secure-table regression test was syntactically corrupted by its authoring insertion;
+  - the A2.2B self-grade helper read `privateGrading.points` instead of `privateGrading.definition.points`, so it submitted empty “correct” work.
+- Repaired the secure-table regression test — commit `ed752fb9f8c412992911181645c66e266697dbee`.
+- Repaired the private grading fixture shape and added detailed part output on any future self-acceptance failure — commit `88745d34479fb7ef4147815713b41e0372c9f6c6`.
+- Replacement Algebra II certification run for head `88745d34479fb7ef4147815713b41e0372c9f6c6`: GitHub Actions run `33315723037` — **PASS**.
+- Targeted generated-instance/inverse-contract tests: **PASS**.
+- Student/runtime bundle build in the same certification run: **PASS**.
+- A2.2B is now locked as certified; FIRST UNFINISHED STANDARD advanced to **A2.2C**.
+
+
+### 2026-08-30 — A2.2C audit finding
+- Official construct is relationship analysis, not another inverse-equation-writing standard.
+- Legacy A2.2C has useful pieces but drifts toward A2.2B:
+  - the restricted-quadratic item mainly asks students to write the inverse;
+  - the point-swap item is generic coordinate reversal;
+  - the exponential/log item checks one reversed value but does not analyze the exponential/logarithmic relationship;
+  - the unrestricted quadratic mapping family encodes the repeated inverse input with `t` instead of the mathematically faithful `t^2`, so its demonstration of the full parabola's inverse relation is structurally misleading.
+- ENHANCE plan: make quadratic/square-root and exponential/logarithmic pairs the center of all five families; explicitly analyze swapped domain/range and graph features; include both right-branch and left-branch quadratic restrictions; reserve inverse writing as supporting evidence rather than the main assessed action; include one genuine error-analysis family about why an unrestricted quadratic and principal square root are not inverses on all reals.
+- No new interactive-tool capability is required for this standard; secure generic multi-response/stimulus grading is sufficient and avoids unnecessary runtime expansion.
+
+
+### 2026-08-30 — A2.2C staged and gated
+- Staged five A2.2C Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.2C.json` — commit `d69983a6f8b1615acb3bd50f643a1440a3270d69`.
+- Coverage now includes:
+  - right-branch quadratic ↔ principal square-root inverse with explicit domain/range exchange;
+  - left-branch quadratic ↔ negative square-root inverse, so restriction reasoning is not taught as a memorized one-sided rule;
+  - exponential ↔ logarithmic table reversal with domain/range analysis;
+  - exponential/log graph-feature comparison through reflection across `y=x`, swapped intercepts, and horizontal/vertical asymptotes;
+  - error analysis proving why an unrestricted quadratic is not inverted by the principal square root on all real inputs.
+- Package-only targeted workflow run `33315902423`: **PASS** (structural/build gate before the new A2.2C-specific assertions landed).
+- Added A2.2C certification to `tests/platform/algebra2FidelityV2Staged.test.mjs` — commit `1a72808866ad245d2e1f7b35e147c4298e5e51e6`.
+- The A2.2C gate now samples 200+ generated instances, runs the production template issue gate, self-grades generated correct answers with the legacy secure field grader, checks public-payload key stripping, requires both quadratic/root and exponential/log breadth, and explicitly requires left/right restriction evidence plus error analysis.
+- Full A2.2C assertion run `33315936785`: **QUEUED/RUNNING when this checkpoint was written**.
+- Full A2.2C assertion run `33315936785` failed on the production issue gate because the new generic families declared `type: "response"`. In Path, `type` is interpreted as a named tool; generic field-graded questions must omit it. The server correctly failed closed with `generated_no_server_grader_for_this_tool`.
+- Removed the false tool declaration from all five A2.2C families — commit `5bbb92df1ca961c49c12db204967517b107d312b`.
+- Replacement run `33315977704` reached all generation/issuability/self-grading checks, then failed only on the certification test's branch-coverage detector. The test inspected `JSON.stringify(doc)`, which doubles backslashes and hid authored `x\\le` / `x\\ge` from the intended match.
+- Replaced that brittle JSON-string inspection with recursive raw-string inspection — commit `948fd32a5c7c2e8d57f0d906d184bdcf68db1aa3`.
+- Content was not weakened or waived; the left-branch and right-branch requirements remain mandatory.
+- Replacement run `33316022565` passed all generation, production-issuability, secure self-grading, public-key stripping, representation breadth, restriction breadth, and task-type checks. It failed only on the final error-analysis identity assertion because the test searched `solutionReview` for the generic `\\sqrt{u^2}=|u|` hint, while that identity is intentionally stored in `supportHints` and the solution review uses the generated shifted form `|x-h|`.
+- Corrected the certification to verify the generic identity in `supportHints` and the generated principal-square-root / absolute-value reasoning in every sampled solution review — commit `852f66d3307f70e14af8102994998648d51cd605`.
+- No content requirement was removed; the check now tests the fields where the mathematics actually lives.
+- Replacement run `33316062716` again passed the substantive A2.2C generation/issuability/self-grading/breadth checks. Its last assertion still depended on the literal text `|x-h|`; sign normalization legitimately rewrites that display as `|x+3|` when the generated shift is negative.
+- Replaced the formatting-dependent assertion with the actual mathematical counterexample: every sampled error-analysis item must generate a concrete input left of the vertex whose computed `r(q(x))` differs from that input — commit `bd9a4cd29170cf143e919375aa8ba266b7bbccde`.
+- This is a stronger certification because it checks the contradiction numerically rather than checking how the explanation happened to be typeset.
+- Replacement certification is triggered from the corrected test.
+- Replacement run `33316062716` passed the generated content, production issue gate, secure self-grading, key stripping, breadth, and identity checks, then failed only because its final test required the rendered shifted absolute value to contain the literal characters `|x-`. Generated sign normalization correctly changes `|x-(-3)|` to `|x+3|`, so that string-shape assertion was mathematically too narrow.
+- Replaced the string-shape assertion with a concrete generated counterexample check: each unrestricted-quadratic error family must produce a test input for which the composition value is not the original input — commit `bd9a4cd29170cf143e919375aa8ba266b7bbccde`.
+- This strengthens the gate by testing the actual mathematical failure rather than a particular printed sign.
+- Current replacement run `33316108442`: **RUNNING** at this checkpoint.
+- Replacement run `33316108442`: **PASS**.
+- Generated content, production issue gate, secure self-grading, public-key stripping, representation/task breadth, concrete unrestricted-quadratic counterexamples, and student/runtime build all passed.
+- A2.2C is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.2D**.
+- Full A2.4H assertion run `33324732755`: **PASS**.
+- Generated content, number-line secure grading, no-real-zero sign case, strict/inclusive breadth, wrong-answer rejection, public-key stripping, and student/runtime build all passed.
+- A2.4H is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.5A**.
+- Replacement A2.5A run `33324974453`: **PASS**.
+- Secure graph construction, transformed feature/behavior parity, wrong-point/attribute rejection, public-key stripping, and student/runtime build all passed.
+- A2.5A is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.5B**.
+- Replacement A2.5C run `33325302232`: **PASS**.
+- Written rewrite breadth, numeric role-map verification, wrong-rewrite rejection, public-key stripping, and student/runtime build all passed.
+- A2.5C is now locked as certified.
+- FIRST UNFINISHED STANDARD advanced to **A2.5D**.
+- Replacement A2.5D run `33325519965`: **IN_PROGRESS** at this checkpoint.
+
+
+### 2026-08-30 — A2.7I audit finding
+- Official construct: **write the domain and range of a function in interval notation, inequalities, and set notation**.
+- TEA breakout requires six explicit representation targets:
+  - domain in interval notation;
+  - domain in inequalities;
+  - domain in set notation;
+  - range in interval notation;
+  - range in inequalities;
+  - range in set notation.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - square-root domain in interval notation is correct;
+  - rational-function domain restriction in inequality form is correct;
+  - quadratic range in interval notation is correct;
+  - the interval number-line tool is mathematically sound.
+- Legacy limitations:
+  - domain set notation is missing;
+  - range inequality notation is missing;
+  - range set notation is missing;
+  - one of five families uses a graph-only domain task, which is useful support but does not replace any missing TEA notation breakout;
+  - error analysis repairs only an interval endpoint and does not translate the same domain/range across the required representations.
+- Fidelity V2 requirements:
+  - explicitly grade all six TEA notation targets;
+  - require multiple representations of the same domain/range so notation translation is visible rather than inferred;
+  - retain square-root, quadratic, and rational-function breadth;
+  - include a reciprocal/rational family whose domain and range each exclude one value;
+  - include both lower-bounded and upper-bounded ranges;
+  - include complete notation error analysis that repairs interval, inequality, and set-builder forms;
+  - keep routine representation work DOK 2; reserve DOK 3 for complete error analysis.
+- Existing interval, inequality, finite-set/set-builder, and number-line grading capabilities are sufficient; no new Path tool is required.
+
+### 2026-08-30 — A2.7I staged / certified
+- Staged five A2.7I Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.7I.json`.
+- Coverage explicitly grades all six TEA targets: domain interval, domain inequality, domain set-builder, range interval, range inequality, and range set-builder notation.
+- Function breadth includes lower-bounded square root, reflected upper-bounded square root, quadratic range, and reciprocal domain/range exclusions, plus full notation error repair.
+- First dedicated run `33333404963`: **FAIL** because authored set-builder keys used parenthesized bounds such as `x>=(-3)`, which the deliberately narrow set-builder parser refuses; interval and inequality grading passed.
+- Removed only the unnecessary parentheses from set-builder bounds.
+- Replacement run `33333458486`: **PASS**.
+- Six-breakout coverage, equivalent inequality/set-builder handling, secure self-grading, wrong-notation rejection, public key stripping, and student/runtime build all passed.
+- A2.7I is now locked as certified. The full A2.7 strand is locked unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.8A**.
+
+### 2026-08-30 — A2.8A audit finding
+- Official construct: **analyze data to select the appropriate model from among linear, quadratic, and exponential models**.
+- TEA breakout requires analysis supporting selection of:
+  - a linear model;
+  - a quadratic model;
+  - an exponential model.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - all three required model families are present;
+  - constant first differences, constant second differences, and constant ratios are recognized;
+  - one misconception about choosing linear merely because data increase is present.
+- Legacy limitations:
+  - several prompts announce the diagnostic pattern before students analyze the data;
+  - evidence is often only selected, not calculated;
+  - exponential coverage is almost entirely growth, with little/no decay analysis;
+  - context family covers only linear change;
+  - error analysis stops at identifying the misconception rather than reconstructing the diagnostic evidence.
+- Fidelity V2 requirements:
+  - show raw data first and require students to calculate/identify the decisive diagnostic;
+  - retain all three required model families;
+  - include both exponential growth and decay;
+  - include non-unit x-spacing or another case where students must verify equal input spacing before using differences/ratios;
+  - require model choice plus evidence, not model-name recognition alone;
+  - include complete error analysis that repairs the diagnostic and final model selection;
+  - keep routine model analysis DOK 2; reserve DOK 3 for full error analysis.
+- No new Path tool is required; secure table + multi-response grading is sufficient.
+
+### 2026-08-30 — A2.8A staged / certification
+- Staged five A2.8A Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.8A.json` — commit `0d8947bd63614153e038b4f2ea2758b6d87e7905`.
+- Coverage includes raw-data linear first differences, quadratic first/second differences, exponential growth and decay ratio variants, non-unit x-spacing rate analysis, and complete quadratic misclassification error repair.
+- Base production/generated/build run `33333628425`: **PASS**.
+- First focused run `33333656945`: **FAIL** only because the certification counter counted the first linear family but omitted the separate non-unit-spacing linear family; all generated mathematics and secure self-grading reached the final aggregate assertion.
+- Fixed the certification counter — commit `cb6deee1a2653853ae52d25ed1cff59072102faa`.
+- Replacement focused run `33333706071`: **PASS**.
+- Raw-data diagnostic mathematics, growth/decay variants, non-unit input spacing, full error repair, production issuability, secure self-grading, wrong-model rejection, public key stripping, and student/runtime build all passed.
+- A2.8A is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.8B**.
+
+### 2026-08-30 — A2.8B audit finding
+- Official construct: **use regression methods available through technology to write a linear function, a quadratic function, and an exponential function from a given set of data**.
+- TEA breakout requires exactly three technology-regression targets:
+  - write a linear function from data using regression technology;
+  - write a quadratic function from data using regression technology;
+  - write an exponential function from data using regression technology.
+- Verdict: **ENHANCE**.
+- Legacy strengths:
+  - linear, quadratic, and exponential regression are all named;
+  - one R-squared interpretation and one swapped-list error are present;
+  - the secure Data Modeling Lab already has server-authoritative linear/quadratic/exponential regression mathematics.
+- Legacy limitations:
+  - most data are perfect and the prompt often gives the generating coefficients/pattern, so technology is not genuinely necessary;
+  - the exponential family is multiple-choice rather than requiring the fitted function;
+  - the linear and quadratic families expose coefficients in the prompt;
+  - R-squared interpretation is useful support but does not replace any of the three required fitted-function breakouts;
+  - the current Data Modeling Lab only has fit-only linear mode; quadratic/exponential fit modes also force prediction, which would contaminate A2.8B with A2.8C.
+- Fidelity V2 requirements:
+  - use the secure Data Modeling Lab for all three required model families;
+  - add fit-only quadratic and exponential modes so A2.8B assesses the exact construct without prediction;
+  - use overdetermined data sets and include non-perfect/noisy data so regression technology is authentic rather than decorative;
+  - require all fitted coefficients: m,b for linear; a,b,c for quadratic; a and base for exponential;
+  - include both exponential growth and decay across the bank;
+  - include complete technology-entry/transcription error repair that still requires the student to re-run the regression;
+  - keep routine regression fitting DOK 2; reserve DOK 3 for complete error analysis.
+- No separate regression grader should be invented; extend the existing Data Modeling Lab's secure fit modes minimally and retain server/client parity tests.
+
+### 2026-08-30 — A2.8B staged / focused certification
+- Added fit-only Data Modeling Lab modes for linear, quadratic, and exponential regression without prediction contamination.
+- Capability/parity run `33333890598`: **PASS**.
+- Staged five A2.8B Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.8B.json` — commit `f406846d440980e88d9fba9220a0a0900c3b08cc`.
+- Coverage includes noisy overdetermined linear regression, noisy overdetermined quadratic regression, exponential growth regression, exponential decay regression, and complete quadratic regression-transcription repair.
+- Base production/generated/build run `33333964394`: **PASS**.
+- Added focused A2.8B secure regression certification in `tests/platform/a28bRegressionTechnology.test.mjs` — commit `3ded4137d5d5dd49860475f7d89e2b60a9516952`.
+- Focused run `33334056795`: **PASS**.
+- Generated noisy linear/quadratic/exponential fits, growth/decay breadth, fit-only required-parts behavior, secure coefficient grading, wrong-coefficient rejection, public expected-model stripping, and student/runtime build all passed.
+- A2.8B is now locked as certified. Do not reopen it unless a named regression gate fails.
+- FIRST UNFINISHED STANDARD advanced to **A2.8C**.
+
+### 2026-08-30 — A2.8C pre-audit finding
+- Official construct: **predict and make decisions and critical judgments from a given set of data using linear, quadratic, and exponential models**.
+- TEA breakout contains **nine distinct targets**:
+  - predict using linear, quadratic, and exponential models;
+  - make decisions using linear, quadratic, and exponential models;
+  - make critical judgments using linear, quadratic, and exponential models.
+- Provisional verdict: **REBUILD** after A2.8B locks.
+- Legacy limitations:
+  - the three computational families simply evaluate already-supplied equations rather than grounding predictions in a given data set/model;
+  - the quadratic "decision" item asks only for a numerical prediction and never requires a decision;
+  - the distant-extrapolation caution is useful but not tied to a particular linear/quadratic/exponential fitted model;
+  - the compare-models family uses only two linear equations and asks for a generic strategy rather than a context-specific decision;
+  - the nine model × action breakouts are therefore not covered.
+- Fidelity V2 direction:
+  - use coherent generated variants so all nine breakout combinations are explicitly exercised without creating nine shallow families;
+  - require numeric prediction from a fitted/given model and classify interpolation vs extrapolation where relevant;
+  - require context-based decisions against thresholds/costs/capacity for each model family;
+  - require critical judgments about extrapolation, plausibility, model-domain limits, or whether a prediction should be trusted for each model family;
+  - keep A2.8C distinct from A2.8B: regression coefficients may be supplied or securely fitted as supporting information, but the assessed action must be prediction/decision/judgment rather than writing the regression function;
+  - keep ordinary prediction/decision work DOK 2 and use DOK 3 for genuine critical judgment/error analysis.
+
+
+### 2026-08-30 — A2.8C staged / certification
+- Staged five A2.8C Fidelity V2 families in `drafts/fidelity-v2/algebra2/A2.8C.json` — commit `660d064e40039c940cdbc0c5bb0ff46d7ce883c4`.
+- The first three variant families explicitly cover all nine TEA breakouts: prediction, decision, and critical judgment for linear, quadratic, and exponential models.
+- Additional families deepen interpolation/extrapolation classification and complete distant-extrapolation error repair.
+- Base production/generated/build run `33334210195`: **PASS**.
+- Focused nine-breakout certification in `tests/platform/a28cPredictionDecisionJudgment.test.mjs`.
+- Focused certification run `33334253668`: **PASS**.
+- Secure technology prediction, numeric decision evidence, model-specific critical judgments, interpolation/extrapolation classification, wrong-prediction rejection, public key stripping, and student/runtime build all passed.
+- A2.8C is now locked as certified.
+- **All Algebra II core TEKS Fidelity V2 standards in this sequence are now certified.**
+- Next required work is the cross-course Algebra I + Algebra II Challenge/Extension and independent DOK/difficulty coverage pass.

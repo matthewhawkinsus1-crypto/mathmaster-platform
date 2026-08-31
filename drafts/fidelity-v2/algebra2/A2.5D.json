@@ -1,0 +1,578 @@
+{
+  "standard": "A2.5D",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-complete-exponential-and-single-log-solving-same-base-logarithmic-affine-context-error-repair",
+  "rationale": "A2.5D legacy solving was mathematically aligned but too easy. Fidelity V2 preserves same-base solving while adding genuinely logarithmic y=ab^x solutions, affine single-log equations, context/interpretation, common/natural log notation, and complete error repair.",
+  "documents": [
+    {
+      "id": "mm_A2_5D_v2_same-base-complete-solve",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5D:v2-same-base-complete-solve",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5D",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Solve ${{b}}^{x+({{c}})}={{b}}^{{n}}$. Show the equal-exponents equation before giving x.",
+      "responseFields": [
+        {
+          "id": "exponents",
+          "label": "Equal-exponents equation",
+          "inputProfile": "equation",
+          "expected": "x+({{c}})={{n}}"
+        },
+        {
+          "id": "solution",
+          "label": "x",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Equal positive bases allow the exponents to be equated.",
+        "reasoning": [
+          "Because both sides have base {{b}}, set $x+({{c}})={{n}}$.",
+          "Solving that linear equation gives $x={{x}}$."
+        ],
+        "answerSummary": "$x={{x}}$"
+      },
+      "attemptFeedback": [
+        "Use the common base before introducing logarithms; they are unnecessary here."
+      ],
+      "supportHints": [
+        "If $b^u=b^v$ with b>0 and b≠1, then u=v."
+      ],
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "c": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "n": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          }
+        },
+        "derived": {
+          "x": "n-c"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_5D_v2_nonpower-exponential-log-solve",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5D:v2-nonpower-exponential-log-solve",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "scientific",
+      "assessedConstruct": "A2.5D",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "procedural",
+      "prompt": "Solve ${{target}}={{a}}\\cdot 2^x$. The isolated ratio is intentionally not a power of 2, so give an exact logarithmic solution and a decimal approximation.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Solve plan",
+        "table": {
+          "headers": [
+            "Step",
+            "Result"
+          ],
+          "rows": [
+            [
+              "Original",
+              "${{target}}={{a}}\\cdot2^x$"
+            ],
+            [
+              "After dividing by {{a}}",
+              "$2^x={{ratio}}$"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "isolated",
+          "label": "Isolated exponential equation",
+          "inputProfile": "equation",
+          "expected": "2^x={{ratio}}"
+        },
+        {
+          "id": "exact",
+          "label": "Exact solution for x",
+          "inputProfile": "expression",
+          "expected": "ln({{ratio}})/ln(2)"
+        }
+      ],
+      "solutionReview": {
+        "headline": "When the target ratio is not a base-2 power, logarithms isolate the exponent.",
+        "reasoning": [
+          "Divide by {{a}} to get $2^x={{ratio}}$.",
+          "Taking natural logs gives $x\\ln2=\\ln({{ratio}})$.",
+          "Therefore $x=\\ln({{ratio}})/\\ln2$ exactly; a calculator may be used afterward if a decimal is desired."
+        ],
+        "answerSummary": "$x=\\frac{\\ln({{ratio}})}{\\ln2}$"
+      },
+      "attemptFeedback": [
+        "Do not round before writing the exact logarithmic solution."
+      ],
+      "supportHints": [
+        "For $2^x=r$, take ln of both sides and divide by ln 2."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "ratio": {
+            "type": "choice",
+            "values": [
+              3,
+              5,
+              6,
+              7,
+              10
+            ]
+          }
+        },
+        "derived": {
+          "target": "a*ratio"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_5D_v2_common-log-affine-argument",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5D:v2-common-log-affine-argument",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5D",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "Solve the single logarithmic equation $\\log({{m}}x{{c|signed}})={{n}}$, where log means base 10. Rewrite in exponential form, then solve the resulting linear equation.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Common-log conversion",
+        "table": {
+          "headers": [
+            "Log form",
+            "Equivalent exponential form"
+          ],
+          "rows": [
+            [
+              "$\\log(A)={{n}}$",
+              "$A=10^{{n}}$"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "exponential",
+          "label": "Equivalent exponential equation",
+          "inputProfile": "equation",
+          "expected": "{{m}}x{{c|signed}}={{power}}"
+        },
+        {
+          "id": "solution",
+          "label": "x",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Rewrite the single logarithm, then solve the remaining linear equation.",
+        "reasoning": [
+          "$\\log({{m}}x{{c|signed}})={{n}}$ means ${{m}}x{{c|signed}}=10^{{n}}={{power}}$.",
+          "Solving the linear equation gives $x={{x}}$.",
+          "The original log argument is {{power}}>0, so the generated solution is real."
+        ],
+        "answerSummary": "$x={{x}}$"
+      },
+      "attemptFeedback": [
+        "The logarithm disappears only after you rewrite the entire argument as a power of 10."
+      ],
+      "supportHints": [
+        "Common log has base 10."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          },
+          "n": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "power": "pow(10,n)",
+          "c": "power-m*x"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-variable-base-negative-coefficient-log",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "table",
+          "prompt": "Solve $\\log_{{{base}}}({{m}}x{{c|signed}})={{n}}$. Rewrite in exponential form using the stated base, then solve the resulting affine equation. The x-coefficient may be negative.",
+          "responseFields": [
+            {
+              "id": "exponential",
+              "label": "Equivalent exponential equation",
+              "inputProfile": "equation",
+              "expected": "{{m}}x{{c|signed}}={{power}}"
+            },
+            {
+              "id": "solution",
+              "label": "x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A variable logarithm base changes the exponential rewrite, not the linear-solving step.",
+            "reasoning": [
+              "The logarithmic equation rewrites as ${{m}}x{{c|signed}}={{base}}^{{n}}={{power}}$.",
+              "Then solve the affine equation to obtain x={{x}}."
+            ],
+            "answerSummary": "$x={{x}}$"
+          },
+          "attemptFeedback": [
+            "Use the given logarithm base rather than assuming base 10."
+          ],
+          "supportHints": [
+            "First rewrite $\\log_b(A)=n$ as $A=b^n$."
+          ],
+          "generator": {
+            "parameters": {
+              "base": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "n": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              },
+              "m": {
+                "type": "int",
+                "min": -6,
+                "max": -2
+              },
+              "x": {
+                "type": "int",
+                "min": 1,
+                "max": 8
+              }
+            },
+            "derived": {
+              "power": "pow(base,n)",
+              "c": "power-m*x"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_5D_v2_context-noninteger-time",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5D:v2-context-noninteger-time",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "scientific",
+      "assessedConstruct": "A2.5D",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "application",
+      "prompt": "A culture starts with {{a}} cells and doubles each hour: $N={{a}}\\cdot2^t$. At what time will it reach {{target}} cells? Solve for t and interpret the result in hours.",
+      "responseFields": [
+        {
+          "id": "isolated",
+          "label": "Isolated exponential equation",
+          "inputProfile": "equation",
+          "expected": "2^t=3"
+        },
+        {
+          "id": "exact",
+          "label": "Exact time t",
+          "inputProfile": "expression",
+          "expected": "ln(3)/ln(2)"
+        },
+        {
+          "id": "time",
+          "label": "Time in hours (nearest thousandth)",
+          "inputProfile": "number",
+          "unit": "hours",
+          "numericTolerance": 0.0015,
+          "expected": "1.585"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The solved exponent represents elapsed time.",
+        "reasoning": [
+          "Divide by the initial amount {{a}} to get $2^t=3$.",
+          "Thus $t=\\ln3/\\ln2\\approx1.585$.",
+          "The culture reaches {{target}} cells after about 1.585 hours."
+        ],
+        "answerSummary": "$t=\\frac{\\ln3}{\\ln2}\\approx1.585$ hours"
+      },
+      "attemptFeedback": [
+        "Interpret the exponent as time after solving; it is not a count of cells."
+      ],
+      "supportHints": [
+        "The target is exactly three times the initial amount, not a power-of-two multiple."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 100,
+            "max": 900,
+            "step": 50
+          }
+        },
+        "derived": {
+          "target": "3*a"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_5D_v2_exponential-error-complete-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5D:v2-exponential-error-complete-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "scientific",
+      "assessedConstruct": "A2.5D",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student solves ${{target}}={{a}}\\cdot2^x$ by writing $x=\\ln({{target}})/\\ln2$, treating the outside coefficient {{a}} as if it were part of the power. Diagnose the error, isolate the exponential correctly, and finish x.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's work",
+        "steps": [
+          {
+            "id": "given",
+            "label": "Given",
+            "work": "${{target}}={{a}}\\cdot2^x$"
+          },
+          {
+            "id": "wrong",
+            "label": "Student result",
+            "work": "$x=\\ln({{target}})/\\ln2$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What must happen before taking logs?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "divide",
+              "label": "Divide by the outside coefficient {{a}} to isolate $2^x$."
+            },
+            {
+              "id": "add",
+              "label": "Add {{a}} to both sides."
+            },
+            {
+              "id": "power",
+              "label": "Move {{a}} into the exponent."
+            }
+          ],
+          "expected": "divide"
+        },
+        {
+          "id": "isolated",
+          "label": "Correct isolated equation",
+          "inputProfile": "equation",
+          "expected": "2^x={{ratio}}"
+        },
+        {
+          "id": "exact",
+          "label": "Correct exact x",
+          "inputProfile": "expression",
+          "expected": "ln({{ratio}})/ln(2)"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Logarithms should be applied after the exponential expression is isolated.",
+        "reasoning": [
+          "Divide by {{a}} first to obtain $2^x={{ratio}}$.",
+          "Then $x=\\ln({{ratio}})/\\ln2$.",
+          "The repaired work finishes with an exact logarithmic solution rather than the student's incorrect direct-log step."
+        ],
+        "answerSummary": "$x=\\frac{\\ln({{ratio}})}{\\ln2}$"
+      },
+      "attemptFeedback": [
+        "Repair the structural error first; do not simply adjust the student's final decimal."
+      ],
+      "supportHints": [
+        "The coefficient outside $2^x$ is removed by division."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "ratio": {
+            "type": "choice",
+            "values": [
+              3,
+              5,
+              6,
+              7,
+              10
+            ]
+          }
+        },
+        "derived": {
+          "target": "a*ratio"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-simple-isolation-before-log-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student solves ${{target}}=2\\cdot2^x$ by taking logs before dividing by the outside 2. Diagnose the isolation error, write the correct isolated equation, and finish the exact logarithmic solution.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Required first correction",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "divide",
+                  "label": "Divide by the outside coefficient 2 before applying logarithms."
+                },
+                {
+                  "id": "log-first",
+                  "label": "Take logs before isolating the exponential term."
+                }
+              ],
+              "expected": "divide"
+            },
+            {
+              "id": "isolated",
+              "label": "Correct isolated equation",
+              "inputProfile": "equation",
+              "expected": "2^x=3"
+            },
+            {
+              "id": "exact",
+              "label": "Correct exact x",
+              "inputProfile": "expression",
+              "expected": "ln(3)/ln(2)"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The conceptual issue is isolation order, not heavy computation.",
+            "reasoning": [
+              "Divide by 2 first to get $2^x=3$.",
+              "Then use logarithms: $x=\\ln3/\\ln2$."
+            ],
+            "answerSummary": "$x=\\ln3/\\ln2$"
+          },
+          "attemptFeedback": [
+            "Repair the algebraic structure before using logarithms."
+          ],
+          "supportHints": [
+            "The exponential expression should be alone before applying the log rule."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  2
+                ]
+              },
+              "ratio": {
+                "type": "choice",
+                "values": [
+                  3
+                ]
+              }
+            },
+            "derived": {
+              "target": "a*ratio"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

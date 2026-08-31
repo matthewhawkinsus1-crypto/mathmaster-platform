@@ -1,0 +1,707 @@
+{
+  "standard": "A2.6F",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-complete-absolute-value-linear-inequality-solving-isolate-and-or-negative-outside-edge-cases",
+  "rationale": "A2.6F already had aligned legacy content. Fidelity V2 deepens the solve by using nontrivial linear interiors, explicit isolation, AND/OR linear branches, interval/union answers, a negative outside coefficient requiring inequality reversal, and both empty/all-real edge cases.",
+  "documents": [
+    {
+      "id": "mm_A2_6F_v2_negative-outside-and-interval",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6F:v2-negative-outside-and-interval",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6F",
+      "representation": "symbolic",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "procedural",
+      "prompt": "Solve $-{{a}}|{{m}}x{{b|signed}}|{{k|signed}}\\ge {{y}}$. Isolate the absolute value carefully, including the inequality reversal, then write the compound inequality and final interval.",
+      "responseFields": [
+        {
+          "id": "isolated",
+          "label": "Isolated absolute-value inequality",
+          "inputProfile": "inequality",
+          "expected": "abs({{m}}x{{b|signed}})<={{D}}"
+        },
+        {
+          "id": "lower",
+          "label": "Lower linear inequality",
+          "inputProfile": "inequality",
+          "expected": "{{m}}x{{b|signed}}>=-{{D}}"
+        },
+        {
+          "id": "upper",
+          "label": "Upper linear inequality",
+          "inputProfile": "inequality",
+          "expected": "{{m}}x{{b|signed}}<={{D}}"
+        },
+        {
+          "id": "interval",
+          "label": "Solution interval",
+          "inputProfile": "interval",
+          "expected": "[{{left}},{{right}}]"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "s": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "b": "-m*h",
+          "D": "m*s",
+          "y": "k-a*D",
+          "left": "h-s",
+          "right": "h+s"
+        }
+      },
+      "solutionReview": {
+        "headline": "Dividing by a negative reverses the inequality before the absolute-value rule is applied.",
+        "reasoning": [
+          "After moving {{k}} and dividing by the negative outside coefficient, the inequality becomes $|{{m}}x{{b|signed}}|\\le {{D}}$.",
+          "A less-than-or-equal absolute-value inequality means the inside stays between -{{D}} and {{D}}.",
+          "Solving those bounds gives the closed interval $[{{left}},{{right}}]$."
+        ],
+        "answerSummary": "$[{{left}},{{right}}]$."
+      }
+    },
+    {
+      "id": "mm_A2_6F_v2_strict-or-two-rays",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6F:v2-strict-or-two-rays",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6F",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Solve ${{a}}|{{m}}x{{b|signed}}|{{k|signed}}>{{y}}$. Isolate the absolute value, write both outside linear inequalities, and give the union in interval notation.",
+      "responseFields": [
+        {
+          "id": "isolated",
+          "label": "Isolated absolute-value inequality",
+          "inputProfile": "inequality",
+          "expected": "abs({{m}}x{{b|signed}})>{{D}}"
+        },
+        {
+          "id": "left-case",
+          "label": "Left outside inequality",
+          "inputProfile": "inequality",
+          "expected": "x<{{left}}"
+        },
+        {
+          "id": "right-case",
+          "label": "Right outside inequality",
+          "inputProfile": "inequality",
+          "expected": "x>{{right}}"
+        },
+        {
+          "id": "interval",
+          "label": "Solution union",
+          "inputProfile": "interval",
+          "expected": "(-inf,{{left}})U({{right}},inf)"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "s": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "b": "-m*h",
+          "D": "m*s",
+          "y": "a*D+k",
+          "left": "h-s",
+          "right": "h+s"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-centered-outside",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "procedural",
+          "representation": "symbolic",
+          "prompt": "Solve $|x-({{h}})|>{{d}}$. Write the two outside inequalities and the final union in interval notation.",
+          "responseFields": [
+            {
+              "id": "isolated",
+              "label": "Absolute-value inequality",
+              "inputProfile": "inequality",
+              "expected": "abs(x-({{h}}))>{{d}}"
+            },
+            {
+              "id": "left-case",
+              "label": "Left outside inequality",
+              "inputProfile": "inequality",
+              "expected": "x<{{left}}"
+            },
+            {
+              "id": "right-case",
+              "label": "Right outside inequality",
+              "inputProfile": "inequality",
+              "expected": "x>{{right}}"
+            },
+            {
+              "id": "interval",
+              "label": "Solution union",
+              "inputProfile": "interval",
+              "expected": "(-inf,{{left}})U({{right}},inf)"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Greater-than absolute-value inequalities describe points outside a distance band.",
+            "reasoning": [
+              "The boundary points are {{left}} and {{right}}.",
+              "Values farther than {{d}} units from {{h}} lie to the left of {{left}} or to the right of {{right}}.",
+              "So the solution is the union of the two exterior rays."
+            ],
+            "answerSummary": "$x<{{left}}$ or $x>{{right}}$."
+          },
+          "attemptFeedback": [
+            "Greater than means outside the two boundary points."
+          ],
+          "supportHints": [
+            "Find h-d and h+d first."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "d": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              }
+            },
+            "derived": {
+              "left": "h-d",
+              "right": "h+d"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d2b4-half-unit-outside",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "multipleRepresentation",
+          "prompt": "Solve $|2x-({{center2}})|>{{d2}}$. Write the two outside inequalities and the final union. The boundary points are half-unit values, so keep the routine OR reasoning but handle the harder arithmetic accurately.",
+          "responseFields": [
+            {
+              "id": "isolated",
+              "label": "Absolute-value inequality",
+              "inputProfile": "inequality",
+              "expected": "abs(2x-({{center2}}))>{{d2}}"
+            },
+            {
+              "id": "left-case",
+              "label": "Left outside inequality",
+              "inputProfile": "inequality",
+              "expected": "x<{{left}}"
+            },
+            {
+              "id": "right-case",
+              "label": "Right outside inequality",
+              "inputProfile": "inequality",
+              "expected": "x>{{right}}"
+            },
+            {
+              "id": "interval",
+              "label": "Solution union",
+              "inputProfile": "interval",
+              "expected": "(-inf,{{left}})U({{right}},inf)"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The OR structure is unchanged even when the boundary arithmetic is harder.",
+            "reasoning": [
+              "Solve 2x-({{center2}})<-{{d2}} and 2x-({{center2}})>{{d2}}.",
+              "The boundary points are {{left}} and {{right}}.",
+              "The final union contains the two exterior open rays."
+            ],
+            "answerSummary": "$(-\\infty,{{left}})\\cup({{right}},\\infty)$"
+          },
+          "attemptFeedback": [
+            "Keep the OR structure separate from the arithmetic used to locate the boundaries."
+          ],
+          "supportHints": [
+            "Solve the two linear inequalities independently."
+          ],
+          "generator": {
+            "parameters": {
+              "center2": {
+                "type": "choice",
+                "values": [
+                  -9,
+                  -7,
+                  -5,
+                  -3,
+                  -1,
+                  1,
+                  3,
+                  5,
+                  7,
+                  9
+                ]
+              },
+              "d2": {
+                "type": "choice",
+                "values": [
+                  3,
+                  5,
+                  7,
+                  9,
+                  11
+                ]
+              }
+            },
+            "derived": {
+              "left": "(center2-d2)/2",
+              "right": "(center2+d2)/2"
+            }
+          }
+        }
+      ],
+      "solutionReview": {
+        "headline": "Greater-than absolute-value inequalities describe points outside two boundaries.",
+        "reasoning": [
+          "Isolation gives $|{{m}}x{{b|signed}}|>{{D}}$.",
+          "Being more than {{D}} units from the center means $x<{{left}}$ OR $x>{{right}}$.",
+          "Because the inequality is strict, both interval endpoints are open."
+        ],
+        "answerSummary": "$(-\\infty,{{left}})\\cup({{right}},\\infty)$."
+      }
+    },
+    {
+      "id": "mm_A2_6F_v2_negative-bound-contrast",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6F:v2-negative-bound-contrast",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6F",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "Solve both absolute-value inequalities in the table. Use the fact that an absolute value is always nonnegative.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Inequality",
+            "Solution type"
+          ],
+          "rows": [
+            [
+              "$|{{m}}x{{b|signed}}|<-{{d}}$",
+              "?"
+            ],
+            [
+              "$|{{m}}x{{b|signed}}|>-{{d}}$",
+              "?"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "less",
+          "label": "Solution of the < negative inequality",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "none",
+              "label": "No real solutions"
+            },
+            {
+              "id": "all",
+              "label": "All real numbers"
+            }
+          ],
+          "expected": "none"
+        },
+        {
+          "id": "greater",
+          "label": "Solution of the > negative inequality",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "all",
+              "label": "All real numbers"
+            },
+            {
+              "id": "none",
+              "label": "No real solutions"
+            }
+          ],
+          "expected": "all"
+        },
+        {
+          "id": "all-real-interval",
+          "label": "Interval notation for all real numbers",
+          "inputProfile": "interval",
+          "expected": "(-inf,inf)"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        }
+      },
+      "solutionReview": {
+        "headline": "Use the nonnegative nature of absolute value before doing algebra.",
+        "reasoning": [
+          "An absolute value can never be less than a negative number, so the '< negative' inequality has no real solutions.",
+          "An absolute value is always greater than any strictly negative number, so the '> negative' inequality is true for every real x."
+        ],
+        "answerSummary": "First inequality: no real solutions. Second inequality: $(-\\infty,\\infty)$."
+      }
+    },
+    {
+      "id": "mm_A2_6F_v2_context-linear-tolerance",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6F:v2-context-linear-tolerance",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6F",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "application",
+      "prompt": "A reading is $R(t)={{m}}t{{b|signed}}$. It is acceptable when it stays within {{tol}} units of target {{target}}. Solve the resulting absolute-value inequality for the acceptable time interval.",
+      "responseFields": [
+        {
+          "id": "model",
+          "label": "Tolerance inequality",
+          "inputProfile": "inequality",
+          "expected": "abs({{m}}t{{inside|signed}})<={{tol}}"
+        },
+        {
+          "id": "lower",
+          "label": "Lower linear inequality",
+          "inputProfile": "inequality",
+          "expected": "{{m}}t{{inside|signed}}>=-{{tol}}"
+        },
+        {
+          "id": "upper",
+          "label": "Upper linear inequality",
+          "inputProfile": "inequality",
+          "expected": "{{m}}t{{inside|signed}}<={{tol}}"
+        },
+        {
+          "id": "interval",
+          "label": "Acceptable time interval",
+          "inputProfile": "interval",
+          "expected": "[{{early}},{{late}}]"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": 7,
+            "max": 16
+          },
+          "s": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "target": {
+            "type": "int",
+            "min": 20,
+            "max": 60
+          }
+        },
+        "derived": {
+          "tol": "m*s",
+          "b": "target-m*h",
+          "inside": "b-target",
+          "early": "h-s",
+          "late": "h+s"
+        }
+      },
+      "solutionReview": {
+        "headline": "Within a tolerance means an absolute deviation no larger than that tolerance.",
+        "reasoning": [
+          "Subtract the target from the reading to get the deviation ${{m}}t{{inside|signed}}$.",
+          "The condition 'within {{tol}} units' becomes $|{{m}}t{{inside|signed}}|\\le {{tol}}$.",
+          "The resulting compound inequality keeps t between {{early}} and {{late}}, inclusive."
+        ],
+        "answerSummary": "Acceptable interval $[{{early}},{{late}}]$."
+      }
+    },
+    {
+      "id": "mm_A2_6F_v2_and-or-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6F:v2-and-or-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6F",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student solves $|{{m}}x{{b|signed}}|>{{D}}$ as the BETWEEN interval ${{left}}<x<{{right}}$. Diagnose the AND/OR error, write the corrected outside inequalities, and give the final union.",
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "Diagnosis",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "outside",
+              "label": "Greater than an absolute distance means outside the boundary points, so use OR."
+            },
+            {
+              "id": "between",
+              "label": "Greater than means between the boundaries."
+            }
+          ],
+          "expected": "outside"
+        },
+        {
+          "id": "left-case",
+          "label": "Left branch",
+          "inputProfile": "inequality",
+          "expected": "x<{{left}}"
+        },
+        {
+          "id": "right-case",
+          "label": "Right branch",
+          "inputProfile": "inequality",
+          "expected": "x>{{right}}"
+        },
+        {
+          "id": "interval",
+          "label": "Correct solution union",
+          "inputProfile": "interval",
+          "expected": "(-inf,{{left}})U({{right}},inf)"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "s": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          }
+        },
+        "derived": {
+          "b": "-m*h",
+          "D": "m*s",
+          "left": "h-s",
+          "right": "h+s"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-centered-and-or-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student solves $|x-({{h}})|>{{d}}$ as the BETWEEN interval ${{left}}<x<{{right}}$. Diagnose the AND/OR reasoning error, write the correct two outside inequalities, and give the final union.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Diagnosis",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "outside",
+                  "label": "Greater than a distance means outside the boundary points, so the two branches are joined by OR."
+                },
+                {
+                  "id": "between",
+                  "label": "Greater than a distance means stay between the boundary points."
+                }
+              ],
+              "expected": "outside"
+            },
+            {
+              "id": "left-case",
+              "label": "Left branch",
+              "inputProfile": "inequality",
+              "expected": "x<{{left}}"
+            },
+            {
+              "id": "right-case",
+              "label": "Right branch",
+              "inputProfile": "inequality",
+              "expected": "x>{{right}}"
+            },
+            {
+              "id": "interval",
+              "label": "Correct solution union",
+              "inputProfile": "interval",
+              "expected": "(-inf,{{left}})U({{right}},inf)"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The comparison symbol controls whether the solution is between or outside.",
+            "reasoning": [
+              "$|x-({{h}})|>{{d}}$ means the distance from {{h}} is more than {{d}}.",
+              "That occurs for x<{{left}} or x>{{right}}.",
+              "The student's between interval describes the opposite distance condition."
+            ],
+            "answerSummary": "Use OR: $x<{{left}}$ or $x>{{right}}$."
+          },
+          "attemptFeedback": [
+            "Translate the absolute value as a distance statement before choosing AND or OR."
+          ],
+          "supportHints": [
+            "Ask whether points farther than d from h lie inside or outside the boundary points."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -7,
+                "max": 7
+              },
+              "d": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              }
+            },
+            "derived": {
+              "left": "h-d",
+              "right": "h+d"
+            }
+          }
+        }
+      ],
+      "solutionReview": {
+        "headline": "Greater than an absolute distance uses OR, not AND.",
+        "reasoning": [
+          "$|{{m}}x{{b|signed}}|>{{D}}$ asks for points farther than the boundary distance from the center.",
+          "Those points lie outside the two boundary values, so the branches are $x<{{left}}$ OR $x>{{right}}$.",
+          "The corrected union is $(-\\infty,{{left}})\\cup({{right}},\\infty)$."
+        ],
+        "answerSummary": "$x<{{left}}$ or $x>{{right}}$."
+      }
+    }
+  ]
+}

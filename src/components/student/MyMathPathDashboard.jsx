@@ -13,6 +13,7 @@ export const MyMathPathDashboard = ({
   studentName = 'Student',
   masteryProfilesByTEKS = {},
   retentionSchedulesByTEKS = {},
+  skillProgressByTEKS = {},
   // No default recommendation. A hardcoded 'A.5A' told every Algebra II
   // student to practise an Algebra I standard whenever the engine had nothing
   // to say; saying nothing is the honest answer.
@@ -87,7 +88,7 @@ export const MyMathPathDashboard = ({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '22px', alignItems: 'center' }}>
         <div style={{ minWidth: 0, padding: '18px', border: '1px solid #dadce0', borderRadius: '12px', background: '#fff' }}>
           <h2 style={{ margin: '0 0 10px', fontSize: '18px', color: '#3c4043', textAlign: 'left' }}>Your skills map</h2>
-          <MyMathPathWheel masteryProfilesByTEKS={masteryProfilesByTEKS} onSelectTEKS={setSelectedTeks} courseId={courseId} />
+          <MyMathPathWheel masteryProfilesByTEKS={masteryProfilesByTEKS} skillProgressByTEKS={skillProgressByTEKS} onSelectTEKS={setSelectedTeks} courseId={courseId} />
         </div>
 
         <div style={{ display: 'grid', gap: '13px' }}>
@@ -119,7 +120,7 @@ export const MyMathPathDashboard = ({
             {/* The legend used the same green glyph for two different states
                 and named a fourth state ("Needs work") that never appears —
                 the wheel says "Needs Attention". */}
-            <strong>What the colours mean</strong><br />🟢 Mastered · 🔵 Secure · 🟡 Developing · 🔴 Needs Attention · ⚪ Not practised yet
+            <strong>What the colours mean</strong><br />🟢 Mastered · 🔵 Secure · 🟡 Developing · 🔴 Needs Attention · ⚪ Not practised yet<br /><span style={{ color: '#137333', fontWeight: 900 }}>●</span> completed Path pass · <span style={{ color: '#5b21b6', fontWeight: 900 }}>●</span> Mastery-challenge pass
           </div>
         </div>
       </div>
@@ -128,6 +129,7 @@ export const MyMathPathDashboard = ({
         <SkillDetailCardModal
           teksCode={selectedTeks}
           masteryProfile={masteryProfilesByTEKS[selectedTeks]}
+          pathPassProgress={skillProgressByTEKS[selectedTeks] || null}
           pathOptions={pathOptions}
           assessmentContext={assessmentContext}
           onPracticeAs={onPracticeAs}

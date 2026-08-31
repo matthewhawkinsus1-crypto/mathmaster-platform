@@ -1,0 +1,678 @@
+{
+  "standard": "A2.4D",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-standard-to-vertex-completing-square-with-attribute-identification",
+  "rationale": "A2.4D requires the full chain standard form → vertex form → attributes. Fidelity V2 therefore makes every family begin with standard form, requires the complete vertex form, and then grades attributes such as vertex, axis, extrema, opening, or range. Completing-square evidence is collected repeatedly, including cases with |a|>1 and a genuine factoring error repair.",
+  "documents": [
+    {
+      "id": "mm_A2_4D_v2_positive-complete-square",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4D:v2-positive-complete-square",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4D",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Transform $f(x)={{a}}x^2{{b|signed}}x{{c|signed}}$ from standard form to vertex form by completing the square. Then identify the vertex and axis of symmetry.",
+      "responseFields": [
+        {
+          "id": "factored",
+          "label": "After factoring {{a}} from the quadratic and linear terms",
+          "inputProfile": "equation",
+          "expected": "f(x)={{a}}(x^2+({{innerB}})x)+({{c}})"
+        },
+        {
+          "id": "square-add",
+          "label": "Number added inside to complete the square",
+          "inputProfile": "number",
+          "expected": "{{squareAdd}}"
+        },
+        {
+          "id": "vertex-form",
+          "label": "Complete vertex form",
+          "inputProfile": "equation",
+          "expected": "f(x)={{a}}(x-({{h}}))^2+({{k}})"
+        },
+        {
+          "id": "vertex",
+          "label": "Vertex",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{k}})"
+        },
+        {
+          "id": "axis",
+          "label": "Axis of symmetry",
+          "inputProfile": "equation",
+          "expected": "x={{h}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Factor the leading coefficient before completing the square.",
+        "reasoning": [
+          "Factoring {{a}} from the x² and x terms gives ${{a}}(x^2+({{innerB}})x)+({{c}})$.",
+          "Half the inside x-coefficient is ${{negH}}$, so add {{squareAdd}} inside the grouping and compensate outside.",
+          "The result is $f(x)={{a}}(x-({{h}}))^2+({{k}})$."
+        ],
+        "answerSummary": "Vertex $({{h}},{{k}})$; axis $x={{h}}$."
+      },
+      "attemptFeedback": [
+        "Complete the square after factoring a from both variable terms, not before."
+      ],
+      "supportHints": [
+        "Inside the parentheses, half the x-coefficient and square it."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              2,
+              3,
+              4
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        },
+        "derived": {
+          "b": "-2*a*h",
+          "c": "a*h*h+k",
+          "innerB": "-2*h",
+          "squareAdd": "h*h",
+          "negH": "-h"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b2",
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "coverageKey": "adaptive-d2b4-half-integer-vertex-complete-square",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "symbolic",
+          "prompt": "Transform $f(x)=4x^2{{b|signed}}x{{c|signed}}$ from standard form to vertex form by completing the square. The vertex has a half-integer x-coordinate. Show the factored setup, the value added inside, the vertex form, vertex, and axis.",
+          "responseFields": [
+            {
+              "id": "factored",
+              "label": "Factored setup",
+              "inputProfile": "equation",
+              "expected": "f(x)=4(x^2+({{innerB}})x)+({{c}})"
+            },
+            {
+              "id": "square-add",
+              "label": "Number added inside",
+              "inputProfile": "number",
+              "numericTolerance": 0.0001,
+              "expected": "{{squareAdd}}"
+            },
+            {
+              "id": "vertex-form",
+              "label": "Vertex form",
+              "inputProfile": "equation",
+              "expected": "f(x)=4(x-({{h}}))^2+({{k}})"
+            },
+            {
+              "id": "vertex",
+              "label": "Vertex",
+              "inputProfile": "orderedPair",
+              "expected": "({{h}},{{k}})"
+            },
+            {
+              "id": "axis",
+              "label": "Axis of symmetry",
+              "inputProfile": "equation",
+              "expected": "x={{h}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A half-integer vertex makes the arithmetic harder without changing the completing-square procedure.",
+            "reasoning": [
+              "After factoring 4, the inside x-coefficient is {{innerB}}.",
+              "Half of that coefficient is {{negH}}, so the square-add value is {{squareAdd}}.",
+              "The completed form is $4(x-({{h}}))^2+({{k}})$."
+            ],
+            "answerSummary": "Vertex $({{h}},{{k}})$ with axis $x={{h}}$."
+          },
+          "attemptFeedback": [
+            "Factor the 4 before halving the inside x-coefficient."
+          ],
+          "supportHints": [
+            "For $x^2+Bx$, add $(B/2)^2$ inside the parentheses."
+          ],
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "choice",
+                "values": [
+                  -5,
+                  -3,
+                  -1,
+                  1,
+                  3,
+                  5
+                ]
+              },
+              "k": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "a": "4",
+              "h": "n/2",
+              "b": "-4*n",
+              "c": "n*n+k",
+              "innerB": "-n",
+              "squareAdd": "n*n/4",
+              "negH": "-n/2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_4D_v2_negative-maximum-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4D:v2-negative-maximum-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4D",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 3,
+      "taskType": "interpretation",
+      "prompt": "Starting from standard form, transform $f(x)={{a}}x^2{{b|signed}}x{{c|signed}}$ to vertex form. Use the transformed form to identify the vertex, opening direction, maximum value, and range.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Standard-form coefficients",
+        "table": {
+          "headers": [
+            "Coefficient",
+            "Value"
+          ],
+          "rows": [
+            [
+              "a",
+              "{{a}}"
+            ],
+            [
+              "b",
+              "{{b}}"
+            ],
+            [
+              "c",
+              "{{c}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "square-add",
+          "label": "Number added inside after factoring {{a}}",
+          "inputProfile": "number",
+          "expected": "{{squareAdd}}"
+        },
+        {
+          "id": "vertex-form",
+          "label": "Complete vertex form",
+          "inputProfile": "equation",
+          "expected": "f(x)={{a}}(x-({{h}}))^2+({{k}})"
+        },
+        {
+          "id": "vertex",
+          "label": "Vertex",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{k}})"
+        },
+        {
+          "id": "opening",
+          "label": "Opening direction",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "down",
+              "label": "Downward"
+            },
+            {
+              "id": "up",
+              "label": "Upward"
+            }
+          ],
+          "expected": "down"
+        },
+        {
+          "id": "maximum",
+          "label": "Maximum function value",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "range",
+          "label": "Range as an inequality",
+          "inputProfile": "inequality",
+          "expected": "y<={{k}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A negative leading coefficient makes the vertex a maximum.",
+        "reasoning": [
+          "Completing the square gives $f(x)={{a}}(x-({{h}}))^2+({{k}})$.",
+          "Because a<0, the parabola opens downward.",
+          "The vertex y-coordinate {{k}} is the maximum, so the range is $y\\le {{k}}$."
+        ],
+        "answerSummary": "Vertex $({{h}},{{k}})$, maximum {{k}}, range $y\\le {{k}}$."
+      },
+      "attemptFeedback": [
+        "After converting form, use the sign of a to decide whether k is a minimum or maximum."
+      ],
+      "supportHints": [
+        "Complete the square first, then interpret the coefficient sign and the vertex relative to the rest of the graph before describing the output set."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              -4,
+              -3,
+              -2
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -6,
+            "max": 8
+          }
+        },
+        "derived": {
+          "b": "-2*a*h",
+          "c": "a*h*h+k",
+          "squareAdd": "h*h"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4D_v2_coefficient-table-to-attributes",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4D:v2-coefficient-table-to-attributes",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4D",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "The table supplies the coefficients of a quadratic in standard form. Write that standard-form function, transform it to vertex form, and identify the vertex and axis.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Standard-form coefficients",
+        "table": {
+          "headers": [
+            "Term",
+            "Coefficient"
+          ],
+          "rows": [
+            [
+              "$x^2$",
+              "{{a}}"
+            ],
+            [
+              "$x$",
+              "{{b}}"
+            ],
+            [
+              "constant",
+              "{{c}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "standard-form",
+          "label": "Standard-form function from the table",
+          "inputProfile": "equation",
+          "expected": "f(x)={{a}}x^2+({{b}})x+({{c}})"
+        },
+        {
+          "id": "vertex-form",
+          "label": "Transformed vertex form",
+          "inputProfile": "equation",
+          "expected": "f(x)={{a}}(x-({{h}}))^2+({{k}})"
+        },
+        {
+          "id": "vertex",
+          "label": "Vertex",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{k}})"
+        },
+        {
+          "id": "axis",
+          "label": "Axis of symmetry",
+          "inputProfile": "equation",
+          "expected": "x={{h}}"
+        },
+        {
+          "id": "extreme-type",
+          "label": "Vertex is a…",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "min",
+              "label": "Minimum"
+            },
+            {
+              "id": "max",
+              "label": "Maximum"
+            }
+          ],
+          "expected": "min"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The coefficient table is still standard form; completing the square reveals the attributes.",
+        "reasoning": [
+          "The coefficients give $f(x)={{a}}x^2+({{b}})x+({{c}})$.",
+          "Completing the square produces $f(x)={{a}}(x-({{h}}))^2+({{k}})$.",
+          "The vertex is $({{h}},{{k}})$ and the axis is $x={{h}}$.",
+          "Because the generated leading coefficient is positive, the vertex is a minimum."
+        ],
+        "answerSummary": "Vertex $({{h}},{{k}})$; axis $x={{h}}$."
+      },
+      "attemptFeedback": [
+        "Do not identify the vertex directly from b and c; first perform the standard-to-vertex transformation."
+      ],
+      "supportHints": [
+        "Complete the square carefully, then use the transformed form to interpret symmetry and the vertex relative to nearby outputs."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              1,
+              2,
+              3
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        },
+        "derived": {
+          "b": "-2*a*h",
+          "c": "a*h*h+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4D_v2_context-maximum-height",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4D:v2-context-maximum-height",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4D",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "application",
+      "prompt": "A projectile's height is $H(t)={{a}}t^2{{b|signed}}t{{c|signed}}$. Transform the standard-form model to vertex form, then identify when the maximum height occurs and the maximum height.",
+      "responseFields": [
+        {
+          "id": "vertex-form",
+          "label": "Vertex form of the height model",
+          "inputProfile": "equation",
+          "expected": "H(t)={{a}}(t-({{h}}))^2+({{k}})"
+        },
+        {
+          "id": "time",
+          "label": "Time of maximum height",
+          "inputProfile": "number",
+          "unit": "seconds",
+          "expected": "{{h}}"
+        },
+        {
+          "id": "height",
+          "label": "Maximum height",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "vertex",
+          "label": "Vertex of the model",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{k}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Vertex form turns the algebraic transformation into model meaning.",
+        "reasoning": [
+          "Completing the square gives $H(t)={{a}}(t-({{h}}))^2+({{k}})$.",
+          "Because a is negative, the vertex is the maximum.",
+          "The projectile reaches height {{k}} at t={{h}} seconds."
+        ],
+        "answerSummary": "Maximum {{k}} at t={{h}}."
+      },
+      "attemptFeedback": [
+        "The time and height come from the vertex only after the standard-form model has been transformed."
+      ],
+      "supportHints": [
+        "For a projectile model with a<0, the vertex gives the maximum."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              -4,
+              -3,
+              -2,
+              -1
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "k": {
+            "type": "int",
+            "min": 8,
+            "max": 40
+          }
+        },
+        "derived": {
+          "b": "-2*a*h",
+          "c": "a*h*h+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4D_v2_factoring-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4D:v2-factoring-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4D",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "Starting from standard form: A student transforms $f(x)={{a}}x^2{{b|signed}}x{{c|signed}}$ by completing the square, but makes the factoring mistake shown below. Diagnose it, repair the completing-square setup, finish vertex form, and identify the corrected vertex and extreme value.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's completing-square work",
+        "steps": [
+          {
+            "id": "s1",
+            "label": "Student factoring",
+            "work": "$f(x)={{a}}(x^2+({{b}})x)+({{c}})$"
+          },
+          {
+            "id": "s2",
+            "label": "Student next step",
+            "work": "They halve {{b}} inside the parentheses."
+          }
+        ],
+        "note": "When a is factored out, the inside linear coefficient must change too."
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "Diagnosis",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "divide-b",
+              "label": "The x-coefficient inside must be b/a, not b."
+            },
+            {
+              "id": "drop-a",
+              "label": "The leading coefficient a should be discarded."
+            },
+            {
+              "id": "no-square",
+              "label": "Completing the square does not require factoring."
+            }
+          ],
+          "expected": "divide-b"
+        },
+        {
+          "id": "factored",
+          "label": "Correct factored setup before completing the square",
+          "inputProfile": "equation",
+          "expected": "f(x)={{a}}(x^2+({{innerB}})x)+({{c}})"
+        },
+        {
+          "id": "square-add",
+          "label": "Correct number to add inside",
+          "inputProfile": "number",
+          "expected": "{{squareAdd}}"
+        },
+        {
+          "id": "vertex-form",
+          "label": "Correct complete vertex form",
+          "inputProfile": "equation",
+          "expected": "f(x)={{a}}(x-({{h}}))^2+({{k}})"
+        },
+        {
+          "id": "vertex",
+          "label": "Correct vertex",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{k}})"
+        },
+        {
+          "id": "extreme",
+          "label": "Extreme function value",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Factor a from both variable terms before halving the inside coefficient.",
+        "reasoning": [
+          "The correct inside x-coefficient is $b/a={{innerB}}$.",
+          "Half of {{innerB}} is {{negH}}; squaring gives {{squareAdd}}.",
+          "The corrected vertex form is $f(x)={{a}}(x-({{h}}))^2+({{k}})$."
+        ],
+        "answerSummary": "Vertex $({{h}},{{k}})$; extreme value {{k}}."
+      },
+      "attemptFeedback": [
+        "The common error is leaving b unchanged after pulling a outside the parentheses."
+      ],
+      "supportHints": [
+        "Divide both the x² coefficient and the x coefficient by a when factoring a out."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              2,
+              3,
+              4
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        },
+        "derived": {
+          "b": "-2*a*h",
+          "c": "a*h*h+k",
+          "innerB": "-2*h",
+          "squareAdd": "h*h",
+          "negH": "-h"
+        }
+      }
+    }
+  ]
+}

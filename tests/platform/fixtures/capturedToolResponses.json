@@ -147,5 +147,40 @@
       },
       "selections": {}
     }
+  },
+  "dataModelingLab": {
+    "pathToolId": "dataModelingLab",
+    "rawWork": {
+      "m": 1.5,
+      "b": 2,
+      "r": 1,
+      "direction": "positive",
+      "strength": "strong",
+      "causation": "association",
+      "modelChoice": "linear",
+      "predictionX": 5,
+      "predictionY": 0,
+      "predictionType": "interpolation"
+    }
+  },
+  "graphing2": {
+    "pathToolId": "graphing2",
+    "rawWork": {
+      "points": [
+        [
+          0,
+          1
+        ],
+        [
+          2,
+          5
+        ]
+      ],
+      "studentLine": {
+        "kind": "slopeIntercept",
+        "m": 2,
+        "b": 1
+      }
+    }
   }
 }

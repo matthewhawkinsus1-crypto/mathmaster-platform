@@ -1,0 +1,758 @@
+{
+  "standard": "A.9D",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-growth-decay-graph-construction-yintercept-asymptote",
+  "documents": [
+    {
+      "id": "mm_A_9D_v2_construct-growth",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9D:v2-construct-growth",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9D",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Construct the growth graph $y={{a}}({{base}})^x{{k|signed}}$ by plotting three requested points and sketching the exponential curve. Then identify the y-intercept and horizontal asymptote.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": "{{k}}",
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 5,
+        "yMin": -8,
+        "yMax": 45,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot x = 0",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot x = 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Plot x = 2",
+          "x": 2,
+          "expected": [
+            2,
+            "{{y2}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "yint",
+          "label": "y-intercept value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "asym",
+          "label": "horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{k}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Growth moves away from the asymptote as x increases.",
+        "reasoning": [
+          "At $x=0$, $b^0=1$, so the y-intercept is {{y0}}.",
+          "The vertical shift gives horizontal asymptote $y={{k}}$; because ${{base}}>1$, the graph grows to the right."
+        ],
+        "answerSummary": "y-intercept {{y0}}; asymptote $y={{k}}$."
+      },
+      "attemptFeedback": [
+        "Make sure the three plotted outputs increase multiplicatively rather than by a constant difference."
+      ],
+      "supportHints": [
+        "Start at x=0, then multiply the distance from the asymptote by the base each step."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              2,
+              3
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          }
+        },
+        "derived": {
+          "y0": "a+k",
+          "y1": "a*base+k",
+          "y2": "a*base*base+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9D_v2_construct-decay",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9D:v2-construct-decay",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9D",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "type": "functionInvestigation",
+      "prompt": "Construct the decay graph $y={{a}}({{base}})^x{{k|signed}}$ using the three requested points. Then identify its y-intercept and horizontal asymptote.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": "{{k}}",
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 6,
+        "yMin": -8,
+        "yMax": 45,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot x = 0",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot x = 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Plot x = 2",
+          "x": 2,
+          "expected": [
+            2,
+            "{{y2}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "yint",
+          "label": "y-intercept value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "asym",
+          "label": "horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{k}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Decay approaches the asymptote as x increases.",
+        "reasoning": [
+          "The y-intercept is {{y0}} because substituting $x=0$ makes the exponential factor 1.",
+          "Since $0<{{base}}<1$, the plotted outputs move toward the horizontal asymptote $y={{k}}$ to the right."
+        ],
+        "answerSummary": "y-intercept {{y0}}; asymptote $y={{k}}$."
+      },
+      "attemptFeedback": [
+        "If your right-hand points move farther from the asymptote, re-check whether the base is less than 1."
+      ],
+      "supportHints": [
+        "For decay, repeatedly multiply the distance from the asymptote by a number between 0 and 1."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              8,
+              12,
+              16
+            ]
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.75
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          }
+        },
+        "derived": {
+          "y0": "a+k",
+          "y1": "a*base+k",
+          "y2": "a*base*base+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9D_v2_context-growth-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9D:v2-context-growth-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9D",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "application",
+      "representation": "context",
+      "type": "functionInvestigation",
+      "prompt": "A quantity starts at {{a}} and grows by a factor of {{base}} each period. Construct its graph for periods 0, 1, and 2, then identify the y-intercept and horizontal asymptote of the exponential model.",
+      "context": {
+        "scenario": "Repeated multiplicative growth"
+      },
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": 0,
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -1,
+        "xMax": 5,
+        "yMin": -2,
+        "yMax": 80,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Period 0",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Period 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Period 2",
+          "x": 2,
+          "expected": [
+            2,
+            "{{y2}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "yint",
+          "label": "y-intercept value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{a}}"
+          ]
+        },
+        {
+          "id": "asym",
+          "label": "horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "0"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The initial amount is the y-intercept of an unshifted exponential model.",
+        "reasoning": [
+          "At period 0 the model equals {{a}}, so the graph begins on the y-axis at $(0,{{a}})$.",
+          "With no vertical shift, the horizontal asymptote is $y=0$."
+        ],
+        "answerSummary": "y-intercept {{a}}; asymptote $y=0$."
+      },
+      "attemptFeedback": [
+        "Use repeated multiplication by the growth factor to generate the plotted outputs."
+      ],
+      "supportHints": [
+        "At time zero, any positive base raised to the zero power equals 1."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 5,
+            "max": 20
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              1.5,
+              2
+            ]
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a*base",
+          "y2": "a*base*base"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-shifted-fractional-growth-construction",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "representationTranslation",
+          "representation": "graph",
+          "prompt": "Construct the shifted exponential growth graph $y={{a}}({{base}})^x{{k|signed}}$ using FOUR requested points, including x=-1. Then identify the y-intercept and horizontal asymptote.",
+          "functionSpec": {
+            "type": "exponential",
+            "a": "{{a}}",
+            "k": "{{k}}",
+            "base": "{{base}}"
+          },
+          "graph": {
+            "xMin": -3,
+            "xMax": 5,
+            "yMin": -10,
+            "yMax": 60,
+            "snapStep": 0.25
+          },
+          "pointTasks": [
+            {
+              "id": "pneg",
+              "label": "Plot x = -1",
+              "x": -1,
+              "expected": [
+                -1,
+                "{{yNeg}}"
+              ]
+            },
+            {
+              "id": "p0",
+              "label": "Plot x = 0",
+              "x": 0,
+              "expected": [
+                0,
+                "{{y0}}"
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot x = 1",
+              "x": 1,
+              "expected": [
+                1,
+                "{{y1}}"
+              ]
+            },
+            {
+              "id": "p2",
+              "label": "Plot x = 2",
+              "x": 2,
+              "expected": [
+                2,
+                "{{y2}}"
+              ]
+            }
+          ],
+          "analysisRequests": [
+            {
+              "id": "yint",
+              "label": "y-intercept value",
+              "kind": "value",
+              "responseMode": "text",
+              "expected": [
+                "{{y0}}"
+              ]
+            },
+            {
+              "id": "asym",
+              "label": "horizontal asymptote y-value",
+              "kind": "value",
+              "responseMode": "text",
+              "expected": [
+                "{{k}}"
+              ]
+            }
+          ],
+          "solutionReview": {
+            "headline": "Negative inputs and a vertical shift make the graph harder without changing the construction reasoning.",
+            "reasoning": [
+              "At x=-1, divide the exponential distance from the asymptote by the base.",
+              "At x=0 the y-intercept is {{y0}}; then multiply the distance from y={{k}} by {{base}} for each step right.",
+              "The horizontal asymptote is y={{k}}."
+            ],
+            "answerSummary": "y-intercept {{y0}}; asymptote y={{k}}."
+          },
+          "attemptFeedback": [
+            "Track the exponential distance from the asymptote rather than repeatedly adding a constant."
+          ],
+          "supportHints": [
+            "For x=-1, use a/base before adding the vertical shift."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  2,
+                  4,
+                  6
+                ]
+              },
+              "base": {
+                "type": "choice",
+                "values": [
+                  1.5,
+                  2.5
+                ]
+              },
+              "k": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            },
+            "derived": {
+              "yNeg": "a/base+k",
+              "y0": "a+k",
+              "y1": "a*base+k",
+              "y2": "a*base*base+k"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_9D_v2_context-decay-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9D:v2-context-decay-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9D",
+      "difficultyBand": 3,
+      "dok": 3,
+      "taskType": "modeling",
+      "representation": "context",
+      "type": "functionInvestigation",
+      "prompt": "A measured quantity starts at {{a}} and retains {{percent}}% each period. Construct the exponential decay graph for periods 0, 1, and 2, then identify its y-intercept and asymptote.",
+      "context": {
+        "scenario": "Repeated percent decay"
+      },
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": 0,
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -1,
+        "xMax": 6,
+        "yMin": -2,
+        "yMax": 60,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Period 0",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Period 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Period 2",
+          "x": 2,
+          "expected": [
+            2,
+            "{{y2}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "yint",
+          "label": "y-intercept value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{a}}"
+          ]
+        },
+        {
+          "id": "asym",
+          "label": "horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "0"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Percent retained becomes the multiplicative base of the decay graph.",
+        "reasoning": [
+          "{{percent}}% retained corresponds to base {{base}}, so each plotted output is {{base}} times the previous one.",
+          "The initial amount {{a}} is the y-intercept and the unshifted graph approaches $y=0$."
+        ],
+        "answerSummary": "y-intercept {{a}}; asymptote $y=0$."
+      },
+      "attemptFeedback": [
+        "Convert the retained percent to a decimal before generating successive graph points."
+      ],
+      "supportHints": [
+        "A retained percent below 100% produces a base between 0 and 1."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              20,
+              30,
+              40
+            ]
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.75
+            ]
+          }
+        },
+        "derived": {
+          "percent": "base*100",
+          "y0": "a",
+          "y1": "a*base",
+          "y2": "a*base*base"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9D_v2_error-asymptote-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9D:v2-error-asymptote-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.9D",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "type": "functionInvestigation",
+      "prompt": "A student says, “Every exponential graph has asymptote $y=0$.” Correct the claim by constructing $y={{a}}({{base}})^x{{k|signed}}$ and reporting its actual y-intercept and horizontal asymptote.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": "{{a}}",
+        "k": "{{k}}",
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 45,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "p0",
+          "label": "Plot x = 0",
+          "x": 0,
+          "expected": [
+            0,
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot x = 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{y1}}"
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Plot x = 2",
+          "x": 2,
+          "expected": [
+            2,
+            "{{y2}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "yint",
+          "label": "actual y-intercept value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{y0}}"
+          ]
+        },
+        {
+          "id": "asym",
+          "label": "actual asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{k}}"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A vertical shift moves the horizontal asymptote.",
+        "reasoning": [
+          "The parent exponential approaches $y=0$, but adding {{k}} shifts every output and the asymptote vertically.",
+          "The actual asymptote is $y={{k}}$, while the y-intercept is {{y0}}."
+        ],
+        "answerSummary": "y-intercept {{y0}}; asymptote $y={{k}}$."
+      },
+      "attemptFeedback": [
+        "Separate the initial value from the horizontal asymptote; they are not generally the same feature."
+      ],
+      "supportHints": [
+        "In $a(b)^x+k$, the asymptote is shifted from 0 to k."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              4,
+              8,
+              12
+            ]
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.75
+            ]
+          },
+          "k": {
+            "type": "choice",
+            "values": [
+              -4,
+              -2,
+              2,
+              4
+            ]
+          }
+        },
+        "derived": {
+          "y0": "a+k",
+          "y1": "a*base+k",
+          "y2": "a*base*base+k"
+        }
+      }
+    }
+  ]
+}

@@ -50,6 +50,12 @@ const COURSE_FILES = {
   grade6: 'grade6_pathQuestionBank_seed.json',
 };
 
+const PROTECTED_CERTIFIED_COURSES = new Set(['algebra1', 'algebra2']);
+// Algebra I/II are released only by
+// scripts/build-algebra-fidelity-v2-production-seeds.mjs. This generic builder
+// may audit/build the other courses, but it must never compile the legacy
+// Algebra authoring modules back over the certified shipping banks.
+
 const pad = (value, width) => String(value).padEnd(width, ' ');
 
 async function main() {
@@ -82,6 +88,8 @@ const INTERACTION_REQUIRED = new Set([
 
   for (const entry of ALL_AUTHORED_STANDARDS) {
     const { code, families } = entry;
+    const entryCourseId = courseOf(code);
+    if (PROTECTED_CERTIFIED_COURSES.has(entryCourseId)) continue;
     const plans = {};
 
     for (const question of families) {
@@ -287,7 +295,12 @@ const INTERACTION_REQUIRED = new Set([
   // they are importing without parsing 600 documents. Generated, never
   // hand-maintained: a hand-maintained manifest is a second claim about the
   // bank that can disagree with the bank.
-  const allDocuments = [...byCourse.values()].flat();
+  const protectedCertifiedDocuments = [...PROTECTED_CERTIFIED_COURSES].flatMap((courseId) => {
+    const fileName = COURSE_FILES[courseId];
+    const current = JSON.parse(readFileSync(join(root, 'seed', 'pathQuestionBank', fileName), 'utf8'));
+    return current.documents || [];
+  });
+  const allDocuments = [...byCourse.values()].flat().concat(protectedCertifiedDocuments);
   const perStandard = {};
   allDocuments.forEach((question) => {
     (question.alignmentKeys || []).forEach((key) => {

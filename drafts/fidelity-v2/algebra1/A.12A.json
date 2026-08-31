@@ -1,0 +1,813 @@
+{
+  "standard": "A.12A",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-verbal-table-graph-symbolic-function-classification",
+  "documents": [
+    {
+      "id": "mm_A_12A_v2_mapping-nonfunction",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12A:v2-mapping-nonfunction",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12A",
+      "taskType": "conceptual",
+      "representation": "orderedPairs",
+      "type": "relationMapping",
+      "prompt": "Use the mapping to decide whether the relation is a function.",
+      "pairs": [
+        {
+          "x": "{{x}}",
+          "y": "{{y1}}"
+        },
+        {
+          "x": "{{x}}",
+          "y": "{{y2}}"
+        },
+        {
+          "x": "{{x2}}",
+          "y": "{{y3}}"
+        }
+      ],
+      "ask": [
+        "isFunction"
+      ],
+      "solutionReview": {
+        "headline": "A function cannot send one input to two different outputs.",
+        "reasoning": [
+          "The input {{x}} is paired with both {{y1}} and {{y2}}.",
+          "Because those outputs are different, the relation is not a function."
+        ],
+        "answerSummary": "The relation is not a function."
+      },
+      "attemptFeedback": [
+        "Trace each input and count how many different outputs it reaches."
+      ],
+      "supportHints": [
+        "Repeated outputs are allowed; one repeated INPUT with different outputs is the problem."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "x2": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "y1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "y2": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "y3": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "constraints": [
+          "x2 != x",
+          "y2 != y1"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_12A_v2_table-function",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12A:v2-table-function",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12A",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table represents a relation. Enter FUNCTION or NOT A FUNCTION.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Input $x$",
+            "Output $y$"
+          ],
+          "rows": [
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ],
+            [
+              "{{x3}}",
+              "{{y3}}"
+            ],
+            [
+              "{{x4}}",
+              "{{y4}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Classification",
+          "inputProfile": "text",
+          "expected": "function"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Check inputs, not whether outputs repeat.",
+        "reasoning": [
+          "The four input values are all distinct.",
+          "Each input therefore has exactly one listed output, so the relation is a function even if some outputs repeat."
+        ],
+        "answerSummary": "FUNCTION"
+      },
+      "attemptFeedback": [
+        "Look down the input column for an input paired with two different outputs."
+      ],
+      "supportHints": [
+        "Different inputs are allowed to share the same output."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -8,
+            "max": -5
+          },
+          "x2": {
+            "type": "int",
+            "min": -4,
+            "max": -1
+          },
+          "x3": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "x4": {
+            "type": "int",
+            "min": 5,
+            "max": 8
+          },
+          "y1": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "y2": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "y3": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "y4": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_12A_v2_ordered-pairs-nonfunction",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12A:v2-ordered-pairs-nonfunction",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12A",
+      "taskType": "representationTranslation",
+      "representation": "orderedPairs",
+      "prompt": "The relation is shown as ordered pairs. Enter FUNCTION or NOT A FUNCTION.",
+      "stimulus": {
+        "kind": "orderedPairs",
+        "orderedPairs": [
+          {
+            "x": "{{x1}}",
+            "y": "{{y1}}"
+          },
+          {
+            "x": "{{x2}}",
+            "y": "{{y2}}"
+          },
+          {
+            "x": "{{x1}}",
+            "y": "{{y3}}"
+          },
+          {
+            "x": "{{x4}}",
+            "y": "{{y4}}"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Classification",
+          "inputProfile": "text",
+          "expected": "not a function"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The same first coordinate cannot have two different second coordinates in a function.",
+        "reasoning": [
+          "The input {{x1}} appears in two ordered pairs.",
+          "Its outputs {{y1}} and {{y3}} are different, so the relation is not a function."
+        ],
+        "answerSummary": "NOT A FUNCTION"
+      },
+      "attemptFeedback": [
+        "Compare first coordinates before comparing outputs."
+      ],
+      "supportHints": [
+        "Find any input that occurs more than once with different outputs."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "x2": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "x4": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "y1": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "y2": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "y3": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "y4": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "constraints": [
+          "x2 != x1",
+          "x4 != x1",
+          "x4 != x2",
+          "y3 != y1"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_12A_v2_context-one-input-two-outputs",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12A:v2-context-one-input-two-outputs",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12A",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A school relation uses student ID as the input and assigned locker number as the output. ID {{id}} is recorded with locker {{locker1}} and also locker {{locker2}}. Under this rule, is the recorded relation a function? Enter FUNCTION or NOT A FUNCTION.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Classification",
+          "inputProfile": "text",
+          "expected": "not a function"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The meaning of input and output matters in context too.",
+        "reasoning": [
+          "The same student ID {{id}} is one input.",
+          "It is paired with two different locker outputs, so this recorded relation fails the definition of a function."
+        ],
+        "answerSummary": "NOT A FUNCTION"
+      },
+      "attemptFeedback": [
+        "Identify exactly what quantity is serving as the input."
+      ],
+      "supportHints": [
+        "Ask whether one student ID receives more than one output in the relation."
+      ],
+      "generator": {
+        "parameters": {
+          "id": {
+            "type": "int",
+            "min": 100,
+            "max": 999
+          },
+          "locker1": {
+            "type": "int",
+            "min": 10,
+            "max": 80
+          },
+          "locker2": {
+            "type": "int",
+            "min": 10,
+            "max": 80
+          }
+        },
+        "constraints": [
+          "locker1 != locker2"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_12A_v2_error-repeated-output",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12A:v2-error-repeated-output",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Use the displayed graph and the vertical-line test to classify the relation. Enter FUNCTION or NOT A FUNCTION.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Classification",
+          "inputProfile": "text",
+          "expected": "function"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A repeated output does not make a relation fail the vertical-line test.",
+        "reasoning": [
+          "The plotted inputs {{x1}}, {{x2}}, and {{x3}} are all different, even though two points share output {{y}}.",
+          "No vertical line hits more than one plotted point, so each input has exactly one output."
+        ],
+        "answerSummary": "FUNCTION"
+      },
+      "attemptFeedback": [
+        "Move an imaginary vertical line from left to right and check whether it ever hits two points at the same $x$-value."
+      ],
+      "supportHints": [
+        "Repeated outputs alone are not the conflict; inspect whether any single input is paired with two different outputs."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -8,
+            "max": -3
+          },
+          "x2": {
+            "type": "int",
+            "min": -2,
+            "max": 2
+          },
+          "x3": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          },
+          "y": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "z": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        },
+        "constraints": [
+          "z != y"
+        ]
+      },
+      "stimulus": {
+        "kind": "graph",
+        "title": "Relation on a coordinate plane",
+        "graph": {
+          "xMin": -9,
+          "xMax": 9,
+          "yMin": -8,
+          "yMax": 8,
+          "ariaLabel": "Discrete relation shown as plotted points",
+          "points": [
+            {
+              "x": "{{x1}}",
+              "y": "{{y}}"
+            },
+            {
+              "x": "{{x2}}",
+              "y": "{{y}}"
+            },
+            {
+              "x": "{{x3}}",
+              "y": "{{z}}"
+            }
+          ]
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-large-relation-conflict-scan",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "representationTranslation",
+          "representation": "table",
+          "prompt": "The table contains eight ordered pairs. Determine whether the relation is a function. If it is not, identify the repeated input that is paired with two different outputs.",
+          "stimulus": {
+            "kind": "table",
+            "table": {
+              "headers": [
+                "x",
+                "y"
+              ],
+              "rows": [
+                [
+                  "{{x0}}",
+                  "{{y0}}"
+                ],
+                [
+                  "{{x1}}",
+                  "{{y1}}"
+                ],
+                [
+                  "{{x2}}",
+                  "{{y2}}"
+                ],
+                [
+                  "{{x3}}",
+                  "{{y3}}"
+                ],
+                [
+                  "{{x4}}",
+                  "{{y4}}"
+                ],
+                [
+                  "{{xConflict}}",
+                  "{{yc1}}"
+                ],
+                [
+                  "{{x5}}",
+                  "{{y5}}"
+                ],
+                [
+                  "{{xConflict}}",
+                  "{{yc2}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "classification",
+              "label": "Function or not a function?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "function",
+                  "label": "FUNCTION"
+                },
+                {
+                  "id": "not",
+                  "label": "NOT A FUNCTION"
+                }
+              ],
+              "expected": "not"
+            },
+            {
+              "id": "conflict-input",
+              "label": "Input causing the conflict",
+              "inputProfile": "number",
+              "expected": "{{xConflict}}"
+            },
+            {
+              "id": "output-1",
+              "label": "One output paired with that input",
+              "inputProfile": "number",
+              "expected": "{{yc1}}"
+            },
+            {
+              "id": "output-2",
+              "label": "The other output paired with that input",
+              "inputProfile": "number",
+              "expected": "{{yc2}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A relation fails the function rule only when one input is assigned more than one output.",
+            "reasoning": [
+              "Repeated outputs are allowed, so scan the x-column rather than the y-column.",
+              "Input {{xConflict}} appears twice with outputs {{yc1}} and {{yc2}}, so the relation is not a function."
+            ],
+            "answerSummary": "NOT A FUNCTION; conflicting input {{xConflict}}."
+          },
+          "attemptFeedback": [
+            "Look for repeated x-values with different y-values."
+          ],
+          "supportHints": [
+            "A large table can contain repeated outputs without violating the function rule."
+          ],
+          "generator": {
+            "parameters": {
+              "x0": {
+                "type": "int",
+                "min": -8,
+                "max": -4
+              },
+              "xConflict": {
+                "type": "int",
+                "min": -3,
+                "max": 2
+              },
+              "y0": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "y1": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "y2": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "y3": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "y4": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "y5": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "yc1": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "yc2": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "x1": "x0+1",
+              "x2": "x0+2",
+              "x3": "x0+3",
+              "x4": "xConflict+1",
+              "x5": "xConflict+2"
+            },
+            "constraints": [
+              "yc1!=yc2",
+              "x3<xConflict"
+            ]
+          }
+        },
+        {
+          "coverageKey": "adaptive-d3b3-original-vs-swapped-relation",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "reverseReasoning",
+          "representation": "multipleRepresentation",
+          "prompt": "The original relation contains $({{x1}},{{y}})$, $({{x2}},{{y}})$, and $({{x3}},{{z}})$. Classify the original relation, then swap every ordered pair and classify the swapped relation. Identify the input conflict created by the swap.",
+          "responseFields": [
+            {
+              "id": "original",
+              "label": "Original relation",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "function",
+                  "label": "FUNCTION"
+                },
+                {
+                  "id": "not",
+                  "label": "NOT A FUNCTION"
+                }
+              ],
+              "expected": "function"
+            },
+            {
+              "id": "swapped",
+              "label": "Swapped relation",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "function",
+                  "label": "FUNCTION"
+                },
+                {
+                  "id": "not",
+                  "label": "NOT A FUNCTION"
+                }
+              ],
+              "expected": "not"
+            },
+            {
+              "id": "conflict",
+              "label": "Conflicting input in the swapped relation",
+              "inputProfile": "number",
+              "expected": "{{y}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Swapping inputs and outputs can change whether a relation is a function.",
+            "reasoning": [
+              "The original x-values {{x1}}, {{x2}}, and {{x3}} are distinct, so the original relation is a function.",
+              "After swapping, input {{y}} is paired with both {{x1}} and {{x2}}, so the swapped relation is not a function."
+            ],
+            "answerSummary": "Original: function; swapped: not a function."
+          },
+          "attemptFeedback": [
+            "Apply the one-input/one-output rule separately before and after the swap."
+          ],
+          "supportHints": [
+            "Repeated y-values in the original become repeated x-values after swapping."
+          ],
+          "generator": {
+            "parameters": {
+              "x1": {
+                "type": "int",
+                "min": -6,
+                "max": -2
+              },
+              "x2": {
+                "type": "int",
+                "min": -1,
+                "max": 2
+              },
+              "x3": {
+                "type": "int",
+                "min": 3,
+                "max": 7
+              },
+              "y": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "z": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            },
+            "constraints": [
+              "x1!=x2",
+              "x1!=x3",
+              "x2!=x3",
+              "y!=z"
+            ]
+          }
+        },
+        {
+          "coverageKey": "challenge-d3b4-swap-input-output-function-analysis",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "reverseReasoning",
+          "representation": "multipleRepresentation",
+          "prompt": "The relation contains the points $({{x1}},{{y}})$, $({{x2}},{{y}})$, and $({{x3}},{{z}})$. First classify the ORIGINAL relation as a function. Then swap every ordered pair to make $({{y}},{{x1}})$, $({{y}},{{x2}})$, and $({{z}},{{x3}})$ and classify the SWAPPED relation. Explain the input-output conflict created by the swap.",
+          "responseFields": [
+            {
+              "id": "original",
+              "label": "Original relation",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "function",
+                  "label": "FUNCTION"
+                },
+                {
+                  "id": "not-function",
+                  "label": "NOT A FUNCTION"
+                }
+              ],
+              "expected": "function"
+            },
+            {
+              "id": "swapped",
+              "label": "Swapped relation",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "function",
+                  "label": "FUNCTION"
+                },
+                {
+                  "id": "not-function",
+                  "label": "NOT A FUNCTION"
+                }
+              ],
+              "expected": "not-function"
+            },
+            {
+              "id": "repeated-input",
+              "label": "Repeated input in the swapped relation",
+              "inputProfile": "number",
+              "expected": "{{y}}"
+            },
+            {
+              "id": "conflicting-outputs",
+              "label": "Two outputs assigned to that repeated input",
+              "inputProfile": "expression",
+              "expected": "{{x1}},{{x2}}",
+              "accepted": [
+                "{{x2}},{{x1}}"
+              ]
+            }
+          ],
+          "solutionReview": {
+            "headline": "Function status depends on which coordinate is serving as the input.",
+            "reasoning": [
+              "The original x-values {{x1}}, {{x2}}, and {{x3}} are distinct, so every original input has only one output.",
+              "After swapping coordinates, the repeated value {{y}} becomes an input.",
+              "That one input is paired with both {{x1}} and {{x2}}, so the swapped relation is not a function."
+            ],
+            "answerSummary": "Original: function. Swapped: not a function because input {{y}} has two outputs."
+          },
+          "attemptFeedback": [
+            "Track which coordinate is the input before and after the swap."
+          ],
+          "supportHints": [
+            "Track what becomes the input after the coordinates are swapped, then look for one input paired with more than one output."
+          ]
+        }
+      ]
+    }
+  ]
+}

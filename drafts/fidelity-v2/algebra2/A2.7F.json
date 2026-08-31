@@ -1,0 +1,1478 @@
+{
+  "standard": "A2.7F",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-all-12-rational-operation-degree-breakouts-lcd-factor-cancel-quotient-restrictions",
+  "rationale": "TEA breaks A2.7F into 12 sum/difference/product/quotient by degree-1, degree-2, and mixed cases. Four variant families cover those 12 combinations directly, while a fifth DOK 3 family repairs quotient-domain reasoning. Final rational expressions use opt-in semantic equivalence and original restrictions are graded separately.",
+  "documents": [
+    {
+      "id": "mm_A2_7F_v2_sum-rational-degree-variants",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7F:v2-sum-rational-degree-variants",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7F",
+      "taskType": "procedural",
+      "representation": "multipleRepresentation",
+      "dok": 2,
+      "difficultyBand": 3,
+      "variants": [
+        {
+          "coverageKey": "sum-degree1",
+          "difficultyBand": 2,
+          "prompt": "Add $\\frac{{{A}}}{x-({{r}})}+\\frac{{{B}}}{x-({{s}})}$. Use the least common denominator, combine the numerators, simplify completely, and preserve every original restriction.",
+          "responseFields": [
+            {
+              "id": "combined-numerator",
+              "label": "Combined numerator over the LCD",
+              "inputProfile": "expression",
+              "expected": "{{N1}}*x+({{N0}})"
+            },
+            {
+              "id": "restrictions",
+              "label": "All restrictions from the original rational expressions",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "expected": "{x|x!={{r}} and x!={{s}}}"
+            },
+            {
+              "id": "answer",
+              "label": "Simplified rational expression",
+              "inputProfile": "expression",
+              "equivalence": "rationalExpression",
+              "expected": "({{N1}}*x+({{N0}}))/((x-({{r}}))*(x-({{s}})))"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Unlike linear denominators require an LCD before numerators can be combined.",
+            "reasoning": [
+              "The LCD is $(x-{{r}})(x-{{s}})$.",
+              "The combined numerator is ${{A}}(x-{{s}})+{{B}}(x-{{r}})={{N1}}x+({{N0}})$.",
+              "The original denominators exclude x={{r}} and x={{s}}."
+            ],
+            "answerSummary": "$\\frac{{{N1}}x+({{N0}})}{(x-{{r}})(x-{{s}})}$, with x≠{{r}},{{s}}."
+          },
+          "attemptFeedback": [
+            "Do not add denominators; rewrite both fractions over the LCD first."
+          ],
+          "supportHints": [
+            "For two different linear denominators, the LCD contains both factors."
+          ],
+          "generator": {
+            "parameters": {
+              "A": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "B": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "r": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "s": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "N1": "A+B",
+              "N0": "-A*s-B*r"
+            },
+            "constraints": [
+              "r!=s",
+              "N1!=0"
+            ]
+          }
+        },
+        {
+          "coverageKey": "sum-degree2",
+          "difficultyBand": 4,
+          "prompt": "Add $\\frac{{{A}}}{(x-({{r}}))(x-({{s}}))}+\\frac{{{B}}}{(x-({{r}}))(x-({{t}}))}$. Build the quadratic-denominator LCD, combine and simplify the numerator, and preserve all original restrictions.",
+          "responseFields": [
+            {
+              "id": "combined-numerator",
+              "label": "Combined numerator over the LCD",
+              "inputProfile": "expression",
+              "expected": "{{N1}}*x+({{N0}})"
+            },
+            {
+              "id": "restrictions",
+              "label": "All restrictions from the original rational expressions",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "expected": "{x|x!={{r}} and x!={{s}} and x!={{t}}}"
+            },
+            {
+              "id": "answer",
+              "label": "Simplified rational expression",
+              "inputProfile": "expression",
+              "equivalence": "rationalExpression",
+              "expected": "({{N1}}*x+({{N0}}))/((x-({{r}}))*(x-({{s}}))*(x-({{t}})))"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Factor-level LCD reasoning prevents duplicated common factors.",
+            "reasoning": [
+              "The LCD uses each distinct factor once: $(x-{{r}})(x-{{s}})(x-{{t}})$.",
+              "The numerator is ${{A}}(x-{{t}})+{{B}}(x-{{s}})={{N1}}x+({{N0}})$.",
+              "All three denominator zeros remain excluded."
+            ],
+            "answerSummary": "Use the three-factor LCD and keep x≠{{r}},{{s}},{{t}}."
+          },
+          "attemptFeedback": [
+            "The shared factor x-{{r}} appears only once in the LCD."
+          ],
+          "supportHints": [
+            "Multiply the first numerator by x-{{t}} and the second by x-{{s}}."
+          ],
+          "generator": {
+            "parameters": {
+              "A": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "B": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "r": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "s": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "t": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "N1": "A+B",
+              "N0": "-A*t-B*s",
+              "atR": "A*(r-t)+B*(r-s)"
+            },
+            "constraints": [
+              "r!=s",
+              "r!=t",
+              "s!=t",
+              "N1!=0",
+              "atR!=0"
+            ]
+          }
+        },
+        {
+          "coverageKey": "sum-mixed-degree1-degree2",
+          "difficultyBand": 3,
+          "prompt": "Add $\\frac{{{A}}}{x-({{r}})}+\\frac{{{B}}}{(x-({{r}}))(x-({{s}}))}$. Use the mixed degree-1/degree-2 LCD, combine the numerator, simplify, and keep all original restrictions.",
+          "responseFields": [
+            {
+              "id": "combined-numerator",
+              "label": "Combined numerator over the LCD",
+              "inputProfile": "expression",
+              "expected": "{{A}}*x+({{N0}})"
+            },
+            {
+              "id": "restrictions",
+              "label": "All restrictions from the original rational expressions",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "expected": "{x|x!={{r}} and x!={{s}}}"
+            },
+            {
+              "id": "answer",
+              "label": "Simplified rational expression",
+              "inputProfile": "expression",
+              "equivalence": "rationalExpression",
+              "expected": "({{A}}*x+({{N0}}))/((x-({{r}}))*(x-({{s}})))"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The quadratic denominator already contains the linear denominator factor.",
+            "reasoning": [
+              "The LCD is $(x-{{r}})(x-{{s}})$.",
+              "Only the first numerator needs the extra factor x-{{s}}.",
+              "The combined numerator is {{A}}x+({{N0}}), and both original zeros stay excluded."
+            ],
+            "answerSummary": "Mixed-degree sum over $(x-{{r}})(x-{{s}})$."
+          },
+          "attemptFeedback": [
+            "Do not multiply the second fraction by an extra x-{{r}}; its denominator is already the LCD."
+          ],
+          "supportHints": [
+            "Rewrite only the degree-1 denominator fraction."
+          ],
+          "generator": {
+            "parameters": {
+              "A": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "B": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "r": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "s": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "N0": "-A*s+B",
+              "atR": "A*(r-s)+B"
+            },
+            "constraints": [
+              "r!=s",
+              "atR!=0"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_7F_v2_difference-rational-degree-variants",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7F:v2-difference-rational-degree-variants",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7F",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "dok": 2,
+      "difficultyBand": 3,
+      "variants": [
+        {
+          "coverageKey": "difference-degree1",
+          "difficultyBand": 2,
+          "prompt": "Subtract $\\frac{{{B}}}{x-({{s}})}$ from $\\frac{{{A}}}{x-({{r}})}$. Build the LCD, distribute the subtraction through the second numerator contribution, simplify, and preserve the original restrictions.",
+          "responseFields": [
+            {
+              "id": "combined-numerator",
+              "label": "Correct combined numerator",
+              "inputProfile": "expression",
+              "expected": "{{N1}}*x+({{N0}})"
+            },
+            {
+              "id": "restrictions",
+              "label": "All restrictions from the original rational expressions",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "expected": "{x|x!={{r}} and x!={{s}}}"
+            },
+            {
+              "id": "answer",
+              "label": "Simplified rational expression",
+              "inputProfile": "expression",
+              "equivalence": "rationalExpression",
+              "expected": "({{N1}}*x+({{N0}}))/((x-({{r}}))*(x-({{s}})))"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Subtraction changes the entire second numerator contribution.",
+            "reasoning": [
+              "Over the LCD, the numerator is ${{A}}(x-{{s}})-{{B}}(x-{{r}})$.",
+              "That simplifies to {{N1}}x+({{N0}}).",
+              "The original denominator zeros remain x={{r}} and x={{s}}."
+            ],
+            "answerSummary": "Subtract the full second contribution before combining like terms."
+          },
+          "attemptFeedback": [
+            "Keep parentheses around the second numerator contribution until the subtraction has been distributed."
+          ],
+          "supportHints": [
+            "Write A(x-s)-B(x-r) before simplifying."
+          ],
+          "generator": {
+            "parameters": {
+              "A": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "B": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "r": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "s": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "N1": "A-B",
+              "N0": "-A*s+B*r"
+            },
+            "constraints": [
+              "r!=s",
+              "N1!=0"
+            ]
+          }
+        },
+        {
+          "coverageKey": "difference-degree2",
+          "difficultyBand": 4,
+          "prompt": "Subtract $\\frac{{{B}}}{(x-({{r}}))(x-({{t}}))}$ from $\\frac{{{A}}}{(x-({{r}}))(x-({{s}}))}$. Use the factored LCD, distribute the subtraction correctly, simplify, and preserve every original restriction.",
+          "responseFields": [
+            {
+              "id": "combined-numerator",
+              "label": "Correct combined numerator",
+              "inputProfile": "expression",
+              "expected": "{{N1}}*x+({{N0}})"
+            },
+            {
+              "id": "restrictions",
+              "label": "All restrictions from the original rational expressions",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "expected": "{x|x!={{r}} and x!={{s}} and x!={{t}}}"
+            },
+            {
+              "id": "answer",
+              "label": "Simplified rational expression",
+              "inputProfile": "expression",
+              "equivalence": "rationalExpression",
+              "expected": "({{N1}}*x+({{N0}}))/((x-({{r}}))*(x-({{s}}))*(x-({{t}})))"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Quadratic denominators can share one factor without having the same LCD.",
+            "reasoning": [
+              "The LCD is $(x-{{r}})(x-{{s}})(x-{{t}})$.",
+              "The numerator is ${{A}}(x-{{t}})-{{B}}(x-{{s}})={{N1}}x+({{N0}})$.",
+              "None of the three original denominator zeros may be restored after simplification."
+            ],
+            "answerSummary": "Three-factor LCD with a fully distributed subtraction."
+          },
+          "attemptFeedback": [
+            "The negative sign applies to both terms produced by B(x-s)."
+          ],
+          "supportHints": [
+            "Keep A(x-t)-B(x-s) intact until you distribute."
+          ],
+          "generator": {
+            "parameters": {
+              "A": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "B": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "r": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "s": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "t": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "N1": "A-B",
+              "N0": "-A*t+B*s",
+              "atR": "A*(r-t)-B*(r-s)"
+            },
+            "constraints": [
+              "r!=s",
+              "r!=t",
+              "s!=t",
+              "N1!=0",
+              "atR!=0"
+            ]
+          }
+        },
+        {
+          "coverageKey": "difference-mixed-degree1-degree2",
+          "difficultyBand": 3,
+          "prompt": "Simplify $\\frac{{{A}}}{x-({{r}})}-\\frac{{{B}}}{(x-({{r}}))(x-({{s}}))}$. Use the mixed-degree LCD, distribute the subtraction, and preserve both restrictions.",
+          "responseFields": [
+            {
+              "id": "combined-numerator",
+              "label": "Correct combined numerator",
+              "inputProfile": "expression",
+              "expected": "{{A}}*x+({{N0}})"
+            },
+            {
+              "id": "restrictions",
+              "label": "All restrictions from the original rational expressions",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "expected": "{x|x!={{r}} and x!={{s}}}"
+            },
+            {
+              "id": "answer",
+              "label": "Simplified rational expression",
+              "inputProfile": "expression",
+              "equivalence": "rationalExpression",
+              "expected": "({{A}}*x+({{N0}}))/((x-({{r}}))*(x-({{s}})))"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Only the degree-1 denominator fraction needs to be scaled to the LCD.",
+            "reasoning": [
+              "The numerator becomes ${{A}}(x-{{s}})-{{B}}={{A}}x+({{N0}})$.",
+              "The denominator is $(x-{{r}})(x-{{s}})$.",
+              "Both x={{r}} and x={{s}} are excluded."
+            ],
+            "answerSummary": "Mixed-degree difference with two preserved restrictions."
+          },
+          "attemptFeedback": [
+            "Subtract B after expanding A(x-s); do not change the denominator factors."
+          ],
+          "supportHints": [
+            "The second fraction is already over the LCD."
+          ],
+          "generator": {
+            "parameters": {
+              "A": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "B": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "r": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "s": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "N0": "-A*s-B",
+              "atR": "A*(r-s)-B"
+            },
+            "constraints": [
+              "r!=s",
+              "atR!=0"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_7F_v2_product-rational-degree-variants",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7F:v2-product-rational-degree-variants",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7F",
+      "taskType": "application",
+      "representation": "table",
+      "dok": 2,
+      "difficultyBand": 3,
+      "variants": [
+        {
+          "coverageKey": "product-degree1",
+          "difficultyBand": 2,
+          "prompt": "Multiply $\\frac{x-({{a}})}{x-({{b}})}\\cdot\\frac{x-({{b}})}{x-({{c}})}$. Factor/cancel only complete common factors, give the simplified product, and keep all restrictions from the original denominators.",
+          "responseFields": [
+            {
+              "id": "cancelled-factor",
+              "label": "Factor that cancels",
+              "inputProfile": "expression",
+              "expected": "x-({{b}})"
+            },
+            {
+              "id": "restrictions",
+              "label": "All restrictions from the original rational expressions",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "expected": "{x|x!={{b}} and x!={{c}}}"
+            },
+            {
+              "id": "answer",
+              "label": "Simplified rational expression",
+              "inputProfile": "expression",
+              "equivalence": "rationalExpression",
+              "expected": "(x-({{a}}))/(x-({{c}}))"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A common factor may cancel from a product, but its original restriction does not.",
+            "reasoning": [
+              "The factor x-{{b}} cancels as a complete numerator/denominator factor.",
+              "The simplified product is (x-{{a}})/(x-{{c}}).",
+              "The original denominators still exclude x={{b}} and x={{c}}."
+            ],
+            "answerSummary": "$\\frac{x-{{a}}}{x-{{c}}}$ with x≠{{b}},{{c}}."
+          },
+          "attemptFeedback": [
+            "Cancel factors, never individual terms inside a sum or difference."
+          ],
+          "supportHints": [
+            "The same complete binomial factor x-{{b}} appears once above and once below."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "constraints": [
+              "a!=b",
+              "a!=c",
+              "b!=c"
+            ]
+          }
+        },
+        {
+          "coverageKey": "product-degree2",
+          "difficultyBand": 4,
+          "prompt": "Multiply $\\frac{(x-({{a}}))(x-({{b}}))}{(x-({{c}}))(x-({{d}}))}\\cdot\\frac{(x-({{c}}))(x-({{e}}))}{(x-({{a}}))(x-({{f}}))}$. Cancel only complete common factors, simplify completely, and preserve all restrictions from the original quadratic denominators.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Factor inventory",
+            "table": {
+              "headers": [
+                "Numerator factors",
+                "Denominator factors"
+              ],
+              "rows": [
+                [
+                  "x-{{a}}, x-{{b}}, x-{{c}}, x-{{e}}",
+                  "x-{{c}}, x-{{d}}, x-{{a}}, x-{{f}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "cancelled-factor-1",
+              "label": "First canceled factor",
+              "inputProfile": "expression",
+              "expected": "x-({{a}})"
+            },
+            {
+              "id": "cancelled-factor-2",
+              "label": "Second canceled factor",
+              "inputProfile": "expression",
+              "expected": "x-({{c}})"
+            },
+            {
+              "id": "restrictions",
+              "label": "All restrictions from the original rational expressions",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "expected": "{x|x!={{a}} and x!={{c}} and x!={{d}} and x!={{f}}}"
+            },
+            {
+              "id": "answer",
+              "label": "Simplified rational expression",
+              "inputProfile": "expression",
+              "equivalence": "rationalExpression",
+              "expected": "((x-({{b}}))*(x-({{e}})))/((x-({{d}}))*(x-({{f}})))"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Factored quadratic rational expressions can cancel several complete factors.",
+            "reasoning": [
+              "Cancel x-{{a}} and x-{{c}} across the product.",
+              "The reduced product is (x-{{b}})(x-{{e}})/[(x-{{d}})(x-{{f}})].",
+              "Restrictions x={{a}},{{c}},{{d}},{{f}} all survive from the original denominators."
+            ],
+            "answerSummary": "Reduced degree-2 product with four original restrictions."
+          },
+          "attemptFeedback": [
+            "A canceled denominator factor still marks an input that was illegal in the original expression."
+          ],
+          "supportHints": [
+            "List every original denominator zero before canceling."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              },
+              "d": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              },
+              "e": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              },
+              "f": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "constraints": [
+              "a!=b",
+              "a!=c",
+              "a!=d",
+              "a!=e",
+              "a!=f",
+              "b!=c",
+              "b!=d",
+              "b!=e",
+              "b!=f",
+              "c!=d",
+              "c!=e",
+              "c!=f",
+              "d!=e",
+              "d!=f",
+              "e!=f"
+            ]
+          }
+        },
+        {
+          "coverageKey": "product-mixed-degree1-degree2",
+          "difficultyBand": 3,
+          "prompt": "Multiply $\\frac{x-({{a}})}{x-({{b}})}\\cdot\\frac{(x-({{b}}))(x-({{c}}))}{(x-({{d}}))(x-({{e}}))}$. Simplify by factor cancellation and preserve every restriction from the original degree-1 and degree-2 denominators.",
+          "responseFields": [
+            {
+              "id": "cancelled-factor",
+              "label": "Canceled factor",
+              "inputProfile": "expression",
+              "expected": "x-({{b}})"
+            },
+            {
+              "id": "restrictions",
+              "label": "All restrictions from the original rational expressions",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "expected": "{x|x!={{b}} and x!={{d}} and x!={{e}}}"
+            },
+            {
+              "id": "answer",
+              "label": "Simplified rational expression",
+              "inputProfile": "expression",
+              "equivalence": "rationalExpression",
+              "expected": "((x-({{a}}))*(x-({{c}})))/((x-({{d}}))*(x-({{e}})))"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Mixed-degree multiplication follows the same factor rule.",
+            "reasoning": [
+              "Cancel the shared factor x-{{b}}.",
+              "The reduced numerator is (x-{{a}})(x-{{c}}) and denominator is (x-{{d}})(x-{{e}}).",
+              "The original restrictions are x≠{{b}},{{d}},{{e}}."
+            ],
+            "answerSummary": "Mixed-degree product simplified without losing domain restrictions."
+          },
+          "attemptFeedback": [
+            "Cancel only the shared whole factor x-{{b}}."
+          ],
+          "supportHints": [
+            "The first denominator factor reappears in the second numerator."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              },
+              "d": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              },
+              "e": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "constraints": [
+              "a!=b",
+              "a!=c",
+              "a!=d",
+              "a!=e",
+              "b!=c",
+              "b!=d",
+              "b!=e",
+              "c!=d",
+              "c!=e",
+              "d!=e"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_7F_v2_quotient-rational-degree-variants",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7F:v2-quotient-rational-degree-variants",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7F",
+      "taskType": "application",
+      "representation": "multipleRepresentation",
+      "dok": 2,
+      "difficultyBand": 3,
+      "variants": [
+        {
+          "coverageKey": "quotient-degree1",
+          "difficultyBand": 2,
+          "prompt": "Divide $\\frac{x-({{a}})}{x-({{b}})}\\div\\frac{x-({{c}})}{x-({{d}})}$. Rewrite using the reciprocal, simplify fully, and list every value excluded by the original expressions or by making the divisor equal to zero.",
+          "responseFields": [
+            {
+              "id": "reciprocal-product",
+              "label": "Product after multiplying by the reciprocal",
+              "inputProfile": "expression",
+              "equivalence": "rationalExpression",
+              "expected": "((x-({{a}}))*(x-({{d}})))/((x-({{b}}))*(x-({{c}})))"
+            },
+            {
+              "id": "restrictions",
+              "label": "All restrictions from the original rational expressions",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "expected": "{x|x!={{b}} and x!={{c}} and x!={{d}}}"
+            },
+            {
+              "id": "answer",
+              "label": "Simplified rational expression",
+              "inputProfile": "expression",
+              "equivalence": "rationalExpression",
+              "expected": "((x-({{a}}))*(x-({{d}})))/((x-({{b}}))*(x-({{c}})))"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Division introduces both denominator restrictions and divisor-zero restrictions.",
+            "reasoning": [
+              "Multiply by the reciprocal of the second rational expression.",
+              "Original denominators exclude x={{b}} and x={{d}}.",
+              "The divisor is zero at x={{c}}, so x={{c}} is also excluded."
+            ],
+            "answerSummary": "Reciprocal product with restrictions x≠{{b}},{{c}},{{d}}."
+          },
+          "attemptFeedback": [
+            "A rational divisor may be undefined at one value and equal to zero at another; both matter."
+          ],
+          "supportHints": [
+            "For division, also exclude zeros of the divisor's numerator."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              },
+              "d": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "constraints": [
+              "a!=b",
+              "a!=c",
+              "a!=d",
+              "b!=c",
+              "b!=d",
+              "c!=d"
+            ]
+          }
+        },
+        {
+          "coverageKey": "quotient-degree2",
+          "difficultyBand": 4,
+          "prompt": "Divide $\\frac{(x-({{a}}))(x-({{b}}))}{(x-({{c}}))(x-({{d}}))}\\div\\frac{(x-({{a}}))(x-({{e}}))}{(x-({{c}}))(x-({{f}}))}$. Multiply by the reciprocal, cancel complete factors, simplify, and preserve all original and divisor-zero restrictions.",
+          "responseFields": [
+            {
+              "id": "restrictions",
+              "label": "All restrictions from the original rational expressions",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "expected": "{x|x!={{a}} and x!={{c}} and x!={{d}} and x!={{e}} and x!={{f}}}"
+            },
+            {
+              "id": "answer",
+              "label": "Simplified rational expression",
+              "inputProfile": "expression",
+              "equivalence": "rationalExpression",
+              "expected": "((x-({{b}}))*(x-({{f}})))/((x-({{d}}))*(x-({{e}})))"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A simplified quotient can hide several values that were illegal before cancellation.",
+            "reasoning": [
+              "After taking the reciprocal, x-{{a}} and x-{{c}} cancel.",
+              "The reduced quotient is (x-{{b}})(x-{{f}})/[(x-{{d}})(x-{{e}})].",
+              "The original denominators exclude {{c}},{{d}},{{f}}, and divisor zeros exclude {{a}},{{e}}."
+            ],
+            "answerSummary": "Reduced quadratic quotient with five preserved restrictions."
+          },
+          "attemptFeedback": [
+            "Write restrictions before cancellation; then add the zeros of the divisor numerator."
+          ],
+          "supportHints": [
+            "The second rational expression cannot be undefined or equal to zero."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "d": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "e": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "f": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "constraints": [
+              "a!=b",
+              "a!=c",
+              "a!=d",
+              "a!=e",
+              "a!=f",
+              "b!=c",
+              "b!=d",
+              "b!=e",
+              "b!=f",
+              "c!=d",
+              "c!=e",
+              "c!=f",
+              "d!=e",
+              "d!=f",
+              "e!=f"
+            ]
+          }
+        },
+        {
+          "coverageKey": "quotient-mixed-degree1-degree2",
+          "difficultyBand": 3,
+          "prompt": "Divide $\\frac{x-({{a}})}{x-({{b}})}\\div\\frac{(x-({{c}}))(x-({{d}}))}{(x-({{e}}))(x-({{f}}))}$. Multiply by the reciprocal, simplify completely, and preserve restrictions from both original expressions plus the divisor's zeros.",
+          "responseFields": [
+            {
+              "id": "restrictions",
+              "label": "All restrictions from the original rational expressions",
+              "inputProfile": "expression",
+              "equivalence": "setBuilder",
+              "expected": "{x|x!={{b}} and x!={{c}} and x!={{d}} and x!={{e}} and x!={{f}}}"
+            },
+            {
+              "id": "answer",
+              "label": "Simplified rational expression",
+              "inputProfile": "expression",
+              "equivalence": "rationalExpression",
+              "expected": "((x-({{a}}))*(x-({{e}}))*(x-({{f}})))/((x-({{b}}))*(x-({{c}}))*(x-({{d}})))"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Mixed-degree division can create a cubic-over-cubic product even though each original expression is degree 1 or 2.",
+            "reasoning": [
+              "Flip the degree-2 divisor and multiply.",
+              "The first denominator excludes {{b}}; the divisor denominator excludes {{e}},{{f}}.",
+              "Because the divisor cannot equal zero, {{c}} and {{d}} are excluded too."
+            ],
+            "answerSummary": "Fully simplified mixed-degree quotient with five original/divisor-zero restrictions."
+          },
+          "attemptFeedback": [
+            "Do not stop after writing the reciprocal; finish the multiplication and simplification."
+          ],
+          "supportHints": [
+            "The divisor's numerator zeros become additional restrictions in a quotient problem."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "d": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "e": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              },
+              "f": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "constraints": [
+              "a!=b",
+              "a!=c",
+              "a!=d",
+              "a!=e",
+              "a!=f",
+              "b!=c",
+              "b!=d",
+              "b!=e",
+              "b!=f",
+              "c!=d",
+              "c!=e",
+              "c!=f",
+              "d!=e",
+              "d!=f",
+              "e!=f"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_7F_v2_quotient-restriction-error-full-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7F:v2-quotient-restriction-error-full-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7F",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "dok": 3,
+      "difficultyBand": 4,
+      "prompt": "A student divides $\\frac{(x-({{a}}))(x-({{b}}))}{(x-({{c}}))(x-({{d}}))}\\div\\frac{(x-({{a}}))(x-({{e}}))}{(x-({{c}}))(x-({{f}}))}$. The student simplifies correctly to $\\frac{(x-({{b}}))(x-({{f}}))}{(x-({{d}}))(x-({{e}}))}$ but reports only x≠{{d}},{{e}} because those are the final denominator zeros. Diagnose the restriction error and give the complete correct result.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student conclusion",
+        "steps": [
+          {
+            "id": "simplified",
+            "label": "Simplified quotient",
+            "work": "$\\frac{(x-({{b}}))(x-({{f}}))}{(x-({{d}}))(x-({{e}}))}$"
+          },
+          {
+            "id": "restrictions",
+            "label": "Student restrictions",
+            "work": "$x\\ne {{d}},{{e}}$ only"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "Why are the student's restrictions incomplete?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "original-and-divisor",
+              "label": "Restrictions must come from the original denominators and also from values that make the rational divisor equal to zero; cancellation does not restore them."
+            },
+            {
+              "id": "final-only",
+              "label": "Only the final denominator matters after simplification."
+            },
+            {
+              "id": "all-real",
+              "label": "A simplified rational expression has no restrictions."
+            }
+          ],
+          "expected": "original-and-divisor"
+        },
+        {
+          "id": "restrictions",
+          "label": "All restrictions from the original rational expressions",
+          "inputProfile": "expression",
+          "equivalence": "setBuilder",
+          "expected": "{x|x!={{a}} and x!={{c}} and x!={{d}} and x!={{e}} and x!={{f}}}"
+        },
+        {
+          "id": "answer",
+          "label": "Simplified rational expression",
+          "inputProfile": "expression",
+          "equivalence": "rationalExpression",
+          "expected": "((x-({{b}}))*(x-({{f}})))/((x-({{d}}))*(x-({{e}})))"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Equivalent algebraic simplification does not rewrite the original domain of a quotient problem.",
+        "reasoning": [
+          "The original denominators exclude x={{c}},{{d}},{{f}}.",
+          "The divisor equals zero at x={{a}} and x={{e}}, so those are also excluded.",
+          "Even though x-{{a}} and x-{{c}} cancel algebraically, those original restrictions remain."
+        ],
+        "answerSummary": "Keep x≠{{a}},{{c}},{{d}},{{e}},{{f}} with the correctly simplified quotient."
+      },
+      "attemptFeedback": [
+        "List restrictions from the original problem before using cancellation to simplify."
+      ],
+      "supportHints": [
+        "For A÷B, B must be both defined and nonzero."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          },
+          "c": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          },
+          "d": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          },
+          "e": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          },
+          "f": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "constraints": [
+          "a!=b",
+          "a!=c",
+          "a!=d",
+          "a!=e",
+          "a!=f",
+          "b!=c",
+          "b!=d",
+          "b!=e",
+          "b!=f",
+          "c!=d",
+          "c!=e",
+          "c!=f",
+          "d!=e",
+          "d!=f",
+          "e!=f"
+        ]
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-clean-restriction-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student correctly simplifies the quotient of two rational expressions but lists only the zeros of the final denominator as restrictions. Diagnose why canceled factors and zeros of the divisor still matter, then give the complete restriction set and simplified quotient.",
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -4,
+                  -3,
+                  -2,
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "b": {
+                "type": "choice",
+                "values": [
+                  -5,
+                  -1,
+                  1,
+                  5
+                ]
+              },
+              "c": {
+                "type": "choice",
+                "values": [
+                  -6,
+                  -2,
+                  2,
+                  6
+                ]
+              },
+              "d": {
+                "type": "choice",
+                "values": [
+                  -7,
+                  -3,
+                  3,
+                  7
+                ]
+              },
+              "e": {
+                "type": "choice",
+                "values": [
+                  -8,
+                  -4,
+                  4,
+                  8
+                ]
+              },
+              "f": {
+                "type": "choice",
+                "values": [
+                  -9,
+                  -5,
+                  5,
+                  9
+                ]
+              }
+            },
+            "constraints": [
+              "a!=b",
+              "a!=c",
+              "a!=d",
+              "a!=e",
+              "a!=f",
+              "b!=c",
+              "b!=d",
+              "b!=e",
+              "b!=f",
+              "c!=d",
+              "c!=e",
+              "c!=f",
+              "d!=e",
+              "d!=f",
+              "e!=f"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

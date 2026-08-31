@@ -1,0 +1,591 @@
+{
+  "standard": "A.7C",
+  "verdict": "KEEP",
+  "certificationStatus": "candidate-keep-mathematics-certified-and-metadata-hardened",
+  "documents": [
+    {
+      "id": "mm_A_7C_v2_transform-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7C:v2-transform-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7C",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Graph $y={{a}}(x-{{h}})^2 {{k|signed}}$ and identify its vertex.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Relative to $y=x^2$, the values $h$ and $k$ locate the translated vertex.",
+          "The coefficient $a$ controls reflection and vertical stretch/compression."
+        ],
+        "answerSummary": "The vertex is $({{h}},{{k}})$."
+      },
+      "attemptFeedback": [
+        "Use vertex form to separate horizontal shift, vertical shift, reflection, and vertical stretch/compression."
+      ],
+      "supportHints": [
+        "In y=a(x-h)^2+k, (h,k) is the vertex and the sign/magnitude of a controls opening and vertical scale."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        }
+      },
+      "type": "functionInvestigation",
+      "functionSpec": {
+        "type": "quadratic",
+        "a": "{{a}}",
+        "h": "{{h}}",
+        "k": "{{k}}"
+      },
+      "graph": {
+        "xMin": -9,
+        "xMax": 9,
+        "yMin": -18,
+        "yMax": 20
+      },
+      "pointTasks": [
+        {
+          "id": "vertex",
+          "label": "Plot the vertex",
+          "x": "{{h}}",
+          "expected": [
+            "{{h}}",
+            "{{k}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "k",
+          "label": "What is the vertical shift?",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "{{k}}"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7C_v2_horizontal-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7C:v2-horizontal-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7C",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "For $y=(x-{{h}})^2$, how many units to the right is the parent graph translated?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Inside the function, subtracting {{h}} shifts the graph right by {{h}}.",
+          "The vertex moves from $(0,0)$ to $({{h}},0)$."
+        ],
+        "answerSummary": "The shift is {{h}} units right."
+      },
+      "attemptFeedback": [
+        "Use vertex form to separate horizontal shift, vertical shift, reflection, and vertical stretch/compression."
+      ],
+      "supportHints": [
+        "In y=a(x-h)^2+k, (h,k) is the vertex and the sign/magnitude of a controls opening and vertical scale."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{h}}"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-basic-vertex-translations",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "For $y=(x-{{h}})^2{{k|signed}}$, identify the horizontal translation, vertical translation, and vertex relative to the parent $y=x^2$.",
+          "responseFields": [
+            {
+              "id": "horizontal",
+              "label": "Units shifted right",
+              "inputProfile": "number",
+              "expected": "{{h}}"
+            },
+            {
+              "id": "vertical",
+              "label": "Vertical shift",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "vertex-x",
+              "label": "Vertex x-coordinate",
+              "inputProfile": "number",
+              "expected": "{{h}}"
+            },
+            {
+              "id": "vertex-y",
+              "label": "Vertex y-coordinate",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Vertex form displays the two translations directly.",
+            "reasoning": [
+              "The inside subtraction x-{{h}} moves the parent right {{h}} units.",
+              "The outside change {{k}} moves the graph vertically by {{k}}.",
+              "The vertex is therefore ({{h}},{{k}})."
+            ],
+            "answerSummary": "Vertex ({{h}},{{k}})."
+          },
+          "attemptFeedback": [
+            "Read horizontal movement from inside the square and vertical movement from outside."
+          ],
+          "supportHints": [
+            "In (x-h)^2+k, the vertex is (h,k)."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "k": {
+                "type": "int",
+                "min": -3,
+                "max": 3,
+                "exclude": [
+                  0
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7C_v2_vertical-context",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7C:v2-vertical-context",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7C",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A quadratic model is increased by {{k}} units at every input. By how much does the vertex $y$-coordinate change?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Adding a constant to every output is a vertical translation.",
+          "Every point, including the vertex, moves up by that amount."
+        ],
+        "answerSummary": "The vertex output increases by {{k}}."
+      },
+      "attemptFeedback": [
+        "Use vertex form to separate horizontal shift, vertical shift, reflection, and vertical stretch/compression."
+      ],
+      "supportHints": [
+        "In y=a(x-h)^2+k, (h,k) is the vertex and the sign/magnitude of a controls opening and vertical scale."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 1,
+            "max": 15
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7C_v2_reflection",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7C:v2-reflection",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7C",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student claims reflecting $y={{a}}(x-{{h}})^2{{k|signed}}$ across the x-axis changes only the vertical shift and leaves the leading multiplier unchanged. What is the correct new leading multiplier?",
+      "solutionReview": {
+        "headline": "An x-axis reflection negates the whole function output.",
+        "reasoning": [
+          "Reflecting across the x-axis multiplies every output by -1.",
+          "That changes the leading multiplier from {{a}} to {{newa}}."
+        ],
+        "answerSummary": "New leading multiplier {{newa}}."
+      },
+      "attemptFeedback": [
+        "Use vertex form to separate horizontal shift, vertical shift, reflection, and vertical stretch/compression."
+      ],
+      "supportHints": [
+        "In y=a(x-h)^2+k, (h,k) is the vertex and the sign/magnitude of a controls opening and vertical scale."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        },
+        "derived": {
+          "newa": "-a"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{newa}}"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-reflect-entire-parabola-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "The parabola $y={{a}}(x-({{h}}))^2{{k|signed}}$ is reflected across the x-axis. Student A changes only a to {{newa}} and leaves the vertex y-coordinate {{k}} unchanged. Student B says EVERY output must be negated. Determine whose reasoning is correct, give the reflected vertex, and write the complete reflected equation.",
+          "responseFields": [
+            {
+              "id": "student",
+              "label": "Whose reasoning is correct?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "b",
+                  "label": "Student B; an x-axis reflection negates every output."
+                },
+                {
+                  "id": "a",
+                  "label": "Student A; only the leading multiplier changes."
+                }
+              ],
+              "expected": "b"
+            },
+            {
+              "id": "new-a",
+              "label": "Reflected leading multiplier",
+              "inputProfile": "number",
+              "expected": "{{newa}}"
+            },
+            {
+              "id": "vertex-x",
+              "label": "Reflected vertex x-coordinate",
+              "inputProfile": "number",
+              "expected": "{{h}}"
+            },
+            {
+              "id": "vertex-y",
+              "label": "Reflected vertex y-coordinate",
+              "inputProfile": "number",
+              "expected": "{{newk}}"
+            },
+            {
+              "id": "equation",
+              "label": "Complete reflected equation",
+              "inputProfile": "equation",
+              "expected": "y={{newa}}(x-({{h}}))^2+({{newk}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Reflecting across the x-axis negates the complete function output, not one isolated parameter.",
+            "reasoning": [
+              "The multiplier changes from {{a}} to {{newa}}.",
+              "The vertex ({{h}},{{k}}) reflects to ({{h}},{{newk}}).",
+              "The reflected equation is y={{newa}}(x-({{h}}))^2+({{newk}})."
+            ],
+            "answerSummary": "Student B is correct; reflected vertex ({{h}},{{newk}})."
+          },
+          "attemptFeedback": [
+            "Track what happens to an actual point such as the vertex when every y-value is negated."
+          ],
+          "supportHints": [
+            "An x-axis reflection maps (x,y) to (x,-y)."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -2,
+                  -1,
+                  1,
+                  2
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "newa": "-a",
+              "newk": "-k"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_7C_v2_recover-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.7C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.7C:v2-recover-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.7C",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "A parabola has vertex $({{h}},{{k}})$. Relative to $y=x^2$, what is the vertical translation?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The parent vertex is $(0,0)$.",
+          "The new vertex output directly gives the vertical translation."
+        ],
+        "answerSummary": "The vertical translation is ${{k}}$."
+      },
+      "attemptFeedback": [
+        "Use vertex form to separate horizontal shift, vertical shift, reflection, and vertical stretch/compression."
+      ],
+      "supportHints": [
+        "In y=a(x-h)^2+k, (h,k) is the vertex and the sign/magnitude of a controls opening and vertical scale."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "k": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-reverse-quadratic-transformations-from-vertex-point",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "reverseReasoning",
+          "representation": "multipleRepresentation",
+          "prompt": "A transformed parabola has vertex $({{h}},{{k}})$ and passes through $({{x1}},{{y1}})$. Starting from the parent $y=x^2$, recover the vertical multiplier a from the point, determine whether an x-axis reflection occurred, identify the horizontal and vertical translations, and write the complete vertex-form equation.",
+          "responseFields": [
+            {
+              "id": "a",
+              "label": "Vertical multiplier a",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "reflection",
+              "label": "Was there a reflection across the x-axis?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "horizontal-shift",
+              "label": "Horizontal translation h",
+              "inputProfile": "number",
+              "expected": "{{h}}"
+            },
+            {
+              "id": "vertical-shift",
+              "label": "Vertical translation k",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "equation",
+              "label": "Complete vertex-form equation",
+              "inputProfile": "equation",
+              "expected": "y={{a}}(x-({{h}}))^2+({{k}})"
+            },
+            {
+              "id": "verify-point",
+              "label": "Model value at x={{x1}}",
+              "inputProfile": "number",
+              "expected": "{{y1}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A vertex fixes h and k; one additional point determines the vertical scale and reflection.",
+            "reasoning": [
+              "The vertex gives h={{h}} and k={{k}}.",
+              "At x={{x1}}=h+1, the squared factor is 1, so y-k=a and therefore a={{a}}.",
+              "Because a is negative, the parent parabola was reflected across the x-axis. The complete model reproduces y={{y1}} at the supplied point."
+            ],
+            "answerSummary": "$y={{a}}(x-({{h}}))^2+({{k}})$"
+          },
+          "attemptFeedback": [
+            "Use the vertex first, then substitute the extra point to solve for a."
+          ],
+          "supportHints": [
+            "Choosing a point one unit from the vertex makes (x-h)^2=1."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "k": {
+                "type": "int",
+                "min": -9,
+                "max": 9
+              },
+              "a": {
+                "type": "choice",
+                "values": [
+                  -4,
+                  -3,
+                  -2
+                ]
+              }
+            },
+            "derived": {
+              "x1": "h+1",
+              "y1": "a+k"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,601 @@
+{
+  "standard": "A2.6H",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-student-authored-rational-equations-from-work-speed-current-concentration-error-contexts",
+  "rationale": "A2.6H requires formulation from real-world situations. Every Fidelity V2 family therefore makes the student author a rational equation with an identified unknown; pure inverse-variation work is left to A2.6L.",
+  "documents": [
+    {
+      "id": "mm_A2_6H_v2_combined-work-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6H:v2-combined-work-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6H",
+      "representation": "context",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "modeling",
+      "prompt": "Machine A completes one job in {{a}} hours and machine B in {{b}} hours. Let t be the hours needed when they work together. Formulate the rational equation; do not solve for t.",
+      "responseFields": [
+        {
+          "id": "rate-a",
+          "label": "Machine A rate",
+          "inputProfile": "expression",
+          "expected": "1/{{a}}"
+        },
+        {
+          "id": "rate-b",
+          "label": "Machine B rate",
+          "inputProfile": "expression",
+          "expected": "1/{{b}}"
+        },
+        {
+          "id": "equation",
+          "label": "Combined-work rational equation",
+          "inputProfile": "equation",
+          "equivalence": "modelEquation",
+          "expected": "1/{{a}}+1/{{b}}=1/t"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 3,
+            "max": 10
+          },
+          "b": {
+            "type": "int",
+            "min": 3,
+            "max": 12
+          }
+        }
+      },
+      "solutionReview": {
+        "headline": "Work rates add when both machines contribute to the same job.",
+        "reasoning": [
+          "A machine that finishes one job in {{a}} hours has rate $1/{{a}}$ job per hour; the other has rate $1/{{b}}$.",
+          "Working together, their rates add and must equal the combined rate $1/t$."
+        ],
+        "answerSummary": "$1/{{a}}+1/{{b}}=1/t$."
+      }
+    },
+    {
+      "id": "mm_A2_6H_v2_average-speed-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6H:v2-average-speed-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6H",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "modeling",
+      "prompt": "A trip has two segments. Let v be the overall average speed. Use total time = total distance ÷ average speed to formulate a rational equation in v. Do not solve.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Segment",
+            "Distance",
+            "Speed"
+          ],
+          "rows": [
+            [
+              "1",
+              "{{d1}} mi",
+              "{{v1}} mph"
+            ],
+            [
+              "2",
+              "{{d2}} mi",
+              "{{v2}} mph"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "time1",
+          "label": "Segment 1 time",
+          "inputProfile": "expression",
+          "expected": "{{d1}}/{{v1}}"
+        },
+        {
+          "id": "time2",
+          "label": "Segment 2 time",
+          "inputProfile": "expression",
+          "expected": "{{d2}}/{{v2}}"
+        },
+        {
+          "id": "equation",
+          "label": "Average-speed rational equation",
+          "inputProfile": "equation",
+          "equivalence": "modelEquation",
+          "expected": "{{d1}}/{{v1}}+{{d2}}/{{v2}}=({{d1}}+{{d2}})/v"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "d1": {
+            "type": "int",
+            "min": 20,
+            "max": 100,
+            "step": 10
+          },
+          "d2": {
+            "type": "int",
+            "min": 20,
+            "max": 100,
+            "step": 10
+          },
+          "v1": {
+            "type": "int",
+            "min": 25,
+            "max": 60,
+            "step": 5
+          },
+          "v2": {
+            "type": "int",
+            "min": 25,
+            "max": 60,
+            "step": 5
+          }
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-three-segment-average-speed",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "modeling",
+          "representation": "table",
+          "prompt": "A trip has three segments. Let v be the overall average speed. Use total time = total distance ÷ average speed to formulate one rational equation in v. Do not solve.",
+          "stimulus": {
+            "kind": "table",
+            "table": {
+              "headers": [
+                "Segment",
+                "Distance",
+                "Speed"
+              ],
+              "rows": [
+                [
+                  "1",
+                  "{{d1}} mi",
+                  "{{v1}} mph"
+                ],
+                [
+                  "2",
+                  "{{d2}} mi",
+                  "{{v2}} mph"
+                ],
+                [
+                  "3",
+                  "{{d3}} mi",
+                  "{{v3}} mph"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "time1",
+              "label": "Segment 1 time",
+              "inputProfile": "expression",
+              "expected": "{{d1}}/{{v1}}"
+            },
+            {
+              "id": "time2",
+              "label": "Segment 2 time",
+              "inputProfile": "expression",
+              "expected": "{{d2}}/{{v2}}"
+            },
+            {
+              "id": "time3",
+              "label": "Segment 3 time",
+              "inputProfile": "expression",
+              "expected": "{{d3}}/{{v3}}"
+            },
+            {
+              "id": "equation",
+              "label": "Average-speed rational equation",
+              "inputProfile": "equation",
+              "equivalence": "modelEquation",
+              "expected": "{{d1}}/{{v1}}+{{d2}}/{{v2}}+{{d3}}/{{v3}}=({{d1}}+{{d2}}+{{d3}})/v"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A longer trip model is still built by equating total segment time to total-distance over average speed.",
+            "reasoning": [
+              "The three segment times are distance divided by segment speed.",
+              "Add those three times to get the actual total travel time.",
+              "Set that sum equal to total distance divided by the unknown average speed v."
+            ],
+            "answerSummary": "Form one three-term rational time equation in v; do not solve it."
+          },
+          "attemptFeedback": [
+            "Model each segment time separately before writing the one total-time equation."
+          ],
+          "supportHints": [
+            "Average speed is not the arithmetic mean of the three speeds; use total distance ÷ total time."
+          ],
+          "generator": {
+            "parameters": {
+              "d1": {
+                "type": "int",
+                "min": 20,
+                "max": 80,
+                "step": 10
+              },
+              "d2": {
+                "type": "int",
+                "min": 20,
+                "max": 80,
+                "step": 10
+              },
+              "d3": {
+                "type": "int",
+                "min": 20,
+                "max": 80,
+                "step": 10
+              },
+              "v1": {
+                "type": "int",
+                "min": 25,
+                "max": 65,
+                "step": 5
+              },
+              "v2": {
+                "type": "int",
+                "min": 25,
+                "max": 65,
+                "step": 5
+              },
+              "v3": {
+                "type": "int",
+                "min": 25,
+                "max": 65,
+                "step": 5
+              }
+            }
+          }
+        }
+      ],
+      "solutionReview": {
+        "headline": "Average speed must be built from total distance divided by total time.",
+        "reasoning": [
+          "The segment times are distance divided by speed: ${{d1}}/{{v1}}$ and ${{d2}}/{{v2}}$.",
+          "Total time is their sum, while the same trip written with overall average speed v has time $({{d1}}+{{d2}})/v$.",
+          "Equating those two expressions formulates the required rational model."
+        ],
+        "answerSummary": "${{d1}}/{{v1}}+{{d2}}/{{v2}}=({{d1}}+{{d2}})/v$."
+      }
+    },
+    {
+      "id": "mm_A2_6H_v2_round-trip-current-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6H:v2-round-trip-current-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6H",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "modeling",
+      "prompt": "A boat travels {{d}} miles upstream and {{d}} miles downstream in a total of {{T}} hours. The current is {{c}} mph. Let v be the boat's speed in still water. Formulate the rational equation in v; do not solve it.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Leg",
+            "Distance",
+            "Actual speed"
+          ],
+          "rows": [
+            [
+              "Upstream",
+              "{{d}}",
+              "$v-{{c}}$"
+            ],
+            [
+              "Downstream",
+              "{{d}}",
+              "$v+{{c}}$"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "up-time",
+          "label": "Upstream time",
+          "inputProfile": "expression",
+          "expected": "{{d}}/(v-{{c}})"
+        },
+        {
+          "id": "down-time",
+          "label": "Downstream time",
+          "inputProfile": "expression",
+          "expected": "{{d}}/(v+{{c}})"
+        },
+        {
+          "id": "equation",
+          "label": "Round-trip rational equation",
+          "inputProfile": "equation",
+          "equivalence": "modelEquation",
+          "expected": "{{d}}/(v-{{c}})+{{d}}/(v+{{c}})={{T}}"
+        },
+        {
+          "id": "restriction",
+          "label": "Physical restriction on v",
+          "inputProfile": "inequality",
+          "expected": "v>{{c}}"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "d": {
+            "type": "int",
+            "min": 20,
+            "max": 80,
+            "step": 10
+          },
+          "c": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "T": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          }
+        }
+      },
+      "solutionReview": {
+        "headline": "Current changes the upstream and downstream rates in opposite directions.",
+        "reasoning": [
+          "Upstream speed is $v-{{c}}$, so upstream time is ${{d}}/(v-{{c}})$.",
+          "Downstream speed is $v+{{c}}$, so downstream time is ${{d}}/(v+{{c}})$.",
+          "Their times sum to {{T}} hours. Physically, $v>{{c}}$ is required so the upstream speed is positive."
+        ],
+        "answerSummary": "${{d}}/(v-{{c}})+{{d}}/(v+{{c}})={{T}}$, with $v>{{c}}$."
+      }
+    },
+    {
+      "id": "mm_A2_6H_v2_dilution-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6H:v2-dilution-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6H",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "modeling",
+      "prompt": "A solution contains {{solute}} units of solute in {{V}} units of liquid. Pure solvent is added, so the solute amount stays fixed. Let x be the solvent added. Formulate the rational equation that makes the final concentration 20%. Do not solve.",
+      "responseFields": [
+        {
+          "id": "new-volume",
+          "label": "Final volume",
+          "inputProfile": "expression",
+          "expected": "{{V}}+x"
+        },
+        {
+          "id": "equation",
+          "label": "Dilution rational equation",
+          "inputProfile": "equation",
+          "equivalence": "modelEquation",
+          "expected": "{{solute}}/({{V}}+x)=0.2"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "V": {
+            "type": "int",
+            "min": 20,
+            "max": 60,
+            "step": 5
+          },
+          "x0": {
+            "type": "int",
+            "min": 10,
+            "max": 30,
+            "step": 5
+          }
+        },
+        "derived": {
+          "solute": "(V+x0)/5"
+        }
+      },
+      "solutionReview": {
+        "headline": "Adding pure solvent changes volume but not the amount of solute.",
+        "reasoning": [
+          "The solute amount stays {{solute}} while the final volume becomes ${{V}}+x$.",
+          "Concentration is solute divided by total volume, so a 20% target is represented by ${{solute}}/({{V}}+x)=0.2$."
+        ],
+        "answerSummary": "${{solute}}/({{V}}+x)=0.2$."
+      }
+    },
+    {
+      "id": "mm_A2_6H_v2_opposing-rates-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6H:v2-opposing-rates-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6H",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A fill pipe fills a tank in {{a}} hours while a drain empties it in {{b}} hours. Let t be the net fill time with both open. A student adds both rates as positive. Diagnose the sign error and formulate the corrected rational equation. Do not solve.",
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "Diagnosis",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "subtract",
+              "label": "The drain removes work, so its rate must be subtracted."
+            },
+            {
+              "id": "add",
+              "label": "Both rates should be added."
+            },
+            {
+              "id": "times",
+              "label": "The completion times should be added directly."
+            }
+          ],
+          "expected": "subtract"
+        },
+        {
+          "id": "equation",
+          "label": "Correct net-rate equation",
+          "inputProfile": "equation",
+          "equivalence": "modelEquation",
+          "expected": "1/{{a}}-1/{{b}}=1/t"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 3,
+            "max": 7
+          },
+          "gap": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "b": "a+gap"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-simple-drain-sign-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A fill pipe completes a tank in {{a}} hours and a drain empties the same tank in {{b}} hours. A student models both as positive contributions and writes $1/{{a}}+1/{{b}}=1/t$. Diagnose the modeling error and formulate the corrected net-rate equation. Do not solve.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Diagnosis",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "subtract",
+                  "label": "The drain removes tank volume, so its rate must be subtracted from the fill rate."
+                },
+                {
+                  "id": "add",
+                  "label": "Both rates should be positive because both devices are operating."
+                },
+                {
+                  "id": "times",
+                  "label": "Add the completion times instead of the rates."
+                }
+              ],
+              "expected": "subtract"
+            },
+            {
+              "id": "equation",
+              "label": "Correct net-rate equation",
+              "inputProfile": "equation",
+              "equivalence": "modelEquation",
+              "expected": "1/{{a}}-1/{{b}}=1/t"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Opposing processes have opposite rate signs.",
+            "reasoning": [
+              "The fill pipe contributes +1/{{a}} tank per hour.",
+              "The drain contributes -1/{{b}} tank per hour.",
+              "Therefore the net-rate model is $1/{{a}}-1/{{b}}=1/t$."
+            ],
+            "answerSummary": "Subtract the drain rate; do not solve for t."
+          },
+          "attemptFeedback": [
+            "Reason about whether each process adds to or removes from the completed job."
+          ],
+          "supportHints": [
+            "A drain works against a fill pipe, so its contribution is negative."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 3,
+                "max": 6
+              },
+              "gap": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              }
+            },
+            "derived": {
+              "b": "a+gap"
+            }
+          }
+        }
+      ],
+      "solutionReview": {
+        "headline": "A drain contributes a negative work rate.",
+        "reasoning": [
+          "The fill pipe contributes $1/{{a}}$ tank per hour.",
+          "The drain removes $1/{{b}}$ tank per hour, so its rate must be subtracted rather than added.",
+          "The net rate equals $1/t$, giving the corrected rational equation."
+        ],
+        "answerSummary": "$1/{{a}}-1/{{b}}=1/t$."
+      }
+    }
+  ]
+}

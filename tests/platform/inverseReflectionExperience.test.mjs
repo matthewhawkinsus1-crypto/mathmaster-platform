@@ -49,6 +49,46 @@ test('legacy live inverse-point question upgrades at issue time', () => {
   assert.equal(publicText.includes('(x-(-5))/4'), false);
 });
 
+test('secure inverse graph payload carries only the allowlisted table stimulus', () => {
+  const payload = buildPublicToolPayload({
+    ...legacyLiveQuestion,
+    id: 'a2-2b-table-secure-stimulus',
+    stimulus: {
+      kind: 'table',
+      title: 'Values of f',
+      note: 'Use the table to plot the original function.',
+      table: {
+        headers: ['x', 'f(x)'],
+        rows: [
+          [-1, -9],
+          { cells: [0, -5] },
+          [3, 7],
+        ],
+      },
+      expected: 'DO-NOT-LEAK',
+      answer: 'DO-NOT-LEAK',
+      privateSolution: { reflected: [[-9, -1]] },
+    },
+  });
+
+  assert.deepEqual(payload.tool.stimulus, {
+    kind: 'table',
+    title: 'Values of f',
+    note: 'Use the table to plot the original function.',
+    table: {
+      headers: ['x', 'f(x)'],
+      rows: [
+        { cells: ['-1', '-9'] },
+        { cells: ['0', '-5'] },
+        { cells: ['3', '7'] },
+      ],
+    },
+  });
+  const publicText = JSON.stringify(payload.tool);
+  assert.equal(publicText.includes('DO-NOT-LEAK'), false);
+  assert.equal(publicText.includes('privateSolution'), false);
+});
+
 test('secure grader requires both reflected points and inverse equation', () => {
   const privateGrading = buildPrivateToolGrading(legacyLiveQuestion);
   const result = gradePathResponse({
@@ -100,7 +140,10 @@ test('workspace contains the full reflection interaction', () => {
   const source = readFileSync('src/InteractiveGraphWorkspace.jsx', 'utf8');
   assert.match(source, /request\.kind === 'inversePoint'/);
   assert.match(source, /Check Reflected Points/);
-  assert.match(source, /Draw the inverse line through both points/);
+  assert.match(source, /PathQuestionStimulus/);
+  assert.match(source, /stimulus=\{question\.stimulus\}/);
+  assert.match(source, /inverseReflection\?\.inverseLineLabel/);
+  assert.doesNotMatch(source, /Draw the inverse line through both points/);
   assert.match(source, />y = x</);
   assert.match(source, /inverseIdealPaths/);
   assert.match(source, /inverseSnapped/);
@@ -108,17 +151,23 @@ test('workspace contains the full reflection interaction', () => {
   assert.match(source, /Reset Inverse/);
 });
 
-test('canonical Algebra II seed declares inverseReflection in both mirrors', () => {
+test('canonical Algebra II seed declares inverseReflection across the promoted A2.2B families in both mirrors', () => {
   for (const seedPath of [
     'functions/seeds/pathQuestionBank/algebra2_pathQuestionBank_seed.json',
     'seed/pathQuestionBank/algebra2_pathQuestionBank_seed.json',
   ]) {
     const parsed = JSON.parse(readFileSync(seedPath, 'utf8'));
     const docs = Array.isArray(parsed) ? parsed : (parsed.documents || parsed.items || parsed.questions || []);
-    const item = docs.find((entry) => entry.id === 'mm_A2_2B_gen2_inverse-point-graph');
-    assert.equal(item.inverseReflection.enabled, true);
-    assert.equal(item.inverseReflection.requireInverseSketch, true);
-    assert.equal(item.inverseReflection.requireInverseEquation, true);
-    assert.match(item.prompt, /reflect both plotted points/i);
+    const families = docs.filter((entry) => (
+      entry.assessedConstruct === 'A2.2B'
+      && entry.type === 'functionInvestigation'
+    ));
+    assert.equal(families.length, 5, `${seedPath} must retain all five certified A2.2B inverse families`);
+    for (const item of families) {
+      assert.equal(item.inverseReflection?.enabled, true, item.id);
+      assert.equal(item.inverseReflection?.requireInverseSketch, true, item.id);
+      assert.equal(item.inverseReflection?.requireInverseEquation, true, item.id);
+      assert.match(item.prompt, /reflect/i, item.id);
+    }
   }
 });

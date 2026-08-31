@@ -1,0 +1,658 @@
+{
+  "standard": "A2.4E",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-authentic-technology-quadratic-and-square-root-regression-from-overdetermined-tables",
+  "rationale": "A2.4E explicitly requires formulating quadratic and square-root equations using technology from a table. Fidelity V2 uses the secure Data Modeling Lab for both families, requires full fitted coefficients plus a model prediction, and gives more observations than the minimum needed so the task cannot collapse into hand-fitting two or three convenient points.",
+  "documents": [
+    {
+      "id": "mm_A2_4E_v2_quadratic-regression-table",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4E:v2-quadratic-regression-table",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.4E",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "type": "dataModelingLab",
+      "mode": "quadraticFitPrediction",
+      "prompt": "Use quadratic regression technology on the full five-row table to formulate the model $y=ax^2+bx+c$. Enter all three regression coefficients, then use that fitted model to predict y when $x=3$.",
+      "points": [
+        [
+          -2,
+          "{{ym2}}"
+        ],
+        [
+          -1,
+          "{{ym1}}"
+        ],
+        [
+          0,
+          "{{y0}}"
+        ],
+        [
+          1,
+          "{{y1}}"
+        ],
+        [
+          2,
+          "{{y2}}"
+        ]
+      ],
+      "predictionX": 3,
+      "quadraticATolerance": 0.015,
+      "quadraticBTolerance": 0.03,
+      "quadraticCTolerance": 0.05,
+      "predictionTolerance": 0.08,
+      "context": {
+        "title": "Quadratic regression from a table",
+        "note": "Use the regression feature on all five observations. The table has more than the three points minimally needed to determine a quadratic."
+      },
+      "solutionReview": {
+        "headline": "Regression technology uses the complete table to formulate the quadratic model.",
+        "reasoning": [
+          "Running quadratic regression on all five rows returns the coefficients a={{a}}, b={{b}}, and c={{c}}.",
+          "The fitted model is $y={{a}}x^2+({{b}})x+({{c}})$.",
+          "Evaluating the fitted model at x=3 gives {{pred}}."
+        ],
+        "answerSummary": "$y={{a}}x^2+({{b}})x+({{c}})$; prediction {{pred}}."
+      },
+      "attemptFeedback": [
+        "Use the quadratic-regression command on the full data set rather than fitting only three selected points."
+      ],
+      "supportHints": [
+        "Record all three technology outputs a, b, and c before making the prediction."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "c": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "ym2": "4*a-2*b+c",
+          "ym1": "a-b+c",
+          "y0": "c",
+          "y1": "a+b+c",
+          "y2": "4*a+2*b+c",
+          "pred": "9*a+3*b+c"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-symmetric-quadratic-regression",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "procedural",
+          "representation": "table",
+          "prompt": "Use quadratic regression technology on all five symmetric observations to formulate $y=ax^2+c$ (the fitted x-term is 0). Enter a, b, and c from technology, then predict y at x=3.",
+          "context": {
+            "title": "Accessible quadratic regression",
+            "note": "The table is symmetric about x=0, but you must still use the regression tool and enter all three reported coefficients."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  1,
+                  2,
+                  -1,
+                  -2
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            },
+            "derived": {
+              "b": "0",
+              "ym2": "4*a+c",
+              "ym1": "a+c",
+              "y0": "c",
+              "y1": "a+c",
+              "y2": "4*a+c",
+              "pred": "9*a+c"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_4E_v2_quadratic-context-interpolation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4E:v2-quadratic-context-interpolation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.4E",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "modeling",
+      "type": "dataModelingLab",
+      "mode": "quadraticFitPrediction",
+      "prompt": "A lab records five measurements of a curved response. Use quadratic regression technology to formulate the model $y=ax^2+bx+c$ from the complete table, then interpolate the response at $x=1$.",
+      "points": [
+        [
+          -3,
+          "{{ym3}}"
+        ],
+        [
+          -1,
+          "{{ym1}}"
+        ],
+        [
+          0,
+          "{{y0}}"
+        ],
+        [
+          2,
+          "{{y2}}"
+        ],
+        [
+          4,
+          "{{y4}}"
+        ]
+      ],
+      "predictionX": 1,
+      "quadraticATolerance": 0.015,
+      "quadraticBTolerance": 0.03,
+      "quadraticCTolerance": 0.05,
+      "predictionTolerance": 0.08,
+      "context": {
+        "title": "Five-measurement response model",
+        "note": "The requested x=1 lies inside the observed x-range but is not one of the measured rows."
+      },
+      "solutionReview": {
+        "headline": "Technology formulates the model; interpolation uses that fitted equation inside the observed range.",
+        "reasoning": [
+          "Quadratic regression on all five measurements returns a={{a}}, b={{b}}, c={{c}}.",
+          "The model is $y={{a}}x^2+({{b}})x+({{c}})$.",
+          "At x=1 the model predicts {{pred}}, an interpolation because 1 lies inside the measured x-range."
+        ],
+        "answerSummary": "$y={{a}}x^2+({{b}})x+({{c}})$; $y(1)={{pred}}$."
+      },
+      "attemptFeedback": [
+        "Do not label the prediction as extrapolation; x=1 is between observed inputs."
+      ],
+      "supportHints": [
+        "Run regression first, then evaluate the fitted model at the fixed target x=1."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -2,
+            "max": 2,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "c": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        },
+        "derived": {
+          "ym3": "9*a-3*b+c",
+          "ym1": "a-b+c",
+          "y0": "c",
+          "y2": "4*a+2*b+c",
+          "y4": "16*a+4*b+c",
+          "pred": "a+b+c"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4E_v2_square-root-regression-extrapolation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4E:v2-square-root-regression-extrapolation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.4E",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "type": "dataModelingLab",
+      "mode": "squareRootFitPrediction",
+      "prompt": "Use the square-root regression technology on the complete five-row table to formulate $y=a\\sqrt{x-h}+k$. Enter a, h, and k from the technology fit, then predict y at $x={{x25}}$.",
+      "points": [
+        [
+          "{{h}}",
+          "{{k}}"
+        ],
+        [
+          "{{x1}}",
+          "{{y1}}"
+        ],
+        [
+          "{{x4}}",
+          "{{y4}}"
+        ],
+        [
+          "{{x9}}",
+          "{{y9}}"
+        ],
+        [
+          "{{x16}}",
+          "{{y16}}"
+        ]
+      ],
+      "predictionX": "{{x25}}",
+      "squareRootATolerance": 0.02,
+      "squareRootHTolerance": 0.02,
+      "squareRootKTolerance": 0.03,
+      "predictionTolerance": 0.08,
+      "context": {
+        "title": "Square-root model fit",
+        "note": "The endpoint is the smallest x-row. The technology uses every later observation to fit the scale parameter a."
+      },
+      "solutionReview": {
+        "headline": "Square-root technology identifies the endpoint and fits the scale from the full table.",
+        "reasoning": [
+          "The smallest-x row gives h={{h}} and k={{k}}.",
+          "The full-table least-squares fit gives a={{a}}.",
+          "The fitted model predicts {{pred}} at x={{x25}}; this is extrapolation beyond the observed x-range."
+        ],
+        "answerSummary": "$y={{a}}\\sqrt{x-({{h}})}+({{k}})$; prediction {{pred}}."
+      },
+      "attemptFeedback": [
+        "Use the square-root fit on all five rows; do not estimate a from one convenient point."
+      ],
+      "supportHints": [
+        "Enter all three parameters a, h, and k exactly as the technology reports them, then use the fixed prediction x-value."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "x1": "h+1",
+          "x4": "h+4",
+          "x9": "h+9",
+          "x16": "h+16",
+          "x25": "h+25",
+          "y1": "a+k",
+          "y4": "2*a+k",
+          "y9": "3*a+k",
+          "y16": "4*a+k",
+          "pred": "5*a+k"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-fractional-scale-square-root-fit",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "multipleRepresentation",
+          "prompt": "Use square-root regression technology on all five rows to formulate $y=a\\sqrt{x-h}+k$. The fitted scale a is non-integer. Enter a, h, and k and extrapolate to x={{x25}}.",
+          "context": {
+            "title": "Square-root regression with fractional scale",
+            "note": "Use all five observations. The non-integer scale makes the numeric fit more demanding, but the regression procedure is unchanged."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  1.5,
+                  2.5,
+                  3.5
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "k": {
+                "type": "choice",
+                "values": [
+                  -2.5,
+                  -1.5,
+                  0.5,
+                  1.5,
+                  2.5
+                ]
+              }
+            },
+            "derived": {
+              "x1": "h+1",
+              "x4": "h+4",
+              "x9": "h+9",
+              "x16": "h+16",
+              "x25": "h+25",
+              "y1": "a+k",
+              "y4": "2*a+k",
+              "y9": "3*a+k",
+              "y16": "4*a+k",
+              "pred": "5*a+k"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_4E_v2_square-root-context-interpolation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4E:v2-square-root-context-interpolation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.4E",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "modeling",
+      "type": "dataModelingLab",
+      "mode": "squareRootFitPrediction",
+      "prompt": "A sensor response follows a square-root pattern. Use the regression technology on all five observations to formulate $y=a\\sqrt{x-h}+k$, then interpolate the response at $x={{x625}}$.",
+      "points": [
+        [
+          "{{h}}",
+          "{{k}}"
+        ],
+        [
+          "{{x1}}",
+          "{{y1}}"
+        ],
+        [
+          "{{x4}}",
+          "{{y4}}"
+        ],
+        [
+          "{{x9}}",
+          "{{y9}}"
+        ],
+        [
+          "{{x16}}",
+          "{{y16}}"
+        ]
+      ],
+      "predictionX": "{{x625}}",
+      "squareRootATolerance": 0.02,
+      "squareRootHTolerance": 0.02,
+      "squareRootKTolerance": 0.03,
+      "predictionTolerance": 0.08,
+      "context": {
+        "title": "Sensor calibration from a table",
+        "note": "The prediction target lies between observed inputs, so classify the technology-based prediction appropriately."
+      },
+      "solutionReview": {
+        "headline": "The fitted square-root equation supports interpolation inside the table's input range.",
+        "reasoning": [
+          "Technology identifies h={{h}}, k={{k}}, and fits a={{a}} from the full table.",
+          "At x={{x625}}, the radicand is 6.25 and its square root is 2.5.",
+          "The fitted model predicts {{pred}}; the target is inside the observed range."
+        ],
+        "answerSummary": "$y={{a}}\\sqrt{x-({{h}})}+({{k}})$; interpolation {{pred}}."
+      },
+      "attemptFeedback": [
+        "Because the target is between the smallest and largest observed x-values, the prediction is interpolation."
+      ],
+      "supportHints": [
+        "Use the square-root fit first; then evaluate the fitted model at the fixed target."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              2,
+              4
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "x1": "h+1",
+          "x4": "h+4",
+          "x9": "h+9",
+          "x16": "h+16",
+          "x625": "h+6.25",
+          "y1": "a+k",
+          "y4": "2*a+k",
+          "y9": "3*a+k",
+          "y16": "4*a+k",
+          "pred": "2.5*a+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4E_v2_technology-entry-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4E:v2-technology-entry-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.4E",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "type": "dataModelingLab",
+      "mode": "quadraticFitPrediction",
+      "prompt": "A student runs quadratic regression on the five-row table but records the x-term coefficient with the wrong sign, claiming $y={{a}}x^2+({{wrongB}})x+({{c}})$. Re-run the regression technology on the full table, repair the model by entering the actual a, b, and c, then use the corrected model to predict y at $x=3$.",
+      "points": [
+        [
+          -2,
+          "{{ym2}}"
+        ],
+        [
+          -1,
+          "{{ym1}}"
+        ],
+        [
+          0,
+          "{{y0}}"
+        ],
+        [
+          1,
+          "{{y1}}"
+        ],
+        [
+          2,
+          "{{y2}}"
+        ]
+      ],
+      "predictionX": 3,
+      "quadraticATolerance": 0.015,
+      "quadraticBTolerance": 0.03,
+      "quadraticCTolerance": 0.05,
+      "predictionTolerance": 0.08,
+      "context": {
+        "title": "Repair a technology transcription error",
+        "note": "The student's displayed model is not the answer key. Verify the regression output from the full table and correct the sign error."
+      },
+      "solutionReview": {
+        "headline": "Technology output must be recorded faithfully before the model is used.",
+        "reasoning": [
+          "Re-running quadratic regression gives b={{b}}, not {{wrongB}}.",
+          "The corrected fitted model is $y={{a}}x^2+({{b}})x+({{c}})$.",
+          "Using that corrected model at x=3 gives {{pred}}."
+        ],
+        "answerSummary": "Corrected model $y={{a}}x^2+({{b}})x+({{c}})$; prediction {{pred}}."
+      },
+      "attemptFeedback": [
+        "The error is in transcribing the technology result, not in the data. Re-run the full regression rather than trying to adjust the prediction only."
+      ],
+      "supportHints": [
+        "Compare the sign of the technology's b coefficient with the student's recorded b."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "c": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "wrongB": "-b",
+          "ym2": "4*a-2*b+c",
+          "ym1": "a-b+c",
+          "y0": "c",
+          "y1": "a+b+c",
+          "y2": "4*a+2*b+c",
+          "pred": "9*a+3*b+c"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b5",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-simple-regression-sign-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student runs quadratic regression on the five-row table but copies the sign of b incorrectly, writing $y={{a}}x^2+({{wrongB}})x+({{c}})$. Re-run the regression, identify the transcription error, enter the correct a, b, c, and verify the corrected prediction at x=3.",
+          "context": {
+            "title": "Regression sign audit",
+            "note": "The coefficient sizes are intentionally small so the task emphasizes verifying and repairing technology output rather than heavy arithmetic."
+          },
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  1
+                ]
+              },
+              "b": {
+                "type": "choice",
+                "values": [
+                  -2,
+                  -1,
+                  1,
+                  2
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              }
+            },
+            "derived": {
+              "wrongB": "-b",
+              "ym2": "4*a-2*b+c",
+              "ym1": "a-b+c",
+              "y0": "c",
+              "y1": "a+b+c",
+              "y2": "4*a+2*b+c",
+              "pred": "9*a+3*b+c"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

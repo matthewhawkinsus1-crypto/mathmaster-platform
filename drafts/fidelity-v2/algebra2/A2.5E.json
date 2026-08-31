@@ -1,0 +1,826 @@
+{
+  "standard": "A2.5E",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-reasonableness-from-original-log-equation-domain-value-context-evidence",
+  "rationale": "A2.5E is about judging a proposed solution, not solving from scratch. Fidelity V2 requires students to evaluate the original logarithmic equation, verify every log argument is positive, compare original LHS/RHS values, and separately apply contextual restrictions when present.",
+  "documents": [
+    {
+      "id": "mm_A2_5E_v2_domain-invalid-candidate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5E:v2-domain-invalid-candidate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5E",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "A solver proposes $x={{candidate}}$ for $\\log_2(x-({{h}}))={{n}}$. Determine whether the proposed solution is reasonable by checking the ORIGINAL logarithmic equation.",
+      "responseFields": [
+        {
+          "id": "argument",
+          "label": "Log argument $x-({{h}})$ at the candidate",
+          "inputProfile": "number",
+          "expected": "{{arg}}"
+        },
+        {
+          "id": "domain",
+          "label": "Is the logarithm defined at this candidate?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "no",
+              "label": "No — the argument is not positive."
+            },
+            {
+              "id": "yes",
+              "label": "Yes — the argument is positive."
+            }
+          ],
+          "expected": "no"
+        },
+        {
+          "id": "verdict",
+          "label": "Reasonableness verdict",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "reject",
+              "label": "Reject the candidate as unreasonable."
+            },
+            {
+              "id": "keep",
+              "label": "Keep the candidate as reasonable."
+            }
+          ],
+          "expected": "reject"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A real logarithm cannot accept a zero or negative argument.",
+        "reasoning": [
+          "Substitution gives the argument {{arg}}.",
+          "Because {{arg}} is not positive, the original logarithm is undefined.",
+          "The proposed x-value must be rejected."
+        ],
+        "answerSummary": "Reject $x={{candidate}}$."
+      },
+      "attemptFeedback": [
+        "Use the candidate in the original logarithm before trusting any algebra that produced it."
+      ],
+      "supportHints": [
+        "For a real logarithm, its argument must be strictly greater than zero."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "n": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          }
+        },
+        "derived": {
+          "candidate": "h-d",
+          "arg": "candidate-h"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_5E_v2_common-log-valid-candidate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5E:v2-common-log-valid-candidate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5E",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "A solver proposes $x={{x}}$ for $\\log({{m}}x{{c|signed}})={{n}}$, where log means base 10. Check the ORIGINAL equation and decide whether the solution is reasonable.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Candidate verification",
+        "table": {
+          "headers": [
+            "Check",
+            "Value"
+          ],
+          "rows": [
+            [
+              "Candidate x",
+              "{{x}}"
+            ],
+            [
+              "Original argument ${{m}}x{{c|signed}}$",
+              "?"
+            ],
+            [
+              "Original log value",
+              "?"
+            ],
+            [
+              "Right side",
+              "{{n}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "argument",
+          "label": "Original log argument",
+          "inputProfile": "number",
+          "expected": "{{power}}"
+        },
+        {
+          "id": "domain",
+          "label": "Domain check",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "valid",
+              "label": "Argument is positive"
+            },
+            {
+              "id": "invalid",
+              "label": "Argument is not positive"
+            }
+          ],
+          "expected": "valid"
+        },
+        {
+          "id": "log-value",
+          "label": "$\\log({{power}})$",
+          "inputProfile": "number",
+          "expected": "{{n}}"
+        },
+        {
+          "id": "verdict",
+          "label": "Reasonableness verdict",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "keep",
+              "label": "Reasonable — the original equation is true."
+            },
+            {
+              "id": "reject",
+              "label": "Unreasonable — the original equation is false."
+            }
+          ],
+          "expected": "keep"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A reasonable candidate must satisfy both the log domain and the original equality.",
+        "reasoning": [
+          "At x={{x}}, the argument is {{power}}>0.",
+          "Because $\\log({{power}})={{n}}$, the original equation is true.",
+          "The candidate is reasonable."
+        ],
+        "answerSummary": "Keep $x={{x}}$."
+      },
+      "attemptFeedback": [
+        "A positive argument clears the domain check; then still verify the log value equals the equation's right side."
+      ],
+      "supportHints": [
+        "Common log uses base 10, so $\\log(10^n)=n$."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "n": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "power": "pow(10,n)",
+          "c": "power-m*x"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-negative-affine-common-log-verification",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "table",
+          "prompt": "A solver proposes x={{x}} for $\\log({{m}}x{{c|signed}})={{n}}$, where log means base 10 and the x-coefficient is negative. Check the ORIGINAL argument, verify the base-10 log value, rewrite the original equality exponentially, and decide whether the candidate is reasonable.",
+          "responseFields": [
+            {
+              "id": "argument",
+              "label": "Original log argument",
+              "inputProfile": "number",
+              "expected": "{{power}}"
+            },
+            {
+              "id": "domain",
+              "label": "Domain check",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "valid",
+                  "label": "Argument is positive"
+                },
+                {
+                  "id": "invalid",
+                  "label": "Argument is not positive"
+                }
+              ],
+              "expected": "valid"
+            },
+            {
+              "id": "log-value",
+              "label": "log({{power}})",
+              "inputProfile": "number",
+              "expected": "{{n}}"
+            },
+            {
+              "id": "exponential-check",
+              "label": "Equivalent exponential statement",
+              "inputProfile": "equation",
+              "expected": "10^{{n}}={{power}}"
+            },
+            {
+              "id": "verdict",
+              "label": "Reasonableness verdict",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "keep",
+                  "label": "Reasonable — the original equation is true."
+                },
+                {
+                  "id": "reject",
+                  "label": "Unreasonable — the original equation is false."
+                }
+              ],
+              "expected": "keep"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A more complicated affine argument still requires the same original-equation evidence.",
+            "reasoning": [
+              "Substitution gives the positive argument {{power}}.",
+              "Because $\\log({{power}})={{n}}$, the logarithmic equality is true.",
+              "The exponential check $10^{{n}}={{power}}$ confirms the same relationship."
+            ],
+            "answerSummary": "Keep x={{x}}."
+          },
+          "attemptFeedback": [
+            "Evaluate the entire affine log argument before deciding whether the candidate works."
+          ],
+          "supportHints": [
+            "For common log, $\\log(A)=n$ is equivalent to $10^n=A$."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -7,
+                "max": -2
+              },
+              "x": {
+                "type": "int",
+                "min": 1,
+                "max": 8
+              },
+              "n": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              }
+            },
+            "derived": {
+              "power": "pow(10,n)",
+              "c": "power-m*x"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_5E_v2_positive-domain-but-wrong-value",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5E:v2-positive-domain-but-wrong-value",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5E",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "interpretation",
+      "prompt": "A solver proposes $x={{candidate}}$ for $\\log_2(x-({{h}}))={{n}}$ and argues that the candidate is reasonable because the log argument is positive. Determine whether that reasoning is sufficient.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Domain is only the first check",
+        "table": {
+          "headers": [
+            "Quantity",
+            "Value"
+          ],
+          "rows": [
+            [
+              "Candidate x",
+              "{{candidate}}"
+            ],
+            [
+              "Argument $x-({{h}})$",
+              "{{arg}}"
+            ],
+            [
+              "Required right side",
+              "{{n}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "argument",
+          "label": "Original argument",
+          "inputProfile": "number",
+          "expected": "{{arg}}"
+        },
+        {
+          "id": "domain",
+          "label": "Domain status",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "valid",
+              "label": "The candidate is in the logarithm's domain."
+            },
+            {
+              "id": "invalid",
+              "label": "The candidate is outside the domain."
+            }
+          ],
+          "expected": "valid"
+        },
+        {
+          "id": "lhs",
+          "label": "Original left side $\\log_2({{arg}})$",
+          "inputProfile": "number",
+          "expected": "{{wrongLog}}"
+        },
+        {
+          "id": "rhs",
+          "label": "Original right side",
+          "inputProfile": "number",
+          "expected": "{{n}}"
+        },
+        {
+          "id": "verdict",
+          "label": "Reasonableness verdict",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "reject",
+              "label": "Reject — domain is valid, but the original equality is false."
+            },
+            {
+              "id": "keep",
+              "label": "Keep — a positive argument is enough."
+            }
+          ],
+          "expected": "reject"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Being in the logarithm's domain is necessary but not sufficient.",
+        "reasoning": [
+          "The argument {{arg}} is positive, so the logarithm is defined.",
+          "But $\\log_2({{arg}})={{wrongLog}}$, while the equation requires {{n}}.",
+          "The candidate is therefore unreasonable even though it is in the domain."
+        ],
+        "answerSummary": "Reject $x={{candidate}}$: the original equation is false."
+      },
+      "attemptFeedback": [
+        "Do not stop after the domain check; compare the actual logarithm value with the original right side."
+      ],
+      "supportHints": [
+        "The generated argument is one power of 2 higher than the equation requires."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "n": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "wrongLog": "n+1",
+          "arg": "pow(2,wrongLog)",
+          "candidate": "h+arg"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-positive-domain-wrong-value",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "interpretation",
+          "representation": "multipleRepresentation",
+          "prompt": "A solver proposes x={{candidate}} for $\\log_2(x-({{h}}))=1$ and argues that the candidate is reasonable because the log argument is positive. Check the domain AND the original equality, then judge the reasoning.",
+          "responseFields": [
+            {
+              "id": "argument",
+              "label": "Original log argument",
+              "inputProfile": "number",
+              "expected": "4"
+            },
+            {
+              "id": "domain",
+              "label": "Domain status",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "valid",
+                  "label": "The candidate is in the logarithm's domain."
+                },
+                {
+                  "id": "invalid",
+                  "label": "The candidate is outside the domain."
+                }
+              ],
+              "expected": "valid"
+            },
+            {
+              "id": "lhs",
+              "label": "Original left side log_2(4)",
+              "inputProfile": "number",
+              "expected": "2"
+            },
+            {
+              "id": "rhs",
+              "label": "Original right side",
+              "inputProfile": "number",
+              "expected": "1"
+            },
+            {
+              "id": "verdict",
+              "label": "Reasonableness verdict",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "reject",
+                  "label": "Reject — the argument is positive, but the original equality is false."
+                },
+                {
+                  "id": "keep",
+                  "label": "Keep — a positive argument alone is enough."
+                }
+              ],
+              "expected": "reject"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Domain validity is necessary but not sufficient.",
+            "reasoning": [
+              "The argument 4 is positive, so the logarithm is defined.",
+              "But $\\log_2(4)=2$, not 1.",
+              "Therefore the candidate must be rejected despite being in the domain."
+            ],
+            "answerSummary": "Reject the candidate."
+          },
+          "attemptFeedback": [
+            "Separate the domain check from the equality check."
+          ],
+          "supportHints": [
+            "After confirming the argument is positive, evaluate the original logarithm."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              }
+            },
+            "derived": {
+              "n": "1",
+              "wrongLog": "2",
+              "arg": "4",
+              "candidate": "h+4"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_5E_v2_two-log-original-check",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5E:v2-two-log-original-check",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5E",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "interpretation",
+      "prompt": "A candidate $x={{x}}$ is proposed for $\\log_2(x-({{h1}}))+\\log_2(x-({{h2}}))={{sum}}$. Determine whether the candidate is reasonable by checking BOTH original log arguments and the original equation.",
+      "responseFields": [
+        {
+          "id": "arg1",
+          "label": "First log argument",
+          "inputProfile": "number",
+          "expected": "{{p1}}"
+        },
+        {
+          "id": "arg2",
+          "label": "Second log argument",
+          "inputProfile": "number",
+          "expected": "{{p2}}"
+        },
+        {
+          "id": "domain",
+          "label": "Are both logarithms defined?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "yes",
+              "label": "Yes — both arguments are positive."
+            },
+            {
+              "id": "no",
+              "label": "No — at least one argument is not positive."
+            }
+          ],
+          "expected": "yes"
+        },
+        {
+          "id": "log1",
+          "label": "First logarithm value",
+          "inputProfile": "number",
+          "expected": "{{r}}"
+        },
+        {
+          "id": "log2",
+          "label": "Second logarithm value",
+          "inputProfile": "number",
+          "expected": "{{s}}"
+        },
+        {
+          "id": "lhs",
+          "label": "Original left side total",
+          "inputProfile": "number",
+          "expected": "{{sum}}"
+        },
+        {
+          "id": "verdict",
+          "label": "Reasonableness verdict",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "keep",
+              "label": "Reasonable"
+            },
+            {
+              "id": "reject",
+              "label": "Unreasonable"
+            }
+          ],
+          "expected": "keep"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Every logarithm in the original equation must be defined and the combined equality must hold.",
+        "reasoning": [
+          "The two arguments are {{p1}} and {{p2}}, both positive.",
+          "Their base-2 log values are {{r}} and {{s}}.",
+          "The left side is {{r}}+{{s}}={{sum}}, matching the right side, so the candidate is reasonable."
+        ],
+        "answerSummary": "Keep $x={{x}}$."
+      },
+      "attemptFeedback": [
+        "A multi-log equation requires checking every argument, not just one."
+      ],
+      "supportHints": [
+        "The arguments were generated as powers of 2 so each logarithm can be evaluated exactly."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": -2,
+            "max": 6
+          },
+          "r": {
+            "type": "choice",
+            "values": [
+              1,
+              2
+            ]
+          },
+          "s": {
+            "type": "choice",
+            "values": [
+              3,
+              4
+            ]
+          }
+        },
+        "derived": {
+          "p1": "pow(2,r)",
+          "p2": "pow(2,s)",
+          "h1": "x-p1",
+          "h2": "x-p2",
+          "sum": "r+s"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_5E_v2_context-error-algebra-valid-time-invalid",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5E:v2-context-error-algebra-valid-time-invalid",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5E",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "In a model, t is elapsed time, so $t\\ge0$. A student proposes $t={{candidate}}$ for $\\log_2(t+{{offset}})={{n}}$ and says it is reasonable because it satisfies the logarithmic equation. Check the original equation AND the context, then repair the student's verdict.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's reasoning",
+        "steps": [
+          {
+            "id": "algebra",
+            "label": "Equation check",
+            "work": "The log argument is positive and the logarithm equals {{n}}."
+          },
+          {
+            "id": "claim",
+            "label": "Student conclusion",
+            "work": "Therefore t={{candidate}} is a reasonable model solution."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "argument",
+          "label": "Original log argument",
+          "inputProfile": "number",
+          "expected": "{{power}}"
+        },
+        {
+          "id": "lhs",
+          "label": "Original left side",
+          "inputProfile": "number",
+          "expected": "{{n}}"
+        },
+        {
+          "id": "algebra",
+          "label": "Algebraic equation status",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "valid",
+              "label": "The candidate satisfies the logarithmic equation."
+            },
+            {
+              "id": "invalid",
+              "label": "The candidate does not satisfy the logarithmic equation."
+            }
+          ],
+          "expected": "valid"
+        },
+        {
+          "id": "context",
+          "label": "Context check",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "invalid",
+              "label": "The candidate violates $t\\ge0$."
+            },
+            {
+              "id": "valid",
+              "label": "The candidate is allowed by $t\\ge0$."
+            }
+          ],
+          "expected": "invalid"
+        },
+        {
+          "id": "verdict",
+          "label": "Corrected reasonableness verdict",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "reject",
+              "label": "Reject — algebraically valid but unreasonable in the time context."
+            },
+            {
+              "id": "keep",
+              "label": "Keep — satisfying the equation overrides the context restriction."
+            }
+          ],
+          "expected": "reject"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Reasonableness can require both algebraic validity and contextual validity.",
+        "reasoning": [
+          "At t={{candidate}}, the argument is {{power}}>0 and $\\log_2({{power}})={{n}}$, so the logarithmic equation is true.",
+          "But t={{candidate}} is negative, violating the elapsed-time restriction.",
+          "The student's final verdict must be corrected: the solution is algebraically valid but unreasonable for this model."
+        ],
+        "answerSummary": "Reject t={{candidate}} in context."
+      },
+      "attemptFeedback": [
+        "Keep the algebraic and contextual checks separate; a candidate can pass one and fail the other."
+      ],
+      "supportHints": [
+        "Elapsed time cannot be negative even if the logarithmic equation itself is satisfied."
+      ],
+      "generator": {
+        "parameters": {
+          "n": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "gap": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "power": "pow(2,n)",
+          "offset": "power+gap",
+          "candidate": "-gap"
+        }
+      }
+    }
+  ]
+}

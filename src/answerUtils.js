@@ -19,12 +19,32 @@ export const compareMathAnswer = (studentAnswer, acceptedAnswer, tolerance = 1e-
 export const matchesAnyAnswer = (studentAnswer, acceptedAnswers = []) =>
   acceptedAnswers.some((acceptedAnswer) => compareMathAnswer(studentAnswer, acceptedAnswer));
 
+/**
+ * All authored correct forms for one response field.
+ *
+ * Path V2 uses `expected` + `accepted`; older assignments use
+ * `answer` + `acceptedAnswers`. Treat those as vocabulary aliases and,
+ * critically, KEEP the primary expected answer when alternatives exist.
+ */
+export const answerCandidatesForField = (field = {}) => {
+  const values = [
+    field?.expected,
+    field?.answer,
+    ...(Array.isArray(field?.accepted) ? field.accepted : []),
+    ...(Array.isArray(field?.acceptedAnswers) ? field.acceptedAnswers : []),
+  ].filter((value) => value !== undefined && value !== null);
+
+  const seen = new Set();
+  return values.filter((value) => {
+    const key = JSON.stringify(value);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 export const matchesFieldAnswer = (studentAnswer, field = {}) => {
-  const acceptedAnswers = Array.isArray(field?.acceptedAnswers) && field.acceptedAnswers.length
-    ? field.acceptedAnswers
-    : field?.answer !== undefined
-      ? [field.answer]
-      : [];
+  const acceptedAnswers = answerCandidatesForField(field);
 
   if (field?.gradingMode === 'equivalentExpression') {
     return acceptedAnswers.some((acceptedAnswer) => sameEquivalentExpression(studentAnswer, acceptedAnswer));

@@ -1,0 +1,586 @@
+{
+  "standard": "A2.5B",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-student-formulated-explicit-recursive-exponential-and-authentic-logarithmic-models",
+  "rationale": "A2.5B requires formulation, not recognition. Fidelity V2 makes students author explicit and recursive exponential models from growth, decay, and tabular evidence, plus an authentic logarithmic scale equation from a real-world ratio context.",
+  "documents": [
+    {
+      "id": "mm_A2_5B_v2_growth-explicit-and-recursive",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5B:v2-growth-explicit-and-recursive",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5B",
+      "representation": "context",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "modeling",
+      "prompt": "A population starts at {{p0}} and grows by {{pct}}% each year. Formulate BOTH an explicit exponential model and a recursive model. Use year 0 as the initial time.",
+      "responseFields": [
+        {
+          "id": "factor",
+          "label": "Annual growth factor",
+          "inputProfile": "number",
+          "expected": "{{factor}}"
+        },
+        {
+          "id": "explicit",
+          "label": "Explicit model $P(t)$",
+          "inputProfile": "equation",
+          "expected": "P={{p0}}({{factor}})^t"
+        },
+        {
+          "id": "initial",
+          "label": "Recursive initial condition",
+          "inputProfile": "equation",
+          "expected": "P_0={{p0}}"
+        },
+        {
+          "id": "recursive",
+          "label": "Recursive step",
+          "inputProfile": "equation",
+          "expected": "P_n={{factor}}P_(n-1)"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The same multiplicative factor appears in both explicit and recursive exponential models.",
+        "reasoning": [
+          "{{pct}}% growth means retain 100% and add {{pct}}%, giving factor {{factor}}.",
+          "The explicit model multiplies by that factor t times.",
+          "The recursive model starts at {{p0}} and multiplies each new term by {{factor}}."
+        ],
+        "answerSummary": "$P={{p0}}({{factor}})^t$; $P_0={{p0}},\\;P_n={{factor}}P_{n-1}$"
+      },
+      "attemptFeedback": [
+        "Do not use the percent itself as the base; convert the percent change to the full multiplicative growth factor."
+      ],
+      "supportHints": [
+        "For r% growth, the factor is $1+r/100$."
+      ],
+      "generator": {
+        "parameters": {
+          "p0": {
+            "type": "int",
+            "min": 80,
+            "max": 500,
+            "step": 20
+          },
+          "pct": {
+            "type": "choice",
+            "values": [
+              5,
+              10,
+              15,
+              20,
+              25
+            ]
+          }
+        },
+        "derived": {
+          "factor": "1+pct/100"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_5B_v2_decay-explicit-and-recursive",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5B:v2-decay-explicit-and-recursive",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5B",
+      "representation": "context",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "modeling",
+      "prompt": "A device is worth ${{v0}} initially and loses {{pct}}% of its value each year. Formulate the explicit exponential value model AND an equivalent recursive model beginning at year 0.",
+      "responseFields": [
+        {
+          "id": "factor",
+          "label": "Annual retained-value factor",
+          "inputProfile": "number",
+          "expected": "{{factor}}"
+        },
+        {
+          "id": "explicit",
+          "label": "Explicit model $V(t)$",
+          "inputProfile": "equation",
+          "expected": "V={{v0}}({{factor}})^t"
+        },
+        {
+          "id": "initial",
+          "label": "Recursive initial condition",
+          "inputProfile": "equation",
+          "expected": "V_0={{v0}}"
+        },
+        {
+          "id": "recursive",
+          "label": "Recursive step",
+          "inputProfile": "equation",
+          "expected": "V_n={{factor}}V_(n-1)"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Percent decay uses the portion retained each period.",
+        "reasoning": [
+          "Losing {{pct}}% means retaining {{retainPct}}%, so the multiplier is {{factor}}.",
+          "The explicit model uses that multiplier as the exponential base.",
+          "The recursive model uses the same multiplier from one year to the next."
+        ],
+        "answerSummary": "$V={{v0}}({{factor}})^t$; $V_0={{v0}},\\;V_n={{factor}}V_{n-1}$"
+      },
+      "attemptFeedback": [
+        "A decay model still uses multiplication; the factor is less than 1 rather than subtracting the same dollar amount each year."
+      ],
+      "supportHints": [
+        "Retained percent = 100 − decay percent."
+      ],
+      "generator": {
+        "parameters": {
+          "v0": {
+            "type": "int",
+            "min": 200,
+            "max": 1200,
+            "step": 50
+          },
+          "pct": {
+            "type": "choice",
+            "values": [
+              10,
+              15,
+              20,
+              25,
+              30
+            ]
+          }
+        },
+        "derived": {
+          "retainPct": "100-pct",
+          "factor": "1-pct/100"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-quarterly-decay-time-scale",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "modeling",
+          "representation": "context",
+          "prompt": "An asset is worth ${{v0}} initially and loses {{pct}}% of its value EVERY QUARTER. Formulate an explicit model V(t) with t measured in years and an equivalent recursive model with n measured in quarters.",
+          "responseFields": [
+            {
+              "id": "factor",
+              "label": "Quarterly retained-value factor",
+              "inputProfile": "number",
+              "expected": "{{factor}}"
+            },
+            {
+              "id": "explicit",
+              "label": "Explicit yearly-time model V(t)",
+              "inputProfile": "equation",
+              "expected": "V={{v0}}({{factor}})^(4t)"
+            },
+            {
+              "id": "initial",
+              "label": "Recursive initial condition",
+              "inputProfile": "equation",
+              "expected": "V_0={{v0}}"
+            },
+            {
+              "id": "recursive",
+              "label": "Recursive quarter-to-quarter step",
+              "inputProfile": "equation",
+              "expected": "V_n={{factor}}V_(n-1)"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The percentage factor and the time unit must agree.",
+            "reasoning": [
+              "A {{pct}}% quarterly loss leaves factor {{factor}} each quarter.",
+              "There are 4 quarters per year, so t years corresponds to exponent 4t.",
+              "The recursive model advances one quarter at a time using the same factor."
+            ],
+            "answerSummary": "Explicit exponent 4t; recursive step uses quarterly factor {{factor}}."
+          },
+          "attemptFeedback": [
+            "Do not use exponent t directly when the percent change occurs four times per year."
+          ],
+          "supportHints": [
+            "Convert years to quarters before writing the explicit exponent."
+          ],
+          "generator": {
+            "parameters": {
+              "v0": {
+                "type": "int",
+                "min": 400,
+                "max": 2000,
+                "step": 100
+              },
+              "pct": {
+                "type": "choice",
+                "values": [
+                  5,
+                  10,
+                  15,
+                  20
+                ]
+              }
+            },
+            "derived": {
+              "factor": "1-pct/100",
+              "retainPct": "100-pct"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_5B_v2_table-infer-ratio-models",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5B:v2-table-infer-ratio-models",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5B",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "The table shows an exponential relationship. Infer the common multiplier from the data, then formulate both the explicit rule and the recursive rule.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Exponential data",
+        "table": {
+          "headers": [
+            "n",
+            "a_n"
+          ],
+          "rows": [
+            [
+              "0",
+              "{{a0}}"
+            ],
+            [
+              "1",
+              "{{a1}}"
+            ],
+            [
+              "2",
+              "{{a2}}"
+            ],
+            [
+              "3",
+              "{{a3}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "ratio",
+          "label": "Common multiplier",
+          "inputProfile": "number",
+          "expected": "{{r}}"
+        },
+        {
+          "id": "explicit",
+          "label": "Explicit model",
+          "inputProfile": "equation",
+          "expected": "a_n={{a0}}({{r}})^n"
+        },
+        {
+          "id": "initial",
+          "label": "Recursive initial condition",
+          "inputProfile": "equation",
+          "expected": "a_0={{a0}}"
+        },
+        {
+          "id": "recursive",
+          "label": "Recursive step",
+          "inputProfile": "equation",
+          "expected": "a_n={{r}}a_(n-1)"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A constant ratio in a table determines both forms of the exponential relationship.",
+        "reasoning": [
+          "Each output is {{r}} times the previous output.",
+          "Starting at a_0={{a0}}, the explicit rule is $a_n={{a0}}({{r}})^n$.",
+          "The recursive rule says each term is {{r}} times the preceding term."
+        ],
+        "answerSummary": "Ratio {{r}}; $a_n={{a0}}({{r}})^n$; $a_0={{a0}},\\;a_n={{r}}a_{n-1}$"
+      },
+      "attemptFeedback": [
+        "Use ratios of consecutive outputs, not differences, to identify the exponential multiplier."
+      ],
+      "supportHints": [
+        "Compute $a_1/a_0$ and verify the same ratio repeats."
+      ],
+      "generator": {
+        "parameters": {
+          "a0": {
+            "type": "int",
+            "min": 2,
+            "max": 20
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          }
+        },
+        "derived": {
+          "a1": "a0*r",
+          "a2": "a0*r*r",
+          "a3": "a0*r*r*r"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_5B_v2_logarithmic-ratio-scale-model",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5B:v2-logarithmic-ratio-scale-model",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5B",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "modeling",
+      "prompt": "A sound-level index L is defined as 10 times the base-10 logarithm of the ratio between measured intensity I and reference intensity {{ref}}. Formulate the logarithmic model for L in terms of I.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Log-scale definition",
+        "table": {
+          "headers": [
+            "Quantity",
+            "Meaning"
+          ],
+          "rows": [
+            [
+              "I",
+              "measured intensity"
+            ],
+            [
+              "{{ref}}",
+              "reference intensity"
+            ],
+            [
+              "L",
+              "10 × log base 10 of the intensity ratio"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "ratio",
+          "label": "Dimensionless intensity ratio",
+          "inputProfile": "expression",
+          "expected": "I/{{ref}}"
+        },
+        {
+          "id": "model",
+          "label": "Logarithmic model",
+          "inputProfile": "equation",
+          "expected": "L=10log_10(I/{{ref}})"
+        },
+        {
+          "id": "domain",
+          "label": "Physical input restriction",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "positive",
+              "label": "I must be positive"
+            },
+            {
+              "id": "all",
+              "label": "Any real I is allowed"
+            },
+            {
+              "id": "negative",
+              "label": "I must be negative"
+            }
+          ],
+          "expected": "positive"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A logarithmic measurement scale models multiplicative ratios.",
+        "reasoning": [
+          "The measured quantity must first be compared with the reference, giving I/{{ref}}.",
+          "The model applies base-10 logarithm to that ratio and scales the result by 10.",
+          "A physical intensity and the logarithm's input must both be positive."
+        ],
+        "answerSummary": "$L=10\\log_{10}(I/{{ref}})$ with $I>0$."
+      },
+      "attemptFeedback": [
+        "The logarithm is applied to the ratio I/reference, not to I and the reference separately."
+      ],
+      "supportHints": [
+        "Translate the verbal definition in order: ratio first, log base 10 second, multiply by 10 last."
+      ],
+      "generator": {
+        "parameters": {
+          "ref": {
+            "type": "choice",
+            "values": [
+              1,
+              2,
+              5,
+              10
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_5B_v2_growth-factor-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5B:v2-growth-factor-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5B",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student models {{pct}}% annual growth from {{p0}} by writing $P={{p0}}({{wrongFactor}})^t$ and recursively $P_n={{wrongFactor}}P_(n-1)$. Diagnose the factor error, then write BOTH corrected models.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's models",
+        "steps": [
+          {
+            "id": "explicit",
+            "label": "Explicit",
+            "work": "$P={{p0}}({{wrongFactor}})^t$"
+          },
+          {
+            "id": "recursive",
+            "label": "Recursive step",
+            "work": "$P_n={{wrongFactor}}P_{n-1}$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What is the error?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "whole",
+              "label": "The factor must include the original 100% plus the growth percent."
+            },
+            {
+              "id": "linear",
+              "label": "Growth must always be modeled linearly."
+            },
+            {
+              "id": "initial",
+              "label": "The initial value should be used as the exponent."
+            }
+          ],
+          "expected": "whole"
+        },
+        {
+          "id": "factor",
+          "label": "Correct growth factor",
+          "inputProfile": "number",
+          "expected": "{{factor}}"
+        },
+        {
+          "id": "explicit",
+          "label": "Correct explicit model",
+          "inputProfile": "equation",
+          "expected": "P={{p0}}({{factor}})^t"
+        },
+        {
+          "id": "initial",
+          "label": "Correct recursive initial condition",
+          "inputProfile": "equation",
+          "expected": "P_0={{p0}}"
+        },
+        {
+          "id": "recursive",
+          "label": "Correct recursive step",
+          "inputProfile": "equation",
+          "expected": "P_n={{factor}}P_(n-1)"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Repair the multiplier in both representations, not just one equation.",
+        "reasoning": [
+          "{{pct}}% growth means factor 1+{{wrongFactor}}={{factor}}.",
+          "That same factor is the base of the explicit model and the multiplier in the recursive model.",
+          "The recursive model also needs the initial condition P_0={{p0}}."
+        ],
+        "answerSummary": "$P={{p0}}({{factor}})^t$; $P_0={{p0}},\\;P_n={{factor}}P_{n-1}$"
+      },
+      "attemptFeedback": [
+        "Do not fix only the explicit model; the recursive multiplier represents the same growth process and must also be corrected."
+      ],
+      "supportHints": [
+        "Growth factor = 1 + rate as a decimal."
+      ],
+      "generator": {
+        "parameters": {
+          "p0": {
+            "type": "int",
+            "min": 80,
+            "max": 500,
+            "step": 20
+          },
+          "pct": {
+            "type": "choice",
+            "values": [
+              5,
+              10,
+              15,
+              20,
+              25
+            ]
+          }
+        },
+        "derived": {
+          "wrongFactor": "pct/100",
+          "factor": "1+pct/100"
+        }
+      }
+    }
+  ]
+}

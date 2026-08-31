@@ -1,0 +1,512 @@
+{
+  "standard": "A2.5C",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-student-written-bidirectional-exponential-logarithmic-equation-rewrites",
+  "rationale": "The legacy role mapping was correct, but students only recognized prewritten choices. Fidelity V2 requires written equivalent equations in both directions across numeric, symbolic, common-log, and natural-log forms without drifting into solving.",
+  "documents": [
+    {
+      "id": "mm_A2_5C_v2_numeric-exp-to-log",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5C:v2-numeric-exp-to-log",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5C",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Rewrite the exponential equation ${{b}}^{{x}}={{n}}$ as an equivalent logarithmic equation. Do not solve anything; preserve the same base, exponent, and result roles.",
+      "responseFields": [
+        {
+          "id": "rewrite",
+          "label": "Equivalent logarithmic equation",
+          "inputProfile": "equation",
+          "expected": "log_{{b}}({{n}})={{x}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The exponential result becomes the logarithm argument.",
+        "reasoning": [
+          "The base stays {{b}}.",
+          "The result {{n}} becomes the logarithm argument.",
+          "The exponent {{x}} becomes the logarithm's value."
+        ],
+        "answerSummary": "$\\log_{{{b}}}({{n}})={{x}}$"
+      },
+      "attemptFeedback": [
+        "Keep the base fixed when switching forms."
+      ],
+      "supportHints": [
+        "$b^x=n$ is equivalent to $\\log_b(n)=x$."
+      ],
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "n": "pow(b,x)"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_5C_v2_numeric-log-to-exp",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5C:v2-numeric-log-to-exp",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5C",
+      "representation": "verbal",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Rewrite $\\log_{{{b}}}({{n}})={{x}}$ as an equivalent exponential equation. Do not evaluate the logarithm first.",
+      "responseFields": [
+        {
+          "id": "rewrite",
+          "label": "Equivalent exponential equation",
+          "inputProfile": "equation",
+          "expected": "{{b}}^{{x}}={{n}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The logarithm value becomes the exponent.",
+        "reasoning": [
+          "The logarithm base {{b}} remains the exponential base.",
+          "The logarithm value {{x}} becomes the exponent.",
+          "The logarithm argument {{n}} becomes the exponential result."
+        ],
+        "answerSummary": "${{b}}^{{x}}={{n}}$"
+      },
+      "attemptFeedback": [
+        "Do not swap the argument and base."
+      ],
+      "supportHints": [
+        "$\\log_b(n)=x$ is equivalent to $b^x=n$."
+      ],
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "n": "pow(b,x)"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_5C_v2_symbolic-expression-role-map",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5C:v2-symbolic-expression-role-map",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5C",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "Rewrite the symbolic exponential relationship ${{b}}^{x-({{h}})}=y$ in logarithmic form. Keep the entire exponent expression together; do not solve for x.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Role map",
+        "table": {
+          "headers": [
+            "Role",
+            "Expression"
+          ],
+          "rows": [
+            [
+              "Base",
+              "{{b}}"
+            ],
+            [
+              "Exponent",
+              "$x-({{h}})$"
+            ],
+            [
+              "Result",
+              "$y$"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "rewrite",
+          "label": "Equivalent logarithmic equation",
+          "inputProfile": "equation",
+          "expected": "log_{{b}}(y)=x-({{h}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Whole expressions keep their role when notation changes.",
+        "reasoning": [
+          "The base remains {{b}}.",
+          "The exponential result y becomes the logarithm argument.",
+          "The complete exponent $x-({{h}})$ becomes the logarithm value."
+        ],
+        "answerSummary": "$\\log_{{{b}}}(y)=x-({{h}})$"
+      },
+      "attemptFeedback": [
+        "Do not split the exponent expression or move only part of it."
+      ],
+      "supportHints": [
+        "Treat $x-h$ as one exponent quantity."
+      ],
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_5C_v2_common-natural-log-pair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5C:v2-common-natural-log-pair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5C",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "Complete BOTH rewrites. One relationship uses natural logarithm and one uses common logarithm. Preserve equivalence; do not solve the variables.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Two equivalent-form tasks",
+        "table": {
+          "headers": [
+            "Given form",
+            "Rewrite as"
+          ],
+          "rows": [
+            [
+              "$e^t={{q}}$",
+              "logarithmic"
+            ],
+            [
+              "$\\log_{10}({{n}})=r$",
+              "exponential"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "natural",
+          "label": "Logarithmic form of $e^t={{q}}$",
+          "inputProfile": "equation",
+          "expected": "ln({{q}})=t"
+        },
+        {
+          "id": "common",
+          "label": "Exponential form of $\\log_{10}({{n}})=r$",
+          "inputProfile": "equation",
+          "expected": "10^r={{n}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "ln means logarithm base e; common log uses base 10.",
+        "reasoning": [
+          "$e^t={{q}}$ becomes $\\ln({{q}})=t$.",
+          "$\\log_{10}({{n}})=r$ becomes $10^r={{n}}$.",
+          "Neither rewrite requires solving t or r."
+        ],
+        "answerSummary": "$\\ln({{q}})=t$ and $10^r={{n}}$"
+      },
+      "attemptFeedback": [
+        "Use e as the base for ln and 10 as the base for common logarithm."
+      ],
+      "supportHints": [
+        "The logarithm's value is the exponential exponent."
+      ],
+      "generator": {
+        "parameters": {
+          "t": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "r": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "q": "pow(2,t)",
+          "n": "pow(10,r)"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b3",
+          "dok": 3,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b3-two-routine-rewrites",
+          "dok": 2,
+          "difficultyBand": 3,
+          "taskType": "procedural",
+          "representation": "table",
+          "prompt": "Complete BOTH equivalent-form rewrites. Rewrite $e^t={{q}}$ in logarithmic form and rewrite $\\log_{10}({{n}})=r$ in exponential form. No solving is required.",
+          "responseFields": [
+            {
+              "id": "natural",
+              "label": "Logarithmic form of e^t={{q}}",
+              "inputProfile": "equation",
+              "expected": "ln({{q}})=t"
+            },
+            {
+              "id": "common",
+              "label": "Exponential form of log_10({{n}})=r",
+              "inputProfile": "equation",
+              "expected": "10^r={{n}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Preserve the base–exponent–result roles in both directions.",
+            "reasoning": [
+              "For $e^t={{q}}$, the exponent becomes the natural-log value: ln({{q}})=t.",
+              "For $\\log_{10}({{n}})=r$, the equivalent exponential form is 10^r={{n}}."
+            ]
+          },
+          "generator": {
+            "parameters": {
+              "t": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "r": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              }
+            },
+            "derived": {
+              "q": "pow(2,t)",
+              "n": "pow(10,r)"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d2b4-four-role-preservation-rewrites",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "table",
+          "prompt": "Complete FOUR equivalent-form rewrites without solving the variables: two exponential-to-logarithmic and two logarithmic-to-exponential relationships. Preserve each entire exponent expression as one logarithm value.",
+          "responseFields": [
+            {
+              "id": "natural",
+              "label": "Rewrite $e^{2t-1}={{q}}$ logarithmically",
+              "inputProfile": "equation",
+              "expected": "ln({{q}})=2t-1"
+            },
+            {
+              "id": "common",
+              "label": "Rewrite $\\log_{10}({{n}})=r$ exponentially",
+              "inputProfile": "equation",
+              "expected": "10^r={{n}}"
+            },
+            {
+              "id": "extra-log",
+              "label": "Rewrite ${{b}}^{x+2}=y$ logarithmically",
+              "inputProfile": "equation",
+              "expected": "log_{{b}}(y)=x+2"
+            },
+            {
+              "id": "extra-exp",
+              "label": "Rewrite $\\log_{{b}}(z)=u-1$ exponentially",
+              "inputProfile": "equation",
+              "expected": "{{b}}^(u-1)=z"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Harder routine work comes from preserving roles across several symbolic relationships.",
+            "reasoning": [
+              "The exponent expression remains intact as the logarithm value.",
+              "The logarithm base becomes the exponential base in the reverse direction.",
+              "No variable needs to be solved to establish equivalence."
+            ]
+          },
+          "generator": {
+            "parameters": {
+              "t": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "r": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "b": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              }
+            },
+            "derived": {
+              "q": "pow(2,2*t-1)",
+              "n": "pow(10,r)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_5C_v2_role-error-repair-both-directions",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.5C"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.5C:v2-role-error-repair-both-directions",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.5C",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student rewrites ${{b}}^{{x}}={{n}}$ as $\\log_{{{n}}}({{b}})={{x}}$. Diagnose the role error, write the corrected logarithmic equation, then rewrite that corrected equation back to exponential form.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's incorrect rewrite",
+        "steps": [
+          {
+            "id": "given",
+            "label": "Given",
+            "work": "${{b}}^{{x}}={{n}}$"
+          },
+          {
+            "id": "wrong",
+            "label": "Student rewrite",
+            "work": "$\\log_{{{n}}}({{b}})={{x}}$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What role was swapped?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "base-argument",
+              "label": "The exponential base and result were incorrectly swapped into the logarithm base and argument."
+            },
+            {
+              "id": "exponent",
+              "label": "The exponent should become the logarithm base."
+            },
+            {
+              "id": "none",
+              "label": "The student's rewrite is already equivalent."
+            }
+          ],
+          "expected": "base-argument"
+        },
+        {
+          "id": "log-rewrite",
+          "label": "Correct logarithmic equation",
+          "inputProfile": "equation",
+          "expected": "log_{{b}}({{n}})={{x}}"
+        },
+        {
+          "id": "exp-rewrite",
+          "label": "Rewrite the corrected logarithmic equation back to exponential form",
+          "inputProfile": "equation",
+          "expected": "{{b}}^{{x}}={{n}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The base keeps its role in both notations.",
+        "reasoning": [
+          "The exponential base {{b}} must remain the logarithm base.",
+          "The result {{n}} becomes the logarithm argument.",
+          "Rewriting back returns exactly ${{b}}^{{x}}={{n}}$."
+        ],
+        "answerSummary": "$\\log_{{{b}}}({{n}})={{x}}\\iff {{b}}^{{x}}={{n}}$"
+      },
+      "attemptFeedback": [
+        "Repair the roles first, then verify equivalence by converting back."
+      ],
+      "supportHints": [
+        "Use the three-role map: base → base, result → argument, exponent → log value."
+      ],
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          },
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "n": "pow(b,x)"
+        }
+      }
+    }
+  ]
+}

@@ -5324,6 +5324,18 @@ function ccmrSessionPasses(summary = {}, requiredQuestions = 5) {
   return accuracy >= 0.8 && independentRate >= 0.6;
 }
 
+function courseChallengeEarned(profile = {}) {
+  const status = String(
+    profile?.mastery?.status
+    || profile?.performance?.key
+    || profile?.status
+    || "",
+  ).trim().toLowerCase();
+  const estimate = Number(profile?.mastery?.estimate ?? profile?.score ?? 0);
+  return ["mastered", "masters"].includes(status)
+    || (Number.isFinite(estimate) && estimate >= 90);
+}
+
 // Course Path progress is separate from mastery.
 //
 // "I finished this Path" means a student completed a full server-owned practice
@@ -5346,6 +5358,13 @@ async function loadCoursePathPassProgress(db, studentId, { limit = 400 } = {}) {
     if (session.status !== "completed") return;
     if (session.sessionKind === "retentionProbe") return;
     if (session.assessmentFramework) return;
+    if (session.coursePracticeIntent === "challenge") return;
+    // Weekly Path is a separate commitment. Its sessions still contribute
+    // mastery evidence and weekly completion, but they may be frozen at
+    // Current learning, Retention, Challenge, or CCMR-transfer rigor. Counting
+    // them as numbered Foundation/Deeper/Mastery passes would let low-rigor
+    // weekly work advance the open-practice level by session count alone.
+    if (session.weeklySlotKey) return;
 
     const alignmentKey = mathPath.canonicalAlignmentKey(session.target?.alignmentKey);
     const code = mathPath.displayAlignmentKey(alignmentKey);
@@ -5606,6 +5625,9 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   const sessionKind = request.data?.sessionKind === "retentionProbe" ? "retentionProbe" : "practice";
   let requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
   let assessmentFramework = normalizePathAssessmentFramework(request.data?.assessmentFramework);
+  const requestedCoursePracticeIntent = String(request.data?.coursePracticeIntent || "").trim() === "challenge"
+    ? "challenge"
+    : null;
   const db = getFirestore();
 
   const studentSnapshot = await db.collection("grades").doc(studentId).get();
@@ -5666,12 +5688,19 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
     if (ccmrChallengeTier >= 2 && sessionKind !== "retentionProbe") requiredQuestions = 3;
   }
 
+  const coursePracticeIntent = requestedCoursePracticeIntent
+    && !assessmentFramework
+    && sessionKind !== "retentionProbe"
+    && !requestedWeeklySlotKey
+    ? requestedCoursePracticeIntent
+    : null;
+
   // Ordinary course practice has visible passes too. Pass 1 is the foundation
   // session; later passes deliberately ask the selector for more demanding
   // work. This is NOT mastery — mastery remains evidence-driven.
   let priorCoursePasses = 0;
   let coursePassLevel = null;
-  if (!assessmentFramework && sessionKind !== "retentionProbe") {
+  if (!assessmentFramework && sessionKind !== "retentionProbe" && !requestedWeeklySlotKey && coursePracticeIntent !== "challenge") {
     const passProgress = await loadCoursePathPassProgress(db, studentId);
     const targetCode = mathPath.displayAlignmentKey(targetAlignmentKey);
     priorCoursePasses = Number(passProgress.byTeksCode?.[targetCode]?.passesCompleted || 0);
@@ -5766,6 +5795,9 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
         if ((existing.data()?.assessmentFramework || null) !== assessmentFramework) {
           throw new HttpsError("failed-precondition", "Finish the active session before changing assessment format.");
         }
+        if ((existing.data()?.coursePracticeIntent || null) !== coursePracticeIntent) {
+          throw new HttpsError("failed-precondition", "Finish the active session before changing between regular practice and Challenge.");
+        }
         const releaseAction = pathContentRelease.planSessionContentReleaseAction(existing.data(), assessmentReleaseState);
         if (releaseAction.action === "continue" || releaseAction.action === "finish-open-question") return existing.data();
         if (releaseAction.action === "hold-release-update") throw assessmentReleaseUpdateError(assessmentFramework);
@@ -5790,6 +5822,7 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       status: "active",
       sessionKind,
       assessmentFramework,
+      coursePracticeIntent,
       assessmentContentRelease: assessmentReleaseState.tracked ? assessmentReleaseState.release : null,
       ccmrChallengeTier: assessmentFramework ? ccmrChallengeTier : null,
       coursePassLevel: assessmentFramework || sessionKind === "retentionProbe" ? null : coursePassLevel,
@@ -6051,17 +6084,60 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     preferredDifficultyBand = Number(session.ccmrChallengeTier) >= 3 ? 5 : Math.max(4, Number(preferredDifficultyBand || 3));
     preferredDok = Number(session.ccmrChallengeTier) >= 3 ? Math.max(3, Number(preferredDok || 2)) : Math.max(2, Number(preferredDok || 2));
   }
-  if (!session.assessmentFramework && session.sessionKind !== "retentionProbe") {
+  // A frozen weekly slot is authoritative while we are on its assigned TEKS.
+  // Do not let an unrelated open-practice pass level rewrite the week's DOK or
+  // difficulty commitment after the snapshot has already been assigned.
+  if (!session.assessmentFramework && session.sessionKind !== "retentionProbe" && !onAssignedWeeklyTarget) {
     const coursePassLevel = Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1)));
     if (coursePassLevel >= 2) {
       preferredDifficultyBand = Math.max(4, Number(preferredDifficultyBand || 3));
       preferredDok = Math.max(2, Number(preferredDok || 2));
     }
     if (coursePassLevel >= 3) {
-      preferredDifficultyBand = Math.max(5, Number(preferredDifficultyBand || 4));
+      // Course TEKS content is authored through Band 4. Pass 3 stretches by
+      // depth (DOK 3), not by requesting a nonexistent Band 5 and relying on a
+      // fallback that teachers cannot see.
+      preferredDifficultyBand = Math.max(4, Number(preferredDifficultyBand || 4));
       preferredDok = Math.max(3, Number(preferredDok || 2));
     }
   }
+  // A student may opt into an EARNED Challenge card, but the browser never
+  // names a DOK or difficulty. The only accepted course intent is a one-way
+  // escalation to the certified authored ceiling. It applies only on the
+  // session target, never to a remediation/diagnostic excursion.
+  if (
+    session.coursePracticeIntent === "challenge"
+    && !session.assessmentFramework
+    && !session.weeklySlotKey
+    && activeDisplayCode === targetDisplayCode
+    && !session.diagnosing
+  ) {
+    if (!courseChallengeEarned(masteryProfile)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Challenge is not unlocked for this skill yet.",
+        { reason: "course-challenge-not-earned" },
+      );
+    }
+    preferredDifficultyBand = 4;
+    preferredDok = 3;
+  }
+
+  // Routing can recognize mastery from fresh in-session evidence before the
+  // asynchronous mastery-profile trigger catches up. When it explicitly says
+  // ENRICHMENT, honor that server-owned decision immediately so the student
+  // actually receives Challenge work rather than a stale core-rigor question.
+  if (
+    !session.assessmentFramework
+    && !onAssignedWeeklyTarget
+    && session.lastDecision?.action === "enrichment"
+    && activeDisplayCode === targetDisplayCode
+    && !session.diagnosing
+  ) {
+    preferredDifficultyBand = 4;
+    preferredDok = 3;
+  }
+
   // Selection prefers an UNUSED family, widening to the closest adjacent band
   // before it repeats anything. Narrowing to the nearest band first and cycling
   // inside it — which is what this used to do — trapped a five-question session
@@ -6103,7 +6179,14 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     const tentativeQuestion = tentative.question;
 
     try {
-      const draw = await mathPath.instantiateQuestion(tentativeQuestion, `${sessionId}|${questionInstanceId}|${tentativeQuestion.id}`);
+      const draw = await mathPath.instantiateQuestion(
+        tentativeQuestion,
+        `${sessionId}|${questionInstanceId}|${tentativeQuestion.id}`,
+        {
+          preferredDok,
+          preferredDifficultyBand,
+        },
+      );
       if (!draw?.question) {
         preparationFailures.push({ questionId: tentativeQuestion.id, reason: draw?.reason || "generator_failed" });
         remainingCandidates = remainingCandidates.filter((candidate) => candidate.id !== tentativeQuestion.id);
@@ -6186,13 +6269,20 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     generatorParameters: instantiated.parameters,
     skillCode: activeDisplayCode,
     pathRole,
-    coursePassLevel: session.assessmentFramework ? null : Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1))),
+    coursePassLevel: session.assessmentFramework || session.weeklySlotKey || session.coursePracticeIntent === "challenge"
+      ? null
+      : Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1))),
+    coursePracticeIntent: session.coursePracticeIntent || null,
     assessmentBridgeFramework: usingCourseBridge ? session.assessmentFramework : null,
     ccmrChallengeTier: session.assessmentFramework ? Math.max(1, Math.min(3, Number(session.ccmrChallengeTier || 1))) : null,
     ccmrFamilyRole: authored.ccmrFamilyRole || (Number(authored.ccmrChallengeTier || 1) >= 2 ? "challenge" : "direct"),
     // Teacher/QA metadata. `buildSanitizedQuestion` does not copy these onto the
     // student payload; the Path Simulator reads them from the session document.
     selectionReason: choice.reason,
+    selectedCoverageKey: choice.effectiveCoverageKey || null,
+    selectedVariantIndex: Number.isInteger(choice.effectiveVariantIndex) ? choice.effectiveVariantIndex : null,
+    requestedDok: preferredDok,
+    requestedDifficultyBand: preferredDifficultyBand,
     contentQuality: choice.quality,
     // Which authorized supports actually apply to THIS question. Authorized is
     // not the same as applicable: a calculator accommodation does not apply to

@@ -90,14 +90,24 @@ export const hintRevealsAnswer = (hint, expectedValues = []) => {
     .map((value) => text(value).toLowerCase())
     .filter(Boolean)
     .some((value) => {
-      // A long answer can be looked for anywhere. A short one needs boundaries,
-      // or the digit "5" would match inside "15 minutes" and every hint on
-      // earth would look like a leak. The trailing lookahead is what keeps
-      // "12" from matching inside "12.5", while still catching the far more
-      // common "… is x = 12." with a sentence-ending full stop.
-      if (value.length >= 3) return haystack.includes(value);
       const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      return new RegExp(`(^|[^\\w.\\-])${escaped}(?![\\d.]*\\d)`).test(haystack);
+      const numeric = /^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(value);
+
+      // Numeric answers need numeric boundaries: "5" must not match "15",
+      // and "12" must not match the beginning of "12.5".
+      if (numeric) {
+        return new RegExp(`(^|[^\\d.\\-])${escaped}(?![\\d.]*\\d)`).test(haystack);
+      }
+
+      // Short text answers need full token boundaries. The old rule made
+      // "no" match the beginning of "not" and one-letter answer ids match
+      // ordinary prose.
+      if (value.length < 3) {
+        return new RegExp(`(^|[^\\w])${escaped}($|[^\\w])`).test(haystack);
+      }
+
+      // Longer visible answers are specific enough to search literally.
+      return haystack.includes(value);
     });
 };
 

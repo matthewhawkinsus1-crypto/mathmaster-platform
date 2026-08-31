@@ -1,0 +1,893 @@
+{
+  "standard": "A2.6J",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-evidence-based-rational-solution-reasonableness-original-substitution-domain-context-tolerance-error-repair",
+  "rationale": "A2.6J is a reasonableness standard, so every Fidelity V2 family supplies a candidate and requires concrete evidence from the original rational equation and, when relevant, the context. Students do not re-solve the full equation as in A2.6I.",
+  "documents": [
+    {
+      "id": "mm_A2_6J_v2_valid-exact-substitution",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6J"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6J:v2-valid-exact-substitution",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6J",
+      "representation": "table",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "conceptual",
+      "prompt": "A solver reports x={{candidate}} for $\\frac{{{a}}}{x-({{h}})}=\\frac{{{b}}}{x-({{k}})}$. Determine whether the candidate is reasonable by checking both original denominators and evaluating both sides. Do not re-solve the equation.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Candidate check",
+        "table": {
+          "headers": [
+            "Check",
+            "Value"
+          ],
+          "rows": [
+            [
+              "x-({{h}})",
+              "?"
+            ],
+            [
+              "x-({{k}})",
+              "?"
+            ],
+            [
+              "Left side",
+              "?"
+            ],
+            [
+              "Right side",
+              "?"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "denom-left",
+          "label": "First denominator at x={{candidate}}",
+          "inputProfile": "number",
+          "expected": "{{d1}}"
+        },
+        {
+          "id": "denom-right",
+          "label": "Second denominator at x={{candidate}}",
+          "inputProfile": "number",
+          "expected": "{{d2}}"
+        },
+        {
+          "id": "left-value",
+          "label": "Left-side value",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        },
+        {
+          "id": "right-value",
+          "label": "Right-side value",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        },
+        {
+          "id": "verdict",
+          "label": "Final reasonableness decision",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "keep",
+              "label": "Keep x={{candidate}}; both denominators are nonzero and both original sides agree."
+            },
+            {
+              "id": "reject-domain",
+              "label": "Reject x={{candidate}} because a denominator is zero."
+            },
+            {
+              "id": "reject-equation",
+              "label": "Reject x={{candidate}} because the two original sides do not agree."
+            }
+          ],
+          "expected": "keep"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A candidate is reasonable only if it is defined and satisfies the original rational equation.",
+        "reasoning": [
+          "At x={{candidate}}, the two denominators are {{d1}} and {{d2}}, both nonzero.",
+          "The left and right sides both evaluate to {{m}}.",
+          "The candidate passes the original-equation check, so keep it."
+        ],
+        "answerSummary": "Keep x={{candidate}}."
+      },
+      "attemptFeedback": [
+        "Evaluate the original equation at the supplied candidate; do not assume a solver output is valid."
+      ],
+      "supportHints": [
+        "Check denominator restrictions before comparing the two side values."
+      ],
+      "generator": {
+        "parameters": {
+          "candidate": {
+            "type": "int",
+            "min": -6,
+            "max": 10
+          },
+          "h": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          }
+        },
+        "derived": {
+          "d1": "candidate-h",
+          "d2": "candidate-k",
+          "a": "m*d1",
+          "b": "m*d2"
+        },
+        "constraints": [
+          "candidate!=h",
+          "candidate!=k",
+          "h!=k"
+        ]
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b2",
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "coverageKey": "adaptive-d2b4-half-unit-exact-substitution",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "conceptual",
+          "representation": "table",
+          "prompt": "A solver reports the half-unit candidate x={{candidate}} for $\\frac{{{a}}}{x-({{h}})}=\\frac{{{b}}}{x-({{k}})}$. Check both original denominators and evaluate both sides before deciding whether to keep the candidate. Do not re-solve the equation.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Half-unit candidate check",
+            "table": {
+              "headers": [
+                "Check",
+                "Value"
+              ],
+              "rows": [
+                [
+                  "x-({{h}})",
+                  "?"
+                ],
+                [
+                  "x-({{k}})",
+                  "?"
+                ],
+                [
+                  "Left side",
+                  "?"
+                ],
+                [
+                  "Right side",
+                  "?"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "denom-left",
+              "label": "First denominator at x={{candidate}}",
+              "inputProfile": "number",
+              "expected": "{{d1}}"
+            },
+            {
+              "id": "denom-right",
+              "label": "Second denominator at x={{candidate}}",
+              "inputProfile": "number",
+              "expected": "{{d2}}"
+            },
+            {
+              "id": "left-value",
+              "label": "Left-side value",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "right-value",
+              "label": "Right-side value",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "verdict",
+              "label": "Final reasonableness decision",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "keep",
+                  "label": "Keep x={{candidate}}; both denominators are nonzero and both original sides agree."
+                },
+                {
+                  "id": "reject-domain",
+                  "label": "Reject x={{candidate}} because a denominator is zero."
+                },
+                {
+                  "id": "reject-equation",
+                  "label": "Reject x={{candidate}} because the two original sides do not agree."
+                }
+              ],
+              "expected": "keep"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Harder substitution arithmetic does not change the reasonableness logic.",
+            "reasoning": [
+              "At x={{candidate}}, the denominators are {{d1}} and {{d2}}, both nonzero.",
+              "The two rational sides each evaluate to {{m}}.",
+              "The supplied candidate is therefore reasonable in the original equation."
+            ],
+            "answerSummary": "Keep x={{candidate}}."
+          },
+          "attemptFeedback": [
+            "Check the original denominators first, then compare the two substituted side values."
+          ],
+          "supportHints": [
+            "A candidate must be both defined and make the original equation true."
+          ],
+          "generator": {
+            "parameters": {
+              "candidate2": {
+                "type": "choice",
+                "values": [
+                  -9,
+                  -7,
+                  -5,
+                  -3,
+                  -1,
+                  1,
+                  3,
+                  5,
+                  7,
+                  9,
+                  11,
+                  13
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "k": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "m": {
+                "type": "choice",
+                "values": [
+                  2,
+                  4,
+                  6
+                ]
+              }
+            },
+            "derived": {
+              "candidate": "candidate2/2",
+              "d1": "candidate-h",
+              "d2": "candidate-k",
+              "a": "m*d1",
+              "b": "m*d2"
+            },
+            "constraints": [
+              "h!=k"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_6J_v2_cleared-root-excluded-original",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6J"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6J:v2-cleared-root-excluded-original",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6J",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "Clearing the denominator in $\\frac{(x-({{h}}))(x-({{r}}))}{x-({{h}})}=0$ produces $(x-({{h}}))(x-({{r}}))=0$. A solver keeps candidate x={{h}} because it is a root of the cleared polynomial. Determine whether that candidate is reasonable in the original rational equation.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Solver evidence",
+        "steps": [
+          {
+            "id": "original",
+            "label": "Original rational equation",
+            "work": "$\\frac{(x-({{h}}))(x-({{r}}))}{x-({{h}})}=0$"
+          },
+          {
+            "id": "cleared",
+            "label": "After clearing denominator",
+            "work": "$(x-({{h}}))(x-({{r}}))=0$"
+          },
+          {
+            "id": "candidate",
+            "label": "Candidate from cleared equation",
+            "work": "$x={{h}}$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "cleared-value",
+          "label": "Value of the cleared polynomial at x={{h}}",
+          "inputProfile": "number",
+          "expected": "0"
+        },
+        {
+          "id": "original-denominator",
+          "label": "Original denominator x-({{h}}) at x={{h}}",
+          "inputProfile": "number",
+          "expected": "0"
+        },
+        {
+          "id": "original-status",
+          "label": "Status of the original rational expression",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "undefined",
+              "label": "Undefined at x={{h}}"
+            },
+            {
+              "id": "zero",
+              "label": "Defined and equal to 0"
+            },
+            {
+              "id": "one",
+              "label": "Defined and equal to 1"
+            }
+          ],
+          "expected": "undefined"
+        },
+        {
+          "id": "verdict",
+          "label": "Final reasonableness decision",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "reject",
+              "label": "Reject x={{h}}; clearing the denominator created a root that is excluded from the original equation."
+            },
+            {
+              "id": "keep",
+              "label": "Keep x={{h}} because every root of the cleared polynomial must be valid."
+            }
+          ],
+          "expected": "reject"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A root of the cleared equation can still be impossible in the original rational equation.",
+        "reasoning": [
+          "The cleared polynomial is 0 at x={{h}}, so the transformed equation alone would keep it.",
+          "But the original denominator x-({{h}}) is 0 there, so the original rational equation is undefined.",
+          "Reject x={{h}}."
+        ],
+        "answerSummary": "Reject x={{h}}."
+      },
+      "attemptFeedback": [
+        "The transformed polynomial is not enough; return to the original denominator."
+      ],
+      "supportHints": [
+        "A denominator restriction survives denominator clearing and cancellation."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "gap": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "r": "h+gap"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6J_v2_context-algebra-valid-negative-time",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6J"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6J:v2-context-algebra-valid-negative-time",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6J",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "application",
+      "prompt": "A monitoring model is $\\frac{{{total}}}{t+{{shift}}}={{rate}}$, where t is elapsed time in hours after monitoring begins, so t\\ge0. Algebra produces candidate t={{candidate}}. Determine whether the candidate is reasonable by checking the original equation and the context.",
+      "responseFields": [
+        {
+          "id": "denominator",
+          "label": "Denominator t+{{shift}} at t={{candidate}}",
+          "inputProfile": "number",
+          "expected": "{{denom}}"
+        },
+        {
+          "id": "left-value",
+          "label": "Left-side value at t={{candidate}}",
+          "inputProfile": "number",
+          "expected": "{{rate}}"
+        },
+        {
+          "id": "algebra-check",
+          "label": "Does the candidate satisfy the original rational equation?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "yes",
+              "label": "Yes; both sides equal {{rate}}."
+            },
+            {
+              "id": "no",
+              "label": "No; the two sides differ."
+            }
+          ],
+          "expected": "yes"
+        },
+        {
+          "id": "verdict",
+          "label": "Final reasonableness decision in context",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "reject-context",
+              "label": "Reject t={{candidate}}; it is algebraically valid but violates t\\ge0 for elapsed time."
+            },
+            {
+              "id": "keep",
+              "label": "Keep t={{candidate}} because algebraic validity overrides the time context."
+            }
+          ],
+          "expected": "reject-context"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Reasonableness can impose a context restriction beyond algebraic validity.",
+        "reasoning": [
+          "At t={{candidate}}, the denominator is {{denom}} and the left side equals {{rate}}, so the rational equation is satisfied.",
+          "But elapsed time is restricted to t\\ge0.",
+          "Because {{candidate}} is negative, reject the candidate in this model."
+        ],
+        "answerSummary": "Algebraically valid, but unreasonable in context; reject t={{candidate}}."
+      },
+      "attemptFeedback": [
+        "Separate the algebra check from the context check; a candidate may pass one and fail the other."
+      ],
+      "supportHints": [
+        "First substitute into the original rational equation. Then apply t\\ge0."
+      ],
+      "generator": {
+        "parameters": {
+          "shift": {
+            "type": "int",
+            "min": 6,
+            "max": 12
+          },
+          "candidate": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "rate": {
+            "type": "int",
+            "min": 5,
+            "max": 20
+          }
+        },
+        "derived": {
+          "denom": "shift+candidate",
+          "total": "rate*denom"
+        },
+        "constraints": [
+          "denom>0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A2_6J_v2_rounded-residual-tolerance",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6J"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6J:v2-rounded-residual-tolerance",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6J",
+      "representation": "symbolic",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "reverseReasoning",
+      "prompt": "For $\\frac{{{a}}}{x-({{h}})}={{r}}$, a calculator reports the rounded candidate x={{candidate}}. In this task a rounded candidate is reasonable when the absolute residual in the original equation is at most 0.01. Evaluate the original equation and decide whether to keep the candidate; do not re-solve it.",
+      "responseFields": [
+        {
+          "id": "denominator",
+          "label": "x-({{h}}) at the rounded candidate",
+          "inputProfile": "number",
+          "numericTolerance": 0.001,
+          "expected": "{{denom}}"
+        },
+        {
+          "id": "left-value",
+          "label": "Left-side value at x={{candidate}}",
+          "inputProfile": "number",
+          "numericTolerance": 0.002,
+          "expected": "{{lhs}}"
+        },
+        {
+          "id": "residual",
+          "label": "Absolute residual |left side - {{r}}|",
+          "inputProfile": "number",
+          "numericTolerance": 0.002,
+          "expected": "{{residual}}"
+        },
+        {
+          "id": "verdict",
+          "label": "Tolerance-based reasonableness decision",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "keep",
+              "label": "Keep the rounded candidate; its residual is at most 0.01."
+            },
+            {
+              "id": "reject",
+              "label": "Reject the rounded candidate; its residual exceeds 0.01."
+            }
+          ],
+          "expected": "keep"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Approximate reasonableness should be tied to an explicit tolerance, not to guesswork.",
+        "reasoning": [
+          "Substitute x={{candidate}} into the original rational expression.",
+          "The absolute residual is {{residual}}, which is at most the stated 0.01 tolerance.",
+          "Keep the rounded candidate at the requested precision."
+        ],
+        "answerSummary": "Keep x={{candidate}} within the 0.01 residual tolerance."
+      },
+      "attemptFeedback": [
+        "Use the original equation to compute a residual, then compare that residual with 0.01."
+      ],
+      "supportHints": [
+        "Residual means the absolute difference between the two sides after substitution."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "a": {
+            "type": "int",
+            "min": 5,
+            "max": 30
+          },
+          "r": {
+            "type": "int",
+            "min": 3,
+            "max": 11
+          }
+        },
+        "derived": {
+          "exact": "h+a/r",
+          "candidate": "round(1000*exact)/1000",
+          "denom": "candidate-h",
+          "lhs": "a/denom",
+          "residual": "abs(lhs-r)"
+        },
+        "constraints": [
+          "a%r!=0",
+          "denom!=0",
+          "residual<=0.01",
+          "residual>0"
+        ],
+        "attempts": 300
+      }
+    },
+    {
+      "id": "mm_A2_6J_v2_defined-candidate-missing-substitution-error",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6J"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6J:v2-defined-candidate-missing-substitution-error",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6J",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student is checking candidate x={{candidate}} for $\\frac{{{a}}}{x-({{h}})}={{rhs}}$. The student says, “x={{candidate}} is not excluded, so it must be reasonable,” and keeps it without substituting. Diagnose the incomplete check, evaluate the original equation, and correct the verdict.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's reasonableness check",
+        "steps": [
+          {
+            "id": "restriction",
+            "label": "Domain check",
+            "work": "$x={{candidate}}\\ne {{h}}$"
+          },
+          {
+            "id": "claim",
+            "label": "Student conclusion",
+            "work": "Keep x={{candidate}} without checking the original equation."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What is missing from the student's check?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "substitute",
+              "label": "Substitute x={{candidate}} into the original equation and compare both sides."
+            },
+            {
+              "id": "integer",
+              "label": "Check only whether {{candidate}} is an integer."
+            },
+            {
+              "id": "positive",
+              "label": "Check only whether {{candidate}} is positive."
+            }
+          ],
+          "expected": "substitute"
+        },
+        {
+          "id": "denominator",
+          "label": "Original denominator at x={{candidate}}",
+          "inputProfile": "number",
+          "expected": "{{d}}"
+        },
+        {
+          "id": "left-value",
+          "label": "Original left-side value",
+          "inputProfile": "number",
+          "expected": "{{m}}"
+        },
+        {
+          "id": "right-value",
+          "label": "Original right-side value",
+          "inputProfile": "number",
+          "expected": "{{rhs}}"
+        },
+        {
+          "id": "verdict",
+          "label": "Corrected final decision",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "reject",
+              "label": "Reject x={{candidate}}; it is defined but does not satisfy the original equation."
+            },
+            {
+              "id": "keep",
+              "label": "Keep x={{candidate}} because being in the domain is enough."
+            }
+          ],
+          "expected": "reject"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Passing the domain check is necessary but not sufficient.",
+        "reasoning": [
+          "At x={{candidate}}, the denominator is {{d}}, so the candidate is defined.",
+          "The left side evaluates to {{m}}, while the right side is {{rhs}}.",
+          "Because the original sides differ, reject the candidate."
+        ],
+        "answerSummary": "Reject x={{candidate}}."
+      },
+      "attemptFeedback": [
+        "A denominator check only tells you the expression is defined; it does not prove the equation is true."
+      ],
+      "supportHints": [
+        "Substitute the candidate into both sides of the original equation."
+      ],
+      "generator": {
+        "parameters": {
+          "candidate": {
+            "type": "int",
+            "min": -8,
+            "max": 10
+          },
+          "h": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          }
+        },
+        "derived": {
+          "d": "candidate-h",
+          "a": "m*d",
+          "rhs": "m+1"
+        },
+        "constraints": [
+          "candidate!=h"
+        ]
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-integer-substitution-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student checks candidate x={{candidate}} for $\\frac{{{a}}}{x}={{rhs}}$. The student notices x is not excluded and immediately keeps it without substituting. Diagnose the incomplete reasonableness check, evaluate both sides, and give the correct verdict.",
+          "stimulus": {
+            "kind": "steps",
+            "title": "Student check",
+            "steps": [
+              {
+                "id": "domain",
+                "label": "Domain check",
+                "work": "$x={{candidate}}\\ne0$"
+              },
+              {
+                "id": "claim",
+                "label": "Student conclusion",
+                "work": "Keep the candidate without substitution."
+              }
+            ]
+          },
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What is missing from the student's check?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "substitute",
+                  "label": "Substitute x={{candidate}} into the original equation and compare both sides."
+                },
+                {
+                  "id": "integer",
+                  "label": "Check only whether {{candidate}} is an integer."
+                },
+                {
+                  "id": "positive",
+                  "label": "Check only whether {{candidate}} is positive."
+                }
+              ],
+              "expected": "substitute"
+            },
+            {
+              "id": "denominator",
+              "label": "Original denominator at x={{candidate}}",
+              "inputProfile": "number",
+              "expected": "{{d}}"
+            },
+            {
+              "id": "left-value",
+              "label": "Original left-side value",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "right-value",
+              "label": "Original right-side value",
+              "inputProfile": "number",
+              "expected": "{{rhs}}"
+            },
+            {
+              "id": "verdict",
+              "label": "Corrected final decision",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "reject",
+                  "label": "Reject x={{candidate}}; it is defined but does not satisfy the original equation."
+                },
+                {
+                  "id": "keep",
+                  "label": "Keep x={{candidate}} because being in the domain is enough."
+                }
+              ],
+              "expected": "reject"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Being in the domain is necessary but does not prove a candidate solves the equation.",
+            "reasoning": [
+              "The denominator is {{d}}, so the candidate is defined.",
+              "The left side equals {{m}} while the right side equals {{rhs}}.",
+              "Because the sides differ, reject the candidate."
+            ],
+            "answerSummary": "Reject x={{candidate}}."
+          },
+          "attemptFeedback": [
+            "Complete the substitution check after the domain check."
+          ],
+          "supportHints": [
+            "Defined does not mean equal; compare the original left and right sides."
+          ],
+          "generator": {
+            "parameters": {
+              "candidate": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              }
+            },
+            "derived": {
+              "h": "0",
+              "d": "candidate",
+              "a": "m*d",
+              "rhs": "m+1"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

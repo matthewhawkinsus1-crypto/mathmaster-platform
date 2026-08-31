@@ -1,0 +1,675 @@
+{
+  "standard": "A.3B",
+  "verdict": "KEEP",
+  "certificationStatus": "candidate-keep-math-rate-of-change-metadata-certified",
+  "documents": [
+    {
+      "id": "mm_A_3B_v2_unit-rate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:v2-unit-rate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "A machine makes {{items}} parts in {{minutes}} minutes at a constant rate. How many parts per minute?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "A constant rate is output divided by elapsed input.",
+          "Divide {{items}} by {{minutes}}."
+        ],
+        "answerSummary": "The rate is ${{rate}}$ parts per minute."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          },
+          "minutes": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        },
+        "derived": {
+          "items": "rate*minutes"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{rate}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3B_v2_table-rate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:v2-table-rate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "Use the table to find the constant rate of change.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Compare the difference in outputs to the difference in inputs.",
+          "The ratio is the same constant rate used to generate the table."
+        ],
+        "answerSummary": "The rate is ${{rate}}$."
+      },
+      "attemptFeedback": [
+        "Compute change in output divided by change in input using the two displayed rows."
+      ],
+      "supportHints": [
+        "Rate of change is $(y_2-y_1)/(x_2-x_1)$."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "x0": {
+            "type": "int",
+            "min": 0,
+            "max": 4
+          },
+          "step": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "y0": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          }
+        },
+        "derived": {
+          "x1": "x0+step",
+          "y1": "y0+rate*step"
+        }
+      },
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "x",
+            "y"
+          ],
+          "rows": [
+            [
+              "{{x0}}",
+              "{{y0}}"
+            ],
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{rate}}"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-unit-step-table-rate",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Use the three-row table to determine the constant rate of change. Compare consecutive changes in x and y, then use those changes to compute the rate.",
+          "stimulus": {
+            "kind": "table",
+            "table": {
+              "headers": [
+                "x",
+                "y"
+              ],
+              "rows": [
+                [
+                  "{{x0}}",
+                  "{{y0}}"
+                ],
+                [
+                  "{{x1}}",
+                  "{{y1}}"
+                ],
+                [
+                  "{{x2}}",
+                  "{{y2}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "delta-x",
+              "label": "Δx between consecutive rows",
+              "inputProfile": "number",
+              "expected": "1"
+            },
+            {
+              "id": "delta-y",
+              "label": "Δy between consecutive rows",
+              "inputProfile": "number",
+              "expected": "{{rate}}"
+            },
+            {
+              "id": "answer",
+              "label": "Constant rate of change",
+              "inputProfile": "number",
+              "expected": "{{rate}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "With a unit input step, the output change equals the rate.",
+            "reasoning": [
+              "Each x-value increases by 1.",
+              "Each y-value changes by {{rate}}.",
+              "Therefore Δy/Δx={{rate}}/1={{rate}}."
+            ],
+            "answerSummary": "Rate {{rate}}."
+          },
+          "attemptFeedback": [
+            "Compare the same pair of consecutive rows for Δx and Δy."
+          ],
+          "supportHints": [
+            "Compute Δy and Δx from the same pair of consecutive rows, then divide the output change by the input change."
+          ],
+          "generator": {
+            "parameters": {
+              "rate": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "x0": {
+                "type": "int",
+                "min": 0,
+                "max": 3
+              },
+              "y0": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "x1": "x0+1",
+              "x2": "x0+2",
+              "y1": "y0+rate",
+              "y2": "y0+2*rate"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3B_v2_distance-rate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:v2-distance-rate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A traveler covers {{distance}} miles in {{hours}} hours at a constant speed. Find the speed in miles per hour.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Speed is distance divided by time.",
+          "The generated distance is a whole-number multiple of the hours."
+        ],
+        "answerSummary": "The speed is ${{speed}}$ miles per hour."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "speed": {
+            "type": "int",
+            "min": 20,
+            "max": 70
+          },
+          "hours": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "distance": "speed*hours"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{speed}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3B_v2_temperature-rate",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:v2-temperature-rate",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "interpretation",
+      "representation": "verbal",
+      "prompt": "A temperature changes by {{change}} degrees over {{hours}} hours. What is the hourly rate of change?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Average rate of change divides the total change by elapsed time.",
+          "The sign tells whether the quantity increased or decreased."
+        ],
+        "answerSummary": "The rate is ${{rate}}$ degrees per hour."
+      },
+      "attemptFeedback": [
+        "Keep the sign of the total temperature change when dividing by elapsed hours."
+      ],
+      "supportHints": [
+        "A negative rate means the temperature decreases each hour."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "hours": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "change": "rate*hours"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{rate}}"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-three-interval-rate-consistency",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A quantity is claimed to change at a constant rate. The table gives three observations. Compute the rate over the first interval and the second interval, decide whether one constant-rate model is supported, and state that rate.",
+          "stimulus": {
+            "kind": "table",
+            "table": {
+              "headers": [
+                "time",
+                "value"
+              ],
+              "rows": [
+                [
+                  "{{x0}}",
+                  "{{y0}}"
+                ],
+                [
+                  "{{x1}}",
+                  "{{y1}}"
+                ],
+                [
+                  "{{x2}}",
+                  "{{y2}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "rate1",
+              "label": "Rate over interval 1",
+              "inputProfile": "number",
+              "expected": "{{rate}}"
+            },
+            {
+              "id": "rate2",
+              "label": "Rate over interval 2",
+              "inputProfile": "number",
+              "expected": "{{rate}}"
+            },
+            {
+              "id": "verdict",
+              "label": "Do the observations support one constant rate?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "rate",
+              "label": "Constant rate",
+              "inputProfile": "number",
+              "expected": "{{rate}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A constant rate must agree across separate intervals.",
+            "reasoning": [
+              "The first interval has rate {{rate}}.",
+              "The second interval also has rate {{rate}}.",
+              "Matching rates support one linear constant-rate model."
+            ],
+            "answerSummary": "Yes; constant rate {{rate}}."
+          },
+          "attemptFeedback": [
+            "Compute each interval rate independently before deciding."
+          ],
+          "supportHints": [
+            "Use Δvalue/Δtime on both intervals."
+          ],
+          "generator": {
+            "parameters": {
+              "rate": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "x0": {
+                "type": "int",
+                "min": 0,
+                "max": 2
+              },
+              "step1": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "step2": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "y0": {
+                "type": "int",
+                "min": -10,
+                "max": 10
+              }
+            },
+            "derived": {
+              "x1": "x0+step1",
+              "x2": "x1+step2",
+              "y1": "y0+rate*step1",
+              "y2": "y1+rate*step2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3B_v2_recover-change",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3B:v2-recover-change",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3B",
+      "taskType": "reverseReasoning",
+      "representation": "context",
+      "prompt": "A quantity changes at {{rate}} units per hour for {{hours}} hours. What is the total change?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Rate times elapsed input gives total change.",
+          "Multiply {{rate}} by {{hours}}."
+        ],
+        "answerSummary": "The total change is ${{change}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
+          },
+          "hours": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          }
+        },
+        "derived": {
+          "change": "rate*hours"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{change}}"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-constant-rate-outlier-audit",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "table",
+          "prompt": "A quantity is supposed to change at a constant rate. The observations are $({{x0}},{{y0}})$, $({{x1}},{{y1}})$, and $({{x2}},{{wrongY2}})$. Compute the rate over the first interval and the rate using the reported third observation. Decide whether the data support one constant rate, then repair the third output so the constant-rate model is consistent.",
+          "responseFields": [
+            {
+              "id": "rate-first",
+              "label": "Rate over the first interval",
+              "inputProfile": "number",
+              "expected": "{{rate}}"
+            },
+            {
+              "id": "rate-reported-second",
+              "label": "Rate over the second interval using the reported third value",
+              "inputProfile": "number",
+              "expected": "{{wrongRate2}}"
+            },
+            {
+              "id": "constant-verdict",
+              "label": "Do the reported observations have one constant rate?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "no",
+                  "label": "No; the interval rates disagree."
+                },
+                {
+                  "id": "yes",
+                  "label": "Yes; any three points have a constant rate."
+                }
+              ],
+              "expected": "no"
+            },
+            {
+              "id": "correct-y2",
+              "label": "Correct output at x={{x2}}",
+              "inputProfile": "number",
+              "expected": "{{y2}}"
+            },
+            {
+              "id": "repaired-rate",
+              "label": "Rate over the repaired second interval",
+              "inputProfile": "number",
+              "expected": "{{rate}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A constant rate must agree across every interval after accounting for the x-step.",
+            "reasoning": [
+              "The first interval gives rate {{rate}}.",
+              "The reported third value gives {{wrongRate2}}, so the rates disagree.",
+              "Using the constant rate {{rate}} requires the third output {{y2}}, which restores the same rate on both intervals."
+            ],
+            "answerSummary": "Repair the third output to {{y2}} so the rate is consistently {{rate}}."
+          },
+          "attemptFeedback": [
+            "Compare Δy/Δx on more than one interval before accepting a constant-rate claim."
+          ],
+          "supportHints": [
+            "The two x-steps may differ, so compare rates rather than raw output changes."
+          ],
+          "generator": {
+            "parameters": {
+              "x0": {
+                "type": "int",
+                "min": -3,
+                "max": 2
+              },
+              "step1": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "step2": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "rate": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              },
+              "y0": {
+                "type": "int",
+                "min": -10,
+                "max": 10
+              },
+              "offset": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              }
+            },
+            "derived": {
+              "x1": "x0+step1",
+              "x2": "x1+step2",
+              "y1": "y0+rate*step1",
+              "y2": "y1+rate*step2",
+              "wrongY2": "y2+offset",
+              "wrongRate2": "(wrongY2-y1)/step2"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

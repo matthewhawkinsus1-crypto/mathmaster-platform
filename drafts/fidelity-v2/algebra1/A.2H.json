@@ -1,0 +1,605 @@
+{
+  "standard": "A.2H",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-table-graph-verbal-two-variable-inequality-writing",
+  "documents": [
+    {
+      "id": "mm_A_2H_v2_context-budget-to-inequality",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2H:v2-context-budget-to-inequality",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2H",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A club can spend at most {{budget}} dollars on shirts and hats. Shirts cost {{s}} dollars each and hats cost {{h}} dollars each. Let $x$ be shirts and $y$ be hats. Write the linear inequality that models the spending limit.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Inequality",
+          "inputProfile": "inequality",
+          "expected": "{{s}}x+{{h}}y<={{budget}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Translate the total cost and the limiting phrase separately.",
+        "reasoning": [
+          "The total cost is ${{s}}x+{{h}}y$.",
+          "At most means the total may equal {{budget}} but cannot exceed it, so use $\\le$."
+        ],
+        "answerSummary": "${{s}}x+{{h}}y \\le {{budget}}$"
+      },
+      "attemptFeedback": [
+        "Build the total cost first, then translate the phrase ‘at most’."
+      ],
+      "supportHints": [
+        "Does spending exactly the full budget still satisfy the situation?"
+      ],
+      "generator": {
+        "parameters": {
+          "s": {
+            "type": "int",
+            "min": 6,
+            "max": 18
+          },
+          "h": {
+            "type": "int",
+            "min": 4,
+            "max": 15
+          },
+          "budget": {
+            "type": "int",
+            "min": 80,
+            "max": 240
+          }
+        },
+        "constraints": [
+          "s != h"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2H_v2_table-boundary-to-inequality",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2H:v2-table-boundary-to-inequality",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2H",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table lists points on the boundary of a linear inequality. The solution includes the boundary and lies BELOW the line. Write the inequality in slope-intercept form.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "Boundary $y$"
+          ],
+          "rows": [
+            [
+              "{{x0}}",
+              "{{y0}}"
+            ],
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Inequality",
+          "inputProfile": "inequality",
+          "expected": "y<={{m}}x{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Find the boundary equation, then use the shading information.",
+        "reasoning": [
+          "The table has constant slope {{m}}, so its boundary is $y={{m}}x{{b|signed}}$.",
+          "Below means $y$ is less than the boundary, and includes the boundary means $\\le$."
+        ],
+        "answerSummary": "$y \\le {{m}}x{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "First write the equation of the boundary line. Then decide whether equality is included."
+      ],
+      "supportHints": [
+        "Below corresponds to less than; an included boundary adds equality."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x0": {
+            "type": "int",
+            "min": -3,
+            "max": 0
+          },
+          "step": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "x1": "x0+step",
+          "x2": "x0+2*step",
+          "y0": "m*x0+b",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2H_v2_boundary-points-shading-to-inequality",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2H:v2-boundary-points-shading-to-inequality",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2H",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "The graph shows a DASHED boundary line with the region ABOVE the line shaded. Write the two-variable inequality represented by the graph.",
+      "stimulus": {
+        "kind": "graph",
+        "title": "Linear inequality graph",
+        "graph": {
+          "xMin": -6,
+          "xMax": 6,
+          "yMin": -10,
+          "yMax": 10,
+          "ariaLabel": "Dashed linear boundary with the half-plane above it shaded",
+          "lines": [
+            {
+              "label": "Boundary",
+              "boundaryStyle": "dashed",
+              "points": [
+                {
+                  "x": -2,
+                  "y": "{{yLeft}}"
+                },
+                {
+                  "x": 2,
+                  "y": "{{yRight}}"
+                }
+              ]
+            }
+          ],
+          "shading": [
+            {
+              "lineIndex": 0,
+              "side": "above"
+            }
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Inequality",
+          "inputProfile": "inequality",
+          "expected": "y>{{m}}x{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A graph communicates the boundary equation, inclusion, and shaded side.",
+        "reasoning": [
+          "The boundary line has slope {{m}} and $y$-intercept {{b}}, so its equation is $y={{m}}x{{b|signed}}$.",
+          "The boundary is dashed, so equality is excluded; the region above the line gives $y>{{m}}x{{b|signed}}$."
+        ],
+        "answerSummary": "$y>{{m}}x{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "Read three separate features: boundary slope/intercept, dashed versus solid, and which side is shaded."
+      ],
+      "supportHints": [
+        "Dashed means strict; shading above a boundary written as $y=mx+b$ uses $>$."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "yLeft": "-2*m+b",
+          "yRight": "2*m+b"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-boundary-from-points-and-shading",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "A DASHED boundary passes through $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. The point $({{tx}},{{ty}})$ is in the shaded solution region ABOVE the boundary. Determine the boundary equation and write the represented inequality.",
+          "responseFields": [
+            {
+              "id": "slope",
+              "label": "Boundary slope",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "intercept",
+              "label": "Boundary y-intercept",
+              "inputProfile": "number",
+              "expected": "{{b}}"
+            },
+            {
+              "id": "boundary",
+              "label": "Boundary equation",
+              "inputProfile": "equation",
+              "expected": "y={{m}}x{{b|signed}}"
+            },
+            {
+              "id": "inequality",
+              "label": "Represented inequality",
+              "inputProfile": "expression",
+              "expected": "y>{{m}}x{{b|signed}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -4,
+                "max": 4,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "x1": {
+                "type": "int",
+                "min": -4,
+                "max": -1
+              },
+              "span": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "tx": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "offset": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              }
+            },
+            "derived": {
+              "x2": "x1+span",
+              "y1": "m*x1+b",
+              "y2": "m*x2+b",
+              "ty": "m*tx+b+offset"
+            }
+          },
+          "stimulus": {
+            "kind": "table",
+            "title": "Boundary and shaded test point",
+            "table": {
+              "headers": [
+                "Point type",
+                "x",
+                "y"
+              ],
+              "rows": [
+                [
+                  "Boundary",
+                  "{{x1}}",
+                  "{{y1}}"
+                ],
+                [
+                  "Boundary",
+                  "{{x2}}",
+                  "{{y2}}"
+                ],
+                [
+                  "Shaded-region test point",
+                  "{{tx}}",
+                  "{{ty}}"
+                ]
+              ]
+            }
+          },
+          "solutionReview": {
+            "headline": "Recover the boundary first, then use line style and shading to choose the inequality.",
+            "reasoning": [
+              "The two boundary points give slope {{m}} and intercept {{b}}.",
+              "A dashed boundary means equality is excluded.",
+              "The test point is above the boundary, so the inequality is y>{{m}}x{{b|signed}}."
+            ],
+            "answerSummary": "$y>{{m}}x{{b|signed}}$"
+          },
+          "attemptFeedback": [
+            "Separate the work into boundary equation, boundary style, and shaded side."
+          ],
+          "supportHints": [
+            "Dashed means strict; a shaded point above the line makes y greater than the boundary expression."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_2H_v2_error-analysis-symbol-and-boundary",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2H:v2-error-analysis-symbol-and-boundary",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2H",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A graph has a SOLID boundary $y={{m}}x{{b|signed}}$ and the region ABOVE the line is shaded. A student writes $y>{{m}}x{{b|signed}}$. Correct the student's inequality.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct inequality",
+          "inputProfile": "inequality",
+          "expected": "y>={{m}}x{{b|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The student's direction is right but the boundary inclusion is wrong.",
+        "reasoning": [
+          "Above the line means $y$ is greater than the boundary value.",
+          "A solid line includes points on the boundary, so equality must be included."
+        ],
+        "answerSummary": "$y \\ge {{m}}x{{b|signed}}$"
+      },
+      "attemptFeedback": [
+        "Check both the direction of shading and whether the boundary itself is part of the solution."
+      ],
+      "supportHints": [
+        "Solid means include equality."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          }
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-test-point-boundary-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A graph has a SOLID boundary $y={{m}}x{{b|signed}}$ and includes the test point $({{tx}},{{ty}})$ above the line. Student A writes $y>{{m}}x{{b|signed}}$. Student B writes $y\\ge{{m}}x{{b|signed}}$. Use both the boundary style and the test point to decide which inequality matches the graph.",
+          "responseFields": [
+            {
+              "id": "boundary-value",
+              "label": "Boundary y-value when x={{tx}}",
+              "inputProfile": "number",
+              "expected": "{{boundaryY}}"
+            },
+            {
+              "id": "test-point",
+              "label": "Does the test point lie above the boundary?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "choice",
+              "label": "Which student's inequality is correct?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "student-b",
+                  "label": "Student B"
+                },
+                {
+                  "id": "student-a",
+                  "label": "Student A"
+                }
+              ],
+              "expected": "student-b"
+            },
+            {
+              "id": "inequality",
+              "label": "Correct inequality",
+              "inputProfile": "expression",
+              "expected": "y>={{m}}x{{b|signed}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -4,
+                "max": 4,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "tx": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "offset": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            },
+            "derived": {
+              "boundaryY": "m*tx+b",
+              "ty": "boundaryY+offset"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_2H_v2_two-constraints-model-choice",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2H:v2-two-constraints-model-choice",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2H",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A fundraiser sells adult tickets for {{a}} dollars and student tickets for {{s}} dollars. The room can hold at most {{cap}} people, and ticket revenue must be at least {{goal}} dollars. Let $x$ be adult tickets and $y$ be student tickets. Write the REVENUE inequality only.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Revenue inequality",
+          "inputProfile": "inequality",
+          "expected": "{{a}}x+{{s}}y>={{goal}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Decide which quantities belong in the requested constraint.",
+        "reasoning": [
+          "Capacity uses counts, but the requested revenue constraint uses ticket prices times ticket counts.",
+          "Must be at least {{goal}} means the revenue is greater than or equal to {{goal}}."
+        ],
+        "answerSummary": "${{a}}x+{{s}}y \\ge {{goal}}$"
+      },
+      "attemptFeedback": [
+        "Do not mix the capacity constraint with the revenue constraint; identify what each coefficient represents."
+      ],
+      "supportHints": [
+        "Revenue is price times quantity for each ticket type."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 18
+          },
+          "s": {
+            "type": "int",
+            "min": 4,
+            "max": 12
+          },
+          "cap": {
+            "type": "int",
+            "min": 80,
+            "max": 250
+          },
+          "goal": {
+            "type": "int",
+            "min": 500,
+            "max": 2200,
+            "step": 50
+          }
+        },
+        "constraints": [
+          "a > s"
+        ]
+      }
+    }
+  ]
+}

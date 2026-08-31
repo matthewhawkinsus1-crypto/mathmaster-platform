@@ -1,0 +1,563 @@
+{
+  "standard": "A.8A",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-four-required-methods",
+  "documents": [
+    {
+      "id": "mm_A_8A_v2_solve-by-factoring",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8A:v2-solve-by-factoring",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.8A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve $x^2{{B|signed}}x{{C|signed}}=0$ by FACTORING. Write the complete solution set.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Solution set",
+          "inputProfile": "set",
+          "expected": "{ {{r1}}, {{r2}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Factoring turns one quadratic equation into two linear equations.",
+        "reasoning": [
+          "The quadratic factors as $(x-({{r1}}))(x-({{r2}}))=0$.",
+          "Set each factor equal to zero to get $x={{r1}}$ and $x={{r2}}$."
+        ],
+        "answerSummary": "$\\{ {{r1}}, {{r2}} \\}$"
+      },
+      "attemptFeedback": [
+        "Find two integers whose sum matches the middle coefficient and whose product matches the constant."
+      ],
+      "supportHints": [
+        "After factoring, apply the zero-product property to both factors."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -8,
+            "max": 2
+          },
+          "span": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "r2": "r1+span",
+          "B": "-(r1+r2)",
+          "C": "r1*r2"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-1b2"
+        },
+        {
+          "coverageKey": "challenge-d3b4-dividing-by-variable-loses-root",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student solves $x^2-{{r}}x=0$ by dividing both sides by x and reports only x={{r}}. Diagnose why that division can lose a valid solution, solve the original quadratic by factoring, and verify both roots in the original equation.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Why can dividing by x lose a solution?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "zero-case",
+                  "label": "Dividing by x assumes x is nonzero, so it discards the possible solution x=0."
+                },
+                {
+                  "id": "always-safe",
+                  "label": "Dividing by a variable is always safe, even when the variable may equal 0."
+                }
+              ],
+              "expected": "zero-case"
+            },
+            {
+              "id": "factorization",
+              "label": "Factored equation",
+              "inputProfile": "equation",
+              "expected": "x(x-{{r}})=0"
+            },
+            {
+              "id": "solution-set",
+              "label": "Complete solution set",
+              "inputProfile": "expression",
+              "expected": "{ 0, {{r}} }"
+            },
+            {
+              "id": "check-zero",
+              "label": "Original left side at x=0",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "check-r",
+              "label": "Original left side at x={{r}}",
+              "inputProfile": "number",
+              "expected": "0"
+            }
+          ],
+          "solutionReview": {
+            "headline": "An algebraic step is not equivalent if it silently assumes a possible solution is nonzero.",
+            "reasoning": [
+              "$x^2-{{r}}x=x(x-{{r}})$.",
+              "The zero-product property gives x=0 or x={{r}}.",
+              "Dividing by x before separating the zero case removes x=0, even though substitution verifies that it is a root."
+            ],
+            "answerSummary": "Solution set {0, {{r}}}."
+          },
+          "attemptFeedback": [
+            "Before dividing by a variable expression, ask whether that expression could equal zero."
+          ],
+          "supportHints": [
+            "Factor the common x instead of canceling it from an equation equal to zero."
+          ],
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": -9,
+                "max": 9,
+                "exclude": [
+                  0
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_8A_v2_solve-square-root-property",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8A:v2-solve-square-root-property",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.8A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve $(x-({{h}}))^2={{sq}}$ using the SQUARE-ROOT PROPERTY. Write the complete solution set.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Solution set",
+          "inputProfile": "set",
+          "expected": "{ {{r1}}, {{r2}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Taking a square root creates two branches.",
+        "reasoning": [
+          "From $(x-({{h}}))^2={{sq}}$, write $x-({{h}})=\\pm {{s}}$.",
+          "Adding {{h}} gives the two solutions {{r1}} and {{r2}}."
+        ],
+        "answerSummary": "$\\{ {{r1}}, {{r2}} \\}$"
+      },
+      "attemptFeedback": [
+        "Do not lose the positive/negative pair when taking the square root."
+      ],
+      "supportHints": [
+        "If $u^2={{sq}}$, then $u=\\pm{{s}}$."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "s": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "sq": "s*s",
+          "r1": "h-s",
+          "r2": "h+s"
+        }
+      }
+    },
+    {
+      "id": "mm_A_8A_v2_solve-completing-square",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8A:v2-solve-completing-square",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.8A",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "Solve $x^2{{mid|signed}}x={{rhs}}$ by COMPLETING THE SQUARE. Write the complete solution set.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Solution set",
+          "inputProfile": "set",
+          "expected": "{ {{r1}}, {{r2}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Add the same square-completing value to both sides.",
+        "reasoning": [
+          "Half of the $x$-coefficient is {{p}}, so add ${{psq}}$ to both sides and rewrite the left as $(x+{{p}})^2$.",
+          "The right side becomes {{tsq}}, so $x+{{p}}=\\pm{{t}}$, giving {{r1}} and {{r2}}."
+        ],
+        "answerSummary": "$\\{ {{r1}}, {{r2}} \\}$"
+      },
+      "attemptFeedback": [
+        "Take half the coefficient of $x$, square it, and add that value to BOTH sides."
+      ],
+      "supportHints": [
+        "Your left side should become a perfect-square trinomial before you take square roots."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "t": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "mid": "2*p",
+          "psq": "p*p",
+          "tsq": "t*t",
+          "rhs": "tsq-psq",
+          "r1": "-p-t",
+          "r2": "-p+t"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-simple-completing-square-steps",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Solve $x^2{{mid|signed}}x={{rhs}}$ by completing the square. First identify the value added to BOTH sides, then write the perfect-square equation and the complete solution set.",
+          "responseFields": [
+            {
+              "id": "add",
+              "label": "Value added to both sides",
+              "inputProfile": "number",
+              "expected": "{{psq}}"
+            },
+            {
+              "id": "perfect-square",
+              "label": "Perfect-square equation",
+              "inputProfile": "equation",
+              "expected": "(x+({{p}}))^2={{tsq}}"
+            },
+            {
+              "id": "answer",
+              "label": "Complete solution set",
+              "inputProfile": "set",
+              "expected": "{ {{r1}}, {{r2}} }"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Completing the square is easier when the half-coefficient is small.",
+            "reasoning": [
+              "Half the x-coefficient is {{p}}, so add {{psq}} to both sides.",
+              "The equation becomes (x+{{p}})^2={{tsq}}.",
+              "Taking both square-root branches gives {{r1}} and {{r2}}."
+            ],
+            "answerSummary": "Solutions { {{r1}}, {{r2}} }."
+          },
+          "attemptFeedback": [
+            "Add the same square-completing value to both sides before taking square roots."
+          ],
+          "supportHints": [
+            "Half the x coefficient, then square that result."
+          ],
+          "generator": {
+            "parameters": {
+              "p": {
+                "type": "choice",
+                "values": [
+                  -2,
+                  -1,
+                  1,
+                  2
+                ]
+              },
+              "t": {
+                "type": "choice",
+                "values": [
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            "derived": {
+              "mid": "2*p",
+              "psq": "p*p",
+              "tsq": "t*t",
+              "rhs": "tsq-psq",
+              "r1": "-p-t",
+              "r2": "-p+t"
+            },
+            "constraints": [
+              "r1!=r2"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_8A_v2_solve-quadratic-formula",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8A:v2-solve-quadratic-formula",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.8A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve ${{A}}x^2{{B|signed}}x{{C|signed}}=0$ using the QUADRATIC FORMULA. Write the complete solution set.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Solution set",
+          "inputProfile": "set",
+          "expected": "{ {{r1}}, {{r2}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Substitute $a$, $b$, and $c$ into the quadratic formula without dropping either sign.",
+        "reasoning": [
+          "Here $a={{A}}$, $b={{B}}$, and $c={{C}}$.",
+          "Evaluating $(-b\\pm\\sqrt{b^2-4ac})/(2a)$ simplifies to the two roots {{r1}} and {{r2}}."
+        ],
+        "answerSummary": "$\\{ {{r1}}, {{r2}} \\}$"
+      },
+      "attemptFeedback": [
+        "Identify $a$, $b$, and $c$ with their signs before substituting."
+      ],
+      "supportHints": [
+        "The $\\pm$ creates two solutions; calculate both."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "r1": {
+            "type": "int",
+            "min": -7,
+            "max": 1
+          },
+          "span": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "r2": "r1+span",
+          "A": "a",
+          "B": "-a*(r1+r2)",
+          "C": "a*r1*r2"
+        }
+      }
+    },
+    {
+      "id": "mm_A_8A_v2_error-missing-plus-minus",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.8A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.8A:v2-error-missing-plus-minus",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.8A",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student solves $(x-({{h}}))^2={{sq}}$ and writes only $x={{r2}}$. Correct the student's work by writing the COMPLETE solution set.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Solution set",
+          "inputProfile": "set",
+          "expected": "{ {{r1}}, {{r2}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The student kept only the positive square-root branch.",
+        "reasoning": [
+          "Taking square roots gives $x-({{h}})=\\pm{{s}}$, not only $+{{s}}$.",
+          "The negative branch gives {{r1}} and the positive branch gives {{r2}}."
+        ],
+        "answerSummary": "$\\{ {{r1}}, {{r2}} \\}$"
+      },
+      "attemptFeedback": [
+        "Find the branch the student omitted when taking the square root."
+      ],
+      "supportHints": [
+        "A positive squared value usually has two real square roots."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "s": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          }
+        },
+        "derived": {
+          "sq": "s*s",
+          "r1": "h-s",
+          "r2": "h+s"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-two-root-verification-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A student solves $(x-({{h}}))^2={{sq}}$ and reports only x={{r2}}. Explain why one square-root branch is missing, recover both solutions, and VERIFY each solution by evaluating the squared expression in the original equation.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What did the student omit?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "negative-branch",
+                  "label": "The negative square-root branch x-h=-{{s}}"
+                },
+                {
+                  "id": "divide-two",
+                  "label": "Division of both sides by 2"
+                }
+              ],
+              "expected": "negative-branch"
+            },
+            {
+              "id": "answer",
+              "label": "Complete solution set",
+              "inputProfile": "set",
+              "expected": "{ {{r1}}, {{r2}} }"
+            },
+            {
+              "id": "verify-r1",
+              "label": "(r1-h)^2",
+              "inputProfile": "number",
+              "expected": "{{sq}}"
+            },
+            {
+              "id": "verify-r2",
+              "label": "(r2-h)^2",
+              "inputProfile": "number",
+              "expected": "{{sq}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A positive squared value has two real square-root branches, and both can be verified.",
+            "reasoning": [
+              "x-h=±{{s}} gives x={{r1}} and x={{r2}}.",
+              "Substituting either root into (x-h)^2 produces {{sq}}, so both belong to the solution set."
+            ],
+            "answerSummary": "Both {{r1}} and {{r2}} are required."
+          },
+          "attemptFeedback": [
+            "Do not accept a root set until every proposed root satisfies the original equation."
+          ],
+          "supportHints": [
+            "Test both h-s and h+s in the squared expression."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "s": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              }
+            },
+            "derived": {
+              "sq": "s*s",
+              "r1": "h-s",
+              "r2": "h+s"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

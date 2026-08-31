@@ -1,0 +1,21 @@
+name: Algebra Challenge DOK Difficulty Audit
+
+on:
+  push:
+    paths:
+      - "drafts/fidelity-v2/algebra1/**"
+      - "drafts/fidelity-v2/algebra2/**"
+      - "scripts/audit-algebra-challenge-dok-difficulty.mjs"
+      - ".github/workflows/algebra-challenge-dok-difficulty-audit.yml"
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Audit Challenge and independent DOK/difficulty coverage
+        run: node scripts/audit-algebra-challenge-dok-difficulty.mjs

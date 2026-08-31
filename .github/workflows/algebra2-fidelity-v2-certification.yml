@@ -1,0 +1,123 @@
+name: Algebra II Fidelity V2 Certification
+
+concurrency:
+  group: algebra2-fidelity-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - audit/teks-fidelity-v2-algebra2-current
+    paths:
+      - "drafts/fidelity-v2/algebra2/**"
+      - "functions/shared/pathQuestionGeneration.mjs"
+      - "functions/shared/pathToolContracts.mjs"
+      - "functions/shared/answerEquivalence.mjs"
+      - "functions/shared/rationalExpressionEquivalence.mjs"
+      - "functions/shared/nonnegativeRadicalExpressionEquivalence.mjs"
+      - "functions/lib/mathPath.js"
+      - "src/InteractiveGraphWorkspace.jsx"
+      - "src/components/student/PathQuestionStimulus.jsx"
+      - "src/tools/systemsWorkspace/SystemsWorkspace.jsx"
+      - "src/tools/systemsWorkspace/systemsMath.js"
+      - "functions/shared/pathDataModelingGrading.mjs"
+      - "src/tools/dataModeling/dataModelingMath.js"
+      - "src/tools/dataModeling/DataModelingLab.jsx"
+      - "tests/platform/algebra2FidelityV2Staged.test.mjs"
+      - "tests/platform/inverseReflectionExperience.test.mjs"
+      - "tests/platform/inverseRadicalAnswerEquivalence.test.mjs"
+      - "tests/platform/inverseFunctionEquationAnswer.test.mjs"
+      - "tests/platform/pathQuestionGeneration.test.mjs"
+      - "tests/platform/polynomialRelationAnswerEquivalence.test.mjs"
+      - "tests/platform/absoluteValueLinearRelationAnswerEquivalence.test.mjs"
+      - "tests/platform/modelEquationAnswerEquivalence.test.mjs"
+      - "tests/platform/setBuilderAnswerEquivalence.test.mjs"
+      - "tests/platform/rationalExpressionAnswerEquivalence.test.mjs"
+      - "tests/platform/nonnegativeRadicalExpressionAnswer.test.mjs"
+      - "tests/platform/a27gVariableRadicalRewriting.test.mjs"
+      - "tests/platform/a27hRationalExponentEquations.test.mjs"
+      - "tests/platform/a27iDomainRangeNotation.test.mjs"
+      - "tests/platform/a28aModelSelection.test.mjs"
+      - "tests/platform/a27fRationalOperations.test.mjs"
+      - "tests/platform/systemsMatrix3Technology.test.mjs"
+      - "tests/platform/pathDataModelingGrading.test.mjs"
+      - "tests/platform/a28bRegressionTechnology.test.mjs"
+      - "tests/platform/a28cPredictionDecisionJudgment.test.mjs"
+      - ".github/workflows/algebra2-fidelity-v2-certification.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "drafts/fidelity-v2/algebra2/**"
+      - "functions/shared/pathQuestionGeneration.mjs"
+      - "functions/shared/pathToolContracts.mjs"
+      - "functions/shared/answerEquivalence.mjs"
+      - "functions/shared/rationalExpressionEquivalence.mjs"
+      - "functions/shared/nonnegativeRadicalExpressionEquivalence.mjs"
+      - "functions/lib/mathPath.js"
+      - "src/InteractiveGraphWorkspace.jsx"
+      - "src/components/student/PathQuestionStimulus.jsx"
+      - "src/tools/systemsWorkspace/SystemsWorkspace.jsx"
+      - "src/tools/systemsWorkspace/systemsMath.js"
+      - "functions/shared/pathDataModelingGrading.mjs"
+      - "src/tools/dataModeling/dataModelingMath.js"
+      - "src/tools/dataModeling/DataModelingLab.jsx"
+      - "tests/platform/algebra2FidelityV2Staged.test.mjs"
+      - "tests/platform/inverseReflectionExperience.test.mjs"
+      - "tests/platform/inverseRadicalAnswerEquivalence.test.mjs"
+      - "tests/platform/inverseFunctionEquationAnswer.test.mjs"
+      - "tests/platform/pathQuestionGeneration.test.mjs"
+      - "tests/platform/polynomialRelationAnswerEquivalence.test.mjs"
+      - "tests/platform/absoluteValueLinearRelationAnswerEquivalence.test.mjs"
+      - "tests/platform/modelEquationAnswerEquivalence.test.mjs"
+      - "tests/platform/setBuilderAnswerEquivalence.test.mjs"
+      - "tests/platform/rationalExpressionAnswerEquivalence.test.mjs"
+      - "tests/platform/nonnegativeRadicalExpressionAnswer.test.mjs"
+      - "tests/platform/a27gVariableRadicalRewriting.test.mjs"
+      - "tests/platform/a27hRationalExponentEquations.test.mjs"
+      - "tests/platform/a27iDomainRangeNotation.test.mjs"
+      - "tests/platform/a28aModelSelection.test.mjs"
+      - "tests/platform/a27fRationalOperations.test.mjs"
+      - "tests/platform/systemsMatrix3Technology.test.mjs"
+      - "tests/platform/pathDataModelingGrading.test.mjs"
+      - "tests/platform/a28bRegressionTechnology.test.mjs"
+      - "tests/platform/a28cPredictionDecisionJudgment.test.mjs"
+      - ".github/workflows/algebra2-fidelity-v2-certification.yml"
+  workflow_dispatch:
+
+jobs:
+  certify-staged-algebra2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Run staged Algebra II generated-instance and inverse-contract gates
+        run: |
+          node --test \
+            tests/platform/algebra2FidelityV2Staged.test.mjs \
+            tests/platform/inverseReflectionExperience.test.mjs \
+            tests/platform/inverseRadicalAnswerEquivalence.test.mjs \
+            tests/platform/inverseFunctionEquationAnswer.test.mjs \
+            tests/platform/pathQuestionGeneration.test.mjs \
+            tests/platform/pathDataModelingGrading.test.mjs \
+            tests/platform/a28bRegressionTechnology.test.mjs \
+            tests/platform/a28cPredictionDecisionJudgment.test.mjs \
+            tests/platform/polynomialRelationAnswerEquivalence.test.mjs \
+            tests/platform/absoluteValueLinearRelationAnswerEquivalence.test.mjs \
+            tests/platform/modelEquationAnswerEquivalence.test.mjs \
+            tests/platform/setBuilderAnswerEquivalence.test.mjs \
+            tests/platform/rationalExpressionAnswerEquivalence.test.mjs \
+            tests/platform/nonnegativeRadicalExpressionAnswer.test.mjs \
+            tests/platform/a27gVariableRadicalRewriting.test.mjs \
+            tests/platform/a27hRationalExponentEquations.test.mjs \
+            tests/platform/a27iDomainRangeNotation.test.mjs \
+            tests/platform/a28aModelSelection.test.mjs \
+            tests/platform/a27fRationalOperations.test.mjs \
+            tests/platform/systemsMatrix3Technology.test.mjs
+      - name: Build student/runtime bundle
+        run: npm run build

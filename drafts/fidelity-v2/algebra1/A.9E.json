@@ -1,0 +1,601 @@
+{
+  "standard": "A.9E",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-exponential-regression-growth-decay-equation-prediction",
+  "documents": [
+    {
+      "id": "mm_A_9E_v2_exponential-regression-growth",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9E:v2-exponential-regression-growth",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.9E",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "The exponential data begin at $(0,{{y0}})$. Use exponential-regression technology to WRITE $y=a(b)^x$, then predict at $x=5$.",
+      "type": "dataModelingLab",
+      "mode": "exponentialFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 5,
+      "solutionReview": {
+        "headline": "Exponential regression returns an initial factor and a multiplicative base.",
+        "reasoning": [
+          "Use exponential regression on the complete data set and write $y=a(b)^x$.",
+          "Use the fitted equation at the requested input; a base above 1 indicates growth and a base between 0 and 1 indicates decay."
+        ]
+      },
+      "attemptFeedback": [
+        "Write both $a$ and the base $b$ from the regression output before predicting."
+      ],
+      "supportHints": [
+        "Do not replace a decay base with a negative number; exponential decay uses $0<b<1$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 80
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              1.2,
+              1.25,
+              1.5,
+              2
+            ]
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a*base",
+          "y2": "a*base*base",
+          "y3": "a*base*base*base",
+          "y4": "a*base*base*base*base"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-clean-exponential-regression",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "representationTranslation",
+          "representation": "table",
+          "prompt": "Use exponential-regression technology on the four clean observations to WRITE $y=a(b)^x$, then predict at x=4. Record both fitted parameters before the prediction.",
+          "mode": "exponentialFitPrediction",
+          "points": [
+            {
+              "x": 0,
+              "y": "{{y0}}"
+            },
+            {
+              "x": 1,
+              "y": "{{y1}}"
+            },
+            {
+              "x": 2,
+              "y": "{{y2}}"
+            },
+            {
+              "x": 3,
+              "y": "{{y3}}"
+            }
+          ],
+          "predictionX": 4,
+          "exponentialATolerance": 0.02,
+          "exponentialBaseTolerance": 0.01,
+          "predictionTolerance": 0.08,
+          "context": {
+            "title": "Clean exponential technology fit",
+            "note": "The data follow an exact multiplicative pattern, making the technology workflow accessible."
+          },
+          "solutionReview": {
+            "headline": "A clean multiplicative table is an accessible use of exponential-regression technology.",
+            "reasoning": [
+              "The technology fit returns a={{a}} and b={{base}}.",
+              "Use the fitted model at x=4 to obtain {{pred}}."
+            ],
+            "answerSummary": "$y={{a}}({{base}})^x$; prediction {{pred}}."
+          },
+          "attemptFeedback": [
+            "Enter all four points, run exponential regression, and record both a and b before predicting."
+          ],
+          "supportHints": [
+            "The clean table still uses the required regression command; the repeated ratio can help you check the output."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 4,
+                "max": 20
+              },
+              "base": {
+                "type": "choice",
+                "values": [
+                  1.5,
+                  2,
+                  2.5
+                ]
+              }
+            },
+            "derived": {
+              "y0": "a",
+              "y1": "a*base",
+              "y2": "a*base*base",
+              "y3": "a*base*base*base",
+              "pred": "a*pow(base,4)"
+            }
+          }
+        },
+        {
+          "coverageKey": "adaptive-d2b4-seven-point-noisy-exponential-regression",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "representationTranslation",
+          "representation": "table",
+          "prompt": "Use exponential regression on all SEVEN noisy positive observations to WRITE $y=a(b)^x$, then predict at x=8. The data are not a perfect geometric sequence, so do not infer the base from one pair of points.",
+          "mode": "exponentialFitPrediction",
+          "points": [
+            {
+              "x": 0,
+              "y": "{{y0}}"
+            },
+            {
+              "x": 1,
+              "y": "{{y1}}"
+            },
+            {
+              "x": 2,
+              "y": "{{y2}}"
+            },
+            {
+              "x": 3,
+              "y": "{{y3}}"
+            },
+            {
+              "x": 4,
+              "y": "{{y4}}"
+            },
+            {
+              "x": 5,
+              "y": "{{y5}}"
+            },
+            {
+              "x": 6,
+              "y": "{{y6}}"
+            }
+          ],
+          "predictionX": 8,
+          "exponentialATolerance": 0.05,
+          "exponentialBaseTolerance": 0.02,
+          "predictionTolerance": 0.5,
+          "context": {
+            "title": "Seven-point noisy exponential regression",
+            "note": "Use every observation. The target x=8 is beyond the observed range 0 through 6."
+          },
+          "solutionReview": {
+            "headline": "More noisy observations increase difficulty while the regression reasoning remains routine.",
+            "reasoning": [
+              "Run exponential regression on all seven positive observations rather than selecting a convenient pair.",
+              "The log-balanced multiplicative noise keeps the best-fit model centered on a={{a}}, b={{base}}.",
+              "Use the fitted model at x=8; this is extrapolation."
+            ],
+            "answerSummary": "Fit all seven points, then extrapolate to x=8."
+          },
+          "attemptFeedback": [
+            "Do not discard observations just because their pairwise ratios are not identical."
+          ],
+          "supportHints": [
+            "Exponential regression handles multiplicative noise across the complete data set."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 5,
+                "max": 30
+              },
+              "base": {
+                "type": "choice",
+                "values": [
+                  1.2,
+                  1.25,
+                  1.4,
+                  1.5
+                ]
+              },
+              "q": {
+                "type": "choice",
+                "values": [
+                  1.05,
+                  1.1
+                ]
+              }
+            },
+            "derived": {
+              "y0": "a*q",
+              "y1": "a*base/q",
+              "y2": "a*base*base/q",
+              "y3": "a*pow(base,3)*q*q",
+              "y4": "a*pow(base,4)/q",
+              "y5": "a*pow(base,5)/q",
+              "y6": "a*pow(base,6)*q",
+              "pred": "a*pow(base,8)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_9E_v2_exponential-regression-decay",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9E:v2-exponential-regression-decay",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.9E",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "A decay data set begins with {{y0}} at $x=0$. Use exponential regression to WRITE the fitted model and predict at $x=5$.",
+      "type": "dataModelingLab",
+      "mode": "exponentialFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 5,
+      "solutionReview": {
+        "headline": "Exponential regression returns an initial factor and a multiplicative base.",
+        "reasoning": [
+          "Use exponential regression on the complete data set and write $y=a(b)^x$.",
+          "Use the fitted equation at the requested input; a base above 1 indicates growth and a base between 0 and 1 indicates decay."
+        ]
+      },
+      "attemptFeedback": [
+        "Write both $a$ and the base $b$ from the regression output before predicting."
+      ],
+      "supportHints": [
+        "Do not replace a decay base with a negative number; exponential decay uses $0<b<1$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 80
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.6,
+              0.75,
+              0.8,
+              0.9
+            ]
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a*base",
+          "y2": "a*base*base",
+          "y3": "a*base*base*base",
+          "y4": "a*base*base*base*base"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9E_v2_exponential-regression-interpolation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9E:v2-exponential-regression-interpolation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.9E",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A multiplicative trend starts at observed value {{y0}}. Use exponential regression to WRITE the model, then estimate the value at $x=2.5$.",
+      "type": "dataModelingLab",
+      "mode": "exponentialFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 2.5,
+      "context": {
+        "title": "Multiplicative trend"
+      },
+      "solutionReview": {
+        "headline": "Exponential regression returns an initial factor and a multiplicative base.",
+        "reasoning": [
+          "Use exponential regression on the complete data set and write $y=a(b)^x$.",
+          "Use the fitted equation at the requested input; a base above 1 indicates growth and a base between 0 and 1 indicates decay."
+        ]
+      },
+      "attemptFeedback": [
+        "Write both $a$ and the base $b$ from the regression output before predicting."
+      ],
+      "supportHints": [
+        "Do not replace a decay base with a negative number; exponential decay uses $0<b<1$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 80
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              1.1,
+              1.2,
+              1.5
+            ]
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a*base",
+          "y2": "a*base*base",
+          "y3": "a*base*base*base",
+          "y4": "a*base*base*base*base"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9E_v2_exponential-regression-context-decay",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9E:v2-exponential-regression-context-decay",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.9E",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A measured quantity decreases over time and starts at {{y0}}. Use exponential-regression technology to WRITE the decay model and predict the quantity at $x=6$.",
+      "type": "dataModelingLab",
+      "mode": "exponentialFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 6,
+      "context": {
+        "title": "Measured decay"
+      },
+      "solutionReview": {
+        "headline": "Exponential regression returns an initial factor and a multiplicative base.",
+        "reasoning": [
+          "Use exponential regression on the complete data set and write $y=a(b)^x$.",
+          "Use the fitted equation at the requested input; a base above 1 indicates growth and a base between 0 and 1 indicates decay."
+        ]
+      },
+      "attemptFeedback": [
+        "Write both $a$ and the base $b$ from the regression output before predicting."
+      ],
+      "supportHints": [
+        "Do not replace a decay base with a negative number; exponential decay uses $0<b<1$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 80
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              0.5,
+              0.7,
+              0.8,
+              0.9
+            ]
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a*base",
+          "y2": "a*base*base",
+          "y3": "a*base*base*base",
+          "y4": "a*base*base*base*base"
+        }
+      }
+    },
+    {
+      "id": "mm_A_9E_v2_exponential-regression-error-linear",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.9E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.9E:v2-exponential-regression-error-linear",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.9E",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student treats the data beginning at {{y0}} as additive and fits a linear model. Correct the method: use exponential regression to WRITE $y=a(b)^x$ and predict at $x=5$.",
+      "type": "dataModelingLab",
+      "mode": "exponentialFitPrediction",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "predictionX": 5,
+      "solutionReview": {
+        "headline": "Exponential regression returns an initial factor and a multiplicative base.",
+        "reasoning": [
+          "Use exponential regression on the complete data set and write $y=a(b)^x$.",
+          "Use the fitted equation at the requested input; a base above 1 indicates growth and a base between 0 and 1 indicates decay."
+        ]
+      },
+      "attemptFeedback": [
+        "Write both $a$ and the base $b$ from the regression output before predicting."
+      ],
+      "supportHints": [
+        "Do not replace a decay base with a negative number; exponential decay uses $0<b<1$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 80
+          },
+          "base": {
+            "type": "choice",
+            "values": [
+              1.25,
+              1.5,
+              2,
+              0.5,
+              0.75
+            ]
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a*base",
+          "y2": "a*base*base",
+          "y3": "a*base*base*base",
+          "y4": "a*base*base*base*base"
+        }
+      }
+    }
+  ]
+}

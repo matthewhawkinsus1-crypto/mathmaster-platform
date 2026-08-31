@@ -5,6 +5,7 @@ import MathText from './components/common/MathText.jsx';
 import { toPlainMath } from './components/common/mathSegments.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import QuestionPrompt from './QuestionPrompt';
+import PathQuestionStimulus from './components/student/PathQuestionStimulus.jsx';
 import { FUNCTION_GRAPH_LABELS, evaluateGraphFunction } from './functionGraphUtils';
 import { POINT_FEATURES } from './analysisRequestCatalog';
 import {
@@ -885,6 +886,8 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       )}
       {question.showEquation !== false && question.equationLatex && <div style={{ margin: '18px auto', padding: '14px 20px', width: 'fit-content', maxWidth: '100%', borderRadius: '10px', background: '#f8f9fa', color: '#1a73e8', fontSize: '27px', fontWeight: 'bold' }}><MathDisplay value={question.equationLatex} format="latex" /></div>}
 
+      <PathQuestionStimulus stimulus={question.stimulus} />
+
       <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginBottom: '12px' }}>
         {constructionEnabled && <button type="button" onClick={() => setStage('construct')} style={stageButtonStyle(stage === 'construct')}>{pointOnly ? '1. Plot Points' : '1. Construct Graph'}</button>}
         {analysisEnabled && <button type="button" disabled={!constructionReadyForAnalysis} onClick={() => constructionReadyForAnalysis && setStage('analysis')} style={stageButtonStyle(stage === 'analysis', !constructionReadyForAnalysis)}>{inverseReflectionEnabled ? '2. Build Inverse' : '2. Analyze Function'}</button>}
@@ -1076,7 +1079,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
               {!analysis.inversePointsValidated
                 ? 'Reflect both original points across y=x. Select each reflected-point card, then place its image on the plane.'
                 : !analysis.inverseSnapped
-                  ? 'Both reflected points are correct. Draw the inverse line through both points.'
+                  ? `Both reflected points are correct. ${inverseReflection?.inverseLineLabel || 'Draw the inverse graph through the reflected points.'}`
                   : 'The inverse graph is complete. Finish the inverse equation.'}
             </p>
             {drawFeedback && <p style={{ margin: '8px 0', color: analysis.inverseSnapped ? '#137333' : '#8a5a00', fontWeight: 'bold' }}>{drawFeedback}</p>}

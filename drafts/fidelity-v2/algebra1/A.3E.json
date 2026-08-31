@@ -1,0 +1,591 @@
+{
+  "standard": "A.3E",
+  "verdict": "KEEP",
+  "certificationStatus": "candidate-keep-math-linear-transformations-metadata-certified",
+  "documents": [
+    {
+      "id": "mm_A_3E_v2_vertical-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3E:v2-vertical-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3E",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "The graph of $f(x)={{m}}x {{b|signed}}$ is shifted up {{k}} units. What is the new $y$-intercept?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "A vertical shift adds the same amount to every output.",
+          "The intercept therefore increases by {{k}}."
+        ],
+        "answerSummary": "The new intercept is ${{newb}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "newb": "b+k"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{newb}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3E_v2_vertical-stretch",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3E:v2-vertical-stretch",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3E",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "If $g(x)={{a}}f(x)$ and the linear function $f$ has slope {{m}}, determine the slope of $g$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Multiplying a function by {{a}} multiplies every output difference by the same factor.",
+          "Therefore the slope is also multiplied by {{a}}."
+        ],
+        "answerSummary": "The new slope is ${{newm}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "newm": "a*m"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{newm}}"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-simple-vertical-stretch-effect",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Let $f(x)={{m}}x{{b|signed}}$ and $g(x)=2f(x)$. Determine the slope of g and the image of the point $(0,{{b}})$ after the vertical stretch.",
+          "responseFields": [
+            {
+              "id": "slope",
+              "label": "Slope of g",
+              "inputProfile": "number",
+              "expected": "{{newm}}"
+            },
+            {
+              "id": "point-y",
+              "label": "New y-coordinate of the image of (0,{{b}})",
+              "inputProfile": "number",
+              "expected": "{{newb}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A vertical stretch multiplies every output, including the slope and y-intercept.",
+            "reasoning": [
+              "Multiplying f by 2 doubles the slope from {{m}} to {{newm}}.",
+              "The point (0,{{b}}) becomes (0,{{newb}})."
+            ],
+            "answerSummary": "Slope {{newm}}; image point (0,{{newb}})."
+          },
+          "attemptFeedback": [
+            "Apply the outside factor to every output feature of the line."
+          ],
+          "supportHints": [
+            "For g=2f, both the rate of change and each y-value are doubled."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "choice",
+                "values": [
+                  -2,
+                  -1,
+                  1,
+                  2
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            },
+            "derived": {
+              "a": "2",
+              "newm": "2*m",
+              "newb": "2*b"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3E_v2_context-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3E:v2-context-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3E",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A linear model starts at {{b}} units and grows by {{m}} units per period. A revised model adds {{k}} units to every output. What is the revised initial value?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Adding a constant to every output is a vertical translation.",
+          "The starting value is one of those outputs, so it also increases by {{k}}."
+        ],
+        "answerSummary": "The revised initial value is ${{newb}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "b": {
+            "type": "int",
+            "min": 5,
+            "max": 40
+          },
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 10
+          },
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          }
+        },
+        "derived": {
+          "newb": "b+k"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{newb}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3E_v2_reflection-slope",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3E:v2-reflection-slope",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3E",
+      "taskType": "conceptual",
+      "representation": "symbolic",
+      "prompt": "The graph of $f(x)={{m}}x{{b|signed}}$ is reflected across the $x$-axis. Determine the slope of the reflected line.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Reflecting across the $x$-axis multiplies every output by $-1$.",
+          "That reverses the sign of the rate of change."
+        ],
+        "answerSummary": "The new slope is ${{newm}}$."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "newm": "-m"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{newm}}"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-reflection-plus-shift-feature-analysis",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Let $f(x)={{m}}x{{b|signed}}$ and $g(x)=-f(x)+{{k}}$. A student says the +{{k}} changes the slope. Analyze the reflection and vertical shift separately, determine the final slope and y-intercept, and identify which transformation changes the slope.",
+          "responseFields": [
+            {
+              "id": "slope",
+              "label": "Final slope",
+              "inputProfile": "number",
+              "expected": "{{newm}}"
+            },
+            {
+              "id": "intercept",
+              "label": "Final y-intercept",
+              "inputProfile": "number",
+              "expected": "{{newb}}"
+            },
+            {
+              "id": "slope-change",
+              "label": "Which transformation changes the slope?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "reflection",
+                  "label": "The reflection across the x-axis"
+                },
+                {
+                  "id": "shift",
+                  "label": "The vertical shift +k"
+                }
+              ],
+              "expected": "reflection"
+            },
+            {
+              "id": "shift-effect",
+              "label": "What does +k change?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "intercept",
+                  "label": "It changes the y-intercept but not the slope."
+                },
+                {
+                  "id": "slope",
+                  "label": "It changes the slope but not the intercept."
+                }
+              ],
+              "expected": "intercept"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Separate transformation effects instead of treating the formula as one opaque change.",
+            "reasoning": [
+              "The reflection multiplies all outputs by -1, changing slope {{m}} to {{newm}} and intercept {{b}} to {{negB}}.",
+              "Then +{{k}} shifts every output vertically, changing the intercept to {{newb}} without changing slope."
+            ],
+            "answerSummary": "Slope {{newm}}; y-intercept {{newb}}."
+          },
+          "attemptFeedback": [
+            "Apply the reflection first, then the vertical shift, and track slope and intercept separately."
+          ],
+          "supportHints": [
+            "An outside -1 changes rate sign; adding a constant afterward changes vertical position only."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "newm": "-m",
+              "negB": "-b",
+              "newb": "-b+k"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3E_v2_recover-shift",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3E:v2-recover-shift",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.3E",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "A vertical shift changes the intercept from {{old}} to {{new}}. By how many units was the graph shifted?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "A vertical shift changes the intercept by exactly the shift amount.",
+          "Subtract the original intercept from the new intercept."
+        ],
+        "answerSummary": "The shift is ${{shift}}$ units."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "old": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "shift": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "new": "old+shift"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{shift}}"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-combined-linear-transformation-effects",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "Let $f(x)={{m}}x+({{b}})$ and define $g(x)=-{{a}}f(x)+{{k}}$. A student says the +{{k}} changes both the slope and intercept. Analyze the reflection, vertical stretch, and vertical shift separately; determine the final slope and intercept and identify which parameter actually changes the slope.",
+          "responseFields": [
+            {
+              "id": "after-scale-slope",
+              "label": "Slope after multiplying f by -{{a}}",
+              "inputProfile": "number",
+              "expected": "{{newm}}"
+            },
+            {
+              "id": "after-scale-intercept",
+              "label": "Intercept after multiplying f by -{{a}}",
+              "inputProfile": "number",
+              "expected": "{{scaledb}}"
+            },
+            {
+              "id": "final-slope",
+              "label": "Final slope of g",
+              "inputProfile": "number",
+              "expected": "{{newm}}"
+            },
+            {
+              "id": "final-intercept",
+              "label": "Final y-intercept of g",
+              "inputProfile": "number",
+              "expected": "{{newb}}"
+            },
+            {
+              "id": "diagnosis",
+              "label": "Which operation changes the slope?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "scale-reflect",
+                  "label": "The multiplication by -a changes the slope; the added k only shifts the intercept vertically."
+                },
+                {
+                  "id": "shift",
+                  "label": "The added k changes both slope and intercept."
+                }
+              ],
+              "expected": "scale-reflect"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Output scaling and vertical shifting affect different linear features.",
+            "reasoning": [
+              "Multiplying f by -{{a}} changes slope {{m}} to {{newm}} and intercept {{b}} to {{scaledb}}.",
+              "Adding {{k}} leaves the slope {{newm}} unchanged.",
+              "The final intercept is {{scaledb}}+{{k}}={{newb}}."
+            ],
+            "answerSummary": "Final slope {{newm}}; final intercept {{newb}}."
+          },
+          "attemptFeedback": [
+            "Track slope and intercept separately through each transformation."
+          ],
+          "supportHints": [
+            "Adding a constant to every output is a vertical shift, not a change in rate."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              },
+              "k": {
+                "type": "int",
+                "min": -8,
+                "max": 8,
+                "exclude": [
+                  0
+                ]
+              }
+            },
+            "derived": {
+              "newm": "-a*m",
+              "scaledb": "-a*b",
+              "newb": "scaledb+k"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

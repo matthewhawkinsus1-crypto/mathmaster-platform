@@ -33,6 +33,7 @@
 // Secure and server-side: nothing the browser sends selects a question.
 
 import { QUESTION_QUALITY, auditPathQuestionQuality } from './pathQuestionQuality.mjs';
+import { bestPathVariantForTarget } from './pathQuestionGeneration.mjs';
 
 const bandOf = (question) => {
   const band = Number(question?.difficultyBand);
@@ -51,6 +52,17 @@ const QUALITY_RANK = {
   [QUESTION_QUALITY.CANDIDATE]: 1,
   [QUESTION_QUALITY.OPERATIONAL]: 2,
   [QUESTION_QUALITY.BLOCKED]: 3,
+};
+
+// Production and Candidate are both real teachable questions. Operational means
+// placeholder-only, and Blocked is not acceptable. This safety tier lets the
+// selector exhaust unused teachable families before repeating a polished one,
+// without ever choosing a placeholder merely to avoid a repeat.
+const QUALITY_SAFETY_TIER = {
+  [QUESTION_QUALITY.PRODUCTION]: 0,
+  [QUESTION_QUALITY.CANDIDATE]: 0,
+  [QUESTION_QUALITY.OPERATIONAL]: 1,
+  [QUESTION_QUALITY.BLOCKED]: 2,
 };
 
 /**
@@ -87,13 +99,26 @@ export const rankCandidates = (candidates = [], {
   return [...candidates].map((question, index) => {
     const timesUsed = Number(usage[question.id]?.timesUsed ?? usage[question.id] ?? 0) || 0;
     const lastUsedAt = Number(usage[question.id]?.lastUsedAt ?? 0) || 0;
-    const band = bandOf(question);
+    // A variant-bearing family is ranked by the effective row it would issue
+    // for THIS target, not by the base family's metadata. Without this, a
+    // family whose base is 2:3 but whose Challenge variant is 3:4 looks like a
+    // 2:3 family during selection and only becomes 3:4 (or, previously,
+    // randomly something else) after it has already won or lost.
+    const variantMatch = bestPathVariantForTarget(question, {
+      preferredDok: wantsDok ? Number(preferredDok) : null,
+      preferredDifficultyBand: preferredBand,
+    });
+    const effectiveQuestion = variantMatch.template || question;
+    const band = bandOf(effectiveQuestion);
     const distance = Math.abs(band - preferredBand);
-    const dok = dokOf(question);
+    const dok = dokOf(effectiveQuestion);
     const dokDistance = wantsDok ? Math.abs(dok - Number(preferredDok)) : 0;
-    const audit = auditPathQuestionQuality(question);
+    const audit = auditPathQuestionQuality(effectiveQuestion);
     return {
       question,
+      effectiveQuestion,
+      effectiveVariantIndex: variantMatch.variantIndex,
+      effectiveCoverageKey: variantMatch.variant?.coverageKey || null,
       index,
       band,
       distance,
@@ -103,16 +128,22 @@ export const rankCandidates = (candidates = [], {
       lastUsedAt,
       quality: audit.level,
       qualityRank: QUALITY_RANK[audit.level] ?? 3,
+      qualitySafetyTier: QUALITY_SAFETY_TIER[audit.level] ?? 2,
+      qualityBlockers: audit.blockers.map((issue) => issue.code),
       representation: audit.representation,
       taskType: audit.taskType,
       representationRepeat: seenRepresentations.has(audit.representation) ? 1 : 0,
       taskTypeRepeat: audit.taskType && seenTaskTypes.has(audit.taskType) ? 1 : 0,
     };
   }).sort((a, b) => (
-    // Polished content before placeholders, always.
-    a.qualityRank - b.qualityRank
-    // Unused before used.
+    // Never use placeholder/blocked content merely to avoid a repeat.
+    a.qualitySafetyTier - b.qualitySafetyTier
+    // Within the teachable pool, unused before used. This preserves the
+    // five-family session contract even when one unused family is Candidate
+    // while a previously used family is Production.
     || (a.timesUsed === 0 ? 0 : 1) - (b.timesUsed === 0 ? 0 : 1)
+    // Then prefer the more polished family.
+    || a.qualityRank - b.qualityRank
     // A representation this session has not used yet.
     || a.representationRepeat - b.representationRepeat
     // A kind of thinking this session has not used yet.
@@ -175,6 +206,8 @@ export const selectNextFamily = (candidates = [], {
     quality: chosen.quality,
     representation: chosen.representation,
     taskType: chosen.taskType,
+    effectiveVariantIndex: chosen.effectiveVariantIndex,
+    effectiveCoverageKey: chosen.effectiveCoverageKey,
     // Why, in terms a teacher-facing explanation can use directly.
     reason,
     distanceFromPreferred: chosen.distance,

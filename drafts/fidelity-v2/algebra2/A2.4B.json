@@ -1,0 +1,584 @@
+{
+  "standard": "A2.4B",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-student-authored-parabola-equations-from-vertex-focus-directrix-axis-and-opening",
+  "rationale": "A2.4B requires writing the parabola equation from geometric attributes. Fidelity V2 replaces recognition-only attribute questions with complete standard-conic equations and deliberately covers vertical/horizontal orientation plus all four opening directions.",
+  "documents": [
+    {
+      "id": "mm_A2_4B_v2_vertical-up-vertex-focus",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4B:v2-vertical-up-vertex-focus",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4B",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "A parabola has vertex $({{h}},{{k}})$, focus $({{h}},{{focusY}})$, axis of symmetry $x={{h}}$, and opens upward. Write its equation in standard conic form $(x-h)^2=4p(y-k)$.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Parabola equation",
+          "inputProfile": "equation",
+          "expected": "(x-({{h}}))^2={{fourP}}(y-({{k}}))",
+          "equivalence": "polynomialRelation",
+          "responseHint": "Any algebraically equivalent equation for this parabola is acceptable."
+        }
+      ],
+      "solutionReview": {
+        "headline": "For a vertical parabola, p is the signed vertical distance from vertex to focus.",
+        "reasoning": [
+          "The focus is {{d}} units above the vertex, so $p={{d}}>0$.",
+          "Substitute h={{h}}, k={{k}}, and $4p={{fourP}}$ into $(x-h)^2=4p(y-k)$."
+        ],
+        "answerSummary": "$(x-({{h}}))^2={{fourP}}(y-({{k}}))$"
+      },
+      "attemptFeedback": [
+        "Use the focus-to-vertex distance for p; do not swap x and y in the vertical form."
+      ],
+      "supportHints": [
+        "A vertical axis uses a squared x-expression. Upward means p is positive."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "focusY": "k+d",
+          "fourP": "4*d"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4B_v2_vertical-down-vertex-directrix",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4B:v2-vertical-down-vertex-directrix",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4B",
+      "representation": "verbal",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "reverseReasoning",
+      "prompt": "A vertical parabola has vertex $({{h}},{{k}})$, directrix $y={{directrix}}$, axis $x={{h}}$, and opens downward. Write its equation in standard conic form.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Parabola equation",
+          "inputProfile": "equation",
+          "expected": "(x-({{h}}))^2={{fourP}}(y-({{k}}))",
+          "equivalence": "polynomialRelation",
+          "responseHint": "Any algebraically equivalent equation for this parabola is acceptable."
+        }
+      ],
+      "solutionReview": {
+        "headline": "A downward vertical parabola has negative p.",
+        "reasoning": [
+          "The directrix is {{d}} units above the vertex, so the focus is {{d}} units below it and $p=-{{d}}$.",
+          "Therefore $4p={{fourP}}$ in the vertical conic form."
+        ],
+        "answerSummary": "$(x-({{h}}))^2={{fourP}}(y-({{k}}))$"
+      },
+      "attemptFeedback": [
+        "The directrix lies opposite the focus across the vertex; downward opening makes p negative."
+      ],
+      "supportHints": [
+        "For $(x-h)^2=4p(y-k)$, directrix is $y=k-p$."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "directrix": "k+d",
+          "fourP": "-4*d"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-horizontal-focus-directrix-midpoint",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "multipleRepresentation",
+          "prompt": "A horizontal right-opening parabola has focus $({{focusX}},{{k}})$ and directrix $x={{directrixX}}$. Infer the vertex midway between them and write the equation in standard conic form.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Defining attributes",
+            "table": {
+              "headers": [
+                "Attribute",
+                "Value"
+              ],
+              "rows": [
+                [
+                  "Focus",
+                  "({{focusX}},{{k}})"
+                ],
+                [
+                  "Directrix",
+                  "x={{directrixX}}"
+                ],
+                [
+                  "Axis",
+                  "y={{k}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "vertex",
+              "label": "Vertex",
+              "inputProfile": "orderedPair",
+              "expected": "({{h}},{{k}})"
+            },
+            {
+              "id": "direction",
+              "label": "Opening direction",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "right",
+                  "label": "Right"
+                },
+                {
+                  "id": "left",
+                  "label": "Left"
+                }
+              ],
+              "expected": "right"
+            },
+            {
+              "id": "equation",
+              "label": "Parabola equation",
+              "inputProfile": "equation",
+              "expected": "(y-({{k}}))^2={{fourP}}(x-({{h}}))",
+              "equivalence": "polynomialRelation"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The vertex is halfway between the focus and directrix along the horizontal axis.",
+            "reasoning": [
+              "The midpoint x-coordinate between {{focusX}} and {{directrixX}} is {{h}}.",
+              "The focus is to the right of the vertex, so the parabola opens right.",
+              "The focal distance is {{d}}, giving $4p={{fourP}}$."
+            ],
+            "answerSummary": "Vertex $({{h}},{{k}})$ with a right-opening horizontal-parabola equation."
+          },
+          "attemptFeedback": [
+            "Find the vertex before choosing the sign of p."
+          ],
+          "supportHints": [
+            "The vertex is equidistant from the focus and directrix."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "k": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "d": {
+                "type": "int",
+                "min": 2,
+                "max": 4
+              }
+            },
+            "derived": {
+              "focusX": "h+d",
+              "directrixX": "h-d",
+              "fourP": "4*d"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_4B_v2_horizontal-right-infer-vertex",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4B:v2-horizontal-right-infer-vertex",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4B",
+      "representation": "graph",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "The graph shows a focus and directrix for a right-opening parabola whose axis of symmetry is $y={{k}}$. Infer the vertex midway between the focus and directrix, then write the equation in standard conic form $(y-k)^2=4p(x-h)$.",
+      "stimulus": {
+        "kind": "graph",
+        "title": "Focus-directrix attributes",
+        "graph": {
+          "xMin": -8,
+          "xMax": 8,
+          "yMin": -8,
+          "yMax": 8,
+          "ariaLabel": "Graph showing a focus point, a vertical directrix, and the horizontal axis of symmetry",
+          "points": [
+            {
+              "x": "{{focusX}}",
+              "y": "{{k}}",
+              "label": "Focus"
+            }
+          ],
+          "lines": [
+            {
+              "label": "Directrix",
+              "boundaryStyle": "solid",
+              "points": [
+                {
+                  "x": "{{directrixX}}",
+                  "y": "{{axisLow}}"
+                },
+                {
+                  "x": "{{directrixX}}",
+                  "y": "{{axisHigh}}"
+                }
+              ]
+            },
+            {
+              "label": "Axis of symmetry",
+              "boundaryStyle": "dashed",
+              "points": [
+                {
+                  "x": "{{axisLeft}}",
+                  "y": "{{k}}"
+                },
+                {
+                  "x": "{{axisRight}}",
+                  "y": "{{k}}"
+                }
+              ]
+            }
+          ]
+        },
+        "note": "The vertex is halfway between the focus and directrix along the axis."
+      },
+      "responseFields": [
+        {
+          "id": "vertex",
+          "label": "Inferred vertex",
+          "inputProfile": "orderedPair",
+          "expected": "({{h}},{{k}})"
+        },
+        {
+          "id": "equation",
+          "label": "Parabola equation",
+          "inputProfile": "equation",
+          "expected": "(y-({{k}}))^2={{fourP}}(x-({{h}}))",
+          "equivalence": "polynomialRelation",
+          "responseHint": "Any algebraically equivalent equation for this parabola is acceptable."
+        }
+      ],
+      "solutionReview": {
+        "headline": "The vertex is the midpoint between focus and directrix along the axis.",
+        "reasoning": [
+          "The focus is at $({{focusX}},{{k}})$ and the directrix is $x={{directrixX}}$.",
+          "Their midpoint x-coordinate is {{h}}, so the vertex is $({{h}},{{k}})$.",
+          "The focus is {{d}} units to the right of the vertex, so $p={{d}}$ and $4p={{fourP}}$."
+        ],
+        "answerSummary": "$(y-({{k}}))^2={{fourP}}(x-({{h}}))$"
+      },
+      "attemptFeedback": [
+        "A horizontal axis uses a squared y-expression; right opening makes p positive."
+      ],
+      "supportHints": [
+        "The vertex lies halfway between the focus and the directrix along the axis of symmetry."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "focusX": "h+d",
+          "directrixX": "h-d",
+          "fourP": "4*d",
+          "axisLow": "k-3",
+          "axisHigh": "k+3",
+          "axisLeft": "h-4",
+          "axisRight": "h+4"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4B_v2_horizontal-left-attribute-table",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4B:v2-horizontal-left-attribute-table",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4B",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 3,
+      "taskType": "interpretation",
+      "prompt": "Use the attribute table to write the parabola equation in standard conic form. The parabola opens left.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Parabola attributes",
+        "table": {
+          "headers": [
+            "Attribute",
+            "Value"
+          ],
+          "rows": [
+            [
+              "Vertex",
+              "$({{h}},{{k}})$"
+            ],
+            [
+              "Axis of symmetry",
+              "$y={{k}}$"
+            ],
+            [
+              "Focus",
+              "$({{focusX}},{{k}})$"
+            ],
+            [
+              "Directrix",
+              "$x={{directrixX}}$"
+            ],
+            [
+              "Opening",
+              "Left"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Parabola equation",
+          "inputProfile": "equation",
+          "expected": "(y-({{k}}))^2={{fourP}}(x-({{h}}))",
+          "equivalence": "polynomialRelation",
+          "responseHint": "Any algebraically equivalent equation for this parabola is acceptable."
+        }
+      ],
+      "solutionReview": {
+        "headline": "A left-opening horizontal parabola has negative p.",
+        "reasoning": [
+          "The focus is {{d}} units left of the vertex, so $p=-{{d}}$.",
+          "The directrix is the same distance to the right, confirming the sign and orientation.",
+          "Use the horizontal form with $4p={{fourP}}$."
+        ],
+        "answerSummary": "$(y-({{k}}))^2={{fourP}}(x-({{h}}))$"
+      },
+      "attemptFeedback": [
+        "Do not use the vertical form just because the directrix is a line; the axis y={{k}} is horizontal."
+      ],
+      "supportHints": [
+        "Horizontal parabolas square the y-expression. Left opening means p<0."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "focusX": "h-d",
+          "directrixX": "h+d",
+          "fourP": "-4*d"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4B_v2_orientation-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4B:v2-orientation-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4B",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A parabola has vertex $({{h}},{{k}})$, focus $({{focusX}},{{k}})$, directrix $x={{directrixX}}$, and opens right. A student writes the vertical-form equation shown below. Diagnose the orientation error and write the corrected equation in standard conic form.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's equation",
+        "steps": [
+          {
+            "id": "wrong",
+            "label": "Student work",
+            "work": "$(x-({{h}}))^2={{fourP}}(y-({{k}}))$"
+          },
+          {
+            "id": "axis",
+            "label": "Given axis",
+            "work": "$y={{k}}$"
+          }
+        ],
+        "expressions": [
+          "Focus $({{focusX}},{{k}})$",
+          "Directrix $x={{directrixX}}$"
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "Diagnosis",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "orientation",
+              "label": "The axis is horizontal, so the y-expression must be squared and x must be on the unsquared side."
+            },
+            {
+              "id": "sign",
+              "label": "The only error is that 4p should be negative."
+            },
+            {
+              "id": "vertex",
+              "label": "The vertex coordinates must be swapped."
+            }
+          ],
+          "expected": "orientation"
+        },
+        {
+          "id": "equation",
+          "label": "Corrected parabola equation",
+          "inputProfile": "equation",
+          "expected": "(y-({{k}}))^2={{fourP}}(x-({{h}}))",
+          "equivalence": "polynomialRelation",
+          "responseHint": "Any algebraically equivalent equation for this parabola is acceptable."
+        }
+      ],
+      "solutionReview": {
+        "headline": "Orientation determines which variable is squared.",
+        "reasoning": [
+          "The focus and directrix move horizontally from the vertex, so the axis is horizontal.",
+          "A horizontal parabola uses $(y-k)^2=4p(x-h)$.",
+          "The focus is {{d}} units right of the vertex, so p={{d}}>0."
+        ],
+        "answerSummary": "$(y-({{k}}))^2={{fourP}}(x-({{h}}))$"
+      },
+      "attemptFeedback": [
+        "Repair the full equation after naming the orientation error."
+      ],
+      "supportHints": [
+        "Vertical axis → square x. Horizontal axis → square y."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "focusX": "h+d",
+          "directrixX": "h-d",
+          "fourP": "4*d"
+        }
+      }
+    }
+  ]
+}

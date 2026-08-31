@@ -1,0 +1,1253 @@
+{
+  "standard": "A2.2A",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-seven-parent-functions-authentic-graph-construction-and-attributes",
+  "rationale": "A2.2A explicitly requires graphing square-root, reciprocal, cubic, cube-root, exponential, absolute-value, and logarithmic parent functions (log bases 2, 10, and e) and analyzing applicable key attributes. The legacy bank omitted cubic/logarithmic graph coverage and over-relied on recognition.",
+  "documents": [
+    {
+      "id": "mm_A2_2A_v2_root-family-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2A:v2-root-family-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2A",
+      "type": "functionInvestigation",
+      "representation": "graph",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "Construct the parent-function graph shown in the task. Plot every required point, sketch the full curve, then state its domain and range.",
+      "variants": [
+        {
+          "prompt": "Construct the parent square-root graph $f(x)=\\sqrt{x}$. Plot the required points, sketch the curve, then state its domain and range.",
+          "functionSpec": {
+            "type": "squareRoot",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          },
+          "graph": {
+            "xMin": -3,
+            "xMax": 11,
+            "yMin": -3,
+            "yMax": 6,
+            "xStep": 1,
+            "yStep": 1,
+            "snapStep": 0.5
+          },
+          "pointTasks": [
+            {
+              "id": "p0",
+              "label": "Plot the endpoint",
+              "x": 0,
+              "expected": [
+                0,
+                0
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot x = 1",
+              "x": 1,
+              "expected": [
+                1,
+                1
+              ]
+            },
+            {
+              "id": "p4",
+              "label": "Plot x = 4",
+              "x": 4,
+              "expected": [
+                4,
+                2
+              ]
+            },
+            {
+              "id": "p9",
+              "label": "Plot x = 9",
+              "x": 9,
+              "expected": [
+                9,
+                3
+              ]
+            }
+          ],
+          "analysisRequests": [
+            {
+              "id": "domain",
+              "label": "Domain",
+              "kind": "domain",
+              "notation": "interval",
+              "responseMode": "text",
+              "expected": [
+                "[0,∞)"
+              ]
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "kind": "range",
+              "notation": "interval",
+              "responseMode": "text",
+              "expected": [
+                "[0,∞)"
+              ]
+            }
+          ],
+          "solutionReview": {
+            "headline": "The square-root parent begins at the origin and extends only to the right.",
+            "reasoning": [
+              "Real square roots require $x\\ge0$, so the graph starts at the closed endpoint $(0,0)$.",
+              "The outputs are also nonnegative, giving domain $[0,\\infty)$ and range $[0,\\infty)$."
+            ],
+            "answerSummary": "Domain $[0,\\infty)$; range $[0,\\infty)$."
+          },
+          "generator": {
+            "parameters": {
+              "scale": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            }
+          }
+        },
+        {
+          "prompt": "Construct the parent cube-root graph $f(x)=\\sqrt[3]{x}$. Plot the required points, sketch the curve through both sides of the origin, then state its domain and range.",
+          "functionSpec": {
+            "type": "cubeRoot",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          },
+          "graph": {
+            "xMin": -10,
+            "xMax": 10,
+            "yMin": -4,
+            "yMax": 4,
+            "xStep": 2,
+            "yStep": 1,
+            "snapStep": 0.5
+          },
+          "pointTasks": [
+            {
+              "id": "pm8",
+              "label": "Plot x = -8",
+              "x": -8,
+              "expected": [
+                -8,
+                -2
+              ]
+            },
+            {
+              "id": "pm1",
+              "label": "Plot x = -1",
+              "x": -1,
+              "expected": [
+                -1,
+                -1
+              ]
+            },
+            {
+              "id": "p0",
+              "label": "Plot x = 0",
+              "x": 0,
+              "expected": [
+                0,
+                0
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot x = 1",
+              "x": 1,
+              "expected": [
+                1,
+                1
+              ]
+            },
+            {
+              "id": "p8",
+              "label": "Plot x = 8",
+              "x": 8,
+              "expected": [
+                8,
+                2
+              ]
+            }
+          ],
+          "analysisRequests": [
+            {
+              "id": "domain",
+              "label": "Domain",
+              "kind": "domain",
+              "notation": "interval",
+              "responseMode": "text",
+              "expected": [
+                "(-∞,∞)",
+                "all real numbers"
+              ]
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "kind": "range",
+              "notation": "interval",
+              "responseMode": "text",
+              "expected": [
+                "(-∞,∞)",
+                "all real numbers"
+              ]
+            }
+          ],
+          "solutionReview": {
+            "headline": "Cube roots accept negative, zero, and positive real inputs.",
+            "reasoning": [
+              "Unlike a square root, an odd root is defined for every real input.",
+              "Its outputs also extend without bound in both directions, so both domain and range are all real numbers."
+            ],
+            "answerSummary": "Domain and range are both $(-\\infty,\\infty)$."
+          },
+          "generator": {
+            "parameters": {
+              "scale": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            }
+          }
+        }
+      ],
+      "attemptFeedback": [
+        "Use the plotted points to control the shape before deciding the domain and range."
+      ],
+      "supportHints": [
+        "Square roots have a natural endpoint; cube roots extend in both directions."
+      ]
+    },
+    {
+      "id": "mm_A2_2A_v2_symmetry-family-graph",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2A:v2-symmetry-family-graph",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2A",
+      "type": "functionInvestigation",
+      "representation": "graph",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "Construct the required parent graph, then identify its range and symmetry.",
+      "variants": [
+        {
+          "prompt": "Construct the parent absolute-value graph $f(x)=|x|$. Plot the five points, sketch the V-shape, then state the range and line of symmetry.",
+          "functionSpec": {
+            "type": "absolute",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          },
+          "graph": {
+            "xMin": -6,
+            "xMax": 6,
+            "yMin": -2,
+            "yMax": 7,
+            "xStep": 1,
+            "yStep": 1,
+            "snapStep": 0.5
+          },
+          "pointTasks": [
+            {
+              "id": "pm2",
+              "label": "Plot x = -2",
+              "x": -2,
+              "expected": [
+                -2,
+                2
+              ]
+            },
+            {
+              "id": "pm1",
+              "label": "Plot x = -1",
+              "x": -1,
+              "expected": [
+                -1,
+                1
+              ]
+            },
+            {
+              "id": "p0",
+              "label": "Plot the vertex",
+              "x": 0,
+              "expected": [
+                0,
+                0
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot x = 1",
+              "x": 1,
+              "expected": [
+                1,
+                1
+              ]
+            },
+            {
+              "id": "p2",
+              "label": "Plot x = 2",
+              "x": 2,
+              "expected": [
+                2,
+                2
+              ]
+            }
+          ],
+          "analysisRequests": [
+            {
+              "id": "range",
+              "label": "Range",
+              "kind": "range",
+              "notation": "interval",
+              "responseMode": "text",
+              "expected": [
+                "[0,∞)"
+              ]
+            },
+            {
+              "id": "symmetry",
+              "label": "Line of symmetry",
+              "kind": "value",
+              "responseMode": "text",
+              "expected": [
+                "x=0",
+                "y-axis",
+                "y axis"
+              ]
+            }
+          ],
+          "solutionReview": {
+            "headline": "The absolute-value parent is symmetric about the y-axis.",
+            "reasoning": [
+              "Opposite inputs have the same output, so the graph mirrors across $x=0$.",
+              "The vertex $(0,0)$ is the minimum point, so the range is $[0,\\infty)$."
+            ],
+            "answerSummary": "Range $[0,\\infty)$; symmetry line $x=0$."
+          },
+          "generator": {
+            "parameters": {
+              "scale": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            }
+          }
+        },
+        {
+          "prompt": "Construct the parent cubic graph $f(x)=x^3$. Plot the five points, sketch the S-shaped curve, then state the range and center of rotational symmetry.",
+          "functionSpec": {
+            "type": "cubic",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          },
+          "graph": {
+            "xMin": -4,
+            "xMax": 4,
+            "yMin": -10,
+            "yMax": 10,
+            "xStep": 1,
+            "yStep": 2,
+            "snapStep": 0.5
+          },
+          "pointTasks": [
+            {
+              "id": "pm2",
+              "label": "Plot x = -2",
+              "x": -2,
+              "expected": [
+                -2,
+                -8
+              ]
+            },
+            {
+              "id": "pm1",
+              "label": "Plot x = -1",
+              "x": -1,
+              "expected": [
+                -1,
+                -1
+              ]
+            },
+            {
+              "id": "p0",
+              "label": "Plot x = 0",
+              "x": 0,
+              "expected": [
+                0,
+                0
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot x = 1",
+              "x": 1,
+              "expected": [
+                1,
+                1
+              ]
+            },
+            {
+              "id": "p2",
+              "label": "Plot x = 2",
+              "x": 2,
+              "expected": [
+                2,
+                8
+              ]
+            }
+          ],
+          "analysisRequests": [
+            {
+              "id": "range",
+              "label": "Range",
+              "kind": "range",
+              "notation": "interval",
+              "responseMode": "text",
+              "expected": [
+                "(-∞,∞)",
+                "all real numbers"
+              ]
+            },
+            {
+              "id": "symmetry",
+              "label": "Center of rotational symmetry",
+              "kind": "value",
+              "responseMode": "text",
+              "acceptedAnswers": [
+                "(0,0)",
+                "0,0",
+                "origin"
+              ],
+              "expected": [
+                "(0,0)"
+              ]
+            }
+          ],
+          "solutionReview": {
+            "headline": "The cubic parent passes through the origin and has origin symmetry.",
+            "reasoning": [
+              "For $f(x)=x^3$, changing $x$ to $-x$ changes the sign of the output, producing rotational symmetry about the origin.",
+              "The cubic extends to negative and positive infinity, so the range is all real numbers."
+            ],
+            "answerSummary": "Range $(-\\infty,\\infty)$; rotational symmetry about $(0,0)$."
+          },
+          "generator": {
+            "parameters": {
+              "scale": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            }
+          }
+        }
+      ],
+      "attemptFeedback": [
+        "Do not decide symmetry from one side of the graph; compare opposite inputs."
+      ],
+      "supportHints": [
+        "Absolute value has y-axis symmetry; the cubic parent has origin symmetry."
+      ]
+    },
+    {
+      "id": "mm_A2_2A_v2_reciprocal-graph-attributes",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2A:v2-reciprocal-graph-attributes",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2A",
+      "type": "functionInvestigation",
+      "representation": "graph",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "Construct the parent reciprocal graph $f(x)=\\frac1x$ with both branches. Then state its vertical asymptote, horizontal asymptote, domain, and range.",
+      "functionSpec": {
+        "type": "rational",
+        "a": 1,
+        "h": 0,
+        "k": 0
+      },
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -6,
+        "yMax": 6,
+        "xStep": 1,
+        "yStep": 1,
+        "snapStep": 0.5
+      },
+      "pointTasks": [
+        {
+          "id": "pm2",
+          "label": "Plot x = -2",
+          "x": -2,
+          "expected": [
+            -2,
+            -0.5
+          ]
+        },
+        {
+          "id": "pm1",
+          "label": "Plot x = -1",
+          "x": -1,
+          "expected": [
+            -1,
+            -1
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot x = 1",
+          "x": 1,
+          "expected": [
+            1,
+            1
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Plot x = 2",
+          "x": 2,
+          "expected": [
+            2,
+            0.5
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "vasym",
+          "label": "Vertical asymptote x-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "0"
+          ]
+        },
+        {
+          "id": "hasym",
+          "label": "Horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "0"
+          ]
+        },
+        {
+          "id": "domain",
+          "label": "Domain",
+          "kind": "domain",
+          "notation": "interval",
+          "responseMode": "text",
+          "expected": [
+            "(-∞,0)∪(0,∞)"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "kind": "range",
+          "notation": "interval",
+          "responseMode": "text",
+          "expected": [
+            "(-∞,0)∪(0,∞)"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The reciprocal parent never touches either coordinate axis.",
+        "reasoning": [
+          "$x=0$ is excluded from the domain, producing the vertical asymptote $x=0$.",
+          "The outputs approach but never equal $0$, producing horizontal asymptote $y=0$ and excluding $0$ from the range."
+        ],
+        "answerSummary": "Asymptotes $x=0$, $y=0$; domain and range both exclude $0$."
+      },
+      "attemptFeedback": [
+        "Make sure both branches are present and do not cross an asymptote."
+      ],
+      "supportHints": [
+        "A denominator of zero is undefined; $1/x$ approaches zero without reaching it."
+      ],
+      "generator": {
+        "parameters": {
+          "scale": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-reciprocal-fractional-inputs",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "interpretation",
+          "representation": "graph",
+          "prompt": "Construct the parent reciprocal graph $f(x)=1/x$ using EIGHT requested points, including fractional inputs near the vertical asymptote. Then state both asymptotes, the complete domain, and the complete range.",
+          "functionSpec": {
+            "type": "rational",
+            "a": 1,
+            "h": 0,
+            "k": 0
+          },
+          "graph": {
+            "xMin": -5,
+            "xMax": 5,
+            "yMin": -5,
+            "yMax": 5,
+            "xStep": 1,
+            "yStep": 1,
+            "snapStep": 0.25
+          },
+          "pointTasks": [
+            {
+              "id": "pmn2",
+              "label": "Plot x = -2",
+              "x": -2,
+              "expected": [
+                -2,
+                -0.5
+              ]
+            },
+            {
+              "id": "pmn1",
+              "label": "Plot x = -1",
+              "x": -1,
+              "expected": [
+                -1,
+                -1
+              ]
+            },
+            {
+              "id": "pmhalf",
+              "label": "Plot x = -0.5",
+              "x": -0.5,
+              "expected": [
+                -0.5,
+                -2
+              ]
+            },
+            {
+              "id": "pmquarter",
+              "label": "Plot x = -0.25",
+              "x": -0.25,
+              "expected": [
+                -0.25,
+                -4
+              ]
+            },
+            {
+              "id": "pquarter",
+              "label": "Plot x = 0.25",
+              "x": 0.25,
+              "expected": [
+                0.25,
+                4
+              ]
+            },
+            {
+              "id": "phalf",
+              "label": "Plot x = 0.5",
+              "x": 0.5,
+              "expected": [
+                0.5,
+                2
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot x = 1",
+              "x": 1,
+              "expected": [
+                1,
+                1
+              ]
+            },
+            {
+              "id": "p2",
+              "label": "Plot x = 2",
+              "x": 2,
+              "expected": [
+                2,
+                0.5
+              ]
+            }
+          ],
+          "analysisRequests": [
+            {
+              "id": "vasym",
+              "label": "Vertical asymptote x-value",
+              "kind": "value",
+              "responseMode": "text",
+              "expected": [
+                "0"
+              ]
+            },
+            {
+              "id": "hasym",
+              "label": "Horizontal asymptote y-value",
+              "kind": "value",
+              "responseMode": "text",
+              "expected": [
+                "0"
+              ]
+            },
+            {
+              "id": "domain",
+              "label": "Domain",
+              "kind": "domain",
+              "notation": "interval",
+              "responseMode": "text",
+              "expected": [
+                "(-∞,0)∪(0,∞)"
+              ]
+            },
+            {
+              "id": "range",
+              "label": "Range",
+              "kind": "range",
+              "notation": "interval",
+              "responseMode": "text",
+              "expected": [
+                "(-∞,0)∪(0,∞)"
+              ]
+            }
+          ],
+          "solutionReview": {
+            "headline": "Fractional inputs near zero reveal the reciprocal's asymptotic behavior more strongly.",
+            "reasoning": [
+              "As x approaches 0 from either side, 1/x grows in magnitude, confirming the vertical asymptote x=0.",
+              "For large |x|, the outputs approach 0 without reaching it, confirming horizontal asymptote y=0.",
+              "Both domain and range exclude 0."
+            ],
+            "answerSummary": "Asymptotes x=0 and y=0; domain and range both exclude 0."
+          },
+          "attemptFeedback": [
+            "Use each fractional input exactly; the points near x=0 should move farther from the x-axis."
+          ],
+          "supportHints": [
+            "For x=1/4, the reciprocal is 4; for x=-1/4, it is -4."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_2A_v2_exponential-graph-attributes",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2A:v2-exponential-graph-attributes",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2A",
+      "type": "functionInvestigation",
+      "representation": "graph",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "Construct the parent exponential graph $f(x)={{base}}^x$. Plot the requested points, sketch the curve, then state the y-intercept, horizontal asymptote, domain, and range.",
+      "functionSpec": {
+        "type": "exponential",
+        "a": 1,
+        "h": 0,
+        "k": 0,
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -4,
+        "xMax": 4,
+        "yMin": -2,
+        "yMax": 12,
+        "xStep": 1,
+        "yStep": 1,
+        "snapStep": 0.25
+      },
+      "pointTasks": [
+        {
+          "id": "pm1",
+          "label": "Plot x = -1",
+          "x": -1,
+          "expected": [
+            -1,
+            "{{invBase}}"
+          ]
+        },
+        {
+          "id": "p0",
+          "label": "Plot the y-intercept",
+          "x": 0,
+          "expected": [
+            0,
+            1
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot x = 1",
+          "x": 1,
+          "expected": [
+            1,
+            "{{base}}"
+          ]
+        },
+        {
+          "id": "p2",
+          "label": "Plot x = 2",
+          "x": 2,
+          "expected": [
+            2,
+            "{{base2}}"
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "yint",
+          "label": "y-intercept value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "1"
+          ]
+        },
+        {
+          "id": "hasym",
+          "label": "Horizontal asymptote y-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "0"
+          ]
+        },
+        {
+          "id": "domain",
+          "label": "Domain",
+          "kind": "domain",
+          "notation": "interval",
+          "responseMode": "text",
+          "expected": [
+            "(-∞,∞)",
+            "all real numbers"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "kind": "range",
+          "notation": "interval",
+          "responseMode": "text",
+          "expected": [
+            "(0,∞)"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A positive-base exponential stays above the x-axis.",
+        "reasoning": [
+          "At $x=0$, every allowed base gives $b^0=1$, so the y-intercept is $(0,1)$.",
+          "The graph approaches $y=0$ without reaching it; the domain is all real numbers and the range is $(0,\\infty)$."
+        ],
+        "answerSummary": "y-intercept $(0,1)$; asymptote $y=0$; domain $(-\\infty,\\infty)$; range $(0,\\infty)$."
+      },
+      "attemptFeedback": [
+        "Check the multiplicative pattern in the plotted points before sketching the curve."
+      ],
+      "supportHints": [
+        "At x = 0 the output is 1; positive exponential outputs never equal 0."
+      ],
+      "generator": {
+        "parameters": {
+          "base": {
+            "type": "choice",
+            "values": [
+              2,
+              3
+            ]
+          }
+        },
+        "derived": {
+          "invBase": "1/base",
+          "base2": "base^2"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_2A_v2_logarithmic-graph-attributes",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.2A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.2A:v2-logarithmic-graph-attributes",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.2A",
+      "type": "functionInvestigation",
+      "representation": "graph",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\log_{{baseLabel}}(x)$ to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
+      "functionSpec": {
+        "type": "logarithmic",
+        "a": 1,
+        "h": 0,
+        "k": 0,
+        "base": "{{base}}"
+      },
+      "graph": {
+        "xMin": -2,
+        "xMax": 12,
+        "yMin": -4,
+        "yMax": 4,
+        "xStep": 1,
+        "yStep": 1,
+        "snapStep": 0.1
+      },
+      "pointTasks": [
+        {
+          "id": "pinv",
+          "label": "Plot x = 1/base",
+          "x": "{{invBase}}",
+          "expected": [
+            "{{invBase}}",
+            -1
+          ]
+        },
+        {
+          "id": "p1",
+          "label": "Plot the x-intercept",
+          "x": 1,
+          "expected": [
+            1,
+            0
+          ]
+        },
+        {
+          "id": "pbase",
+          "label": "Plot x = base",
+          "x": "{{base}}",
+          "expected": [
+            "{{base}}",
+            1
+          ]
+        }
+      ],
+      "analysisRequests": [
+        {
+          "id": "domain",
+          "label": "Domain",
+          "kind": "domain",
+          "notation": "interval",
+          "responseMode": "text",
+          "expected": [
+            "(0,∞)"
+          ]
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "kind": "range",
+          "notation": "interval",
+          "responseMode": "text",
+          "expected": [
+            "(-∞,∞)",
+            "all real numbers"
+          ]
+        },
+        {
+          "id": "xint",
+          "label": "x-intercept x-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "1"
+          ]
+        },
+        {
+          "id": "vasym",
+          "label": "Vertical asymptote x-value",
+          "kind": "value",
+          "responseMode": "text",
+          "expected": [
+            "0"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The logarithm parent accepts only positive inputs.",
+        "reasoning": [
+          "Every allowed logarithm base passes through $(1,0)$ and has vertical asymptote $x=0$.",
+          "Inputs must satisfy $x>0$, while outputs extend through all real values. The base changes the curve's scale, not these domain/range facts."
+        ],
+        "answerSummary": "Domain $(0,\\infty)$; range $(-\\infty,\\infty)$; x-intercept $1$; vertical asymptote $x=0$."
+      },
+      "attemptFeedback": [
+        "The graph approaches the y-axis but never crosses it; that behavior determines the domain."
+      ],
+      "supportHints": [
+        "For any valid logarithm base, $\\log_b(1)=0$ and $\\log_b(b)=1$."
+      ],
+      "variants": [
+        {
+          "prompt": "A student claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\log_2(x)$ to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
+          "functionSpec": {
+            "type": "logarithmic",
+            "a": 1,
+            "h": 0,
+            "k": 0,
+            "base": 2
+          },
+          "pointTasks": [
+            {
+              "id": "pinv",
+              "label": "Plot x = 1/2",
+              "x": 0.5,
+              "expected": [
+                0.5,
+                -1
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot the x-intercept",
+              "x": 1,
+              "expected": [
+                1,
+                0
+              ]
+            },
+            {
+              "id": "pbase",
+              "label": "Plot x = 2",
+              "x": 2,
+              "expected": [
+                2,
+                1
+              ]
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            }
+          },
+          "coverageKey": "core-d3b4-log-base2",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "prompt": "A student claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\log_{10}(x)$ to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
+          "functionSpec": {
+            "type": "logarithmic",
+            "a": 1,
+            "h": 0,
+            "k": 0,
+            "base": 10
+          },
+          "pointTasks": [
+            {
+              "id": "pinv",
+              "label": "Plot x = 0.1",
+              "x": 0.1,
+              "expected": [
+                0.1,
+                -1
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot the x-intercept",
+              "x": 1,
+              "expected": [
+                1,
+                0
+              ]
+            },
+            {
+              "id": "pbase",
+              "label": "Plot x = 10",
+              "x": 10,
+              "expected": [
+                10,
+                1
+              ]
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            }
+          },
+          "coverageKey": "core-d3b4-log-alt-1",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "prompt": "A student claims every logarithmic parent graph has domain all real numbers. Construct $f(x)=\\ln(x)$ (log base $e$) to test the claim. Then state the domain, range, x-intercept, and vertical asymptote.",
+          "functionSpec": {
+            "type": "logarithmic",
+            "a": 1,
+            "h": 0,
+            "k": 0,
+            "base": 2.718281828
+          },
+          "pointTasks": [
+            {
+              "id": "pinv",
+              "label": "Plot x = 1/e",
+              "x": 0.367879441,
+              "expected": [
+                0.367879441,
+                -1
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot the x-intercept",
+              "x": 1,
+              "expected": [
+                1,
+                0
+              ]
+            },
+            {
+              "id": "pbase",
+              "label": "Plot x = e",
+              "x": 2.718281828,
+              "expected": [
+                2.718281828,
+                1
+              ]
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            }
+          },
+          "coverageKey": "core-d3b4-log-alt-2",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "prompt": "A student says the parent logarithm $f(x)=\\log_2(x)$ has domain all real numbers because its inverse exponential has domain all real numbers. Construct the base-2 log graph, use the vertical asymptote and plotted points to test the claim, then state the correct domain and range.",
+          "functionSpec": {
+            "type": "logarithmic",
+            "a": 1,
+            "h": 0,
+            "k": 0,
+            "base": 2
+          },
+          "pointTasks": [
+            {
+              "id": "pinv",
+              "label": "Plot x = 1/2",
+              "x": 0.5,
+              "expected": [
+                0.5,
+                -1
+              ]
+            },
+            {
+              "id": "p1",
+              "label": "Plot the x-intercept",
+              "x": 1,
+              "expected": [
+                1,
+                0
+              ]
+            },
+            {
+              "id": "pbase",
+              "label": "Plot x = 2",
+              "x": 2,
+              "expected": [
+                2,
+                1
+              ]
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "n": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              }
+            }
+          },
+          "coverageKey": "adaptive-d3b3-log-domain-claim-fixed-base2",
+          "dok": 3,
+          "difficultyBand": 3,
+          "solutionReview": {
+            "headline": "Inverse functions exchange domain and range; they do not necessarily keep the same domain.",
+            "reasoning": [
+              "The logarithm exists only for x>0 and approaches the vertical asymptote x=0.",
+              "Its range is all real numbers.",
+              "This matches the inverse relationship: the exponential's range (0,∞) becomes the logarithm's domain."
+            ],
+            "answerSummary": "The claim is false: domain (0,∞), range all real numbers."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,518 @@
+{
+  "standard": "A2.7H",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-rational-exponent-equation-solution-sets-shifted-even-odd-two-none-extraneous-repair",
+  "rationale": "A2.7H requires solving rational-exponent equations. Fidelity V2 replaces method-recognition and reverse-engineering drift with complete solution-set work across shifted equations, even/odd rational-exponent behavior, two-solution and no-real-solution cases, explicit domain inequalities, and extraneous-candidate checking.",
+  "documents": [
+    {
+      "id": "mm_A2_7H_v2_shifted-cube-root-one-solution",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7H:v2-shifted-cube-root-one-solution",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7H",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Solve ${{a}}(x-({{h}}))^(1/3)+({{k}})={{rhs}}$ over the real numbers. Isolate the rational power, undo it, and report the complete solution set.",
+      "responseFields": [
+        {
+          "id": "isolated-root",
+          "label": "Value of (x-({{h}}))^(1/3) after isolating it",
+          "inputProfile": "number",
+          "expected": "{{r}}"
+        },
+        {
+          "id": "x-value",
+          "label": "Solution x",
+          "inputProfile": "number",
+          "expected": "{{xsol}}"
+        },
+        {
+          "id": "solution-set",
+          "label": "Complete real solution set",
+          "inputProfile": "expression",
+          "expected": "{ {{xsol}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "An odd root can be undone over all real inputs.",
+        "reasoning": [
+          "Subtract {{k}} and divide by {{a}} to get $(x-({{h}}))^(1/3)={{r}}$.",
+          "Cube both sides: $x-({{h}})={{r3}}$.",
+          "So x={{xsol}}, and no even-root domain restriction creates another case."
+        ],
+        "answerSummary": "$x={{xsol}}$"
+      },
+      "attemptFeedback": [
+        "Isolate the entire rational-power expression before applying the reciprocal exponent."
+      ],
+      "supportHints": [
+        "For an exponent 1/3, cube both sides after isolation."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "r": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "r3": "r*r*r",
+          "xsol": "h+r3",
+          "rhs": "a*r+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7H_v2_shifted-three-halves-one-solution",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7H:v2-shifted-three-halves-one-solution",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7H",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "application",
+      "prompt": "Solve ${{a}}(x-({{h}}))^(3/2)+({{k}})={{rhs}}$ over the real numbers. State the domain restriction from the even denominator, isolate the power, and give the complete solution set.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Domain and inverse-power check",
+        "steps": [
+          {
+            "id": "domain",
+            "label": "Real-domain requirement",
+            "work": "Because the denominator of 3/2 is 2, require x-({{h}})≥0."
+          },
+          {
+            "id": "inverse",
+            "label": "Inverse power",
+            "work": "After isolation, raise both sides to 2/3."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "domain",
+          "label": "Real-domain restriction",
+          "inputProfile": "inequality",
+          "expected": "x>=({{h}})"
+        },
+        {
+          "id": "isolated-power",
+          "label": "Value of (x-({{h}}))^(3/2) after isolation",
+          "inputProfile": "number",
+          "expected": "{{s3}}"
+        },
+        {
+          "id": "x-value",
+          "label": "Solution x",
+          "inputProfile": "number",
+          "expected": "{{xsol}}"
+        },
+        {
+          "id": "solution-set",
+          "label": "Complete real solution set",
+          "inputProfile": "expression",
+          "expected": "{ {{xsol}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The even denominator restricts the base before the reciprocal power is applied.",
+        "reasoning": [
+          "Real inputs require x≥{{h}}.",
+          "Isolation gives $(x-({{h}}))^(3/2)={{s3}}$.",
+          "Raise to 2/3: x-({{h}})={{s2}}, so x={{xsol}}, which satisfies the domain."
+        ],
+        "answerSummary": "$x={{xsol}}$"
+      },
+      "attemptFeedback": [
+        "Track the real-domain restriction before applying the reciprocal exponent."
+      ],
+      "supportHints": [
+        "The generated right side after isolation is a perfect cube, so the 2/3 power is exact."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "s": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "s2": "s*s",
+          "s3": "s*s*s",
+          "xsol": "h+s2",
+          "rhs": "a*s3+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7H_v2_two-solutions-two-thirds",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7H:v2-two-solutions-two-thirds",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7H",
+      "representation": "table",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "reverseReasoning",
+      "prompt": "Solve $(x-({{h}}))^(2/3)={{r2}}$ over the real numbers. Do not lose the negative cube-root branch. Give both solutions from least to greatest and the complete solution set.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Equivalent substitution",
+        "table": {
+          "headers": [
+            "Let",
+            "Then"
+          ],
+          "rows": [
+            [
+              "u=(x-({{h}}))^(1/3)",
+              "u²={{r2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "u-low",
+          "label": "Smaller value of u",
+          "inputProfile": "number",
+          "expected": "{{negR}}"
+        },
+        {
+          "id": "u-high",
+          "label": "Larger value of u",
+          "inputProfile": "number",
+          "expected": "{{r}}"
+        },
+        {
+          "id": "x-low",
+          "label": "Smaller x-solution",
+          "inputProfile": "number",
+          "expected": "{{xlow}}"
+        },
+        {
+          "id": "x-high",
+          "label": "Larger x-solution",
+          "inputProfile": "number",
+          "expected": "{{xhigh}}"
+        },
+        {
+          "id": "solution-set",
+          "label": "Complete real solution set",
+          "inputProfile": "expression",
+          "expected": "{ {{xlow}}, {{xhigh}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "An even numerator can create two real branches even when the root index is odd.",
+        "reasoning": [
+          "Let u=(x-({{h}}))^(1/3). Then u²={{r2}}, so u=±{{r}}.",
+          "Cubing gives x-({{h}})=±{{r3}}.",
+          "Therefore x={{xlow}} or x={{xhigh}}."
+        ],
+        "answerSummary": "$x={{xlow}},{{xhigh}}$"
+      },
+      "attemptFeedback": [
+        "After reaching u²={{r2}}, include both positive and negative square-root possibilities."
+      ],
+      "supportHints": [
+        "The cube-root substitution is defined for every real x, so both u branches can be valid."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "r2": "r*r",
+          "r3": "r*r*r",
+          "negR": "-r",
+          "xlow": "h-r3",
+          "xhigh": "h+r3"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7H_v2_no-real-two-thirds-negative",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7H:v2-no-real-two-thirds-negative",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7H",
+      "representation": "verbal",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "conceptual",
+      "prompt": "Solve $(x-({{h}}))^(2/3)=-{{c}}$ over the real numbers. Explain the sign restriction on the left side and report the complete real solution set.",
+      "responseFields": [
+        {
+          "id": "sign-reason",
+          "label": "Why can the left side not equal -{{c}}?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "nonnegative",
+              "label": "(x-h)^(2/3) is the square of a real cube root, so it is always nonnegative."
+            },
+            {
+              "id": "always-negative",
+              "label": "A 2/3 power is always negative."
+            },
+            {
+              "id": "undefined-all",
+              "label": "A 2/3 power is undefined for every real input."
+            }
+          ],
+          "expected": "nonnegative"
+        },
+        {
+          "id": "solution-set",
+          "label": "Complete real solution set",
+          "inputProfile": "expression",
+          "expected": "∅"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The structure of the rational exponent can rule out real solutions before any arithmetic.",
+        "reasoning": [
+          "$(x-({{h}}))^(2/3)=((x-({{h}}))^(1/3))^2$.",
+          "A real square is never negative.",
+          "Because -{{c}}<0, there are no real solutions."
+        ],
+        "answerSummary": "No real solution."
+      },
+      "attemptFeedback": [
+        "Interpret the 2/3 power as a square of a real cube root."
+      ],
+      "supportHints": [
+        "Ask whether the left side can ever be negative."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "c": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7H_v2_square-root-extraneous-full-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7H"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7H:v2-square-root-extraneous-full-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7H",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student solves $(x+{{c}})^(1/2)=x$ by squaring both sides. The resulting quadratic has candidates x={{s}} and x={{r}}, and the student reports both. Diagnose the error, test the candidates in the original equation, and give the correct real solution set.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student work",
+        "steps": [
+          {
+            "id": "square",
+            "label": "After squaring",
+            "work": "$x+{{c}}=x^2$"
+          },
+          {
+            "id": "candidates",
+            "label": "Quadratic candidates",
+            "work": "$x={{s}},{{r}}$"
+          },
+          {
+            "id": "claim",
+            "label": "Student conclusion",
+            "work": "Reports both without checking the original equation."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What must the student do?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "check-original",
+              "label": "Check both candidates in the original square-root equation because squaring can introduce an extraneous solution."
+            },
+            {
+              "id": "keep-both",
+              "label": "Keep both because every squared-equation root is automatically valid."
+            },
+            {
+              "id": "discard-positive",
+              "label": "Discard the positive root and keep the negative root."
+            }
+          ],
+          "expected": "check-original"
+        },
+        {
+          "id": "extraneous",
+          "label": "Extraneous candidate",
+          "inputProfile": "number",
+          "expected": "{{s}}"
+        },
+        {
+          "id": "valid",
+          "label": "Valid solution",
+          "inputProfile": "number",
+          "expected": "{{r}}"
+        },
+        {
+          "id": "solution-set",
+          "label": "Complete real solution set",
+          "inputProfile": "expression",
+          "expected": "{ {{r}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "An inverse operation can enlarge the candidate set, so solutions must be checked in the original equation.",
+        "reasoning": [
+          "Squaring produces candidates {{s}} and {{r}}.",
+          "At x={{s}}, the left side is nonnegative but the right side is {{s}}<0, so that candidate cannot satisfy the original equation.",
+          "x={{r}}>0 satisfies the original equation, so the complete solution set is x={{r}}."
+        ],
+        "answerSummary": "Extraneous: {{s}}; valid solution: {{r}}."
+      },
+      "attemptFeedback": [
+        "A candidate from the squared equation is not automatically a solution of the original square-root equation."
+      ],
+      "supportHints": [
+        "The principal square root is nonnegative; compare that fact with the sign of each candidate on the right side."
+      ],
+      "generator": {
+        "parameters": {
+          "r": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          }
+        },
+        "derived": {
+          "s": "1-r",
+          "c": "r*(r-1)"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-extraneous-root-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student solves a square-root equation and keeps both algebraic candidates after squaring. Diagnose why one candidate is extraneous, test the candidates in the original equation, and report the valid solution.",
+          "generator": {
+            "parameters": {
+              "r": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              }
+            },
+            "derived": {
+              "s": "1-r",
+              "c": "r*(r-1)"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
