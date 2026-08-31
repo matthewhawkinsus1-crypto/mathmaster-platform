@@ -42,36 +42,25 @@ gives you and paste it back.
 
 ## Block 2 — the whole deploy, one paste
 
-Handles everything: clones the repo if it is not there, pulls the latest code,
-writes the required setting, installs, builds, and deploys hosting + functions +
-Firestore rules together.
+Use the guarded release helper. It updates to the latest `main`, verifies the
+required secret, installs exact dependencies, runs the permanent Assignment V5
+release gates, builds Firebase Hosting in production execution mode, deploys
+**Functions first**, then Firestore rules + Hosting, and verifies the live site.
+
+Functions intentionally go first because the SAT/ACT/TSIA2 release rollover
+contract must exist on the server before the new browser is served.
 
 ```
-cd ~ && { [ -d mathmaster-platform ] || git clone https://github.com/matthewhawkinsus1-crypto/mathmaster-platform.git; } && cd mathmaster-platform && git checkout main && git pull origin main && echo "VITE_MATHMASTER_EXECUTION_MODE=firebaseProduction" > .env.production.local && npm install && npm run build && firebase deploy --project mathmaster-aleks
+cd ~ && { [ -d mathmaster-platform ] || git clone https://github.com/matthewhawkinsus1-crypto/mathmaster-platform.git; } && cd mathmaster-platform && git checkout main && git pull --ff-only origin main && bash scripts/deploy-v5-preproduction.sh
 ```
 
-Every step is chained with `&&`, so if one fails the rest **stop** rather than
-deploying a stale or misconfigured build. Takes several minutes; most of it is
-the deploy at the end.
+Every stage stops on failure. Do **not** substitute a plain `firebase deploy`
+for this coordinated Path release: Firebase may deploy surfaces in an order that
+does not preserve the release rollover guarantee.
 
-Three things in there matter and are easy to leave out by hand:
-
-- `VITE_MATHMASTER_EXECUTION_MODE=firebaseProduction` — without it the build
-  succeeds and My Math Path then refuses to run. That refusal is deliberate: a
-  deployment that lost this setting used to serve students sandbox questions and
-  record fake mastery for them. Writing it every time removes the failure mode.
-- `npm install` — libraries get added between releases and the build fails
-  without them, with an error that does not say so clearly.
-- Plain `firebase deploy`, **not** `--only hosting`. Firestore rules changed in
-  the current release, and the app also checks that the website and the
-  functions are on the same release and warns teachers when they are not.
-
-Finish line:
-
-```
-+  Deploy complete!
-Hosting URL: https://mathmaster-aleks.web.app
-```
+The helper also writes/builds with
+`VITE_MATHMASTER_EXECUTION_MODE=firebaseProduction`, so My Math Path cannot
+silently fall back to sandbox behavior.
 
 ---
 
@@ -85,25 +74,37 @@ Expect `HTTP 200` and a list of functions.
 
 ---
 
-## Block 4 — refresh the question bank (in the browser, not the terminal)
+## Block 4 — activate the live Path banks (browser, root admin)
 
-Deploying updates the questions **inside Cloud Functions**. The copies already
-saved in Firestore stay as they were until you do this, so new and corrected
-questions do not reach students without it.
+Deploying updates the certified question packages **inside Cloud Functions**.
+Firestore keeps the previously active bank until the root administrator runs
+the corresponding release controls.
 
 1. Open **https://mathmaster-aleks.web.app**
-2. Sign in as **matthew.hawkins@desotoisd.org** — the administrator account. No
-   other account can do this, and the error now names the required account if
-   you use the wrong one.
-3. **Administration → My Math Path content coverage**
-4. Press **Initialize / refresh built-in starter bank**
-5. Wait for **Import complete**
+2. Sign in with the MathMaster root-administrator account.
+3. Open **Administration → My Math Path content coverage**.
+4. Confirm **Web release** and **Server release** match.
+5. If the secure bank count is **0 only**, run
+   **Initialize all built-ins (empty bank only)**. A normal existing production
+   bank must not use this fresh-install action.
+6. On an existing bank, run **1. Refresh course + ASVAB built-ins**.
+   - refreshes Grade 6–8, Algebra I, Algebra II, and the merged ASVAB bank;
+   - validates the complete server-side package before writing;
+   - removes only superseded built-in course/ASVAB records;
+   - cannot write Digital SAT, ACT, or TSIA2.
+7. Then run **2. Refresh SAT / ACT / TSIA2 release**.
+   - uses the atomic coordinated release manifest;
+   - validates all 1,000 release-managed families before the live switch;
+   - cannot modify ASVAB.
+8. Press **Check deployment** and confirm:
+   - web/server releases match;
+   - SAT/ACT/TSIA2 release manifest is **active**;
+   - secure bank count is in the thousands.
+9. Press **Recompute from bank** only if course coverage needs to be rebuilt
+   again; the course + ASVAB refresh already rebuilds it.
 
-Safe to run as often as you like. It is all-or-nothing: every question is
-validated by the production issuer before anything is written.
-
-Then, on the same screen, **Path deployment status** should show the web release
-and the server release **matching**, and a secure bank count in the thousands.
+Do not use the generic JSON importer to refresh release-managed SAT, ACT, or
+TSIA2 content. The server intentionally blocks that path.
 
 ---
 
@@ -124,7 +125,7 @@ compound query that would need one), and no manual database work beyond Block 4.
 | Path screens say "not configured on this deployment" | The build ran without the setting. Run Block 2 again — it writes it. |
 | Teacher sees "restricted to the root administrator" | Wrong account. The message names the one to use. |
 | Website looks unchanged | Hard refresh: **Ctrl+Shift+R**. |
-| Students still see old questions | Block 4 was skipped. |
+| Students still see old questions | Complete both applicable Block 4 live-bank refresh steps, then re-check deployment status. |
 | **"Functions deploy had errors"** / several functions failed | See the section below — this one is expected occasionally and is not a code problem. |
 
 ---

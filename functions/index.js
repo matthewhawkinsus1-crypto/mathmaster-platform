@@ -1547,10 +1547,12 @@ exports.getPathRuntimeStatus = onCall(async (request) => {
   await requireRootAdmin(request);
   const db = getFirestore();
 
-  const [bankCountSnapshot, ...coverageSnapshots] = await Promise.all([
+  const [bankCountSnapshot, manifestSnapshot, ...coverageSnapshots] = await Promise.all([
     db.collection("pathQuestionBank").count().get(),
+    db.collection(CONTENT_RELEASE_MANIFEST_COLLECTION).doc(CONTENT_RELEASE_MANIFEST_DOC).get(),
     ...PATH_COURSE_IDS.map((courseId) => db.collection(COVERAGE_COLLECTION).doc(courseId).get()),
   ]);
+  const contentReleaseManifest = manifestSnapshot.exists ? manifestSnapshot.data() : null;
 
   let starterAvailable = false;
   let starterCount = 0;
@@ -1582,6 +1584,12 @@ exports.getPathRuntimeStatus = onCall(async (request) => {
     starterAvailable,
     starterCount,
     starterError,
+    assessmentRelease: contentReleaseManifest ? {
+      status: contentReleaseManifest.status || null,
+      updateOperation: contentReleaseManifest.updateOperation || null,
+      activeReleases: contentReleaseManifest.activeReleases || {},
+      pendingReleases: contentReleaseManifest.pendingReleases || {},
+    } : null,
     courseIds: PATH_COURSE_IDS,
     coverage,
   };
@@ -1732,7 +1740,7 @@ exports.seedPathQuestionBank = onCall(async (request) => {
   return processPathSeedImport({ db, actor, items, dryRun });
 });
 
-const BUILT_IN_PATH_SEED_FILES = Object.freeze([
+const COURSE_BUILT_IN_PATH_SEED_FILES = Object.freeze([
   "algebra1_pathQuestionBank_seed.json",
   "algebra2_pathQuestionBank_seed.json",
   // The middle-school prerequisite packages. Grade 6 joined the list when the
@@ -1742,10 +1750,21 @@ const BUILT_IN_PATH_SEED_FILES = Object.freeze([
   "grade6_pathQuestionBank_seed.json",
   "grade7_pathQuestionBank_seed.json",
   "grade8_pathQuestionBank_seed.json",
-  "digitalSAT_pathQuestionBank_seed.json",
-  "act_pathQuestionBank_seed.json",
-  "tsia2_pathQuestionBank_seed.json",
+]);
+
+// These are safe to refresh on an existing installation without changing the
+// coordinated SAT/ACT/TSIA2 release manifest. ASVAB has its own authored bank
+// and deliberately remains outside that coordinated release.
+const REFRESHABLE_BUILT_IN_PATH_SEED_FILES = Object.freeze([
+  ...COURSE_BUILT_IN_PATH_SEED_FILES,
   "asvab_pathQuestionBank_seed.json",
+]);
+
+// Fresh-install initialization still installs the complete bundled bank in one
+// operation, including the release-managed frameworks.
+const BUILT_IN_PATH_SEED_FILES = Object.freeze([
+  ...REFRESHABLE_BUILT_IN_PATH_SEED_FILES,
+  ...COORDINATED_CCMR_RELEASE_SEED_FILES,
 ]);
 
 const BUILT_IN_PATH_SEED_MARKER = "mathmaster-built-in-path-bank";
@@ -1765,6 +1784,29 @@ function loadBuiltInStarterPathSeed() {
   if (ids.size !== items.length || ids.has("")) throw new Error("The built-in Path starter bank contains missing or duplicate IDs.");
   builtInStarterPathSeedCache = items;
   return builtInStarterPathSeedCache;
+}
+
+let refreshableBuiltInPathSeedCache = null;
+function loadRefreshableBuiltInPathSeed() {
+  if (refreshableBuiltInPathSeedCache) return refreshableBuiltInPathSeedCache;
+  const seedDirectory = path.join(__dirname, "seeds", "pathQuestionBank");
+  const items = REFRESHABLE_BUILT_IN_PATH_SEED_FILES.flatMap((fileName) => {
+    const parsed = JSON.parse(fs.readFileSync(path.join(seedDirectory, fileName), "utf8"));
+    return Array.isArray(parsed) ? parsed : (parsed.documents || parsed.items || parsed.questions || []);
+  });
+  if (!items.length) throw new Error("The refreshable built-in Path bank is empty.");
+  const ids = new Set(items.map((item) => String(item?.id || "").trim()));
+  if (ids.size !== items.length || ids.has("")) {
+    throw new Error("The refreshable built-in Path bank contains missing or duplicate IDs.");
+  }
+  const protectedFrameworks = [...new Set(items
+    .map((item) => String(item?.assessmentContext?.framework || "").trim())
+    .filter((framework) => COORDINATED_CCMR_RELEASE_FRAMEWORKS.includes(framework)))];
+  if (protectedFrameworks.length) {
+    throw new Error("The course + ASVAB refresh package unexpectedly contains release-managed assessment content.");
+  }
+  refreshableBuiltInPathSeedCache = items;
+  return refreshableBuiltInPathSeedCache;
 }
 
 function loadCoordinatedCcmrReleaseSeed() {
@@ -1787,6 +1829,36 @@ async function removeSupersededBuiltInPathSeedRecords(db, currentItems) {
     const data = doc.data() || {};
     return data.builtInPathSeed === BUILT_IN_PATH_SEED_MARKER
       || data?.seedMetadata?.source === LEGACY_BUILT_IN_PATH_SEED_SOURCE;
+  });
+
+  for (let index = 0; index < obsolete.length; index += 400) {
+    const batch = db.batch();
+    obsolete.slice(index, index + 400).forEach((doc) => batch.delete(doc.ref));
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+  return obsolete.length;
+}
+
+function isRefreshableBuiltInPathRecord(data = {}) {
+  const framework = String(data?.assessmentContext?.framework || data?.assessmentFramework || "").trim();
+  if (COORDINATED_CCMR_RELEASE_FRAMEWORKS.includes(framework)) return false;
+  if (framework === "asvab") return true;
+  if (framework && framework !== "course") return false;
+  const alignmentKey = Array.isArray(data?.alignmentKeys) ? data.alignmentKeys[0] : "";
+  const courseId = String(data?.courseId || coverageCourseIdFor(alignmentKey) || "");
+  return PATH_COURSE_IDS.includes(courseId);
+}
+
+async function removeSupersededRefreshableBuiltInPathSeedRecords(db, currentItems) {
+  const currentIds = new Set(currentItems.map((item) => String(item?.id || "").trim()).filter(Boolean));
+  const snapshot = await db.collection("pathQuestionBank").get();
+  const obsolete = snapshot.docs.filter((doc) => {
+    if (currentIds.has(doc.id)) return false;
+    const data = doc.data() || {};
+    const builtIn = data.builtInPathSeed === BUILT_IN_PATH_SEED_MARKER
+      || data?.seedMetadata?.source === LEGACY_BUILT_IN_PATH_SEED_SOURCE;
+    return builtIn && isRefreshableBuiltInPathRecord(data);
   });
 
   for (let index = 0; index < obsolete.length; index += 400) {
@@ -1998,6 +2070,95 @@ exports.initializeStarterPathQuestionBank = onCall({ timeoutSeconds: 540, memory
     updatedBy: actor.uid,
   });
   return { ...seed, phase: "complete", removedSuperseded, coverage, tsia2PathBankRelease, assessmentContentReleases: pendingReleases };
+});
+
+/**
+ * Root-admin refresh for an EXISTING built-in course + ASVAB Path bank.
+ *
+ * SAT, ACT, and TSIA2 are intentionally excluded because those frameworks move
+ * only through refreshReleasedCcmrPathBanks and its atomic release manifest.
+ * The source package never enters the browser, so expected answers stay inside
+ * the Functions deployment.
+ */
+exports.refreshBuiltInCourseAndAsvabPathBank = onCall({ timeoutSeconds: 540, memory: "1GiB" }, async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+
+  const [existingBank, manifestSnapshot] = await Promise.all([
+    db.collection("pathQuestionBank").limit(1).get(),
+    db.collection(CONTENT_RELEASE_MANIFEST_COLLECTION).doc(CONTENT_RELEASE_MANIFEST_DOC).get(),
+  ]);
+  if (existingBank.empty) {
+    throw new HttpsError(
+      "failed-precondition",
+      "The secure Path bank is empty. Use fresh-install initialization first, then use this control for later course + ASVAB refreshes.",
+    );
+  }
+  const manifest = manifestSnapshot.exists ? manifestSnapshot.data() : {};
+  if (manifest?.status === "updating") {
+    throw new HttpsError(
+      "failed-precondition",
+      "An assessment-bank release is currently updating. Finish or recover that release before refreshing course + ASVAB content.",
+    );
+  }
+
+  let items;
+  try {
+    items = loadRefreshableBuiltInPathSeed();
+  } catch (error) {
+    logger.error("Could not load refreshable course + ASVAB Path bank", error);
+    throw new HttpsError("failed-precondition", "The built-in course + ASVAB Path package is unavailable in this deployment.");
+  }
+
+  const protectedFrameworks = [...new Set(items
+    .map((item) => String(item?.assessmentContext?.framework || "").trim())
+    .filter((framework) => COORDINATED_CCMR_RELEASE_FRAMEWORKS.includes(framework)))];
+  if (protectedFrameworks.length) {
+    throw new HttpsError(
+      "failed-precondition",
+      "The course + ASVAB refresh package cannot contain release-managed SAT, ACT, or TSIA2 content.",
+    );
+  }
+
+  const taggedItems = items.map((item) => ({
+    ...item,
+    builtInPathSeed: BUILT_IN_PATH_SEED_MARKER,
+    builtInPathSeedRelease: PATH_RUNTIME_RELEASE,
+  }));
+
+  // Validate the COMPLETE package before any Firestore write. A failed family
+  // therefore leaves the live course/ASVAB bank unchanged.
+  const validation = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: true });
+  if (validation.rejected?.length || validation.wouldAccept !== taggedItems.length) {
+    return { ...validation, phase: "validation", refreshScope: "course+asvab" };
+  }
+
+  const seed = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: false });
+  if (!seed.imported) {
+    throw new HttpsError("failed-precondition", "The course + ASVAB Path bank failed write-time validation.");
+  }
+
+  const removedSuperseded = await removeSupersededRefreshableBuiltInPathSeedRecords(db, taggedItems);
+  const coverage = await rebuildStoredPathCoverage(db);
+  const asvabFamilies = taggedItems.filter(
+    (item) => String(item?.assessmentContext?.framework || "").trim() === "asvab",
+  ).length;
+
+  await writeAdminAudit(db, actor, "built_in_course_asvab_path_bank_refreshed", "pathQuestionBank", {
+    accepted: seed.accepted,
+    removedSuperseded,
+    asvabFamilies,
+    release: PATH_RUNTIME_RELEASE,
+  });
+
+  return {
+    ...seed,
+    phase: "complete",
+    refreshScope: "course+asvab",
+    removedSuperseded,
+    asvabFamilies,
+    coverage,
+  };
 });
 
 /**
