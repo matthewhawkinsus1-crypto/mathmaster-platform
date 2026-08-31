@@ -149,9 +149,10 @@ export const validateLessonPublishingIntent = ({ classroomPackage, lessonResourc
   const warnings = [];
   const notes = lessonResources?.notesPdf;
   if (notes?.enabled) {
-    if (![1, 2].includes(Number(notes.targetPages))) errors.push('notesPdf.targetPages must be 1 or 2.');
-    if (!Array.isArray(notes.sections) || notes.sections.length === 0) {
-      errors.push('The notes PDF is enabled but has no authored sections. Author the student notes before publishing, or turn lesson notes off.');
+    if (Number(notes.targetPages) !== 2) errors.push('Student lesson notes must target 2 pages.');
+    if (!clean(notes.learningGoal)) errors.push('Student lesson notes need a learning goal.');
+    if (!Array.isArray(notes.sections) || notes.sections.length < 2) {
+      errors.push('Student lesson notes need at least two authored content sections before publishing.');
     }
     const wordEstimate = (notes.sections || []).reduce((total, section) => {
       const text = [section.heading, ...(section.content || []), ...(section.bullets || []), section.callout,

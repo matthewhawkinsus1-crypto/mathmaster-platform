@@ -7723,13 +7723,20 @@ function translateAssignmentAiError(error) {
       error.details || undefined,
     );
   }
+  const rawMessage = String(error?.message || error || "");
   logger.error("Integrated assignment AI failed", {
     name: error?.name || null,
-    message: error?.message || String(error),
+    message: rawMessage,
   });
+  if (/OPENAI_API_KEY\s+is not configured/i.test(rawMessage)) {
+    return new HttpsError(
+      "failed-precondition",
+      "MathMaster Assignment AI is not configured on this Firebase deployment. Set OPENAI_API_KEY in Firebase Secret Manager and redeploy authorAssignmentWithAI.",
+    );
+  }
   return new HttpsError(
     "internal",
-    "MathMaster could not build this assignment with AI. Use the copy/paste AI workflow while the service is checked.",
+    "MathMaster Assignment AI hit a server error. Use the outside-AI import option while the server configuration is checked.",
   );
 }
 

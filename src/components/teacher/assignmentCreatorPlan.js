@@ -132,8 +132,11 @@ export const buildAssignmentCreatorRequest = (input = {}, { generatedAt = new Da
     `- Student worksheet PDF: ${plan.outputs.studentWorksheetPdf ? 'enabled' : 'disabled'}.`,
     `- Teacher copy PDF with answers/available solutions: ${plan.outputs.teacherWorksheetPdf ? 'enabled' : 'disabled'}.`,
     `- Compact answer-key PDF: ${plan.outputs.answerKeyPdf ? 'enabled' : 'disabled'}.`,
-    `- Separate lesson-notes PDF: ${plan.outputs.lessonNotesPdf ? 'enabled' : 'disabled'}.`,
-    ...(plan.outputs.lessonNotesPdf ? ['- When lesson notes are enabled, author substantive student-facing notes now. Include a learning goal and at least two content-bearing sections; never return an enabled notes PDF with an empty sections array.'] : []),
+    `- Separate TWO-PAGE lesson-notes PDF: ${plan.outputs.lessonNotesPdf ? 'enabled' : 'disabled'}.`,
+    ...(plan.outputs.lessonNotesPdf ? [
+      '- REQUIRED OUTPUT CONTRACT: lessonNotesPdf.enabled=true; targetPages=2; learningGoal required; at least two content-bearing sections.',
+      '- When lesson notes are enabled, set targetPages to 2 and author substantive student-facing notes now. Include a learning goal and at least two content-bearing sections; never return an enabled notes PDF with an empty sections array.',
+    ] : ['- REQUIRED OUTPUT CONTRACT: lessonNotesPdf.enabled=false.']),
   ];
 
   return [

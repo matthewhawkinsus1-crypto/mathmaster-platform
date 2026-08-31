@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MathMasterToolWrapper } from '../../platform/ToolWrapper';
 import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies';
 import { PUBLICATION_STRATEGIES, planClassroomPublication } from '../../platform/publishing/publicationPlanner';
@@ -18,6 +18,7 @@ import {
   separateHonorsDepthAiRepair,
 } from '../../platform/contract/honorsDepthAiRepair.js';
 import {
+  assignmentAiFailureMessage,
   assignmentAiFallbackRecommended,
   buildAssignmentWithAI,
 } from '../../services/assignmentAiService.js';
@@ -79,6 +80,34 @@ const checkboxStyle = { width: 20, height: 20, flexShrink: 0 };
 const fieldsetStyle = { marginTop: 18, padding: 15, border: '1px solid #d8dde6', borderRadius: 10 };
 const legendStyle = { fontWeight: 900 };
 const labelStyle = { fontWeight: 800, display: 'block' };
+
+const parseExternalAiJson = (raw) => {
+  let text = String(raw || '').trim();
+  const fenced = text.match(/^\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`$/i);
+  if (fenced) text = fenced[1].trim();
+  if (!text.startsWith('{')) {
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start >= 0 && end > start) text = text.slice(start, end + 1);
+  }
+  const parsed = JSON.parse(text);
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+    throw new Error('The AI result must be one JSON object.');
+  }
+  return parsed;
+};
+
+const writeClipboardText = async (text) => {
+  if (!navigator.clipboard?.writeText) throw new Error('Clipboard copy is unavailable in this browser.');
+  await navigator.clipboard.writeText(String(text || ''));
+};
+
+const readClipboardText = async () => {
+  if (!navigator.clipboard?.readText) throw new Error('Clipboard paste is unavailable in this browser.');
+  const text = await navigator.clipboard.readText();
+  if (!String(text || '').trim()) throw new Error('The clipboard is empty.');
+  return text;
+};
 
 const initialReviewDraft = (draft = {}) => {
   const { assignedClassPeriods, assignedClassIds, ...rest } = draft;
@@ -164,6 +193,8 @@ export const LessonPreflightModal = ({
   const [honorsAiMessage, setHonorsAiMessage] = useState('');
   const [publishingAiBusy, setPublishingAiBusy] = useState(false);
   const [publishingAiMessage, setPublishingAiMessage] = useState('');
+  const honorsRepairFileRef = useRef(null);
+  const notesRepairFileRef = useRef(null);
   const [workingAssignmentV5, setWorkingAssignmentV5] = useState(() => assignmentV5);
   const [repairTargetIndex, setRepairTargetIndex] = useState(null);
   const [repairInstruction, setRepairInstruction] = useState('');
@@ -358,6 +389,40 @@ export const LessonPreflightModal = ({
     }
   };
 
+  const acceptHonorsDepthCandidate = (returned, sourceLabel = 'AI') => {
+    if (!allowQuestionRepair) {
+      throw new Error('Student records already exist for this assignment. Duplicate it before rewriting Honors content so historical evidence stays attached to what students actually saw.');
+    }
+    const guardedCandidate = applyHonorsDepthAiSections(effectiveAssignmentV5, returned);
+    const candidateModel = buildAssignmentV5PreflightModel(guardedCandidate);
+
+    const newErrors = newlyIntroducedPreflightErrors(validationErrors, candidateModel.errors);
+    if (newErrors.length) {
+      throw new Error(`The Honors repair introduced a new assignment blocker:\n${newErrors.join('\n')}`);
+    }
+
+    const candidateReport = inspectHonorsRigor(candidateModel.questions, { allowNarrowCheckpoint: true });
+    const unresolved = nonCcmrHonorsMissing(candidateReport);
+    if (unresolved.length) {
+      throw new Error(`${sourceLabel} could not safely resolve: ${honorsMissingLabels(unresolved).join(', ')}. The original assignment was kept unchanged.`);
+    }
+
+    const separated = separateHonorsDepthAiRepair(effectiveAssignmentV5, candidateModel.assignmentV5);
+    const sourceOnlyModel = buildAssignmentV5PreflightModel(separated.assignmentV5);
+    const sourceOnlyNewErrors = newlyIntroducedPreflightErrors(validationErrors, sourceOnlyModel.errors);
+    if (sourceOnlyNewErrors.length) {
+      throw new Error(`The source assignment gained a new blocker while separating the Honors-only extension:\n${sourceOnlyNewErrors.join('\n')}`);
+    }
+
+    setWorkingAssignmentV5(sourceOnlyModel.assignmentV5);
+    setHonorsEnrichmentQuestion(separated.honorsEnrichmentQuestion);
+    setHonorsAiMessage(
+      candidateReport.checks.ccmrEnrichment
+        ? `${sourceLabel} repaired the Honors depth requirements and the assignment passed Preflight again.`
+        : `${sourceLabel} repaired the Honors depth requirements. Audited CCMR Practice will be sourced from Fidelity V2.1 at publish.`,
+    );
+  };
+
   const buildHonorsDepthWithAi = async () => {
     if (!allowQuestionRepair) {
       setHonorsAiMessage('Student records already exist for this assignment. Duplicate it before using AI to rewrite Honors content so historical evidence stays attached to what students actually saw.');
@@ -371,42 +436,90 @@ export const LessonPreflightModal = ({
         honorsReport,
       });
       const built = await buildAssignmentWithAI(request);
-      const returned = JSON.parse(built.assignmentJson);
-      const guardedCandidate = applyHonorsDepthAiSections(effectiveAssignmentV5, returned);
-      const candidateModel = buildAssignmentV5PreflightModel(guardedCandidate);
-
-      const newErrors = newlyIntroducedPreflightErrors(validationErrors, candidateModel.errors);
-      if (newErrors.length) {
-        throw new Error(`The AI repair introduced a new assignment blocker:\n${newErrors.join('\n')}`);
-      }
-
-      const candidateReport = inspectHonorsRigor(candidateModel.questions, { allowNarrowCheckpoint: true });
-      const unresolved = nonCcmrHonorsMissing(candidateReport);
-      if (unresolved.length) {
-        throw new Error(`MathMaster AI could not safely resolve: ${honorsMissingLabels(unresolved).join(', ')}. The original assignment was kept unchanged.`);
-      }
-
-      const separated = separateHonorsDepthAiRepair(effectiveAssignmentV5, candidateModel.assignmentV5);
-      const sourceOnlyModel = buildAssignmentV5PreflightModel(separated.assignmentV5);
-      const sourceOnlyNewErrors = newlyIntroducedPreflightErrors(validationErrors, sourceOnlyModel.errors);
-      if (sourceOnlyNewErrors.length) {
-        throw new Error(`The source assignment gained a new blocker while separating the Honors-only extension:\n${sourceOnlyNewErrors.join('\n')}`);
-      }
-      setWorkingAssignmentV5(sourceOnlyModel.assignmentV5);
-      setHonorsEnrichmentQuestion(separated.honorsEnrichmentQuestion);
-      setHonorsAiMessage(
-        candidateReport.checks.ccmrEnrichment
-          ? 'MathMaster AI repaired the Honors depth requirements and the assignment passed Preflight again.'
-          : 'MathMaster AI repaired the Honors depth requirements. Audited CCMR Practice will be sourced from Fidelity V2.1 at publish.',
-      );
+      acceptHonorsDepthCandidate(JSON.parse(built.assignmentJson), 'MathMaster AI');
     } catch (error) {
       setHonorsAiMessage(
         assignmentAiFallbackRecommended(error)
-          ? 'Built-in MathMaster AI is unavailable right now. The assignment was not changed. You can try again, or use the local depth extension only when Core TEKS is already present.'
+          ? `${assignmentAiFailureMessage(error)} Nothing was changed. You can use the no-AI MathMaster extension below, or copy the repair request to ChatGPT/Claude/Gemini and paste the result back here.`
           : error.message,
       );
     } finally {
       setHonorsAiBusy(false);
+    }
+  };
+
+  const copyHonorsDepthRepairRequest = async () => {
+    try {
+      const request = buildHonorsDepthAiRepairRequest({
+        assignmentV5: effectiveAssignmentV5,
+        honorsReport,
+      });
+      await writeClipboardText(request);
+      setHonorsAiMessage('Honors repair request copied. Paste it into ChatGPT, Claude, or Gemini. Ask it to return only the JSON, then use “Paste AI Honors result” here.');
+    } catch (error) {
+      setHonorsAiMessage(error.message);
+    }
+  };
+
+  const importHonorsDepthRaw = async (raw, sourceLabel = 'Outside AI') => {
+    if (!allowQuestionRepair) {
+      setHonorsAiMessage('Student records already exist for this assignment. Duplicate it before importing Honors content.');
+      return;
+    }
+    setHonorsAiBusy(true);
+    setHonorsAiMessage('');
+    try {
+      acceptHonorsDepthCandidate(parseExternalAiJson(raw), sourceLabel);
+    } catch (error) {
+      setHonorsAiMessage(error.message);
+    } finally {
+      setHonorsAiBusy(false);
+    }
+  };
+
+  const pasteHonorsDepthResult = async () => {
+    try {
+      await importHonorsDepthRaw(await readClipboardText(), 'Outside AI');
+    } catch (error) {
+      setHonorsAiMessage(error.message);
+    }
+  };
+
+  const uploadHonorsDepthResult = async (file) => {
+    if (!file) return;
+    try {
+      if (!/\.json$/i.test(file.name || '')) throw new Error('Choose the JSON file returned by the AI.');
+      await importHonorsDepthRaw(await file.text(), 'Imported AI file');
+    } catch (error) {
+      setHonorsAiMessage(error.message);
+    } finally {
+      if (honorsRepairFileRef.current) honorsRepairFileRef.current.value = '';
+    }
+  };
+
+  const addLocalHonorsDepth = () => {
+    if (!allowQuestionRepair) {
+      setHonorsAiMessage('Student records already exist for this assignment. Duplicate it before adding an Honors extension.');
+      return;
+    }
+    try {
+      const firstHonorsClass = selectedClassChoices.find((entry) => entry.courseLevel === 'honors');
+      const localQuestion = buildHonorsEnrichmentQuestion({
+        questions: sourceRigorQuestions,
+        course: firstHonorsClass?.course || 'algebra1',
+      });
+      const localReport = inspectHonorsRigor(
+        [...sourceRigorQuestions, localQuestion],
+        { allowNarrowCheckpoint: true },
+      );
+      const unresolved = nonCcmrHonorsMissing(localReport);
+      if (unresolved.length) {
+        throw new Error(`The no-AI extension cannot safely resolve: ${honorsMissingLabels(unresolved).join(', ')}. Use the outside-AI import option instead.`);
+      }
+      setHonorsEnrichmentQuestion(localQuestion);
+      setHonorsAiMessage('No-AI MathMaster Honors extension added. It supplies the missing multiple-representation, justification, modeling/application, and DOK depth supported by this lesson. Audited CCMR Practice will still be sourced at publish.');
+    } catch (error) {
+      setHonorsAiMessage(error.message);
     }
   };
 
@@ -522,72 +635,145 @@ export const LessonPreflightModal = ({
     }
   };
 
+  const publishingRepairRequest = (completeAssignment = true) => {
+    const instructions = [
+      'Create the missing Google Classroom publishing metadata and a substantive TWO-PAGE student notes package for this existing MathMaster lesson.',
+      completeAssignment
+        ? 'Return one complete schemaVersion 5 Assignment V5 JSON object because MathMaster’s embedded AI endpoint requires the full assignment shape.'
+        : 'Return one JSON object with ONLY lessonNotesPdf and classroomIntegration. Do not return questions.',
+      'Do not rewrite, reorder, add, remove, or reinterpret any assignment question.',
+      'The student notes must be useful before/during the lesson, not an answer key for this assignment.',
+      'REQUIRED OUTPUT CONTRACT: lessonNotesPdf.enabled=true; targetPages=2; learningGoal required; at least two content-bearing sections.',
+      'Set lessonNotesPdf.enabled true and targetPages 2.',
+      'Include a clear learningGoal and at least two content-bearing sections. Prefer 3–4 concise sections when the topic needs it.',
+      'Include key ideas/vocabulary and at least one general worked example or reference pattern when mathematically appropriate.',
+      'Do not copy an assignment question and solve it verbatim.',
+      'classroomIntegration must include a useful topic, nonblank assignment instructions, a Notes & Resources post, and grade passback enabled/finalized.',
+      'Preserve any teacher-authored Classroom wording already present.',
+      '',
+      'CURRENT CANONICAL ASSIGNMENT:',
+      JSON.stringify(effectiveAssignmentV5),
+    ];
+    return instructions.join('\n');
+  };
+
+  const applyPublishingRepairCandidate = (authored, sourceLabel = 'AI') => {
+    const rawNotes = authored?.outputProfiles?.lessonNotesPdf
+      || authored?.lessonNotesPdf
+      || authored?.lessonResources?.notesPdf
+      || authored?.notesPdf
+      || {};
+    const rawClassroom = authored?.classroomIntegration
+      || authored?.classroomPackage
+      || {};
+
+    const candidatePublishing = normalizeLessonPublishingIntentV5({
+      classroom: rawClassroom,
+      lessonResources: { notesPdf: rawNotes },
+    }, effectiveAssignmentV5.assignment, []);
+    const candidateValidation = validateLessonPublishingIntent(candidatePublishing);
+    if (candidateValidation.errors.length) {
+      throw new Error(`${sourceLabel} returned an incomplete publishing package: ${candidateValidation.errors.join(' ')}`);
+    }
+
+    const authoredNotes = candidatePublishing.lessonResources?.notesPdf;
+    if (
+      !authoredNotes?.enabled
+      || Number(authoredNotes.targetPages) !== 2
+      || !String(authoredNotes.learningGoal || '').trim()
+      || !Array.isArray(authoredNotes.sections)
+      || authoredNotes.sections.length < 2
+    ) {
+      throw new Error(`${sourceLabel} must return enabled two-page student notes with a learning goal and at least two substantive sections.`);
+    }
+
+    setWorkingAssignmentV5((current) => {
+      const currentClassroom = current.classroomIntegration && typeof current.classroomIntegration === 'object'
+        ? current.classroomIntegration
+        : {};
+      const aiClassroom = candidatePublishing.classroomPackage || {};
+      const mergeNested = (key) => ({
+        ...(aiClassroom[key] && typeof aiClassroom[key] === 'object' ? aiClassroom[key] : {}),
+        ...(currentClassroom[key] && typeof currentClassroom[key] === 'object' ? currentClassroom[key] : {}),
+      });
+      return {
+        ...current,
+        outputProfiles: {
+          ...(current.outputProfiles || {}),
+          lessonNotesPdf: authoredNotes,
+        },
+        classroomIntegration: {
+          ...aiClassroom,
+          ...currentClassroom,
+          topic: mergeNested('topic'),
+          assignmentPost: mergeNested('assignmentPost'),
+          resourcesPost: mergeNested('resourcesPost'),
+          gradePassback: mergeNested('gradePassback'),
+          additionalLinks: Array.isArray(currentClassroom.additionalLinks)
+            ? currentClassroom.additionalLinks
+            : (Array.isArray(aiClassroom.additionalLinks) ? aiClassroom.additionalLinks : []),
+        },
+      };
+    });
+    setPublishingAiMessage(`${sourceLabel} notes and Google Classroom publishing details are ready. The assignment questions were not changed.`);
+  };
+
   const buildMissingPublishingPackageWithAi = async () => {
     if (!notesNeedAuthoring || publishingAiBusy) return;
     setPublishingAiBusy(true);
     setPublishingAiMessage('');
     try {
-      const request = [
-        'Repair ONLY the Google Classroom publishing metadata and student lesson-notes package for this existing MathMaster Assignment V5.',
-        'Return one complete schemaVersion 5 assignment JSON object.',
-        'Do not rewrite, reorder, add, remove, or reinterpret any assignment sections or questions. MathMaster will ignore all returned question content and will extract publishing metadata only.',
-        'Keep outputProfiles.lessonNotesPdf.enabled true. Author substantive student-facing lesson notes with a learning goal and at least two content-bearing sections suitable for a 1–2 page PDF.',
-        'The notes should explain prerequisite/key ideas, vocabulary, representations, and one general worked example when helpful, but must not reveal answers to the live assignment questions.',
-        'Also ensure classroomIntegration contains a useful topic, nonblank assignment instructions, a Notes & Resources post, and finalized grade-passback metadata. Preserve any existing teacher-authored Classroom wording when it is already present.',
-        '',
-        'CURRENT CANONICAL ASSIGNMENT:',
-        JSON.stringify(effectiveAssignmentV5),
-      ].join('\n');
+      const built = await buildAssignmentWithAI(publishingRepairRequest(true));
+      applyPublishingRepairCandidate(JSON.parse(built.assignmentJson), 'MathMaster AI');
+    } catch (error) {
+      setPublishingAiMessage(
+        assignmentAiFallbackRecommended(error)
+          ? `${assignmentAiFailureMessage(error)} Nothing was changed. Use “Copy notes request” with ChatGPT/Claude/Gemini, then paste or upload the result here.`
+          : error.message,
+      );
+    } finally {
+      setPublishingAiBusy(false);
+    }
+  };
 
-      const built = await buildAssignmentWithAI(request);
-      const authored = JSON.parse(built.assignmentJson);
-      const candidatePublishing = normalizeLessonPublishingIntentV5({
-        classroom: authored.classroomIntegration,
-        lessonResources: { notesPdf: authored.outputProfiles?.lessonNotesPdf },
-      }, effectiveAssignmentV5.assignment, []);
-      const candidateValidation = validateLessonPublishingIntent(candidatePublishing);
-      if (candidateValidation.errors.length) {
-        throw new Error(`MathMaster AI returned an incomplete publishing package: ${candidateValidation.errors.join(' ')}`);
-      }
+  const copyPublishingRepairRequest = async () => {
+    try {
+      await writeClipboardText(publishingRepairRequest(false));
+      setPublishingAiMessage('Two-page notes request copied. Paste it into ChatGPT, Claude, or Gemini. Copy the JSON result, then use “Paste AI notes result” here.');
+    } catch (error) {
+      setPublishingAiMessage(error.message);
+    }
+  };
 
-      const authoredNotes = candidatePublishing.lessonResources?.notesPdf;
-      if (!authoredNotes?.enabled || !Array.isArray(authoredNotes.sections) || authoredNotes.sections.length < 2) {
-        throw new Error('MathMaster AI did not produce enough student-note content. Try the notes repair again.');
-      }
-
-      setWorkingAssignmentV5((current) => {
-        const currentClassroom = current.classroomIntegration && typeof current.classroomIntegration === 'object'
-          ? current.classroomIntegration
-          : {};
-        const aiClassroom = candidatePublishing.classroomPackage || {};
-        const mergeNested = (key) => ({
-          ...(aiClassroom[key] && typeof aiClassroom[key] === 'object' ? aiClassroom[key] : {}),
-          ...(currentClassroom[key] && typeof currentClassroom[key] === 'object' ? currentClassroom[key] : {}),
-        });
-        return {
-          ...current,
-          outputProfiles: {
-            ...(current.outputProfiles || {}),
-            lessonNotesPdf: authoredNotes,
-          },
-          classroomIntegration: {
-            ...aiClassroom,
-            ...currentClassroom,
-            topic: mergeNested('topic'),
-            assignmentPost: mergeNested('assignmentPost'),
-            resourcesPost: mergeNested('resourcesPost'),
-            gradePassback: mergeNested('gradePassback'),
-            additionalLinks: Array.isArray(currentClassroom.additionalLinks)
-              ? currentClassroom.additionalLinks
-              : (Array.isArray(aiClassroom.additionalLinks) ? aiClassroom.additionalLinks : []),
-          },
-        };
-      });
-      setPublishingAiMessage('Student notes and Google Classroom publishing details are ready. Review them below, then assign normally.');
+  const importPublishingRepairRaw = async (raw, sourceLabel = 'Outside AI') => {
+    setPublishingAiBusy(true);
+    setPublishingAiMessage('');
+    try {
+      applyPublishingRepairCandidate(parseExternalAiJson(raw), sourceLabel);
     } catch (error) {
       setPublishingAiMessage(error.message);
     } finally {
       setPublishingAiBusy(false);
+    }
+  };
+
+  const pastePublishingRepairResult = async () => {
+    try {
+      await importPublishingRepairRaw(await readClipboardText(), 'Outside AI');
+    } catch (error) {
+      setPublishingAiMessage(error.message);
+    }
+  };
+
+  const uploadPublishingRepairResult = async (file) => {
+    if (!file) return;
+    try {
+      if (!/\.json$/i.test(file.name || '')) throw new Error('Choose the JSON file returned by the AI.');
+      await importPublishingRepairRaw(await file.text(), 'Imported AI file');
+    } catch (error) {
+      setPublishingAiMessage(error.message);
+    } finally {
+      if (notesRepairFileRef.current) notesRepairFileRef.current.value = '';
     }
   };
 
@@ -598,7 +784,7 @@ export const LessonPreflightModal = ({
       <SectionBalanceRigorAudit assignmentV5={effectiveAssignmentV5} />
 
       <div style={{ padding: '12px 14px', marginBottom: 16, background: '#e8f0fe', color: '#174ea6', border: '1px solid #aecbfa', borderRadius: 9, fontSize: 13, lineHeight: 1.5 }}>
-        <strong>AI-prepared Classroom and notes package.</strong> MathMaster carries the AI-written topic, post text, grade-passback settings, and 1–2 page student-notes plan into the saved lesson. The teacher still chooses classes and dates here before anything is published.
+        <strong>AI-prepared Classroom and notes package.</strong> MathMaster carries the AI-written topic, post text, grade-passback settings, and two-page student-notes plan into the saved lesson. The teacher still chooses classes and dates here before anything is published.
         {(publishingIntent.classroomPackage || publishingIntent.lessonResources?.notesPdf) && (
           <div style={{ marginTop: 9, padding: '9px 10px', borderRadius: 8, background: '#fff', border: '1px solid #c5d5ef', color: '#3c4043' }}>
             <div><strong>Classroom topic:</strong> {publishingIntent.classroomPackage?.topic?.name || 'MathMaster will infer this from the folder.'}</div>
@@ -609,16 +795,36 @@ export const LessonPreflightModal = ({
         )}
         {notesNeedAuthoring && (
           <div style={{ marginTop: 10, padding: '10px 11px', borderRadius: 8, background: '#fff4ce', border: '1px solid #f0d489', color: '#7a4f00' }}>
-            <strong>Student notes are turned on, but this saved lesson has no note content.</strong>
-            <div style={{ marginTop: 5 }}>MathMaster will not post a blank handout. Build the missing notes here; the assignment questions will not be rewritten.</div>
-            <button
-              type="button"
-              disabled={publishingAiBusy}
-              onClick={buildMissingPublishingPackageWithAi}
-              style={{ marginTop: 9, minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: '#fff', color: '#7a4f00', fontWeight: 900, cursor: publishingAiBusy ? 'wait' : 'pointer' }}
-            >
-              {publishingAiBusy ? 'Building notes…' : 'Build missing notes with MathMaster AI'}
-            </button>
+            <strong>Student notes are required, but this saved lesson has no authored note content.</strong>
+            <div style={{ marginTop: 5, lineHeight: 1.5 }}>
+              MathMaster will not post a blank handout. Finish the two-page notes package here. All repair paths below are publishing-only: assignment questions are protected from the notes import.
+            </div>
+            <div style={{ marginTop: 9, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                disabled={publishingAiBusy}
+                onClick={buildMissingPublishingPackageWithAi}
+                style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: '#fff', color: '#7a4f00', fontWeight: 900, cursor: publishingAiBusy ? 'wait' : 'pointer' }}
+              >
+                {publishingAiBusy ? 'Building notes…' : 'Build notes with MathMaster AI'}
+              </button>
+              <button type="button" disabled={publishingAiBusy} onClick={copyPublishingRepairRequest} style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: '#fff', color: '#7a4f00', fontWeight: 900 }}>
+                Copy notes request
+              </button>
+              <button type="button" disabled={publishingAiBusy} onClick={pastePublishingRepairResult} style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: '#fff', color: '#7a4f00', fontWeight: 900 }}>
+                Paste AI notes result
+              </button>
+              <button type="button" disabled={publishingAiBusy} onClick={() => notesRepairFileRef.current?.click()} style={{ minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: '#fff', color: '#7a4f00', fontWeight: 900 }}>
+                Upload notes JSON
+              </button>
+              <input
+                ref={notesRepairFileRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={(event) => uploadPublishingRepairResult(event.target.files?.[0])}
+                style={{ display: 'none' }}
+              />
+            </div>
           </div>
         )}
         {publishingAiMessage && (
@@ -693,25 +899,54 @@ export const LessonPreflightModal = ({
           </div>
         )}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.isHonorsReady && honorsReport.missing.some((key) => key !== 'ccmrEnrichment') && (
-          <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={buildHonorsDepthWithAi}
-              disabled={honorsAiBusy || !allowQuestionRepair}
-              title={!allowQuestionRepair ? 'Duplicate the assignment before rewriting Honors content because student records already exist.' : 'Use MathMaster’s embedded AI to repair the missing Honors depth requirements, then rerun Preflight.'}
-              style={{ minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: honorsAiBusy || !allowQuestionRepair ? '#c9b5df' : '#6f2da8', color: '#fff', fontWeight: 900, cursor: honorsAiBusy || !allowQuestionRepair ? 'not-allowed' : 'pointer' }}
-            >
-              {honorsAiBusy ? '✨ Repairing Honors depth…' : '✨ Build Honors Depth with MathMaster AI'}
-            </button>
+          <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
             {honorsReport.checks.coreTeks && (
-              <button type="button" disabled={!allowQuestionRepair || honorsAiBusy} onClick={() => {
-                const firstHonorsClass = selectedClassChoices.find((entry) => entry.courseLevel === 'honors');
-                setHonorsEnrichmentQuestion(buildHonorsEnrichmentQuestion({ questions: sourceRigorQuestions, course: firstHonorsClass?.course || 'algebra1' }));
-                setHonorsAiMessage('Local MathMaster extension added. This fallback can add depth, but it does not invent missing TEKS alignment.');
-              }} style={{ minHeight: 44, padding: '9px 15px', border: '1px solid #c7a9ea', borderRadius: 8, background: '#fff', color: '#6f2da8', fontWeight: 900 }}>
-                Add local depth extension
-              </button>
+              <div style={{ padding: '10px 11px', borderRadius: 9, background: '#f6f8ff', border: '1px solid #c7d5ef' }}>
+                <strong style={{ color: '#174ea6' }}>Fastest option — no AI required</strong>
+                <div style={{ marginTop: 4, color: '#4b5563', fontSize: 12.5, lineHeight: 1.5 }}>
+                  MathMaster can add one TEKS-preserving Honors extension that supplies multiple representations, justification, modeling/application, and DOK 3 depth. It does not change the existing questions.
+                </div>
+                <button
+                  type="button"
+                  disabled={!allowQuestionRepair || honorsAiBusy}
+                  onClick={addLocalHonorsDepth}
+                  style={{ marginTop: 8, minHeight: 42, padding: '8px 13px', border: '1px solid #6f2da8', borderRadius: 8, background: '#fff', color: '#6f2da8', fontWeight: 900, cursor: !allowQuestionRepair || honorsAiBusy ? 'not-allowed' : 'pointer' }}
+                >
+                  Add built-in Honors extension (no AI)
+                </button>
+              </div>
             )}
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={buildHonorsDepthWithAi}
+                disabled={honorsAiBusy || !allowQuestionRepair}
+                title={!allowQuestionRepair ? 'Duplicate the assignment before rewriting Honors content because student records already exist.' : 'Use MathMaster’s embedded AI to repair the missing Honors depth requirements, then rerun Preflight.'}
+                style={{ minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: honorsAiBusy || !allowQuestionRepair ? '#c9b5df' : '#6f2da8', color: '#fff', fontWeight: 900, cursor: honorsAiBusy || !allowQuestionRepair ? 'not-allowed' : 'pointer' }}
+              >
+                {honorsAiBusy ? '✨ Repairing Honors depth…' : '✨ Build Honors Depth with MathMaster AI'}
+              </button>
+              <button type="button" onClick={copyHonorsDepthRepairRequest} disabled={honorsAiBusy || !allowQuestionRepair} style={{ minHeight: 44, padding: '9px 13px', border: '1px solid #c7a9ea', borderRadius: 8, background: '#fff', color: '#6f2da8', fontWeight: 900 }}>
+                Copy outside-AI repair request
+              </button>
+              <button type="button" onClick={pasteHonorsDepthResult} disabled={honorsAiBusy || !allowQuestionRepair} style={{ minHeight: 44, padding: '9px 13px', border: '1px solid #c7a9ea', borderRadius: 8, background: '#fff', color: '#6f2da8', fontWeight: 900 }}>
+                Paste AI Honors result
+              </button>
+              <button type="button" onClick={() => honorsRepairFileRef.current?.click()} disabled={honorsAiBusy || !allowQuestionRepair} style={{ minHeight: 44, padding: '9px 13px', border: '1px solid #c7a9ea', borderRadius: 8, background: '#fff', color: '#6f2da8', fontWeight: 900 }}>
+                Upload Honors JSON
+              </button>
+              <input
+                ref={honorsRepairFileRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={(event) => uploadHonorsDepthResult(event.target.files?.[0])}
+                style={{ display: 'none' }}
+              />
+            </div>
+            <div style={{ color: '#5f6368', fontSize: 11.5, lineHeight: 1.45 }}>
+              Outside-AI imports go through the same MathMaster safety gate as the embedded AI. Existing questions cannot be silently rewritten, removed, or reordered just to make the Honors check turn green.
+            </div>
           </div>
         )}
         {honorsAiMessage && (

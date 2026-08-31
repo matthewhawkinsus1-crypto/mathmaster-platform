@@ -5,7 +5,7 @@ import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringI
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
-test('V5 AI contract asks for Classroom integration and one/two page PDF notes', () => {
+test('V5 AI contract asks for Classroom integration and required two-page PDF notes', () => {
   const src = read('src/platform/contract/authoringContract.js');
   assert.match(src, /"classroomIntegration"/);
   assert.match(src, /"lessonNotesPdf"/);
@@ -85,10 +85,14 @@ test('frontend has the PDF rasterizer dependency and callable wiring', () => {
 });
 
 
-test('Preflight blocks empty enabled notes and offers a publishing-only MathMaster AI repair', () => {
+test('Preflight blocks empty enabled notes and offers embedded plus external publishing-only repair', () => {
   const modal = read('src/components/teacher/LessonPreflightModal.jsx');
   assert.match(modal, /validateLessonPublishingIntent/);
-  assert.match(modal, /Build missing notes with MathMaster AI/);
-  assert.match(modal, /Do not rewrite, reorder, add, remove, or reinterpret any assignment sections or questions/);
-  assert.match(modal, /MathMaster will ignore all returned question content and will extract publishing metadata only/);
+  assert.match(modal, /Build notes with MathMaster AI/);
+  assert.match(modal, /Copy notes request/);
+  assert.match(modal, /Paste AI notes result/);
+  assert.match(modal, /Upload notes JSON/);
+  assert.match(modal, /REQUIRED OUTPUT CONTRACT: lessonNotesPdf\.enabled=true; targetPages=2/);
+  assert.match(modal, /Do not rewrite, reorder, add, remove, or reinterpret any assignment question/);
+  assert.match(modal, /assignment questions were not changed/);
 });

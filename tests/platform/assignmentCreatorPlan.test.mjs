@@ -66,6 +66,7 @@ assert.match(request, /Student worksheet PDF: enabled/);
 assert.match(request, /Teacher copy PDF with answers\/available solutions: disabled/);
 assert.match(request, /Compact answer-key PDF: disabled/);
 assert.match(request, /DOLs are quick foundational checks/i);
+assert.match(request, /REQUIRED OUTPUT CONTRACT: lessonNotesPdf\.enabled=true; targetPages=2/i);
 assert.match(request, /never return an enabled notes PDF with an empty sections array/i);
 assert.match(request, /roughly 15%/);
 assert.match(request, /Return exactly one complete MathMaster Assignment V5 JSON object/);
