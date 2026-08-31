@@ -332,7 +332,7 @@
         "Complete the grouping step first; then inspect the remaining cubic for a special pattern."
       ],
       "supportHints": [
-        "The first/second pair should both reveal x+{{c}}."
+        "Factor the first pair and second pair separately, compare the resulting common binomial, then factor the remaining cubic expression."
       ],
       "generator": {
         "parameters": {
