@@ -151,6 +151,28 @@ export const initializeBundledPathBankStarter = async ({ onProgress = null } = {
   return { initialized: true, seed, coverage: raw.coverage || null };
 };
 
+
+/** Existing-install refresh for bundled Grade 6-8 + Algebra I/II course content. */
+export const refreshBundledCoursePathBank = async () => {
+  const call = httpsCallable(functions, 'refreshBuiltInCoursePathBank');
+  const result = await call({});
+  return result.data || {};
+};
+
+/** Independent release-managed ASVAB refresh. */
+export const refreshReleasedAsvabPathBank = async () => {
+  const call = httpsCallable(functions, 'refreshReleasedAsvabPathBank');
+  const result = await call({});
+  return result.data || {};
+};
+
+/** Coordinated release-managed Digital SAT + ACT + TSIA2 refresh. */
+export const refreshReleasedCcmrPathBanks = async () => {
+  const call = httpsCallable(functions, 'refreshReleasedCcmrPathBanks');
+  const result = await call({});
+  return result.data || {};
+};
+
 /**
  * A predicate bound to one course's index.
  *
