@@ -389,6 +389,40 @@ export const LessonPreflightModal = ({
     }
   };
 
+  const acceptHonorsDepthCandidate = (returned, sourceLabel = 'AI') => {
+    if (!allowQuestionRepair) {
+      throw new Error('Student records already exist for this assignment. Duplicate it before rewriting Honors content so historical evidence stays attached to what students actually saw.');
+    }
+    const guardedCandidate = applyHonorsDepthAiSections(effectiveAssignmentV5, returned);
+    const candidateModel = buildAssignmentV5PreflightModel(guardedCandidate);
+
+    const newErrors = newlyIntroducedPreflightErrors(validationErrors, candidateModel.errors);
+    if (newErrors.length) {
+      throw new Error(`The Honors repair introduced a new assignment blocker:\n${newErrors.join('\n')}`);
+    }
+
+    const candidateReport = inspectHonorsRigor(candidateModel.questions, { allowNarrowCheckpoint: true });
+    const unresolved = nonCcmrHonorsMissing(candidateReport);
+    if (unresolved.length) {
+      throw new Error(`${sourceLabel} could not safely resolve: ${honorsMissingLabels(unresolved).join(', ')}. The original assignment was kept unchanged.`);
+    }
+
+    const separated = separateHonorsDepthAiRepair(effectiveAssignmentV5, candidateModel.assignmentV5);
+    const sourceOnlyModel = buildAssignmentV5PreflightModel(separated.assignmentV5);
+    const sourceOnlyNewErrors = newlyIntroducedPreflightErrors(validationErrors, sourceOnlyModel.errors);
+    if (sourceOnlyNewErrors.length) {
+      throw new Error(`The source assignment gained a new blocker while separating the Honors-only extension:\n${sourceOnlyNewErrors.join('\n')}`);
+    }
+
+    setWorkingAssignmentV5(sourceOnlyModel.assignmentV5);
+    setHonorsEnrichmentQuestion(separated.honorsEnrichmentQuestion);
+    setHonorsAiMessage(
+      candidateReport.checks.ccmrEnrichment
+        ? `${sourceLabel} repaired the Honors depth requirements and the assignment passed Preflight again.`
+        : `${sourceLabel} repaired the Honors depth requirements. Audited CCMR Practice will be sourced from Fidelity V2.1 at publish.`,
+    );
+  };
+
   const buildHonorsDepthWithAi = async () => {
     if (!allowQuestionRepair) {
       setHonorsAiMessage('Student records already exist for this assignment. Duplicate it before using AI to rewrite Honors content so historical evidence stays attached to what students actually saw.');
@@ -402,42 +436,90 @@ export const LessonPreflightModal = ({
         honorsReport,
       });
       const built = await buildAssignmentWithAI(request);
-      const returned = JSON.parse(built.assignmentJson);
-      const guardedCandidate = applyHonorsDepthAiSections(effectiveAssignmentV5, returned);
-      const candidateModel = buildAssignmentV5PreflightModel(guardedCandidate);
-
-      const newErrors = newlyIntroducedPreflightErrors(validationErrors, candidateModel.errors);
-      if (newErrors.length) {
-        throw new Error(`The AI repair introduced a new assignment blocker:\n${newErrors.join('\n')}`);
-      }
-
-      const candidateReport = inspectHonorsRigor(candidateModel.questions, { allowNarrowCheckpoint: true });
-      const unresolved = nonCcmrHonorsMissing(candidateReport);
-      if (unresolved.length) {
-        throw new Error(`MathMaster AI could not safely resolve: ${honorsMissingLabels(unresolved).join(', ')}. The original assignment was kept unchanged.`);
-      }
-
-      const separated = separateHonorsDepthAiRepair(effectiveAssignmentV5, candidateModel.assignmentV5);
-      const sourceOnlyModel = buildAssignmentV5PreflightModel(separated.assignmentV5);
-      const sourceOnlyNewErrors = newlyIntroducedPreflightErrors(validationErrors, sourceOnlyModel.errors);
-      if (sourceOnlyNewErrors.length) {
-        throw new Error(`The source assignment gained a new blocker while separating the Honors-only extension:\n${sourceOnlyNewErrors.join('\n')}`);
-      }
-      setWorkingAssignmentV5(sourceOnlyModel.assignmentV5);
-      setHonorsEnrichmentQuestion(separated.honorsEnrichmentQuestion);
-      setHonorsAiMessage(
-        candidateReport.checks.ccmrEnrichment
-          ? 'MathMaster AI repaired the Honors depth requirements and the assignment passed Preflight again.'
-          : 'MathMaster AI repaired the Honors depth requirements. Audited CCMR Practice will be sourced from Fidelity V2.1 at publish.',
-      );
+      acceptHonorsDepthCandidate(JSON.parse(built.assignmentJson), 'MathMaster AI');
     } catch (error) {
       setHonorsAiMessage(
         assignmentAiFallbackRecommended(error)
-          ? 'Built-in MathMaster AI is unavailable right now. The assignment was not changed. You can try again, or use the local depth extension only when Core TEKS is already present.'
+          ? `${assignmentAiFailureMessage(error)} Nothing was changed. You can use the no-AI MathMaster extension below, or copy the repair request to ChatGPT/Claude/Gemini and paste the result back here.`
           : error.message,
       );
     } finally {
       setHonorsAiBusy(false);
+    }
+  };
+
+  const copyHonorsDepthRepairRequest = async () => {
+    try {
+      const request = buildHonorsDepthAiRepairRequest({
+        assignmentV5: effectiveAssignmentV5,
+        honorsReport,
+      });
+      await writeClipboardText(request);
+      setHonorsAiMessage('Honors repair request copied. Paste it into ChatGPT, Claude, or Gemini. Ask it to return only the JSON, then use “Paste AI Honors result” here.');
+    } catch (error) {
+      setHonorsAiMessage(error.message);
+    }
+  };
+
+  const importHonorsDepthRaw = async (raw, sourceLabel = 'Outside AI') => {
+    if (!allowQuestionRepair) {
+      setHonorsAiMessage('Student records already exist for this assignment. Duplicate it before importing Honors content.');
+      return;
+    }
+    setHonorsAiBusy(true);
+    setHonorsAiMessage('');
+    try {
+      acceptHonorsDepthCandidate(parseExternalAiJson(raw), sourceLabel);
+    } catch (error) {
+      setHonorsAiMessage(error.message);
+    } finally {
+      setHonorsAiBusy(false);
+    }
+  };
+
+  const pasteHonorsDepthResult = async () => {
+    try {
+      await importHonorsDepthRaw(await readClipboardText(), 'Outside AI');
+    } catch (error) {
+      setHonorsAiMessage(error.message);
+    }
+  };
+
+  const uploadHonorsDepthResult = async (file) => {
+    if (!file) return;
+    try {
+      if (!/\.json$/i.test(file.name || '')) throw new Error('Choose the JSON file returned by the AI.');
+      await importHonorsDepthRaw(await file.text(), 'Imported AI file');
+    } catch (error) {
+      setHonorsAiMessage(error.message);
+    } finally {
+      if (honorsRepairFileRef.current) honorsRepairFileRef.current.value = '';
+    }
+  };
+
+  const addLocalHonorsDepth = () => {
+    if (!allowQuestionRepair) {
+      setHonorsAiMessage('Student records already exist for this assignment. Duplicate it before adding an Honors extension.');
+      return;
+    }
+    try {
+      const firstHonorsClass = selectedClassChoices.find((entry) => entry.courseLevel === 'honors');
+      const localQuestion = buildHonorsEnrichmentQuestion({
+        questions: sourceRigorQuestions,
+        course: firstHonorsClass?.course || 'algebra1',
+      });
+      const localReport = inspectHonorsRigor(
+        [...sourceRigorQuestions, localQuestion],
+        { allowNarrowCheckpoint: true },
+      );
+      const unresolved = nonCcmrHonorsMissing(localReport);
+      if (unresolved.length) {
+        throw new Error(`The no-AI extension cannot safely resolve: ${honorsMissingLabels(unresolved).join(', ')}. Use the outside-AI import option instead.`);
+      }
+      setHonorsEnrichmentQuestion(localQuestion);
+      setHonorsAiMessage('No-AI MathMaster Honors extension added. It supplies the missing multiple-representation, justification, modeling/application, and DOK depth supported by this lesson. Audited CCMR Practice will still be sourced at publish.');
+    } catch (error) {
+      setHonorsAiMessage(error.message);
     }
   };
 
