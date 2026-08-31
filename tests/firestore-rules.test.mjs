@@ -19,10 +19,10 @@ import {
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 
 const testEnv = await initializeTestEnvironment({
-  projectId: 'demo-mathmaster',
+  projectId: 'mathmaster-rules-test',
   firestore: {
     host: '127.0.0.1',
-    port: 8080,
+    port: 8181,
     rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8'),
   },
 });
