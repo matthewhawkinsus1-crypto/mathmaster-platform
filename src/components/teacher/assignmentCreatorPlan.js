@@ -101,7 +101,9 @@ export const normalizeAssignmentCreatorPlan = (input = {}) => {
       studentWorksheetPdf: input.outputs?.studentWorksheetPdf === true,
       teacherWorksheetPdf: input.outputs?.teacherWorksheetPdf === true,
       answerKeyPdf: input.outputs?.answerKeyPdf === true,
-      lessonNotesPdf: input.outputs?.lessonNotesPdf === true,
+      lessonNotesPdf: input.outputs?.lessonNotesPdf == null
+        ? base.outputs.lessonNotesPdf
+        : input.outputs.lessonNotesPdf === true,
     },
     teacherNotes: clean(input.teacherNotes),
   };
