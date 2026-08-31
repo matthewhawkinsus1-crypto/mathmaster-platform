@@ -45,6 +45,14 @@
             "max": 15
           }
         }
+      },
+      "solutionReview": {
+        "headline": "Absolute value models distance from a target.",
+        "reasoning": [
+          "The expression $x-{{target}}$ is the signed difference between the measurement and the target.",
+          "Distance ignores direction, so taking absolute value and setting it equal to {{d}} captures values {{d}} units on either side."
+        ],
+        "answerSummary": "$|x-{{target}}|={{d}}$."
       }
     },
     {
@@ -227,7 +235,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "Two symmetric solutions determine a center and a distance.",
+        "reasoning": [
+          "The midpoint of {{left}} and {{right}} is {{center}}, so {{center}} is the center of the absolute-value equation.",
+          "Each marked value is {{d}} units from the center.",
+          "A number whose distance from {{center}} is {{d}} satisfies $|x-{{center}}|={{d}}$."
+        ],
+        "answerSummary": "Center {{center}}, distance {{d}}, equation $|x-{{center}}|={{d}}$."
+      }
     },
     {
       "id": "mm_A2_6D_v2_linear-reading-deviation",
@@ -305,6 +322,15 @@
         "derived": {
           "insideConstant": "b-target"
         }
+      },
+      "solutionReview": {
+        "headline": "Translate 'exactly d units from target' into a distance equation.",
+        "reasoning": [
+          "The deviation from the target is $R(t)-{{target}}={{m}}t{{insideConstant|signed}}$.",
+          "Because deviation can occur above or below the target, use absolute value.",
+          "Set the magnitude of that deviation equal to {{d}}."
+        ],
+        "answerSummary": "$|{{m}}t{{insideConstant|signed}}|={{d}}$."
       }
     },
     {
@@ -383,6 +409,15 @@
           "b": "-m*center",
           "rhs": "m*d"
         }
+      },
+      "solutionReview": {
+        "headline": "A scaled absolute-value equation can represent the same two symmetric solutions.",
+        "reasoning": [
+          "The two allowed values are centered at {{center}} and are {{d}} units from that center.",
+          "The center-distance form is $|x-{{center}}|={{d}}$.",
+          "Multiplying the inside and the right side by {{m}} gives the equivalent relation $|{{m}}x{{b|signed}}|={{rhs}}$."
+        ],
+        "answerSummary": "Center {{center}}; one equivalent equation is $|{{m}}x{{b|signed}}|={{rhs}}$."
       }
     },
     {
@@ -523,7 +558,15 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "A one-sided linear equation does not represent distance in both directions.",
+        "reasoning": [
+          "The equation ${{m}}x{{b|signed}}={{d}}$ captures only the positive signed difference.",
+          "Distance from zero must allow the expression to be either {{d}} or -{{d}}, which absolute value encodes in one equation."
+        ],
+        "answerSummary": "$|{{m}}x{{b|signed}}|={{d}}$."
+      }
     }
   ]
 }
