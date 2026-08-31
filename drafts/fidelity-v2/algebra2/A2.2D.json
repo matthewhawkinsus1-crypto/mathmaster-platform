@@ -758,7 +758,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.2D",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "A student claims $f(x)=(x-({{h}}))^2{{k|signed}}$ on all real x and $g(x)=\\sqrt{x-({{k}})}+{{h}}$ are inverses because $f(g(x))=x$. Analyze the claim using the other composition.",
