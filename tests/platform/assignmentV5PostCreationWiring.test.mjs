@@ -34,8 +34,10 @@ test('existing destination variant cannot silently cross Standard or Honors rigo
   assert.match(app, /Use a destination copy/);
 });
 
-test('Export JSON emits canonical V5 instead of the retired schemaVersion 2 package', () => {
-  assert.match(app, /buildPortableAssignmentPackage = \(assignment\) => storedAssignmentToV5/);
+test('Export JSON emits marked canonical V5 instead of the retired schemaVersion 2 package', () => {
+  assert.match(app, /buildPortableAssignmentPackage = \(assignment\) => \(\{/);
+  assert.match(app, /storedAssignmentToV5\(assignment/);
+  assert.match(app, /mathmasterCanonicalAssignmentV5/);
   assert.doesNotMatch(app, /buildPortableAssignmentPackage = \(assignment\) => \(\{\s*schemaVersion:\s*2/);
   assert.match(app, /portable MathMaster assignment/);
 });

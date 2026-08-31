@@ -2,7 +2,7 @@ import { normalizeQuestionStandards } from './questionMetadata.js';
 import { getTexasStandard } from './texasStandards.js';
 import { MISSING_TOOL_IDS, validateToolQuestion } from './tools/toolSchemas.js';
 import { compileAuthoringIntentV5 } from './platform/contract/authoringIntentV5.js';
-import { flattenV5Sections } from './platform/contract/assignmentSchemaV5.js';
+import { flattenV5Sections, normalizeAssignmentV5 } from './platform/contract/assignmentSchemaV5.js';
 import { looksLikeFiniteSetNotation } from '../functions/shared/answerEquivalence.mjs';
 
 export const DEFAULT_ASSIGNMENT_BLUEPRINT = `{
@@ -610,9 +610,21 @@ export const parseAssignmentBlueprintText = (rawValue) => {
       throw new Error(`Assignment V5 is the only supported assignment format. Received schemaVersion ${sourceSchemaVersion ?? 'missing'}; V4 and earlier test assignments may be discarded.`);
     }
 
-    const compiledV5 = compileAuthoringIntentV5(source);
-    const parsed = compiledV5.package;
-    repairs.push(...compiledV5.repairs);
+    const isCanonicalPortableExport = source?.portableContract?.kind === 'mathmasterCanonicalAssignmentV5'
+      && Number(source?.portableContract?.version) === 1;
+
+    // MathMaster self-exports contain the already-compiled renderer contract.
+    // They must never be fed back through the authoring-intent compiler: doing
+    // that once collapsed composed workflow questions into legacy defaults.
+    const compiledV5 = isCanonicalPortableExport ? null : compileAuthoringIntentV5(source);
+    const parsed = isCanonicalPortableExport
+      ? normalizeAssignmentV5(source)
+      : compiledV5.package;
+    if (isCanonicalPortableExport) {
+      repairs.push('preserved MathMaster canonical V5 renderer contracts from a portable export');
+    } else {
+      repairs.push(...compiledV5.repairs);
+    }
 
     const questions = normalizeQuestionStorageShapes(flattenV5Sections(parsed), repairs);
     if (questions.length === 0) {
@@ -625,7 +637,7 @@ export const parseAssignmentBlueprintText = (rawValue) => {
       sourceSchemaVersion: 5,
       normalizedText: JSON.stringify(parsed, null, 2),
       repairs,
-      warnings: compiledV5.warnings || [],
+      warnings: compiledV5?.warnings || [],
     };
   } catch (error) {
     if (!(error instanceof SyntaxError)) throw error;

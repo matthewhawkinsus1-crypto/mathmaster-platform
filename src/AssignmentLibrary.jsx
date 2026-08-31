@@ -128,6 +128,7 @@ export default function AssignmentLibrary({
   onRenameFolder,
   onDeleteFolder,
   onMoveAssignment,
+  onAssignAssignment,
   onNavigateToAssignments,
   nowValue = Date.now(),
   classSchedule,
@@ -314,6 +315,8 @@ export default function AssignmentLibrary({
           {filteredAssignments.length === 0 && <p style={{ color: '#80868b' }}>No assignments match this filter.</p>}
           {filteredAssignments.map((assignment) => {
             const lifecycle = getAssignmentLifecycle(assignment, nowValue);
+            const isUnassigned = (!Array.isArray(assignment.assignedClassIds) || assignment.assignedClassIds.filter(Boolean).length === 0)
+              && (!Array.isArray(assignment.assignedClassPeriods) || assignment.assignedClassPeriods.filter(Boolean).length === 0);
             return (
               <div
                 key={assignment.id}
@@ -334,12 +337,35 @@ export default function AssignmentLibrary({
                   cursor: 'grab',
                 }}
               >
-                <div>
+                <div style={{ flex: '1 1 auto', minWidth: 0 }}>
                   <div style={{ fontWeight: 'bold' }}>{assignment.title}</div>
                   <div style={{ fontSize: '12px', color: '#5f6368' }}>
                     {normalizeFolderPath(assignment.folder) || 'Uncategorized'} &middot; {assignment.archived ? 'archived' : lifecycle.status}
                   </div>
                 </div>
+                {isUnassigned && typeof onAssignAssignment === 'function' && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onAssignAssignment(assignment);
+                    }}
+                    onMouseDown={(event) => event.stopPropagation()}
+                    style={{
+                      flex: '0 0 auto',
+                      minHeight: 38,
+                      padding: '7px 12px',
+                      border: '1px solid #1a73e8',
+                      borderRadius: 8,
+                      background: '#1a73e8',
+                      color: '#fff',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Assign to class
+                  </button>
+                )}
               </div>
             );
           })}

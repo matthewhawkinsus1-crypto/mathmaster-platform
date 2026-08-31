@@ -35,14 +35,29 @@ test('duplication cannot create a content copy outside native V5 Preflight', () 
   assert.match(block, /assignedClassPeriods:\s*\[\]/);
 });
 
-test('library assignment routes back through V5 Preflight instead of direct publication mutation', () => {
+test('stored assignment review paths reuse canonical V5 instead of recompiling renderer contracts', () => {
   assert.match(app, /openStoredAssignmentForPreflight/);
+
+  const libraryStart = app.indexOf('const openStoredAssignmentForPreflight');
+  const libraryEnd = app.indexOf('const beginEditAssignmentSetup', libraryStart);
+  const libraryBlock = app.slice(libraryStart, libraryEnd);
+  assert.match(libraryBlock, /prepareStoredAssignmentForReuse/);
+  assert.doesNotMatch(libraryBlock, /readAssignmentJson\(/);
+
+  const setupStart = app.indexOf('const beginEditAssignmentSetup');
+  const setupEnd = app.indexOf('const beginEditAssignmentDates', setupStart);
+  const setupBlock = app.slice(setupStart, setupEnd);
+  assert.match(setupBlock, /prepareStoredAssignmentForReuse/);
+  assert.doesNotMatch(setupBlock, /readAssignmentJson\(/);
+
   assert.match(app, /Preflight will create the correct destination version/);
   assert.match(app, /Use a destination copy/);
 });
 
-test('platform self-export is V5 and cannot resurrect the retired portable V2 package', () => {
-  assert.match(app, /buildPortableAssignmentPackage = \(assignment\) => storedAssignmentToV5/);
+test('platform self-export is canonical V5 and carries a lossless self-import marker', () => {
+  assert.match(app, /buildPortableAssignmentPackage = \(assignment\) => \(\{/);
+  assert.match(app, /storedAssignmentToV5\(assignment/);
+  assert.match(app, /mathmasterCanonicalAssignmentV5/);
   assert.doesNotMatch(app, /schemaVersion:\s*2[\s\S]{0,500}questions:\s*assignment\.questions/);
 });
 

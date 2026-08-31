@@ -83,3 +83,12 @@ test('frontend has the PDF rasterizer dependency and callable wiring', () => {
   assert.match(renderer, /convertLatexToMarkup/);
   assert.match(renderer, /html2canvas/);
 });
+
+
+test('Preflight blocks empty enabled notes and offers a publishing-only MathMaster AI repair', () => {
+  const modal = read('src/components/teacher/LessonPreflightModal.jsx');
+  assert.match(modal, /validateLessonPublishingIntent/);
+  assert.match(modal, /Build missing notes with MathMaster AI/);
+  assert.match(modal, /Do not rewrite, reorder, add, remove, or reinterpret any assignment sections or questions/);
+  assert.match(modal, /MathMaster will ignore all returned question content and will extract publishing metadata only/);
+});
