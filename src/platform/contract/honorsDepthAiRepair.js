@@ -29,6 +29,29 @@ const visibleStem = (question = {}) => clean(
   || '',
 );
 
+const stableValue = (value) => {
+  if (Array.isArray(value)) return value.map(stableValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value).sort().map((key) => [key, stableValue(value[key])]),
+    );
+  }
+  return value;
+};
+
+const protectedQuestionContent = (question = {}) => {
+  const keys = [
+    'type', 'toolId', 'prompt', 'scenario', 'title', 'equation',
+    'choices', 'responseFields', 'answerFields', 'responses', 'generator',
+    'data', 'graphSpec', 'functionSpec', 'workflow', 'analysisRequests',
+    'dok', 'dokLevel', 'difficultyBand', 'calculatorPolicy', 'representations',
+  ];
+  return JSON.stringify(stableValue(Object.fromEntries(
+    keys.filter((key) => Object.prototype.hasOwnProperty.call(question, key))
+      .map((key) => [key, question[key]]),
+  )));
+};
+
 export const honorsMissingLabels = (missing = []) => (
   (Array.isArray(missing) ? missing : [])
     .map((key) => MISSING_LABELS[key] || clean(key))
@@ -76,7 +99,7 @@ export const applyHonorsDepthAiSections = (currentAssignment = {}, aiAssignment 
     const nextRole = clean(nextSection.role).toLowerCase();
     const sourceId = clean(sourceSection.id);
     const nextId = clean(nextSection.id);
-    if (sourceRole !== nextRole || (sourceId && nextId && sourceId !== nextId)) {
+    if (sourceRole !== nextRole || (sourceId && sourceId !== nextId)) {
       throw new Error('MathMaster AI changed a section identity or role; the repair was rejected.');
     }
 
@@ -95,7 +118,7 @@ export const applyHonorsDepthAiSections = (currentAssignment = {}, aiAssignment 
       const nextQuestion = after[questionIndex] || {};
       const sourceIdentity = questionIdentity(sourceQuestion);
       const nextIdentity = questionIdentity(nextQuestion);
-      if (sourceIdentity && nextIdentity && sourceIdentity !== nextIdentity) {
+      if (sourceIdentity && sourceIdentity !== nextIdentity) {
         throw new Error('MathMaster AI reordered or replaced an existing question; the repair was rejected.');
       }
       const sourceStem = visibleStem(sourceQuestion);
@@ -105,6 +128,9 @@ export const applyHonorsDepthAiSections = (currentAssignment = {}, aiAssignment 
       }
       if (clean(sourceQuestion.type || sourceQuestion.toolId) !== clean(nextQuestion.type || nextQuestion.toolId)) {
         throw new Error('MathMaster AI changed an existing question interaction type; the repair was rejected.');
+      }
+      if (protectedQuestionContent(sourceQuestion) !== protectedQuestionContent(nextQuestion)) {
+        throw new Error('MathMaster AI changed existing question mathematics, grading, or rigor metadata; the repair was rejected.');
       }
     });
   });
