@@ -35,13 +35,21 @@ test('duplication cannot create a content copy outside native V5 Preflight', () 
   assert.match(block, /assignedClassPeriods:\s*\[\]/);
 });
 
-test('library assignment reuses canonical V5 directly instead of recompiling stored renderer contracts', () => {
+test('stored assignment review paths reuse canonical V5 instead of recompiling renderer contracts', () => {
   assert.match(app, /openStoredAssignmentForPreflight/);
-  const start = app.indexOf('const openStoredAssignmentForPreflight');
-  const end = app.indexOf('const handleCreateAssignment', start);
-  const block = app.slice(start, end);
-  assert.match(block, /prepareStoredAssignmentForReuse/);
-  assert.doesNotMatch(block, /readAssignmentJson\(JSON\.stringify\(canonicalV5\)\)/);
+
+  const libraryStart = app.indexOf('const openStoredAssignmentForPreflight');
+  const libraryEnd = app.indexOf('const beginEditAssignmentSetup', libraryStart);
+  const libraryBlock = app.slice(libraryStart, libraryEnd);
+  assert.match(libraryBlock, /prepareStoredAssignmentForReuse/);
+  assert.doesNotMatch(libraryBlock, /readAssignmentJson\(/);
+
+  const setupStart = app.indexOf('const beginEditAssignmentSetup');
+  const setupEnd = app.indexOf('const beginEditAssignmentDates', setupStart);
+  const setupBlock = app.slice(setupStart, setupEnd);
+  assert.match(setupBlock, /prepareStoredAssignmentForReuse/);
+  assert.doesNotMatch(setupBlock, /readAssignmentJson\(/);
+
   assert.match(app, /Preflight will create the correct destination version/);
   assert.match(app, /Use a destination copy/);
 });
