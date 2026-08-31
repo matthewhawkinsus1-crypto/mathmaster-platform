@@ -35,6 +35,7 @@ const normalized = normalizeAssignmentCreatorPlan({
 assert.equal(normalized.sections.warmup.enabled, false);
 assert.equal(normalized.sections.practice.count, 10);
 assert.equal(normalized.sections.practice.mode, 'adaptive');
+assert.equal(normalized.outputs.lessonNotesPdf, true);
 
 const request = buildAssignmentCreatorRequest({
   courseId: 'algebra1',
