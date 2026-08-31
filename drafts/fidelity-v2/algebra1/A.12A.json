@@ -407,7 +407,7 @@
         "Move an imaginary vertical line from left to right and check whether it ever hits two points at the same $x$-value."
       ],
       "supportHints": [
-        "Functions may repeat outputs; the problem is one input paired with two different outputs."
+        "Repeated outputs alone are not the conflict; inspect whether any single input is paired with two different outputs."
       ],
       "generator": {
         "parameters": {
@@ -804,7 +804,7 @@
             "Track which coordinate is the input before and after the swap."
           ],
           "supportHints": [
-            "Repeated outputs are allowed in a function; one input with two different outputs is not."
+            "Track what becomes the input after the coordinates are swapped, then look for one input paired with more than one output."
           ]
         }
       ]
