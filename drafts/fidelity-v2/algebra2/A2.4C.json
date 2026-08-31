@@ -209,7 +209,7 @@
             "Read outside scale and endpoint shift before looking for reflections that are not present."
           ],
           "supportHints": [
-            "In $a\\sqrt{x-h}+k$, positive a with no inside negative keeps the ray extending right."
+            "Use the signs and locations of the inside and outside coefficients to decide direction and reflection, then use their magnitudes for scale."
           ],
           "generator": {
             "parameters": {
