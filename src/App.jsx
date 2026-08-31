@@ -4037,6 +4037,41 @@ function App() {
       return;
     }
 
+    // Adding another class is a NEW delivery of the same authored assignment.
+    // Keep the existing class record (and therefore its due date, student
+    // evidence, and Classroom post) unchanged. The edited dates belong to the
+    // newly-added class(es), which are prepared from this assignment's reviewed
+    // V5 source. This is what makes "Period 3 due Tuesday, Period 5 due
+    // Wednesday" possible without one save silently moving both deadlines.
+    const originalClassIds = Array.isArray(assignment.assignedClassIds)
+      ? assignment.assignedClassIds.filter(Boolean)
+      : [];
+    const addedClassIds = editedClassIds.filter((classId) => !originalClassIds.includes(classId));
+    const keptEveryOriginalClass = originalClassIds.every((classId) => editedClassIds.includes(classId));
+    if (addedClassIds.length && keptEveryOriginalClass) {
+      try {
+        const addedRecords = classes.filter((entry) => addedClassIds.includes(entry.classId) && entry?.status !== 'archived');
+        const addedPeriods = [...new Set(addedRecords.map((entry) => entry.period).filter(Boolean))];
+        openStoredAssignmentForPreflight(assignment, {
+          title: assignment.title,
+          folder: assignment.folder || '',
+          dueAt: editingAssignmentDates.dueAt,
+          lateDueAt: editingAssignmentDates.lateDueAt || '',
+          assignedClassIds: addedClassIds,
+          assignedClassPeriods: addedPeriods,
+          dolInstructionDate: editingAssignmentDates.dolInstructionDate || '',
+        });
+        setEditingAssignmentId(null);
+        toastInfo(
+          'Review the added class delivery',
+          'The current class assignment and its dates stay unchanged. MathMaster reused the assignment for only the new class(es), so their due date and Standard/Honors depth can be managed independently.',
+        );
+      } catch (error) {
+        toastError('Could not prepare the added class', error.message);
+      }
+      return;
+    }
+
     // Existing assigned variants may move among classes with the same
     // course/rigor destination, but cannot silently change Standard/Honors
     // identity or fan out into mixed rigor without going through a fresh split.
