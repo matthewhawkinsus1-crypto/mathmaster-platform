@@ -229,3 +229,74 @@ Audit navigation/completion recovery end to end:
 - no stale-session or infinite-loop behavior after a completed skill;
 - Teacher Simulator and live student container present the same completion/recovery semantics.
 
+
+
+## 2026-08-30 — navigation/completion recovery LOCKED
+
+The post-journey recovery audit is complete. Certified behavior now covers:
+- browser Back restoring the prior internal My Math Path route instead of abandoning the app;
+- an always-available in-platform exit from active Path work;
+- leaving and resuming an open session without skipping the current question;
+- completed sessions returning a visible saved-completion state instead of requesting another question;
+- unavailable next-level states preserving the earlier completed pass and providing a safe exit;
+- closed-question and exhausted-attempt behavior terminating without loops;
+- Teacher Path Simulator using the same `MyMathPathExperience` and production completion/recovery UI as the live student Path.
+
+### Student solution-review defect found and repaired
+
+The first expanded recovery gate, Student Path UX run `33343326855`, exposed a real completion defect:
+- 41 raw Algebra II shipping families appeared to lack post-attempt review reasoning.
+- 11 were family-shell false positives: every effective variant already contained a review.
+- 30 were genuine effective-row gaps: all five Fidelity V2 families in each of A2.6C, A2.6D, A2.6E, A2.6F, A2.6G, and A2.6H.
+
+Repairs:
+- `26d35d35753b52f8e194c2d0720cb8b6eb16fa41` — review audit now checks every effective Path variant using the same family/variant merge semantics as production.
+- A2.6C review source: `e37979f3733de5912441b43b3df7dd40b95e1477`.
+- A2.6D review source: `35f9364e82dbf5e5b81a9915cde3ddf2067e149f`.
+- A2.6E review source: `3b9c47688e257c3b065788fb26af852441613425`.
+- A2.6F review source: `affc3d4d37fed3876ff245dcc0f60988ddbc6b66`.
+- A2.6G review source: `f02bc723297376b5cb71a52401fbcdfdb75c0c2a`.
+- A2.6H review source: `3065d5268b4700c07716203b2721643db0aa09f4`.
+- `dde82fa18b7a638f8b97d7413ee4ef4afa7828bb` — certified Algebra source changes now automatically trigger deterministic shipping-seed promotion.
+- Promotion run `33343679685`: **PASS**.
+  - seed build PASS;
+  - source/shipping parity PASS;
+  - strict adaptive metadata PASS;
+  - Challenge quality PASS;
+  - runtime adaptive targeting PASS.
+- promoted shipping seed commit: `12599e83ddf17240667799eaf53be70e8febaf12`.
+- Student Path UX run after promotion `33343728528`: **PASS**.
+
+### Explicit navigation/completion contract
+
+Added:
+- `tests/platform/pathNavigationCompletionRecovery.test.mjs` — `b113eaa86f40244fe18d926162013636f93cfa2b`;
+- workflow coverage — `389b7d975647cc26ff0c00f23b90f6ca58072732`.
+
+The contract explicitly gates:
+1. active Path sessions as recoverable browser-history routes;
+2. History API state preservation between outer student navigation and inner My Math Path navigation;
+3. browser Back restoration of Path/session state;
+4. in-platform Back from active work;
+5. visible completion and prior-pass preservation when a next level is unavailable;
+6. completed-session re-entry stopping cleanly rather than fetching indefinitely;
+7. Teacher Simulator/live-student completion and recovery UI parity.
+
+Final Student Path UX Certification `33343846718`: **PASS**.
+- navigation/completion contract PASS;
+- existing Path journey/UX/parity/recovery gates PASS;
+- student runtime build PASS.
+
+This phase is LOCKED. Do not reopen it unless a named recovery regression fails.
+
+### Next active audit — final cross-system preproduction certification
+
+Do not reopen certified Algebra I/II content. The remaining audit should validate the whole shipping stack together:
+1. certified source ↔ web seed ↔ Functions seed parity;
+2. Algebra I/II fidelity, Challenge quality, independent DOK/difficulty, semantic grading, and Path journey gates on the same candidate head;
+3. live Functions/server routing and Teacher Simulator parity;
+4. Firestore/security-rule and callable-contract regression coverage;
+5. student web production build and any required Functions build/lint/type checks;
+6. final branch/merge cleanliness and deployment-scope review.
+
+Only after that cross-system gate is green should the branch be prepared for merge/deployment and the built-in production Path bank refreshed once.
