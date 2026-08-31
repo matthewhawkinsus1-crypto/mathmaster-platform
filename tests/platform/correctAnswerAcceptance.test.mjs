@@ -70,3 +70,199 @@ test('secure My Math Path server grader accepts the A2.4A live screenshot answer
   assert.equal(result.isCorrect, true);
   assert.deepEqual(result.fieldResults, [{ id: 'answer', isCorrect: true }]);
 });
+
+test('secure My Math Path accepts reordered expanded polynomial expressions', async () => {
+  const grading = mathPath.privateGradingDefinition({
+    responseFields: [{
+      id: 'answer',
+      inputProfile: 'expression',
+      expected: '3x^2-2x+5',
+    }],
+  });
+
+  const result = await mathPath.gradeResponse(grading, {
+    responses: { answer: '5+3x^{2}-2x' },
+  });
+
+  assert.equal(result.isCorrect, true);
+  assert.deepEqual(result.fieldResults, [{ id: 'answer', isCorrect: true }]);
+});
+
+test('geometric sequence formulas accept conventional implicit multiplication', async () => {
+  const generatedKey = '5*(4)^(n-1)';
+
+  assert.equal(sameValue('5(4)^(n-1)', generatedKey), true);
+  assert.equal(sameValue('5(4)^(n−1)', generatedKey), true);
+
+  const grading = mathPath.privateGradingDefinition({
+    responseFields: [{
+      id: 'formula',
+      inputProfile: 'expression',
+      expected: generatedKey,
+    }],
+  });
+  const result = await mathPath.gradeResponse(grading, {
+    responses: { formula: '5(4)^(n-1)' },
+  });
+  assert.equal(result.isCorrect, true);
+});
+
+test('expanded-expression equivalence does not erase a required factored form', async () => {
+  const grading = mathPath.privateGradingDefinition({
+    responseFields: [{
+      id: 'answer',
+      inputProfile: 'expression',
+      expected: '(x+2)(x+3)',
+    }],
+  });
+
+  const result = await mathPath.gradeResponse(grading, {
+    responses: { answer: 'x^2+5x+6' },
+  });
+
+  assert.equal(result.isCorrect, false);
+  assert.deepEqual(result.fieldResults, [{ id: 'answer', isCorrect: false }]);
+});
+
+test('secure Path replaces authored multiple-choice ids with opaque runtime ids and grades those ids', async () => {
+  const authored = {
+    id: 'choice-security-family',
+    familyId: 'mathmaster:A.4B:choice-security',
+    prompt: 'Which conclusion is justified by the study?',
+    choices: [
+      { id: 'opt-1', label: 'Association only' },
+      { id: 'opt-2', label: 'Causation is proven' },
+      { id: 'opt-3', label: 'There is no relationship' },
+      { id: 'opt-4', label: 'The variables are identical' },
+    ],
+    responseFields: [{
+      id: 'answer',
+      inputProfile: 'choice',
+      expected: 'opt-1',
+    }],
+  };
+
+  const publicQuestion = mathPath.buildSanitizedQuestion(authored, {
+    questionInstanceId: 'choice-instance',
+    attemptsAllowed: 3,
+  });
+  const grading = mathPath.privateGradingDefinition(authored);
+
+  assert.equal(publicQuestion.choices.some((choice) => /^opt-/.test(choice.id)), false);
+  assert.equal(publicQuestion.choices.every((choice) => /^choice_[0-9a-f]{28}$/.test(choice.id)), true);
+  assert.equal(grading.fields[0].expected, publicQuestion.choices[0].id);
+  assert.notEqual(grading.fields[0].expected, 'opt-1');
+
+  const correct = await mathPath.gradeResponse(grading, {
+    responses: { answer: publicQuestion.choices[0].id },
+  });
+  assert.equal(correct.isCorrect, true);
+
+  const forgedAuthorId = await mathPath.gradeResponse(grading, {
+    responses: { answer: 'opt-1' },
+  });
+  assert.equal(forgedAuthorId.isCorrect, false, 'the browser cannot answer with a private author id');
+});
+
+test('opaque choice ids are deterministic for a replay but differ across concrete generated questions', () => {
+  const base = {
+    id: 'choice-security-family',
+    familyId: 'mathmaster:A.4B:choice-security',
+    choices: [
+      { id: 'opt-1', label: 'A' },
+      { id: 'opt-2', label: 'B' },
+    ],
+    responseFields: [{ id: 'answer', inputProfile: 'choice', expected: 'opt-1' }],
+  };
+
+  const first = mathPath.buildSanitizedQuestion(
+    { ...base, prompt: 'Generated question with value 7.' },
+    { questionInstanceId: 'one', attemptsAllowed: 3 },
+  );
+  const replay = mathPath.buildSanitizedQuestion(
+    { ...base, prompt: 'Generated question with value 7.' },
+    { questionInstanceId: 'one-replay', attemptsAllowed: 3 },
+  );
+  const different = mathPath.buildSanitizedQuestion(
+    { ...base, prompt: 'Generated question with value 11.' },
+    { questionInstanceId: 'two', attemptsAllowed: 3 },
+  );
+
+  assert.deepEqual(first.choices, replay.choices, 'replaying the same concrete question keeps the same ids');
+  assert.notDeepEqual(
+    first.choices.map((choice) => choice.id),
+    different.choices.map((choice) => choice.id),
+    'a different concrete question gets a different public choice namespace',
+  );
+});
+
+test('field-level choices use the same opaque id mapping as private grading', async () => {
+  const authored = {
+    id: 'field-choice-security',
+    prompt: 'Choose a classification.',
+    responseFields: [{
+      id: 'classification',
+      inputProfile: 'choice',
+      choices: [
+        { id: 'opt-1', label: 'Function' },
+        { id: 'opt-2', label: 'Not a function' },
+      ],
+      expected: 'opt-2',
+    }],
+  };
+
+  const publicQuestion = mathPath.buildSanitizedQuestion(authored, {
+    questionInstanceId: 'field-choice-instance',
+    attemptsAllowed: 3,
+  });
+  const grading = mathPath.privateGradingDefinition(authored);
+  const publicChoices = publicQuestion.responseFields[0].choices;
+
+  assert.equal(publicChoices.some((choice) => choice.id === 'opt-1' || choice.id === 'opt-2'), false);
+  assert.equal(grading.fields[0].expected, publicChoices[1].id);
+
+  const result = await mathPath.gradeResponse(grading, {
+    responses: { classification: publicChoices[1].id },
+  });
+  assert.equal(result.isCorrect, true);
+});
+
+
+test('secure My Math Path accepts both primary expected and alternate accepted factoring forms', async () => {
+  const grading = mathPath.privateGradingDefinition({
+    responseFields: [{
+      id: 'answer',
+      inputProfile: 'expression',
+      expected: '(x+2)(x+3)',
+      accepted: ['(x+3)(x+2)'],
+    }],
+  });
+
+  const primary = await mathPath.gradeResponse(grading, {
+    responses: { answer: '(x+2)(x+3)' },
+  });
+  const alternate = await mathPath.gradeResponse(grading, {
+    responses: { answer: '(x+3)(x+2)' },
+  });
+  const wrongForm = await mathPath.gradeResponse(grading, {
+    responses: { answer: 'x^2+5x+6' },
+  });
+
+  assert.equal(primary.isCorrect, true, 'the primary expected answer must remain correct when alternates exist');
+  assert.equal(alternate.isCorrect, true, 'an authored alternate form must also be correct');
+  assert.equal(wrongForm.isCorrect, false, 'accepted alternatives must not erase a required factored form');
+});
+
+test('secure My Math Path also honors legacy acceptedAnswers alongside the primary answer', async () => {
+  const grading = mathPath.privateGradingDefinition({
+    responseFields: [{
+      id: 'answer',
+      inputProfile: 'number',
+      answer: '0.5',
+      acceptedAnswers: ['1/2'],
+    }],
+  });
+
+  assert.equal((await mathPath.gradeResponse(grading, { responses: { answer: '0.5' } })).isCorrect, true);
+  assert.equal((await mathPath.gradeResponse(grading, { responses: { answer: '1/2' } })).isCorrect, true);
+});

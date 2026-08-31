@@ -1,0 +1,563 @@
+{
+  "standard": "A.2D",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-full-direct-variation-modeling",
+  "documents": [
+    {
+      "id": "mm_A_2D_v2_point-to-direct-variation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2D:v2-point-to-direct-variation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2D",
+      "taskType": "procedural",
+      "representation": "orderedPairs",
+      "prompt": "A direct variation passes through $({{x}},{{y}})$. Write its complete equation in the form $y=kx$.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Direct-variation equation",
+          "inputProfile": "equation",
+          "expected": "y={{k}}x"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Direct variation has zero intercept.",
+        "reasoning": [
+          "Use $k=y/x={{y}}/{{x}}={{k}}$.",
+          "Substitute the constant of variation into $y=kx$."
+        ],
+        "answerSummary": "$y={{k}}x$"
+      },
+      "attemptFeedback": [
+        "Find the constant ratio $y/x$ before writing the equation."
+      ],
+      "supportHints": [
+        "A direct-variation graph passes through the origin, so there is no added constant."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 10
+          },
+          "k": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "y": "k*x"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2D_v2_table-to-direct-variation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2D:v2-table-to-direct-variation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2D",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table represents a direct variation. Write the complete equation $y=kx$.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "1",
+              "{{y1}}"
+            ],
+            [
+              "2",
+              "{{y2}}"
+            ],
+            [
+              "4",
+              "{{y4}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Direct-variation equation",
+          "inputProfile": "equation",
+          "expected": "y={{k}}x"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A direct-variation table has a constant output-to-input ratio.",
+        "reasoning": [
+          "Each row gives $y/x={{k}}$.",
+          "That constant ratio is the coefficient in $y=kx$."
+        ],
+        "answerSummary": "$y={{k}}x$"
+      },
+      "attemptFeedback": [
+        "Divide each output by its input and look for the constant ratio."
+      ],
+      "supportHints": [
+        "Do not use consecutive differences; direct variation is multiplicative."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y1": "k",
+          "y2": "2*k",
+          "y4": "4*k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2D_v2_context-model-and-solve",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2D:v2-context-model-and-solve",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2D",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A machine produces {{rate}} parts per minute at a constant rate, starting from zero parts. Let $p$ be parts and $m$ be minutes. Write the direct-variation equation and use it to find the number of parts after {{time}} minutes.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Model equation",
+          "inputProfile": "equation",
+          "expected": "p={{rate}}m"
+        },
+        {
+          "id": "value",
+          "label": "Parts after {{time}} minutes",
+          "inputProfile": "number",
+          "expected": "{{total}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Constant rate from zero is direct variation.",
+        "reasoning": [
+          "The constant of variation is {{rate}} parts per minute, so $p={{rate}}m$.",
+          "Substitute $m={{time}}$ to get $p={{total}}$."
+        ],
+        "answerSummary": "$p={{rate}}m$ and {{total}} parts."
+      },
+      "attemptFeedback": [
+        "Write the model first, then substitute the requested input."
+      ],
+      "supportHints": [
+        "There is no starting amount, so the intercept is zero."
+      ],
+      "generator": {
+        "parameters": {
+          "rate": {
+            "type": "int",
+            "min": 2,
+            "max": 20
+          },
+          "time": {
+            "type": "int",
+            "min": 3,
+            "max": 15
+          }
+        },
+        "derived": {
+          "total": "rate*time"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-direct-variation-model-consistency",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A machine is claimed to follow a direct variation. It produces {{y1}} parts in {{x1}} minutes and {{y2}} parts in {{x2}} minutes. Determine whether both observations support the same constant of variation, write the model, and use it to predict the output after {{x3}} minutes.",
+          "responseFields": [
+            {
+              "id": "k1",
+              "label": "Constant k from the first observation",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "k2",
+              "label": "Constant k from the second observation",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "consistency",
+              "label": "Do both observations support one direct variation?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes; both y/x ratios equal the same constant k."
+                },
+                {
+                  "id": "no",
+                  "label": "No; the two y/x ratios are different."
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "equation",
+              "label": "Direct-variation equation",
+              "inputProfile": "equation",
+              "expected": "y={{k}}x"
+            },
+            {
+              "id": "prediction",
+              "label": "Predicted y when x={{x3}}",
+              "inputProfile": "number",
+              "expected": "{{y3}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              },
+              "x1": {
+                "type": "int",
+                "min": 1,
+                "max": 5
+              },
+              "x2": {
+                "type": "int",
+                "min": 6,
+                "max": 10
+              },
+              "x3": {
+                "type": "int",
+                "min": 3,
+                "max": 12
+              }
+            },
+            "derived": {
+              "y1": "k*x1",
+              "y2": "k*x2",
+              "y3": "k*x3"
+            },
+            "constraints": [
+              "x3!=x1",
+              "x3!=x2"
+            ]
+          },
+          "solutionReview": {
+            "headline": "Direct variation requires one constant ratio y/x across all nonzero observations.",
+            "reasoning": [
+              "The first point gives k={{k}} and the second point also gives k={{k}}.",
+              "That consistency supports y={{k}}x.",
+              "Using the same model at x={{x3}} gives y={{y3}}."
+            ],
+            "answerSummary": "Both observations support y={{k}}x; prediction {{y3}}."
+          },
+          "attemptFeedback": [
+            "Compare y/x for both observations before accepting a direct-variation model."
+          ],
+          "supportHints": [
+            "Direct variation must have the same k for every nonzero x."
+          ],
+          "context": {
+            "title": "Consistency check for direct variation",
+            "note": "Use two observations to validate the same constant before predicting."
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_2D_v2_error-added-intercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2D:v2-error-added-intercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2D",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A direct variation contains the point $({{x}},{{y}})$. A student writes $y={{k}}x+{{b}}$. Correct the student's model by writing the direct-variation equation.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Correct equation",
+          "inputProfile": "equation",
+          "expected": "y={{k}}x"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A direct variation cannot have a nonzero intercept.",
+        "reasoning": [
+          "The ratio $y/x$ gives $k={{k}}$.",
+          "Direct variation must pass through $(0,0)$, so the added intercept {{b}} must be removed."
+        ],
+        "answerSummary": "$y={{k}}x$"
+      },
+      "attemptFeedback": [
+        "Check whether the student's equation passes through the origin."
+      ],
+      "supportHints": [
+        "Direct variation always has the form $y=kx$."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          },
+          "k": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          }
+        },
+        "derived": {
+          "y": "k*x"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2D_v2_reverse-constant-and-prediction",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2D"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2D:v2-reverse-constant-and-prediction",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2D",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "In a direct variation, $y={{y1}}$ when $x={{x1}}$. Write the complete equation, then use the same model to find $y$ when $x={{x2}}$.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Direct-variation equation",
+          "inputProfile": "equation",
+          "expected": "y={{k}}x"
+        },
+        {
+          "id": "value",
+          "label": "New $y$ value",
+          "inputProfile": "number",
+          "expected": "{{y2}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Recover the constant of variation before predicting.",
+        "reasoning": [
+          "Compute $k={{y1}}/{{x1}}={{k}}$.",
+          "The equation $y={{k}}x$ then gives $y={{y2}}$ at $x={{x2}}$."
+        ],
+        "answerSummary": "$y={{k}}x$; new value ${{y2}}$."
+      },
+      "attemptFeedback": [
+        "Do not scale by an additive difference; recover the multiplicative constant $k$."
+      ],
+      "supportHints": [
+        "Use $k=y/x$ from the known pair."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "x2": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          }
+        },
+        "derived": {
+          "y1": "k*x1",
+          "y2": "k*x2"
+        },
+        "constraints": [
+          "x1 != x2"
+        ]
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-direct-variation-consistency-audit",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "A direct-variation model is supposed to fit the observations $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. A student also reports $({{x3}},{{wrongY3}})$ and says all three points belong to the same direct variation. Determine k from the reliable observations, test the reported third point using y=kx, and repair its y-value if needed.",
+          "responseFields": [
+            {
+              "id": "k-from-first",
+              "label": "k from the first point",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "k-from-second",
+              "label": "k from the second point",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "equation",
+              "label": "Direct-variation equation",
+              "inputProfile": "equation",
+              "expected": "y={{k}}x"
+            },
+            {
+              "id": "third-verdict",
+              "label": "Does the reported third point fit the direct variation?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "no",
+                  "label": "No; its y/x ratio does not equal the constant k."
+                },
+                {
+                  "id": "yes",
+                  "label": "Yes; any third point belongs once two points determine k."
+                }
+              ],
+              "expected": "no"
+            },
+            {
+              "id": "correct-y3",
+              "label": "Correct y-value when x={{x3}}",
+              "inputProfile": "number",
+              "expected": "{{y3}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Every nonzero input-output pair in one direct variation must have the same ratio y/x.",
+            "reasoning": [
+              "Both reliable observations give k={{k}}, so the model is $y={{k}}x$.",
+              "At x={{x3}}, the model requires y={{y3}}.",
+              "The reported value {{wrongY3}} differs, so that point is inconsistent with the direct variation."
+            ],
+            "answerSummary": "$y={{k}}x$; repair the third point to $({{x3}},{{y3}})$."
+          },
+          "attemptFeedback": [
+            "Use the same y/x ratio on every point before accepting it as part of one direct variation."
+          ],
+          "supportHints": [
+            "A direct variation cannot gain an added intercept or one exceptional point."
+          ],
+          "generator": {
+            "parameters": {
+              "x1": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "x2": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "x3": {
+                "type": "int",
+                "min": 3,
+                "max": 12
+              },
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 9
+              },
+              "offset": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              }
+            },
+            "derived": {
+              "y1": "k*x1",
+              "y2": "k*x2",
+              "y3": "k*x3",
+              "wrongY3": "y3+offset"
+            },
+            "constraints": [
+              "x1!=x2",
+              "x1!=x3",
+              "x2!=x3"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

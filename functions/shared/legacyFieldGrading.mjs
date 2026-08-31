@@ -42,10 +42,14 @@ export const buildFieldGradingDefinition = (question = {}) => {
   const explicit = question.grading && typeof question.grading === 'object' ? question.grading : {};
   const fields = list(question.responseFields).map((field, index) => ({
     id: String(field?.id || `response-${index + 1}`),
-    expected: field?.expected,
-    accepted: Array.isArray(field?.accepted) ? field.accepted : null,
+    expected: field?.expected ?? field?.answer,
+    accepted: [
+      ...(Array.isArray(field?.accepted) ? field.accepted : []),
+      ...(Array.isArray(field?.acceptedAnswers) ? field.acceptedAnswers : []),
+    ],
     numericTolerance: Number(field?.numericTolerance ?? explicit.numericTolerance ?? 1e-6),
     caseSensitive: Boolean(field?.caseSensitive ?? explicit.caseSensitive),
+    equivalence: field?.equivalence ? String(field.equivalence) : null,
   }));
   return { ...explicit, fields };
 };

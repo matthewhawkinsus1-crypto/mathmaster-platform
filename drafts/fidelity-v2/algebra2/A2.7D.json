@@ -1,0 +1,793 @@
+{
+  "standard": "A2.7D",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-algebraic-linear-factors-cubic-quartic-rational-root-synthetic-division-multiplicity-error-repair",
+  "rationale": "A2.7D explicitly requires algebraic determination of linear factors for degree-3 and degree-4 polynomial functions. Fidelity V2 starts from expanded polynomials, requires algebraic root evidence and reduced quotients, includes rational roots and multiplicity, and removes graph-only stand-ins.",
+  "documents": [
+    {
+      "id": "mm_A2_7D_v2_cubic-integer-roots-synthetic",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7D:v2-cubic-integer-roots-synthetic",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7D",
+      "representation": "symbolic",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Determine all linear factors of $P(x)=x^3+({{A2}})x^2+({{A1}})x+({{A0}})$ using algebraic methods. Test a rational-root candidate, use synthetic division after finding the first zero, then list the three real zeros from least to greatest with their matching linear factors.",
+      "responseFields": [
+        {
+          "id": "test-root",
+          "label": "First tested zero (least root)",
+          "inputProfile": "number",
+          "expected": "{{r1}}"
+        },
+        {
+          "id": "test-value",
+          "label": "P({{r1}})",
+          "inputProfile": "number",
+          "expected": "0"
+        },
+        {
+          "id": "reduced-quotient",
+          "label": "Quotient after dividing by x-({{r1}})",
+          "inputProfile": "expression",
+          "expected": "x^2+({{Q1}})*x+({{Q0}})"
+        },
+        {
+          "id": "root-1",
+          "label": "Root 1",
+          "inputProfile": "number",
+          "expected": "{{r1}}"
+        },
+        {
+          "id": "factor-1",
+          "label": "Linear factor from root 1",
+          "inputProfile": "expression",
+          "expected": "x-({{r1}})"
+        },
+        {
+          "id": "root-2",
+          "label": "Root 2",
+          "inputProfile": "number",
+          "expected": "{{r2}}"
+        },
+        {
+          "id": "factor-2",
+          "label": "Linear factor from root 2",
+          "inputProfile": "expression",
+          "expected": "x-({{r2}})"
+        },
+        {
+          "id": "root-3",
+          "label": "Root 3",
+          "inputProfile": "number",
+          "expected": "{{r3}}"
+        },
+        {
+          "id": "factor-3",
+          "label": "Linear factor from root 3",
+          "inputProfile": "expression",
+          "expected": "x-({{r3}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Use a zero to reduce the cubic, then factor the quadratic quotient.",
+        "reasoning": [
+          "Testing x={{r1}} gives P({{r1}})=0, so x-({{r1}}) is a factor.",
+          "Synthetic division gives $x^2+({{Q1}})x+({{Q0}})$.",
+          "That quotient has zeros {{r2}} and {{r3}}, giving the remaining two linear factors."
+        ],
+        "answerSummary": "Zeros {{r1}}, {{r2}}, {{r3}} with matching factors x-({{r1}}), x-({{r2}}), x-({{r3}})."
+      },
+      "attemptFeedback": [
+        "Use a valid rational-root candidate to reduce the degree before factoring the quotient."
+      ],
+      "supportHints": [
+        "Test rational candidates until one reduces the polynomial, then divide and continue factoring the lower-degree quotient."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -7,
+            "max": -2
+          },
+          "r2": {
+            "type": "int",
+            "min": -1,
+            "max": 3
+          },
+          "r3": {
+            "type": "int",
+            "min": 4,
+            "max": 8
+          }
+        },
+        "derived": {
+          "A2": "-(r1+r2+r3)",
+          "A1": "r1*r2+r1*r3+r2*r3",
+          "A0": "-r1*r2*r3",
+          "Q1": "-(r2+r3)",
+          "Q0": "r2*r3"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-small-integer-roots",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "procedural",
+          "representation": "symbolic",
+          "prompt": "Determine all linear factors of $P(x)=x^3+({{A2}})x^2+({{A1}})x+({{A0}})$ using algebraic methods. Test the least integer zero, divide by its factor, then finish the remaining two factors.",
+          "generator": {
+            "parameters": {
+              "r1": {
+                "type": "choice",
+                "values": [
+                  -4,
+                  -3,
+                  -2
+                ]
+              },
+              "r2": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "r3": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  4
+                ]
+              }
+            },
+            "derived": {
+              "A2": "-(r1+r2+r3)",
+              "A1": "r1*r2+r1*r3+r2*r3",
+              "A0": "-r1*r2*r3",
+              "Q1": "-(r2+r3)",
+              "Q0": "r2*r3"
+            },
+            "constraints": [
+              "r1!=r2",
+              "r2!=r3",
+              "r1!=r3"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_7D_v2_quartic-four-integer-roots",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7D:v2-quartic-four-integer-roots",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7D",
+      "representation": "table",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Use algebraic methods to determine all linear factors of $P(x)=x^4+({{A3}})x^3+({{A2}})x^2+({{A1}})x+({{A0}})$. After verifying the least rational zero, use synthetic division and continue until all four real zeros and matching linear factors are determined.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Algebraic factor workflow",
+        "table": {
+          "headers": [
+            "Step",
+            "Evidence"
+          ],
+          "rows": [
+            [
+              "1",
+              "Test rational-root candidates"
+            ],
+            [
+              "2",
+              "Synthetic divide by a confirmed linear factor"
+            ],
+            [
+              "3",
+              "Factor/repeat on the reduced polynomial"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "test-root",
+          "label": "First confirmed zero",
+          "inputProfile": "number",
+          "expected": "{{r1}}"
+        },
+        {
+          "id": "test-value",
+          "label": "P({{r1}})",
+          "inputProfile": "number",
+          "expected": "0"
+        },
+        {
+          "id": "reduced-quotient",
+          "label": "Cubic quotient after dividing by x-({{r1}})",
+          "inputProfile": "expression",
+          "expected": "x^3+({{Q2}})*x^2+({{Q1}})*x+({{Q0}})"
+        },
+        {
+          "id": "root-1",
+          "label": "Root 1",
+          "inputProfile": "number",
+          "expected": "{{r1}}"
+        },
+        {
+          "id": "factor-1",
+          "label": "Linear factor from root 1",
+          "inputProfile": "expression",
+          "expected": "x-({{r1}})"
+        },
+        {
+          "id": "root-2",
+          "label": "Root 2",
+          "inputProfile": "number",
+          "expected": "{{r2}}"
+        },
+        {
+          "id": "factor-2",
+          "label": "Linear factor from root 2",
+          "inputProfile": "expression",
+          "expected": "x-({{r2}})"
+        },
+        {
+          "id": "root-3",
+          "label": "Root 3",
+          "inputProfile": "number",
+          "expected": "{{r3}}"
+        },
+        {
+          "id": "factor-3",
+          "label": "Linear factor from root 3",
+          "inputProfile": "expression",
+          "expected": "x-({{r3}})"
+        },
+        {
+          "id": "root-4",
+          "label": "Root 4",
+          "inputProfile": "number",
+          "expected": "{{r4}}"
+        },
+        {
+          "id": "factor-4",
+          "label": "Linear factor from root 4",
+          "inputProfile": "expression",
+          "expected": "x-({{r4}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A quartic can be reduced one confirmed linear factor at a time.",
+        "reasoning": [
+          "P({{r1}})=0 confirms x-({{r1}}).",
+          "Synthetic division leaves the cubic $x^3+({{Q2}})x^2+({{Q1}})x+({{Q0}})$.",
+          "Continuing algebraically yields zeros {{r2}}, {{r3}}, and {{r4}} and all four linear factors."
+        ],
+        "answerSummary": "Four linear factors correspond to roots {{r1}}, {{r2}}, {{r3}}, {{r4}}."
+      },
+      "attemptFeedback": [
+        "After each confirmed root, reduce the polynomial and continue on the quotient."
+      ],
+      "supportHints": [
+        "Use rational candidates to reduce the polynomial one degree at a time, checking each factorization step before continuing."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -8,
+            "max": -5
+          },
+          "r2": {
+            "type": "int",
+            "min": -4,
+            "max": -1
+          },
+          "r3": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "r4": {
+            "type": "int",
+            "min": 5,
+            "max": 8
+          }
+        },
+        "derived": {
+          "A3": "-(r1+r2+r3+r4)",
+          "A2": "r1*r2+r1*r3+r1*r4+r2*r3+r2*r4+r3*r4",
+          "A1": "-(r1*r2*r3+r1*r2*r4+r1*r3*r4+r2*r3*r4)",
+          "A0": "r1*r2*r3*r4",
+          "Q2": "-(r2+r3+r4)",
+          "Q1": "r2*r3+r2*r4+r3*r4",
+          "Q0": "-r2*r3*r4"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7D_v2_cubic-noninteger-rational-root",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7D:v2-cubic-noninteger-rational-root",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7D",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "application",
+      "prompt": "Use the Rational Root Theorem and algebraic division to determine the linear factors of $P(x)=2x^3+({{A2}})x^2+({{A1}})x+({{A0}})$. One zero is a non-integer rational number. Report that rational zero and its monic linear factor, then determine the two integer zeros and their factors.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Rational-root setup",
+        "steps": [
+          {
+            "id": "candidates",
+            "label": "Candidate structure",
+            "work": "Possible rational zeros use factors of the constant over factors of 2."
+          },
+          {
+            "id": "test",
+            "label": "Confirm algebraically",
+            "work": "Evaluate candidates or use synthetic division; do not use a graph."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "rational-root",
+          "label": "Non-integer rational zero",
+          "inputProfile": "number",
+          "expected": "{{rr}}"
+        },
+        {
+          "id": "rational-factor",
+          "label": "Matching monic linear factor",
+          "inputProfile": "expression",
+          "expected": "x-({{rr}})"
+        },
+        {
+          "id": "integer-root-1",
+          "label": "Smaller integer zero",
+          "inputProfile": "number",
+          "expected": "{{r2}}"
+        },
+        {
+          "id": "integer-factor-1",
+          "label": "Matching linear factor",
+          "inputProfile": "expression",
+          "expected": "x-({{r2}})"
+        },
+        {
+          "id": "integer-root-2",
+          "label": "Larger integer zero",
+          "inputProfile": "number",
+          "expected": "{{r3}}"
+        },
+        {
+          "id": "integer-factor-2",
+          "label": "Matching linear factor",
+          "inputProfile": "expression",
+          "expected": "x-({{r3}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A non-monic polynomial may have rational zeros with nontrivial denominators.",
+        "reasoning": [
+          "The generated factor 2x-{{p}} gives rational zero {{rr}}.",
+          "The other zeros are {{r2}} and {{r3}}.",
+          "The monic linear factors are x-({{rr}}), x-({{r2}}), and x-({{r3}}); the overall leading scale is 2."
+        ],
+        "answerSummary": "Zeros {{rr}}, {{r2}}, {{r3}} with their three linear factors."
+      },
+      "attemptFeedback": [
+        "Do not test only integer candidates; the leading coefficient 2 permits denominator 2 in rational zeros."
+      ],
+      "supportHints": [
+        "For p/q candidates, q must divide the leading coefficient 2."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "choice",
+            "values": [
+              -5,
+              -3,
+              -1,
+              1,
+              3,
+              5
+            ]
+          },
+          "r2": {
+            "type": "int",
+            "min": -6,
+            "max": -2
+          },
+          "r3": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "rr": "p/2",
+          "A2": "-2*(r2+r3)-p",
+          "A1": "2*r2*r3+p*(r2+r3)",
+          "A0": "-p*r2*r3"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7D_v2_quartic-repeated-root-multiplicity",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7D:v2-quartic-repeated-root-multiplicity",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7D",
+      "representation": "symbolic",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "reverseReasoning",
+      "prompt": "Determine the linear factors of $P(x)=x^4+({{A3}})x^3+({{A2}})x^2+({{A1}})x+({{A0}})$ using algebraic methods. The quartic has three distinct real zeros, and one occurs with multiplicity 2. Identify the zeros, the repeated multiplicity, and the matching factors.",
+      "responseFields": [
+        {
+          "id": "root-1",
+          "label": "Smallest distinct zero",
+          "inputProfile": "number",
+          "expected": "{{r1}}"
+        },
+        {
+          "id": "factor-1",
+          "label": "Matching factor",
+          "inputProfile": "expression",
+          "expected": "x-({{r1}})"
+        },
+        {
+          "id": "root-2",
+          "label": "Repeated zero",
+          "inputProfile": "number",
+          "expected": "{{r2}}"
+        },
+        {
+          "id": "multiplicity",
+          "label": "Multiplicity of {{r2}}",
+          "inputProfile": "number",
+          "expected": "2"
+        },
+        {
+          "id": "factor-2",
+          "label": "Repeated linear factor",
+          "inputProfile": "expression",
+          "expected": "x-({{r2}})"
+        },
+        {
+          "id": "root-3",
+          "label": "Largest distinct zero",
+          "inputProfile": "number",
+          "expected": "{{r3}}"
+        },
+        {
+          "id": "factor-3",
+          "label": "Matching factor",
+          "inputProfile": "expression",
+          "expected": "x-({{r3}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Repeated synthetic division reveals factor multiplicity.",
+        "reasoning": [
+          "The distinct zeros are {{r1}}, {{r2}}, and {{r3}}.",
+          "After dividing once by x-({{r2}}), that same factor divides again.",
+          "Thus x-({{r2}}) has multiplicity 2 in the quartic."
+        ],
+        "answerSummary": "Factors x-({{r1}}), [x-({{r2}})] twice, and x-({{r3}})."
+      },
+      "attemptFeedback": [
+        "A zero can correspond to more than one copy of the same linear factor; keep dividing to determine multiplicity."
+      ],
+      "supportHints": [
+        "If the reduced polynomial is still zero at the same root, the factor repeats."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -7,
+            "max": -2
+          },
+          "r2": {
+            "type": "int",
+            "min": 0,
+            "max": 3
+          },
+          "r3": {
+            "type": "int",
+            "min": 4,
+            "max": 8
+          }
+        },
+        "derived": {
+          "A3": "-(r1+2*r2+r3)",
+          "A2": "2*r1*r2+r1*r3+r2*r2+2*r2*r3",
+          "A1": "-(r1*r2*r2+2*r1*r2*r3+r2*r2*r3)",
+          "A0": "r1*r2*r2*r3"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7D_v2_synthetic-sign-error-full-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7D:v2-synthetic-sign-error-full-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7D",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student is factoring $P(x)=x^4+({{A3}})x^3+({{A2}})x^2+({{A1}})x+({{A0}})$. The candidate factor is $x-({{r1}})$, but the student enters {{wrongSynthetic}} in synthetic division instead of {{r1}}. Diagnose the sign error, give the correct reduced cubic, and finish all four linear factors algebraically.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student setup",
+        "steps": [
+          {
+            "id": "factor",
+            "label": "Candidate divisor",
+            "work": "$x-({{r1}})$"
+          },
+          {
+            "id": "wrong",
+            "label": "Synthetic number used",
+            "work": "${{wrongSynthetic}}$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What is the setup error?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "root-sign",
+              "label": "For divisor x-r, synthetic division uses r, not -r."
+            },
+            {
+              "id": "opposite",
+              "label": "For divisor x-r, synthetic division must use -r."
+            },
+            {
+              "id": "graph",
+              "label": "Synthetic division cannot be used with quartics."
+            }
+          ],
+          "expected": "root-sign"
+        },
+        {
+          "id": "correct-synthetic",
+          "label": "Correct synthetic number",
+          "inputProfile": "number",
+          "expected": "{{r1}}"
+        },
+        {
+          "id": "reduced-quotient",
+          "label": "Correct cubic quotient",
+          "inputProfile": "expression",
+          "expected": "x^3+({{Q2}})*x^2+({{Q1}})*x+({{Q0}})"
+        },
+        {
+          "id": "root-1",
+          "label": "Root 1",
+          "inputProfile": "number",
+          "expected": "{{r1}}"
+        },
+        {
+          "id": "factor-1",
+          "label": "Linear factor from root 1",
+          "inputProfile": "expression",
+          "expected": "x-({{r1}})"
+        },
+        {
+          "id": "root-2",
+          "label": "Root 2",
+          "inputProfile": "number",
+          "expected": "{{r2}}"
+        },
+        {
+          "id": "factor-2",
+          "label": "Linear factor from root 2",
+          "inputProfile": "expression",
+          "expected": "x-({{r2}})"
+        },
+        {
+          "id": "root-3",
+          "label": "Root 3",
+          "inputProfile": "number",
+          "expected": "{{r3}}"
+        },
+        {
+          "id": "factor-3",
+          "label": "Linear factor from root 3",
+          "inputProfile": "expression",
+          "expected": "x-({{r3}})"
+        },
+        {
+          "id": "root-4",
+          "label": "Root 4",
+          "inputProfile": "number",
+          "expected": "{{r4}}"
+        },
+        {
+          "id": "factor-4",
+          "label": "Linear factor from root 4",
+          "inputProfile": "expression",
+          "expected": "x-({{r4}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The synthetic number is the zero of the divisor, so x-r uses r.",
+        "reasoning": [
+          "Using {{wrongSynthetic}} corresponds to the different divisor x-({{wrongSynthetic}}).",
+          "Using {{r1}} correctly produces the cubic quotient $x^3+({{Q2}})x^2+({{Q1}})x+({{Q0}})$.",
+          "Continuing algebraically gives the four factors associated with {{r1}}, {{r2}}, {{r3}}, and {{r4}}."
+        ],
+        "answerSummary": "Use synthetic number {{r1}} and finish all four matching factors."
+      },
+      "attemptFeedback": [
+        "Match the synthetic number to the zero of the written divisor before doing any arithmetic."
+      ],
+      "supportHints": [
+        "Set x-r=0. The solution r is the number entered in synthetic division."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -8,
+            "max": -5
+          },
+          "r2": {
+            "type": "int",
+            "min": -4,
+            "max": -1
+          },
+          "r3": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "r4": {
+            "type": "int",
+            "min": 5,
+            "max": 8
+          }
+        },
+        "derived": {
+          "wrongSynthetic": "-r1",
+          "A3": "-(r1+r2+r3+r4)",
+          "A2": "r1*r2+r1*r3+r1*r4+r2*r3+r2*r4+r3*r4",
+          "A1": "-(r1*r2*r3+r1*r2*r4+r1*r3*r4+r2*r3*r4)",
+          "A0": "r1*r2*r3*r4",
+          "Q2": "-(r2+r3+r4)",
+          "Q1": "r2*r3+r2*r4+r3*r4",
+          "Q0": "-r2*r3*r4"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-root-sign-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student uses the wrong sign in synthetic division for divisor $x-({{r1}})$. Diagnose the setup error, use the correct synthetic number, find the reduced cubic, and finish all four linear factors.",
+          "generator": {
+            "parameters": {
+              "r1": {
+                "type": "choice",
+                "values": [
+                  -4,
+                  -3,
+                  -2
+                ]
+              },
+              "r2": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "r3": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3
+                ]
+              },
+              "r4": {
+                "type": "choice",
+                "values": [
+                  4,
+                  5
+                ]
+              }
+            },
+            "derived": {
+              "wrongSynthetic": "-r1",
+              "A3": "-(r1+r2+r3+r4)",
+              "A2": "r1*r2+r1*r3+r1*r4+r2*r3+r2*r4+r3*r4",
+              "A1": "-(r1*r2*r3+r1*r2*r4+r1*r3*r4+r2*r3*r4)",
+              "A0": "r1*r2*r3*r4",
+              "Q2": "-(r2+r3+r4)",
+              "Q1": "r2*r3+r2*r4+r3*r4",
+              "Q0": "-r2*r3*r4"
+            },
+            "constraints": [
+              "r1!=r2",
+              "r1!=r3",
+              "r1!=r4",
+              "r2!=r3",
+              "r2!=r4",
+              "r3!=r4"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -54,16 +54,16 @@ test('assessment candidate selection cannot cross the session content release', 
   assert.notEqual(releaseFilter, -1, 'candidate plans must filter to the content release stamped on the session');
 });
 
-test('manual custom seed writes cannot bypass the coordinated assessment release manifest', () => {
+test('manual custom seed writes cannot bypass any release-managed assessment bank', () => {
   const importerStart = indexOfOrFail('exports.seedPathQuestionBank = onCall');
   const importerEnd = source.indexOf('const BUILT_IN_PATH_SEED_FILES = Object.freeze([', importerStart);
   assert.ok(importerEnd > importerStart, 'manual seed importer must end before built-in seed declarations');
   const block = source.slice(importerStart, importerEnd);
 
-  assert.match(block, /COORDINATED_CCMR_RELEASE_FRAMEWORKS/, 'manual importer must recognize release-managed assessment frameworks');
+  assert.match(block, /RELEASE_MANAGED_ASSESSMENT_FRAMEWORKS/, 'manual importer must recognize SAT, ACT, TSIA2, and ASVAB as release-managed');
   assert.match(block, /if\s*\(!dryRun/, 'read-only validation must remain available while protected writes are blocked');
-  assert.match(block, /refreshReleasedCcmrPathBanks/, 'blocked release-managed writes must direct admins to the atomic refresh callable');
-  const guard = block.indexOf('COORDINATED_CCMR_RELEASE_FRAMEWORKS');
+  assert.match(block, /dedicated course\/ASVAB\/CCMR release refresh controls/, 'blocked release-managed writes must direct admins to dedicated release controls');
+  const guard = block.indexOf('RELEASE_MANAGED_ASSESSMENT_FRAMEWORKS');
   const write = block.indexOf('return processPathSeedImport({ db, actor, items, dryRun })');
   assert.ok(guard >= 0 && write >= 0 && guard < write, 'release-managed framework guard must run before the generic importer can write');
 });
@@ -76,10 +76,10 @@ test('single-question withdrawal cannot mutate a release-managed assessment bank
 
   assert.match(block, /\.doc\(bankId\)\.get\(\)/, 'withdrawal must load the existing bank record before mutating it');
   assert.match(block, /"not-found"/, 'withdrawal must not create an inactive tombstone for a nonexistent bank ID');
-  assert.match(block, /COORDINATED_CCMR_RELEASE_FRAMEWORKS\.includes/, 'withdrawal must recognize release-managed assessment frameworks');
-  assert.match(block, /refreshReleasedCcmrPathBanks/, 'protected withdrawal must direct admins to the coordinated release path');
+  assert.match(block, /RELEASE_MANAGED_ASSESSMENT_FRAMEWORKS\.includes/, 'withdrawal must recognize SAT, ACT, TSIA2, and ASVAB as release-managed');
+  assert.match(block, /dedicated ASVAB or coordinated SAT\/ACT\/TSIA2 refresh/, 'protected withdrawal must direct admins to the correct release path');
   const read = block.indexOf('.doc(bankId).get()');
-  const guard = block.indexOf('COORDINATED_CCMR_RELEASE_FRAMEWORKS.includes');
+  const guard = block.indexOf('RELEASE_MANAGED_ASSESSMENT_FRAMEWORKS.includes');
   const mutation = block.indexOf('active: false');
   assert.ok(read >= 0 && guard >= 0 && mutation >= 0, 'withdrawal must contain read, protected-framework guard, and deactivation mutation');
   assert.ok(read < guard && guard < mutation, 'released assessment guard must run after reading the record and before deactivation');

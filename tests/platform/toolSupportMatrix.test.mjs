@@ -63,8 +63,8 @@ test('the matrix reports Path contract status from the contracts themselves', ()
   PATH_TOOL_IDS.forEach((toolId) => {
     assert.equal(toolSupportRow(toolId).pathContracted, true, `${toolId} has a contract`);
   });
-  assert.equal(toolSupportRow('dataModelingLab').pathContracted, false,
-    'a tool with no server grader must not be reported as Path-ready');
+  assert.equal(toolSupportRow('parabolaGeometryLab').pathContracted, false,
+    'a registry tool with no server grader must not be reported as Path-ready');
 });
 
 test('a calculator is marked unsafe where the computation is the construct', () => {

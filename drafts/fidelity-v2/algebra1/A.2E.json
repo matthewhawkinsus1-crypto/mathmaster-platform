@@ -1,0 +1,758 @@
+{
+  "standard": "A.2E",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-full-parallel-line-writing",
+  "documents": [
+    {
+      "id": "mm_A_2E_v2_parallel-through-point",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2E:v2-parallel-through-point",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2E",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Write the equation of the line parallel to $y={{m}}x{{b|signed}}$ that passes through $({{x}},{{y}})$.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Parallel-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Parallel lines keep the same slope.",
+        "reasoning": [
+          "The new line must have slope {{m}}.",
+          "Substitute the given point to find the new intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{m}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Keep the slope and use the point to determine a new intercept."
+      ],
+      "supportHints": [
+        "Parallel lines have equal slopes but different intercepts unless they are the same line."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y": "m*x+newb"
+        },
+        "constraints": [
+          "newb != b"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2E_v2_table-reference-parallel",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2E:v2-table-reference-parallel",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2E",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table lies on a line. Write the equation of a parallel line passing through $({{px}},{{py}})$.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "$y$"
+          ],
+          "rows": [
+            [
+              "0",
+              "{{b}}"
+            ],
+            [
+              "1",
+              "{{y1}}"
+            ],
+            [
+              "2",
+              "{{y2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Parallel-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Use the table to recover the reference slope.",
+        "reasoning": [
+          "The table outputs change by {{m}} when x increases by 1, so the reference slope is {{m}}.",
+          "A parallel line uses that slope; the supplied point gives intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{m}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Find the table's rate of change before using the new point."
+      ],
+      "supportHints": [
+        "The new line must match the table's slope, not its intercept."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "px": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y1": "m+b",
+          "y2": "2*m+b",
+          "py": "m*px+newb"
+        },
+        "constraints": [
+          "newb != b"
+        ]
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-simple-parallel-from-table",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "The two table rows lie on a line. Find the reference slope, then write the equation of a parallel line through $({{px}},{{py}})$.",
+          "stimulus": {
+            "kind": "table",
+            "table": {
+              "headers": [
+                "x",
+                "y"
+              ],
+              "rows": [
+                [
+                  "{{x1}}",
+                  "{{y1}}"
+                ],
+                [
+                  "{{x2}}",
+                  "{{y2}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "slope",
+              "label": "Reference-line slope",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "equation",
+              "label": "Parallel-line equation",
+              "inputProfile": "equation",
+              "expected": "y={{m}}x{{newb|signed}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "x1": {
+                "type": "int",
+                "min": -3,
+                "max": 1
+              },
+              "span": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "refb": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "px": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "newb": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              }
+            },
+            "derived": {
+              "x2": "x1+span",
+              "y1": "m*x1+refb",
+              "y2": "m*x2+refb",
+              "py": "m*px+newb"
+            },
+            "constraints": [
+              "newb!=refb"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_2E_v2_standard-form-reference",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2E:v2-standard-form-reference",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2E",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "The line ${{A}}x+{{B}}y={{C}}$ has slope ${{m}}$. Write the equation of the parallel line through $({{x}},{{y}})$ in slope-intercept form.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Parallel-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Equivalent forms do not change the slope relationship.",
+        "reasoning": [
+          "A parallel line must use the reference slope {{m}}.",
+          "Substituting the point gives the new intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{m}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Use the stated slope from the standard-form line, then solve for the new intercept."
+      ],
+      "supportHints": [
+        "Parallelism depends on slope, not on the equation form used to display the reference line."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "B": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "refb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "A": "-m*B",
+          "C": "refb*B",
+          "y": "m*x+newb"
+        },
+        "constraints": [
+          "newb != refb"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2E_v2_error-copies-intercept",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2E:v2-error-copies-intercept",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2E",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student is asked for a line parallel to $y={{m}}x{{b|signed}}$ through $({{x}},{{y}})$ and copies the entire equation $y={{m}}x{{b|signed}}$. Correct the student's work by writing the required line.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Correct parallel line",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Parallel lines share slope, not necessarily intercept.",
+        "reasoning": [
+          "The slope {{m}} should be copied because the lines are parallel.",
+          "The given point requires intercept {{newb}}, not the reference intercept {{b}}."
+        ],
+        "answerSummary": "$y={{m}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Check whether the copied equation actually passes through the required point."
+      ],
+      "supportHints": [
+        "Keep the slope; recompute the intercept from the point."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "y": "m*x+newb"
+        },
+        "constraints": [
+          "newb != b"
+        ]
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-compare-parallel-candidates",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A reference line is $y={{m}}x{{refb|signed}}$. The required line must be parallel to it and pass through $({{px}},{{py}})$. Candidate A uses the correct slope but the wrong intercept {{wrongb}}. Candidate B passes through the point but uses slope {{altm}}. Evaluate both conditions and write the correct line.",
+          "responseFields": [
+            {
+              "id": "candidate-a",
+              "label": "Why does Candidate A fail?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "misses-point",
+                  "label": "It is parallel but does not pass through the required point."
+                },
+                {
+                  "id": "wrong-slope",
+                  "label": "Its slope is not parallel to the reference line."
+                }
+              ],
+              "expected": "misses-point"
+            },
+            {
+              "id": "candidate-b",
+              "label": "Why does Candidate B fail?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "wrong-slope",
+                  "label": "It passes through the point but is not parallel."
+                },
+                {
+                  "id": "misses-point",
+                  "label": "It is parallel but misses the point."
+                }
+              ],
+              "expected": "wrong-slope"
+            },
+            {
+              "id": "equation",
+              "label": "Correct parallel-line equation",
+              "inputProfile": "equation",
+              "expected": "y={{m}}x{{newb|signed}}"
+            },
+            {
+              "id": "verify",
+              "label": "y-value from the correct line at x={{px}}",
+              "inputProfile": "number",
+              "expected": "{{py}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "refb": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "px": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "newb": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              }
+            },
+            "derived": {
+              "py": "m*px+newb",
+              "wrongb": "newb+1",
+              "altm": "m+1"
+            },
+            "constraints": [
+              "newb!=refb",
+              "altm!=m"
+            ]
+          },
+          "solutionReview": {
+            "headline": "A parallel line must satisfy both conditions: same slope and the required point.",
+            "reasoning": [
+              "Candidate A has slope {{m}} but its intercept makes it miss $({{px}},{{py}})$.",
+              "Candidate B goes through the point but uses slope {{altm}}, so it is not parallel.",
+              "The correct line uses slope {{m}} and intercept {{newb}}: y={{m}}x{{newb|signed}}."
+            ],
+            "answerSummary": "Neither candidate works; the correct line is y={{m}}x{{newb|signed}}."
+          },
+          "attemptFeedback": [
+            "Check slope and point membership separately; satisfying only one condition is not enough."
+          ],
+          "supportHints": [
+            "Parallel lines have equal slopes, then use the required point to determine the new intercept."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_2E_v2_two-point-reference",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2E:v2-two-point-reference",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2E",
+      "taskType": "reverseReasoning",
+      "representation": "orderedPairs",
+      "prompt": "A reference line passes through $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. Write the equation of the line parallel to it that passes through $({{px}},{{py}})$.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Parallel-line equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{newb|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Recover the reference slope, then construct a new line.",
+        "reasoning": [
+          "The slope through the two reference points is {{m}}.",
+          "Use that same slope with the required point to obtain intercept {{newb}}."
+        ],
+        "answerSummary": "$y={{m}}x{{newb|signed}}$"
+      },
+      "attemptFeedback": [
+        "Find the reference slope from the two points before using the target point."
+      ],
+      "supportHints": [
+        "Parallel lines preserve rise-over-run."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "span": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "m": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "refb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "px": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "newb": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "x2": "x1+span",
+          "y1": "m*x1+refb",
+          "y2": "m*x2+refb",
+          "py": "m*px+newb"
+        },
+        "constraints": [
+          "newb != refb"
+        ]
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-parallel-two-condition-validation",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "A reference line passes through $({{x1}},{{y1}})$ and $({{x2}},{{y2}})$. The required line must be PARALLEL to that line and pass through $({{px}},{{py}})$. Student A copies the reference line; Student B uses slope {{altm}} but forces the line through the new point. Evaluate both requirements, explain why neither proposal works, and write the correct line.",
+          "responseFields": [
+            {
+              "id": "reference-slope",
+              "label": "Slope of the reference line",
+              "inputProfile": "number",
+              "expected": "{{m}}"
+            },
+            {
+              "id": "student-a",
+              "label": "Student A's copied line",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "parallel-not-point",
+                  "label": "Parallel, but it does not pass through the required new point."
+                },
+                {
+                  "id": "valid",
+                  "label": "It satisfies both requirements."
+                }
+              ],
+              "expected": "parallel-not-point"
+            },
+            {
+              "id": "student-b",
+              "label": "Student B's line",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "point-not-parallel",
+                  "label": "It passes through the point, but its slope is not parallel to the reference line."
+                },
+                {
+                  "id": "valid",
+                  "label": "It satisfies both requirements."
+                }
+              ],
+              "expected": "point-not-parallel"
+            },
+            {
+              "id": "equation",
+              "label": "Correct parallel-line equation",
+              "inputProfile": "equation",
+              "expected": "y={{m}}x{{newb|signed}}"
+            },
+            {
+              "id": "verify-point",
+              "label": "y-value from the correct equation at x={{px}}",
+              "inputProfile": "number",
+              "expected": "{{py}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A parallel-line solution must satisfy two independent conditions.",
+            "reasoning": [
+              "The reference slope is {{m}}, so a parallel line must also have slope {{m}}.",
+              "Copying the original intercept fails the new point, while slope {{altm}} fails parallelism.",
+              "Using slope {{m}} through $({{px}},{{py}})$ gives $y={{m}}x{{newb|signed}}$."
+            ],
+            "answerSummary": "$y={{m}}x{{newb|signed}}$"
+          },
+          "attemptFeedback": [
+            "Check slope and point membership separately; satisfying only one condition is not enough."
+          ],
+          "supportHints": [
+            "Parallel lines have equal slopes but generally different intercepts."
+          ],
+          "generator": {
+            "parameters": {
+              "x1": {
+                "type": "int",
+                "min": -4,
+                "max": 1
+              },
+              "span": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "m": {
+                "type": "int",
+                "min": -5,
+                "max": 5,
+                "exclude": [
+                  0
+                ]
+              },
+              "refb": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "px": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "newb": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "x2": "x1+span",
+              "y1": "m*x1+refb",
+              "y2": "m*x2+refb",
+              "py": "m*px+newb",
+              "altm": "m+1",
+              "altb": "py-altm*px"
+            },
+            "constraints": [
+              "newb!=refb"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

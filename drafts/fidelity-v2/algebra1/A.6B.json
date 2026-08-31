@@ -1,0 +1,564 @@
+{
+  "standard": "A.6B",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-full-vertex-construction-and-standard-conversion",
+  "documents": [
+    {
+      "id": "mm_A_6B_v2_write-from-vertex-a",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6B:v2-write-from-vertex-a",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6B",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Write the complete quadratic in vertex form with vertex $({{h}},{{k}})$ and $a={{a}}$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Vertex-form equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}(x{{nh|signed}})^2{{k|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Vertex form places the vertex directly inside the equation.",
+        "reasoning": [
+          "Use $y=a(x-h)^2+k$ with a={{a}}, h={{h}}, and k={{k}}.",
+          "That gives $y={{a}}(x{{nh|signed}})^2{{k|signed}}$."
+        ]
+      },
+      "attemptFeedback": [
+        "Use the opposite sign of the vertex x-coordinate inside the parentheses."
+      ],
+      "supportHints": [
+        "Vertex $(h,k)$ corresponds to $(x-h)^2+k$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "nh": "-h"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6B_v2_vertex-point-full-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6B:v2-vertex-point-full-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6B",
+      "taskType": "modeling",
+      "representation": "orderedPairs",
+      "prompt": "A quadratic has vertex $({{h}},{{k}})$ and passes through $({{x2}},{{y2}})$. Write its COMPLETE equation in vertex form.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Quadratic equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}(x{{nh|signed}})^2{{k|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The extra point determines the vertical stretch/reflection a.",
+        "reasoning": [
+          "Substitute the vertex into $y=a(x-h)^2+k$, then use $({{x2}},{{y2}})$ to solve ${{y2}}={{a}}({{offset}})^2{{k|signed}}$.",
+          "The resulting coefficient is a={{a}}, so the complete model is $y={{a}}(x{{nh|signed}})^2{{k|signed}}$."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after solving for a; put a back into the full vertex-form equation."
+      ],
+      "supportHints": [
+        "Subtract k first, then divide by $(x-h)^2$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "offset": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          }
+        },
+        "derived": {
+          "nh": "-h",
+          "x2": "h+offset",
+          "y2": "a*offset*offset+k"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-unit-offset-vertex-equation",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "A quadratic has vertex $({{h}},{{k}})$ and passes through the point one unit to the right, $({{x2}},{{y2}})$. Determine a and write the complete equation in vertex form.",
+          "responseFields": [
+            {
+              "id": "a",
+              "label": "Vertical coefficient a",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "answer",
+              "label": "Complete vertex-form equation",
+              "inputProfile": "equation",
+              "expected": "y={{a}}(x{{nh|signed}})^2{{k|signed}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A point one unit from the vertex makes the scale coefficient especially accessible.",
+            "reasoning": [
+              "Since x-h=1, the point satisfies {{y2}}=a(1)^2{{k|signed}}.",
+              "Subtracting {{k}} gives a={{a}}.",
+              "The complete equation is y={{a}}(x{{nh|signed}})^2{{k|signed}}."
+            ],
+            "answerSummary": "a={{a}} and the complete vertex-form equation."
+          },
+          "attemptFeedback": [
+            "Use the vertex-form structure first; the one-unit offset makes the squared factor equal 1."
+          ],
+          "supportHints": [
+            "At x=h+1, (x-h)^2=1."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -2,
+                  -1,
+                  1,
+                  2
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            },
+            "derived": {
+              "offset": "1",
+              "nh": "-h",
+              "x2": "h+1",
+              "y2": "a+k"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_6B_v2_vertex-to-standard-full",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6B:v2-vertex-to-standard-full",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6B",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "Convert $y={{a}}(x{{nh|signed}})^2{{k|signed}}$ to COMPLETE standard form $y=ax^2+bx+c$.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Standard-form equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}x^2{{bcoef|signed}}x{{ccoef|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Conversion means expanding the entire square and combining every term.",
+        "reasoning": [
+          "$(x-h)^2=x^2-2hx+h^2$; multiplying by {{a}} gives the quadratic and linear coefficients.",
+          "After adding {{k}}, the standard form is $y={{a}}x^2{{bcoef|signed}}x{{ccoef|signed}}$."
+        ]
+      },
+      "attemptFeedback": [
+        "A complete conversion needs the $x^2$ term, x term, and constant—not just one coefficient."
+      ],
+      "supportHints": [
+        "Expand the binomial square before multiplying by a."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "nh": "-h",
+          "bcoef": "-2*a*h",
+          "ccoef": "a*h*h+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6B_v2_graph-to-vertex-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6B:v2-graph-to-vertex-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6B",
+      "taskType": "reverseReasoning",
+      "representation": "graph",
+      "prompt": "The graph shows a quadratic. Read its vertex and one additional point, then write the COMPLETE equation in vertex form.",
+      "stimulus": {
+        "kind": "graph",
+        "title": "Quadratic graph",
+        "graph": {
+          "xMin": -7,
+          "xMax": 7,
+          "yMin": -10,
+          "yMax": 20,
+          "ariaLabel": "Graph of a quadratic function",
+          "curves": [
+            {
+              "label": "Quadratic",
+              "points": [
+                [
+                  "{{xm2}}",
+                  "{{ym2}}"
+                ],
+                [
+                  "{{xm1}}",
+                  "{{ym1}}"
+                ],
+                [
+                  "{{h}}",
+                  "{{k}}"
+                ],
+                [
+                  "{{xp1}}",
+                  "{{yp1}}"
+                ],
+                [
+                  "{{xp2}}",
+                  "{{yp2}}"
+                ]
+              ]
+            }
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Vertex-form equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}(x{{nh|signed}})^2{{k|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A graph gives h and k at the vertex, then another point determines a.",
+        "reasoning": [
+          "The vertex is $({{h}},{{k}})$, so begin with $y=a(x{{nh|signed}})^2{{k|signed}}$.",
+          "Using the point one unit from the vertex gives output {{yp1}}, so a={{a}}."
+        ]
+      },
+      "attemptFeedback": [
+        "Read the vertex first; then use a nearby point to determine the coefficient a."
+      ],
+      "supportHints": [
+        "At x=h+1, $(x-h)^2=1$, making a easy to read."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "nh": "-h",
+          "xm2": "h-2",
+          "xm1": "h-1",
+          "xp1": "h+1",
+          "xp2": "h+2",
+          "ym2": "4*a+k",
+          "ym1": "a+k",
+          "yp1": "a+k",
+          "yp2": "4*a+k"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6B_v2_error-forgets-square-offset",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6B:v2-error-forgets-square-offset",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6B",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A quadratic has vertex $({{h}},{{k}})$ and passes through $({{x2}},{{y2}})$. A student says $a={{wrongA}}$ after subtracting k but FORGETS to divide by $({{offset}})^2$. Correct the work by writing the complete vertex-form equation.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct quadratic equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}(x{{nh|signed}})^2{{k|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The distance from the vertex is squared in vertex form.",
+        "reasoning": [
+          "After subtracting k, the remaining value equals $a({{offset}})^2$, not a by itself.",
+          "Dividing by {{offset}}² gives a={{a}}, so the correct equation is $y={{a}}(x{{nh|signed}})^2{{k|signed}}$."
+        ]
+      },
+      "attemptFeedback": [
+        "Use the whole factor $(x-h)^2$ when solving for a."
+      ],
+      "supportHints": [
+        "The student's {{wrongA}} still contains the squared horizontal distance."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "k": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "offset": {
+            "type": "int",
+            "min": 2,
+            "max": 3
+          }
+        },
+        "derived": {
+          "nh": "-h",
+          "x2": "h+offset",
+          "y2": "a*offset*offset+k",
+          "wrongA": "y2-k"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-square-offset-error-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A quadratic has vertex $({{h}},{{k}})$ and passes through $({{x2}},{{y2}})$. A student subtracts k and says $a={{wrongA}}$, forgetting that the horizontal offset {{offset}} must be squared. Diagnose the error, compute the correct a, write the vertex-form equation, and verify the extra point.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What factor was omitted?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "square",
+                  "label": "The student forgot to divide by (x-h)^2={{offset2}}."
+                },
+                {
+                  "id": "linear",
+                  "label": "The student should divide only by x-h={{offset}}."
+                }
+              ],
+              "expected": "square"
+            },
+            {
+              "id": "a",
+              "label": "Correct a",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "equation",
+              "label": "Correct vertex-form equation",
+              "inputProfile": "equation",
+              "expected": "y={{a}}(x{{nh|signed}})^2{{k|signed}}"
+            },
+            {
+              "id": "verify",
+              "label": "Equation output at x={{x2}}",
+              "inputProfile": "number",
+              "expected": "{{y2}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The vertex-form distance is squared, so the scale must account for the square.",
+            "reasoning": [
+              "After subtracting k, the remaining value equals a·{{offset2}}.",
+              "Dividing by {{offset2}} gives a={{a}}, not {{wrongA}}.",
+              "Substitution of x={{x2}} returns y={{y2}}, verifying the corrected model."
+            ],
+            "answerSummary": "Correct a={{a}} and verified vertex-form equation."
+          },
+          "attemptFeedback": [
+            "Use the entire squared horizontal distance when isolating a."
+          ],
+          "supportHints": [
+            "Compute (x2-h)^2 before dividing."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  1
+                ]
+              },
+              "h": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "k": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "offset": {
+                "type": "choice",
+                "values": [
+                  2
+                ]
+              }
+            },
+            "derived": {
+              "offset2": "offset*offset",
+              "nh": "-h",
+              "x2": "h+offset",
+              "y2": "a*offset2+k",
+              "wrongA": "y2-k"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

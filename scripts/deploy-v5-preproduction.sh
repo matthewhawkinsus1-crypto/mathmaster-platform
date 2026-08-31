@@ -6,7 +6,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 cd "$REPO_ROOT"
 
-echo "=== MathMaster Assignment V5 pre-production deploy ==="
+echo "=== MathMaster guarded production deploy ==="
 echo "Project: $PROJECT"
 echo
 
@@ -60,17 +60,17 @@ echo "VITE_MATHMASTER_EXECUTION_MODE=firebaseProduction" > .env.production.local
 npm run build:firebase
 
 echo
-echo "6/7 Deploying Firestore rules and Hosting..."
-firebase deploy --only firestore:rules,hosting --project "$PROJECT"
-
-echo
-echo "Deploying Cloud Functions in quota-safe groups..."
+echo "6/7 Deploying Cloud Functions first (required before release-managed bank activation)..."
 if [ ! -d "$REPO_ROOT/functions/node_modules/firebase-functions" ]; then
   echo "Cloud Functions dependencies are missing after npm ci --prefix functions." >&2
   echo "Refusing to start grouped function deployment." >&2
   exit 4
 fi
 FIREBASE_PROJECT="$PROJECT" bash scripts/deploy-functions-in-groups.sh
+
+echo
+echo "Deploying Firestore rules and Hosting from the same main commit..."
+firebase deploy --only firestore:rules,hosting --project "$PROJECT"
 
 echo
 echo "7/7 Verifying deployment..."
@@ -89,8 +89,11 @@ echo "--- functions ---"
 firebase functions:list --project "$PROJECT" | head -20 || true
 
 echo
-echo "=== V5 pre-production deploy completed ==="
-echo "Next browser step:"
+echo "=== MathMaster production deploy completed ==="
+echo "Next browser steps (existing installation):"
 echo "  Administration -> My Math Path content coverage"
-echo "  Run: Initialize / refresh built-in starter bank"
-echo "Then confirm Path deployment status shows matching web/server releases."
+echo "  1. Refresh course Path bank"
+echo "  2. Refresh ASVAB release"
+echo "  3. Refresh SAT / ACT / TSIA2 release"
+echo "Do NOT use Fresh installation unless the secure bank count is 0."
+echo "Then confirm Path deployment status shows matching web/server releases and smoke-test student + Teacher Path Simulator."

@@ -1,0 +1,720 @@
+{
+  "standard": "A2.6B",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-complete-cube-root-solving-isolate-cube-linear-radicand-negative-noninteger-context-error-repair",
+  "rationale": "A2.6B legacy equations were mathematically aligned but too shallow. Fidelity V2 exposes the complete isolate→cube→linear-solve process, uses nontrivial linear radicands, includes negative and noninteger real cube-root values, and finishes contextual/error-repair work.",
+  "documents": [
+    {
+      "id": "mm_A2_6B_v2_basic-complete-cube-root-solve",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6B:v2-basic-complete-cube-root-solve",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6B",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Solve $\\sqrt[3]{x-({{h}})}={{r}}$. Show the equation after cubing before giving x.",
+      "responseFields": [
+        {
+          "id": "cubed",
+          "label": "Equation after cubing both sides",
+          "inputProfile": "equation",
+          "expected": "x-({{h}})={{r3}}"
+        },
+        {
+          "id": "solution",
+          "label": "x",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Cubing reverses a cube root for every real value.",
+        "reasoning": [
+          "Cubing both sides gives $x-({{h}})={{r3}}$.",
+          "Then x={{x}}."
+        ],
+        "answerSummary": "$x={{x}}$"
+      },
+      "attemptFeedback": [
+        "Use the inverse operation that matches the radical index: cube both sides."
+      ],
+      "supportHints": [
+        "Cube roots can equal negative values; do not introduce an unnecessary domain restriction."
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "r": {
+            "type": "choice",
+            "values": [
+              -4,
+              -3,
+              -2,
+              -1,
+              1,
+              2,
+              3,
+              4
+            ]
+          }
+        },
+        "derived": {
+          "r3": "r*r*r",
+          "x": "h+r3"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6B_v2_scaled-linear-radicand",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6B:v2-scaled-linear-radicand",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6B",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Solve ${{a}}\\sqrt[3]{{{{m}}x{{c|signed}}}}{{k|signed}}={{y}}$. Isolate the cube root, cube both sides, then solve the resulting linear equation.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Required solve stages",
+        "steps": [
+          {
+            "id": "isolate",
+            "label": "1 · Isolate",
+            "work": "Undo the outside +k and multiplier a."
+          },
+          {
+            "id": "cube",
+            "label": "2 · Cube",
+            "work": "Raise both sides to the third power."
+          },
+          {
+            "id": "linear",
+            "label": "3 · Solve",
+            "work": "Finish the linear equation in x."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "isolated",
+          "label": "Isolated cube-root equation",
+          "inputProfile": "equation",
+          "expected": "cbrt({{m}}x{{c|signed}})={{r}}"
+        },
+        {
+          "id": "cubed",
+          "label": "Equation after cubing",
+          "inputProfile": "equation",
+          "expected": "{{m}}x{{c|signed}}={{r3}}"
+        },
+        {
+          "id": "solution",
+          "label": "x",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Undo outside operations before applying the inverse power.",
+        "reasoning": [
+          "Subtract {{k}} and divide by {{a}} to get the cube root equal to {{r}}.",
+          "Cubing gives ${{m}}x{{c|signed}}={{r3}}$.",
+          "Solving the linear equation gives x={{x}}."
+        ],
+        "answerSummary": "$x={{x}}$"
+      },
+      "attemptFeedback": [
+        "Do not cube while the outside scale/shift is still attached to the radical."
+      ],
+      "supportHints": [
+        "The cube root should be alone before the cubing step."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              -3,
+              -2,
+              2,
+              3
+            ]
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "x": {
+            "type": "int",
+            "min": -6,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "r": {
+            "type": "choice",
+            "values": [
+              -3,
+              -2,
+              -1,
+              1,
+              2,
+              3
+            ]
+          }
+        },
+        "derived": {
+          "r3": "r*r*r",
+          "c": "r3-m*x",
+          "y": "a*r+k"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-negative-coefficient-noninteger-cube-root",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "multipleRepresentation",
+          "prompt": "Solve ${{a}}\\sqrt[3]{{{{m}}x{{c|signed}}}}{{k|signed}}={{y}}$. The linear radicand coefficient is negative and the isolated cube-root value is a noninteger real number. Isolate the radical, cube both sides exactly, then finish the linear solve.",
+          "responseFields": [
+            {
+              "id": "isolated",
+              "label": "Isolated cube-root equation",
+              "inputProfile": "equation",
+              "expected": "cbrt({{m}}x{{c|signed}})={{r}}"
+            },
+            {
+              "id": "cubed",
+              "label": "Equation after cubing",
+              "inputProfile": "equation",
+              "numericTolerance": 0.000001,
+              "expected": "{{m}}x{{c|signed}}={{r3}}"
+            },
+            {
+              "id": "solution",
+              "label": "x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A harder cube-root equation is still solved by isolation, cubing, then linear algebra.",
+            "reasoning": [
+              "Undo the outside shift and scale to isolate the cube root at {{r}}.",
+              "Cubing gives ${{m}}x{{c|signed}}={{r3}}$.",
+              "Solve the resulting linear equation to obtain x={{x}}."
+            ],
+            "answerSummary": "$x={{x}}$"
+          },
+          "attemptFeedback": [
+            "Keep the negative linear coefficient when solving after cubing."
+          ],
+          "supportHints": [
+            "Cube the exact isolated decimal value before solving the linear equation."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -4,
+                  -3,
+                  3,
+                  4
+                ]
+              },
+              "m": {
+                "type": "choice",
+                "values": [
+                  -5,
+                  -4,
+                  -3,
+                  -2
+                ]
+              },
+              "x": {
+                "type": "int",
+                "min": -6,
+                "max": 8
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "r": {
+                "type": "choice",
+                "values": [
+                  -1.5,
+                  -0.5,
+                  0.5,
+                  1.5
+                ]
+              }
+            },
+            "derived": {
+              "r3": "r*r*r",
+              "c": "r3-m*x",
+              "y": "a*r+k"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_6B_v2_noninteger-real-cube-root",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6B:v2-noninteger-real-cube-root",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "basic",
+      "assessedConstruct": "A2.6B",
+      "representation": "table",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "Solve the cube-root equation from the table. The isolated cube-root value is a noninteger real number, so cube that exact decimal value and finish the linear solve.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Equation data",
+        "table": {
+          "headers": [
+            "Equation part",
+            "Value"
+          ],
+          "rows": [
+            [
+              "Radicand",
+              "${{m}}x{{c|signed}}$"
+            ],
+            [
+              "Isolated cube-root value",
+              "{{r}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "isolated",
+          "label": "Isolated equation",
+          "inputProfile": "equation",
+          "expected": "cbrt({{m}}x{{c|signed}})={{r}}"
+        },
+        {
+          "id": "cubed",
+          "label": "Equation after cubing",
+          "inputProfile": "equation",
+          "numericTolerance": 0.000001,
+          "expected": "{{m}}x{{c|signed}}={{r3}}"
+        },
+        {
+          "id": "solution",
+          "label": "x",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Cubing is valid for noninteger real values too.",
+        "reasoning": [
+          "The isolated cube-root value is {{r}}.",
+          "Cubing gives {{r3}}, so the radicand equation is ${{m}}x{{c|signed}}={{r3}}$.",
+          "That linear equation gives x={{x}}."
+        ],
+        "answerSummary": "$x={{x}}$"
+      },
+      "attemptFeedback": [
+        "Do not round the cube before solving; the generated decimal is exact."
+      ],
+      "supportHints": [
+        "Compute r³, then solve the linear equation in x."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "x": {
+            "type": "int",
+            "min": -5,
+            "max": 7
+          },
+          "r": {
+            "type": "choice",
+            "values": [
+              -1.5,
+              -0.5,
+              0.5,
+              1.5
+            ]
+          }
+        },
+        "derived": {
+          "r3": "r*r*r",
+          "c": "r3-m*x"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6B_v2_context-modeled-cube-root",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6B:v2-context-modeled-cube-root",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6B",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "application",
+      "prompt": "A calibration model is $R={{d}}+{{q}}\\sqrt[3]{{{{m}}t{{c|signed}}}}$. At what time t will the reading be {{target}}? Solve the modeled cube-root equation and interpret the final value as time.",
+      "responseFields": [
+        {
+          "id": "isolated",
+          "label": "Cube root after undoing the outside operations",
+          "inputProfile": "equation",
+          "expected": "cbrt({{m}}t{{c|signed}})={{r}}"
+        },
+        {
+          "id": "cubed",
+          "label": "Equation after cubing",
+          "inputProfile": "equation",
+          "expected": "{{m}}t{{c|signed}}={{r3}}"
+        },
+        {
+          "id": "time",
+          "label": "Time t",
+          "inputProfile": "number",
+          "unit": "seconds",
+          "expected": "{{t}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Solve the transformed cube-root model before interpreting the variable.",
+        "reasoning": [
+          "Subtract {{d}} and divide by {{q}} to isolate the cube root at {{r}}.",
+          "Cubing gives ${{m}}t{{c|signed}}={{r3}}$.",
+          "Solving gives t={{t}} seconds."
+        ],
+        "answerSummary": "$t={{t}}$ seconds"
+      },
+      "attemptFeedback": [
+        "The final value is elapsed time; keep the context interpretation after the algebra is complete."
+      ],
+      "supportHints": [
+        "Undo the outside shift and scale before cubing."
+      ],
+      "generator": {
+        "parameters": {
+          "d": {
+            "type": "int",
+            "min": 3,
+            "max": 12
+          },
+          "q": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "t": {
+            "type": "int",
+            "min": 1,
+            "max": 20
+          },
+          "r": {
+            "type": "choice",
+            "values": [
+              -3,
+              -2,
+              -1,
+              1,
+              2,
+              3
+            ]
+          }
+        },
+        "derived": {
+          "r3": "r*r*r",
+          "c": "r3-m*t",
+          "target": "d+q*r"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_6B_v2_square-instead-of-cube-error",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6B:v2-square-instead-of-cube-error",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6B",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student solves ${{a}}\\sqrt[3]{{{{m}}x{{c|signed}}}}{{k|signed}}={{y}}$ by isolating the radical correctly but then SQUARING both sides. Diagnose the inverse-operation error, repair it, and finish x.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's work",
+        "steps": [
+          {
+            "id": "isolate",
+            "label": "Correct isolation",
+            "work": "$\\sqrt[3]{{{{m}}x{{c|signed}}}}={{r}}$"
+          },
+          {
+            "id": "wrong",
+            "label": "Incorrect next step",
+            "work": "Student squares both sides instead of matching the radical index."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "Correct inverse operation",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "cube",
+              "label": "Cube both sides."
+            },
+            {
+              "id": "square",
+              "label": "Square both sides."
+            },
+            {
+              "id": "absolute",
+              "label": "Take absolute values."
+            }
+          ],
+          "expected": "cube"
+        },
+        {
+          "id": "cubed",
+          "label": "Correct equation after cubing",
+          "inputProfile": "equation",
+          "expected": "{{m}}x{{c|signed}}={{r3}}"
+        },
+        {
+          "id": "solution",
+          "label": "Correct x",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Match the inverse power to the cube-root index, then finish the solve.",
+        "reasoning": [
+          "A cube root is undone by cubing, not squaring.",
+          "The corrected equation is ${{m}}x{{c|signed}}={{r3}}$.",
+          "Solving gives x={{x}}."
+        ],
+        "answerSummary": "Cube both sides; $x={{x}}$."
+      },
+      "attemptFeedback": [
+        "Do not stop after naming the error; carry the corrected work through the final x-value."
+      ],
+      "supportHints": [
+        "The radical index is 3, so use the third power."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              -3,
+              -2,
+              2,
+              3
+            ]
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "x": {
+            "type": "int",
+            "min": -6,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "r": {
+            "type": "choice",
+            "values": [
+              -3,
+              -2,
+              -1,
+              1,
+              2,
+              3
+            ]
+          }
+        },
+        "derived": {
+          "r3": "r*r*r",
+          "c": "r3-m*x",
+          "y": "a*r+k"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-simple-inverse-operation-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student solves $2\\sqrt[3]{x-({{h}})}{{k|signed}}={{target}}$ by isolating the cube root correctly at 2, but then squares both sides. Diagnose the inverse-operation mistake, write the correct equation after cubing, and finish x.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Correct inverse operation",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "cube",
+                  "label": "Cube both sides."
+                },
+                {
+                  "id": "square",
+                  "label": "Square both sides."
+                },
+                {
+                  "id": "absolute",
+                  "label": "Take absolute values."
+                }
+              ],
+              "expected": "cube"
+            },
+            {
+              "id": "cubed",
+              "label": "Correct equation after cubing",
+              "inputProfile": "equation",
+              "expected": "x-({{h}})=8"
+            },
+            {
+              "id": "solution",
+              "label": "Correct x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Undo a cube root by cubing, not squaring.",
+            "reasoning": [
+              "After isolation the equation is $\\sqrt[3]{x-({{h}})}=2$.",
+              "Cubing both sides gives $x-({{h}})=8$.",
+              "Therefore x={{x}}."
+            ],
+            "answerSummary": "Cube both sides; $x={{x}}$."
+          },
+          "attemptFeedback": [
+            "Match the inverse operation to the radical index."
+          ],
+          "supportHints": [
+            "A cube root and a cube undo each other."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "k": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            },
+            "derived": {
+              "target": "4+k",
+              "x": "h+8"
+            }
+          },
+          "stimulus": {
+            "kind": "steps",
+            "title": "Student's work",
+            "steps": [
+              {
+                "id": "isolate",
+                "label": "Correct isolation",
+                "work": "$\\sqrt[3]{x-({{h}})}=2$"
+              },
+              {
+                "id": "wrong",
+                "label": "Incorrect next step",
+                "work": "Student squares both sides instead of cubing both sides."
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

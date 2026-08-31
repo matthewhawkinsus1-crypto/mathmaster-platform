@@ -1,0 +1,572 @@
+{
+  "standard": "A2.6D",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-student-authored-absolute-value-linear-equations-context-pairs-linear-inside-error-repair",
+  "rationale": "A2.6D requires formulation. Every Fidelity V2 family therefore requires an authored absolute-value linear equation and uses opt-in solution-set equivalence so harmless equivalent models are accepted without weakening default equation grading.",
+  "documents": [
+    {
+      "id": "mm_A2_6D_v2_distance-context",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6D:v2-distance-context",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6D",
+      "representation": "context",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "modeling",
+      "prompt": "A measurement x is exactly {{d}} units from the target {{target}}. Formulate an absolute-value linear equation for all possible measurements.",
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Absolute-value equation",
+          "inputProfile": "equation",
+          "equivalence": "absoluteLinearRelation",
+          "expected": "abs(x-({{target}}))={{d}}"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "target": {
+            "type": "int",
+            "min": 20,
+            "max": 100,
+            "step": 5
+          },
+          "d": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          }
+        }
+      },
+      "solutionReview": {
+        "headline": "Absolute value models distance from a target.",
+        "reasoning": [
+          "The expression $x-{{target}}$ is the signed difference between the measurement and the target.",
+          "Distance ignores direction, so taking absolute value and setting it equal to {{d}} captures values {{d}} units on either side."
+        ],
+        "answerSummary": "$|x-{{target}}|={{d}}$."
+      }
+    },
+    {
+      "id": "mm_A2_6D_v2_pair-midpoint-reverse",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6D:v2-pair-midpoint-reverse",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6D",
+      "representation": "numberLine",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "reverseReasoning",
+      "prompt": "Two marked number-line locations, x={{left}} and x={{right}}, must be exactly the solutions of one absolute-value linear equation. Determine their center and distance, then formulate the equation.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Marked solution",
+            "Location"
+          ],
+          "rows": [
+            [
+              "Left",
+              "{{left}}"
+            ],
+            [
+              "Right",
+              "{{right}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "center",
+          "label": "Midpoint/center",
+          "inputProfile": "number",
+          "expected": "{{center}}"
+        },
+        {
+          "id": "distance",
+          "label": "Distance from center",
+          "inputProfile": "number",
+          "expected": "{{d}}"
+        },
+        {
+          "id": "equation",
+          "label": "Equation with exactly those two solutions",
+          "inputProfile": "equation",
+          "equivalence": "absoluteLinearRelation",
+          "expected": "abs(x-({{center}}))={{d}}"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "center": {
+            "type": "int",
+            "min": -12,
+            "max": 12
+          },
+          "d": {
+            "type": "int",
+            "min": 2,
+            "max": 10
+          }
+        },
+        "derived": {
+          "left": "center-d",
+          "right": "center+d"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-half-unit-scaled-formulation",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "reverseReasoning",
+          "representation": "numberLine",
+          "prompt": "Two marked locations x={{left}} and x={{right}} are exactly the solutions of one absolute-value linear equation. Determine the half-unit center and distance, then formulate an equivalent scaled equation of the form $|2x-c|=r$. Do not solve it.",
+          "stimulus": {
+            "kind": "table",
+            "table": {
+              "headers": [
+                "Marked solution",
+                "Location"
+              ],
+              "rows": [
+                [
+                  "Left",
+                  "{{left}}"
+                ],
+                [
+                  "Right",
+                  "{{right}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "center",
+              "label": "Midpoint/center",
+              "inputProfile": "number",
+              "expected": "{{center}}"
+            },
+            {
+              "id": "distance",
+              "label": "Distance from center",
+              "inputProfile": "number",
+              "expected": "{{d}}"
+            },
+            {
+              "id": "equation",
+              "label": "Equivalent scaled absolute-value equation",
+              "inputProfile": "equation",
+              "equivalence": "absoluteLinearRelation",
+              "expected": "abs(2*x-({{center2}}))={{d2}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A half-unit center can be represented cleanly by scaling the whole distance equation.",
+            "reasoning": [
+              "The midpoint of {{left}} and {{right}} is {{center}}, and each point is {{d}} units from that center.",
+              "The center-distance model is $|x-({{center}})|={{d}}$.",
+              "Multiplying both sides by 2 gives the equivalent scaled relation $|2x-({{center2}})|={{d2}}$."
+            ],
+            "answerSummary": "Center {{center}}, distance {{d}}, scaled equation $|2x-({{center2}})|={{d2}}$."
+          },
+          "attemptFeedback": [
+            "Use the midpoint and half-distance first, then scale the entire relation consistently."
+          ],
+          "supportHints": [
+            "For two solution points, center is their average and distance is half their separation."
+          ],
+          "generator": {
+            "parameters": {
+              "center2": {
+                "type": "choice",
+                "values": [
+                  -9,
+                  -7,
+                  -5,
+                  -3,
+                  -1,
+                  1,
+                  3,
+                  5,
+                  7,
+                  9
+                ]
+              },
+              "d2": {
+                "type": "choice",
+                "values": [
+                  3,
+                  5,
+                  7,
+                  9,
+                  11
+                ]
+              }
+            },
+            "derived": {
+              "center": "center2/2",
+              "d": "d2/2",
+              "left": "(center2-d2)/2",
+              "right": "(center2+d2)/2"
+            }
+          }
+        }
+      ],
+      "solutionReview": {
+        "headline": "Two symmetric solutions determine a center and a distance.",
+        "reasoning": [
+          "The midpoint of {{left}} and {{right}} is {{center}}, so {{center}} is the center of the absolute-value equation.",
+          "Each marked value is {{d}} units from the center.",
+          "A number whose distance from {{center}} is {{d}} satisfies $|x-{{center}}|={{d}}$."
+        ],
+        "answerSummary": "Center {{center}}, distance {{d}}, equation $|x-{{center}}|={{d}}$."
+      }
+    },
+    {
+      "id": "mm_A2_6D_v2_linear-reading-deviation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6D:v2-linear-reading-deviation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6D",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "modeling",
+      "prompt": "A device reading is $R(t)={{m}}t{{b|signed}}$. The reading must be exactly {{d}} units from target {{target}}. Formulate ONE absolute-value linear equation in t. Do not solve it.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Quantity",
+            "Meaning"
+          ],
+          "rows": [
+            [
+              "$R(t)$",
+              "$${{m}}t{{b|signed}}$"
+            ],
+            [
+              "Target",
+              "{{target}}"
+            ],
+            [
+              "Required deviation",
+              "{{d}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "equation",
+          "label": "Absolute-value equation in t",
+          "inputProfile": "equation",
+          "equivalence": "absoluteLinearRelation",
+          "expected": "abs({{m}}t{{insideConstant|signed}})={{d}}"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "target": {
+            "type": "int",
+            "min": 15,
+            "max": 50
+          },
+          "d": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          }
+        },
+        "derived": {
+          "insideConstant": "b-target"
+        }
+      },
+      "solutionReview": {
+        "headline": "Translate 'exactly d units from target' into a distance equation.",
+        "reasoning": [
+          "The deviation from the target is $R(t)-{{target}}={{m}}t{{insideConstant|signed}}$.",
+          "Because deviation can occur above or below the target, use absolute value.",
+          "Set the magnitude of that deviation equal to {{d}}."
+        ],
+        "answerSummary": "$|{{m}}t{{insideConstant|signed}}|={{d}}$."
+      }
+    },
+    {
+      "id": "mm_A2_6D_v2_scaled-equation-from-two-solutions",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6D:v2-scaled-equation-from-two-solutions",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6D",
+      "representation": "table",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "The table gives the two allowed x-values for a process. Formulate an absolute-value linear equation. A scaled form such as $|{{m}}x{{b|signed}}|={{rhs}}$ or an equivalent center-distance form is acceptable.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Allowed state",
+            "x"
+          ],
+          "rows": [
+            [
+              "A",
+              "{{left}}"
+            ],
+            [
+              "B",
+              "{{right}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "center",
+          "label": "Center of the two values",
+          "inputProfile": "number",
+          "expected": "{{center}}"
+        },
+        {
+          "id": "equation",
+          "label": "Absolute-value linear equation",
+          "inputProfile": "equation",
+          "equivalence": "absoluteLinearRelation",
+          "expected": "abs({{m}}x{{b|signed}})={{rhs}}"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "center": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "d": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          }
+        },
+        "derived": {
+          "left": "center-d",
+          "right": "center+d",
+          "b": "-m*center",
+          "rhs": "m*d"
+        }
+      },
+      "solutionReview": {
+        "headline": "A scaled absolute-value equation can represent the same two symmetric solutions.",
+        "reasoning": [
+          "The two allowed values are centered at {{center}} and are {{d}} units from that center.",
+          "The center-distance form is $|x-{{center}}|={{d}}$.",
+          "Multiplying the inside and the right side by {{m}} gives the equivalent relation $|{{m}}x{{b|signed}}|={{rhs}}$."
+        ],
+        "answerSummary": "Center {{center}}; one equivalent equation is $|{{m}}x{{b|signed}}|={{rhs}}$."
+      }
+    },
+    {
+      "id": "mm_A2_6D_v2_missing-absolute-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6D"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6D:v2-missing-absolute-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6D",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A quantity ${{m}}x{{b|signed}}$ must be exactly {{d}} units from zero. A student writes ${{m}}x{{b|signed}}={{d}}$, which captures only one direction. Diagnose the error and formulate the corrected equation. Do not solve it.",
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "Diagnosis",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "absolute",
+              "label": "Distance from zero needs absolute value so both directions are represented."
+            },
+            {
+              "id": "square",
+              "label": "The linear expression must be squared."
+            },
+            {
+              "id": "none",
+              "label": "The student's one-sided equation is complete."
+            }
+          ],
+          "expected": "absolute"
+        },
+        {
+          "id": "equation",
+          "label": "Corrected absolute-value equation",
+          "inputProfile": "equation",
+          "equivalence": "absoluteLinearRelation",
+          "expected": "abs({{m}}x{{b|signed}})={{d}}"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -12,
+            "max": 12
+          },
+          "d": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          }
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-one-sided-distance-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A measurement x must be exactly {{d}} units from {{h}}. A student writes $x-({{h}})={{d}}$, which captures only the value on one side of {{h}}. Diagnose the modeling error and formulate the corrected absolute-value equation. Do not solve it.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Diagnosis",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "absolute",
+                  "label": "Distance must use absolute value so both directions from the center are represented."
+                },
+                {
+                  "id": "square",
+                  "label": "The linear expression must be squared."
+                },
+                {
+                  "id": "none",
+                  "label": "The one-sided equation already captures both possible measurements."
+                }
+              ],
+              "expected": "absolute"
+            },
+            {
+              "id": "equation",
+              "label": "Corrected absolute-value equation",
+              "inputProfile": "equation",
+              "equivalence": "absoluteLinearRelation",
+              "expected": "abs(x-({{h}}))={{d}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Distance from a center is represented by absolute value.",
+            "reasoning": [
+              "The equation $x-({{h}})={{d}}$ captures only the point to one side of {{h}}.",
+              "Absolute value represents either direction with the same distance.",
+              "The corrected model is $|x-({{h}})|={{d}}$."
+            ],
+            "answerSummary": "$|x-({{h}})|={{d}}$"
+          },
+          "attemptFeedback": [
+            "Repair the model only; do not solve for the two x-values."
+          ],
+          "supportHints": [
+            "Absolute value encodes distance without direction."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              },
+              "d": {
+                "type": "int",
+                "min": 2,
+                "max": 10
+              }
+            }
+          }
+        }
+      ],
+      "solutionReview": {
+        "headline": "A one-sided linear equation does not represent distance in both directions.",
+        "reasoning": [
+          "The equation ${{m}}x{{b|signed}}={{d}}$ captures only the positive signed difference.",
+          "Distance from zero must allow the expression to be either {{d}} or -{{d}}, which absolute value encodes in one equation."
+        ],
+        "answerSummary": "$|{{m}}x{{b|signed}}|={{d}}$."
+      }
+    }
+  ]
+}

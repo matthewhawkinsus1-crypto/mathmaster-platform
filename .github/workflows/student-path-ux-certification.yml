@@ -1,0 +1,69 @@
+name: Student Path UX Certification
+
+concurrency:
+  group: student-path-ux-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - audit/teks-fidelity-v2-algebra2-current
+    paths:
+      - src/components/student/MyMathPathApp.jsx
+      - src/components/student/MyMathPathDashboard.jsx
+      - src/components/student/MyMathPathWheel.jsx
+      - src/components/student/SkillDetailCardModal.jsx
+      - src/components/student/PathSessionPlayer.jsx
+      - src/components/student/MyMathPathProductionContainer.jsx
+      - src/components/student/WeeklyPathGoalPanel.jsx
+      - src/components/common/StandardBadge.jsx
+      - src/platform/path/pathPassPresentation.js
+      - tests/platform/weeklyPathPlan.test.mjs
+      - tests/platform/recommendationV2.test.mjs
+      - src/platform/path/weeklyPathPlan.js
+      - src/platform/path/recommendationV2.js
+      - src/platform/simulation/teacherPathRuntime.js
+      - functions/index.js
+      - src/services/pathSessionService.js
+      - tests/platform/pathAdaptiveVariantTargeting.test.mjs
+      - tests/platform/pathPassDashboardUx.test.mjs
+      - tests/platform/teacherPathTargetParity.test.mjs
+      - tests/platform/teacherPathFieldGradingParity.test.mjs
+      - tests/platform/pathJourneyScenarioMatrix.test.mjs
+      - tests/platform/pathSessionRobustness.test.mjs
+      - tests/platform/pathHomeStates.test.mjs
+      - tests/platform/pathInputAndProgressionRecovery.test.mjs
+      - tests/platform/pathNavigationCompletionRecovery.test.mjs
+      - seed/pathQuestionBank/*_pathQuestionBank_seed.json
+      - .github/workflows/student-path-ux-certification.yml
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run student Path presentation and workspace gates
+        run: |
+          node --test \
+            tests/platform/pathPassDashboardUx.test.mjs \
+            tests/platform/teacherPathTargetParity.test.mjs \
+            tests/platform/teacherPathFieldGradingParity.test.mjs \
+            tests/platform/pathJourneyScenarioMatrix.test.mjs \
+            tests/platform/pathInputAndProgressionRecovery.test.mjs \
+            tests/platform/pathNavigationCompletionRecovery.test.mjs \
+            tests/platform/pathHomeStates.test.mjs \
+            tests/platform/pathSessionRobustness.test.mjs \
+            tests/platform/studentPathEntryUx.test.mjs \
+            tests/platform/pathStudentWorkspace.test.mjs \
+            tests/platform/pathAdaptiveVariantTargeting.test.mjs \
+            tests/platform/recommendationV2.test.mjs \
+            tests/platform/weeklyPathPlan.test.mjs
+      - name: Build student runtime
+        run: npm run build

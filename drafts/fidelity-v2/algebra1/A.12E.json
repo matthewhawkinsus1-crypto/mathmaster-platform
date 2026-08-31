@@ -1,0 +1,407 @@
+{
+  "standard": "A.12E",
+  "verdict": "KEEP",
+  "certificationStatus": "candidate-keep-mathematics-certified-and-metadata-hardened",
+  "documents": [
+    {
+      "id": "mm_A_12E_v2_solve-linear-literal",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12E:v2-solve-linear-literal",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12E",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve $P={{a}}l+{{a}}w$ for $l$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Subtract ${{a}}w$ from both sides to isolate the term containing $l$.",
+          "Divide every remaining term by {{a}}."
+        ],
+        "answerSummary": "$l=P/{{a}}-w$"
+      },
+      "attemptFeedback": [
+        "Isolate the requested variable symbolically while treating every other letter as a known quantity."
+      ],
+      "supportHints": [
+        "If the target variable appears in more than one term, factor it first; divide by the entire coefficient or factor multiplying it."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "expression",
+          "expected": "P/{{a}}-w",
+          "accepted": [
+            "(P-{{a}}w)/{{a}}"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12E_v2_solve-product-literal",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12E:v2-solve-product-literal",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12E",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "Solve $d={{a}}rt$ for $t$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "The variable $t$ is multiplied by both {{a}} and $r$.",
+          "Divide both sides by the full factor ${{a}}r$."
+        ],
+        "answerSummary": "$t=d/({{a}}r)$"
+      },
+      "attemptFeedback": [
+        "Isolate the requested variable symbolically while treating every other letter as a known quantity."
+      ],
+      "supportHints": [
+        "If the target variable appears in more than one term, factor it first; divide by the entire coefficient or factor multiplying it."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "expression",
+          "expected": "d/({{a}}r)",
+          "accepted": [
+            "d/{{a}}/r"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12E_v2_temperature-style",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12E:v2-temperature-style",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12E",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "The conversion-style formula is $C=(F-{{b}})/{{a}}$. Solve the formula for $F$ in terms of $C$.",
+      "solutionReview": {
+        "headline": "Rearrange the formula before substituting any numbers.",
+        "reasoning": [
+          "Multiply both sides by {{a}} to get ${{a}}C=F-{{b}}$.",
+          "Add {{b}} to both sides, giving $F={{a}}C+{{b}}$."
+        ],
+        "answerSummary": "$F={{a}}C+{{b}}$"
+      },
+      "attemptFeedback": [
+        "Isolate the requested variable symbolically while treating every other letter as a known quantity."
+      ],
+      "supportHints": [
+        "If the target variable appears in more than one term, factor it first; divide by the entire coefficient or factor multiplying it."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "b": {
+            "type": "int",
+            "min": 10,
+            "max": 50
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "F =",
+          "inputProfile": "expression",
+          "expected": "{{a}}C+{{b}}",
+          "accepted": [
+            "{{b}}+{{a}}C"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12E_v2_solve-area-height",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12E:v2-solve-area-height",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12E",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student solves $A={{k}}bh$ for $h$ by dividing by {{k}} but forgets that $h$ is also multiplied by $b$. Correct the error and solve for $h$.",
+      "solutionReview": {
+        "headline": "Divide by the complete factor multiplying the target variable.",
+        "reasoning": [
+          "In $A={{k}}bh$, the target $h$ is multiplied by both {{k}} and $b$.",
+          "Divide by the entire product ${{k}}b$ to obtain $h=A/({{k}}b)$."
+        ],
+        "answerSummary": "$h=A/({{k}}b)$"
+      },
+      "attemptFeedback": [
+        "Isolate the requested variable symbolically while treating every other letter as a known quantity."
+      ],
+      "supportHints": [
+        "If the target variable appears in more than one term, factor it first; divide by the entire coefficient or factor multiplying it."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "expression",
+          "expected": "A/({{k}}b)",
+          "accepted": [
+            "A/{{k}}/b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_12E_v2_factor-target-variable",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.12E"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.12E:v2-factor-target-variable",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.12E",
+      "taskType": "reverseReasoning",
+      "representation": "symbolic",
+      "prompt": "Solve $Y={{a}}X+{{b}}X$ for $X$. The target variable appears in BOTH terms.",
+      "solutionReview": {
+        "headline": "When the target variable appears in multiple terms, factor it first.",
+        "reasoning": [
+          "Factor $X$: $Y=({{a}}+{{b}})X={{sum}}X$.",
+          "Divide by {{sum}} to isolate the target: $X=Y/{{sum}}$."
+        ],
+        "answerSummary": "$X=Y/{{sum}}$"
+      },
+      "attemptFeedback": [
+        "Isolate the requested variable symbolically while treating every other letter as a known quantity."
+      ],
+      "supportHints": [
+        "If the target variable appears in more than one term, factor it first; divide by the entire coefficient or factor multiplying it."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "b": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          }
+        },
+        "derived": {
+          "sum": "a+b"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "X =",
+          "inputProfile": "expression",
+          "expected": "Y/{{sum}}",
+          "accepted": [
+            "Y/({{a}}+{{b}})"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b4",
+          "dok": 2,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d2b2-simple-literal-isolation-context",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "application",
+          "representation": "context",
+          "prompt": "A total cost formula is $C=rm+f$, where r is the rate, m is the number of units, and f is a fixed fee. Solve the formula for the fixed fee f. Enter the right-hand side only.",
+          "responseFields": [
+            {
+              "id": "answer",
+              "label": "f =",
+              "inputProfile": "expression",
+              "expected": "C-r*m"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Isolate the target variable by undoing the term added to it.",
+            "reasoning": [
+              "Subtract rm from both sides of $C=rm+f$.",
+              "This leaves $f=C-rm$."
+            ],
+            "answerSummary": "$f=C-rm$"
+          },
+          "attemptFeedback": [
+            "Move the variable term rm to the other side before reading the isolated formula."
+          ],
+          "supportHints": [
+            "Undo addition by subtracting the same expression from both sides."
+          ]
+        },
+        {
+          "coverageKey": "challenge-d3b4-literal-factor-and-isolate-error",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "Solve $Y={{a}}X+{{b}}X+{{c}}$ for X. A student divides the two X-terms separately and writes $X=Y/{{a}}+Y/{{b}}-{{c}}$. Diagnose the structural error, isolate the X-terms, factor X, and give the correct formula.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What should happen before dividing?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "factor-first",
+                  "label": "Subtract the constant term, combine/factor the X-terms as (a+b)X, then divide once by a+b."
+                },
+                {
+                  "id": "divide-separately",
+                  "label": "Divide each X-term separately because both contain X."
+                },
+                {
+                  "id": "subtract-x",
+                  "label": "Subtract X from both sides before combining coefficients."
+                }
+              ],
+              "expected": "factor-first"
+            },
+            {
+              "id": "isolated-right",
+              "label": "Right side after subtracting the constant term",
+              "inputProfile": "expression",
+              "expected": "Y-{{c}}"
+            },
+            {
+              "id": "combined-coefficient",
+              "label": "Coefficient multiplying X after factoring",
+              "inputProfile": "number",
+              "expected": "{{sum}}"
+            },
+            {
+              "id": "answer",
+              "label": "Correct formula for X",
+              "inputProfile": "expression",
+              "expected": "(Y-{{c}})/{{sum}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A target variable appearing in multiple terms must be combined before division.",
+            "reasoning": [
+              "Subtract {{c}}: $Y-{{c}}={{a}}X+{{b}}X$.",
+              "Factor X: $Y-{{c}}=({{a}}+{{b}})X={{sum}}X$.",
+              "Divide once by {{sum}} to obtain $X=(Y-{{c}})/{{sum}}$."
+            ],
+            "answerSummary": "$X=(Y-{{c}})/{{sum}}$"
+          },
+          "attemptFeedback": [
+            "Treat the two X-terms as like terms after moving the constant."
+          ],
+          "supportHints": [
+            "Factor X from aX+bX before dividing."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 7
+              },
+              "b": {
+                "type": "int",
+                "min": 1,
+                "max": 7
+              },
+              "c": {
+                "type": "int",
+                "min": 2,
+                "max": 12
+              }
+            },
+            "derived": {
+              "sum": "a+b"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

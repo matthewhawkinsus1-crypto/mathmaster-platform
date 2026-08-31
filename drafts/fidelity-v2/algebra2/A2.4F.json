@@ -1,0 +1,692 @@
+{
+  "standard": "A2.4F",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-complete-quadratic-and-square-root-solving-factoring-exact-formula-multistep-radicals",
+  "rationale": "A2.4F already had aligned legacy content, but Fidelity V2 deepens the solve: quadratics include factoring and exact irrational quadratic-formula solutions, while square-root equations require isolating the radical, squaring, solving the resulting linear equation, and completing contextual/error-repair work.",
+  "documents": [
+    {
+      "id": "mm_A2_4F_v2_factoring-complete-quadratic",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4F:v2-factoring-complete-quadratic",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4F",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Solve the quadratic equation by factoring. Show the factored zero-product equation and then give both solutions: ${{a}}x^2+({{b}})x+({{c}})=0$.",
+      "responseFields": [
+        {
+          "id": "factored",
+          "label": "Factored zero-product equation",
+          "inputProfile": "equation",
+          "expected": "{{a}}(x-({{u}}))(x-({{v}}))=0"
+        },
+        {
+          "id": "r1",
+          "label": "Smaller solution",
+          "inputProfile": "number",
+          "expected": "{{u}}"
+        },
+        {
+          "id": "r2",
+          "label": "Larger solution",
+          "inputProfile": "number",
+          "expected": "{{v}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Factoring turns one quadratic equation into two linear factors.",
+        "reasoning": [
+          "$${{a}}x^2+({{b}})x+({{c}})={{a}}(x-({{u}}))(x-({{v}}))$$.",
+          "The zero-product property gives x={{u}} or x={{v}}."
+        ],
+        "answerSummary": "$x={{u}},\\;{{v}}$"
+      },
+      "attemptFeedback": [
+        "Do not stop at the factors; set each factor equal to zero and solve both."
+      ],
+      "supportHints": [
+        "The generated roots multiply and add to the coefficients after the leading factor is accounted for."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "u": {
+            "type": "int",
+            "min": -7,
+            "max": -1
+          },
+          "v": {
+            "type": "int",
+            "min": 1,
+            "max": 7
+          }
+        },
+        "derived": {
+          "b": "-a*(u+v)",
+          "c": "a*u*v"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4F_v2_exact-quadratic-formula",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4F:v2-exact-quadratic-formula",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4F",
+      "representation": "table",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "Use the quadratic formula to solve the equation exactly. The discriminant is intentionally not a perfect square; do not replace the exact radicals with rounded decimals.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Quadratic coefficients",
+        "table": {
+          "headers": [
+            "a",
+            "b",
+            "c"
+          ],
+          "rows": [
+            [
+              "1",
+              "{{p}}",
+              "{{q}}"
+            ]
+          ]
+        },
+        "note": "Solve $ax^2+bx+c=0$ using these coefficients."
+      },
+      "responseFields": [
+        {
+          "id": "discriminant",
+          "label": "Discriminant $b^2-4ac$",
+          "inputProfile": "number",
+          "expected": "{{D}}"
+        },
+        {
+          "id": "minus-root",
+          "label": "Root from the minus sign",
+          "inputProfile": "expression",
+          "expected": "(-({{p}})-sqrt({{D}}))/2"
+        },
+        {
+          "id": "plus-root",
+          "label": "Root from the plus sign",
+          "inputProfile": "expression",
+          "expected": "(-({{p}})+sqrt({{D}}))/2"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The quadratic formula gives exact radical solutions when the discriminant is not a square.",
+        "reasoning": [
+          "With a=1, b={{p}}, c={{q}}, the discriminant is {{D}}.",
+          "$x=\\frac{-({{p}})\\pm\\sqrt{{{D}}}}{2}$.",
+          "Because {{D}} is not a perfect square, keep the roots in exact radical form."
+        ],
+        "answerSummary": "$x=\\frac{-({{p}})-\\sqrt{{{D}}}}2$ or $x=\\frac{-({{p}})+\\sqrt{{{D}}}}2$"
+      },
+      "attemptFeedback": [
+        "A decimal approximation can hide exact structure; keep the square root in the final answer."
+      ],
+      "supportHints": [
+        "Substitute a=1, b={{p}}, c={{q}} into $(-b\\pm\\sqrt{b^2-4ac})/(2a)$."
+      ],
+      "generator": {
+        "parameters": {
+          "p": {
+            "type": "choice",
+            "values": [
+              -6,
+              -4,
+              -2,
+              0,
+              2,
+              4,
+              6
+            ]
+          },
+          "D": {
+            "type": "choice",
+            "values": [
+              8,
+              12,
+              20
+            ]
+          }
+        },
+        "derived": {
+          "q": "(p*p-D)/4"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4F_v2_multistep-square-root",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4F:v2-multistep-square-root",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4F",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Solve the square-root equation. First isolate the radical, then square both sides, then solve the resulting linear equation: ${{c}}+\\sqrt{{{m}}x{{b|signed}}}={{r}}$.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Required solve stages",
+        "steps": [
+          {
+            "id": "isolate",
+            "label": "1 · Isolate the radical",
+            "work": "Move the outside constant before squaring."
+          },
+          {
+            "id": "square",
+            "label": "2 · Square",
+            "work": "Square the entire isolated equation."
+          },
+          {
+            "id": "solve",
+            "label": "3 · Solve",
+            "work": "Solve the resulting linear equation for x."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "isolated",
+          "label": "Isolated radical equation",
+          "inputProfile": "equation",
+          "expected": "sqrt({{m}}x{{b|signed}})={{t}}"
+        },
+        {
+          "id": "squared",
+          "label": "Equation after squaring",
+          "inputProfile": "equation",
+          "expected": "{{m}}x{{b|signed}}={{t2}}"
+        },
+        {
+          "id": "solution",
+          "label": "Solution x",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Isolate first; squaring then removes the radical cleanly.",
+        "reasoning": [
+          "Subtract {{c}} to get $\\sqrt{{{m}}x{{b|signed}}}={{t}}$.",
+          "Squaring gives ${{m}}x{{b|signed}}={{t2}}$.",
+          "Solving that linear equation gives x={{x}}."
+        ],
+        "answerSummary": "$x={{x}}$"
+      },
+      "attemptFeedback": [
+        "Do not square while the outside constant is still attached to the radical expression."
+      ],
+      "supportHints": [
+        "The isolated right side is {{t}}; square that whole value before solving for x."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          },
+          "c": {
+            "type": "int",
+            "min": -4,
+            "max": 5
+          },
+          "t": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "t2": "t*t",
+          "b": "t*t-m*x",
+          "r": "c+t"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-scale-isolate-square-solve",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "multipleRepresentation",
+          "prompt": "Solve ${{c}}+{{q}}\\sqrt{{{m}}x{{b|signed}}}={{r}}$. Subtract the constant, divide by the outside radical coefficient, square, and solve the resulting linear equation.",
+          "responseFields": [
+            {
+              "id": "after-subtract",
+              "label": "Equation after subtracting {{c}}",
+              "inputProfile": "equation",
+              "expected": "{{q}}sqrt({{m}}x{{b|signed}})={{qt}}"
+            },
+            {
+              "id": "isolated",
+              "label": "Isolated radical equation",
+              "inputProfile": "equation",
+              "expected": "sqrt({{m}}x{{b|signed}})={{t}}"
+            },
+            {
+              "id": "squared",
+              "label": "Equation after squaring",
+              "inputProfile": "equation",
+              "expected": "{{m}}x{{b|signed}}={{t2}}"
+            },
+            {
+              "id": "solution",
+              "label": "Solution x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The extra outside coefficient adds arithmetic complexity, not a new reasoning method.",
+            "reasoning": [
+              "Subtract {{c}} to get {{q}} times the radical equal to {{qt}}.",
+              "Divide by {{q}} so the isolated radical equals {{t}}.",
+              "Square to get the linear equation, then solve x={{x}}."
+            ],
+            "answerSummary": "$x={{x}}$"
+          },
+          "attemptFeedback": [
+            "Do not square while the radical still has an outside coefficient or added constant."
+          ],
+          "supportHints": [
+            "Isolate the square root completely before squaring."
+          ],
+          "generator": {
+            "parameters": {
+              "q": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "x": {
+                "type": "int",
+                "min": 1,
+                "max": 10
+              },
+              "c": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "t": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              }
+            },
+            "derived": {
+              "t2": "t*t",
+              "b": "t*t-m*x",
+              "qt": "q*t",
+              "r": "c+q*t"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_4F_v2_context-radical-model",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4F:v2-context-radical-model",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4F",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "application",
+      "prompt": "A sensor reading follows $R={{d}}+{{q}}\\sqrt{t-({{h}})}$. At what time t will the reading equal {{reading}}? Solve the square-root equation and interpret the result as time.",
+      "responseFields": [
+        {
+          "id": "isolated",
+          "label": "Radical equation after subtracting/dividing",
+          "inputProfile": "equation",
+          "expected": "sqrt(t-({{h}}))={{s}}"
+        },
+        {
+          "id": "squared",
+          "label": "Equation after squaring",
+          "inputProfile": "equation",
+          "expected": "t-({{h}})={{s2}}"
+        },
+        {
+          "id": "time",
+          "label": "Time t",
+          "inputProfile": "number",
+          "unit": "seconds",
+          "expected": "{{t}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Undo the outside operations before squaring the square-root model.",
+        "reasoning": [
+          "Subtract {{d}} and divide by {{q}} to isolate $\\sqrt{t-({{h}})}={{s}}$.",
+          "Squaring gives $t-({{h}})={{s2}}$.",
+          "Therefore t={{t}} seconds."
+        ],
+        "answerSummary": "$t={{t}}$ seconds"
+      },
+      "attemptFeedback": [
+        "Interpret the final algebraic value in the context: t is time, not a generic x-coordinate."
+      ],
+      "supportHints": [
+        "Undo +{{d}} and the factor {{q}} before squaring."
+      ],
+      "generator": {
+        "parameters": {
+          "q": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "t": {
+            "type": "int",
+            "min": 5,
+            "max": 30
+          },
+          "s": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          }
+        },
+        "derived": {
+          "s2": "s*s",
+          "h": "t-s*s",
+          "reading": "d+q*s"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_4F_v2_isolation-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.4F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.4F:v2-isolation-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.4F",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student tries to solve $\\sqrt{{{m}}x{{b|signed}}}+{{c}}={{r}}$ but squares before isolating the radical. Diagnose the error, repair the algebra, and finish the solution.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's incorrect work",
+        "steps": [
+          {
+            "id": "start",
+            "label": "Equation",
+            "work": "$\\sqrt{{{m}}x{{b|signed}}}+{{c}}={{r}}$"
+          },
+          {
+            "id": "wrong",
+            "label": "Student squares immediately",
+            "work": "${{m}}x{{b|signed}}+{{c2}}={{r2}}$"
+          }
+        ],
+        "note": "Squaring a sum does not mean squaring each displayed term separately."
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What should be corrected first?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "isolate",
+              "label": "Isolate the radical before squaring."
+            },
+            {
+              "id": "divide-x",
+              "label": "Divide x by the radical."
+            },
+            {
+              "id": "negate",
+              "label": "Negate both sides instead of squaring."
+            }
+          ],
+          "expected": "isolate"
+        },
+        {
+          "id": "isolated",
+          "label": "Correct isolated radical equation",
+          "inputProfile": "equation",
+          "expected": "sqrt({{m}}x{{b|signed}})={{t}}"
+        },
+        {
+          "id": "squared",
+          "label": "Correct equation after squaring",
+          "inputProfile": "equation",
+          "expected": "{{m}}x{{b|signed}}={{t2}}"
+        },
+        {
+          "id": "solution",
+          "label": "Correct solution x",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Repair the structure of the solve before doing the arithmetic.",
+        "reasoning": [
+          "Subtract {{c}} first: $\\sqrt{{{m}}x{{b|signed}}}={{t}}$.",
+          "Then square both sides to get ${{m}}x{{b|signed}}={{t2}}$.",
+          "Solving gives x={{x}}."
+        ],
+        "answerSummary": "The radical must be isolated first; $x={{x}}$."
+      },
+      "attemptFeedback": [
+        "Do not stop at naming the mistake; the repair must continue through the final solution."
+      ],
+      "supportHints": [
+        "The correct first move makes the square root the only expression on its side."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 9
+          },
+          "c": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "t": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "t2": "t*t",
+          "b": "t*t-m*x",
+          "r": "c+t",
+          "c2": "c*c",
+          "r2": "(c+t)*(c+t)"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-simple-isolation-error-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student tries to solve $\\sqrt{x{{b|signed}}}+{{c}}={{r}}$ by squaring before subtracting {{c}}. Diagnose why that step is invalid for isolating the radical, repair the setup, and finish the solution.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "First correction",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "isolate",
+                  "label": "Subtract the outside constant so the radical is isolated before squaring."
+                },
+                {
+                  "id": "square-now",
+                  "label": "Square immediately; isolation is unnecessary."
+                }
+              ],
+              "expected": "isolate"
+            },
+            {
+              "id": "isolated",
+              "label": "Correct isolated radical equation",
+              "inputProfile": "equation",
+              "expected": "sqrt(x{{b|signed}})={{t}}"
+            },
+            {
+              "id": "squared",
+              "label": "Equation after squaring",
+              "inputProfile": "equation",
+              "expected": "x{{b|signed}}={{t2}}"
+            },
+            {
+              "id": "solution",
+              "label": "Solution x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The reasoning error is the order of operations, not difficult arithmetic.",
+            "reasoning": [
+              "Subtract {{c}} first so the square root alone equals {{t}}.",
+              "Then squaring gives $x{{b|signed}}={{t2}}$.",
+              "Solving gives x={{x}}."
+            ],
+            "answerSummary": "Repair the isolation step; $x={{x}}$."
+          },
+          "attemptFeedback": [
+            "Explain and repair the isolation mistake, then complete the solve."
+          ],
+          "supportHints": [
+            "A square root should be alone on one side before squaring."
+          ],
+          "generator": {
+            "parameters": {
+              "x": {
+                "type": "int",
+                "min": 1,
+                "max": 8
+              },
+              "c": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "t": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              }
+            },
+            "derived": {
+              "t2": "t*t",
+              "b": "t*t-x",
+              "r": "c+t"
+            }
+          },
+          "stimulus": {
+            "kind": "steps",
+            "title": "Student's incorrect order",
+            "steps": [
+              {
+                "id": "start",
+                "label": "Equation",
+                "work": "$\\sqrt{x{{b|signed}}}+{{c}}={{r}}$"
+              },
+              {
+                "id": "wrong",
+                "label": "Student action",
+                "work": "Squares both sides before isolating the radical."
+              }
+            ],
+            "note": "The issue is the order of operations: the radical term is still part of a sum."
+          }
+        }
+      ]
+    }
+  ]
+}

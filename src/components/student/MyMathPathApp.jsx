@@ -20,7 +20,7 @@ import { teksCodeFromSkillId, teksSkillId } from '../../platform/path/skillGraph
 import { statusForSkill } from '../../platform/path/pathMap.js';
 import { buildStudentLearningProfile } from '../../platform/profile/studentLearningProfile.js';
 import { buildWeeklyPathPlan } from '../../platform/path/weeklyPathPlan.js';
-import { buildWeeklyGoal, deriveCompletionsFromEvidence, evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions, normalizeWeeklyGoalConfig } from '../../platform/path/weeklyPathGoal.js';
+import { CCMR_EXPECTATION, buildWeeklyGoal, deriveCompletionsFromEvidence, evaluateWeeklyGoalProgress, matchWeeklyGoalCompletions, normalizeWeeklyGoalConfig } from '../../platform/path/weeklyPathGoal.js';
 import { resolveWeeklyPathGoalSnapshot } from '../../platform/path/pathStore.js';
 import { STATUS } from '../../platform/path/recommendationEngine.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
@@ -246,6 +246,7 @@ export const MyMathPathExperience = ({
     sessions: normalizeWeeklyGoalConfig(weeklyGoalConfig || {}, { honors }).sessions,
     honors,
     interventionMode: Boolean(weeklyGoalConfig?.interventionMode),
+    allowTransfer: normalizeWeeklyGoalConfig(weeklyGoalConfig || {}, { honors }).ccmrExpectation !== CCMR_EXPECTATION.NONE,
     pinnedSkills: weeklyGoalConfig?.pinnedSkills || [],
     coverage,
   }) : null), [pathOptions, courseId, learningProfile, masteryData, evidenceEvents, honors, weeklyGoalConfig, coverage]);
@@ -367,9 +368,13 @@ export const MyMathPathExperience = ({
       sessionKind: options.sessionKind || 'practice',
       requiredQuestions: options.requiredQuestions || (options.sessionKind === 'retentionProbe' ? 2 : 5),
       assessmentFramework: requestedFramework,
+      coursePracticeIntent: !requestedFramework && options.coursePracticeIntent === 'challenge' ? 'challenge' : null,
       weekKey: options.weekKey || null,
       weeklySlotKey: options.weeklySlotKey || null,
       weeklySlot: options.weeklySlot || null,
+      intendedDok: options.intendedDok ?? null,
+      intendedDifficultyBand: options.intendedDifficultyBand ?? null,
+      weeklyPurpose: options.weeklyPurpose || null,
       weeklyGoalRequired: options.weeklySlotKey
         ? (weeklyProgress?.required ?? weeklyGoal?.goalSessions ?? null)
         : null,
@@ -402,6 +407,9 @@ export const MyMathPathExperience = ({
       weekKey: weeklyGoal?.weekKey || null,
       weeklySlotKey: session?.weeklySlotKey || null,
       weeklySlot: session?.slot || null,
+      intendedDok: session?.dok ?? null,
+      intendedDifficultyBand: session?.difficultyBand ?? null,
+      weeklyPurpose: session?.purpose || null,
       framework: session?.context && session.context !== 'course' ? session.context : null,
     });
   };
@@ -463,7 +471,7 @@ export const MyMathPathExperience = ({
               : null}
             freeChoiceLocked={weeklyFreeChoiceLocked}
             freeChoiceMessage={weeklyFreeChoiceMessage}
-            onChooseSkill={(card) => { const code = teksCodeFromSkillId(card.skillId); if (code) startSession(code); }}
+            onChooseSkill={(card) => { const code = teksCodeFromSkillId(card.skillId); if (code) startSession(code, { coursePracticeIntent: card.status === 'extension' ? 'challenge' : null }); }}
             assessmentContext={assessmentContextWithCoverage}
             onPracticeAs={({ skillId, framework }) => {
               const code = teksCodeFromSkillId(skillId);
@@ -488,7 +496,7 @@ export const MyMathPathExperience = ({
           />
         </div>
       )}
-      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || studentId || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContextWithCoverage} weeklyGoal={weeklyGoal} weeklyProgress={weeklyProgress} completedSlots={completedSlots} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} onStartWeeklySession={startWeeklySession} onOpenPath={() => setActiveTab('path')} />}
+      {activeTab === 'dashboard' && <MyMathPathDashboard studentName={studentName || studentId || 'Student'} masteryProfilesByTEKS={masteryData.masteryProfilesByTEKS} retentionSchedulesByTEKS={masteryData.retentionSchedulesByTEKS} skillProgressByTEKS={skillProgressByTEKS} recommendedTeks={recommendedTeks} courseId={courseId} pathOptions={pathOptions} assessmentContext={assessmentContextWithCoverage} weeklyGoal={weeklyGoal} weeklyProgress={weeklyProgress} completedSlots={completedSlots} onPracticeAs={({ skillId, framework }) => { const code = teksCodeFromSkillId(skillId); if (code) startSession(code, { framework }); }} onStartSession={startSession} onStartWeeklySession={startWeeklySession} onOpenPath={() => setActiveTab('path')} />}
       {activeTab === 'history' && <StudentPracticeHistory evidenceEvents={evidenceEvents} availableTeks={availableTeks} loading={loading} error={historyError} />}
       {activeTab === 'session' && sessionConfig && <MyMathPathProductionContainer {...sessionConfig} studentProfile={studentProfile} sessionProvider={sessionProvider} onSimulationController={onSimulationController} onSimulationEvent={onSimulationEvent} onReturnToDashboard={returnToDashboard} onSessionComplete={() => onReload?.()} />}
     </div>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { diagnosePathSkill, fetchPathCoverage, fetchPathRuntimeStatus, initializeBundledPathBankStarter, PATH_COVERAGE_COURSE_IDS, rebuildPathCoverage, seedPathQuestionBank } from '../../platform/path/pathCoverageService.js';
+import { diagnosePathSkill, fetchPathCoverage, fetchPathRuntimeStatus, initializeBundledPathBankStarter, PATH_COVERAGE_COURSE_IDS, rebuildPathCoverage, refreshBundledCoursePathBank, refreshReleasedAsvabPathBank, refreshReleasedCcmrPathBanks, seedPathQuestionBank } from '../../platform/path/pathCoverageService.js';
 import { clearTeacherPathBankSnapshotCache } from '../../platform/path/pathBankSimulationService.js';
 import {
   COVERAGE_STATE, COVERAGE_STATE_LABELS, summarizeCoverage,
@@ -200,6 +200,74 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
       setError(friendlyPathError(caught, 'Could not initialize the starter Path bank.'));
       setSeedPhase(null);
     } finally {
+      setBusy(false);
+    }
+  };
+
+  const refreshCourseBank = async () => {
+    setBusy(true);
+    setError(null);
+    setSeed(null);
+    setSeedPhase('Validating and refreshing Grades 6-8 + Algebra I/II built-in course content…');
+    try {
+      const result = await refreshBundledCoursePathBank();
+      setSeed({ ...result, documentCount: result.received ?? result.accepted ?? 0 });
+      if (!result.imported) {
+        setError('The course Path bank was not changed because production validation failed.');
+        return;
+      }
+      clearTeacherPathBankSnapshotCache();
+      if (result.coverage?.indexes) setIndexes(result.coverage.indexes);
+      else await load();
+      await loadRuntimeStatus();
+    } catch (caught) {
+      setError(friendlyPathError(caught, 'Could not refresh the built-in course Path bank.'));
+    } finally {
+      setSeedPhase(null);
+      setBusy(false);
+    }
+  };
+
+  const refreshAsvabBank = async () => {
+    setBusy(true);
+    setError(null);
+    setSeed(null);
+    setSeedPhase('Validating and activating the independent ASVAB release…');
+    try {
+      const result = await refreshReleasedAsvabPathBank();
+      setSeed({ ...result, documentCount: result.received ?? result.accepted ?? 0 });
+      if (!result.imported) {
+        setError('The ASVAB release was not changed because production validation failed.');
+        return;
+      }
+      clearTeacherPathBankSnapshotCache();
+      await loadRuntimeStatus();
+    } catch (caught) {
+      setError(friendlyPathError(caught, 'Could not refresh the released ASVAB Path bank.'));
+    } finally {
+      setSeedPhase(null);
+      setBusy(false);
+    }
+  };
+
+  const refreshCcmrBanks = async () => {
+    setBusy(true);
+    setError(null);
+    setSeed(null);
+    setSeedPhase('Validating and atomically activating Digital SAT + ACT + TSIA2…');
+    try {
+      const result = await refreshReleasedCcmrPathBanks();
+      setSeed({ ...result, documentCount: result.received ?? result.accepted ?? 0 });
+      if (!result.imported) {
+        setError('The coordinated SAT/ACT/TSIA2 release was not changed because production validation failed.');
+        return;
+      }
+      clearTeacherPathBankSnapshotCache();
+      await loadRuntimeStatus();
+    } catch (caught) {
+      setError(friendlyPathError(caught, 'Could not refresh the released SAT/ACT/TSIA2 Path banks.'));
+    } finally {
+      setSeedPhase(null);
       setBusy(false);
     }
   };
@@ -460,19 +528,40 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
           so a seed file cannot put content in front of a student that the
           runtime would refuse to issue. */}
       <section style={card}>
-        <h3 style={{ margin: 0 }}>Import a Path bank seed package</h3>
-        <p style={{ margin: '6px 0 14px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 720 }}>
-          The built-in bank is the server-owned starting content for course Path and CCMR practice. Refreshing it validates
-          every bundled template with the production issuer, replaces each built-in Firestore document authoritatively, removes
-          superseded built-in documents, and then rebuilds Grade 6, Grade 7, Grade 8, Algebra I, and Algebra II coverage from
-          the canonical Texas registry. Teacher assignments are not consulted. The answer key never enters the browser.
+        <h3 style={{ margin: 0 }}>Activate built-in Path content</h3>
+        <p style={{ margin: '6px 0 14px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 760 }}>
+          Existing installations use separate release-safe refreshes. Course Path content, ASVAB, and the coordinated
+          Digital SAT / ACT / TSIA2 release are intentionally independent so one refresh cannot overwrite another framework.
+          Every package is validated by the production issuer before Firestore changes.
         </p>
-        <button type="button" style={{ ...primary, marginBottom: 16 }} onClick={initializeStarter} disabled={busy}>
-          {busy ? 'Working…' : 'Initialize / refresh built-in starter bank'}
-        </button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+          <button type="button" style={primary} onClick={refreshCourseBank} disabled={busy || runtimeStatus?.bankCount === 0}>
+            {busy ? 'Working…' : 'Refresh course Path bank'}
+          </button>
+          <button type="button" style={primary} onClick={refreshAsvabBank} disabled={busy || runtimeStatus?.bankCount === 0}>
+            {busy ? 'Working…' : 'Refresh ASVAB release'}
+          </button>
+          <button type="button" style={primary} onClick={refreshCcmrBanks} disabled={busy || runtimeStatus?.bankCount === 0}>
+            {busy ? 'Working…' : 'Refresh SAT / ACT / TSIA2 release'}
+          </button>
+        </div>
+        <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: 12, lineHeight: 1.5, maxWidth: 760 }}>
+          Recommended existing-install order after deployment: <strong>course Path → ASVAB → SAT/ACT/TSIA2</strong>.
+          The SAT/ACT/TSIA2 action is atomic and preserves the independently tracked ASVAB release.
+        </p>
+        <details style={{ marginBottom: 14 }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#3c4043' }}>Fresh installation only</summary>
+          <p style={{ margin: '8px 0 10px', color: '#5f6368', fontSize: 12, lineHeight: 1.5, maxWidth: 720 }}>
+            Use this only when the secure Path bank is empty. On an existing installation the server refuses this operation.
+          </p>
+          <button type="button" style={quiet} onClick={initializeStarter} disabled={busy || (runtimeStatus?.bankCount ?? 0) > 0}>
+            {busy ? 'Working…' : 'Initialize complete built-in bank'}
+          </button>
+        </details>
         <details style={{ marginBottom: 10 }}>
           <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#3c4043' }}>Import a different seed package instead</summary>
           <p style={{ margin: '8px 0 12px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 720 }}>
+            Custom imports are for course/custom content only; release-managed SAT, ACT, TSIA2, and ASVAB are blocked here.
             Select one or more JSON files. A package split across course files must be selected together. An array, or an object
             with <code>documents</code>, <code>items</code> or <code>questions</code>, is accepted.
           </p>

@@ -1418,6 +1418,8 @@ const COORDINATED_CCMR_RELEASE_SEED_FILES = Object.freeze([
   "tsia2_pathQuestionBank_seed.json",
 ]);
 const COORDINATED_CCMR_RELEASE_FRAMEWORKS = Object.freeze(["act", "digitalSAT", "tsia2"]);
+const RELEASE_MANAGED_ASSESSMENT_FRAMEWORKS = Object.freeze([...COORDINATED_CCMR_RELEASE_FRAMEWORKS, "asvab"]);
+const ASVAB_CONTENT_RELEASE = PATH_RUNTIME_RELEASE;
 
 async function loadAssessmentContentReleaseState(db, framework, records = []) {
   const manifestSnapshot = await db.collection(CONTENT_RELEASE_MANIFEST_COLLECTION).doc(CONTENT_RELEASE_MANIFEST_DOC).get();
@@ -1721,31 +1723,32 @@ exports.seedPathQuestionBank = onCall(async (request) => {
   if (!dryRun) {
     const attemptedProtectedFrameworks = [...new Set(items
       .map((item) => String(item?.assessmentContext?.framework || "").trim())
-      .filter((framework) => COORDINATED_CCMR_RELEASE_FRAMEWORKS.includes(framework)))].sort();
+      .filter((framework) => RELEASE_MANAGED_ASSESSMENT_FRAMEWORKS.includes(framework)))].sort();
     if (attemptedProtectedFrameworks.length) {
       throw new HttpsError(
         "failed-precondition",
-        "Release-managed assessment content (" + attemptedProtectedFrameworks.join(", ") + ") cannot be written by the generic Path seed importer. Use refreshReleasedCcmrPathBanks for the atomic SAT/ACT/TSIA2 release refresh.",
+        "Release-managed assessment content (" + attemptedProtectedFrameworks.join(", ") + ") cannot be written by the generic Path seed importer. Use the dedicated course/ASVAB/CCMR release refresh controls.",
       );
     }
   }
   return processPathSeedImport({ db, actor, items, dryRun });
 });
 
-const BUILT_IN_PATH_SEED_FILES = Object.freeze([
+const BUILT_IN_COURSE_PATH_SEED_FILES = Object.freeze([
   "algebra1_pathQuestionBank_seed.json",
   "algebra2_pathQuestionBank_seed.json",
-  // The middle-school prerequisite packages. Grade 6 joined the list when the
-  // routing graph gained reachable grade-6 prerequisites: a repair excursion
-  // that arrives at a standard with no content strands the student it was
-  // trying to help.
+  // Reachable middle-school prerequisite packages.
   "grade6_pathQuestionBank_seed.json",
   "grade7_pathQuestionBank_seed.json",
   "grade8_pathQuestionBank_seed.json",
+]);
+const ASVAB_PATH_SEED_FILE = "asvab_pathQuestionBank_seed.json";
+const BUILT_IN_PATH_SEED_FILES = Object.freeze([
+  ...BUILT_IN_COURSE_PATH_SEED_FILES,
   "digitalSAT_pathQuestionBank_seed.json",
   "act_pathQuestionBank_seed.json",
   "tsia2_pathQuestionBank_seed.json",
-  "asvab_pathQuestionBank_seed.json",
+  ASVAB_PATH_SEED_FILE,
 ]);
 
 const BUILT_IN_PATH_SEED_MARKER = "mathmaster-built-in-path-bank";
@@ -1767,6 +1770,34 @@ function loadBuiltInStarterPathSeed() {
   return builtInStarterPathSeedCache;
 }
 
+let builtInCoursePathSeedCache = null;
+function loadBuiltInCoursePathSeed() {
+  if (builtInCoursePathSeedCache) return builtInCoursePathSeedCache;
+  const seedDirectory = path.join(__dirname, "seeds", "pathQuestionBank");
+  const items = BUILT_IN_COURSE_PATH_SEED_FILES.flatMap((fileName) => {
+    const parsed = JSON.parse(fs.readFileSync(path.join(seedDirectory, fileName), "utf8"));
+    return Array.isArray(parsed) ? parsed : (parsed.documents || parsed.items || parsed.questions || []);
+  });
+  if (!items.length) throw new Error("The built-in course Path bank is empty.");
+  const ids = new Set(items.map((item) => String(item?.id || "").trim()));
+  if (ids.size !== items.length || ids.has("")) throw new Error("The built-in course Path bank contains missing or duplicate IDs.");
+  builtInCoursePathSeedCache = items;
+  return builtInCoursePathSeedCache;
+}
+
+let builtInAsvabPathSeedCache = null;
+function loadBuiltInAsvabPathSeed() {
+  if (builtInAsvabPathSeedCache) return builtInAsvabPathSeedCache;
+  const filePath = path.join(__dirname, "seeds", "pathQuestionBank", ASVAB_PATH_SEED_FILE);
+  const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
+  const items = Array.isArray(parsed) ? parsed : (parsed.documents || parsed.items || parsed.questions || []);
+  if (!items.length) throw new Error("The built-in ASVAB Path bank is empty.");
+  const ids = new Set(items.map((item) => String(item?.id || "").trim()));
+  if (ids.size !== items.length || ids.has("")) throw new Error("The built-in ASVAB Path bank contains missing or duplicate IDs.");
+  builtInAsvabPathSeedCache = items;
+  return builtInAsvabPathSeedCache;
+}
+
 function loadCoordinatedCcmrReleaseSeed() {
   const seedDirectory = path.join(__dirname, "seeds", "pathQuestionBank");
   const items = COORDINATED_CCMR_RELEASE_SEED_FILES.flatMap((fileName) => {
@@ -1785,6 +1816,27 @@ async function removeSupersededBuiltInPathSeedRecords(db, currentItems) {
   const obsolete = snapshot.docs.filter((doc) => {
     if (currentIds.has(doc.id)) return false;
     const data = doc.data() || {};
+    return data.builtInPathSeed === BUILT_IN_PATH_SEED_MARKER
+      || data?.seedMetadata?.source === LEGACY_BUILT_IN_PATH_SEED_SOURCE;
+  });
+
+  for (let index = 0; index < obsolete.length; index += 400) {
+    const batch = db.batch();
+    obsolete.slice(index, index + 400).forEach((doc) => batch.delete(doc.ref));
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+  return obsolete.length;
+}
+
+async function removeSupersededBuiltInCourseSeedRecords(db, currentItems) {
+  const currentIds = new Set(currentItems.map((item) => String(item?.id || "").trim()).filter(Boolean));
+  const snapshot = await db.collection("pathQuestionBank").get();
+  const obsolete = snapshot.docs.filter((doc) => {
+    if (currentIds.has(doc.id)) return false;
+    const data = doc.data() || {};
+    const framework = String(data?.assessmentContext?.framework || "course");
+    if (framework !== "course") return false;
     return data.builtInPathSeed === BUILT_IN_PATH_SEED_MARKER
       || data?.seedMetadata?.source === LEGACY_BUILT_IN_PATH_SEED_SOURCE;
   });
@@ -2001,6 +2053,139 @@ exports.initializeStarterPathQuestionBank = onCall({ timeoutSeconds: 540, memory
 });
 
 /**
+ * Root-admin refresh for built-in COURSE Path content on an existing installation.
+ *
+ * Only Grade 6/7/8 + Algebra I/II bundled records are replaced. Assessment
+ * frameworks are deliberately excluded so this operation cannot disturb
+ * Digital SAT, ACT, TSIA2, or ASVAB releases.
+ */
+exports.refreshBuiltInCoursePathBank = onCall({ timeoutSeconds: 540, memory: "1GiB" }, async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  let items;
+  try {
+    items = loadBuiltInCoursePathSeed();
+  } catch (error) {
+    logger.error("Could not load built-in course Path bank", error);
+    throw new HttpsError("failed-precondition", "The built-in course Path bank is unavailable in this deployment.");
+  }
+
+  const taggedItems = items.map((item) => ({
+    ...item,
+    builtInPathSeed: BUILT_IN_PATH_SEED_MARKER,
+    builtInPathSeedRelease: PATH_RUNTIME_RELEASE,
+  }));
+  const validation = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: true });
+  if (validation.rejected?.length || validation.wouldAccept !== taggedItems.length) {
+    return { ...validation, phase: "validation" };
+  }
+  const seed = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: false });
+  if (!seed.imported) {
+    throw new HttpsError("failed-precondition", "The built-in course Path bank failed its write-time validation.");
+  }
+  const removedSuperseded = await removeSupersededBuiltInCourseSeedRecords(db, taggedItems);
+  const coverage = await rebuildStoredPathCoverage(db);
+  await writeAdminAudit(db, actor, "course_path_bank_refreshed", "pathQuestionBank", {
+    accepted: seed.accepted,
+    removedSuperseded,
+    release: PATH_RUNTIME_RELEASE,
+  });
+  return { ...seed, phase: "complete", removedSuperseded, coverage, release: PATH_RUNTIME_RELEASE };
+});
+
+/**
+ * Root-admin ASVAB release refresh.
+ *
+ * ASVAB stays independent from the coordinated SAT/ACT/TSIA2 package, but is
+ * tracked in the same release manifest so stale sessions cannot mix releases.
+ */
+exports.refreshReleasedAsvabPathBank = onCall({ timeoutSeconds: 540, memory: "1GiB" }, async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+  let items;
+  try {
+    items = loadBuiltInAsvabPathSeed();
+  } catch (error) {
+    logger.error("Could not load built-in ASVAB Path bank", error);
+    throw new HttpsError("failed-precondition", "The built-in ASVAB Path bank is unavailable in this deployment.");
+  }
+
+  const taggedItems = items.map((item) => ({
+    ...item,
+    builtInPathSeed: BUILT_IN_PATH_SEED_MARKER,
+    builtInPathSeedRelease: PATH_RUNTIME_RELEASE,
+    ccmrContentRelease: ASVAB_CONTENT_RELEASE,
+  }));
+  const validation = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: true });
+  if (validation.rejected?.length || validation.wouldAccept !== taggedItems.length) {
+    return { ...validation, phase: "validation", release: ASVAB_CONTENT_RELEASE };
+  }
+
+  const manifestRef = db.collection(CONTENT_RELEASE_MANIFEST_COLLECTION).doc(CONTENT_RELEASE_MANIFEST_DOC);
+  const manifestSnapshot = await manifestRef.get();
+  const currentManifest = manifestSnapshot.exists ? manifestSnapshot.data() : {};
+  const retryingAsvabRefresh = currentManifest?.status === "updating"
+    && currentManifest?.updateOperation === "asvab-refresh";
+  if (currentManifest?.status === "updating" && !retryingAsvabRefresh) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Another assessment-bank update is already in progress. Finish or recover that operation before refreshing ASVAB.",
+    );
+  }
+  if (retryingAsvabRefresh
+      && String(currentManifest?.pendingReleases?.asvab || "") !== ASVAB_CONTENT_RELEASE) {
+    throw new HttpsError(
+      "failed-precondition",
+      "The held ASVAB refresh targets a different release. Redeploy the matching release before retrying.",
+    );
+  }
+
+  const pendingReleases = { asvab: ASVAB_CONTENT_RELEASE };
+  const updatingManifest = pathContentRelease.beginAssessmentContentReleaseUpdate(
+    currentManifest,
+    pendingReleases,
+    Date.now(),
+  );
+  await manifestRef.set({
+    ...updatingManifest,
+    updateOperation: "asvab-refresh",
+    updatedBy: actor.uid,
+  });
+
+  const seed = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: false });
+  if (!seed.imported) {
+    throw new HttpsError("failed-precondition", "The ASVAB Path bank failed its write-time validation; assessment issuance remains held.");
+  }
+  const removedSuperseded = await removeSupersededBuiltInAssessmentSeedRecords(db, taggedItems, ["asvab"]);
+  const activatedReleases = {
+    ...(currentManifest?.activeReleases || {}),
+    asvab: ASVAB_CONTENT_RELEASE,
+  };
+  const activeManifest = pathContentRelease.completeAssessmentContentReleaseUpdate(
+    updatingManifest,
+    activatedReleases,
+    Date.now(),
+  );
+  await manifestRef.set({
+    ...activeManifest,
+    updateOperation: "asvab-refresh",
+    updatedBy: actor.uid,
+  });
+  await writeAdminAudit(db, actor, "asvab_path_bank_refreshed", CONTENT_RELEASE_MANIFEST_COLLECTION, {
+    release: ASVAB_CONTENT_RELEASE,
+    accepted: seed.accepted,
+    removedSuperseded,
+  });
+  return {
+    ...seed,
+    phase: "complete",
+    release: ASVAB_CONTENT_RELEASE,
+    manifestStatus: activeManifest.status,
+    removedSuperseded,
+  };
+});
+
+/**
  * Root-admin coordinated assessment-bank refresh.
  *
  * This deliberately loads only Digital SAT, ACT, and TSIA2. ASVAB remains on
@@ -2137,10 +2322,10 @@ exports.withdrawQuestionFromPathBank = onCall(async (request) => {
     throw new HttpsError("not-found", "The Path-bank question no longer exists.");
   }
   const framework = String(existingQuestion.data()?.assessmentContext?.framework || "").trim();
-  if (COORDINATED_CCMR_RELEASE_FRAMEWORKS.includes(framework)) {
+  if (RELEASE_MANAGED_ASSESSMENT_FRAMEWORKS.includes(framework)) {
     throw new HttpsError(
       "failed-precondition",
-      "Released SAT, ACT, and TSIA2 questions cannot be withdrawn one at a time. Use refreshReleasedCcmrPathBanks so the complete audited release and manifest change together.",
+      "Released assessment questions cannot be withdrawn one at a time. Use the dedicated ASVAB or coordinated SAT/ACT/TSIA2 refresh so the audited release and manifest change together.",
     );
   }
 
@@ -5324,6 +5509,18 @@ function ccmrSessionPasses(summary = {}, requiredQuestions = 5) {
   return accuracy >= 0.8 && independentRate >= 0.6;
 }
 
+function courseChallengeEarned(profile = {}) {
+  const status = String(
+    profile?.mastery?.status
+    || profile?.performance?.key
+    || profile?.status
+    || "",
+  ).trim().toLowerCase();
+  const estimate = Number(profile?.mastery?.estimate ?? profile?.score ?? 0);
+  return ["mastered", "masters"].includes(status)
+    || (Number.isFinite(estimate) && estimate >= 90);
+}
+
 // Course Path progress is separate from mastery.
 //
 // "I finished this Path" means a student completed a full server-owned practice
@@ -5346,6 +5543,13 @@ async function loadCoursePathPassProgress(db, studentId, { limit = 400 } = {}) {
     if (session.status !== "completed") return;
     if (session.sessionKind === "retentionProbe") return;
     if (session.assessmentFramework) return;
+    if (session.coursePracticeIntent === "challenge") return;
+    // Weekly Path is a separate commitment. Its sessions still contribute
+    // mastery evidence and weekly completion, but they may be frozen at
+    // Current learning, Retention, Challenge, or CCMR-transfer rigor. Counting
+    // them as numbered Foundation/Deeper/Mastery passes would let low-rigor
+    // weekly work advance the open-practice level by session count alone.
+    if (session.weeklySlotKey) return;
 
     const alignmentKey = mathPath.canonicalAlignmentKey(session.target?.alignmentKey);
     const code = mathPath.displayAlignmentKey(alignmentKey);
@@ -5606,6 +5810,9 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
   const sessionKind = request.data?.sessionKind === "retentionProbe" ? "retentionProbe" : "practice";
   let requiredQuestions = pathSessionRequiredQuestions(sessionKind, request.data?.requiredQuestions);
   let assessmentFramework = normalizePathAssessmentFramework(request.data?.assessmentFramework);
+  const requestedCoursePracticeIntent = String(request.data?.coursePracticeIntent || "").trim() === "challenge"
+    ? "challenge"
+    : null;
   const db = getFirestore();
 
   const studentSnapshot = await db.collection("grades").doc(studentId).get();
@@ -5666,12 +5873,19 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
     if (ccmrChallengeTier >= 2 && sessionKind !== "retentionProbe") requiredQuestions = 3;
   }
 
+  const coursePracticeIntent = requestedCoursePracticeIntent
+    && !assessmentFramework
+    && sessionKind !== "retentionProbe"
+    && !requestedWeeklySlotKey
+    ? requestedCoursePracticeIntent
+    : null;
+
   // Ordinary course practice has visible passes too. Pass 1 is the foundation
   // session; later passes deliberately ask the selector for more demanding
   // work. This is NOT mastery — mastery remains evidence-driven.
   let priorCoursePasses = 0;
   let coursePassLevel = null;
-  if (!assessmentFramework && sessionKind !== "retentionProbe") {
+  if (!assessmentFramework && sessionKind !== "retentionProbe" && !requestedWeeklySlotKey && coursePracticeIntent !== "challenge") {
     const passProgress = await loadCoursePathPassProgress(db, studentId);
     const targetCode = mathPath.displayAlignmentKey(targetAlignmentKey);
     priorCoursePasses = Number(passProgress.byTeksCode?.[targetCode]?.passesCompleted || 0);
@@ -5766,6 +5980,9 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
         if ((existing.data()?.assessmentFramework || null) !== assessmentFramework) {
           throw new HttpsError("failed-precondition", "Finish the active session before changing assessment format.");
         }
+        if ((existing.data()?.coursePracticeIntent || null) !== coursePracticeIntent) {
+          throw new HttpsError("failed-precondition", "Finish the active session before changing between regular practice and Challenge.");
+        }
         const releaseAction = pathContentRelease.planSessionContentReleaseAction(existing.data(), assessmentReleaseState);
         if (releaseAction.action === "continue" || releaseAction.action === "finish-open-question") return existing.data();
         if (releaseAction.action === "hold-release-update") throw assessmentReleaseUpdateError(assessmentFramework);
@@ -5790,6 +6007,7 @@ exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics
       status: "active",
       sessionKind,
       assessmentFramework,
+      coursePracticeIntent,
       assessmentContentRelease: assessmentReleaseState.tracked ? assessmentReleaseState.release : null,
       ccmrChallengeTier: assessmentFramework ? ccmrChallengeTier : null,
       coursePassLevel: assessmentFramework || sessionKind === "retentionProbe" ? null : coursePassLevel,
@@ -6051,17 +6269,60 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     preferredDifficultyBand = Number(session.ccmrChallengeTier) >= 3 ? 5 : Math.max(4, Number(preferredDifficultyBand || 3));
     preferredDok = Number(session.ccmrChallengeTier) >= 3 ? Math.max(3, Number(preferredDok || 2)) : Math.max(2, Number(preferredDok || 2));
   }
-  if (!session.assessmentFramework && session.sessionKind !== "retentionProbe") {
+  // A frozen weekly slot is authoritative while we are on its assigned TEKS.
+  // Do not let an unrelated open-practice pass level rewrite the week's DOK or
+  // difficulty commitment after the snapshot has already been assigned.
+  if (!session.assessmentFramework && session.sessionKind !== "retentionProbe" && !onAssignedWeeklyTarget) {
     const coursePassLevel = Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1)));
     if (coursePassLevel >= 2) {
       preferredDifficultyBand = Math.max(4, Number(preferredDifficultyBand || 3));
       preferredDok = Math.max(2, Number(preferredDok || 2));
     }
     if (coursePassLevel >= 3) {
-      preferredDifficultyBand = Math.max(5, Number(preferredDifficultyBand || 4));
+      // Course TEKS content is authored through Band 4. Pass 3 stretches by
+      // depth (DOK 3), not by requesting a nonexistent Band 5 and relying on a
+      // fallback that teachers cannot see.
+      preferredDifficultyBand = Math.max(4, Number(preferredDifficultyBand || 4));
       preferredDok = Math.max(3, Number(preferredDok || 2));
     }
   }
+  // A student may opt into an EARNED Challenge card, but the browser never
+  // names a DOK or difficulty. The only accepted course intent is a one-way
+  // escalation to the certified authored ceiling. It applies only on the
+  // session target, never to a remediation/diagnostic excursion.
+  if (
+    session.coursePracticeIntent === "challenge"
+    && !session.assessmentFramework
+    && !session.weeklySlotKey
+    && activeDisplayCode === targetDisplayCode
+    && !session.diagnosing
+  ) {
+    if (!courseChallengeEarned(masteryProfile)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Challenge is not unlocked for this skill yet.",
+        { reason: "course-challenge-not-earned" },
+      );
+    }
+    preferredDifficultyBand = 4;
+    preferredDok = 3;
+  }
+
+  // Routing can recognize mastery from fresh in-session evidence before the
+  // asynchronous mastery-profile trigger catches up. When it explicitly says
+  // ENRICHMENT, honor that server-owned decision immediately so the student
+  // actually receives Challenge work rather than a stale core-rigor question.
+  if (
+    !session.assessmentFramework
+    && !onAssignedWeeklyTarget
+    && session.lastDecision?.action === "enrichment"
+    && activeDisplayCode === targetDisplayCode
+    && !session.diagnosing
+  ) {
+    preferredDifficultyBand = 4;
+    preferredDok = 3;
+  }
+
   // Selection prefers an UNUSED family, widening to the closest adjacent band
   // before it repeats anything. Narrowing to the nearest band first and cycling
   // inside it — which is what this used to do — trapped a five-question session
@@ -6103,7 +6364,14 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     const tentativeQuestion = tentative.question;
 
     try {
-      const draw = await mathPath.instantiateQuestion(tentativeQuestion, `${sessionId}|${questionInstanceId}|${tentativeQuestion.id}`);
+      const draw = await mathPath.instantiateQuestion(
+        tentativeQuestion,
+        `${sessionId}|${questionInstanceId}|${tentativeQuestion.id}`,
+        {
+          preferredDok,
+          preferredDifficultyBand,
+        },
+      );
       if (!draw?.question) {
         preparationFailures.push({ questionId: tentativeQuestion.id, reason: draw?.reason || "generator_failed" });
         remainingCandidates = remainingCandidates.filter((candidate) => candidate.id !== tentativeQuestion.id);
@@ -6186,13 +6454,20 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
     generatorParameters: instantiated.parameters,
     skillCode: activeDisplayCode,
     pathRole,
-    coursePassLevel: session.assessmentFramework ? null : Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1))),
+    coursePassLevel: session.assessmentFramework || session.weeklySlotKey || session.coursePracticeIntent === "challenge"
+      ? null
+      : Math.max(1, Math.min(COURSE_PATH_MAX_LEVEL, Number(session.coursePassLevel || 1))),
+    coursePracticeIntent: session.coursePracticeIntent || null,
     assessmentBridgeFramework: usingCourseBridge ? session.assessmentFramework : null,
     ccmrChallengeTier: session.assessmentFramework ? Math.max(1, Math.min(3, Number(session.ccmrChallengeTier || 1))) : null,
     ccmrFamilyRole: authored.ccmrFamilyRole || (Number(authored.ccmrChallengeTier || 1) >= 2 ? "challenge" : "direct"),
     // Teacher/QA metadata. `buildSanitizedQuestion` does not copy these onto the
     // student payload; the Path Simulator reads them from the session document.
     selectionReason: choice.reason,
+    selectedCoverageKey: choice.effectiveCoverageKey || null,
+    selectedVariantIndex: Number.isInteger(choice.effectiveVariantIndex) ? choice.effectiveVariantIndex : null,
+    requestedDok: preferredDok,
+    requestedDifficultyBand: preferredDifficultyBand,
     contentQuality: choice.quality,
     // Which authorized supports actually apply to THIS question. Authorized is
     // not the same as applicable: a calculator accommodation does not apply to

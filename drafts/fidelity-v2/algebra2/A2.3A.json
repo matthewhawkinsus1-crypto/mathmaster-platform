@@ -1,0 +1,734 @@
+{
+  "standard": "A2.3A",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-authored-system-formulation-three-by-three-and-linear-quadratic",
+  "rationale": "A2.3A requires students to formulate systems, not merely recognize a prewritten system. Fidelity V2 therefore collects the equations the student writes from contextual, tabular, graphical, and error-analysis information.",
+  "documents": [
+    {
+      "id": "mm_A2_3A_v2_store-three-equation-model",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3A:v2-store-three-equation-model",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3A",
+      "representation": "context",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "modeling",
+      "prompt": "A school store sells notebooks for $x$ dollars, folders for $y$ dollars, and binders for $z$ dollars. One notebook, one folder, and one binder cost {{t1}} dollars. Two notebooks, one folder, and one binder cost {{t2}} dollars. One notebook, two folders, and one binder cost {{t3}} dollars. Formulate the three-equation system that models the purchases.",
+      "responseFields": [
+        {
+          "id": "eq1",
+          "label": "Equation for purchase 1",
+          "inputProfile": "equation",
+          "expected": "x+y+z={{t1}}"
+        },
+        {
+          "id": "eq2",
+          "label": "Equation for purchase 2",
+          "inputProfile": "equation",
+          "expected": "2x+y+z={{t2}}"
+        },
+        {
+          "id": "eq3",
+          "label": "Equation for purchase 3",
+          "inputProfile": "equation",
+          "expected": "x+2y+z={{t3}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Each purchase becomes one equation.",
+        "reasoning": [
+          "The coefficients count how many notebooks, folders, and binders appear in that purchase.",
+          "The purchase total is the right-hand side."
+        ],
+        "answerSummary": "$x+y+z={{t1}},\\;2x+y+z={{t2}},\\;x+2y+z={{t3}}$"
+      },
+      "attemptFeedback": [
+        "Use a coefficient of 1 when exactly one of an item is purchased."
+      ],
+      "supportHints": [
+        "Translate each purchase separately before combining the three equations into one system."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "y": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "z": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "t1": "x+y+z",
+          "t2": "2*x+y+z",
+          "t3": "x+2*y+z"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3A_v2_shipping-three-variable-model",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3A:v2-shipping-three-variable-model",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3A",
+      "representation": "context",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "modeling",
+      "prompt": "A shipment contains small crates $x$, medium crates $y$, and large crates $z$. There are {{count}} crates total. Small, medium, and large crates weigh 2, 3, and 5 units, for total weight {{weight}}. Their storage-volume scores are 1, 4, and 2 units, for total volume score {{volume}}. Formulate the three-equation system.",
+      "responseFields": [
+        {
+          "id": "count",
+          "label": "Crate-count equation",
+          "inputProfile": "equation",
+          "expected": "x+y+z={{count}}"
+        },
+        {
+          "id": "weight",
+          "label": "Weight equation",
+          "inputProfile": "equation",
+          "expected": "2x+3y+5z={{weight}}"
+        },
+        {
+          "id": "volume",
+          "label": "Volume-score equation",
+          "inputProfile": "equation",
+          "expected": "x+4y+2z={{volume}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A system can encode several measurements of the same three unknown counts.",
+        "reasoning": [
+          "The count equation gives every crate coefficient 1.",
+          "Weight and volume equations use the per-crate rates as coefficients."
+        ],
+        "answerSummary": "$x+y+z={{count}},\\;2x+3y+5z={{weight}},\\;x+4y+2z={{volume}}$"
+      },
+      "attemptFeedback": [
+        "Match each measurement to its own set of coefficients."
+      ],
+      "supportHints": [
+        "For a total measurement, multiply each unknown count by that type's per-item measurement."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "y": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          },
+          "z": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "count": "x+y+z",
+          "weight": "2*x+3*y+5*z",
+          "volume": "x+4*y+2*z"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3A_v2_table-to-three-equations",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3A:v2-table-to-three-equations",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3A",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "Each table row records the coefficients of $x$, $y$, and $z$ and the measured total. Formulate the system represented by the three rows.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Three measurements",
+        "table": {
+          "headers": [
+            "Row",
+            "Coefficient of x",
+            "Coefficient of y",
+            "Coefficient of z",
+            "Total"
+          ],
+          "rows": [
+            [
+              "1",
+              "1",
+              "2",
+              "1",
+              "{{r1}}"
+            ],
+            [
+              "2",
+              "3",
+              "1",
+              "2",
+              "{{r2}}"
+            ],
+            [
+              "3",
+              "2",
+              "3",
+              "1",
+              "{{r3}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "eq1",
+          "label": "Equation from row 1",
+          "inputProfile": "equation",
+          "expected": "x+2y+z={{r1}}"
+        },
+        {
+          "id": "eq2",
+          "label": "Equation from row 2",
+          "inputProfile": "equation",
+          "expected": "3x+y+2z={{r2}}"
+        },
+        {
+          "id": "eq3",
+          "label": "Equation from row 3",
+          "inputProfile": "equation",
+          "expected": "2x+3y+z={{r3}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Read each table row horizontally as one linear equation.",
+        "reasoning": [
+          "The three coefficient columns multiply $x$, $y$, and $z$.",
+          "The final column is the equation's right-hand side."
+        ],
+        "answerSummary": "$x+2y+z={{r1}},\\;3x+y+2z={{r2}},\\;2x+3y+z={{r3}}$"
+      },
+      "attemptFeedback": [
+        "Do not combine rows; each row is one separate equation in the system."
+      ],
+      "supportHints": [
+        "A row with coefficients 1, 2, 1 and total T reads $x+2y+z=T$."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": -4,
+            "max": 6
+          },
+          "y": {
+            "type": "int",
+            "min": -4,
+            "max": 6
+          },
+          "z": {
+            "type": "int",
+            "min": -4,
+            "max": 6
+          }
+        },
+        "derived": {
+          "r1": "x+2*y+z",
+          "r2": "3*x+y+2*z",
+          "r3": "2*x+3*y+z"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-signed-coefficient-table-system",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "representationTranslation",
+          "representation": "table",
+          "prompt": "Each row gives signed coefficients of x, y, and z and a measured total. Formulate all three equations exactly as represented. The mixed signs increase arithmetic/reading difficulty but do not change the modeling reasoning.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Signed coefficient measurements",
+            "table": {
+              "headers": [
+                "Row",
+                "x coefficient",
+                "y coefficient",
+                "z coefficient",
+                "Total"
+              ],
+              "rows": [
+                [
+                  "1",
+                  "2",
+                  "-3",
+                  "1",
+                  "{{r1}}"
+                ],
+                [
+                  "2",
+                  "-1",
+                  "4",
+                  "2",
+                  "{{r2}}"
+                ],
+                [
+                  "3",
+                  "3",
+                  "1",
+                  "-2",
+                  "{{r3}}"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "eq1",
+              "label": "Equation from row 1",
+              "inputProfile": "equation",
+              "expected": "2x-3y+z={{r1}}"
+            },
+            {
+              "id": "eq2",
+              "label": "Equation from row 2",
+              "inputProfile": "equation",
+              "expected": "-x+4y+2z={{r2}}"
+            },
+            {
+              "id": "eq3",
+              "label": "Equation from row 3",
+              "inputProfile": "equation",
+              "expected": "3x+y-2z={{r3}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Read signed coefficients directly into each equation.",
+            "reasoning": [
+              "Row 1 becomes 2x-3y+z={{r1}}.",
+              "Rows 2 and 3 preserve their negative coefficients as written."
+            ],
+            "answerSummary": "Three signed linear equations."
+          },
+          "attemptFeedback": [
+            "Treat each negative table entry as part of that variable's coefficient."
+          ],
+          "supportHints": [
+            "Do not move terms or solve; this standard asks you to formulate the system."
+          ],
+          "generator": {
+            "parameters": {
+              "x": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "y": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "z": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              }
+            },
+            "derived": {
+              "r1": "2*x-3*y+z",
+              "r2": "-x+4*y+2*z",
+              "r3": "3*x+y-2*z"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_3A_v2_graph-linear-quadratic-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3A:v2-graph-linear-quadratic-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3A",
+      "representation": "graph",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "The graph shows one line and one parabola. Use the exact plotted features to formulate the two-equation system represented by the graph.",
+      "stimulus": {
+        "kind": "graph",
+        "title": "Linear-quadratic system",
+        "graph": {
+          "xMin": -6,
+          "xMax": 6,
+          "yMin": -9,
+          "yMax": 9,
+          "ariaLabel": "A line and an upward-opening parabola",
+          "lines": [
+            {
+              "label": "Line",
+              "boundaryStyle": "solid",
+              "points": [
+                {
+                  "x": -2,
+                  "y": "{{lineLeft}}"
+                },
+                {
+                  "x": 2,
+                  "y": "{{lineRight}}"
+                }
+              ]
+            }
+          ],
+          "curves": [
+            {
+              "label": "Parabola",
+              "points": [
+                {
+                  "x": "{{hm2}}",
+                  "y": "{{kp4}}"
+                },
+                {
+                  "x": "{{hm1}}",
+                  "y": "{{kp1}}"
+                },
+                {
+                  "x": "{{h}}",
+                  "y": "{{k}}"
+                },
+                {
+                  "x": "{{hp1}}",
+                  "y": "{{kp1}}"
+                },
+                {
+                  "x": "{{hp2}}",
+                  "y": "{{kp4}}"
+                }
+              ]
+            }
+          ]
+        },
+        "note": "The parabola has unit vertical scale; its lowest plotted point is the vertex."
+      },
+      "responseFields": [
+        {
+          "id": "line",
+          "label": "Linear equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{b|signed}}"
+        },
+        {
+          "id": "quadratic",
+          "label": "Quadratic equation",
+          "inputProfile": "equation",
+          "expected": "y=(x-({{h}}))^2{{k|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Form one equation for each graph.",
+        "reasoning": [
+          "The line's slope from the two marked points is {{m}} and its y-intercept is {{b}}.",
+          "The parabola has vertex $({{h}},{{k}})$ and unit scale, so vertex form is $y=(x-({{h}}))^2{{k|signed}}$."
+        ],
+        "answerSummary": "$y={{m}}x{{b|signed}}$ and $y=(x-({{h}}))^2{{k|signed}}$"
+      },
+      "attemptFeedback": [
+        "Treat the line and parabola as two separate equations before writing the system."
+      ],
+      "supportHints": [
+        "For the parabola, start with vertex form $y=(x-h)^2+k$."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "choice",
+            "values": [
+              -2,
+              -1,
+              1,
+              2
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "h": {
+            "type": "int",
+            "min": -2,
+            "max": 2
+          },
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          }
+        },
+        "derived": {
+          "lineLeft": "-2*m+b",
+          "lineRight": "2*m+b",
+          "hm2": "h-2",
+          "hm1": "h-1",
+          "hp1": "h+1",
+          "hp2": "h+2",
+          "kp1": "k+1",
+          "kp4": "k+4"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3A_v2_linear-quadratic-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3A"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3A:v2-linear-quadratic-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.3A",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A system should contain a line with slope {{m}} and y-intercept {{b}}, plus an upward unit parabola with vertex $({{h}},{{k}})$. A student writes the system shown below. Diagnose the modeling error and formulate the corrected two-equation system.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student's proposed system",
+        "steps": [
+          {
+            "id": "line",
+            "label": "Line",
+            "work": "$y={{m}}x{{b|signed}}$"
+          },
+          {
+            "id": "quad",
+            "label": "Parabola",
+            "work": "$y=(x+({{h}}))^2{{k|signed}}$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "Diagnosis",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "inside-sign",
+              "label": "The horizontal shift in vertex form uses the opposite sign inside the parentheses."
+            },
+            {
+              "id": "line-degree",
+              "label": "The line must also be quadratic."
+            },
+            {
+              "id": "no-system",
+              "label": "A line and parabola cannot form a system."
+            }
+          ],
+          "expected": "inside-sign"
+        },
+        {
+          "id": "line",
+          "label": "Correct linear equation",
+          "inputProfile": "equation",
+          "expected": "y={{m}}x{{b|signed}}"
+        },
+        {
+          "id": "quadratic",
+          "label": "Correct quadratic equation",
+          "inputProfile": "equation",
+          "expected": "y=(x-({{h}}))^2{{k|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Correct the model, not just the explanation.",
+        "reasoning": [
+          "The line already matches the stated slope and intercept.",
+          "Vertex form $y=(x-h)^2+k$ uses the opposite sign of the vertex x-coordinate inside the parentheses."
+        ],
+        "answerSummary": "$y={{m}}x{{b|signed}}$ and $y=(x-({{h}}))^2{{k|signed}}$"
+      },
+      "attemptFeedback": [
+        "After diagnosing the error, still write both equations of the corrected system."
+      ],
+      "supportHints": [
+        "A vertex at $(h,k)$ corresponds to $(x-h)^2+k$."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "choice",
+            "values": [
+              -4,
+              -3,
+              -2,
+              2,
+              3,
+              4
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "h": {
+            "type": "choice",
+            "values": [
+              -4,
+              -3,
+              -2,
+              -1,
+              1,
+              2,
+              3,
+              4
+            ]
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-simple-vertex-sign-model-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A line has slope 2 and y-intercept {{b}}. A unit parabola has vertex $(2,{{k}})$. A student models the parabola as $y=(x+2)^2{{k|signed}}$. Diagnose the horizontal-shift error and write the corrected two-equation system.",
+          "stimulus": {
+            "kind": "steps",
+            "title": "Student model",
+            "steps": [
+              {
+                "id": "line",
+                "label": "Line",
+                "work": "$y=2x{{b|signed}}$"
+              },
+              {
+                "id": "quad",
+                "label": "Parabola",
+                "work": "$y=(x+2)^2{{k|signed}}$"
+              }
+            ]
+          },
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Diagnosis",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "sign",
+                  "label": "Vertex form uses x-h, so a vertex x-coordinate of 2 requires (x-2)²."
+                },
+                {
+                  "id": "line",
+                  "label": "The line must be quadratic too."
+                }
+              ],
+              "expected": "sign"
+            },
+            {
+              "id": "line",
+              "label": "Correct linear equation",
+              "inputProfile": "equation",
+              "expected": "y=2x{{b|signed}}"
+            },
+            {
+              "id": "quadratic",
+              "label": "Correct quadratic equation",
+              "inputProfile": "equation",
+              "expected": "y=(x-2)^2{{k|signed}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "The sign inside vertex form is opposite the vertex x-coordinate.",
+            "reasoning": [
+              "The line is already correct.",
+              "For vertex (2,{{k}}), use $(x-2)^2+{{k}}$."
+            ],
+            "answerSummary": "Correct line plus corrected vertex-form parabola."
+          },
+          "attemptFeedback": [
+            "Use the stated vertex to check the inside sign."
+          ],
+          "supportHints": [
+            "At x=2 the squared term should become zero."
+          ],
+          "generator": {
+            "parameters": {
+              "b": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              },
+              "k": {
+                "type": "int",
+                "min": -4,
+                "max": 4
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

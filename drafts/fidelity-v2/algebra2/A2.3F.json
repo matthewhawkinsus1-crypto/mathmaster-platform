@@ -1,0 +1,577 @@
+{
+  "standard": "A2.3F",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-secure-construction-of-two-and-three-inequality-solution-regions",
+  "rationale": "A2.3F requires solving systems of inequalities. Fidelity V2 uses the secure Systems Workspace construction mode so students must graph every boundary with the correct style and half-plane; the solution is the actual overlap, not a recognition answer.",
+  "documents": [
+    {
+      "id": "mm_A2_3F_v2_two-inclusive-overlap",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3F:v2-two-inclusive-overlap",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3F",
+      "representation": "graph",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "prompt": "Solve the system by constructing both inequality graphs and shading ONLY their overlap: $y\\ge {{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$.",
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">="
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "The system solution is the intersection of both half-planes.",
+        "reasoning": [
+          "Both inequalities include equality, so both boundaries are solid.",
+          "Shade above the first boundary and below the second; keep only the common region."
+        ]
+      },
+      "attemptFeedback": [
+        "A correct boundary is not enough; each line needs the correct style and the final shading must satisfy both inequalities."
+      ],
+      "supportHints": [
+        "Graph one boundary and half-plane at a time, then keep only the overlap."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          },
+          "b2": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3F_v2_mixed-strict-overlap",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3F:v2-mixed-strict-overlap",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3F",
+      "representation": "graph",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "prompt": "Solve the system graphically: $y>{{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$. Construct the strict and inclusive boundaries correctly and shade only the overlap.",
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">"
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "Boundary style is part of the solution.",
+        "reasoning": [
+          "The > inequality uses a dashed boundary and shades above.",
+          "The ≤ inequality uses a solid boundary and shades below.",
+          "Only their common region solves the system."
+        ]
+      },
+      "attemptFeedback": [
+        "Check both the side you shaded and whether each boundary should be solid or dashed."
+      ],
+      "supportHints": [
+        "Strict symbols > and < exclude the boundary; ≥ and ≤ include it."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          },
+          "b2": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-three-boundary-routine-construction",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "representationTranslation",
+          "representation": "graph",
+          "type": "systemsWorkspace",
+          "mode": "inequalities",
+          "interaction": "construct",
+          "ask": [
+            "construction"
+          ],
+          "prompt": "Solve the THREE-inequality system by constructing every boundary with the correct solid/dashed style and shading ONLY the common overlap: $y>{{m1}}x{{b1|signed}}$, $y\\le{{m2}}x{{b2|signed}}$, and $y\\ge{{c}}$.",
+          "inequalities": [
+            {
+              "m": "{{m1}}",
+              "b": "{{b1}}",
+              "relation": ">"
+            },
+            {
+              "m": "{{m2}}",
+              "b": "{{b2}}",
+              "relation": "<="
+            },
+            {
+              "m": 0,
+              "b": "{{c}}",
+              "relation": ">="
+            }
+          ],
+          "graph": {
+            "xMin": -6,
+            "xMax": 6,
+            "yMin": -10,
+            "yMax": 12
+          },
+          "solutionReview": {
+            "headline": "Three constraints increase construction load while the reasoning remains routine intersection work.",
+            "reasoning": [
+              "Use a dashed first boundary, a solid second boundary, and a solid horizontal third boundary.",
+              "Keep only the region satisfying all three inequalities at once."
+            ]
+          },
+          "attemptFeedback": [
+            "Check boundary style and shading direction for all three before identifying the overlap."
+          ],
+          "supportHints": [
+            "A system means AND: every retained point must satisfy every inequality."
+          ],
+          "generator": {
+            "parameters": {
+              "m1": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "m2": {
+                "type": "int",
+                "min": -3,
+                "max": -1
+              },
+              "b1": {
+                "type": "int",
+                "min": -5,
+                "max": -2
+              },
+              "b2": {
+                "type": "int",
+                "min": 4,
+                "max": 8
+              },
+              "c": {
+                "type": "int",
+                "min": -3,
+                "max": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_3F_v2_three-constraint-region",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3F:v2-three-constraint-region",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3F",
+      "representation": "graph",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "prompt": "Solve the THREE-inequality system. Construct every boundary and shade the region satisfying all three at once: $y\\ge {{m1}}x{{b1|signed}}$, $y\\le {{m2}}x{{b2|signed}}$, and $y>{{c}}$.",
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">="
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        },
+        {
+          "m": 0,
+          "b": "{{c}}",
+          "relation": ">"
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "“Two or more” means every half-plane must be satisfied simultaneously.",
+        "reasoning": [
+          "Construct the first solid lower boundary and the second solid upper boundary.",
+          "The horizontal constraint y>{{c}} has a dashed boundary and shades above.",
+          "The final solution is the intersection of all three half-planes."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after finding the overlap of two constraints; the third inequality can remove part of that region."
+      ],
+      "supportHints": [
+        "For the horizontal boundary, use two points with y={{c}} and choose dashed because the inequality is strict."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -5,
+            "max": -2
+          },
+          "b2": {
+            "type": "int",
+            "min": 4,
+            "max": 8
+          },
+          "c": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3F_v2_context-no-solution-policy",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3F:v2-context-no-solution-policy",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3F",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "application",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "prompt": "A planning model requires $y\\ge x+{{upper}}$, $y\\le x+{{lower}}$, and $y\\ge {{floor}}$. Solve the THREE-inequality system by constructing every boundary and the common solution region.",
+      "inequalities": [
+        {
+          "m": 1,
+          "b": "{{upper}}",
+          "relation": ">="
+        },
+        {
+          "m": 1,
+          "b": "{{lower}}",
+          "relation": "<="
+        },
+        {
+          "m": 0,
+          "b": "{{floor}}",
+          "relation": ">="
+        }
+      ],
+      "graph": {
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -10,
+        "yMax": 14
+      },
+      "context": {
+        "title": "Conflicting planning constraints",
+        "note": "All three constraints must hold. If the first two correctly constructed half-planes have no overlap, adding a third constraint cannot create a solution."
+      },
+      "solutionReview": {
+        "headline": "Contradictory parallel constraints make the whole three-inequality system infeasible.",
+        "reasoning": [
+          "The first two boundaries have slope 1, so they are parallel.",
+          "The ≥ requirement is above the line with larger intercept {{upper}}, while the ≤ cap is below the line with smaller intercept {{lower}}.",
+          "Those two half-planes never overlap, so the additional floor $y\\ge {{floor}}$ cannot restore a solution."
+        ],
+        "answerSummary": "No common solution region."
+      },
+      "attemptFeedback": [
+        "Do not invent an overlap. Correctly graphing contradictory constraints should leave no shared region."
+      ],
+      "supportHints": [
+        "Check the two parallel constraints first. If they already contradict each other, the three-way intersection is empty."
+      ],
+      "generator": {
+        "parameters": {
+          "lower": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "gap": {
+            "type": "int",
+            "min": 3,
+            "max": 7
+          },
+          "floor": {
+            "type": "int",
+            "min": -6,
+            "max": 0
+          }
+        },
+        "derived": {
+          "upper": "lower+gap"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3F_v2_union-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3F"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3F:v2-union-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3F",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "prompt": "A student shades the UNION of the half-planes for $y>{{m1}}x{{b1|signed}}$, $y\\le {{m2}}x{{b2|signed}}$, and $y\\ge {{c}}$. Repair the error by constructing all three boundaries and showing ONLY the intersection that solves the system.",
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">"
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        },
+        {
+          "m": 0,
+          "b": "{{c}}",
+          "relation": ">="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "A system uses logical AND, not union/OR.",
+        "reasoning": [
+          "Each boundary must have its own correct solid/dashed style and half-plane.",
+          "The system solution keeps only points satisfying inequality 1 AND inequality 2 AND inequality 3."
+        ]
+      },
+      "attemptFeedback": [
+        "The student's error is not fixed until your graph shows the common intersection of all three constraints."
+      ],
+      "supportHints": [
+        "Construct all three half-planes, then keep only the region where all three shadings overlap."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -5,
+            "max": -2
+          },
+          "b2": {
+            "type": "int",
+            "min": 4,
+            "max": 8
+          },
+          "c": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          }
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-two-halfplane-union-error",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "type": "systemsWorkspace",
+          "mode": "inequalities",
+          "interaction": "construct",
+          "ask": [
+            "construction"
+          ],
+          "prompt": "A student shades the UNION of the two half-planes $y>x-2$ and $y\\le -x+4$. Diagnose the logical error and repair the graph by constructing both boundaries and shading ONLY their intersection.",
+          "inequalities": [
+            {
+              "m": 1,
+              "b": -2,
+              "relation": ">"
+            },
+            {
+              "m": -1,
+              "b": 4,
+              "relation": "<="
+            }
+          ],
+          "graph": {
+            "xMin": -6,
+            "xMax": 6,
+            "yMin": -8,
+            "yMax": 10
+          },
+          "solutionReview": {
+            "headline": "A system of inequalities uses logical AND, not OR.",
+            "reasoning": [
+              "The first boundary is dashed and shades above; the second is solid and shades below.",
+              "Only the overlap satisfies both inequalities simultaneously."
+            ]
+          },
+          "attemptFeedback": [
+            "The repair is complete only when the graph shows the common region, not both half-planes separately."
+          ],
+          "supportHints": [
+            "Think intersection: points must satisfy inequality 1 AND inequality 2."
+          ]
+        }
+      ]
+    }
+  ]
+}

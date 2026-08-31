@@ -42,35 +42,24 @@ gives you and paste it back.
 
 ## Block 2 — the whole deploy, one paste
 
-Handles everything: clones the repo if it is not there, pulls the latest code,
-writes the required setting, installs, builds, and deploys hosting + functions +
-Firestore rules together.
+Use the guarded helper. It pulls the exact latest `main`, verifies the required
+server secret, installs exact dependencies, runs the release gates, builds the
+Firebase production web runtime, deploys **Cloud Functions first**, then
+Firestore rules + Hosting, and finally checks the live site.
 
 ```
-cd ~ && { [ -d mathmaster-platform ] || git clone https://github.com/matthewhawkinsus1-crypto/mathmaster-platform.git; } && cd mathmaster-platform && git checkout main && git pull origin main && echo "VITE_MATHMASTER_EXECUTION_MODE=firebaseProduction" > .env.production.local && npm install && npm run build && firebase deploy --project mathmaster-aleks
+cd ~ && { [ -d mathmaster-platform ] || git clone https://github.com/matthewhawkinsus1-crypto/mathmaster-platform.git; } && cd mathmaster-platform && git checkout main && git pull --ff-only origin main && bash scripts/deploy-v5-preproduction.sh
 ```
 
-Every step is chained with `&&`, so if one fails the rest **stop** rather than
-deploying a stale or misconfigured build. Takes several minutes; most of it is
-the deploy at the end.
-
-Three things in there matter and are easy to leave out by hand:
-
-- `VITE_MATHMASTER_EXECUTION_MODE=firebaseProduction` — without it the build
-  succeeds and My Math Path then refuses to run. That refusal is deliberate: a
-  deployment that lost this setting used to serve students sandbox questions and
-  record fake mastery for them. Writing it every time removes the failure mode.
-- `npm install` — libraries get added between releases and the build fails
-  without them, with an error that does not say so clearly.
-- Plain `firebase deploy`, **not** `--only hosting`. Firestore rules changed in
-  the current release, and the app also checks that the website and the
-  functions are on the same release and warns teachers when they are not.
+The Functions-first order is intentional. Digital SAT / ACT / TSIA2 and ASVAB
+now use release-aware Path sessions, so the new callable/runtime protections
+must be live before any release-managed bank is activated.
 
 Finish line:
 
 ```
-+  Deploy complete!
-Hosting URL: https://mathmaster-aleks.web.app
+=== MathMaster production deploy completed ===
+HTTP 200
 ```
 
 ---
@@ -85,25 +74,31 @@ Expect `HTTP 200` and a list of functions.
 
 ---
 
-## Block 4 — refresh the question bank (in the browser, not the terminal)
+## Block 4 — activate the production Path banks in the browser
 
-Deploying updates the questions **inside Cloud Functions**. The copies already
-saved in Firestore stay as they were until you do this, so new and corrected
-questions do not reach students without it.
+Deploying updates the certified seed packages inside Cloud Functions. Existing
+Firestore bank records stay unchanged until the root administrator activates
+the corresponding release.
 
 1. Open **https://mathmaster-aleks.web.app**
-2. Sign in as **matthew.hawkins@desotoisd.org** — the administrator account. No
-   other account can do this, and the error now names the required account if
-   you use the wrong one.
-3. **Administration → My Math Path content coverage**
-4. Press **Initialize / refresh built-in starter bank**
-5. Wait for **Import complete**
+2. Sign in with the MathMaster root-administrator account.
+3. Go to **Administration → My Math Path content coverage**.
+4. Confirm **Web release** and **Server release** match.
+5. On an existing installation, run these three buttons in order:
+   - **Refresh course Path bank** — Grade 6/7/8 + Algebra I/II only.
+   - **Refresh ASVAB release** — independent ASVAB release; does not touch SAT/ACT/TSIA2.
+   - **Refresh SAT / ACT / TSIA2 release** — coordinated atomic V2.1 release; preserves ASVAB.
+6. Confirm each operation reports success and the assessment release manifest is active.
+7. Run **Recompute from bank** only if coverage needs to be refreshed manually; the course refresh already rebuilds it.
 
-Safe to run as often as you like. It is all-or-nothing: every question is
-validated by the production issuer before anything is written.
+**Do not use “Fresh installation only” on the existing production database.**
+The server intentionally refuses fresh initialization when the secure bank is
+already populated.
 
-Then, on the same screen, **Path deployment status** should show the web release
-and the server release **matching**, and a secure bank count in the thousands.
+The generic JSON importer is also **not** a substitute for the release buttons.
+Release-managed Digital SAT, ACT, TSIA2, and ASVAB content is blocked from that
+route.
+
 
 ---
 
@@ -124,7 +119,7 @@ compound query that would need one), and no manual database work beyond Block 4.
 | Path screens say "not configured on this deployment" | The build ran without the setting. Run Block 2 again — it writes it. |
 | Teacher sees "restricted to the root administrator" | Wrong account. The message names the one to use. |
 | Website looks unchanged | Hard refresh: **Ctrl+Shift+R**. |
-| Students still see old questions | Block 4 was skipped. |
+| Students still see old questions | Re-run the matching Block 4 release button: course, ASVAB, or coordinated SAT/ACT/TSIA2. |
 | **"Functions deploy had errors"** / several functions failed | See the section below — this one is expected occasionally and is not a code problem. |
 
 ---

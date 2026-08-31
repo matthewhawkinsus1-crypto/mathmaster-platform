@@ -46,6 +46,27 @@ import {
   sameValue,
 } from './answerEquivalence.mjs';
 
+import {
+  buildSystemsInequalityPrivateDefinition,
+  gradeSystemsInequalityResponse,
+  sanitizeSystemsInequalityPublicQuestion,
+  systemsInequalityDefinitionIsGradable,
+  validateSystemsInequalityResponse,
+} from './pathSystemsInequalityGrading.mjs';
+import {
+  buildDataModelingPrivateDefinition,
+  dataModelingDefinitionIsGradable,
+  gradeDataModelingResponse,
+  sanitizeDataModelingPublicQuestion,
+} from './pathDataModelingGrading.mjs';
+import {
+  buildGraphingPrivateDefinition,
+  gradeGraphingResponse,
+  graphingDefinitionIsGradable,
+  sanitizeGraphingPublicQuestion,
+  validateGraphingResponse,
+} from './pathGraphingGrading.mjs';
+
 export { asNumber, normalizeAnswer, sameNumber, sameText, sameValue } from './answerEquivalence.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
@@ -301,6 +322,34 @@ export const pick = (source, fields) => {
   return result;
 };
 
+// A function-investigation may need a visible table as the SOURCE of the graph.
+// Do not pass an arbitrary stimulus object through the secure tool boundary:
+// an authoring-only key could contain an answer. A2.2B needs only the table
+// shape, so allowlist that shape field by field and normalize rows to the same
+// Firestore-safe { cells: [...] } form the generic Path sanitizer uses.
+const sanitizeFunctionInvestigationTableStimulus = (stimulus) => {
+  if (!isObject(stimulus) || !isObject(stimulus.table)) return null;
+  const cellsForRow = (row) => (
+    Array.isArray(row) ? row : (Array.isArray(row?.cells) ? row.cells : [])
+  );
+  const headers = list(stimulus.table.headers)
+    .slice(0, 8)
+    .map((value) => String(value).slice(0, 200));
+  const rows = list(stimulus.table.rows)
+    .slice(0, 20)
+    .map((row) => ({
+      cells: cellsForRow(row).slice(0, 8).map((value) => String(value).slice(0, 200)),
+    }));
+
+  if (!headers.length && !rows.length) return null;
+  return {
+    kind: 'table',
+    ...(stimulus.title ? { title: String(stimulus.title).slice(0, 140) } : {}),
+    ...(stimulus.note ? { note: String(stimulus.note).slice(0, 300) } : {}),
+    table: { headers, rows },
+  };
+};
+
 const graded = (isCorrect, parts = [], detail = '') => ({
   isCorrect: isCorrect === true,
   score: isCorrect === true ? 1 : 0,
@@ -503,41 +552,116 @@ const CONTRACTS = {
     },
   },
 
-  // The Systems Workspace, in its linear mode. The two lines are the question;
-  // where they meet is arithmetic the server redoes for itself rather than
-  // taking the workspace's word for it.
+  // The Systems Workspace has three Path-safe modes.
   //
-  // Its other modes (inequalities, linear-quadratic, matrix) collect different
-  // work and are not eligible until each has its own grader here.
+  // Linear mode re-solves the two equations server-side. Inequality mode keeps
+  // the graph data public because it IS the question, but recomputes the marked
+  // test point and the student's candidate point server-side. Matrix3 mode
+  // exposes only the 3x4 augmented matrix and recomputes its RREF/solution on
+  // the server; the browser never supplies the authoritative answer.
   systemsWorkspace: {
-    serverGradingVersion: 1,
-    responseShape: 'orderedPairWithClassification',
-    sanitizePublicQuestion: (question) => pick(question, [
-      'prompt', 'mode', 'system', 'graph', 'context', 'hint',
-    ]),
-    buildPrivateGradingDefinition: (question) => ({
-      mode: String(question.mode || 'linear'),
-      // The same solve the workspace shows, done again where the browser
-      // cannot reach it.
-      solution: solveTwoLines(question.system),
-      tolerance: Number(question.numericTolerance ?? 0.05),
-    }),
-    validateStudentResponse: (raw) => (
-      raw && typeof raw.classification === 'string' && raw.classification.trim() !== ''
+    serverGradingVersion: 3,
+    responseShape: 'systemsWorkspace',
+    sanitizePublicQuestion: (question) => {
+      const mode = String(question.mode || 'linear');
+      if (mode === 'inequalities') return sanitizeSystemsInequalityPublicQuestion(question);
+      if (mode === 'matrix3') {
+        return pick(question, ['prompt', 'mode', 'matrix', 'context', 'hint', 'requireTechnology']);
+      }
+      return pick(question, ['prompt', 'mode', 'system', 'graph', 'context', 'hint']);
+    },
+    buildPrivateGradingDefinition: (question) => {
+      const mode = String(question.mode || 'linear');
+      if (mode === 'inequalities') return buildSystemsInequalityPrivateDefinition(question);
+      if (mode === 'matrix3') {
+        return {
+          mode: 'matrix3',
+          solution: solveThreeVariableMatrix(question.matrix),
+          tolerance: Number(question.numericTolerance ?? 0.05),
+          requireTechnology: question.requireTechnology !== false,
+        };
+      }
+      return {
+        mode: 'linear',
+        // The same solve the workspace shows, done again where the browser
+        // cannot reach it.
+        solution: solveTwoLines(question.system),
+        tolerance: Number(question.numericTolerance ?? 0.05),
+      };
+    },
+    validateStudentResponse: (raw, definition) => {
+      // The grader is selected from the server-held definition, never from a
+      // client-sent mode flag. Inequality validation also needs that definition
+      // because a construction task requires different fields from a legacy
+      // test-point task.
+      if (definition?.mode === 'inequalities') {
+        return validateSystemsInequalityResponse(raw, definition);
+      }
+      if (definition?.mode === 'matrix3') {
+        if (!raw || typeof raw.classification !== 'string' || !raw.classification.trim()) {
+          return invalid('A 3x3 matrix response needs the solution classification.');
+        }
+        if (definition.requireTechnology && raw.technologyUsed !== true) {
+          return invalid('Use the matrix RREF technology before submitting this matrix-method problem.');
+        }
+        if (definition.solution?.type === 'one' && ![raw.x, raw.y, raw.z].every((value) => Number.isFinite(Number(value)))) {
+          return invalid('A one-solution 3x3 matrix response needs x, y, and z.');
+        }
+        return valid();
+      }
+      return raw && typeof raw.classification === 'string' && raw.classification.trim() !== ''
         ? valid()
-        : invalid('A systems response needs the classification the student chose.')
-    ),
+        : invalid('A systems response needs the classification or feasible-region work the student produced.');
+    },
     gradeStudentResponse: (definition, raw) => {
+      if (definition.mode === 'inequalities') {
+        return gradeSystemsInequalityResponse(definition, raw);
+      }
       const { solution, tolerance } = definition;
       const parts = [{ id: 'classification', isCorrect: sameText(raw.classification, solution.type) }];
+      if (definition.mode === 'matrix3' && definition.requireTechnology) {
+        parts.push({ id: 'matrix-technology', isCorrect: raw.technologyUsed === true });
+      }
       if (solution.type === 'one') {
         parts.push({
           id: 'solution',
-          isCorrect: sameNumber(raw.x, solution.x, tolerance) && sameNumber(raw.y, solution.y, tolerance),
+          isCorrect: sameNumber(raw.x, solution.x, tolerance)
+            && sameNumber(raw.y, solution.y, tolerance)
+            && (definition.mode !== 'matrix3' || sameNumber(raw.z, solution.z, tolerance)),
         });
       }
       return graded(parts.every((part) => part.isCorrect), parts);
     },
+  },
+
+  // Data Modeling Lab. The points and requested mode are public; regression
+  // coefficients, correlation, tolerances and the best-model verdict are
+  // recomputed/stored only on the server. The registry tool submits its raw
+  // student work directly, so there is no browser-side correctness authority.
+  dataModelingLab: {
+    serverGradingVersion: 1,
+    responseShape: 'dataModeling',
+    sanitizePublicQuestion: sanitizeDataModelingPublicQuestion,
+    buildPrivateGradingDefinition: buildDataModelingPrivateDefinition,
+    validateStudentResponse: (raw) => (
+      raw && typeof raw === 'object' && !Array.isArray(raw)
+        ? valid()
+        : invalid('A data-modeling response needs the work the student entered in the lab.')
+    ),
+    gradeStudentResponse: (definition, raw) => gradeDataModelingResponse(definition, raw),
+  },
+
+  // Graphing2 constructs a line from conditions such as standard form,
+  // point-slope form, two given points, or a vertical/horizontal equation.
+  // Those conditions are the public question; the server independently rebuilds
+  // the target line and ignores the browser's claimed studentLine/verdict.
+  graphing2: {
+    serverGradingVersion: 1,
+    responseShape: 'graphingConstruction',
+    sanitizePublicQuestion: sanitizeGraphingPublicQuestion,
+    buildPrivateGradingDefinition: buildGraphingPrivateDefinition,
+    validateStudentResponse: validateGraphingResponse,
+    gradeStudentResponse: gradeGraphingResponse,
   },
 
   // Plot a relation, or read one. The pairs are the question here.
@@ -720,6 +844,9 @@ const CONTRACTS = {
         ],
       );
 
+      const tableStimulus = sanitizeFunctionInvestigationTableStimulus(question.stimulus);
+      if (tableStimulus) publicQuestion.stimulus = tableStimulus;
+
       if (inverse) publicQuestion.inverseReflection = inverse.publicConfig;
 
       if (list(question.pointTasks).length) {
@@ -845,7 +972,7 @@ const CONTRACTS = {
       parts: answerFieldsOf(question).map((part, index) => ({
         id: String(part?.id || `part-${index + 1}`),
         expected: part?.expected ?? part?.answer ?? null,
-        accepted: list(part?.acceptedAnswers),
+        accepted: [...list(part?.accepted), ...list(part?.acceptedAnswers)],
         tolerance: Number(part?.numericTolerance ?? question.numericTolerance ?? 1e-6),
       })),
     }),
@@ -885,6 +1012,53 @@ const solveTwoLines = (system) => {
   if (Math.abs(a - b) <= 1e-9) return { type: Math.abs(c - d) <= 1e-9 ? 'infinite' : 'none' };
   const x = (d - c) / (a - b);
   return { type: 'one', x, y: a * x + c };
+};
+
+const threeVariableMatrixRows = (matrix = {}) => {
+  if (Array.isArray(matrix?.rows) && matrix.rows.length === 3) {
+    const rows = matrix.rows.map((row) => (Array.isArray(row) ? row.slice(0, 4).map(Number) : []));
+    return rows.every((row) => row.length === 4 && row.every(Number.isFinite)) ? rows : null;
+  }
+  const rows = [
+    [matrix?.a11, matrix?.a12, matrix?.a13, matrix?.b1],
+    [matrix?.a21, matrix?.a22, matrix?.a23, matrix?.b2],
+    [matrix?.a31, matrix?.a32, matrix?.a33, matrix?.b3],
+  ].map((row) => row.map(Number));
+  return rows.every((row) => row.every(Number.isFinite)) ? rows : null;
+};
+
+const solveThreeVariableMatrix = (matrix = {}) => {
+  const source = threeVariableMatrixRows(matrix);
+  if (!source) return { type: null, rref: [] };
+  const rows = source.map((row) => [...row]);
+  const epsilon = 1e-9;
+  let pivotRow = 0;
+
+  for (let col = 0; col < 3 && pivotRow < 3; col += 1) {
+    let best = pivotRow;
+    for (let row = pivotRow + 1; row < 3; row += 1) {
+      if (Math.abs(rows[row][col]) > Math.abs(rows[best][col])) best = row;
+    }
+    if (Math.abs(rows[best][col]) <= epsilon) continue;
+    if (best !== pivotRow) [rows[pivotRow], rows[best]] = [rows[best], rows[pivotRow]];
+
+    const pivot = rows[pivotRow][col];
+    rows[pivotRow] = rows[pivotRow].map((value) => value / pivot);
+    for (let row = 0; row < 3; row += 1) {
+      if (row === pivotRow) continue;
+      const factor = rows[row][col];
+      if (Math.abs(factor) <= epsilon) continue;
+      rows[row] = rows[row].map((value, index) => value - factor * rows[pivotRow][index]);
+    }
+    pivotRow += 1;
+  }
+
+  const rref = rows.map((row) => row.map((value) => (Math.abs(value) <= epsilon ? 0 : value)));
+  const coefficientRank = rref.filter((row) => row.slice(0, 3).some((value) => Math.abs(value) > epsilon)).length;
+  const augmentedRank = rref.filter((row) => row.some((value) => Math.abs(value) > epsilon)).length;
+  if (augmentedRank > coefficientRank) return { type: 'none', rref };
+  if (coefficientRank < 3) return { type: 'infinite', rref };
+  return { type: 'one', x: rref[0][3], y: rref[1][3], z: rref[2][3], rref };
 };
 
 /** The response fields of a multi-part question, under either authoring name. */
@@ -997,6 +1171,10 @@ export const PATH_TOOL_IDS = Object.freeze(Object.keys(CONTRACTS));
 // does not have.
 const TOOL_ALIASES = Object.freeze({
   functionGraph: 'functionInvestigation',
+  // Existing authoring uses the shorter semantic name while the shared tool
+  // registry renders the component under dataModelingLab. Resolve once here so
+  // the server, simulator and browser all agree on the canonical Path tool id.
+  dataModeling: 'dataModelingLab',
 });
 
 export const getPathToolContract = (toolId) => CONTRACTS[TOOL_ALIASES[toolId] || toolId] || null;
@@ -1039,7 +1217,14 @@ export const hasGradableDefinition = (toolId, definition) => {
       // question belongs to `systemsWorkspace`, which does collect one.
       return definition.solution != null && definition.classification == null;
     case 'systemsWorkspace':
-      return definition.mode === 'linear' && definition.solution.type != null;
+      if (definition.mode === 'linear' || definition.mode === 'matrix3') {
+        return definition.solution?.type != null;
+      }
+      return definition.mode === 'inequalities' && systemsInequalityDefinitionIsGradable(definition);
+    case 'dataModelingLab':
+      return dataModelingDefinitionIsGradable(definition);
+    case 'graphing2':
+      return graphingDefinitionIsGradable(definition);
     case 'relationMapping':
       return definition.arrows.length > 0;
     case 'intervalNumberLine':
@@ -1103,7 +1288,7 @@ export const gradePathResponse = ({ privateGrading, raw }) => {
   if (!contract) {
     return { ...graded(false), rejected: true, reason: 'no_server_grader_for_this_tool' };
   }
-  const check = contract.validateStudentResponse(raw);
+  const check = contract.validateStudentResponse(raw, privateGrading.definition);
   if (!check.valid) {
     return { ...graded(false), rejected: true, reason: 'malformed_response', detail: check.reason };
   }

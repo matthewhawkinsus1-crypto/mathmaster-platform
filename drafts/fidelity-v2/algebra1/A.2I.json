@@ -1,0 +1,653 @@
+{
+  "standard": "A.2I",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-table-graph-verbal-system-writing",
+  "documents": [
+    {
+      "id": "mm_A_2I_v2_ticket-context-to-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2I"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2I:v2-ticket-context-to-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2I",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A school sells {{n}} tickets. Adult tickets cost {{a}} dollars and student tickets cost {{s}} dollars. Total revenue is {{total}} dollars. Let $x$ be adult tickets and $y$ be student tickets. Write the system that models the situation.",
+      "responseFields": [
+        {
+          "id": "count",
+          "label": "Ticket-count equation",
+          "inputProfile": "equation",
+          "expected": "x+y={{n}}"
+        },
+        {
+          "id": "revenue",
+          "label": "Revenue equation",
+          "inputProfile": "equation",
+          "expected": "{{a}}x+{{s}}y={{total}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Each sentence contributes a different equation.",
+        "reasoning": [
+          "The total number of tickets gives $x+y={{n}}$.",
+          "Price times quantity gives the revenue equation ${{a}}x+{{s}}y={{total}}$."
+        ],
+        "answerSummary": "$x+y={{n}}$ and ${{a}}x+{{s}}y={{total}}$"
+      },
+      "attemptFeedback": [
+        "Separate the information about number of tickets from the information about money."
+      ],
+      "supportHints": [
+        "One equation counts tickets; the other counts dollars."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 12,
+            "max": 60
+          },
+          "y": {
+            "type": "int",
+            "min": 12,
+            "max": 60
+          },
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 18
+          },
+          "s": {
+            "type": "int",
+            "min": 4,
+            "max": 10
+          }
+        },
+        "derived": {
+          "n": "x+y",
+          "total": "a*x+s*y"
+        },
+        "constraints": [
+          "a>s"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2I_v2_mixture-context-to-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2I"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2I:v2-mixture-context-to-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2I",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "A blend contains {{n}} liters total. Liquid A costs {{a}} dollars per liter and liquid B costs {{b}} dollars per liter. The blend costs {{total}} dollars. Let $x$ be liters of A and $y$ be liters of B. Write the system.",
+      "responseFields": [
+        {
+          "id": "volume",
+          "label": "Total-volume equation",
+          "inputProfile": "equation",
+          "expected": "x+y={{n}}"
+        },
+        {
+          "id": "cost",
+          "label": "Total-cost equation",
+          "inputProfile": "equation",
+          "expected": "{{a}}x+{{b}}y={{total}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Model quantity and cost with separate equations.",
+        "reasoning": [
+          "The liters must add to {{n}}, so $x+y={{n}}$.",
+          "The cost contributions add to {{total}}, so ${{a}}x+{{b}}y={{total}}$."
+        ],
+        "answerSummary": "$x+y={{n}}$ and ${{a}}x+{{b}}y={{total}}$"
+      },
+      "attemptFeedback": [
+        "Do not multiply the total liters by one price; each liquid has its own price."
+      ],
+      "supportHints": [
+        "Write one equation for liters and a second for dollars."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 4,
+            "max": 18
+          },
+          "y": {
+            "type": "int",
+            "min": 4,
+            "max": 18
+          },
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 8
+          },
+          "b": {
+            "type": "int",
+            "min": 9,
+            "max": 16
+          }
+        },
+        "derived": {
+          "n": "x+y",
+          "total": "a*x+b*y"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2I_v2_table-two-plans-to-system",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2I"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2I:v2-table-two-plans-to-system",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2I",
+      "taskType": "representationTranslation",
+      "representation": "table",
+      "prompt": "The table shows the cost of two linear plans for the same input $x$. Write a system with equations $y=$ for Plan A and Plan B.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "$x$",
+            "Plan A",
+            "Plan B"
+          ],
+          "rows": [
+            [
+              "0",
+              "{{a0}}",
+              "{{b0}}"
+            ],
+            [
+              "{{step}}",
+              "{{a1}}",
+              "{{b1}}"
+            ],
+            [
+              "{{step2}}",
+              "{{a2}}",
+              "{{b2}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "planA",
+          "label": "Plan A equation",
+          "inputProfile": "equation",
+          "expected": "y={{ar}}x{{a0|signed}}"
+        },
+        {
+          "id": "planB",
+          "label": "Plan B equation",
+          "inputProfile": "equation",
+          "expected": "y={{br}}x{{b0|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Each column defines its own linear function.",
+        "reasoning": [
+          "Plan A begins at {{a0}} and changes at rate {{ar}}, giving $y={{ar}}x{{a0|signed}}$.",
+          "Plan B begins at {{b0}} and changes at rate {{br}}, giving $y={{br}}x{{b0|signed}}$."
+        ],
+        "answerSummary": "$y={{ar}}x{{a0|signed}}$ and $y={{br}}x{{b0|signed}}$"
+      },
+      "attemptFeedback": [
+        "Treat each plan column as its own table-to-equation problem."
+      ],
+      "supportHints": [
+        "The row with $x=0$ gives each intercept. Use another row to find each slope."
+      ],
+      "generator": {
+        "parameters": {
+          "ar": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "br": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "a0": {
+            "type": "int",
+            "min": 5,
+            "max": 30
+          },
+          "b0": {
+            "type": "int",
+            "min": 5,
+            "max": 30
+          },
+          "step": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          }
+        },
+        "derived": {
+          "step2": "2*step",
+          "a1": "ar*step+a0",
+          "a2": "ar*step2+a0",
+          "b1": "br*step+b0",
+          "b2": "br*step2+b0"
+        },
+        "constraints": [
+          "ar!=br",
+          "a0!=b0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A_2I_v2_error-analysis-mixed-variables",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2I"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2I:v2-error-analysis-mixed-variables",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2I",
+      "taskType": "errorAnalysis",
+      "representation": "context",
+      "prompt": "A group buys {{n}} sandwiches: turkey sandwiches cost {{t}} dollars and veggie sandwiches cost {{v}} dollars. Let $x$ be turkey and $y$ be veggie. A student writes the cost equation ${{t}}y+{{v}}x={{total}}$. Write the CORRECT system.",
+      "responseFields": [
+        {
+          "id": "count",
+          "label": "Count equation",
+          "inputProfile": "equation",
+          "expected": "x+y={{n}}"
+        },
+        {
+          "id": "cost",
+          "label": "Correct cost equation",
+          "inputProfile": "equation",
+          "expected": "{{t}}x+{{v}}y={{total}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Coefficients must stay attached to the quantities they price.",
+        "reasoning": [
+          "$x$ counts turkey sandwiches, so its coefficient must be the turkey price {{t}}.",
+          "$y$ counts veggie sandwiches, so its coefficient must be the veggie price {{v}}."
+        ],
+        "answerSummary": "$x+y={{n}}$ and ${{t}}x+{{v}}y={{total}}$"
+      },
+      "attemptFeedback": [
+        "Read the variable definitions before attaching prices to variables."
+      ],
+      "supportHints": [
+        "Turkey price multiplies turkey count; veggie price multiplies veggie count."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": 8,
+            "max": 30
+          },
+          "y": {
+            "type": "int",
+            "min": 8,
+            "max": 30
+          },
+          "t": {
+            "type": "int",
+            "min": 7,
+            "max": 13
+          },
+          "v": {
+            "type": "int",
+            "min": 4,
+            "max": 9
+          }
+        },
+        "derived": {
+          "n": "x+y",
+          "total": "t*x+v*y"
+        },
+        "constraints": [
+          "t!=v"
+        ]
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b3"
+        },
+        {
+          "coverageKey": "challenge-d3b4-system-coefficient-mapping-audit",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "context",
+          "prompt": "A group buys {{n}} sandwiches: turkey costs {{t}} dollars each and veggie costs {{v}} dollars each. Let x be turkey and y be veggie. A student writes the cost equation ${{t}}y+{{v}}x={{total}}$. An audit later confirms {{x}} turkey and {{y}} veggie sandwiches were purchased. Diagnose the coefficient-variable mismatch, write the correct system, and verify the revenue using the audited counts.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What is wrong with the student's cost equation?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "coefficients-swapped",
+                  "label": "The turkey price must multiply x and the veggie price must multiply y; the student swapped the variable meanings."
+                },
+                {
+                  "id": "count-wrong",
+                  "label": "The count equation should multiply both variables by their prices."
+                },
+                {
+                  "id": "system-valid",
+                  "label": "The student's cost equation is valid because addition is commutative."
+                }
+              ],
+              "expected": "coefficients-swapped"
+            },
+            {
+              "id": "count",
+              "label": "Correct count equation",
+              "inputProfile": "equation",
+              "expected": "x+y={{n}}"
+            },
+            {
+              "id": "cost",
+              "label": "Correct cost equation",
+              "inputProfile": "equation",
+              "expected": "{{t}}x+{{v}}y={{total}}"
+            },
+            {
+              "id": "verified-count",
+              "label": "x+y using the audited counts",
+              "inputProfile": "number",
+              "expected": "{{n}}"
+            },
+            {
+              "id": "verified-revenue",
+              "label": "Revenue using the audited counts",
+              "inputProfile": "number",
+              "expected": "{{total}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Model coefficients must stay attached to the quantities they describe.",
+            "reasoning": [
+              "x counts turkey sandwiches, so the turkey price {{t}} multiplies x.",
+              "y counts veggie sandwiches, so the veggie price {{v}} multiplies y.",
+              "The audited counts satisfy both x+y={{n}} and {{t}}x+{{v}}y={{total}}, confirming the corrected model."
+            ],
+            "answerSummary": "$x+y={{n}}$ and ${{t}}x+{{v}}y={{total}}$"
+          },
+          "attemptFeedback": [
+            "Read the variable definitions before assigning prices to terms."
+          ],
+          "supportHints": [
+            "Commutativity lets you reorder whole terms, but it does not let you swap which coefficient belongs to which variable."
+          ]
+        },
+        {
+          "coverageKey": "adaptive-d3b3-context-system-candidate-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A school sells {{n}} tickets: adult tickets cost {{a}} dollars and student tickets cost {{s}} dollars. Let x be adult tickets and y be student tickets. Candidate System A uses $x+y={{n}}$ and ${{a}}x+{{s}}y={{total}}$. Candidate System B swaps the price-variable pairings. An audit shows {{x}} adult and {{y}} student tickets. Decide which system matches the variable meanings and verify the audited counts in both equations.",
+          "responseFields": [
+            {
+              "id": "choice",
+              "label": "Which system is valid?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "a",
+                  "label": "Candidate System A"
+                },
+                {
+                  "id": "b",
+                  "label": "Candidate System B"
+                }
+              ],
+              "expected": "a"
+            },
+            {
+              "id": "count-equation",
+              "label": "Correct count equation",
+              "inputProfile": "equation",
+              "expected": "x+y={{n}}"
+            },
+            {
+              "id": "revenue-equation",
+              "label": "Correct revenue equation",
+              "inputProfile": "equation",
+              "expected": "{{a}}x+{{s}}y={{total}}"
+            },
+            {
+              "id": "verify-count",
+              "label": "Verified ticket count",
+              "inputProfile": "number",
+              "expected": "{{n}}"
+            },
+            {
+              "id": "verify-revenue",
+              "label": "Verified revenue",
+              "inputProfile": "number",
+              "expected": "{{total}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "x": {
+                "type": "int",
+                "min": 3,
+                "max": 12
+              },
+              "y": {
+                "type": "int",
+                "min": 3,
+                "max": 12
+              },
+              "a": {
+                "type": "int",
+                "min": 8,
+                "max": 15
+              },
+              "s": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              }
+            },
+            "derived": {
+              "n": "x+y",
+              "total": "a*x+s*y"
+            },
+            "constraints": [
+              "a!=s"
+            ]
+          },
+          "solutionReview": {
+            "headline": "Coefficients must stay attached to the variable meanings defined in the context.",
+            "reasoning": [
+              "x counts adult tickets, so the adult price {{a}} multiplies x; y counts student tickets, so {{s}} multiplies y.",
+              "The correct system is x+y={{n}} and {{a}}x+{{s}}y={{total}}.",
+              "The audited counts satisfy both the total-count and total-revenue equations."
+            ],
+            "answerSummary": "Candidate System A is valid and the audited counts verify both equations."
+          },
+          "attemptFeedback": [
+            "Translate each variable definition before attaching prices to variables."
+          ],
+          "supportHints": [
+            "Ask what one x-unit costs and what one y-unit costs."
+          ],
+          "context": {
+            "title": "Ticket-system audit",
+            "note": "Use the audited counts only to verify the model after deciding which coefficient-variable pairing matches the context."
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_2I_v2_reverse-build-system-from-solution",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2I"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2I:v2-reverse-build-system-from-solution",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2I",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "The graph shows two linear models, A and B. Write BOTH equations in slope-intercept form.",
+      "responseFields": [
+        {
+          "id": "modelA",
+          "label": "Model A equation",
+          "inputProfile": "equation",
+          "expected": "y={{m1}}x{{b1|signed}}"
+        },
+        {
+          "id": "modelB",
+          "label": "Model B equation",
+          "inputProfile": "equation",
+          "expected": "y={{m2}}x{{b2|signed}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Each graphed line contributes one equation to the system.",
+        "reasoning": [
+          "Model A has slope {{m1}} and $y$-intercept {{b1}}, so $y={{m1}}x{{b1|signed}}$.",
+          "Model B has slope {{m2}} and $y$-intercept {{b2}}, so $y={{m2}}x{{b2|signed}}$."
+        ],
+        "answerSummary": "The system is $y={{m1}}x{{b1|signed}}$ and $y={{m2}}x{{b2|signed}}$."
+      },
+      "attemptFeedback": [
+        "Treat the two lines separately: read each slope and each $y$-intercept, then write two equations."
+      ],
+      "supportHints": [
+        "The solid/dashed styling distinguishes the two models here; it does not change either equation."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "int",
+            "min": -2,
+            "max": 2
+          },
+          "y": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "m1": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": 3,
+            "exclude": [
+              0
+            ]
+          }
+        },
+        "derived": {
+          "b1": "y-m1*x",
+          "b2": "y-m2*x",
+          "a2y": "2*m1+b1",
+          "b2y": "2*m2+b2"
+        },
+        "constraints": [
+          "m1!=m2",
+          "abs(b1)<=7",
+          "abs(b2)<=7"
+        ]
+      },
+      "stimulus": {
+        "kind": "graph",
+        "title": "Two linear models",
+        "graph": {
+          "xMin": -6,
+          "xMax": 6,
+          "yMin": -10,
+          "yMax": 10,
+          "ariaLabel": "Graph of two intersecting linear models labelled A and B",
+          "lines": [
+            {
+              "label": "Model A",
+              "boundaryStyle": "solid",
+              "points": [
+                {
+                  "x": 0,
+                  "y": "{{b1}}"
+                },
+                {
+                  "x": 2,
+                  "y": "{{a2y}}"
+                }
+              ]
+            },
+            {
+              "label": "Model B",
+              "boundaryStyle": "dashed",
+              "points": [
+                {
+                  "x": 0,
+                  "y": "{{b2}}"
+                },
+                {
+                  "x": 2,
+                  "y": "{{b2y}}"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

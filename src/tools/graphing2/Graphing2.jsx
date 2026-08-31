@@ -116,8 +116,8 @@ export default function Graphing2({ questionData = {}, onAction }) {
   const clear = () => { setPoints([]); clearFeedback(); };
 
   const plottedPoints = [
-    ...givenPoints.map((point, index) => ({ 0: point[0], 1: point[1], label: givenPoints.length > 1 ? `given ${index + 1}` : 'given', fill: '#8a3ffc' })),
-    ...points.map((point, index) => ({ 0: point[0], 1: point[1], label: `P${index + 1}`, fill: '#1a73e8' })),
+    ...givenPoints.map((point, index) => ({ x: point[0], y: point[1], label: givenPoints.length > 1 ? `given ${index + 1}` : 'given', fill: '#8a3ffc' })),
+    ...points.map((point, index) => ({ x: point[0], y: point[1], label: `P${index + 1}`, fill: '#1a73e8' })),
   ];
   const studentLines = studentLine?.kind === 'slopeIntercept' ? [{ m: studentLine.m, b: studentLine.b, stroke: '#1a73e8' }] : [];
   const verticalStudentLine = studentLine?.kind === 'vertical'

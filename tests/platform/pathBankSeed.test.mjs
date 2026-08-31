@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import {
   MINIMUM_ISSUABLE_FAMILIES, buildCoverageIndex, summarizeCoverage,
 } from '../../functions/shared/pathCoverage.mjs';
-import { recordFamilyUse, selectNextFamily } from '../../functions/shared/pathQuestionSelection.mjs';
+import { rankCandidates, recordFamilyUse, selectNextFamily } from '../../functions/shared/pathQuestionSelection.mjs';
 import { getWheelTeksForCourse } from '../../src/platform/mastery/strandConfig.js';
 
 const require = createRequire(import.meta.url);
@@ -81,6 +81,7 @@ const planAll = async (documents) => {
       issuable: templatePlan.issuable && issuePlan.issuable,
       reason: templatePlan.reason || issuePlan.reason,
       templateSamples: templatePlan.samples,
+      concreteQuestion: instantiated.question,
     };
   }
   return plans;
@@ -117,19 +118,20 @@ test('every seed document is issuable by production buildIssuePlan', () => {
 });
 
 test('every document is graded by exactly one of the two secure routes', () => {
-  // The bank now contains both kinds. What must never happen is a third kind:
-  // an item that names a tool with no contract, which would fail closed and be
-  // silently dropped from coverage.
+  // Inspect the concrete question production would issue, not a family shell.
+  // Variant-bearing families may intentionally keep grading fields only on
+  // their effective variants.
   SEED.forEach((entry) => {
     const plan = PLANS[entry.id];
+    const question = plan.concreteQuestion || entry;
     if (plan.toolPayload) {
-      assert.ok(entry.type || entry.toolId || entry.pathToolId, `${entry.id} has a tool payload but declares no tool`);
+      assert.ok(question.type || question.toolId || question.pathToolId, `${entry.id} has a tool payload but declares no tool`);
       assert.ok(plan.privateGrading?.pathToolId, `${entry.id} has no server grader`);
     } else {
-      assert.equal(entry.type, undefined, `${entry.id} declares a type with no contract`);
-      assert.equal(entry.toolId, undefined, `${entry.id} declares a toolId with no contract`);
-      assert.equal(entry.pathToolId, undefined, `${entry.id} declares a pathToolId with no contract`);
-      assert.ok(Array.isArray(entry.responseFields) && entry.responseFields.length, `${entry.id} has no response fields`);
+      assert.equal(question.type, undefined, `${entry.id} declares a type with no contract`);
+      assert.equal(question.toolId, undefined, `${entry.id} declares a toolId with no contract`);
+      assert.equal(question.pathToolId, undefined, `${entry.id} declares a pathToolId with no contract`);
+      assert.ok(Array.isArray(question.responseFields) && question.responseFields.length, `${entry.id} has no response fields`);
     }
   });
 });
@@ -155,18 +157,22 @@ test('no document asks a student to type the letter of an option', () => {
 });
 
 test('a multiple-choice item ships real selectable options', () => {
-  const choiceItems = SEED.filter((entry) => (entry.responseFields || [])
-    .some((field) => field.inputProfile === 'choice'));
-  // Deliberately not a fixed count. As standards are authored, hand-written
-  // families replace starter items and many of them are numeric, symbolic or
-  // tool-backed rather than multiple choice — so this number FALLING is a sign
-  // of progress, not a regression. What must hold is that every choice item is
-  // answerable.
-  assert.ok(choiceItems.length > 0, 'the bank should contain multiple-choice items');
-  choiceItems.forEach((entry) => {
-    assert.ok((entry.choices || []).length >= 2, `${entry.id} has a choice input but no options`);
-    const expected = String(entry.responseFields[0].expected);
-    assert.ok(entry.choices.some((choice) => choice.id === expected), `${entry.id}'s expected answer is not one of its options`);
+  const choiceFields = [];
+  SEED.forEach((entry) => {
+    (entry.responseFields || []).forEach((field) => {
+      if (field.inputProfile === 'choice') choiceFields.push({ entry, field });
+    });
+  });
+  // Options may be family-wide or local to the response field. Both shapes are
+  // supported by the renderer; what matters is that the student's actual choice
+  // field has selectable options containing its secure expected id.
+  assert.ok(choiceFields.length > 0, 'the bank should contain multiple-choice items');
+  choiceFields.forEach(({ entry, field }) => {
+    const choices = (field.choices || entry.choices || []);
+    assert.ok(choices.length >= 2, `${entry.id}/${field.id} has a choice input but no options`);
+    const expected = String(field.expected);
+    assert.ok(choices.some((choice) => String(choice.id) === expected),
+      `${entry.id}/${field.id}'s expected answer is not one of its options`);
   });
 });
 
@@ -265,6 +271,9 @@ const candidatesFor = (code) => SEED.filter((entry) => (
 ));
 
 test('every routeable standard launches a full five-question session', () => {
+  // A fifth family may be blocked by the quality audit; that is a content
+  // defect to repair, not permission to repeat one of the first four.
+  // Quality-safe fifth families are part of the five-question release contract.
   const targets = routeableTargets();
   assert.equal(targets.length, 49 + 48 + REACHABLE_PREREQUISITES.length, 'the routeable set is both wheels plus every reachable prerequisite');
 
@@ -279,8 +288,28 @@ test('every routeable standard launches a full five-question session', () => {
       let usage = {};
       const issued = [];
       for (let question = 0; question < 5; question += 1) {
+        const ranking = rankCandidates(candidates, { preferredBand: rigor.preferredDifficultyBand, usage });
         const choice = selectNextFamily(candidates, { preferredBand: rigor.preferredDifficultyBand, usage });
         if (!choice) { failures.push({ code, courseLevel, reason: 'selector_returned_nothing' }); return; }
+        if (choice.isRepeat && ranking.some((entry) => entry.timesUsed === 0)) {
+          failures.push({
+            code,
+            courseLevel,
+            reason: 'repeat_selected_while_unused_family_exists',
+            issued,
+            ranking: ranking.map((entry) => ({
+              id: entry.question.id,
+              quality: entry.quality,
+              safetyTier: entry.qualitySafetyTier,
+              blockers: entry.qualityBlockers,
+              timesUsed: entry.timesUsed,
+              band: entry.band,
+              distance: entry.distance,
+              dok: entry.dok,
+            })),
+          });
+          return;
+        }
         issued.push(choice.question.id);
         usage = recordFamilyUse(usage, choice.question.id, question + 1);
       }

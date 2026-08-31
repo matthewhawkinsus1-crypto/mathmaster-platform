@@ -1,0 +1,714 @@
+{
+  "standard": "A.2A",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-connected-table-graph-domain-range-representations",
+  "documents": [
+    {
+      "id": "mm_A_2A_v2_bounded-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:v2-bounded-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "For $f(x)={{m}}x{{b|signed}}$ on the domain $[{{lo}},{{hi}}]$, write the range in interval notation.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Range",
+          "inputProfile": "interval",
+          "expected": "[{{ylo}},{{yhi}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A positive-slope line preserves the endpoint order.",
+        "reasoning": [
+          "Evaluate the function at both domain endpoints.",
+          "Because $m={{m}}>0$, the smaller input gives the smaller output, so the range runs from {{ylo}} to {{yhi}}."
+        ],
+        "answerSummary": "$[{{ylo}},{{yhi}}]$"
+      },
+      "attemptFeedback": [
+        "Evaluate both ends of the stated domain before writing the output interval."
+      ],
+      "supportHints": [
+        "For an increasing line, the minimum and maximum outputs occur at the left and right domain endpoints."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "lo": {
+            "type": "int",
+            "min": -5,
+            "max": 0
+          },
+          "span": {
+            "type": "int",
+            "min": 2,
+            "max": 7
+          }
+        },
+        "derived": {
+          "hi": "lo+span",
+          "ylo": "m*lo+b",
+          "yhi": "m*hi+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2A_v2_context-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:v2-context-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A service charges ${{fee}} dollars plus ${{rate}} dollars per hour and can be booked from 0 through {{maxh}} hours. Write BOTH the reasonable domain of $h$ and the corresponding range of the cost $C$ in interval notation.",
+      "responseFields": [
+        {
+          "id": "domain",
+          "label": "Reasonable domain of h",
+          "inputProfile": "interval",
+          "expected": "[0,{{maxh}}]"
+        },
+        {
+          "id": "range",
+          "label": "Corresponding range of C",
+          "inputProfile": "interval",
+          "expected": "[{{fee}},{{maxcost}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The context restricts the inputs, and the linear model carries those restrictions to the outputs.",
+        "reasoning": [
+          "Hours can range from 0 through {{maxh}}, so the reasonable domain is $[0,{{maxh}}]$.",
+          "The cost starts at the fixed fee {{fee}} and reaches {{maxcost}} at {{maxh}} hours, giving range $[{{fee}},{{maxcost}}]$."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after finding the input interval; use the endpoints to find the output interval too."
+      ],
+      "supportHints": [
+        "The fixed fee is the cost when $h=0$."
+      ],
+      "generator": {
+        "parameters": {
+          "fee": {
+            "type": "int",
+            "min": 5,
+            "max": 30
+          },
+          "rate": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "maxh": {
+            "type": "int",
+            "min": 3,
+            "max": 12
+          }
+        },
+        "derived": {
+          "maxcost": "fee+rate*maxh"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-bounded-service-domain-range",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "A service charges {{fee}} dollars plus {{rate}} dollars per hour and may be booked from 0 through {{maxh}} hours. Write the reasonable domain of h and the corresponding range of C in interval notation. Use the two endpoint costs to determine the range.",
+          "responseFields": [
+            {
+              "id": "domain",
+              "label": "Reasonable domain of h",
+              "inputProfile": "expression",
+              "expected": "[0,{{maxh}}]"
+            },
+            {
+              "id": "min-cost",
+              "label": "Minimum cost",
+              "inputProfile": "number",
+              "expected": "{{fee}}"
+            },
+            {
+              "id": "max-cost",
+              "label": "Maximum cost",
+              "inputProfile": "number",
+              "expected": "{{maxCost}}"
+            },
+            {
+              "id": "range",
+              "label": "Range of C",
+              "inputProfile": "expression",
+              "expected": "[{{fee}},{{maxCost}}]"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "fee": {
+                "type": "int",
+                "min": 5,
+                "max": 30,
+                "step": 5
+              },
+              "rate": {
+                "type": "int",
+                "min": 2,
+                "max": 10
+              },
+              "maxh": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              }
+            },
+            "derived": {
+              "maxCost": "fee+rate*maxh",
+              "maxcost": "fee+rate*maxh"
+            }
+          },
+          "solutionReview": {
+            "headline": "Use the allowed input interval and evaluate both endpoints.",
+            "reasoning": [
+              "The booking time can vary from 0 through {{maxh}}, so the domain is [0,{{maxh}}].",
+              "At h=0 the cost is {{fee}}; at h={{maxh}} the cost is {{maxCost}}.",
+              "Because the rate is positive, the cost range is [{{fee}},{{maxCost}}]."
+            ],
+            "answerSummary": "Domain [0,{{maxh}}]; range [{{fee}},{{maxCost}}]."
+          },
+          "attemptFeedback": [
+            "Use the allowed h-values first, then evaluate the linear cost at both endpoints."
+          ],
+          "supportHints": [
+            "A positive rate makes the smallest cost occur at h=0 and the largest at h=max."
+          ]
+        },
+        {
+          "coverageKey": "adaptive-d2b4-two-representations-decreasing-bounded-range",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "For the decreasing linear function $f(x)=-{{mag}}x{{b|signed}}$ restricted to $[{{lo}},{{hi}}]$, determine the range and then write the same range both in interval notation and as a compound inequality in y.",
+          "responseFields": [
+            {
+              "id": "left-output",
+              "label": "f({{lo}})",
+              "inputProfile": "number",
+              "expected": "{{yleft}}"
+            },
+            {
+              "id": "right-output",
+              "label": "f({{hi}})",
+              "inputProfile": "number",
+              "expected": "{{yright}}"
+            },
+            {
+              "id": "interval",
+              "label": "Range in interval notation",
+              "inputProfile": "expression",
+              "expected": "[{{yright}},{{yleft}}]"
+            },
+            {
+              "id": "inequality",
+              "label": "Equivalent range inequality",
+              "inputProfile": "expression",
+              "expected": "{{yright}}<=y and y<={{yleft}}"
+            }
+          ],
+          "generator": {
+            "parameters": {
+              "mag": {
+                "type": "int",
+                "min": 2,
+                "max": 8
+              },
+              "b": {
+                "type": "int",
+                "min": -12,
+                "max": 12
+              },
+              "lo": {
+                "type": "int",
+                "min": -6,
+                "max": -1
+              },
+              "width": {
+                "type": "int",
+                "min": 3,
+                "max": 8
+              }
+            },
+            "derived": {
+              "hi": "lo+width",
+              "yleft": "-mag*lo+b",
+              "yright": "-mag*hi+b"
+            }
+          },
+          "solutionReview": {
+            "headline": "A decreasing linear function reverses which input endpoint gives the minimum output.",
+            "reasoning": [
+              "Evaluate both domain endpoints: f({{lo}})={{yleft}} and f({{hi}})={{yright}}.",
+              "Because the slope is negative, {{yright}} is the smaller output and {{yleft}} is the larger output.",
+              "The same range is [{{yright}},{{yleft}}] and {{yright}}≤y≤{{yleft}}."
+            ],
+            "answerSummary": "Range [{{yright}},{{yleft}}], equivalently {{yright}}≤y≤{{yleft}}."
+          },
+          "attemptFeedback": [
+            "Order the range by output size, not by the left-to-right order of the input endpoints."
+          ],
+          "supportHints": [
+            "For a negative slope, increasing x makes the output decrease."
+          ],
+          "context": {
+            "title": "Bounded decreasing linear function",
+            "note": "Represent the same range in two mathematically equivalent forms."
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_2A_v2_discrete-mapping-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:v2-discrete-mapping-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "representationTranslation",
+      "representation": "orderedPairs",
+      "type": "relationMapping",
+      "prompt": "This DISCRETE linear function is defined only by the displayed ordered pairs. Use the mapping to identify its domain and range.",
+      "pairs": [
+        {
+          "x": "{{x0}}",
+          "y": "{{y0}}"
+        },
+        {
+          "x": "{{x1}}",
+          "y": "{{y1}}"
+        },
+        {
+          "x": "{{x2}}",
+          "y": "{{y2}}"
+        },
+        {
+          "x": "{{x3}}",
+          "y": "{{y3}}"
+        }
+      ],
+      "ask": [
+        "domain",
+        "range",
+        "isFunction"
+      ],
+      "solutionReview": {
+        "headline": "For a discrete function, the listed input values are the domain and the listed outputs are the range.",
+        "reasoning": [
+          "Read the first coordinate of each ordered pair to build the domain.",
+          "Read the second coordinates for the range; each listed input has exactly one output, so this relation is a function."
+        ]
+      },
+      "attemptFeedback": [
+        "Keep inputs and outputs separate: domain comes from x-values, range from y-values."
+      ],
+      "supportHints": [
+        "A discrete relation has only the listed points; do not fill in values between them."
+      ],
+      "generator": {
+        "parameters": {
+          "x0": {
+            "type": "int",
+            "min": -4,
+            "max": -1
+          },
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        },
+        "derived": {
+          "x1": "x0+1",
+          "x2": "x0+2",
+          "x3": "x0+3",
+          "y0": "m*x0+b",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b",
+          "y3": "m*x3+b"
+        }
+      }
+    },
+    {
+      "id": "mm_A_2A_v2_table-domain-range",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:v2-table-domain-range",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "representationTranslation",
+      "representation": "multipleRepresentation",
+      "prompt": "The table and coordinate graph show the SAME discrete linear function. Write its domain and range as sets.",
+      "stimulus": {
+        "kind": "multipleRepresentation",
+        "title": "Discrete linear function",
+        "graph": {
+          "xMin": -6,
+          "xMax": 6,
+          "yMin": -12,
+          "yMax": 12,
+          "ariaLabel": "Four discrete points from the same linear function shown in the table",
+          "points": [
+            {
+              "x": "{{x0}}",
+              "y": "{{y0}}"
+            },
+            {
+              "x": "{{x1}}",
+              "y": "{{y1}}"
+            },
+            {
+              "x": "{{x2}}",
+              "y": "{{y2}}"
+            },
+            {
+              "x": "{{x3}}",
+              "y": "{{y3}}"
+            }
+          ]
+        },
+        "table": {
+          "headers": [
+            "Input $x$",
+            "Output $f(x)$"
+          ],
+          "rows": [
+            [
+              "{{x0}}",
+              "{{y0}}"
+            ],
+            [
+              "{{x1}}",
+              "{{y1}}"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}"
+            ],
+            [
+              "{{x3}}",
+              "{{y3}}"
+            ]
+          ]
+        },
+        "note": "Because the function is discrete, only the four plotted/table inputs and outputs belong to this relation."
+      },
+      "responseFields": [
+        {
+          "id": "domain",
+          "label": "Domain",
+          "inputProfile": "set",
+          "expected": "{ {{x0}}, {{x1}}, {{x2}}, {{x3}} }"
+        },
+        {
+          "id": "range",
+          "label": "Range",
+          "inputProfile": "set",
+          "expected": "{ {{y0}}, {{y1}}, {{y2}}, {{y3}} }"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The table and graph encode the same finite input-output set.",
+        "reasoning": [
+          "The domain is the set of x-values shown in the input column and as horizontal coordinates: {{x0}}, {{x1}}, {{x2}}, and {{x3}}.",
+          "The range is the set of corresponding y-values shown in the output column and as vertical coordinates: {{y0}}, {{y1}}, {{y2}}, and {{y3}}."
+        ],
+        "answerSummary": "Domain $=\\{ {{x0}}, {{x1}}, {{x2}}, {{x3}} \\}$; range $=\\{ {{y0}}, {{y1}}, {{y2}}, {{y3}} \\}$."
+      },
+      "attemptFeedback": [
+        "Use x-coordinates for the domain and y-coordinates for the range; do not fill in values between the discrete points."
+      ],
+      "supportHints": [
+        "A discrete graph contains only its plotted points, so read the domain horizontally and the range vertically."
+      ],
+      "generator": {
+        "parameters": {
+          "x0": {
+            "type": "int",
+            "min": -3,
+            "max": 0
+          },
+          "m": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "x1": "x0+1",
+          "x2": "x0+2",
+          "x3": "x0+3",
+          "y0": "m*x0+b",
+          "y1": "m*x1+b",
+          "y2": "m*x2+b",
+          "y3": "m*x3+b"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b3"
+        },
+        {
+          "coverageKey": "challenge-d3b4-discrete-versus-interval-range-error",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "multipleRepresentation",
+          "prompt": "The table and coordinate graph show ONLY the four displayed points of a discrete linear function. A student writes the domain and range as continuous intervals from the smallest value to the largest value. Diagnose why that adds inputs and outputs that are not in the function, then give the correct domain and range as finite sets.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "Why are intervals incorrect here?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "discrete-only",
+                  "label": "The function is defined only at the displayed discrete points; an interval would add unlisted inputs and outputs."
+                },
+                {
+                  "id": "linear-always-continuous",
+                  "label": "Every linear pattern automatically includes all real values between the displayed points."
+                },
+                {
+                  "id": "range-only-interval",
+                  "label": "Only the range must be continuous; the domain can stay discrete."
+                }
+              ],
+              "expected": "discrete-only"
+            },
+            {
+              "id": "domain",
+              "label": "Correct domain set",
+              "inputProfile": "expression",
+              "expected": "{ {{x0}}, {{x1}}, {{x2}}, {{x3}} }"
+            },
+            {
+              "id": "range",
+              "label": "Correct range set",
+              "inputProfile": "expression",
+              "expected": "{ {{y0}}, {{y1}}, {{y2}}, {{y3}} }"
+            },
+            {
+              "id": "extra-input",
+              "label": "Does the function include every real x between {{x0}} and {{x3}}?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "no",
+                  "label": "No"
+                },
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                }
+              ],
+              "expected": "no"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A linear pattern can still be a discrete function when only specific inputs are defined.",
+            "reasoning": [
+              "The displayed inputs are exactly {{x0}}, {{x1}}, {{x2}}, and {{x3}}.",
+              "Only their corresponding outputs belong to the range.",
+              "Writing intervals would invent unlisted points between the displayed coordinates."
+            ],
+            "answerSummary": "Use finite domain and range sets, not intervals."
+          },
+          "attemptFeedback": [
+            "Decide whether the relation is defined between the displayed x-values before choosing interval notation."
+          ],
+          "supportHints": [
+            "A straight-line pattern among points does not by itself make a discrete relation continuous."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mm_A_2A_v2_decreasing-range-error",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.2A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.2A:v2-decreasing-range-error",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.2A",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "For $p(x)=-{{mag}}x{{b|signed}}$ on $[{{lo}},{{hi}}]$, a student writes the range as $[{{yleft}},{{yright}}]$ in that same left-to-right order. Correct the range in interval notation.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct range",
+          "inputProfile": "interval",
+          "expected": "[{{rlo}},{{rhi}}]"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A decreasing function reverses which endpoint produces the minimum and maximum output.",
+        "reasoning": [
+          "Evaluate both endpoints: $p({{lo}})={{yleft}}$ and $p({{hi}})={{yright}}$.",
+          "Interval notation must list the smaller output first, so the range is $[{{rlo}},{{rhi}}]$."
+        ]
+      },
+      "attemptFeedback": [
+        "The domain order does not automatically become the range order for a decreasing function."
+      ],
+      "supportHints": [
+        "Compare the two endpoint outputs numerically before writing the interval."
+      ],
+      "generator": {
+        "parameters": {
+          "mag": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "lo": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "span": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "hi": "lo+span",
+          "yleft": "-mag*lo+b",
+          "yright": "-mag*hi+b",
+          "rlo": "min(yleft,yright)",
+          "rhi": "max(yleft,yright)"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-endpoint-reasoning-range-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "For $p(x)=-{{mag}}x{{b|signed}}$ on $[{{lo}},{{hi}}]$, Student A says the range is $[{{yleft}},{{yright}}]$ because those outputs came from the left and right endpoints in that order. Student B says the smaller output must be written first. Decide which reasoning is valid, use the endpoint outputs to justify it, and give the correct range.",
+          "responseFields": [
+            {
+              "id": "left-output",
+              "label": "p({{lo}})",
+              "inputProfile": "number",
+              "expected": "{{yleft}}"
+            },
+            {
+              "id": "right-output",
+              "label": "p({{hi}})",
+              "inputProfile": "number",
+              "expected": "{{yright}}"
+            },
+            {
+              "id": "reasoning",
+              "label": "Which student's reasoning is valid?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "student-b",
+                  "label": "Student B; interval notation is ordered from the smaller output to the larger output."
+                },
+                {
+                  "id": "student-a",
+                  "label": "Student A; range endpoints must stay in left-to-right input order."
+                }
+              ],
+              "expected": "student-b"
+            },
+            {
+              "id": "range",
+              "label": "Correct range",
+              "inputProfile": "expression",
+              "expected": "[{{yright}},{{yleft}}]"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -77,11 +77,36 @@ export const PATH_TOOL_QUESTIONS = {
     ],
   },
 
+  dataModelingLab: {
+    type: 'dataModelingLab',
+    prompt: 'Use technology to calculate the correlation coefficient and interpret its direction and strength.',
+    mode: 'correlation',
+    points: [[0, 2], [1, 4], [2, 6], [3, 8], [4, 10]],
+    correlationTolerance: 0.01,
+  },
+
   systemsWorkspace: {
     type: 'systemsWorkspace',
     prompt: 'Solve and classify the system.',
     mode: 'linear',
     system: { m1: 2, b1: 1, m2: -1, b2: 7 },
+  },
+
+  dataModelingLab: {
+    type: 'dataModelingLab',
+    prompt: 'Calculate and interpret the correlation coefficient.',
+    mode: 'correlation',
+    points: [[1, 3], [2, 5], [3, 7], [4, 9]],
+    correlationTolerance: 0.02,
+  },
+
+  graphing2: {
+    type: 'graphing2',
+    prompt: 'Graph y = 2x + 1 using two points.',
+    mode: 'slopeIntercept',
+    line: { m: 2, b: 1 },
+    graphBounds: { xMin: -6, xMax: 6, yMin: -8, yMax: 10 },
+    tolerance: 0.12,
   },
 
   stepAlgebra: {

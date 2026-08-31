@@ -136,7 +136,7 @@ function SequenceVisual({ spec, count = 7, title = 'Table + discrete graph' }) {
       xMax={count + 1}
       yMin={bounds.yMin}
       yMax={bounds.yMax}
-      points={rows.map((row) => ({ 0: row.n, 1: row.value, label: `a${row.n}` }))}
+      points={rows.map((row) => ({ x: row.n, y: row.value, label: `a${row.n}` }))}
     />
     <div style={{ overflowX: 'auto', marginTop: 12 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 280 }}>
@@ -326,7 +326,7 @@ function FullSequenceBridge({ questionData, feedback, submit, onAction }) {
           xMax={count + 1}
           yMin={bounds.yMin}
           yMax={bounds.yMax}
-          points={plottedPoints.map(([x, y]) => ({ 0: x, 1: y, label: `(${numberText(x)}, ${numberText(y)})` }))}
+          points={plottedPoints.map(([x, y]) => ({ x, y, label: `(${numberText(x)}, ${numberText(y)})` }))}
           onPlot={requirePlot ? handlePlot : null}
           snapStep={plotSnapStep}
           cursorLabel="Sequence point"
@@ -565,34 +565,188 @@ function PartialSum({ questionData, feedback, submit, onAction }) {
 function CompareSequences({ questionData, feedback, submit, onAction }) {
   const left = normalizeSequenceSpec(questionData.left || { kind: 'arithmetic', first: 3, difference: 4 }, questionData.left?.kind || 'arithmetic');
   const right = normalizeSequenceSpec(questionData.right || { kind: 'geometric', first: 1, ratio: 2 }, questionData.right?.kind || 'geometric');
+  const actions = Array.isArray(questionData.studentActions) ? questionData.studentActions : [];
+  const requirePlot = actions.includes('plotSequence');
   const compareN = Number(questionData.compareN ?? 7);
   const result = compareSequencesAt(left, right, compareN);
   const leftLabel = questionData.leftLabel || 'Sequence A';
   const rightLabel = questionData.rightLabel || 'Sequence B';
   const evidenceCount = sequenceEvidenceCount(questionData.displayCount ?? 7, compareN, { revealTarget: questionData.revealCompareTerm === true, cap: 7 });
-  const leftRows = generateSequence(left, evidenceCount);
-  const rightRows = generateSequence(right, evidenceCount);
+  const authoredDisplayCount = Number(questionData.displayCount);
+  const preferredPlotCount = Number.isInteger(authoredDisplayCount) && authoredDisplayCount > 0
+    ? authoredDisplayCount
+    : Math.min(compareN, 7);
+  const plotCount = requirePlot
+    ? Math.max(1, Math.min(8, Math.max(preferredPlotCount, Math.min(compareN, 7))))
+    : evidenceCount;
+  const leftRows = generateSequence(left, plotCount);
+  const rightRows = generateSequence(right, plotCount);
   const bounds = graphBounds([...leftRows, ...rightRows].map((row) => row.value));
+  const plotSnapStep = inferPlotSnapStep([...leftRows, ...rightRows], questionData.plotSnapStep);
+  const [activeSeries, setActiveSeries] = useState('A');
+  const [leftPlottedPoints, setLeftPlottedPoints] = useState([]);
+  const [rightPlottedPoints, setRightPlottedPoints] = useState([]);
+  const [plotMessage, setPlotMessage] = useState('');
   const [relation, setRelation] = useState('');
   const [difference, setDifference] = useState('');
   const expectedRelation = result.relation === 'left' ? 'A' : result.relation === 'right' ? 'B' : 'equal';
-  const check = () => {
-    const checks = [relation === expectedRelation, matchesNumber(difference, result.difference, 0.01)];
-    submit({ isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / 2 }, { relation, difference }, { mode: 'compare', compareN });
+
+  const handlePlot = (point) => {
+    const rawN = Number(point?.[0]);
+    const value = Number(point?.[1]);
+    const n = Math.round(rawN);
+    if (!Number.isFinite(rawN) || !Number.isFinite(value) || Math.abs(rawN - n) > 1e-7 || n < 1 || n > plotCount) {
+      setPlotMessage('Sequence inputs are whole-number term positions from n = 1 through n = ' + plotCount + '.');
+      return;
+    }
+    setPlotMessage('');
+    const setPoints = activeSeries === 'A' ? setLeftPlottedPoints : setRightPlottedPoints;
+    setPoints((current) => {
+      const withoutSameInput = current.filter((entry) => Number(entry[0]) !== n);
+      return [...withoutSameInput, [n, value]].sort((a, b) => Number(a[0]) - Number(b[0]));
+    });
   };
+
+  const check = () => {
+    const checks = [];
+    if (requirePlot) {
+      const tolerance = Math.max(0.02, plotSnapStep / 3);
+      checks.push(pointSetMatchesRows(leftPlottedPoints, leftRows, tolerance));
+      checks.push(pointSetMatchesRows(rightPlottedPoints, rightRows, tolerance));
+    }
+    checks.push(relation === expectedRelation);
+    checks.push(matchesNumber(difference, result.difference, 0.01));
+    submit(
+      { isCorrect: checks.every(Boolean), score: checks.filter(Boolean).length / checks.length },
+      { relation, difference, leftPlottedPoints, rightPlottedPoints },
+      { mode: 'compare', compareN, plotRequired: requirePlot, plotCount: requirePlot ? plotCount : 0 },
+    );
+  };
+
+  const taskSteps = requirePlot
+    ? [
+        'Select Sequence A and plot its ordered pairs as discrete points.',
+        'Select Sequence B and plot its ordered pairs on the same coordinate plane.',
+        'Use the graphs and rules to compare both sequences at the requested term.',
+        'Choose the larger term and give the absolute difference.',
+      ]
+    : [
+        'Work out the requested term of each sequence separately.',
+        'Compare the two values.',
+        'Choose the relationship and give the difference.',
+      ];
+
+  const visiblePoints = requirePlot
+    ? [
+        ...leftPlottedPoints.map(([x, y]) => ({ x, y, fill: '#1a73e8', radius: 8 })),
+        ...rightPlottedPoints.map(([x, y]) => ({ x, y, fill: '#d93025', radius: 5 })),
+      ]
+    : [
+        ...leftRows.map((row) => ({ x: row.n, y: row.value, fill: '#1a73e8', radius: 8 })),
+        ...rightRows.map((row) => ({ x: row.n, y: row.value, fill: '#d93025', radius: 5 })),
+      ];
   return <ToolShell title="Compare the Sequences" subtitle="Compare additive and multiplicative growth at the same term number." badge="Growth comparison">
-    <TaskCard question={questionData} task={'Compare the two sequences at the given term number.'} steps={['Work out the requested term of each sequence separately.', 'Compare the two values.', 'Choose the relationship and give the difference.']} />
+    <TaskCard
+      question={questionData}
+      task={requirePlot ? 'Plot both sequences as discrete functions, then compare them at the requested term number.' : 'Compare the two sequences at the given term number.'}
+      steps={taskSteps}
+    />
     <ToolGrid min={330}>
-      <Panel title="Two discrete models">
-        <CoordinatePlane xMin={0} xMax={evidenceCount + 1} yMin={bounds.yMin} yMax={bounds.yMax} points={[...leftRows.map((row) => ({ 0: row.n, 1: row.value, fill: '#1a73e8' })), ...rightRows.map((row) => ({ 0: row.n, 1: row.value, fill: '#d93025' }))]} />
+      <Panel title={requirePlot ? 'Plot the two sequences' : 'Two discrete models'}>
+        {requirePlot && (
+          <>
+            <p style={{ marginTop: 0, color: '#5f6b7a' }}>
+              Choose a sequence, then click each ordered pair on the graph. Switching sequences changes which model receives the next point.
+            </p>
+            <div role="group" aria-label="Sequence to plot" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+              <button
+                type="button"
+                aria-pressed={activeSeries === 'A'}
+                onClick={() => setActiveSeries('A')}
+                style={{
+                  ...actionStyle,
+                  marginTop: 0,
+                  background: activeSeries === 'A' ? '#1a73e8' : '#fff',
+                  color: activeSeries === 'A' ? '#fff' : '#174ea6',
+                  border: '2px solid #1a73e8',
+                }}
+              >
+                ● Plot {leftLabel}
+              </button>
+              <button
+                type="button"
+                aria-pressed={activeSeries === 'B'}
+                onClick={() => setActiveSeries('B')}
+                style={{
+                  ...actionStyle,
+                  marginTop: 0,
+                  background: activeSeries === 'B' ? '#d93025' : '#fff',
+                  color: activeSeries === 'B' ? '#fff' : '#b3261e',
+                  border: '2px solid #d93025',
+                }}
+              >
+                ● Plot {rightLabel}
+              </button>
+            </div>
+          </>
+        )}
+        <CoordinatePlane
+          xMin={0}
+          xMax={plotCount + 1}
+          yMin={bounds.yMin}
+          yMax={bounds.yMax}
+          points={visiblePoints}
+          onPlot={requirePlot ? handlePlot : null}
+          snapStep={plotSnapStep}
+          cursorLabel={activeSeries === 'A' ? leftLabel + ' point' : rightLabel + ' point'}
+          ariaLabel={requirePlot ? 'Interactive graph for plotting two discrete sequences' : 'Graph comparing two discrete sequences'}
+        />
         <p><span style={{ color: '#1a73e8', fontWeight: 900 }}>● {leftLabel}</span> &nbsp; <span style={{ color: '#d93025', fontWeight: 900 }}>● {rightLabel}</span></p>
-        <p style={{ color: '#5f6b7a' }}>Do not decide from the first few terms alone; compare both rules at the requested index.</p>
+        {requirePlot ? (
+          <>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={() => setLeftPlottedPoints([])}
+                disabled={!leftPlottedPoints.length}
+                style={{ ...actionStyle, marginTop: 0, background: '#fff', color: '#174ea6', border: '1px solid #aecbfa' }}
+              >
+                Clear {leftLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => setRightPlottedPoints([])}
+                disabled={!rightPlottedPoints.length}
+                style={{ ...actionStyle, marginTop: 0, background: '#fff', color: '#b3261e', border: '1px solid #f2b8b5' }}
+              >
+                Clear {rightLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setLeftPlottedPoints([]); setRightPlottedPoints([]); }}
+                disabled={!leftPlottedPoints.length && !rightPlottedPoints.length}
+                style={{ ...actionStyle, marginTop: 0, background: '#fff', color: '#5f6b7a', border: '1px solid #cfd8e6' }}
+              >
+                Clear both
+              </button>
+              <span style={{ color: '#5f6b7a', fontSize: 13 }}>
+                {leftLabel}: {leftPlottedPoints.length}/{leftRows.length} · {rightLabel}: {rightPlottedPoints.length}/{rightRows.length}
+              </span>
+            </div>
+            {plotMessage && <p style={{ margin: '8px 0 0', color: '#b06000', fontWeight: 700 }}>{plotMessage}</p>}
+            <p style={{ color: '#5f6b7a', marginBottom: 0 }}>
+              Term number n is the domain input. Plot separate points only; a sequence graph is discrete.
+            </p>
+          </>
+        ) : (
+          <p style={{ color: '#5f6b7a' }}>Do not decide from the first few terms alone; compare both rules at the requested index.</p>
+        )}
       </Panel>
       <Panel title={`Compare at n = ${compareN}`}>
         <label>Larger term<select value={relation} onChange={(event) => setRelation(event.target.value)} style={inputStyle}><option value="">Choose…</option><option value="A">{leftLabel}</option><option value="B">{rightLabel}</option><option value="equal">They are equal</option></select></label>
         <label style={{ display: 'block', marginTop: 10 }}>Absolute difference between the terms<input value={difference} onChange={(event) => setDifference(event.target.value)} style={inputStyle} /></label>
         <button type="button" onClick={check} style={actionStyle}>Check comparison</button>
-        {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? 'The comparison uses the same term number for both sequences.' : `Evaluate both rules at n = ${compareN}, then compare their outputs.`}</ResultPill></div> : null}
+        {feedback ? <div style={{ marginTop: 12 }}><ResultPill ok={feedback.isCorrect}>{feedback.isCorrect ? (requirePlot ? 'Both discrete graphs and the comparison agree.' : 'The comparison uses the same term number for both sequences.') : (requirePlot ? 'Check every plotted point for both sequences, then compare the two requested terms.' : 'Evaluate both rules at n = ' + compareN + ', then compare their outputs.')}</ResultPill></div> : null}
       <HintPanel hints={['Do not judge by the early terms — additive and multiplicative growth trade places.', 'Compute the requested term of each sequence independently before comparing anything.', 'Geometric growth starts slower but overtakes arithmetic growth eventually, and then pulls away fast.']} onHintUsed={() => onAction?.("HINT_USED")} /></Panel>
     </ToolGrid>
   </ToolShell>;

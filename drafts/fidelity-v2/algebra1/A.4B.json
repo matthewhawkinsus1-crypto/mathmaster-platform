@@ -1,0 +1,601 @@
+{
+  "standard": "A.4B",
+  "verdict": "KEEP",
+  "certificationStatus": "candidate-keep-math-association-causation-choice-security-certified",
+  "documents": [
+    {
+      "id": "mm_A_4B_v2_confounder-season",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4B:v2-confounder-season",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.4B",
+      "taskType": "conceptual",
+      "representation": "context",
+      "prompt": "{{item1}} sales and {{item2}} incidents both rise during hot months. Which explanation best shows why correlation does not establish causation?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Two variables can move together because a third variable affects both.",
+          "Seasonal temperature is a plausible lurking variable in this context."
+        ],
+        "answerSummary": "Hot weather can influence both variables."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "item1": {
+            "type": "choice",
+            "values": [
+              "ice cream",
+              "cold drink",
+              "pool pass",
+              "sunscreen"
+            ]
+          },
+          "item2": {
+            "type": "choice",
+            "values": [
+              "swimming",
+              "heat-related",
+              "beach rescue",
+              "water-park"
+            ]
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "choice",
+          "expected": "opt-1"
+        }
+      ],
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "hot weather can influence both variables"
+        },
+        {
+          "id": "opt-2",
+          "label": "the first variable must cause the second"
+        },
+        {
+          "id": "opt-3",
+          "label": "the second variable must cause the first"
+        },
+        {
+          "id": "opt-4",
+          "label": "correlation proves the variables are identical"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_4B_v2_random-assignment",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4B:v2-random-assignment",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.4B",
+      "taskType": "comparison",
+      "representation": "context",
+      "prompt": "Researchers have {{group}} students and want to know whether a tutoring program CAUSES higher scores. Which design gives the strongest causal evidence?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Causal claims are strongest when subjects are randomly assigned to treatment and comparison groups.",
+          "Random assignment helps balance lurking variables between the groups."
+        ],
+        "answerSummary": "Randomly assign participants to tutoring and no-tutoring groups."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "group": {
+            "type": "int",
+            "min": 40,
+            "max": 160
+          }
+        }
+      },
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Design",
+            "Assignment"
+          ],
+          "rows": [
+            [
+              "Experiment",
+              "random assignment"
+            ],
+            [
+              "Observation",
+              "self-selected groups"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "choice",
+          "expected": "opt-1"
+        }
+      ],
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "randomly assign participants to tutoring and no-tutoring groups"
+        },
+        {
+          "id": "opt-2",
+          "label": "survey students who already chose tutoring"
+        },
+        {
+          "id": "opt-3",
+          "label": "compare this year with a different school last year"
+        },
+        {
+          "id": "opt-4",
+          "label": "ask students whether tutoring felt helpful"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_4B_v2_observational-limit",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4B:v2-observational-limit",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.4B",
+      "taskType": "interpretation",
+      "representation": "context",
+      "prompt": "A survey of {{n}} students finds that those who report {{habit}} also report higher grades. What can the survey establish by itself?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "An observational survey can reveal an association between measured variables.",
+          "Without random assignment or another strong causal design, it cannot by itself establish cause and effect."
+        ],
+        "answerSummary": "It can establish an association, not causation."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "habit": {
+            "type": "choice",
+            "values": [
+              "more sleep",
+              "more reading",
+              "eating breakfast",
+              "less screen time",
+              "more exercise"
+            ]
+          },
+          "n": {
+            "type": "int",
+            "min": 50,
+            "max": 300
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "choice",
+          "expected": "opt-1"
+        }
+      ],
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "an association, not causation"
+        },
+        {
+          "id": "opt-2",
+          "label": "that the habit definitely causes higher grades"
+        },
+        {
+          "id": "opt-3",
+          "label": "that grades cause the habit"
+        },
+        {
+          "id": "opt-4",
+          "label": "that no lurking variables exist"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_4B_v2_headline-error",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4B:v2-headline-error",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.4B",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A headline incorrectly claims, “People who {{behavior}} have {{pct}}% better outcomes, so {{behavior}} causes improvement.” What is the main flaw if the data came only from an observational study?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Observed association alone does not control all alternative explanations.",
+          "The headline changes an association into a causal claim without sufficient design evidence."
+        ],
+        "answerSummary": "The conclusion confuses association with causation."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "behavior": {
+            "type": "choice",
+            "values": [
+              "walk daily",
+              "eat breakfast",
+              "read nightly",
+              "use planners"
+            ]
+          },
+          "pct": {
+            "type": "int",
+            "min": 8,
+            "max": 30
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "choice",
+          "expected": "opt-1"
+        }
+      ],
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "it confuses association with causation"
+        },
+        {
+          "id": "opt-2",
+          "label": "percentages can never be compared"
+        },
+        {
+          "id": "opt-3",
+          "label": "observational data can never show any pattern"
+        },
+        {
+          "id": "opt-4",
+          "label": "the sample must have exactly 100 people"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-competing-causal-explanations",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "An observational study finds that students who {{behavior}} report {{pct}}% better outcomes. The headline says {{behavior}} CAUSED the improvement. Two explanations are proposed: (A) the behavior itself causes the improvement; (B) a third variable such as prior motivation affects both the behavior and the outcome. Evaluate what the observational study can establish, identify why both explanations remain possible, and choose the evidence that would most strengthen a causal claim.",
+          "responseFields": [
+            {
+              "id": "establish",
+              "label": "What can the observational study establish by itself?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "association",
+                  "label": "An association between the behavior and the outcome"
+                },
+                {
+                  "id": "causation",
+                  "label": "That the behavior definitely caused the outcome"
+                }
+              ],
+              "expected": "association"
+            },
+            {
+              "id": "explanations",
+              "label": "Why can't Explanation A be selected over B from this study alone?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "confounding",
+                  "label": "The design does not rule out confounding or pre-existing differences."
+                },
+                {
+                  "id": "percent",
+                  "label": "Because percentages cannot be used in observational studies."
+                }
+              ],
+              "expected": "confounding"
+            },
+            {
+              "id": "evidence",
+              "label": "Which follow-up would most strengthen causation if ethical?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "random",
+                  "label": "Randomly assign comparable participants to the behavior or a control condition and compare outcomes."
+                },
+                {
+                  "id": "bigger-observe",
+                  "label": "Repeat the same observational survey with more people but no design change."
+                }
+              ],
+              "expected": "random"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Critical causal reasoning compares alternative explanations and asks what design evidence separates them.",
+            "reasoning": [
+              "The observational result supports association, not a unique causal mechanism.",
+              "Prior motivation could influence both {{behavior}} and the measured outcome, so the causal and confounding explanations are both compatible with the observation.",
+              "Random assignment, when ethical, helps balance pre-existing differences and strengthens causal inference."
+            ],
+            "answerSummary": "Association is supported; causal certainty requires stronger design evidence."
+          },
+          "attemptFeedback": [
+            "Ask what alternative explanation could produce the same observed association."
+          ],
+          "supportHints": [
+            "A causal claim is strongest when the treatment/exposure is assigned rather than merely observed."
+          ],
+          "generator": {
+            "parameters": {
+              "behavior": {
+                "type": "choice",
+                "values": [
+                  "walk daily",
+                  "eat breakfast",
+                  "read nightly",
+                  "use planners"
+                ]
+              },
+              "pct": {
+                "type": "int",
+                "min": 8,
+                "max": 30
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_4B_v2_improve-evidence",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4B"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4B:v2-improve-evidence",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.4B",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "A strong association is found between {{x}} and {{y}}. Which follow-up most improves evidence for causation when an experiment is ethical?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "To investigate causation, deliberately vary the proposed cause and compare outcomes.",
+          "Random assignment reduces systematic differences between treatment and comparison groups."
+        ],
+        "answerSummary": "Use a randomized controlled experiment."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "x": {
+            "type": "choice",
+            "values": [
+              "a study strategy",
+              "a practice schedule",
+              "a tutoring method",
+              "a review game"
+            ]
+          },
+          "y": {
+            "type": "choice",
+            "values": [
+              "test performance",
+              "retention",
+              "quiz scores",
+              "accuracy"
+            ]
+          }
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "choice",
+          "expected": "opt-1"
+        }
+      ],
+      "choices": [
+        {
+          "id": "opt-1",
+          "label": "use a randomized controlled experiment"
+        },
+        {
+          "id": "opt-2",
+          "label": "collect the same correlation again"
+        },
+        {
+          "id": "opt-3",
+          "label": "choose only participants with high outcomes"
+        },
+        {
+          "id": "opt-4",
+          "label": "remove all low data values"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-observational-versus-experimental-causal-judgment",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "comparison",
+          "representation": "multipleRepresentation",
+          "prompt": "An observational study finds that students who use {{x}} have higher {{y}}. A second study randomly assigns comparable students either to use {{x}} or to use the usual method, then measures {{y}} under the same conditions. Evaluate what EACH study can support and decide which evidence is needed for a causal claim.",
+          "responseFields": [
+            {
+              "id": "observational",
+              "label": "What can the observational study establish by itself?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "association",
+                  "label": "An association, but not a causal conclusion by itself."
+                },
+                {
+                  "id": "causation",
+                  "label": "Definitive causation."
+                }
+              ],
+              "expected": "association"
+            },
+            {
+              "id": "randomized",
+              "label": "What does random assignment add?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "stronger-causal",
+                  "label": "It reduces systematic confounding and provides much stronger evidence for causation."
+                },
+                {
+                  "id": "nothing",
+                  "label": "It adds no information beyond the observational association."
+                }
+              ],
+              "expected": "stronger-causal"
+            },
+            {
+              "id": "best-design",
+              "label": "Which study should carry the causal claim when the experiment is ethical and well-run?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "randomized-study",
+                  "label": "The randomized comparison study."
+                },
+                {
+                  "id": "observational-study",
+                  "label": "The observational study alone."
+                }
+              ],
+              "expected": "randomized-study"
+            },
+            {
+              "id": "reason",
+              "label": "Why?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "confounding",
+                  "label": "Random assignment helps separate the treatment effect from pre-existing differences and confounders."
+                },
+                {
+                  "id": "larger-number",
+                  "label": "Causation follows simply because one study reports a larger numerical difference."
+                }
+              ],
+              "expected": "confounding"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Correlation and causation depend on study design, not merely on the size of an association.",
+            "reasoning": [
+              "The observational study can show that {{x}} and {{y}} vary together, but uncontrolled factors may explain the association.",
+              "Random assignment makes treatment groups comparable in expectation and reduces systematic confounding.",
+              "Therefore the randomized study provides the stronger basis for a causal claim when it is ethical and properly conducted."
+            ],
+            "answerSummary": "Observational evidence supports association; randomized experimental evidence supports the stronger causal inference."
+          },
+          "attemptFeedback": [
+            "Separate the numerical relationship from the design used to create the groups."
+          ],
+          "supportHints": [
+            "Ask whether participants chose their own exposure or were randomly assigned."
+          ]
+        }
+      ]
+    }
+  ]
+}

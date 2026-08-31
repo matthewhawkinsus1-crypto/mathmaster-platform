@@ -1,0 +1,66 @@
+name: Path Tool Browser Contract
+
+on:
+  pull_request:
+    paths:
+      - "functions/shared/pathToolContracts.mjs"
+      - "functions/shared/pathDataModelingGrading.mjs"
+      - "src/QuestionEngine.jsx"
+      - "src/platform/path/pathToolResponses.js"
+      - "src/tools/dataModeling/**"
+      - "tests/browser/captureToolResponses*"
+      - "tests/platform/fixtures/pathToolQuestions.mjs"
+      - "tests/platform/fixtures/capturedToolResponses.json"
+      - "tests/platform/toolResponseContracts.test.mjs"
+      - ".github/workflows/path-tool-browser-contract.yml"
+
+jobs:
+  data-modeling-browser-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Install browser driver
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Start capture app
+        run: |
+          npx vite --host 127.0.0.1 --port 5199 --strictPort > /tmp/mathmaster-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl --fail --silent http://127.0.0.1:5199/tests/browser/captureToolResponses.html >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/mathmaster-vite.log
+          exit 1
+
+      - name: Capture real Data Modeling response
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node tests/browser/captureToolResponses.mjs dataModelingLab --debug
+
+      - name: Show browser-contract drift
+        if: always()
+        run: |
+          git diff -- tests/platform/fixtures/capturedToolResponses.json || true
+
+      - name: Require committed capture to match the real browser
+        run: git diff --exit-code -- tests/platform/fixtures/capturedToolResponses.json
+
+      - name: Re-grade the captured wire format on the server contract
+        run: node --test tests/platform/toolResponseContracts.test.mjs tests/platform/pathDataModelingGrading.test.mjs

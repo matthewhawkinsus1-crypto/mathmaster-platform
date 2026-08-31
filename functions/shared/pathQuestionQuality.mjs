@@ -89,15 +89,43 @@ const ANSWER_BEARING_KEYS = [
   'pairs', 'system', 'solution',
 ];
 
-const hasExpectedAnswer = (question = {}) => (
-  list(question.responseFields).some((field) => field && Object.prototype.hasOwnProperty.call(field, 'expected'))
-  || ANSWER_BEARING_KEYS.some((key) => Object.prototype.hasOwnProperty.call(question, key))
-  || list(question.answerFields).some((field) => field && field.expected !== undefined)
-  || list(question.parts).some((field) => field && field.expected !== undefined)
-  || list(question.pointTasks).some((task) => Array.isArray(task?.expected))
-  || list(question.analysisRequests).some((part) => part?.expected !== undefined || part?.acceptedAnswers !== undefined)
-  || list(question.analysisParts).some((part) => part?.expected !== undefined || part?.acceptedAnswers !== undefined)
-);
+const hasExpectedAnswer = (question = {}) => {
+  const tool = text(question.pathToolId || question.toolId || question.type);
+  const serverDerivableToolAnswer = (
+    tool === 'systemsWorkspace'
+      && (
+        (text(question.mode) === 'inequalities' && list(question.inequalities).length > 0)
+        || (text(question.mode) === 'matrix3' && list(question.matrix?.rows).length === 3)
+        || (
+          !['inequalities', 'matrix3'].includes(text(question.mode))
+          && question.system
+        )
+      )
+  ) || (
+    ['dataModeling', 'dataModelingLab'].includes(tool)
+      && list(question.points).length >= 2
+  ) || (
+    tool === 'graphing2'
+      && (
+        (text(question.mode) === 'throughPoints' && list(question.givenPoints).length >= 2)
+        || (text(question.mode) === 'pointSlope' && Array.isArray(question.point) && question.slope !== undefined)
+        || (text(question.mode) === 'standardForm' && question.standard)
+        || (text(question.mode) === 'verticalHorizontal' && question.value !== undefined)
+        || (text(question.mode || 'slopeIntercept') === 'slopeIntercept' && question.line)
+      )
+  );
+
+  return (
+    list(question.responseFields).some((field) => field && Object.prototype.hasOwnProperty.call(field, 'expected'))
+    || ANSWER_BEARING_KEYS.some((key) => Object.prototype.hasOwnProperty.call(question, key))
+    || list(question.answerFields).some((field) => field && field.expected !== undefined)
+    || list(question.parts).some((field) => field && field.expected !== undefined)
+    || list(question.pointTasks).some((task) => Array.isArray(task?.expected))
+    || list(question.analysisRequests).some((part) => part?.expected !== undefined || part?.acceptedAnswers !== undefined)
+    || list(question.analysisParts).some((part) => part?.expected !== undefined || part?.acceptedAnswers !== undefined)
+    || serverDerivableToolAnswer
+  );
+};
 
 const looksInteractive = (question = {}) => Boolean(
   declaredToolOf(question)
@@ -120,7 +148,8 @@ export const hasStimulus = (question = {}) => {
   const stimulus = question.stimulus;
   if (!stimulus || typeof stimulus !== 'object') return false;
   return Boolean(
-    stimulus.table?.rows?.length
+    stimulus.graph
+    || stimulus.table?.rows?.length
     || list(stimulus.orderedPairs).length
     || list(stimulus.steps).length
     || list(stimulus.expressions).length
@@ -201,7 +230,18 @@ const studentFacingStrings = (question = {}) => [
 ].filter(Boolean).map(String);
 
 const expectedValues = (question = {}) => [
-  ...list(question.responseFields).map((field) => field?.expected),
+  ...list(question.responseFields).map((field) => {
+    if (text(field?.inputProfile) !== 'choice') return field?.expected;
+    const choices = list(field?.choices).length ? list(field.choices) : list(question.choices);
+    const expectedId = text(field?.expected);
+    const choice = choices.find((entry) => text(
+      typeof entry === 'object' ? (entry?.id ?? entry?.value) : entry,
+    ) === expectedId);
+    // Choice ids are internal routing keys, not student-facing answers. A hint
+    // that happens to contain "no", "a" or "scale" must not be treated as an
+    // answer leak unless it actually states the visible correct option.
+    return choice && typeof choice === 'object' ? choice.label : choice;
+  }),
   question.answer,
   question.correctAnswer,
 ].filter((value) => value !== undefined && value !== null).map((value) => String(value));
@@ -251,7 +291,7 @@ export const auditPathQuestionQuality = (question = {}) => {
   // towards avoiding the word rather than supplying the graph.
   const POINTS_AT_A_GRAPH = /\b(?:use|using|read|from|on|in)\s+the\s+(?:displayed\s+|shown\s+|given\s+|following\s+)?graph\b|\bthe\s+(?:displayed|shown|given|following)\s+graph\b|\bgraph\s+(?:below|above|shown)\b|\bcoordinate plane below\b/i;
   if (POINTS_AT_A_GRAPH.test(prompt)
-      && !(question.graph || question.function || question.functionSpec || question.candidateGraphs || usesTool)) {
+      && !(question.graph || question.stimulus?.graph || question.function || question.functionSpec || question.candidateGraphs || usesTool)) {
     addIssue(issues, 'blocker', 'missing-graph-representation',
       'The prompt points the student at a graph, but no graph representation is supplied.', 35);
   }

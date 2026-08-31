@@ -146,6 +146,59 @@ test('a choice parameter draws from its own list', () => {
   assert.deepEqual([...seen].sort(), ['gallons', 'litres']);
 });
 
+test('a Path family can deterministically select among generator-backed sub-variants', () => {
+  const template = {
+    id: 'variant-family',
+    alignmentKeys: ['texas:A2.2A'],
+    familyId: 'mathmaster:A2.2A:v2-parent-function-family',
+    prompt: 'base prompt',
+    variants: [
+      {
+        prompt: 'Square root with shift {{h}}',
+        functionSpec: { type: 'squareRoot', h: '{{h}}' },
+        generator: { parameters: { h: { type: 'int', min: -4, max: 4 } } },
+      },
+      {
+        prompt: 'Cube root with shift {{h}}',
+        functionSpec: { type: 'cubeRoot', h: '{{h}}' },
+        generator: { parameters: { h: { type: 'int', min: -4, max: 4 } } },
+      },
+    ],
+  };
+
+  assert.equal(hasPathGenerator(template), true);
+  const replayA = generatePathInstance(template, 'same-seed');
+  const replayB = generatePathInstance(template, 'same-seed');
+  assert.deepEqual(replayA, replayB, 'the same Path seed must select the same sub-variant and numbers');
+  assert.equal(replayA.question.variants, undefined);
+  assert.equal(replayA.question.generator, undefined);
+  assert.ok(['squareRoot', 'cubeRoot'].includes(replayA.question.functionSpec.type));
+  assert.match(replayA.question.prompt, /shift -?\d+/);
+
+  const seen = new Set();
+  for (let index = 0; index < 60; index += 1) {
+    const generated = generatePathInstance(template, `variant-${index}`);
+    assert.ok(generated.question);
+    assert.equal(Number.isInteger(generated.parameters.__variantIndex), true);
+    seen.add(generated.question.functionSpec.type);
+  }
+  assert.deepEqual([...seen].sort(), ['cubeRoot', 'squareRoot']);
+});
+
+test('a static sub-variant can be selected even when it has no numeric generator', () => {
+  const template = {
+    id: 'static-variant-family',
+    variants: [
+      { prompt: 'Version A', responseFields: [{ id: 'a', expected: 'A' }] },
+      { prompt: 'Version B', responseFields: [{ id: 'a', expected: 'B' }] },
+    ],
+  };
+  assert.equal(hasPathGenerator(template), false, 'static variants alone are not numeric Path generators');
+  const generated = generatePathInstance(template, 'static-seed');
+  assert.match(generated.question.prompt, /^Version [AB]$/);
+  assert.equal(generated.question.variants, undefined);
+});
+
 // The half that keeps a broken template out of a classroom.
 test('a template that cannot satisfy its own constraints is refused', () => {
   const impossible = {

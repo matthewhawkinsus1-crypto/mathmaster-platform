@@ -1,0 +1,881 @@
+{
+  "standard": "A2.7B",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-polynomial-add-subtract-multiply-sparse-higher-degree-combine-like-terms-error-repair",
+  "rationale": "The legacy bank already covers the three required operations, but one family is off-standard and the operation range is too narrow. Fidelity V2 deepens sparse alignment, higher-degree multiplication, coefficient evidence, and complete error repair.",
+  "documents": [
+    {
+      "id": "mm_A2_7B_v2_add-sparse-quartic",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7B:v2-add-sparse-quartic",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7B",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Add $({{a}}x^4+({{b}})x^2+({{c}}))+({{d}}x^3+({{e}})x^2+({{f}})x+({{g}}))$. Align missing powers, combine like terms, and write the result in descending powers.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Power alignment",
+        "table": {
+          "headers": [
+            "Power",
+            "First polynomial",
+            "Second polynomial"
+          ],
+          "rows": [
+            [
+              "x^4",
+              "{{a}}",
+              "0"
+            ],
+            [
+              "x^3",
+              "0",
+              "{{d}}"
+            ],
+            [
+              "x^2",
+              "{{b}}",
+              "{{e}}"
+            ],
+            [
+              "x",
+              "0",
+              "{{f}}"
+            ],
+            [
+              "constant",
+              "{{c}}",
+              "{{g}}"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "coef-4",
+          "label": "x^4 coefficient",
+          "inputProfile": "number",
+          "expected": "{{A4}}"
+        },
+        {
+          "id": "coef-3",
+          "label": "x^3 coefficient",
+          "inputProfile": "number",
+          "expected": "{{A3}}"
+        },
+        {
+          "id": "coef-2",
+          "label": "x^2 coefficient",
+          "inputProfile": "number",
+          "expected": "{{A2}}"
+        },
+        {
+          "id": "coef-1",
+          "label": "x coefficient",
+          "inputProfile": "number",
+          "expected": "{{A1}}"
+        },
+        {
+          "id": "coef-0",
+          "label": "constant",
+          "inputProfile": "number",
+          "expected": "{{A0}}"
+        },
+        {
+          "id": "answer",
+          "label": "Sum in expanded form",
+          "inputProfile": "expression",
+          "expected": "{{A4}}*x^4+({{A3}})*x^3+({{A2}})*x^2+({{A1}})*x+({{A0}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Align by exponent before adding coefficients.",
+        "reasoning": [
+          "Missing powers have coefficient 0, so the x^4 and x^3 coefficients remain {{A4}} and {{A3}}.",
+          "The x^2 coefficient is {{b}}+{{e}}={{A2}}; the x coefficient is {{A1}}.",
+          "The constants combine to {{A0}}."
+        ],
+        "answerSummary": "${{A4}}x^4+({{A3}})x^3+({{A2}})x^2+({{A1}})x+({{A0}})$"
+      },
+      "attemptFeedback": [
+        "Line up terms with the same exponent; a missing power contributes coefficient 0."
+      ],
+      "supportHints": [
+        "Create columns for x^4, x^3, x^2, x, and constants before combining."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "c": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "d": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "e": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "f": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "g": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "A4": "a",
+          "A3": "d",
+          "A2": "b+e",
+          "A1": "f",
+          "A0": "c+g"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-clean-sparse-alignment",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "procedural",
+          "representation": "multipleRepresentation",
+          "prompt": "Add $({{a}}x^4+({{b}})x^2+({{c}}))+({{d}}x^3+({{e}})x^2+({{f}})x+({{g}}))$. Use the alignment table, combine like powers, and write the sum in descending order.",
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "b": {
+                "type": "int",
+                "min": 0,
+                "max": 4
+              },
+              "c": {
+                "type": "int",
+                "min": 0,
+                "max": 5
+              },
+              "d": {
+                "type": "int",
+                "min": 1,
+                "max": 4
+              },
+              "e": {
+                "type": "int",
+                "min": 0,
+                "max": 4
+              },
+              "f": {
+                "type": "int",
+                "min": 0,
+                "max": 5
+              },
+              "g": {
+                "type": "int",
+                "min": 0,
+                "max": 5
+              }
+            },
+            "derived": {
+              "A4": "a",
+              "A3": "d",
+              "A2": "b+e",
+              "A1": "f",
+              "A0": "c+g"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_7B_v2_subtract-sparse-quartic",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7B:v2-subtract-sparse-quartic",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7B",
+      "representation": "symbolic",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Subtract $({{e}}x^4+({{f}})x^2+({{g}})x+({{h}}))$ from $({{a}}x^4+({{b}})x^3+({{c}})x+({{d}}))$. Distribute the subtraction to every term, align missing powers, and simplify.",
+      "responseFields": [
+        {
+          "id": "coef-4",
+          "label": "x^4 coefficient",
+          "inputProfile": "number",
+          "expected": "{{A4}}"
+        },
+        {
+          "id": "coef-3",
+          "label": "x^3 coefficient",
+          "inputProfile": "number",
+          "expected": "{{A3}}"
+        },
+        {
+          "id": "coef-2",
+          "label": "x^2 coefficient",
+          "inputProfile": "number",
+          "expected": "{{A2}}"
+        },
+        {
+          "id": "coef-1",
+          "label": "x coefficient",
+          "inputProfile": "number",
+          "expected": "{{A1}}"
+        },
+        {
+          "id": "coef-0",
+          "label": "constant",
+          "inputProfile": "number",
+          "expected": "{{A0}}"
+        },
+        {
+          "id": "answer",
+          "label": "Difference in expanded form",
+          "inputProfile": "expression",
+          "expected": "{{A4}}*x^4+({{A3}})*x^3+({{A2}})*x^2+({{A1}})*x+({{A0}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Subtracting a polynomial changes every sign in the second polynomial.",
+        "reasoning": [
+          "The x^4 coefficient is {{a}}-{{e}}={{A4}}.",
+          "There is no x^3 term in the second polynomial, so that coefficient remains {{A3}}; the x^2 coefficient becomes -{{f}}={{A2}}.",
+          "The x and constant coefficients are {{A1}} and {{A0}}."
+        ],
+        "answerSummary": "${{A4}}x^4+({{A3}})x^3+({{A2}})x^2+({{A1}})x+({{A0}})$"
+      },
+      "attemptFeedback": [
+        "Treat subtraction as adding the opposite of the entire second polynomial."
+      ],
+      "supportHints": [
+        "Write zeros for missing powers before subtracting coefficients column by column."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "c": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "d": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "e": {
+            "type": "int",
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
+          },
+          "f": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "g": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "h": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        },
+        "derived": {
+          "A4": "a-e",
+          "A3": "b",
+          "A2": "-f",
+          "A1": "c-g",
+          "A0": "d-h"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7B_v2_multiply-quadratics-combine",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7B:v2-multiply-quadratics-combine",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7B",
+      "representation": "table",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Multiply $({{a}}x^2+({{b}})x+({{c}}))({{d}}x^2+({{e}})x+({{f}}))$. Distribute every term, combine like powers, and write the degree-4 product in descending order.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Coefficient convolution",
+        "table": {
+          "headers": [
+            "Result power",
+            "Coefficient contributions"
+          ],
+          "rows": [
+            [
+              "x^4",
+              "ad"
+            ],
+            [
+              "x^3",
+              "ae + bd"
+            ],
+            [
+              "x^2",
+              "af + be + cd"
+            ],
+            [
+              "x",
+              "bf + ce"
+            ],
+            [
+              "constant",
+              "cf"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "coef-4",
+          "label": "x^4 coefficient",
+          "inputProfile": "number",
+          "expected": "{{A4}}"
+        },
+        {
+          "id": "coef-3",
+          "label": "x^3 coefficient",
+          "inputProfile": "number",
+          "expected": "{{A3}}"
+        },
+        {
+          "id": "coef-2",
+          "label": "x^2 coefficient",
+          "inputProfile": "number",
+          "expected": "{{A2}}"
+        },
+        {
+          "id": "coef-1",
+          "label": "x coefficient",
+          "inputProfile": "number",
+          "expected": "{{A1}}"
+        },
+        {
+          "id": "coef-0",
+          "label": "constant",
+          "inputProfile": "number",
+          "expected": "{{A0}}"
+        },
+        {
+          "id": "answer",
+          "label": "Expanded product",
+          "inputProfile": "expression",
+          "expected": "{{A4}}*x^4+({{A3}})*x^3+({{A2}})*x^2+({{A1}})*x+({{A0}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Polynomial multiplication is distribution followed by combining like powers.",
+        "reasoning": [
+          "The leading coefficient is ad={{A4}} and the x^3 coefficient is ae+bd={{A3}}.",
+          "Three products contribute to x^2, giving {{A2}}.",
+          "The x and constant coefficients are {{A1}} and {{A0}}."
+        ],
+        "answerSummary": "${{A4}}x^4+({{A3}})x^3+({{A2}})x^2+({{A1}})x+({{A0}})$"
+      },
+      "attemptFeedback": [
+        "Make sure every term in the first trinomial multiplies every term in the second before combining like powers."
+      ],
+      "supportHints": [
+        "Organize partial products by resulting exponent: 4, 3, 2, 1, 0."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "c": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "d": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "e": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "f": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "A4": "a*d",
+          "A3": "a*e+b*d",
+          "A2": "a*f+b*e+c*d",
+          "A1": "b*f+c*e",
+          "A0": "c*f"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7B_v2_multiply-cubic-quadratic-degree5",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7B:v2-multiply-cubic-quadratic-degree5",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7B",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "application",
+      "prompt": "Multiply the sparse cubic $({{a}}x^3+({{b}}))$ by the quadratic $({{c}}x^2+({{d}})x+({{e}}))$. Show the coefficients of the degree-5 product and write the complete expanded polynomial.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Distribution plan",
+        "steps": [
+          {
+            "id": "cubic-term",
+            "label": "Distribute {{a}}x^3",
+            "work": "Multiply {{a}}x^3 by all three quadratic terms."
+          },
+          {
+            "id": "constant-term",
+            "label": "Distribute {{b}}",
+            "work": "Multiply {{b}} by all three quadratic terms."
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "coef-5",
+          "label": "x^5 coefficient",
+          "inputProfile": "number",
+          "expected": "{{A5}}"
+        },
+        {
+          "id": "coef-4",
+          "label": "x^4 coefficient",
+          "inputProfile": "number",
+          "expected": "{{A4}}"
+        },
+        {
+          "id": "coef-3",
+          "label": "x^3 coefficient",
+          "inputProfile": "number",
+          "expected": "{{A3}}"
+        },
+        {
+          "id": "coef-2",
+          "label": "x^2 coefficient",
+          "inputProfile": "number",
+          "expected": "{{A2}}"
+        },
+        {
+          "id": "coef-1",
+          "label": "x coefficient",
+          "inputProfile": "number",
+          "expected": "{{A1}}"
+        },
+        {
+          "id": "coef-0",
+          "label": "constant",
+          "inputProfile": "number",
+          "expected": "{{A0}}"
+        },
+        {
+          "id": "answer",
+          "label": "Expanded degree-5 product",
+          "inputProfile": "expression",
+          "expected": "{{A5}}*x^5+({{A4}})*x^4+({{A3}})*x^3+({{A2}})*x^2+({{A1}})*x+({{A0}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "A cubic factor times a quadratic factor can produce a degree-5 polynomial.",
+        "reasoning": [
+          "The {{a}}x^3 distribution produces the x^5, x^4, and x^3 terms.",
+          "The {{b}} distribution produces the x^2, x, and constant terms.",
+          "The resulting coefficients are {{A5}}, {{A4}}, {{A3}}, {{A2}}, {{A1}}, and {{A0}}."
+        ],
+        "answerSummary": "Degree-5 expanded product with leading coefficient {{A5}}."
+      },
+      "attemptFeedback": [
+        "Distribute each of the two cubic terms across all three quadratic terms."
+      ],
+      "supportHints": [
+        "Track exponents when multiplying: x^3·x^2=x^5, x^3·x=x^4, and x^3·1=x^3."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
+          },
+          "c": {
+            "type": "int",
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
+          },
+          "d": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "e": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          }
+        },
+        "derived": {
+          "A5": "a*c",
+          "A4": "a*d",
+          "A3": "a*e",
+          "A2": "b*c",
+          "A1": "b*d",
+          "A0": "b*e"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_7B_v2_subtraction-sign-error-full-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.7B"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.7B:v2-subtraction-sign-error-full-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.7B",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student subtracts $Q(x)={{e}}x^3+({{f}})x^2+({{g}})x+({{h}})$ from $P(x)={{a}}x^3+({{b}})x^2+({{c}})x+({{d}})$, but changes the sign of only the leading term of Q. Diagnose the distribution error, compute every corrected coefficient, and write $P(x)-Q(x)$ in expanded form.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student error",
+        "steps": [
+          {
+            "id": "wrong",
+            "label": "Incorrect rewrite",
+            "work": "$P(x)-Q(x)={{a}}x^3+({{b}})x^2+({{c}})x+({{d}})-{{e}}x^3+({{f}})x^2+({{g}})x+({{h}})$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What is the error?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "all-signs",
+              "label": "The subtraction sign must change every term of Q, not only its leading term."
+            },
+            {
+              "id": "leading-only",
+              "label": "Only the leading term of Q should change sign."
+            },
+            {
+              "id": "powers",
+              "label": "The exponents of Q should all be reduced by 1."
+            }
+          ],
+          "expected": "all-signs"
+        },
+        {
+          "id": "coef-3",
+          "label": "Correct x^3 coefficient",
+          "inputProfile": "number",
+          "expected": "{{A3}}"
+        },
+        {
+          "id": "coef-2",
+          "label": "Correct x^2 coefficient",
+          "inputProfile": "number",
+          "expected": "{{A2}}"
+        },
+        {
+          "id": "coef-1",
+          "label": "Correct x coefficient",
+          "inputProfile": "number",
+          "expected": "{{A1}}"
+        },
+        {
+          "id": "coef-0",
+          "label": "Correct constant",
+          "inputProfile": "number",
+          "expected": "{{A0}}"
+        },
+        {
+          "id": "answer",
+          "label": "Correct expanded difference",
+          "inputProfile": "expression",
+          "expected": "{{A3}}*x^3+({{A2}})*x^2+({{A1}})*x+({{A0}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Subtracting a polynomial means distributing -1 to every term.",
+        "reasoning": [
+          "Rewrite -Q as -{{e}}x^3-({{f}})x^2-({{g}})x-({{h}}).",
+          "Then combine like powers to get coefficients {{A3}}, {{A2}}, {{A1}}, and {{A0}}.",
+          "The corrected difference is the expanded polynomial shown in the answer."
+        ],
+        "answerSummary": "$P(x)-Q(x)={{A3}}x^3+({{A2}})x^2+({{A1}})x+({{A0}})$"
+      },
+      "attemptFeedback": [
+        "Repair the distribution of the negative sign before combining any coefficients."
+      ],
+      "supportHints": [
+        "Think of P-Q as P+(-Q). Every coefficient in Q changes sign."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "c": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "d": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "e": {
+            "type": "int",
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
+          },
+          "f": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "g": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          },
+          "h": {
+            "type": "int",
+            "min": -7,
+            "max": 7
+          }
+        },
+        "derived": {
+          "A3": "a-e",
+          "A2": "b-f",
+          "A1": "c-g",
+          "A0": "d-h"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-small-coefficient-sign-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student subtracts $Q(x)$ from $P(x)$ but changes the sign of only the first term of $Q$. Diagnose the distribution error, correct all four coefficients, and write the repaired polynomial difference.",
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "c": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "d": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "e": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  -1,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "f": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "g": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              },
+              "h": {
+                "type": "int",
+                "min": -3,
+                "max": 3
+              }
+            },
+            "derived": {
+              "A3": "a-e",
+              "A2": "b-f",
+              "A1": "c-g",
+              "A0": "d-h"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

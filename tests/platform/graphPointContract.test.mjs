@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { auditStaticGraphViewport } from '../../src/graphSpecUtils.js';
 import {
@@ -11,6 +12,10 @@ assert.deepEqual(readGraphPointCoordinates({ x: 0.5, y: 0.9 }), [0.5, 0.9]);
 assert.deepEqual(readGraphPointCoordinates({ coordinates: [2, 5] }), [2, 5]);
 assert.deepEqual(readGraphPointCoordinates([3, -4]), [3, -4]);
 assert.equal(readGraphPointCoordinates({ x: 2 }), null);
+
+const coordinatePlaneSource = fs.readFileSync('src/tools/shared/CoordinatePlane.jsx', 'utf8');
+assert.match(coordinatePlaneSource, /readGraphPointCoordinates/);
+assert.match(coordinatePlaneSource, /coordinates \|\| \[Number\.NaN, Number\.NaN\]/);
 
 assert.deepEqual(normalizeGraphPointForRuntime({ x: 1, y: 5, label: 'A' }), {
   coordinates: [1, 5],
@@ -64,5 +69,32 @@ const badAudit = auditStaticGraphViewport({
 }, { label: 'graph' });
 assert.ok(badAudit.errors.some((message) => message.includes('graph.points[0]')));
 assert.ok(badAudit.errors.some((message) => message.includes('{x, y}')));
+
+
+const coordinatePlaneConsumers = [
+  'src/tools/complexPlane/ComplexPlaneLab.jsx',
+  'src/tools/constraintFunctionBuilder/ConstraintFunctionBuilder.jsx',
+  'src/tools/dataModeling/DataModelingLab.jsx',
+  'src/tools/exponentialLog/ExponentialLogBridge.jsx',
+  'src/tools/functionInvestigation2/FunctionInvestigation2.jsx',
+  'src/tools/graphing2/Graphing2.jsx',
+  'src/tools/inverseComposition/InverseCompositionLab.jsx',
+  'src/tools/openSortBoard/OpenSortBoard.jsx',
+  'src/tools/parabolaGeometry/ParabolaGeometryLab.jsx',
+  'src/tools/polynomialWorkshop/PolynomialWorkshop.jsx',
+  'src/tools/representationMatch/RepresentationMatch.jsx',
+  'src/tools/sequenceExplorer/SequenceExplorer.jsx',
+  'src/tools/systemsWorkspace/SystemsWorkspace.jsx',
+  'src/tools/transformations/TransformationsLab.jsx',
+];
+
+for (const consumerPath of coordinatePlaneConsumers) {
+  const source = fs.readFileSync(consumerPath, 'utf8');
+  assert.doesNotMatch(
+    source,
+    /\{\s*0\s*:[\s\S]{0,180}?\b1\s*:/,
+    `${consumerPath} must pass CoordinatePlane points as [x,y], {x,y}, or {coordinates:[x,y]} — not numeric-key objects.`,
+  );
+}
 
 console.log('graphPointContract.test.mjs: passed');

@@ -1,0 +1,582 @@
+{
+  "standard": "A.3H",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-system-inequality-overlap-construction",
+  "documents": [
+    {
+      "id": "mm_A_3H_v2_system-solid-overlap",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3H:v2-system-solid-overlap",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3H",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Graph the SYSTEM $y\\ge {{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$. Construct both boundaries and the overlapping solution region.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">="
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "A system keeps only points satisfying both inequalities.",
+        "reasoning": [
+          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
+          "The system solution is the overlap of the two shaded half-planes."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after one inequality; the final region must satisfy both at once."
+      ],
+      "supportHints": [
+        "Build one boundary and shade first, then repeat for the second inequality and keep only the overlap."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "b2": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-horizontal-strip-system",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "Graph the SYSTEM $y\\ge {{lower}}$ and $y\\le {{upper}}$. Construct both horizontal solid boundaries and shade only the overlap between them.",
+          "type": "systemsWorkspace",
+          "mode": "inequalities",
+          "interaction": "construct",
+          "ask": [
+            "construction"
+          ],
+          "inequalities": [
+            {
+              "m": 0,
+              "b": "{{lower}}",
+              "relation": ">="
+            },
+            {
+              "m": 0,
+              "b": "{{upper}}",
+              "relation": "<="
+            }
+          ],
+          "graph": {
+            "xMin": -6,
+            "xMax": 6,
+            "yMin": -10,
+            "yMax": 12
+          },
+          "solutionReview": {
+            "headline": "Two horizontal inequalities create a horizontal strip.",
+            "reasoning": [
+              "The boundary y={{lower}} is solid and shades above.",
+              "The boundary y={{upper}} is solid and shades below.",
+              "The common solution is the strip between the two boundaries, including both lines."
+            ],
+            "answerSummary": "Shade {{lower}}≤y≤{{upper}}."
+          },
+          "attemptFeedback": [
+            "Graph each horizontal boundary separately, then keep only the region satisfying both."
+          ],
+          "supportHints": [
+            "For y≥constant shade above; for y≤constant shade below."
+          ],
+          "generator": {
+            "parameters": {
+              "lower": {
+                "type": "int",
+                "min": -5,
+                "max": 0
+              },
+              "gap": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              }
+            },
+            "derived": {
+              "upper": "lower+gap"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3H_v2_system-dashed-overlap",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3H:v2-system-dashed-overlap",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3H",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Construct the solution graph of $y>{{m1}}x{{b1|signed}}$ and $y<{{m2}}x{{b2|signed}}$. Show both strict boundaries and the overlap.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">"
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<"
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "A system keeps only points satisfying both inequalities.",
+        "reasoning": [
+          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
+          "The system solution is the overlap of the two shaded half-planes."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after one inequality; the final region must satisfy both at once."
+      ],
+      "supportHints": [
+        "Build one boundary and shade first, then repeat for the second inequality and keep only the overlap."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "b2": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-fractional-mixed-boundary-system",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Construct the solution graph of $y\\ge {{m1}}x{{b1|signed}}$ and $y<{{m2}}x{{b2|signed}}$. Both slopes are fractional. Use exact rise/run, distinguish the solid and dashed boundaries, and shade only the common region.",
+          "type": "systemsWorkspace",
+          "mode": "inequalities",
+          "interaction": "construct",
+          "ask": [
+            "construction"
+          ],
+          "inequalities": [
+            {
+              "m": "{{m1}}",
+              "b": "{{b1}}",
+              "relation": ">="
+            },
+            {
+              "m": "{{m2}}",
+              "b": "{{b2}}",
+              "relation": "<"
+            }
+          ],
+          "graph": {
+            "xMin": -6,
+            "xMax": 6,
+            "yMin": -10,
+            "yMax": 12
+          },
+          "solutionReview": {
+            "headline": "Higher structural difficulty can come from fractional slopes and mixed boundary styles without raising DOK.",
+            "reasoning": [
+              "Construct the first boundary with slope {{rise1}}/{{run1}} and use a solid line because ≥ includes equality.",
+              "Construct the second boundary with slope {{rise2}}/{{run2}} and use a dashed line because < excludes equality.",
+              "Shade above the first and below the second, then keep only the overlap."
+            ],
+            "answerSummary": "Mixed solid/dashed system with the common region only."
+          },
+          "attemptFeedback": [
+            "Do not let the fractional slopes distract from the separate boundary-style and shading decisions."
+          ],
+          "supportHints": [
+            "Plot each boundary from its y-intercept and exact rise/run before shading."
+          ],
+          "generator": {
+            "parameters": {
+              "rise1": {
+                "type": "choice",
+                "values": [
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "run1": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "rise2": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  -2,
+                  -3
+                ]
+              },
+              "run2": {
+                "type": "choice",
+                "values": [
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "b1": {
+                "type": "int",
+                "min": -4,
+                "max": 0
+              },
+              "b2": {
+                "type": "int",
+                "min": 3,
+                "max": 8
+              }
+            },
+            "derived": {
+              "m1": "rise1/run1",
+              "m2": "rise2/run2"
+            },
+            "constraints": [
+              "abs(rise1)!=run1",
+              "abs(rise2)!=run2"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_3H_v2_system-mixed-boundaries",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3H:v2-system-mixed-boundaries",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3H",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "Graph the system $y\\ge {{m1}}x{{b1|signed}}$ and $y<{{m2}}x{{b2|signed}}$. Your graph must distinguish the two boundary styles and shade only the common region.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">="
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<"
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "A system keeps only points satisfying both inequalities.",
+        "reasoning": [
+          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
+          "The system solution is the overlap of the two shaded half-planes."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after one inequality; the final region must satisfy both at once."
+      ],
+      "supportHints": [
+        "Build one boundary and shade first, then repeat for the second inequality and keep only the overlap."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "b2": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3H_v2_system-context-feasible-region",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3H:v2-system-context-feasible-region",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3H",
+      "taskType": "modeling",
+      "representation": "context",
+      "prompt": "Two constraints on a feasible plan are $y\\ge {{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$. Construct the graph of all ordered pairs satisfying BOTH constraints.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">="
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "A system keeps only points satisfying both inequalities.",
+        "reasoning": [
+          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
+          "The system solution is the overlap of the two shaded half-planes."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after one inequality; the final region must satisfy both at once."
+      ],
+      "supportHints": [
+        "Build one boundary and shade first, then repeat for the second inequality and keep only the overlap."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "b2": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        }
+      }
+    },
+    {
+      "id": "mm_A_3H_v2_system-error-no-overlap",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.3H"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.3H:v2-system-error-no-overlap",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.3H",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student graphs $y>{{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$ but shades the UNION of the two half-planes. Correct the error by constructing both graphs and showing only the system's overlap.",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "construct",
+      "ask": [
+        "construction"
+      ],
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">"
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        }
+      ],
+      "graph": {
+        "xMin": -6,
+        "xMax": 6,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "A system keeps only points satisfying both inequalities.",
+        "reasoning": [
+          "Construct each boundary independently with the correct solid/dashed style and half-plane.",
+          "The system solution is the overlap of the two shaded half-planes."
+        ]
+      },
+      "attemptFeedback": [
+        "Do not stop after one inequality; the final region must satisfy both at once."
+      ],
+      "supportHints": [
+        "Build one boundary and shade first, then repeat for the second inequality and keep only the overlap."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 1
+          },
+          "b2": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        }
+      }
+    }
+  ]
+}

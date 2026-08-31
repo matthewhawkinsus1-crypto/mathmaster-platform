@@ -1,0 +1,839 @@
+{
+  "standard": "A2.6G",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-full-reciprocal-transform-analysis-a-b-h-k-ratio-reflections-asymptotes",
+  "rationale": "A2.6G requires analysis for positive and negative parameters. Fidelity V2 uses y=a·f(b(x-h))+k with f(x)=1/x, keeps the separate vertical/horizontal transformation sequence visible, and also recognizes the equivalent final coefficient a/b.",
+  "documents": [
+    {
+      "id": "mm_A2_6G_v2_combined-symbolic-effects",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6G:v2-combined-symbolic-effects",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6G",
+      "representation": "symbolic",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "Analyze $g(x)={{a}}\\left(\\frac{1}{{{b}}(x-({{h}}))}\\right){{k|signed}}$ relative to $y=1/x$.",
+      "responseFields": [
+        {
+          "id": "vertical-scale",
+          "label": "Vertical scale factor |a|",
+          "inputProfile": "number",
+          "expected": "{{va}}"
+        },
+        {
+          "id": "horizontal-scale",
+          "label": "Horizontal scale factor 1/|b|",
+          "inputProfile": "number",
+          "expected": "{{hb}}"
+        },
+        {
+          "id": "x-reflection",
+          "label": "x-axis reflection from a?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "yes",
+              "label": "Yes"
+            },
+            {
+              "id": "no",
+              "label": "No"
+            }
+          ],
+          "expected": "yes"
+        },
+        {
+          "id": "horizontal-reflection",
+          "label": "Horizontal reflection from b?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "yes",
+              "label": "Yes"
+            },
+            {
+              "id": "no",
+              "label": "No"
+            }
+          ],
+          "expected": "yes"
+        },
+        {
+          "id": "va",
+          "label": "Vertical asymptote x=",
+          "inputProfile": "number",
+          "expected": "{{h}}"
+        },
+        {
+          "id": "ha",
+          "label": "Horizontal asymptote y=",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "effective",
+          "label": "Equivalent reciprocal coefficient a/b",
+          "inputProfile": "number",
+          "expected": "{{ratio}}"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "choice",
+            "values": [
+              -4,
+              -2
+            ]
+          },
+          "b": {
+            "type": "choice",
+            "values": [
+              -4,
+              -2
+            ]
+          },
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "va": "abs(a)",
+          "hb": "1/abs(b)",
+          "ratio": "a/b"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-half-translation-symbolic",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "interpretation",
+          "representation": "symbolic",
+          "prompt": "Analyze $g(x)={{a}}\\left(\\frac{1}{{{b}}(x-({{h}}))}\\right){{k|signed}}$ relative to $y=1/x$. The shifts are half-unit values; determine all scale/reflection effects, both asymptotes, and the equivalent coefficient a/b.",
+          "responseFields": [
+            {
+              "id": "vertical-scale",
+              "label": "Vertical scale factor |a|",
+              "inputProfile": "number",
+              "expected": "{{va}}"
+            },
+            {
+              "id": "horizontal-scale",
+              "label": "Horizontal scale factor 1/|b|",
+              "inputProfile": "number",
+              "expected": "{{hb}}"
+            },
+            {
+              "id": "x-reflection",
+              "label": "x-axis reflection from a?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "horizontal-reflection",
+              "label": "Horizontal reflection from b?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "yes",
+                  "label": "Yes"
+                },
+                {
+                  "id": "no",
+                  "label": "No"
+                }
+              ],
+              "expected": "yes"
+            },
+            {
+              "id": "va",
+              "label": "Vertical asymptote x=",
+              "inputProfile": "number",
+              "expected": "{{h}}"
+            },
+            {
+              "id": "ha",
+              "label": "Horizontal asymptote y=",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "effective",
+              "label": "Equivalent reciprocal coefficient a/b",
+              "inputProfile": "number",
+              "expected": "{{ratio}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Fractional translations raise arithmetic complexity without changing the transformation reasoning.",
+            "reasoning": [
+              "The outside factor a={{a}} gives vertical scale {{va}} and an x-axis reflection.",
+              "The inside factor b={{b}} gives horizontal scale {{hb}} and a horizontal reflection.",
+              "The asymptotes are x={{h}} and y={{k}}, while the equivalent reciprocal coefficient is a/b={{ratio}}."
+            ],
+            "answerSummary": "Scales {{va}} and {{hb}}; both reflections; asymptotes x={{h}}, y={{k}}; a/b={{ratio}}."
+          },
+          "attemptFeedback": [
+            "Analyze a and b separately before using the equivalent coefficient a/b."
+          ],
+          "supportHints": [
+            "Horizontal scale is 1/|b|, not |b|."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "choice",
+                "values": [
+                  -4,
+                  -2
+                ]
+              },
+              "b": {
+                "type": "choice",
+                "values": [
+                  -4,
+                  -2
+                ]
+              },
+              "h2": {
+                "type": "choice",
+                "values": [
+                  -9,
+                  -7,
+                  -5,
+                  -3,
+                  -1,
+                  1,
+                  3,
+                  5,
+                  7,
+                  9
+                ]
+              },
+              "k2": {
+                "type": "choice",
+                "values": [
+                  -9,
+                  -7,
+                  -5,
+                  -3,
+                  -1,
+                  1,
+                  3,
+                  5,
+                  7,
+                  9
+                ]
+              }
+            },
+            "derived": {
+              "h": "h2/2",
+              "k": "k2/2",
+              "va": "abs(a)",
+              "hb": "1/abs(b)",
+              "ratio": "a/b"
+            }
+          }
+        }
+      ],
+      "solutionReview": {
+        "headline": "For reciprocal transformations, a and b combine into the coefficient a/b.",
+        "reasoning": [
+          "The outside factor gives vertical scale $|a|={{va}}$ and, since a is negative, an x-axis reflection.",
+          "The inside factor gives horizontal scale $1/|b|={{hb}}$ and, since b is negative, a horizontal reflection.",
+          "The center translates to $({{h}},{{k}})$, so the asymptotes are $x={{h}}$ and $y={{k}}$. Algebraically the reciprocal coefficient is $a/b={{ratio}}$."
+        ],
+        "answerSummary": "Scales {{va}} vertically and {{hb}} horizontally; asymptotes $x={{h}}$, $y={{k}}$; coefficient $a/b={{ratio}}$."
+      }
+    },
+    {
+      "id": "mm_A2_6G_v2_negative-b-point-map",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6G:v2-negative-b-point-map",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6G",
+      "representation": "table",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "Map parent points through $g(x)=3\\left(\\frac1{-2(x-({{h}}))}\\right){{k|signed}}$. Use the mapping to analyze b=-2.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Parent point",
+            "Image"
+          ],
+          "rows": [
+            [
+              "$(-1,-1)$",
+              "?"
+            ],
+            [
+              "$(1,1)$",
+              "?"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "neg-image",
+          "label": "Image of (-1,-1)",
+          "inputProfile": "orderedPair",
+          "expected": "({{hp}},{{km3}})"
+        },
+        {
+          "id": "pos-image",
+          "label": "Image of (1,1)",
+          "inputProfile": "orderedPair",
+          "expected": "({{hm}},{{kp3}})"
+        },
+        {
+          "id": "horizontal-scale",
+          "label": "Horizontal scale factor",
+          "inputProfile": "number",
+          "expected": "0.5"
+        },
+        {
+          "id": "horizontal-reflection",
+          "label": "Does b=-2 reflect horizontally?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "yes",
+              "label": "Yes"
+            },
+            {
+              "id": "no",
+              "label": "No"
+            }
+          ],
+          "expected": "yes"
+        },
+        {
+          "id": "effective",
+          "label": "Equivalent coefficient a/b",
+          "inputProfile": "number",
+          "expected": "-1.5"
+        },
+        {
+          "id": "va",
+          "label": "Vertical asymptote x=",
+          "inputProfile": "number",
+          "expected": "{{h}}"
+        },
+        {
+          "id": "ha",
+          "label": "Horizontal asymptote y=",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -4,
+            "max": 4
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "hp": "h+0.5",
+          "hm": "h-0.5",
+          "km3": "k-3",
+          "kp3": "k+3"
+        }
+      },
+      "solutionReview": {
+        "headline": "A negative inside factor both compresses and reverses reciprocal inputs.",
+        "reasoning": [
+          "With $b=-2$, parent x-coordinates are divided by -2 and then shifted by {{h}}, which swaps the left/right locations.",
+          "The outside factor 3 scales y-values before the vertical shift {{k}}, producing the mapped points $({{hp}},{{km3}})$ and $({{hm}},{{kp3}})$.",
+          "The horizontal scale is 0.5, the asymptotes remain $x={{h}}$ and $y={{k}}$, and $a/b=3/(-2)=-1.5$."
+        ],
+        "answerSummary": "Horizontal scale 0.5, horizontal reflection, asymptotes $x={{h}}$, $y={{k}}$, equivalent coefficient -1.5."
+      }
+    },
+    {
+      "id": "mm_A2_6G_v2_graph-horizontal-stretch",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6G:v2-graph-horizontal-stretch",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6G",
+      "representation": "graph",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "representationTranslation",
+      "prompt": "For $g(x)=2\\left(\\frac1{0.5(x-({{h}}))}\\right){{k|signed}}$, use the exact mapped points to analyze the horizontal stretch, vertical scale, asymptotes, and equivalent coefficient.",
+      "stimulus": {
+        "kind": "graph",
+        "graph": {
+          "xMin": -10,
+          "xMax": 10,
+          "yMin": -10,
+          "yMax": 10,
+          "points": [
+            {
+              "x": "{{leftX}}",
+              "y": "{{leftY}}"
+            },
+            {
+              "x": "{{rightX}}",
+              "y": "{{rightY}}"
+            }
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "horizontal-scale",
+          "label": "Horizontal scale",
+          "inputProfile": "number",
+          "expected": "2"
+        },
+        {
+          "id": "vertical-scale",
+          "label": "Vertical scale",
+          "inputProfile": "number",
+          "expected": "2"
+        },
+        {
+          "id": "va",
+          "label": "Vertical asymptote x=",
+          "inputProfile": "number",
+          "expected": "{{h}}"
+        },
+        {
+          "id": "ha",
+          "label": "Horizontal asymptote y=",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "effective",
+          "label": "Equivalent coefficient a/b",
+          "inputProfile": "number",
+          "expected": "4"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          },
+          "k": {
+            "type": "int",
+            "min": -3,
+            "max": 3
+          }
+        },
+        "derived": {
+          "leftX": "h-2",
+          "rightX": "h+2",
+          "leftY": "k-2",
+          "rightY": "k+2"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d2b2-centered-graph-read",
+          "dok": 2,
+          "difficultyBand": 2,
+          "taskType": "interpretation",
+          "representation": "graph",
+          "prompt": "For $g(x)=2\\left(\\frac1{0.5x}\\right)$, use the centered graph points to identify the horizontal stretch, vertical scale, asymptotes, and equivalent coefficient.",
+          "stimulus": {
+            "kind": "graph",
+            "graph": {
+              "xMin": -8,
+              "xMax": 8,
+              "yMin": -8,
+              "yMax": 8,
+              "points": [
+                {
+                  "x": -2,
+                  "y": -2
+                },
+                {
+                  "x": 2,
+                  "y": 2
+                }
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "horizontal-scale",
+              "label": "Horizontal scale",
+              "inputProfile": "number",
+              "expected": "2"
+            },
+            {
+              "id": "vertical-scale",
+              "label": "Vertical scale",
+              "inputProfile": "number",
+              "expected": "2"
+            },
+            {
+              "id": "va",
+              "label": "Vertical asymptote x=",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "ha",
+              "label": "Horizontal asymptote y=",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "effective",
+              "label": "Equivalent coefficient a/b",
+              "inputProfile": "number",
+              "expected": "4"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A centered reciprocal graph makes the core transformation effects easy to read.",
+            "reasoning": [
+              "b=0.5 gives horizontal scale 2.",
+              "a=2 gives vertical scale 2.",
+              "With no translation the asymptotes remain x=0 and y=0, and a/b=4."
+            ],
+            "answerSummary": "Horizontal scale 2, vertical scale 2, asymptotes 0 and 0, effective coefficient 4."
+          }
+        }
+      ],
+      "solutionReview": {
+        "headline": "An inside factor of 0.5 doubles horizontal distances from the vertical asymptote.",
+        "reasoning": [
+          "The horizontal scale is $1/0.5=2$, while the outside factor gives vertical scale 2.",
+          "Translations move the reciprocal center to $({{h}},{{k}})$, so its asymptotes are $x={{h}}$ and $y={{k}}$.",
+          "The transformed reciprocal coefficient is $a/b=2/0.5=4$."
+        ],
+        "answerSummary": "Horizontal scale 2, vertical scale 2, asymptotes $x={{h}}$, $y={{k}}$, coefficient 4."
+      }
+    },
+    {
+      "id": "mm_A2_6G_v2_reverse-specified-sequence",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6G:v2-reverse-specified-sequence",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6G",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "reverseReasoning",
+      "prompt": "A supplied sequence says vertical stretch 3 with x-axis reflection, horizontal compression 1/2 with horizontal reflection, then translate the reciprocal center to $({{h}},{{k}})$. Recover a and b and analyze the final graph.",
+      "responseFields": [
+        {
+          "id": "a",
+          "label": "a",
+          "inputProfile": "number",
+          "expected": "-3"
+        },
+        {
+          "id": "b",
+          "label": "b",
+          "inputProfile": "number",
+          "expected": "-2"
+        },
+        {
+          "id": "effective",
+          "label": "Equivalent coefficient a/b",
+          "inputProfile": "number",
+          "expected": "1.5"
+        },
+        {
+          "id": "va",
+          "label": "Vertical asymptote x=",
+          "inputProfile": "number",
+          "expected": "{{h}}"
+        },
+        {
+          "id": "ha",
+          "label": "Horizontal asymptote y=",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "orientation",
+          "label": "Final branch orientation relative to parent",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "same",
+              "label": "Same orientation; the two reflections cancel visually for this odd parent."
+            },
+            {
+              "id": "opposite",
+              "label": "Opposite orientation"
+            }
+          ],
+          "expected": "same"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-centered-reverse-sequence",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "reverseReasoning",
+          "representation": "multipleRepresentation",
+          "prompt": "A transformation sequence says: vertical stretch 3 with x-axis reflection, horizontal compression 1/2 with horizontal reflection, and no translation. Recover a and b, determine a/b, both asymptotes, and the final branch orientation.",
+          "responseFields": [
+            {
+              "id": "a",
+              "label": "a",
+              "inputProfile": "number",
+              "expected": "-3"
+            },
+            {
+              "id": "b",
+              "label": "b",
+              "inputProfile": "number",
+              "expected": "-2"
+            },
+            {
+              "id": "effective",
+              "label": "Equivalent coefficient a/b",
+              "inputProfile": "number",
+              "expected": "1.5"
+            },
+            {
+              "id": "va",
+              "label": "Vertical asymptote x=",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "ha",
+              "label": "Horizontal asymptote y=",
+              "inputProfile": "number",
+              "expected": "0"
+            },
+            {
+              "id": "orientation",
+              "label": "Final branch orientation relative to parent",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "same",
+                  "label": "Same orientation; the two reflections cancel visually for this odd parent."
+                },
+                {
+                  "id": "opposite",
+                  "label": "Opposite orientation"
+                }
+              ],
+              "expected": "same"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Reverse reasoning recovers signed parameters from the stated transformation sequence.",
+            "reasoning": [
+              "Vertical stretch 3 plus x-axis reflection gives a=-3.",
+              "Horizontal compression 1/2 plus horizontal reflection gives b=-2.",
+              "Then a/b=1.5; with no translation the asymptotes are x=0 and y=0, and the two reflections preserve the parent orientation."
+            ],
+            "answerSummary": "a=-3, b=-2, a/b=1.5, asymptotes x=0 and y=0, same orientation."
+          }
+        }
+      ],
+      "solutionReview": {
+        "headline": "Reverse the stated transformations to recover the reciprocal parameters.",
+        "reasoning": [
+          "Vertical stretch 3 with x-axis reflection gives $a=-3$.",
+          "Horizontal compression $1/2$ with horizontal reflection gives $b=-2$.",
+          "Thus $a/b=1.5$. Two sign reflections cancel visually for the odd reciprocal parent, while the asymptotes translate to $x={{h}}$ and $y={{k}}$."
+        ],
+        "answerSummary": "$a=-3$, $b=-2$, coefficient 1.5, asymptotes $x={{h}}$ and $y={{k}}$, same branch orientation as the parent."
+      }
+    },
+    {
+      "id": "mm_A2_6G_v2_inside-factor-error",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6G:v2-inside-factor-error",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6G",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student analyzes $g(x)=2\\left(\\frac1{-4(x-({{h}}))}\\right){{k|signed}}$ and says b=-4 gives a horizontal stretch by 4 and moves the vertical asymptote to x=-{{h}}. Repair the analysis.",
+      "responseFields": [
+        {
+          "id": "horizontal-scale",
+          "label": "Correct horizontal scale",
+          "inputProfile": "number",
+          "expected": "0.25"
+        },
+        {
+          "id": "horizontal-reflection",
+          "label": "Effect of b<0",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "yes",
+              "label": "Horizontal reflection; for 1/x this is visually equivalent to a sign flip."
+            },
+            {
+              "id": "none",
+              "label": "No reflection"
+            }
+          ],
+          "expected": "yes"
+        },
+        {
+          "id": "va",
+          "label": "Correct vertical asymptote x=",
+          "inputProfile": "number",
+          "expected": "{{h}}"
+        },
+        {
+          "id": "ha",
+          "label": "Horizontal asymptote y=",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "effective",
+          "label": "Equivalent coefficient a/b",
+          "inputProfile": "number",
+          "expected": "-0.5"
+        },
+        {
+          "id": "orientation",
+          "label": "Final branch orientation",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "opposite",
+              "label": "Opposite the parent orientation"
+            },
+            {
+              "id": "same",
+              "label": "Same as the parent"
+            }
+          ],
+          "expected": "opposite"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        }
+      },
+      "solutionReview": {
+        "headline": "The inside factor uses reciprocal horizontal scale and does not negate the translation.",
+        "reasoning": [
+          "With $b=-4$, the horizontal scale is $1/4$, not 4, and the negative sign produces a horizontal reflection.",
+          "The expression uses $(x-{{h}})$, so the vertical asymptote is $x={{h}}$; the vertical translation gives horizontal asymptote $y={{k}}$.",
+          "The equivalent reciprocal coefficient is $a/b=2/(-4)=-0.5$, so the branch orientation is opposite the parent."
+        ],
+        "answerSummary": "Horizontal scale 0.25; asymptotes $x={{h}}$, $y={{k}}$; coefficient -0.5; opposite orientation."
+      }
+    }
+  ]
+}

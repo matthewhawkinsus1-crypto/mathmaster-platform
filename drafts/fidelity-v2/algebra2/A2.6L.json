@@ -1,0 +1,690 @@
+{
+  "standard": "A2.6L",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-formulate-and-solve-inverse-variation-constant-model-prediction-table-context-error-repair",
+  "rationale": "TEA breaks A2.6L into formulate and solve actions. Every Fidelity V2 family therefore collects evidence for the inverse-variation constant, a student-authored model, and a solved prediction, with representation and context breadth while staying distinct from general rational formulation/solving standards.",
+  "documents": [
+    {
+      "id": "mm_A2_6L_v2_symbolic-formulate-solve",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6L"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6L:v2-symbolic-formulate-solve",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6L",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "y varies inversely with x. Given y={{y1}} when x={{x1}}, determine the constant of variation, formulate the inverse-variation equation in the form y=k/x, and then use your equation to find y when x={{x2}}.",
+      "responseFields": [
+        {
+          "id": "constant",
+          "label": "Constant of variation k",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "equation",
+          "label": "Inverse-variation equation",
+          "inputProfile": "equation",
+          "equivalence": "modelEquation",
+          "expected": "y={{k}}/x"
+        },
+        {
+          "id": "prediction",
+          "label": "y when x={{x2}}",
+          "inputProfile": "number",
+          "expected": "{{y2}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Inverse variation keeps the product xy constant.",
+        "reasoning": [
+          "Use the known pair: k=({{x1}})({{y1}})={{k}}.",
+          "The model is y={{k}}/x.",
+          "Substitute x={{x2}} to get y={{y2}}."
+        ],
+        "answerSummary": "k={{k}}, y={{k}}/x, and y={{y2}} when x={{x2}}."
+      },
+      "attemptFeedback": [
+        "Do not stop after finding k; the TEKS requires you to formulate the equation and then solve a new case."
+      ],
+      "supportHints": [
+        "For inverse variation, xy=k, so multiply the known x- and y-values first."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "y1": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "x2": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          }
+        },
+        "derived": {
+          "k": "x1*y1",
+          "y2": "k/x2"
+        },
+        "constraints": [
+          "x2!=x1",
+          "k%x2==0"
+        ]
+      }
+    },
+    {
+      "id": "mm_A2_6L_v2_table-constant-product-model-predict",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6L"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6L:v2-table-constant-product-model-predict",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6L",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "representationTranslation",
+      "prompt": "The table is claimed to show an inverse variation between x and y. Use all completed rows to verify the constant product, formulate y as an inverse-variation equation, and use the equation to complete the missing y-value.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Inverse-variation data",
+        "table": {
+          "headers": [
+            "x",
+            "y",
+            "xy"
+          ],
+          "rows": [
+            [
+              "{{x1}}",
+              "{{y1}}",
+              "?"
+            ],
+            [
+              "{{x2}}",
+              "{{y2}}",
+              "?"
+            ],
+            [
+              "{{x3}}",
+              "{{y3}}",
+              "?"
+            ],
+            [
+              "{{x4}}",
+              "?",
+              "?"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "product-1",
+          "label": "Product from row 1",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "product-2",
+          "label": "Product from row 2",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "product-3",
+          "label": "Product from row 3",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "constant",
+          "label": "Constant of variation k",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "equation",
+          "label": "Inverse-variation equation",
+          "inputProfile": "equation",
+          "equivalence": "modelEquation",
+          "expected": "y={{k}}/x"
+        },
+        {
+          "id": "missing-y",
+          "label": "Missing y-value when x={{x4}}",
+          "inputProfile": "number",
+          "expected": "{{y4}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Multiple constant products justify the inverse-variation model.",
+        "reasoning": [
+          "Each completed row has product xy={{k}}.",
+          "Therefore k={{k}} and the equation is y={{k}}/x.",
+          "At x={{x4}}, y={{k}}/{{x4}}={{y4}}."
+        ],
+        "answerSummary": "The table follows y={{k}}/x and the missing value is {{y4}}."
+      },
+      "attemptFeedback": [
+        "Use more than one row as evidence before writing the equation."
+      ],
+      "supportHints": [
+        "If the table is inverse variation, each completed x·y product should match."
+      ],
+      "generator": {
+        "parameters": {
+          "k": {
+            "type": "int",
+            "min": 24,
+            "max": 120,
+            "step": 6
+          },
+          "x1": {
+            "type": "int",
+            "min": 2,
+            "max": 10
+          },
+          "x2": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "x3": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "x4": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          }
+        },
+        "derived": {
+          "y1": "k/x1",
+          "y2": "k/x2",
+          "y3": "k/x3",
+          "y4": "k/x4"
+        },
+        "constraints": [
+          "k%x1==0",
+          "k%x2==0",
+          "k%x3==0",
+          "k%x4==0",
+          "x1!=x2",
+          "x1!=x3",
+          "x2!=x3",
+          "x4!=x1",
+          "x4!=x2",
+          "x4!=x3"
+        ],
+        "attempts": 300
+      }
+    },
+    {
+      "id": "mm_A2_6L_v2_fixed-distance-time-context",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6L"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6L:v2-fixed-distance-time-context",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6L",
+      "representation": "context",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "modeling",
+      "prompt": "A vehicle travels a fixed route. When its average speed is {{v1}} miles per hour, the trip takes {{t1}} hours. For a fixed distance, travel time t varies inversely with speed v. Determine the constant, formulate t as an inverse-variation equation in v, and predict the travel time at {{v2}} miles per hour.",
+      "responseFields": [
+        {
+          "id": "constant",
+          "label": "Constant of variation / fixed distance",
+          "inputProfile": "number",
+          "unit": "miles",
+          "expected": "{{d}}"
+        },
+        {
+          "id": "equation",
+          "label": "Inverse-variation time model",
+          "inputProfile": "equation",
+          "equivalence": "modelEquation",
+          "expected": "t={{d}}/v"
+        },
+        {
+          "id": "prediction",
+          "label": "Travel time at {{v2}} mph",
+          "inputProfile": "number",
+          "unit": "hours",
+          "expected": "{{t2}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Fixed distance makes speed and travel time an inverse variation.",
+        "reasoning": [
+          "The constant is vt=({{v1}})({{t1}})={{d}} miles.",
+          "So t={{d}}/v.",
+          "At v={{v2}}, t={{d}}/{{v2}}={{t2}} hours."
+        ],
+        "answerSummary": "t={{d}}/v; the predicted time is {{t2}} hours."
+      },
+      "attemptFeedback": [
+        "The fixed quantity is distance, so use speed × time to determine the inverse-variation constant."
+      ],
+      "supportHints": [
+        "Start with vt=k, then solve that relationship for t."
+      ],
+      "generator": {
+        "parameters": {
+          "v1": {
+            "type": "int",
+            "min": 30,
+            "max": 70,
+            "step": 5
+          },
+          "t1": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          },
+          "v2": {
+            "type": "int",
+            "min": 30,
+            "max": 80,
+            "step": 5
+          }
+        },
+        "derived": {
+          "d": "v1*t1",
+          "t2": "d/v2"
+        },
+        "constraints": [
+          "v2!=v1",
+          "d%v2==0"
+        ],
+        "attempts": 300
+      }
+    },
+    {
+      "id": "mm_A2_6L_v2_fixed-area-rectangle-context",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6L"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6L:v2-fixed-area-rectangle-context",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6L",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 2,
+      "taskType": "application",
+      "prompt": "A rectangular display must keep the same area. One design is {{l1}} inches long and {{w1}} inches wide. Let w be width and l be length. Recognize the inverse variation, determine the constant area, formulate w as a function of l, and find the width when the length is {{l2}} inches.",
+      "stimulus": {
+        "kind": "table",
+        "title": "Fixed-area design",
+        "table": {
+          "headers": [
+            "Length l (in)",
+            "Width w (in)",
+            "Area lw (in²)"
+          ],
+          "rows": [
+            [
+              "{{l1}}",
+              "{{w1}}",
+              "?"
+            ],
+            [
+              "{{l2}}",
+              "?",
+              "same constant"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "constant",
+          "label": "Constant area k",
+          "inputProfile": "number",
+          "unit": "square inches",
+          "expected": "{{area}}"
+        },
+        {
+          "id": "equation",
+          "label": "Inverse-variation width model",
+          "inputProfile": "equation",
+          "equivalence": "modelEquation",
+          "expected": "w={{area}}/l"
+        },
+        {
+          "id": "prediction",
+          "label": "Width when l={{l2}}",
+          "inputProfile": "number",
+          "unit": "inches",
+          "expected": "{{w2}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "For fixed area, length and width vary inversely.",
+        "reasoning": [
+          "The constant product is lw=({{l1}})({{w1}})={{area}}.",
+          "Solving for width gives w={{area}}/l.",
+          "At l={{l2}}, the width is {{w2}} inches."
+        ],
+        "answerSummary": "w={{area}}/l and w={{w2}} inches when l={{l2}}."
+      },
+      "attemptFeedback": [
+        "A constant product signals inverse variation; use the first design to determine that constant."
+      ],
+      "supportHints": [
+        "Rectangle area is l·w. If area stays fixed, l·w=k."
+      ],
+      "generator": {
+        "parameters": {
+          "l1": {
+            "type": "int",
+            "min": 4,
+            "max": 15
+          },
+          "w1": {
+            "type": "int",
+            "min": 4,
+            "max": 15
+          },
+          "l2": {
+            "type": "int",
+            "min": 4,
+            "max": 18
+          }
+        },
+        "derived": {
+          "area": "l1*w1",
+          "w2": "area/l2"
+        },
+        "constraints": [
+          "l2!=l1",
+          "area%l2==0"
+        ],
+        "attempts": 300
+      }
+    },
+    {
+      "id": "mm_A2_6L_v2_direct-variation-error-full-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6L"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6L:v2-direct-variation-error-full-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6L",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student is told that y varies inversely with x and that y={{y1}} when x={{x1}}. The student writes k=y/x={{wrongK}} and then y={{wrongK}}x. Diagnose the variation error, determine the correct constant, formulate the corrected inverse-variation equation, and use it to find y when x={{x2}}.",
+      "stimulus": {
+        "kind": "steps",
+        "title": "Student work",
+        "steps": [
+          {
+            "id": "wrong-constant",
+            "label": "Student constant",
+            "work": "$k=y/x={{wrongK}}$"
+          },
+          {
+            "id": "wrong-model",
+            "label": "Student model",
+            "work": "$y={{wrongK}}x$"
+          }
+        ]
+      },
+      "responseFields": [
+        {
+          "id": "diagnosis",
+          "label": "What is the student's main error?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "direct",
+              "label": "The student used the direct-variation relationship y=kx instead of the inverse-variation constant product xy=k."
+            },
+            {
+              "id": "multiply",
+              "label": "The student should multiply the direct-variation constant by x twice."
+            },
+            {
+              "id": "same",
+              "label": "Direct and inverse variation use the same equation, so there is no error."
+            }
+          ],
+          "expected": "direct"
+        },
+        {
+          "id": "constant",
+          "label": "Correct constant of variation k",
+          "inputProfile": "number",
+          "expected": "{{k}}"
+        },
+        {
+          "id": "equation",
+          "label": "Correct inverse-variation equation",
+          "inputProfile": "equation",
+          "equivalence": "modelEquation",
+          "expected": "y={{k}}/x"
+        },
+        {
+          "id": "prediction",
+          "label": "Correct y when x={{x2}}",
+          "inputProfile": "number",
+          "expected": "{{y2}}"
+        }
+      ],
+      "solutionReview": {
+        "headline": "Inverse variation uses a constant product, not a constant ratio.",
+        "reasoning": [
+          "The student treated the relationship as direct variation.",
+          "For inverse variation, k=xy=({{x1}})({{y1}})={{k}}, so y={{k}}/x.",
+          "At x={{x2}}, y={{y2}}."
+        ],
+        "answerSummary": "The corrected model is y={{k}}/x and the requested value is {{y2}}."
+      },
+      "attemptFeedback": [
+        "Correct the variation structure first; then use the corrected model for the prediction."
+      ],
+      "supportHints": [
+        "Direct variation keeps y/x constant. Inverse variation keeps xy constant."
+      ],
+      "generator": {
+        "parameters": {
+          "x1": {
+            "type": "choice",
+            "values": [
+              2,
+              4,
+              5,
+              10
+            ]
+          },
+          "y1": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "x2": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          }
+        },
+        "derived": {
+          "wrongK": "y1/x1",
+          "k": "x1*y1",
+          "y2": "k/x2"
+        },
+        "constraints": [
+          "y1%x1==0",
+          "x2!=x1",
+          "k%x2==0"
+        ],
+        "attempts": 300
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-clean-direct-vs-inverse-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student is told that y varies inversely with x and that y={{y1}} when x={{x1}}. The student computes the direct-variation ratio y/x={{wrongK}} and writes y={{wrongK}}x. Diagnose the model error, determine the correct inverse-variation constant, write the corrected equation, and use it to find y when x={{x2}}.",
+          "stimulus": {
+            "kind": "table",
+            "title": "Student comparison",
+            "table": {
+              "headers": [
+                "Student step",
+                "Work"
+              ],
+              "rows": [
+                [
+                  "Constant",
+                  "$y/x={{wrongK}}$"
+                ],
+                [
+                  "Model",
+                  "$y={{wrongK}}x$"
+                ]
+              ]
+            }
+          },
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What is the student's main error?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "direct",
+                  "label": "The student used the direct-variation relationship y=kx instead of the inverse-variation constant product xy=k."
+                },
+                {
+                  "id": "multiply",
+                  "label": "The student should multiply the direct-variation constant by x twice."
+                },
+                {
+                  "id": "same",
+                  "label": "Direct and inverse variation use the same equation."
+                }
+              ],
+              "expected": "direct"
+            },
+            {
+              "id": "constant",
+              "label": "Correct constant of variation k",
+              "inputProfile": "number",
+              "expected": "{{k}}"
+            },
+            {
+              "id": "equation",
+              "label": "Correct inverse-variation equation",
+              "inputProfile": "equation",
+              "equivalence": "modelEquation",
+              "expected": "y={{k}}/x"
+            },
+            {
+              "id": "prediction",
+              "label": "Correct y when x={{x2}}",
+              "inputProfile": "number",
+              "expected": "{{y2}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Inverse variation preserves a product, not a ratio.",
+            "reasoning": [
+              "The correct constant is xy=({{x1}})({{y1}})={{k}}.",
+              "So the inverse-variation model is y={{k}}/x.",
+              "At x={{x2}}, the model gives y={{y2}}."
+            ],
+            "answerSummary": "k={{k}}, y={{k}}/x, prediction {{y2}}."
+          },
+          "attemptFeedback": [
+            "Identify which quantity stays constant in inverse variation before writing the model."
+          ],
+          "supportHints": [
+            "Inverse variation uses xy=k."
+          ],
+          "generator": {
+            "parameters": {
+              "x1": {
+                "type": "choice",
+                "values": [
+                  2
+                ]
+              },
+              "y1": {
+                "type": "choice",
+                "values": [
+                  4,
+                  6,
+                  8
+                ]
+              },
+              "x2": {
+                "type": "choice",
+                "values": [
+                  4
+                ]
+              }
+            },
+            "derived": {
+              "wrongK": "y1/x1",
+              "k": "x1*y1",
+              "y2": "k/x2"
+            },
+            "constraints": [
+              "x2!=x1",
+              "k%x2==0",
+              "wrongK!=k"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

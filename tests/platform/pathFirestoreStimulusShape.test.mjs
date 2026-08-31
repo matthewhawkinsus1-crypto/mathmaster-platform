@@ -79,3 +79,80 @@ test('sanitizer also accepts a table already read back from Firestore', () => {
 
   assert.deepEqual(question.stimulus.table.rows, [{ cells: ['4', '9'] }, { cells: ['5', '11'] }]);
 });
+
+test('secure Path sampled curves carry visible points without leaking their hidden equation', () => {
+  const question = mathPath.buildSanitizedQuestion({
+    familyId: 'quadratic-graph-family',
+    prompt: 'Write the quadratic equation from the graph.',
+    responseFields: [{ id: 'answer', expected: 'y=(x-1)^2-4' }],
+    stimulus: {
+      kind: 'graph',
+      graph: {
+        xMin: -4,
+        xMax: 6,
+        yMin: -6,
+        yMax: 8,
+        curves: [{
+          label: 'Parabola',
+          points: [
+            [-2, 5], [-1, 0], [0, -3], [1, -4], [2, -3], [3, 0], [4, 5],
+          ],
+          expectedEquation: 'y=(x-1)^2-4',
+        }],
+        hiddenCoefficients: { a: 1, h: 1, k: -4 },
+      },
+    },
+  }, { questionInstanceId: 'qi-curve', attemptsAllowed: 3 });
+
+  assert.deepEqual(question.stimulus.graph.curves, [{
+    label: 'Parabola',
+    points: [
+      { x: -2, y: 5 }, { x: -1, y: 0 }, { x: 0, y: -3 }, { x: 1, y: -4 },
+      { x: 2, y: -3 }, { x: 3, y: 0 }, { x: 4, y: 5 },
+    ],
+  }]);
+  const serialized = JSON.stringify(question.stimulus.graph);
+  assert.equal(serialized.includes('expectedEquation'), false);
+  assert.equal(serialized.includes('hiddenCoefficients'), false);
+  assert.equal(containsDirectNestedArray(question.stimulus), false);
+});
+
+test('secure Path graph stimuli keep only visible graph information', () => {
+  const question = mathPath.buildSanitizedQuestion({
+    familyId: 'graph-family',
+    prompt: 'Write an equation from the graph.',
+    responseFields: [{ id: 'answer', expected: 'y=2x+1' }],
+    stimulus: {
+      kind: 'graph',
+      graph: {
+        xMin: -6,
+        xMax: 6,
+        yMin: -8,
+        yMax: 8,
+        ariaLabel: 'A line and shaded half-plane',
+        points: [{ x: 1, y: 3, label: 'P' }],
+        lines: [{
+          label: 'Boundary',
+          boundaryStyle: 'dashed',
+          points: [[0, 1], [2, 5]],
+          expectedEquation: 'y=2x+1',
+        }],
+        shading: [{ lineIndex: 0, side: 'above', correctRelation: '>' }],
+        hiddenAnswer: 'must-not-travel',
+      },
+    },
+  }, { questionInstanceId: 'qi-graph', attemptsAllowed: 3 });
+
+  assert.deepEqual(question.stimulus.graph.lines[0], {
+    label: 'Boundary',
+    boundaryStyle: 'dashed',
+    points: [{ x: 0, y: 1 }, { x: 2, y: 5 }],
+  });
+  assert.deepEqual(question.stimulus.graph.shading, [{ lineIndex: 0, side: 'above' }]);
+  assert.deepEqual(question.stimulus.graph.points, [{ x: 1, y: 3, label: 'P' }]);
+  const serialized = JSON.stringify(question.stimulus.graph);
+  assert.equal(serialized.includes('expectedEquation'), false);
+  assert.equal(serialized.includes('correctRelation'), false);
+  assert.equal(serialized.includes('must-not-travel'), false);
+  assert.equal(containsDirectNestedArray(question.stimulus), false);
+});

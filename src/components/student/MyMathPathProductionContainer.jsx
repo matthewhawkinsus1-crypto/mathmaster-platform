@@ -8,6 +8,7 @@ import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 import { describeChallengeTier } from '../../platform/ccmr/assessmentFidelity.js';
 import { responseClosesQuestion } from '../../platform/path/pathProgression.js';
 import { coursePathLevelName } from '../../platform/path/pathPassPresentation.js';
+import { PURPOSE_LABEL } from '../../platform/path/recommendationV2.js';
 
 // The session runtime is injected.
 //
@@ -26,9 +27,13 @@ export const MyMathPathProductionContainer = ({
   // directly-authored items for that framework; ordinary Path sessions keep
   // selecting ordinary course items.
   assessmentFramework = null,
+  coursePracticeIntent = null,
   weekKey = null,
   weeklySlotKey = null,
   weeklySlot = null,
+  intendedDok = null,
+  intendedDifficultyBand = null,
+  weeklyPurpose = null,
   weeklyGoalRequired = null,
   completesWeeklyGoal = false,
   studentProfile,
@@ -82,10 +87,17 @@ export const MyMathPathProductionContainer = ({
     sessionKind,
     requiredQuestions,
     assessmentFramework,
+    coursePracticeIntent,
     weekKey,
     weeklySlotKey,
     weeklySlot,
-  }), [targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot]);
+    // Synthetic Teacher Path Runtime consumes these. The live service
+    // deliberately does not forward them to Firebase; production resolves
+    // rigor from the frozen server weekly snapshot.
+    intendedDok,
+    intendedDifficultyBand,
+    weeklyPurpose,
+  }), [targetAlignmentKey, sessionKind, requiredQuestions, assessmentFramework, weekKey, weeklySlotKey, weeklySlot, intendedDok, intendedDifficultyBand, weeklyPurpose]);
 
   const contentRefreshNotice = {
     headline: 'Practice updated',
@@ -554,7 +566,14 @@ export const MyMathPathProductionContainer = ({
     const independentRate = Number(session?.summary?.independentSuccesses || 0) / completedCount;
     const challengePassed = sessionAccuracy >= 0.8 && independentRate >= 0.6;
     const weeklyTargetReached = Boolean(completesWeeklyGoal && !paused);
-    const coursePassLevel = !directAssessment && session?.sessionKind !== 'retentionProbe'
+    const weeklyPurposeLabel = session?.weeklySlotKey
+      ? (PURPOSE_LABEL[session?.weeklyPurpose] || 'Weekly Path')
+      : null;
+    const courseChallengeIntent = !weeklyPurposeLabel
+      && !directAssessment
+      && session?.sessionKind !== 'retentionProbe'
+      && session?.coursePracticeIntent === 'challenge';
+    const coursePassLevel = !courseChallengeIntent && !weeklyPurposeLabel && !directAssessment && session?.sessionKind !== 'retentionProbe'
       ? Math.max(1, Math.min(3, Number(session?.coursePassLevel || 1)))
       : null;
     const coursePassName = coursePassLevel ? coursePathLevelName(coursePassLevel) : null;
@@ -576,9 +595,13 @@ export const MyMathPathProductionContainer = ({
               ? 'Practice paused'
               : directAssessment
                 ? `${challenge.label} complete`
-                : coursePassLevel
-                  ? `Level ${coursePassLevel} complete`
-                  : 'Session complete'}
+                : weeklyPurposeLabel
+                  ? `${weeklyPurposeLabel} complete`
+                  : courseChallengeIntent
+                    ? 'Challenge complete'
+                    : coursePassLevel
+                    ? `Level ${coursePassLevel} complete`
+                    : 'Session complete'}
         </h1>
         {weeklyTargetReached && (
           <div style={{ margin: '0 auto 16px', maxWidth: 520, color: '#245c33', fontSize: 16, fontWeight: 800, lineHeight: 1.55 }}>
@@ -586,6 +609,12 @@ export const MyMathPathProductionContainer = ({
               ? `You completed all ${weeklyGoalRequired} of ${weeklyGoalRequired} weekly Path sessions.`
               : 'You completed every assigned weekly Path session.'}
             {' '}Free-choice paths are unlocked for the rest of the week.
+          </div>
+        )}
+        {courseChallengeIntent && !paused && (
+          <div style={{ margin: '0 auto 16px', maxWidth: 540, padding: '12px 14px', borderRadius: 10, background: '#f3ecfd', color: '#5b21b6', lineHeight: 1.55 }}>
+            <strong style={{ display: 'block', marginBottom: 3 }}>Ahead-of-class Challenge complete</strong>
+            This session adds mastery evidence, but it does not advance the numbered Foundation → Deeper practice → Mastery challenge pass loop for this skill.
           </div>
         )}
         {coursePassLevel && !paused && (

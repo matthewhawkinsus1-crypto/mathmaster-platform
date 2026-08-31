@@ -1,0 +1,541 @@
+{
+  "standard": "A.5A",
+  "verdict": "KEEP",
+  "certificationStatus": "candidate-keep-math-linear-equation-methods-certified",
+  "documents": [
+    {
+      "id": "mm_A_5A_v2_balance-workspace",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5A:v2-balance-workspace",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve ${{a}}x {{b|signed}} = {{c}}x {{d|signed}}$ in the balance workspace.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Move variable terms so all $x$ terms are on one side.",
+          "Then undo the remaining constant; the equation was constructed to solve to $x={{x}}$."
+        ],
+        "answerSummary": "$x={{x}}$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 3,
+            "max": 9
+          },
+          "c": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "x": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "b": {
+            "type": "int",
+            "min": -12,
+            "max": 12
+          }
+        },
+        "derived": {
+          "d": "a*x+b-c*x"
+        },
+        "constraints": [
+          "a!=c"
+        ]
+      },
+      "type": "stepAlgebra",
+      "equation": "{{a}}x {{b|signed}} = {{c}}x {{d|signed}}",
+      "variable": "x",
+      "workspaceDifficulty": "standard",
+      "answer": "{{x}}"
+    },
+    {
+      "id": "mm_A_5A_v2_two-step",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5A:v2-two-step",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5A",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Solve ${{a}}x {{b|signed}}={{rhs}}$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Undo the constant term first.",
+          "Then divide by the coefficient of $x$ to isolate the variable."
+        ],
+        "answerSummary": "$x={{x}}$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "x": {
+            "type": "int",
+            "min": -9,
+            "max": 9
+          },
+          "b": {
+            "type": "int",
+            "min": -12,
+            "max": 12
+          }
+        },
+        "derived": {
+          "rhs": "a*x+b"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_5A_v2_context-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5A:v2-context-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5A",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A service charges a fixed fee of {{fee}} dollars plus {{rate}} dollars per unit. A bill of {{total}} dollars represents how many units?",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "Model the bill with ${{fee}}+{{rate}}x={{total}}$.",
+          "Subtract the fee, then divide by the per-unit rate."
+        ],
+        "answerSummary": "The bill represents {{x}} units."
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "fee": {
+            "type": "int",
+            "min": 5,
+            "max": 30
+          },
+          "rate": {
+            "type": "int",
+            "min": 2,
+            "max": 12
+          },
+          "x": {
+            "type": "int",
+            "min": 2,
+            "max": 15
+          }
+        },
+        "derived": {
+          "total": "fee+rate*x"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ]
+    },
+    {
+      "id": "mm_A_5A_v2_distribution",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5A:v2-distribution",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5A",
+      "taskType": "errorAnalysis",
+      "representation": "symbolic",
+      "prompt": "A student distributes in ${{a}}(x{{b|signed}})={{rhs}}$ but forgets to multiply the second term inside the parentheses by {{a}}. Correct the student's error by solving the original equation for $x$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "You may divide by {{a}} first or distribute; both preserve equality.",
+          "After undoing the multiplication, solve the remaining one-step equation."
+        ],
+        "answerSummary": "$x={{x}}$"
+      },
+      "attemptFeedback": [
+        "The outside factor multiplies every term inside the parentheses before you continue solving."
+      ],
+      "supportHints": [
+        "You can distribute first or divide both sides by {{a}} first; both valid methods lead to the same $x$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
+          },
+          "b": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "x": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          }
+        },
+        "derived": {
+          "inside": "x+b",
+          "rhs": "a*inside"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{x}}"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-compare-valid-equation-methods",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "Solve ${{a}}(x{{b|signed}})={{rhs}}$. Student A distributes to BOTH terms before solving. Student B first divides both sides by {{a}} and then solves $x{{b|signed}}={{inside}}$. Decide why both methods preserve equality, solve for x, and verify the solution in the ORIGINAL equation.",
+          "responseFields": [
+            {
+              "id": "method",
+              "label": "Which statement about the two methods is correct?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "both",
+                  "label": "Both methods are valid because each applies an equivalent operation to the entire equation."
+                },
+                {
+                  "id": "only-a",
+                  "label": "Only distribution is allowed."
+                },
+                {
+                  "id": "only-b",
+                  "label": "Only dividing first is allowed."
+                }
+              ],
+              "expected": "both"
+            },
+            {
+              "id": "solution",
+              "label": "Solution x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            },
+            {
+              "id": "left-check",
+              "label": "Original left side at x={{x}}",
+              "inputProfile": "number",
+              "expected": "{{rhs}}"
+            },
+            {
+              "id": "right-check",
+              "label": "Original right side",
+              "inputProfile": "number",
+              "expected": "{{rhs}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Different legal equation moves can be compared by whether they preserve the same solution set.",
+            "reasoning": [
+              "Distributing gives {{a}}x plus the distributed constant; dividing both sides by {{a}} first gives x{{b|signed}}={{inside}}.",
+              "Both routes isolate the same x={{x}}.",
+              "Substitution makes both sides of the original equation equal {{rhs}}, confirming the solution."
+            ],
+            "answerSummary": "Both methods are valid; x={{x}}."
+          },
+          "attemptFeedback": [
+            "Judge a method by whether it performs a legal equivalent operation on the entire equation."
+          ],
+          "supportHints": [
+            "Verification in the original equation is a way to compare the results of two solution methods."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "b": {
+                "type": "int",
+                "min": -5,
+                "max": 5
+              },
+              "x": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              }
+            },
+            "derived": {
+              "inside": "x+b",
+              "rhs": "a*inside"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_5A_v2_reverse-constant",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.5A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.5A:v2-reverse-constant",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.5A",
+      "taskType": "reverseReasoning",
+      "representation": "verbal",
+      "prompt": "The equation ${{a}}x+b={{rhs}}$ has solution $x={{x}}$. Find $b$.",
+      "solutionReview": {
+        "headline": "Connect the representation to the mathematics.",
+        "reasoning": [
+          "A solution makes the equation true.",
+          "Substitute $x={{x}}$ and solve for the missing constant."
+        ],
+        "answerSummary": "$b={{b}}$"
+      },
+      "attemptFeedback": [
+        "Use the given information to identify the relationship before computing."
+      ],
+      "supportHints": [
+        "Name what each number represents, then choose the operation or relationship that connects them."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
+          },
+          "x": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "b": {
+            "type": "int",
+            "min": -12,
+            "max": 12
+          }
+        },
+        "derived": {
+          "rhs": "a*x+b"
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Answer",
+          "inputProfile": "number",
+          "expected": "{{b}}"
+        }
+      ],
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-distribution-error-solve-and-verify",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "Solve ${{a}}(x{{b|signed}})={{c}}x{{d|signed}}$. A student distributes only to x and rewrites the left side as ${{a}}x{{b|signed}}$. Diagnose the first error, solve the ORIGINAL equation, and verify the solution in both sides of the original equation.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "First error",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "distribute-both",
+                  "label": "The factor {{a}} must multiply both x and the constant inside the parentheses."
+                },
+                {
+                  "id": "move-first",
+                  "label": "Distribution is unnecessary because the equation should be divided by x first."
+                }
+              ],
+              "expected": "distribute-both"
+            },
+            {
+              "id": "distributed-constant",
+              "label": "Correct constant term after distributing {{a}}",
+              "inputProfile": "number",
+              "expected": "{{ab}}"
+            },
+            {
+              "id": "solution",
+              "label": "Solution x",
+              "inputProfile": "number",
+              "expected": "{{x}}"
+            },
+            {
+              "id": "left-check",
+              "label": "Original left side at the solution",
+              "inputProfile": "number",
+              "expected": "{{value}}"
+            },
+            {
+              "id": "right-check",
+              "label": "Original right side at the solution",
+              "inputProfile": "number",
+              "expected": "{{value}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A correct solution chain preserves equivalence at every step and can be checked in the original equation.",
+            "reasoning": [
+              "Distribution gives ${{a}}x+({{ab}})={{c}}x+({{d}})$.",
+              "Solving that equation gives x={{x}}.",
+              "Substitution into both original sides gives {{value}}, confirming the repaired solution."
+            ],
+            "answerSummary": "x={{x}}"
+          },
+          "attemptFeedback": [
+            "Fix the earliest invalid transformation before continuing the solve."
+          ],
+          "supportHints": [
+            "The outside factor multiplies every term inside the parentheses."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": -7,
+                "max": 7,
+                "exclude": [
+                  -1,
+                  0,
+                  1
+                ]
+              },
+              "b": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "c": {
+                "type": "int",
+                "min": -6,
+                "max": 6,
+                "exclude": [
+                  0
+                ]
+              },
+              "x": {
+                "type": "int",
+                "min": -8,
+                "max": 8
+              }
+            },
+            "derived": {
+              "ab": "a*b",
+              "value": "a*(x+b)",
+              "d": "value-c*x"
+            },
+            "constraints": [
+              "a!=c"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

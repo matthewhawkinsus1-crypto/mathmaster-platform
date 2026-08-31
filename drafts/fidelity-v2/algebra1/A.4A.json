@@ -1,0 +1,506 @@
+{
+  "standard": "A.4A",
+  "verdict": "REBUILD",
+  "certificationStatus": "candidate-technology-calculation-and-interpretation",
+  "documents": [
+    {
+      "id": "mm_A_4A_v2_correlation-positive-noisy",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4A:v2-correlation-positive-noisy",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "The data set begins with $(0,{{y0}})$. Use statistical technology to calculate the correlation coefficient $r$, then classify its direction and strength.",
+      "type": "dataModelingLab",
+      "mode": "correlation",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "correlationTolerance": 0.025,
+      "solutionReview": {
+        "headline": "Calculate first; interpret second.",
+        "reasoning": [
+          "Use the full set of ordered pairs in a correlation or linear-regression calculation rather than estimating from the picture.",
+          "The sign of $r$ gives direction and $|r|$ gives the strength of the linear association."
+        ]
+      },
+      "attemptFeedback": [
+        "Re-enter every ordered pair in the technology and check the sign of the reported $r$."
+      ],
+      "supportHints": [
+        "A value of $r$ near 1 is strong positive; near -1 is strong negative; near 0 is weak linear association."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": 4,
+            "max": 18
+          }
+        },
+        "derived": {
+          "y0": "b",
+          "y1": "b+m+1",
+          "y2": "b+2*m-1",
+          "y3": "b+3*m+1",
+          "y4": "b+4*m-1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4A_v2_correlation-negative-noisy",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4A:v2-correlation-negative-noisy",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "For this generated data set, the first point is $(0,{{y0}})$. Calculate $r$ using technology and report the direction and strength of the linear association.",
+      "type": "dataModelingLab",
+      "mode": "correlation",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "correlationTolerance": 0.025,
+      "solutionReview": {
+        "headline": "Negative association still requires a numerical calculation.",
+        "reasoning": [
+          "Enter all five points and run the correlation calculation.",
+          "A negative sign means the variables move in opposite directions; use the magnitude to judge strength."
+        ]
+      },
+      "attemptFeedback": [
+        "Check that you did not drop the negative direction when interpreting the coefficient."
+      ],
+      "supportHints": [
+        "Direction comes from the sign, not from how steep a sketched line looks."
+      ],
+      "generator": {
+        "parameters": {
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": 24,
+            "max": 40
+          }
+        },
+        "derived": {
+          "y0": "b",
+          "y1": "b-m+1",
+          "y2": "b-2*m-1",
+          "y3": "b-3*m+1",
+          "y4": "b-4*m-1"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4A_v2_correlation-scattered",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4A:v2-correlation-scattered",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4A",
+      "taskType": "representationTranslation",
+      "representation": "graph",
+      "prompt": "A five-point data set has first response {{y0}} at $x=0$. Use statistical technology—not visual guessing—to calculate $r$ and interpret the direction and strength.",
+      "type": "dataModelingLab",
+      "mode": "correlation",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "correlationTolerance": 0.03,
+      "solutionReview": {
+        "headline": "Scattered data make technology especially important.",
+        "reasoning": [
+          "A scatter plot can suggest a trend, but the requested coefficient must be calculated from the numerical pairs.",
+          "Interpret the computed coefficient by sign and by how close its magnitude is to 1."
+        ]
+      },
+      "attemptFeedback": [
+        "If your visual impression and calculated value disagree, trust the correctly entered calculation and re-check the data entry."
+      ],
+      "supportHints": [
+        "Do not round individual data values before running the correlation calculation."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 8,
+            "max": 22
+          },
+          "k": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a+3*k",
+          "y2": "a-k",
+          "y3": "a+4*k",
+          "y4": "a+2*k"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-eight-point-noisy-correlation",
+          "dok": 2,
+          "difficultyBand": 4,
+          "prompt": "Use statistical technology on all EIGHT observations to calculate the correlation coefficient r. The point cloud is intentionally noisy, so do not classify the association by visual impression alone. Report r and interpret its direction and strength.",
+          "points": [
+            {
+              "x": 0,
+              "y": "{{y0}}"
+            },
+            {
+              "x": 1,
+              "y": "{{y1}}"
+            },
+            {
+              "x": 2,
+              "y": "{{y2}}"
+            },
+            {
+              "x": 3,
+              "y": "{{y3}}"
+            },
+            {
+              "x": 4,
+              "y": "{{y4}}"
+            },
+            {
+              "x": 5,
+              "y": "{{y5}}"
+            },
+            {
+              "x": 6,
+              "y": "{{y6}}"
+            },
+            {
+              "x": 7,
+              "y": "{{y7}}"
+            }
+          ],
+          "correlationTolerance": 0.03,
+          "context": {
+            "title": "Eight-point correlation audit",
+            "note": "All eight pairs must be entered before calculating r."
+          },
+          "solutionReview": {
+            "headline": "A larger noisy data set makes technology more important, not the reasoning deeper.",
+            "reasoning": [
+              "Enter all eight ordered pairs and calculate r with statistical technology.",
+              "Use the sign of r for direction and |r| for strength; do not let one unusual point determine the classification."
+            ],
+            "answerSummary": "Report the technology-calculated r with its direction and strength."
+          },
+          "attemptFeedback": [
+            "Re-check all eight entries before interpreting the coefficient."
+          ],
+          "supportHints": [
+            "Direction comes from the sign of r; strength comes from how close |r| is to 1."
+          ],
+          "generator": {
+            "parameters": {
+              "a": {
+                "type": "int",
+                "min": 12,
+                "max": 30
+              },
+              "k": {
+                "type": "int",
+                "min": 2,
+                "max": 5
+              },
+              "dir": {
+                "type": "choice",
+                "values": [
+                  -1,
+                  1
+                ]
+              }
+            },
+            "derived": {
+              "y0": "a",
+              "y1": "a+dir*(2*k)",
+              "y2": "a+dir*k",
+              "y3": "a+dir*(4*k)",
+              "y4": "a+dir*(3*k)",
+              "y5": "a+dir*(6*k)",
+              "y6": "a+dir*(5*k)",
+              "y7": "a+dir*(8*k)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_4A_v2_correlation-context-study",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4A:v2-correlation-context-study",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4A",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "A study records practice time $x$ and a performance measure $y$; one generated response is {{y0}} when $x=0$. Calculate $r$ using technology, then interpret its direction and strength for this study.",
+      "type": "dataModelingLab",
+      "mode": "correlation",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        },
+        {
+          "x": 5,
+          "y": "{{y5}}"
+        }
+      ],
+      "correlationTolerance": 0.03,
+      "context": {
+        "title": "Practice-time study",
+        "variables": {
+          "x": "practice-time index",
+          "y": "performance measure"
+        }
+      },
+      "solutionReview": {
+        "headline": "Context does not change what $r$ measures.",
+        "reasoning": [
+          "Use all six observations in a correlation calculation.",
+          "State whether the linear association is positive or negative and how strong it is from the magnitude of $r$."
+        ]
+      },
+      "attemptFeedback": [
+        "Use every observation; leaving out one pair changes the coefficient."
+      ],
+      "supportHints": [
+        "Correlation describes linear association between the two measured variables."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 35,
+            "max": 65
+          },
+          "step": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a+step+1",
+          "y2": "a+2*step",
+          "y3": "a+3*step-1",
+          "y4": "a+4*step+2",
+          "y5": "a+5*step"
+        }
+      }
+    },
+    {
+      "id": "mm_A_4A_v2_correlation-error-visual-guess",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.4A"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.4A:v2-correlation-error-visual-guess",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 3,
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A.4A",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student says, “The points are not perfectly on one line, so $r=0$.” For the data set whose first response is {{y0}}, use technology to calculate the actual $r$ and give the correct direction and strength.",
+      "type": "dataModelingLab",
+      "mode": "correlation",
+      "points": [
+        {
+          "x": 0,
+          "y": "{{y0}}"
+        },
+        {
+          "x": 1,
+          "y": "{{y1}}"
+        },
+        {
+          "x": 2,
+          "y": "{{y2}}"
+        },
+        {
+          "x": 3,
+          "y": "{{y3}}"
+        },
+        {
+          "x": 4,
+          "y": "{{y4}}"
+        }
+      ],
+      "correlationTolerance": 0.025,
+      "solutionReview": {
+        "headline": "Not perfect does not mean no correlation.",
+        "reasoning": [
+          "Calculate $r$ from all of the points instead of assigning a value from a visual rule.",
+          "Only the computed sign and magnitude justify the direction-and-strength description."
+        ]
+      },
+      "attemptFeedback": [
+        "The mistake is treating “not perfect” as “no linear association.” Calculate the coefficient."
+      ],
+      "supportHints": [
+        "Only a perfect positive line has $r=1$, but many nonperfect data sets still have a strong positive correlation."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 10,
+            "max": 30
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          }
+        },
+        "derived": {
+          "y0": "a",
+          "y1": "a+m",
+          "y2": "a+2*m+2",
+          "y3": "a+3*m-1",
+          "y4": "a+4*m+1"
+        }
+      }
+    }
+  ]
+}

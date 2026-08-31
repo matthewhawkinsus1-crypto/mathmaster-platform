@@ -1,0 +1,682 @@
+{
+  "standard": "A2.6E",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-complete-absolute-value-linear-solving-isolate-two-cases-zero-negative-context-error-repair",
+  "rationale": "A2.6E already had aligned legacy work, but Fidelity V2 makes the full solve visible: isolate the absolute value, split into two linear cases when appropriate, solve nontrivial linear interiors, and distinguish two/one/zero real-solution cases.",
+  "documents": [
+    {
+      "id": "mm_A2_6E_v2_two-case-complete",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6E:v2-two-case-complete",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6E",
+      "representation": "symbolic",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "procedural",
+      "prompt": "Solve $|x-({{h}})|={{d}}$. Write both linear cases, then give both real solutions.",
+      "responseFields": [
+        {
+          "id": "case-plus",
+          "label": "Positive case",
+          "inputProfile": "equation",
+          "expected": "x-({{h}})={{d}}"
+        },
+        {
+          "id": "case-minus",
+          "label": "Negative case",
+          "inputProfile": "equation",
+          "expected": "x-({{h}})=-{{d}}"
+        },
+        {
+          "id": "left",
+          "label": "Smaller solution",
+          "inputProfile": "number",
+          "expected": "{{left}}"
+        },
+        {
+          "id": "right",
+          "label": "Larger solution",
+          "inputProfile": "number",
+          "expected": "{{right}}"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "h": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 10
+          }
+        },
+        "derived": {
+          "left": "h-d",
+          "right": "h+d"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b2",
+          "dok": 2,
+          "difficultyBand": 2
+        },
+        {
+          "coverageKey": "adaptive-d2b4-nonunit-linear-interior",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "procedural",
+          "representation": "symbolic",
+          "prompt": "Solve $|{{m}}x{{b|signed}}|={{D}}$. Write both linear cases and solve completely. This is harder algebra, but the reasoning demand remains routine DOK 2.",
+          "responseFields": [
+            {
+              "id": "case-plus",
+              "label": "Positive case",
+              "inputProfile": "equation",
+              "expected": "{{m}}x{{b|signed}}={{D}}"
+            },
+            {
+              "id": "case-minus",
+              "label": "Negative case",
+              "inputProfile": "equation",
+              "expected": "{{m}}x{{b|signed}}=-{{D}}"
+            },
+            {
+              "id": "left",
+              "label": "Smaller solution",
+              "inputProfile": "number",
+              "expected": "{{left}}"
+            },
+            {
+              "id": "right",
+              "label": "Larger solution",
+              "inputProfile": "number",
+              "expected": "{{right}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A harder absolute-value equation can still be routine two-case solving.",
+            "reasoning": [
+              "Split the equation into {{m}}x{{b|signed}}={{D}} and {{m}}x{{b|signed}}=-{{D}}.",
+              "Solving those two linear equations gives x={{left}} and x={{right}}.",
+              "The extra coefficient increases algebraic difficulty without changing the reasoning structure."
+            ],
+            "answerSummary": "Solutions: x={{left}} and x={{right}}."
+          },
+          "attemptFeedback": [
+            "Treat the absolute-value equation as two linear equations, then solve each one carefully."
+          ],
+          "supportHints": [
+            "The two cases use the same linear expression with right sides +{{D}} and -{{D}}."
+          ],
+          "generator": {
+            "parameters": {
+              "m": {
+                "type": "int",
+                "min": 2,
+                "max": 6
+              },
+              "h": {
+                "type": "int",
+                "min": -7,
+                "max": 7
+              },
+              "s": {
+                "type": "int",
+                "min": 2,
+                "max": 7
+              }
+            },
+            "derived": {
+              "b": "-m*h",
+              "D": "m*s",
+              "left": "h-s",
+              "right": "h+s"
+            }
+          }
+        }
+      ],
+      "solutionReview": {
+        "headline": "A positive absolute-value equation splits into two linear cases.",
+        "reasoning": [
+          "$|x-{{h}}|={{d}}$ means the inside expression can equal {{d}} or -{{d}}.",
+          "Solving $x-{{h}}={{d}}$ and $x-{{h}}=-{{d}}$ gives the two symmetric solutions {{right}} and {{left}}."
+        ],
+        "answerSummary": "Cases $x-{{h}}={{d}}$ and $x-{{h}}=-{{d}}$; solutions {{left}} and {{right}}."
+      }
+    },
+    {
+      "id": "mm_A2_6E_v2_scaled-linear-inside",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6E:v2-scaled-linear-inside",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6E",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "procedural",
+      "prompt": "Solve ${{a}}|{{m}}x{{b|signed}}|{{k|signed}}={{y}}$. First isolate the absolute value, then write both linear cases and solve.",
+      "responseFields": [
+        {
+          "id": "isolated",
+          "label": "Isolated absolute-value equation",
+          "inputProfile": "equation",
+          "equivalence": "absoluteLinearRelation",
+          "expected": "abs({{m}}x{{b|signed}})={{D}}"
+        },
+        {
+          "id": "case-plus",
+          "label": "Positive linear case",
+          "inputProfile": "equation",
+          "expected": "{{m}}x{{b|signed}}={{D}}"
+        },
+        {
+          "id": "case-minus",
+          "label": "Negative linear case",
+          "inputProfile": "equation",
+          "expected": "{{m}}x{{b|signed}}=-{{D}}"
+        },
+        {
+          "id": "left",
+          "label": "Smaller solution",
+          "inputProfile": "number",
+          "expected": "{{left}}"
+        },
+        {
+          "id": "right",
+          "label": "Larger solution",
+          "inputProfile": "number",
+          "expected": "{{right}}"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": -6,
+            "max": 6
+          },
+          "s": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "b": "-m*h",
+          "D": "m*s",
+          "y": "a*D+k",
+          "left": "h-s",
+          "right": "h+s"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-duplicate-positive-case-repair",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "prompt": "A student correctly isolates $|2x{{b|signed}}|={{D}}$ but then writes the positive case twice, so both branches are $2x{{b|signed}}={{D}}$. Diagnose the reasoning error, write the correct positive and negative cases, and finish both real solutions.",
+          "responseFields": [
+            {
+              "id": "isolated",
+              "label": "Correct isolated absolute-value equation",
+              "inputProfile": "equation",
+              "equivalence": "absoluteLinearRelation",
+              "expected": "abs(2x{{b|signed}})={{D}}"
+            },
+            {
+              "id": "diagnosis",
+              "label": "Diagnosis",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "negative-branch",
+                  "label": "The second branch must set the inside expression equal to -{{D}}, not +{{D}} again."
+                },
+                {
+                  "id": "same",
+                  "label": "Both branches should use +{{D}}."
+                },
+                {
+                  "id": "none",
+                  "label": "There should be no second branch."
+                }
+              ],
+              "expected": "negative-branch"
+            },
+            {
+              "id": "case-plus",
+              "label": "Positive case",
+              "inputProfile": "equation",
+              "expected": "2x{{b|signed}}={{D}}"
+            },
+            {
+              "id": "case-minus",
+              "label": "Negative case",
+              "inputProfile": "equation",
+              "expected": "2x{{b|signed}}=-{{D}}"
+            },
+            {
+              "id": "left",
+              "label": "Smaller solution",
+              "inputProfile": "number",
+              "expected": "{{left}}"
+            },
+            {
+              "id": "right",
+              "label": "Larger solution",
+              "inputProfile": "number",
+              "expected": "{{right}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "A positive absolute-value target produces two opposite linear cases.",
+            "reasoning": [
+              "The isolated equation is $|2x{{b|signed}}|={{D}}$.",
+              "The two cases are $2x{{b|signed}}={{D}}$ and $2x{{b|signed}}=-{{D}}$.",
+              "Solving both gives x={{left}} and x={{right}}."
+            ],
+            "answerSummary": "Correct both branches; solutions x={{left}}, {{right}}."
+          },
+          "attemptFeedback": [
+            "The two branches differ only in the sign of the isolated positive target."
+          ],
+          "supportHints": [
+            "For |u|=D with D>0, solve u=D and u=-D."
+          ],
+          "generator": {
+            "parameters": {
+              "h": {
+                "type": "int",
+                "min": -6,
+                "max": 6
+              },
+              "s": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              }
+            },
+            "derived": {
+              "b": "-2*h",
+              "D": "2*s",
+              "left": "h-s",
+              "right": "h+s"
+            }
+          }
+        }
+      ],
+      "solutionReview": {
+        "headline": "Isolate the absolute value before splitting into cases.",
+        "reasoning": [
+          "Undo the outside addition and multiplication first to obtain $|{{m}}x{{b|signed}}|={{D}}$.",
+          "Because {{D}} is positive, use the two cases ${{m}}x{{b|signed}}={{D}}$ and ${{m}}x{{b|signed}}=-{{D}}$.",
+          "Solving the two linear equations gives {{left}} and {{right}}."
+        ],
+        "answerSummary": "$|{{m}}x{{b|signed}}|={{D}}$; solutions {{left}} and {{right}}."
+      }
+    },
+    {
+      "id": "mm_A2_6E_v2_zero-distance-one-solution",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6E:v2-zero-distance-one-solution",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6E",
+      "representation": "table",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "prompt": "Solve ${{a}}|{{m}}x{{b|signed}}|{{k|signed}}={{k}}$. Use the table to record what happens after isolating the absolute value.",
+      "stimulus": {
+        "kind": "table",
+        "table": {
+          "headers": [
+            "Stage",
+            "Result"
+          ],
+          "rows": [
+            [
+              "Original",
+              "${{a}}|{{m}}x{{b|signed}}|{{k|signed}}={{k}}$"
+            ],
+            [
+              "Isolated absolute value",
+              "?"
+            ]
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "isolated",
+          "label": "Isolated absolute-value equation",
+          "inputProfile": "equation",
+          "equivalence": "absoluteLinearRelation",
+          "expected": "abs({{m}}x{{b|signed}})=0"
+        },
+        {
+          "id": "linear",
+          "label": "Linear equation that remains",
+          "inputProfile": "equation",
+          "expected": "{{m}}x{{b|signed}}=0"
+        },
+        {
+          "id": "solution-count",
+          "label": "Number of real solutions",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "one",
+              "label": "1"
+            },
+            {
+              "id": "two",
+              "label": "2"
+            },
+            {
+              "id": "zero",
+              "label": "0"
+            }
+          ],
+          "expected": "one"
+        },
+        {
+          "id": "solution",
+          "label": "Real solution",
+          "inputProfile": "number",
+          "expected": "{{h}}"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": -8,
+            "max": 8
+          },
+          "k": {
+            "type": "int",
+            "min": -5,
+            "max": 5
+          }
+        },
+        "derived": {
+          "b": "-m*h"
+        }
+      },
+      "solutionReview": {
+        "headline": "Absolute value equals zero only when its inside is zero.",
+        "reasoning": [
+          "After isolation the equation is $|{{m}}x{{b|signed}}|=0$.",
+          "An absolute value is zero only at zero, so the single remaining equation is ${{m}}x{{b|signed}}=0$.",
+          "That equation gives the one real solution $x={{h}}$."
+        ],
+        "answerSummary": "One real solution: $x={{h}}$."
+      }
+    },
+    {
+      "id": "mm_A2_6E_v2_context-two-times",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6E:v2-context-two-times",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6E",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "application",
+      "prompt": "A timing model is $R(t)={{q}}|{{m}}t{{b|signed}}|{{k|signed}}$. At what two times will the reading equal {{target}}? Isolate, split into two cases, and interpret both t-values.",
+      "responseFields": [
+        {
+          "id": "isolated",
+          "label": "Isolated absolute-value equation",
+          "inputProfile": "equation",
+          "equivalence": "absoluteLinearRelation",
+          "expected": "abs({{m}}t{{b|signed}})={{D}}"
+        },
+        {
+          "id": "case-plus",
+          "label": "Positive case",
+          "inputProfile": "equation",
+          "expected": "{{m}}t{{b|signed}}={{D}}"
+        },
+        {
+          "id": "case-minus",
+          "label": "Negative case",
+          "inputProfile": "equation",
+          "expected": "{{m}}t{{b|signed}}=-{{D}}"
+        },
+        {
+          "id": "early",
+          "label": "Earlier time",
+          "inputProfile": "number",
+          "unit": "minutes",
+          "expected": "{{early}}"
+        },
+        {
+          "id": "late",
+          "label": "Later time",
+          "inputProfile": "number",
+          "unit": "minutes",
+          "expected": "{{late}}"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "q": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "h": {
+            "type": "int",
+            "min": 6,
+            "max": 16
+          },
+          "s": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "k": {
+            "type": "int",
+            "min": 1,
+            "max": 8
+          }
+        },
+        "derived": {
+          "b": "-m*h",
+          "D": "m*s",
+          "target": "q*D+k",
+          "early": "h-s",
+          "late": "h+s"
+        }
+      },
+      "solutionReview": {
+        "headline": "The absolute-value model reaches a positive target on two sides of its center.",
+        "reasoning": [
+          "Isolating the absolute value gives $|{{m}}t{{b|signed}}|={{D}}$.",
+          "Split into ${{m}}t{{b|signed}}={{D}}$ and ${{m}}t{{b|signed}}=-{{D}}$.",
+          "The two solutions are times {{early}} and {{late}}, both of which satisfy the original reading target."
+        ],
+        "answerSummary": "Earlier time {{early}}; later time {{late}}."
+      }
+    },
+    {
+      "id": "mm_A2_6E_v2_negative-isolated-error",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.6E"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.6E:v2-negative-isolated-error",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A2.6E",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "prompt": "A student solves ${{a}}|{{m}}x{{b|signed}}|{{k|signed}}={{y}}$, isolates $|{{m}}x{{b|signed}}|=-{{d}}$, and then creates two linear cases anyway. Diagnose the error and finish the real solution set.",
+      "responseFields": [
+        {
+          "id": "isolated",
+          "label": "Correct isolated equation",
+          "inputProfile": "equation",
+          "expected": "abs({{m}}x{{b|signed}})=-{{d}}"
+        },
+        {
+          "id": "diagnosis",
+          "label": "Diagnosis",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "none",
+              "label": "An absolute value cannot equal a negative number, so there are no real solutions."
+            },
+            {
+              "id": "split",
+              "label": "Split into positive and negative cases anyway."
+            },
+            {
+              "id": "square",
+              "label": "Square both sides first."
+            }
+          ],
+          "expected": "none"
+        },
+        {
+          "id": "solution-count",
+          "label": "Number of real solutions",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "zero",
+              "label": "0"
+            },
+            {
+              "id": "one",
+              "label": "1"
+            },
+            {
+              "id": "two",
+              "label": "2"
+            }
+          ],
+          "expected": "zero"
+        }
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": 2,
+            "max": 4
+          },
+          "m": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "b": {
+            "type": "int",
+            "min": -10,
+            "max": 10
+          },
+          "k": {
+            "type": "int",
+            "min": 0,
+            "max": 8
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 6
+          }
+        },
+        "derived": {
+          "y": "k-a*d"
+        }
+      },
+      "solutionReview": {
+        "headline": "An absolute value cannot equal a negative number.",
+        "reasoning": [
+          "The correct isolated equation is $|{{m}}x{{b|signed}}|=-{{d}}$.",
+          "Every absolute value is at least zero, while -{{d}} is negative.",
+          "Therefore splitting into two linear cases would be invalid and the real solution set is empty."
+        ],
+        "answerSummary": "No real solutions."
+      }
+    }
+  ]
+}

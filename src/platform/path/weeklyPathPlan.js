@@ -171,6 +171,7 @@ export const buildWeeklyPathPlan = ({
   sessions = 4,
   honors = false,
   interventionMode = false,
+  allowTransfer = true,
   coverage = undefined,
   now = Date.now(),
 } = {}) => {
@@ -208,6 +209,7 @@ export const buildWeeklyPathPlan = ({
     sessions,
     honors,
     interventionMode,
+    allowTransfer,
     coverage,
     now,
   });

@@ -1,0 +1,641 @@
+{
+  "standard": "A.6C",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-equations-from-real-zeros-and-visible-graphs",
+  "documents": [
+    {
+      "id": "mm_A_6C_v2_monic-from-zeros",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6C:v2-monic-from-zeros",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 2,
+      "dok": 1,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6C",
+      "taskType": "procedural",
+      "representation": "symbolic",
+      "prompt": "Write the complete MONIC quadratic equation whose real zeros are $x={{r1}}$ and $x={{r2}}$. Leave the equation in factored form.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Factored quadratic equation",
+          "inputProfile": "equation",
+          "expected": "y=(x{{nr1|signed}})(x{{nr2|signed}})",
+          "accepted": [
+            "y=(x{{nr2|signed}})(x{{nr1|signed}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "A real zero r creates the factor $(x-r)$.",
+        "reasoning": [
+          "The zeros {{r1}} and {{r2}} give factors $(x{{nr1|signed}})$ and $(x{{nr2|signed}})$.",
+          "Monic means leading coefficient 1, so $y=(x{{nr1|signed}})(x{{nr2|signed}})$."
+        ]
+      },
+      "attemptFeedback": [
+        "Use the opposite sign of each zero inside its factor."
+      ],
+      "supportHints": [
+        "If x=r makes a factor zero, that factor is x-r."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -5,
+            "max": 3
+          },
+          "gap": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "r2": "r1+gap",
+          "nr1": "-r1",
+          "nr2": "-r2"
+        }
+      }
+    },
+    {
+      "id": "mm_A_6C_v2_leading-coefficient-from-zeros",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6C:v2-leading-coefficient-from-zeros",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6C",
+      "taskType": "representationTranslation",
+      "representation": "symbolic",
+      "prompt": "A quadratic has zeros ${{r1}}$ and ${{r2}}$ and leading coefficient {{a}}. Write the COMPLETE equation in factored form.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Factored quadratic equation",
+          "inputProfile": "equation",
+          "expected": "y={{a}}(x{{nr1|signed}})(x{{nr2|signed}})",
+          "accepted": [
+            "y={{a}}(x{{nr2|signed}})(x{{nr1|signed}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Zeros determine the factors; the leading coefficient scales the whole product.",
+        "reasoning": [
+          "Use $(x{{nr1|signed}})(x{{nr2|signed}})$ for the two real zeros.",
+          "Multiplying by {{a}} gives the required leading coefficient."
+        ]
+      },
+      "attemptFeedback": [
+        "Keep the leading coefficient outside the full product."
+      ],
+      "supportHints": [
+        "Start with $a(x-r_1)(x-r_2)$."
+      ],
+      "generator": {
+        "parameters": {
+          "a": {
+            "type": "int",
+            "min": -4,
+            "max": 4,
+            "exclude": [
+              0
+            ]
+          },
+          "r1": {
+            "type": "int",
+            "min": -5,
+            "max": 2
+          },
+          "gap": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "r2": "r1+gap",
+          "nr1": "-r1",
+          "nr2": "-r2"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b2-simple-scaled-factored-form",
+          "dok": 2,
+          "difficultyBand": 2,
+          "prompt": "A quadratic has zeros {{r1}} and {{r2}} and leading coefficient 2. Write the complete equation in factored form, including the scale factor.",
+          "responseFields": [
+            {
+              "id": "factor1",
+              "label": "Factor from zero {{r1}}",
+              "inputProfile": "expression",
+              "expected": "x{{nr1|signed}}"
+            },
+            {
+              "id": "factor2",
+              "label": "Factor from zero {{r2}}",
+              "inputProfile": "expression",
+              "expected": "x{{nr2|signed}}"
+            },
+            {
+              "id": "answer",
+              "label": "Complete factored equation",
+              "inputProfile": "equation",
+              "expected": "y=2(x{{nr1|signed}})(x{{nr2|signed}})"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Each zero becomes a factor, while the leading coefficient scales the complete product.",
+            "reasoning": [
+              "Zero {{r1}} gives factor x{{nr1|signed}} and zero {{r2}} gives factor x{{nr2|signed}}.",
+              "The stated leading coefficient 2 stays outside the product."
+            ],
+            "answerSummary": "$y=2(x{{nr1|signed}})(x{{nr2|signed}})$"
+          },
+          "attemptFeedback": [
+            "Use x-r for each zero and keep the leading coefficient outside both factors."
+          ],
+          "supportHints": [
+            "The sign inside each factor is opposite the zero."
+          ],
+          "generator": {
+            "parameters": {
+              "r1": {
+                "type": "int",
+                "min": -3,
+                "max": -1
+              },
+              "r2": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              }
+            },
+            "derived": {
+              "a": "2",
+              "gap": "r2-r1",
+              "nr1": "-r1",
+              "nr2": "-r2"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_6C_v2_graph-to-factored-equation",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6C:v2-graph-to-factored-equation",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 4,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6C",
+      "taskType": "reverseReasoning",
+      "representation": "graph",
+      "prompt": "The visible parabola is monic. Read its two x-intercepts from the graph and write the COMPLETE quadratic equation in factored form.",
+      "stimulus": {
+        "kind": "graph",
+        "title": "Quadratic graph",
+        "graph": {
+          "xMin": -8,
+          "xMax": 8,
+          "yMin": -12,
+          "yMax": 18,
+          "ariaLabel": "Parabola crossing the x-axis at two visible zeros",
+          "curves": [
+            {
+              "label": "Parabola",
+              "points": [
+                [
+                  "{{xm1}}",
+                  "{{ym1}}"
+                ],
+                [
+                  "{{r1}}",
+                  0
+                ],
+                [
+                  "{{mid}}",
+                  "{{ymid}}"
+                ],
+                [
+                  "{{r2}}",
+                  0
+                ],
+                [
+                  "{{xp1}}",
+                  "{{yp1}}"
+                ]
+              ]
+            }
+          ]
+        }
+      },
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Equation from graph",
+          "inputProfile": "equation",
+          "expected": "y=(x{{nr1|signed}})(x{{nr2|signed}})",
+          "accepted": [
+            "y=(x{{nr2|signed}})(x{{nr1|signed}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "The x-intercepts are the real solutions of the quadratic.",
+        "reasoning": [
+          "The graph crosses the x-axis at {{r1}} and {{r2}}, so those are the zeros.",
+          "Because the graph is monic, the equation is $y=(x{{nr1|signed}})(x{{nr2|signed}})$."
+        ]
+      },
+      "attemptFeedback": [
+        "Read the x-values where the curve crosses y=0, then turn each zero into a factor."
+      ],
+      "supportHints": [
+        "The graph's x-intercepts are the zeros."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": -5,
+            "max": -1
+          },
+          "gap": {
+            "type": "int",
+            "min": 2,
+            "max": 6
+          }
+        },
+        "derived": {
+          "r2": "r1+gap",
+          "nr1": "-r1",
+          "nr2": "-r2",
+          "mid": "(r1+r2)/2",
+          "xm1": "r1-1",
+          "xp1": "r2+1",
+          "ym1": "(xm1-r1)*(xm1-r2)",
+          "ymid": "(mid-r1)*(mid-r2)",
+          "yp1": "(xp1-r1)*(xp1-r2)"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-2b4"
+        },
+        {
+          "coverageKey": "challenge-d3b4-nonmonic-zeros-plus-point-recovery",
+          "dok": 3,
+          "difficultyBand": 4,
+          "taskType": "reverseReasoning",
+          "representation": "multipleRepresentation",
+          "prompt": "A quadratic has zeros {{r1}} and {{r2}} and also passes through $(0,{{y0}})$. A student uses only the zeros and assumes the parabola is monic, writing $y=(x{{nr1|signed}})(x{{nr2|signed}})$. Determine why the zeros alone do not fix the vertical scale, use the extra point to recover the leading coefficient, and write the complete factored equation.",
+          "responseFields": [
+            {
+              "id": "diagnosis",
+              "label": "What information is missing when only the zeros are used?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "scale",
+                  "label": "The zeros determine the factors but not the nonzero leading coefficient/vertical scale."
+                },
+                {
+                  "id": "roots",
+                  "label": "The extra point changes the zeros themselves."
+                }
+              ],
+              "expected": "scale"
+            },
+            {
+              "id": "monic-at-zero",
+              "label": "Value the MONIC factor product would have at x=0",
+              "inputProfile": "number",
+              "expected": "{{baseY0}}"
+            },
+            {
+              "id": "leading-coefficient",
+              "label": "Recovered leading coefficient",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "answer",
+              "label": "Complete factored quadratic equation",
+              "inputProfile": "equation",
+              "expected": "y={{a}}(x{{nr1|signed}})(x{{nr2|signed}})"
+            },
+            {
+              "id": "verify-zero-point",
+              "label": "Value of the completed model at x=0",
+              "inputProfile": "number",
+              "expected": "{{y0}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Zeros locate the x-intercepts; an additional point determines the vertical scale.",
+            "reasoning": [
+              "The zero factors are $(x{{nr1|signed}})(x{{nr2|signed}})$.",
+              "At x=0 the monic product equals {{baseY0}}.",
+              "Because the actual point has y={{y0}}, the scale is {{y0}}/{{baseY0}}={{a}}, giving the complete equation."
+            ],
+            "answerSummary": "$y={{a}}(x{{nr1|signed}})(x{{nr2|signed}})$"
+          },
+          "attemptFeedback": [
+            "Use the zeros to build the factor structure, then use the extra point to determine a."
+          ],
+          "supportHints": [
+            "Substitute x=0 into y=a(x-r1)(x-r2)."
+          ],
+          "generator": {
+            "parameters": {
+              "r1": {
+                "type": "int",
+                "min": -6,
+                "max": -1
+              },
+              "r2": {
+                "type": "int",
+                "min": 1,
+                "max": 6
+              },
+              "a": {
+                "type": "choice",
+                "values": [
+                  -3,
+                  -2,
+                  2,
+                  3
+                ]
+              }
+            },
+            "derived": {
+              "nr1": "-r1",
+              "nr2": "-r2",
+              "baseY0": "(-r1)*(-r2)",
+              "y0": "a*baseY0"
+            }
+          },
+          "stimulus": {
+            "kind": "table",
+            "title": "Evidence for the quadratic",
+            "table": {
+              "headers": [
+                "Evidence",
+                "Value"
+              ],
+              "rows": [
+                [
+                  "First zero",
+                  "x={{r1}}"
+                ],
+                [
+                  "Second zero",
+                  "x={{r2}}"
+                ],
+                [
+                  "Additional point",
+                  "(0, {{y0}})"
+                ]
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_6C_v2_projectile-model-from-roots-point",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6C:v2-projectile-model-from-roots-point",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6C",
+      "taskType": "application",
+      "representation": "context",
+      "prompt": "Let $x$ be time and $y$ be height. A projectile is on the ground at $x=0$ and $x={{r}}$ and passes through $(1,{{y1}})$. Write the COMPLETE quadratic model in factored form.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Projectile quadratic model",
+          "inputProfile": "equation",
+          "expected": "y={{a}}x(x{{nr|signed}})"
+        }
+      ],
+      "solutionReview": {
+        "headline": "The two ground times are zeros, and the extra point determines the scale.",
+        "reasoning": [
+          "Zeros 0 and {{r}} give the structure $y=ax(x-{{r}})$.",
+          "Substituting $(1,{{y1}})$ gives a={{a}}, so the complete model is $y={{a}}x(x{{nr|signed}})$."
+        ]
+      },
+      "attemptFeedback": [
+        "Use both ground times as factors before using the extra point to determine a."
+      ],
+      "supportHints": [
+        "A zero at x=0 contributes a factor x."
+      ],
+      "generator": {
+        "parameters": {
+          "mag": {
+            "type": "int",
+            "min": 1,
+            "max": 4
+          },
+          "r": {
+            "type": "int",
+            "min": 3,
+            "max": 8
+          }
+        },
+        "derived": {
+          "a": "-mag",
+          "nr": "-r",
+          "y1": "a*(1-r)"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d3b3-compare-scaled-root-models",
+          "dok": 3,
+          "difficultyBand": 3,
+          "prompt": "A projectile is on the ground at x=0 and x={{r}} and passes through $(1,{{y1}})$. Student A writes the monic model $y=x(x-{{r}})$. Student B says the zeros determine the factors but the extra point is needed to determine the scale. Decide which reasoning is valid, compute the scale a, and write the complete factored model.",
+          "responseFields": [
+            {
+              "id": "reasoning",
+              "label": "Which student's reasoning is valid?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "b",
+                  "label": "Student B; the zeros fix the factors but not the vertical scale."
+                },
+                {
+                  "id": "a",
+                  "label": "Student A; zeros always force a monic quadratic."
+                }
+              ],
+              "expected": "b"
+            },
+            {
+              "id": "a",
+              "label": "Scale coefficient a",
+              "inputProfile": "number",
+              "expected": "{{a}}"
+            },
+            {
+              "id": "equation",
+              "label": "Complete factored model",
+              "inputProfile": "equation",
+              "expected": "y={{a}}x(x{{nr|signed}})"
+            },
+            {
+              "id": "verify",
+              "label": "Model output at x=1",
+              "inputProfile": "number",
+              "expected": "{{y1}}"
+            }
+          ],
+          "solutionReview": {
+            "headline": "Two zeros determine factor locations, but an additional point determines vertical scale.",
+            "reasoning": [
+              "The zeros give the structure y=ax(x-{{r}}).",
+              "Using (1,{{y1}}) gives a={{a}}.",
+              "The completed model reproduces the extra point, confirming the scale."
+            ],
+            "answerSummary": "Student B is correct; model $y={{a}}x(x{{nr|signed}})$."
+          },
+          "attemptFeedback": [
+            "Do not assume a=1 unless monic behavior is actually given."
+          ],
+          "supportHints": [
+            "Substitute the given nonzero point into $y=ax(x-r)$, then solve the resulting equation for the scale coefficient."
+          ],
+          "generator": {
+            "parameters": {
+              "mag": {
+                "type": "choice",
+                "values": [
+                  1,
+                  2
+                ]
+              },
+              "r": {
+                "type": "int",
+                "min": 3,
+                "max": 6
+              }
+            },
+            "derived": {
+              "a": "-mag",
+              "nr": "-r",
+              "y1": "a*(1-r)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A_6C_v2_error-signs-from-zeros",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A.6C"
+      ],
+      "courseId": "algebra1",
+      "familyId": "mathmaster:A.6C:v2-error-signs-from-zeros",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "difficultyBand": 3,
+      "dok": 2,
+      "calculatorPolicy": "inherit",
+      "assessedConstruct": "A.6C",
+      "taskType": "errorAnalysis",
+      "representation": "verbal",
+      "prompt": "A student is told the zeros are {{r1}} and {{r2}} but writes $y=(x{{r1|signed}})(x{{r2|signed}})$, using the zero signs directly. Correct the student's equation for a MONIC quadratic.",
+      "responseFields": [
+        {
+          "id": "answer",
+          "label": "Correct factored equation",
+          "inputProfile": "equation",
+          "expected": "y=(x{{nr1|signed}})(x{{nr2|signed}})",
+          "accepted": [
+            "y=(x{{nr2|signed}})(x{{nr1|signed}})"
+          ]
+        }
+      ],
+      "solutionReview": {
+        "headline": "Factors use the opposite sign of the zeros.",
+        "reasoning": [
+          "A factor must equal 0 when x equals its zero.",
+          "Therefore zeros {{r1}} and {{r2}} produce $(x{{nr1|signed}})$ and $(x{{nr2|signed}})$."
+        ]
+      },
+      "attemptFeedback": [
+        "Test each factor by substituting the stated zero."
+      ],
+      "supportHints": [
+        "Zero r corresponds to factor x-r."
+      ],
+      "generator": {
+        "parameters": {
+          "r1": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          },
+          "gap": {
+            "type": "int",
+            "min": 1,
+            "max": 5
+          }
+        },
+        "derived": {
+          "r2": "r1+gap",
+          "nr1": "-r1",
+          "nr2": "-r2"
+        }
+      }
+    }
+  ]
+}

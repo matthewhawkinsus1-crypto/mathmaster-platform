@@ -1,0 +1,638 @@
+{
+  "standard": "A2.3G",
+  "verdict": "ENHANCE",
+  "certificationStatus": "candidate-secure-feasible-point-determination-across-two-and-three-inequality-systems",
+  "rationale": "A2.3G requires determining possible solutions within a system's solution set. Fidelity V2 uses the secure Systems Workspace analyze mode so students must classify a marked point against every inequality and then supply an independently feasible ordered pair, while A2.3F remains responsible for constructing the full region.",
+  "documents": [
+    {
+      "id": "mm_A2_3G_v2_two-inclusive-feasible",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3G:v2-two-inclusive-feasible",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3G",
+      "representation": "graph",
+      "difficultyBand": 2,
+      "dok": 2,
+      "taskType": "interpretation",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "analyze",
+      "ask": [
+        "testPoint",
+        "candidate"
+      ],
+      "prompt": "Use the displayed solution region for $y\\ge {{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$. Decide whether the marked point is a possible solution, then enter a feasible ordered pair from the solution set.",
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">="
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        }
+      ],
+      "testPoint": {
+        "x": 0,
+        "y": "{{testY}}"
+      },
+      "graph": {
+        "xMin": -7,
+        "xMax": 7,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "A possible solution must satisfy every inequality.",
+        "reasoning": [
+          "At x=0, the marked y-value {{testY}} is above or on the lower boundary {{b1}}.",
+          "It is also below or on the upper boundary {{b2}}.",
+          "So the marked point belongs to the overlap."
+        ],
+        "answerSummary": "The marked point is feasible; any second point in the overlap is also a possible solution."
+      },
+      "attemptFeedback": [
+        "Check the marked point against both inequalities, not only the one whose boundary is closest."
+      ],
+      "supportHints": [
+        "A system means AND: every inequality must be true."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          },
+          "gap": {
+            "type": "int",
+            "min": 4,
+            "max": 8
+          }
+        },
+        "derived": {
+          "b2": "b1+gap",
+          "testY": "b1+1"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3G_v2_strict-boundary-rejection",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3G:v2-strict-boundary-rejection",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3G",
+      "representation": "symbolic",
+      "difficultyBand": 3,
+      "dok": 2,
+      "taskType": "interpretation",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "analyze",
+      "ask": [
+        "testPoint",
+        "candidate"
+      ],
+      "prompt": "The system is $y>{{m1}}x{{b1|signed}}$ and $y\\le {{m2}}x{{b2|signed}}$. The marked point lies exactly on the dashed first boundary. Determine whether it is possible, then enter a feasible ordered pair from the solution set.",
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">"
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        }
+      ],
+      "testPoint": {
+        "x": 0,
+        "y": "{{b1}}"
+      },
+      "graph": {
+        "xMin": -7,
+        "xMax": 7,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "solutionReview": {
+        "headline": "A point on a strict boundary is not included.",
+        "reasoning": [
+          "The first inequality uses >, so equality is not allowed.",
+          "At x=0 the marked point has y={{b1}}, exactly the first boundary value.",
+          "Therefore the marked point is not a possible solution even if it satisfies the second inequality."
+        ],
+        "answerSummary": "Reject the marked boundary point; choose a point strictly above the first line and at/below the second."
+      },
+      "attemptFeedback": [
+        "A dashed boundary is excluded from the solution set."
+      ],
+      "supportHints": [
+        "For > or <, a point exactly on the boundary fails that inequality."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          },
+          "gap": {
+            "type": "int",
+            "min": 4,
+            "max": 8
+          }
+        },
+        "derived": {
+          "b2": "b1+gap"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d2b3",
+          "dok": 2,
+          "difficultyBand": 3
+        },
+        {
+          "coverageKey": "adaptive-d2b4-three-constraint-candidate-analysis",
+          "dok": 2,
+          "difficultyBand": 4,
+          "taskType": "interpretation",
+          "representation": "multipleRepresentation",
+          "type": "systemsWorkspace",
+          "mode": "inequalities",
+          "interaction": "analyze",
+          "ask": [
+            "testPoint",
+            "candidate"
+          ],
+          "prompt": "The system is $y>{{m1}}x{{b1|signed}}$, $y\\le{{m2}}x{{b2|signed}}$, and $y\\ge{{floor}}$. The marked point lies on the dashed first boundary. Decide whether it is possible under ALL THREE constraints, then enter a feasible ordered pair.",
+          "inequalities": [
+            {
+              "m": "{{m1}}",
+              "b": "{{b1}}",
+              "relation": ">"
+            },
+            {
+              "m": "{{m2}}",
+              "b": "{{b2}}",
+              "relation": "<="
+            },
+            {
+              "m": 0,
+              "b": "{{floor}}",
+              "relation": ">="
+            }
+          ],
+          "testPoint": {
+            "x": 0,
+            "y": "{{b1}}"
+          },
+          "graph": {
+            "xMin": -7,
+            "xMax": 7,
+            "yMin": -10,
+            "yMax": 12
+          },
+          "solutionReview": {
+            "headline": "A candidate must survive every constraint, including strict-boundary rules.",
+            "reasoning": [
+              "The marked point equals the first boundary value at x=0, so it fails the strict > inequality.",
+              "The additional floor constraint increases the checking load but does not change that rejection."
+            ]
+          },
+          "answerSummary": "Reject the marked point; choose a feasible point satisfying all three.",
+          "attemptFeedback": [
+            "Check the marked point against each inequality one at a time."
+          ],
+          "supportHints": [
+            "A point on a dashed boundary fails the strict inequality."
+          ],
+          "generator": {
+            "parameters": {
+              "m1": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              },
+              "m2": {
+                "type": "int",
+                "min": -3,
+                "max": -1
+              },
+              "b1": {
+                "type": "int",
+                "min": -3,
+                "max": 0
+              },
+              "gap": {
+                "type": "int",
+                "min": 5,
+                "max": 8
+              },
+              "drop": {
+                "type": "int",
+                "min": 1,
+                "max": 3
+              }
+            },
+            "derived": {
+              "b2": "b1+gap",
+              "floor": "b1-drop"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mm_A2_3G_v2_three-constraint-feasible",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3G:v2-three-constraint-feasible",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3G",
+      "representation": "multipleRepresentation",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "application",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "analyze",
+      "ask": [
+        "testPoint",
+        "candidate"
+      ],
+      "prompt": "Determine whether the marked point is possible for ALL THREE constraints $y\\ge {{m1}}x{{b1|signed}}$, $y\\le {{m2}}x{{b2|signed}}$, and $y>{{floor}}$. then enter a feasible ordered pair from the solution set.",
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">="
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<="
+        },
+        {
+          "m": 0,
+          "b": "{{floor}}",
+          "relation": ">"
+        }
+      ],
+      "testPoint": {
+        "x": 0,
+        "y": "{{testY}}"
+      },
+      "graph": {
+        "xMin": -8,
+        "xMax": 8,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "context": {
+        "title": "Three simultaneous restrictions",
+        "note": "The point must satisfy every boundary condition at once."
+      },
+      "solutionReview": {
+        "headline": "Three constraints still use one logical AND.",
+        "reasoning": [
+          "At x=0 the marked point is above the first lower boundary.",
+          "It is below the upper boundary.",
+          "It is also strictly above y={{floor}}, so it survives all three constraints."
+        ],
+        "answerSummary": "The marked point is feasible; another point in the three-way overlap is also possible."
+      },
+      "attemptFeedback": [
+        "Do not stop after two checks; a three-inequality system requires all three comparisons."
+      ],
+      "supportHints": [
+        "A point failing even one inequality is outside the solution set."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 2
+          },
+          "m2": {
+            "type": "int",
+            "min": -2,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -5,
+            "max": -3
+          },
+          "floor": {
+            "type": "int",
+            "min": -2,
+            "max": 0
+          },
+          "topGap": {
+            "type": "int",
+            "min": 5,
+            "max": 8
+          }
+        },
+        "derived": {
+          "b2": "floor+topGap",
+          "testY": "floor+1"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3G_v2_context-infeasible-marked",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3G:v2-context-infeasible-marked",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3G",
+      "representation": "context",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "application",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "analyze",
+      "ask": [
+        "testPoint",
+        "candidate"
+      ],
+      "prompt": "A planning model uses $y\\ge0$, $y\\ge x-{{shift}}$, and $y\\le -x+{{cap}}$. Decide whether the marked plan is possible, then enter a feasible plan that satisfies all three constraints.",
+      "inequalities": [
+        {
+          "m": 0,
+          "b": 0,
+          "relation": ">="
+        },
+        {
+          "m": 1,
+          "b": "-{{shift}}",
+          "relation": ">="
+        },
+        {
+          "m": -1,
+          "b": "{{cap}}",
+          "relation": "<="
+        }
+      ],
+      "testPoint": {
+        "x": "{{testX}}",
+        "y": 0
+      },
+      "graph": {
+        "xMin": -2,
+        "xMax": 12,
+        "yMin": -4,
+        "yMax": 10
+      },
+      "context": {
+        "title": "Feasible planning region",
+        "note": "A marked plan is possible only when all three policy constraints hold."
+      },
+      "solutionReview": {
+        "headline": "One violated planning constraint makes the marked plan impossible.",
+        "reasoning": [
+          "The marked point satisfies y≥0.",
+          "At x={{testX}}, the lower sloped requirement is y≥{{requiredY}}.",
+          "Because the marked point has y=0<{{requiredY}}, it is not feasible."
+        ],
+        "answerSummary": "Reject the marked plan; choose another point in the displayed overlap."
+      },
+      "attemptFeedback": [
+        "Use the actual marked coordinates in each policy inequality before deciding."
+      ],
+      "supportHints": [
+        "A point can satisfy two constraints and still fail the system because of the third."
+      ],
+      "generator": {
+        "parameters": {
+          "shift": {
+            "type": "int",
+            "min": 2,
+            "max": 5
+          },
+          "capExtra": {
+            "type": "int",
+            "min": 5,
+            "max": 9
+          }
+        },
+        "derived": {
+          "testX": "shift+2",
+          "requiredY": "testX-shift",
+          "cap": "2*testX+capExtra"
+        }
+      }
+    },
+    {
+      "id": "mm_A2_3G_v2_inclusive-boundary-error-repair",
+      "active": true,
+      "alignmentKeys": [
+        "texas:A2.3G"
+      ],
+      "courseId": "algebra2",
+      "familyId": "mathmaster:A2.3G:v2-inclusive-boundary-error-repair",
+      "familyVersion": 3,
+      "questionType": "response",
+      "activityRole": "practice",
+      "calculatorPolicy": "graphing",
+      "assessedConstruct": "A2.3G",
+      "representation": "verbal",
+      "difficultyBand": 4,
+      "dok": 3,
+      "taskType": "errorAnalysis",
+      "type": "systemsWorkspace",
+      "mode": "inequalities",
+      "interaction": "analyze",
+      "ask": [
+        "testPoint",
+        "candidate"
+      ],
+      "prompt": "A student says the marked point cannot be a solution because it lies on the boundary of $y\\ge {{m1}}x{{b1|signed}}$. The full system is $y\\ge {{m1}}x{{b1|signed}}$ and $y<{{m2}}x{{b2|signed}}$. Correct the student's decision, then enter a feasible point from the solution set.",
+      "inequalities": [
+        {
+          "m": "{{m1}}",
+          "b": "{{b1}}",
+          "relation": ">="
+        },
+        {
+          "m": "{{m2}}",
+          "b": "{{b2}}",
+          "relation": "<"
+        }
+      ],
+      "testPoint": {
+        "x": 0,
+        "y": "{{b1}}"
+      },
+      "graph": {
+        "xMin": -7,
+        "xMax": 7,
+        "yMin": -10,
+        "yMax": 12
+      },
+      "context": {
+        "title": "Error analysis",
+        "note": "Boundary inclusion depends on the inequality symbol, and the point must still satisfy the second constraint."
+      },
+      "solutionReview": {
+        "headline": "Inclusive boundaries can contain valid system solutions.",
+        "reasoning": [
+          "The ≥ symbol includes equality, so lying on the first boundary does not disqualify the point.",
+          "At x=0, the marked y-value {{b1}} is strictly below the second boundary value {{b2}}.",
+          "Therefore the marked point satisfies both inequalities."
+        ],
+        "answerSummary": "The marked point is feasible; the student's boundary rule was wrong."
+      },
+      "attemptFeedback": [
+        "Do not use the blanket rule 'boundary points are never solutions.' Read the symbol."
+      ],
+      "supportHints": [
+        "≥ and ≤ include the boundary; > and < exclude it."
+      ],
+      "generator": {
+        "parameters": {
+          "m1": {
+            "type": "int",
+            "min": 1,
+            "max": 3
+          },
+          "m2": {
+            "type": "int",
+            "min": -3,
+            "max": -1
+          },
+          "b1": {
+            "type": "int",
+            "min": -4,
+            "max": 0
+          },
+          "gap": {
+            "type": "int",
+            "min": 4,
+            "max": 8
+          }
+        },
+        "derived": {
+          "b2": "b1+gap"
+        }
+      },
+      "variants": [
+        {
+          "coverageKey": "core-d3b4",
+          "dok": 3,
+          "difficultyBand": 4
+        },
+        {
+          "coverageKey": "adaptive-d3b3-fixed-boundary-inclusion-audit",
+          "dok": 3,
+          "difficultyBand": 3,
+          "taskType": "errorAnalysis",
+          "representation": "verbal",
+          "type": "systemsWorkspace",
+          "mode": "inequalities",
+          "interaction": "analyze",
+          "ask": [
+            "testPoint",
+            "candidate"
+          ],
+          "prompt": "A student says the marked point $(0,0)$ cannot solve the system because it lies on the boundary of $y\\ge0$. The second inequality is $y< -x+4$. Correct the student's boundary reasoning, decide whether the marked point is possible, then enter another feasible point.",
+          "inequalities": [
+            {
+              "m": 0,
+              "b": 0,
+              "relation": ">="
+            },
+            {
+              "m": -1,
+              "b": 4,
+              "relation": "<"
+            }
+          ],
+          "testPoint": {
+            "x": 0,
+            "y": 0
+          },
+          "graph": {
+            "xMin": -6,
+            "xMax": 6,
+            "yMin": -6,
+            "yMax": 8
+          },
+          "context": {
+            "title": "Boundary inclusion audit",
+            "note": "The marked point lies on the first boundary and below the second boundary."
+          },
+          "solutionReview": {
+            "headline": "An inclusive boundary can contain valid system solutions.",
+            "reasoning": [
+              "The ≥ symbol includes y=0.",
+              "At x=0, the second inequality requires y<4, so (0,0) satisfies it too.",
+              "Therefore the marked point is feasible and the student's blanket boundary rule is wrong."
+            ]
+          },
+          "answerSummary": "The marked point is feasible.",
+          "attemptFeedback": [
+            "Read the inequality symbol before deciding whether a boundary point is excluded."
+          ],
+          "supportHints": [
+            "≥ includes equality; > does not."
+          ]
+        }
+      ]
+    }
+  ]
+}

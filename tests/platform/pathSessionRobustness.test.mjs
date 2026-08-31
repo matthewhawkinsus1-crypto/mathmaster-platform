@@ -9,6 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createTeacherPathRuntime } from '../../src/platform/simulation/teacherPathRuntime.js';
+import { effectivePathVariants } from '../../functions/shared/pathQuestionGeneration.mjs';
 
 const TARGET = 'A.5C';
 const item = (id, expected = '7', overrides = {}) => ({
@@ -165,10 +166,10 @@ test('attempts run out cleanly rather than looping', async () => {
   assert.ok(last.solutionReview, 'a student who ran out of attempts is owed the reasoning');
 });
 
-test('every shipped bank item can actually produce that review', async () => {
-  // The test above only proves the release MECHANISM works. This proves the
-  // content it releases exists — a review is only owed to a student if one was
-  // authored, and the build gate is what guarantees that.
+test('every effective shipped Path row can actually produce that review', async () => {
+  // Raw family shells are not what students receive. Variant-bearing families
+  // are shallow-merged exactly as Path generation does, so inspect every
+  // effective row and require review reasoning on the concrete issued shape.
   const { readFileSync } = await import('node:fs');
   const courses = ['grade6', 'grade7', 'grade8', 'algebra1', 'algebra2'];
   const missing = [];
@@ -177,12 +178,20 @@ test('every shipped bank item can actually produce that review', async () => {
       new URL(`../../seed/pathQuestionBank/${course}_pathQuestionBank_seed.json`, import.meta.url), 'utf8',
     ));
     (file.documents || []).forEach((question) => {
-      const review = question.solutionReview;
-      if (!review || !(review.reasoning || []).length) missing.push(question.id);
+      effectivePathVariants(question).forEach(({ template, variantIndex, variant }) => {
+        const review = template.solutionReview;
+        if (!review || !(review.reasoning || []).length) {
+          missing.push(
+            variantIndex == null
+              ? question.id
+              : `${question.id}#${variant?.coverageKey || `variant-${variantIndex}`}`,
+          );
+        }
+      });
     });
   });
   assert.deepEqual(missing.slice(0, 10), [],
-    `${missing.length} shipped questions would close with nothing to show the student`);
+    `${missing.length} effective shipped questions would close with nothing to show the student`);
 });
 
 test('an unknown session id is refused rather than improvised', async () => {
