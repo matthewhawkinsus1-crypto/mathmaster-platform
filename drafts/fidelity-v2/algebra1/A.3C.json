@@ -552,7 +552,7 @@
           "coverageKey": "adaptive-d3b3-intercept-role-verification",
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "For $y={{m}}x{{b|signed}}$, Student A says the zero is {{b}} because it is the number visible when x=0. Student B says the zero is {{root}} because substituting x={{root}} makes y=0. Determine which reasoning matches the definition of a zero, identify both intercepts, and verify the zero in the equation.",
+          "prompt": "For $y={{m}}x{{b|signed}}$, Student A says the zero is {{b}} because it is the number visible when x=0. Student B says the zero is {{root}} because that input satisfies the x-intercept condition. Determine which reasoning matches the definition of a zero, identify both intercepts, and verify the proposed zero in the equation.",
           "responseFields": [
             {
               "id": "student",
@@ -601,7 +601,7 @@
             "Use the definitions x=0 and y=0 to separate the two intercept roles."
           ],
           "supportHints": [
-            "A zero is an x-value, not the output at x=0."
+            "Distinguish the input associated with an x-intercept from the output associated with a y-intercept, then substitute the proposed zero to verify it."
           ]
         }
       ]
