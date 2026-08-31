@@ -4,17 +4,31 @@ import assert from 'node:assert/strict';
 import { compileDigitalSatProductionSeed } from '../../scripts/lib/digital-sat-production-seed.mjs';
 
 const EXPECTED = Object.freeze({
-  'mathmaster:sat:A.10A:missing-linear-coefficient': ['satDistractor3', 'q'],
-  'mathmaster:sat:A.10A:subtraction-constant-parameter': ['satDistractor3', 'f'],
-  'mathmaster:sat:A.10A:ccmr-challenge-equivalent-sum-parameter': ['satDistractor3', 'q'],
-  'mathmaster:sat:A.10B:ccmr-challenge-three-factor-linear-coefficient': ['satDistractor3', 'q'],
-  'mathmaster:sat:A.10E:missing-middle-coefficient': ['satDistractor3', 'q'],
-  'mathmaster:sat:A.10F:missing-square-constant': ['satDistractor3', '25'],
-  'mathmaster:sat:A.10F:ccmr-challenge-leading-parameter-from-factors': ['satDistractor3', 'n*n'],
-  'mathmaster:sat:A.11A:ccmr-challenge-radical-coefficient-parameter': ['satDistractor3', 'b'],
-  'mathmaster:sat:A.11B:quotient-exponent-law': ['satDistractor3', 'b'],
-  'mathmaster:sat:A.12B:ccmr-challenge-challenge-reciprocal-function-value': ['satDistractor3', 'k'],
-  'mathmaster:sat:A.12E:advanced:ccmr-challenge-inverse-square-parameter': ['satDistractor2', 'r*r'],
+  'mathmaster:sat:A.10A:missing-linear-coefficient': ['dSecondOnly', 'q'],
+  'mathmaster:sat:A.10A:subtraction-constant-parameter': ['dRemovedOnly', 'f'],
+  'mathmaster:sat:A.10A:ccmr-challenge-equivalent-sum-parameter': ['dSecondOnly', 'q'],
+  'mathmaster:sat:A.10B:ccmr-challenge-three-factor-linear-coefficient': ['dSecondFactor', 'q'],
+  // Replaced. With {p+q, p-q, p, q} the key was the largest in every draw
+  // because all four constants were positive. Signing them and swapping one
+  // single-constant option for the product spread the key across all four ranks.
+  'mathmaster:sat:A.10E:missing-middle-coefficient': ['dProduct', 'p*q'],
+  // Generalized: the leading coefficient was hard-coded as 25, so the "other
+  // square" option was the literal 25. It is a drawn parameter now, and the
+  // option is that parameter squared - the same misconception, and one that
+  // moves against the key instead of sitting still.
+  'mathmaster:sat:A.10F:missing-square-constant': ['dLeadingSquare', 'c*c'],
+  'mathmaster:sat:A.10F:ccmr-challenge-leading-parameter-from-factors': ['dOtherSquare', 'n*n'],
+  // Replaced. a+b, a-b, a and b are all one-sided when a and b are positive
+  // coefficients of like radicals; doubling one coefficient is the option that
+  // crosses the key, so it took the second coefficient's place.
+  'mathmaster:sat:A.11A:ccmr-challenge-radical-coefficient-parameter': ['dDoubledFirst', '2*a'],
+  // Replaced. The exponents are signed now, and multiplying them - the power
+  // rule applied to a quotient - is the option whose side depends on both signs.
+  'mathmaster:sat:A.11B:quotient-exponent-law': ['dProduct', 'a*b'],
+  'mathmaster:sat:A.12B:ccmr-challenge-challenge-reciprocal-function-value': ['dConstantOnly', 'k'],
+  // Replaced. r^2 alone always sat below F*r^2; squaring F instead of r is the
+  // same "squared the wrong quantity" error, and it crosses the key on F vs r.
+  'mathmaster:sat:A.12E:advanced:ccmr-challenge-inverse-square-parameter': ['dSquaredForce', 'F*F*r'],
   'mathmaster:sat:A.2B:ccmr-challenge-derived-feature-from-two-points': ['satDistractor3', 'b'],
   // Replaced, not weakened. The V2.1 certification sweep found this family's key
   // sitting at an extreme of the four: its three distractors all moved with the
@@ -35,12 +49,15 @@ const EXPECTED = Object.freeze({
   // Renamed, not weakened: still the coefficient gap offered in place of k.
   'mathmaster:sat:A.5B:ccmr-challenge-parameter': ['dCoefficientOnly', 'delta'],
   'mathmaster:sat:A.5C:ccmr-challenge-combined-value': ['satDistractor3', 'y'],
-  'mathmaster:sat:A.8A:ccmr-challenge-challenge-one-solution-parameter': ['satDistractor3', '4*h*h'],
-  'mathmaster:sat:A.9D:ccmr-challenge-shifted-center-value': ['satDistractor3', 'k'],
+  'mathmaster:sat:A.8A:ccmr-challenge-challenge-one-solution-parameter': ['dFourTimes', '4*h*h'],
+  'mathmaster:sat:A.9D:ccmr-challenge-shifted-center-value': ['dShiftOnly', 'k'],
   'mathmaster:sat:A2.4F:ccmr-challenge-context-square-root-model': ['satDistractor3', 'dval*dval'],
   'mathmaster:sat:A2.5D:ccmr-challenge-exponent-parameter-from-solution': ['satDistractor3', 'p'],
   'mathmaster:sat:A2.7F:ccmr-challenge-numerator-coefficient-parameter': ['satDistractor3', 'c'],
   'mathmaster:sat:A2.7G:ccmr-challenge-radical-quotient-variable': ['satDistractor2', 'xval*xval'],
+  // The eight entries above were renamed in the V2.1 certification sweep, not
+  // weakened: each still pins the same expression, now under a name that says
+  // which misconception it encodes.
   // Renamed, not weakened: the sector-area challenge was rebuilt during the V2.1
   // certification sweep and its distractors now carry meaning-bearing names.
   // `dWhole` is 4*k*k, which is exactly the r*r this line used to pin - the whole

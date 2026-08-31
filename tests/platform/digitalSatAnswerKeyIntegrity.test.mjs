@@ -62,7 +62,7 @@ test('every Digital SAT multiple-choice family keys a choice that exists', () =>
 const MAGNITUDE_ANSWERABLE_CEILING = Object.freeze({
   geometryTrigonometry: 0,
   problemSolvingData: 0,
-  advancedMath: 91,
+  advancedMath: 53,
   algebra: 0,
 });
 

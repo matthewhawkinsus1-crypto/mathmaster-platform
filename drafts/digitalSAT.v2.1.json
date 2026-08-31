@@ -303,7 +303,7 @@
         "stemProfile": "missing-linear-coefficient",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "The expression $({{a}}x^2+{{p}}x+{{c}})+({{d}}x^2+{{q}}x+{{f}})$ is equivalent to ${{A}}x^2+bx+{{C}}$. What is the value of $b$?",
+      "prompt": "The expression $({{a}}x^2 {{p|signed}}x+{{c}})+({{d}}x^2 {{q|signed}}x+{{f}})$ is equivalent to ${{A}}x^2+bx+{{C}}$. What is the value of $b$?",
       "generator": {
         "parameters": {
           "a": {
@@ -313,8 +313,11 @@
           },
           "p": {
             "type": "int",
-            "min": 2,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "c": {
             "type": "int",
@@ -328,8 +331,11 @@
           },
           "q": {
             "type": "int",
-            "min": 2,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "f": {
             "type": "int",
@@ -341,17 +347,13 @@
           "A": "a+d",
           "C": "c+f",
           "B": "p+q",
-          "satDistractor1": "p-q",
-          "satDistractor2": "p",
-          "satDistractor3": "q"
+          "dSubtracted": "p-q",
+          "dFirstOnly": "p",
+          "dSecondOnly": "q"
         },
         "constraints": [
-          "satDistractor1!=B",
-          "satDistractor2!=B",
-          "satDistractor3!=B",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "p!=q",
+          "p!=2*q"
         ]
       },
       "attemptFeedback": [
@@ -361,11 +363,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Add the like terms.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "The $x$-terms are ${{p}}x$ and ${{q}}x$.",
+          "Their sum is $({{p}})+({{q}})={{B}}$, so $b={{B}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "$b={{B}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -383,15 +386,15 @@
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSubtracted}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
+          "label": "{{dFirstOnly}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSecondOnly}}"
         }
       ]
     },
@@ -571,7 +574,7 @@
         "stemProfile": "subtraction-constant-parameter",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "The expression $({{a}}x^2+{{b}}x+k)-({{d}}x^2+{{e}}x+{{f}})$ is equivalent to ${{A}}x^2+{{B}}x+{{target}}$. What is the value of $k$?",
+      "prompt": "The expression $({{a}}x^2+{{b}}x+k)-({{d}}x^2+{{e}}x {{f|signed}})$ is equivalent to ${{A}}x^2+{{B}}x {{target|signed}}$. What is the value of $k$?",
       "generator": {
         "parameters": {
           "a": {
@@ -596,30 +599,32 @@
           },
           "f": {
             "type": "int",
-            "min": 2,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "target": {
             "type": "int",
-            "min": 1,
-            "max": 10
+            "min": -10,
+            "max": 10,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "A": "a-d",
           "B": "b-e",
           "k": "target+f",
-          "satDistractor1": "target-f",
-          "satDistractor2": "target",
-          "satDistractor3": "f"
+          "dSubtracted": "target-f",
+          "dTargetOnly": "target",
+          "dRemovedOnly": "f"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "target!=2*f",
+          "target!=f"
         ]
       },
       "attemptFeedback": [
@@ -629,11 +634,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Undo the subtraction on the constant term.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Subtracting gives $k-({{f}})={{target}}$.",
+          "So $k={{target}}+({{f}})={{k}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -651,15 +657,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSubtracted}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dTargetOnly}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dRemovedOnly}}"
         }
       ]
     },
@@ -709,7 +715,7 @@
         "stemProfile": "nested-subtraction-linear-coefficient",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "The expression $({{a}}x^2+{{b}}x+{{c}})-[({{d}}x^2+{{e}}x+{{f}})-({{g}}x^2+{{h}}x+{{j}})]$ is equivalent to $Ax^2+Bx+C$. What is the value of $B$?",
+      "prompt": "The expression $({{a}}x^2+{{b}}x+{{c}})-[({{d}}x^2 {{e|signed}}x+{{f}})-({{g}}x^2 {{h|signed}}x+{{j}})]$ is equivalent to $Ax^2+Bx+C$. What is the value of $B$?",
       "generator": {
         "parameters": {
           "a": {
@@ -734,8 +740,11 @@
           },
           "e": {
             "type": "int",
-            "min": 2,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "f": {
             "type": "int",
@@ -749,8 +758,11 @@
           },
           "h": {
             "type": "int",
-            "min": 1,
-            "max": 7
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
           },
           "j": {
             "type": "int",
@@ -760,17 +772,14 @@
         },
         "derived": {
           "B": "b-e+h",
-          "satDistractor1": "b+e+h",
-          "satDistractor2": "b-e",
-          "satDistractor3": "b"
+          "dAllAdded": "b+e+h",
+          "dDroppedInner": "b-e",
+          "dFirstOnly": "b"
         },
         "constraints": [
-          "satDistractor1!=B",
-          "satDistractor2!=B",
-          "satDistractor3!=B",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "h!=e",
+          "2*e+h!=0",
+          "e+h!=0"
         ]
       },
       "attemptFeedback": [
@@ -780,11 +789,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Clear the inner brackets before combining.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "The bracket is $({{d}}x^2 {{e|signed}}x+{{f}})-({{g}}x^2 {{h|signed}}x+{{j}})$, whose $x$-coefficient is $({{e}})-({{h}})$.",
+          "Subtracting that from ${{b}}$ gives $B={{b}}-({{e}})+({{h}})={{B}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "$B={{B}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -802,15 +812,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dAllAdded}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dDroppedInner}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dFirstOnly}}"
         }
       ]
     },
@@ -865,8 +875,11 @@
         "parameters": {
           "p": {
             "type": "int",
-            "min": 3,
-            "max": 10
+            "min": -10,
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "r": {
             "type": "int",
@@ -875,8 +888,11 @@
           },
           "q": {
             "type": "int",
-            "min": 2,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "s": {
             "type": "int",
@@ -887,17 +903,13 @@
         "derived": {
           "constant": "r+s",
           "k": "p+q",
-          "satDistractor1": "p-q",
-          "satDistractor2": "p",
-          "satDistractor3": "q"
+          "dSubtracted": "p-q",
+          "dFirstOnly": "p",
+          "dSecondOnly": "q"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "p!=q",
+          "p!=2*q"
         ]
       },
       "attemptFeedback": [
@@ -907,11 +919,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Match coefficients on each side.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "The $x$-terms combine to $({{p}})+({{q}})={{k}}$.",
+          "Equivalence for all $x$ forces $k={{k}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -929,15 +942,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSubtracted}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dFirstOnly}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSecondOnly}}"
         }
       ]
     },
@@ -1451,7 +1464,7 @@
         "stemProfile": "middle-coefficient-from-product",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "The product $({{a}}x+{{p}})({{b}}x+{{q}})$ is ${{lead}}x^2+kx+{{constant}}$. What is the value of $k$?",
+      "prompt": "The product $({{a}}x {{p|signed}})({{b}}x {{q|signed}})$ is ${{lead}}x^2+kx {{constant|signed}}$. What is the value of $k$?",
       "generator": {
         "parameters": {
           "a": {
@@ -1466,30 +1479,32 @@
           },
           "p": {
             "type": "int",
-            "min": 1,
-            "max": 7
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
           },
           "q": {
             "type": "int",
-            "min": 1,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "lead": "a*b",
           "constant": "p*q",
           "k": "a*q+b*p",
-          "satDistractor1": "a*q-b*p",
-          "satDistractor2": "a*q",
-          "satDistractor3": "a+q+b*p"
+          "dSubtracted": "a*q-b*p",
+          "dOuterOnly": "a*q",
+          "dInnerOnly": "b*p"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "a*q!=b*p",
+          "a*q!=2*b*p"
         ]
       },
       "attemptFeedback": [
@@ -1499,11 +1514,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "The middle term is the sum of the outer and inner products.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Outer: ${{a}}x\\cdot({{q}})$. Inner: $({{p}})\\cdot{{b}}x$.",
+          "So $k={{a}}({{q}})+{{b}}({{p}})={{k}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -1521,15 +1537,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSubtracted}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dOuterOnly}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dInnerOnly}}"
         }
       ]
     },
@@ -1810,13 +1826,16 @@
         "stemProfile": "parameter-in-product",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For all values of $x$, $(x+{{p}})({{a}}x+{{q}})={{a}}x^2+kx+{{constant}}$. What is the value of $k$?",
+      "prompt": "For all values of $x$, $(x {{p|signed}})({{a}}x {{q|signed}})={{a}}x^2+kx {{constant|signed}}$. What is the value of $k$?",
       "generator": {
         "parameters": {
           "p": {
             "type": "int",
-            "min": 2,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "a": {
             "type": "int",
@@ -1825,24 +1844,23 @@
           },
           "q": {
             "type": "int",
-            "min": 1,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "constant": "p*q",
           "k": "q+a*p",
-          "satDistractor1": "q-a*p",
-          "satDistractor2": "q",
-          "satDistractor3": "q+a+p"
+          "dSubtracted": "q-a*p",
+          "dOuterOnly": "q",
+          "dInnerOnly": "a*p"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "q!=a*p",
+          "q!=2*a*p"
         ]
       },
       "attemptFeedback": [
@@ -1852,11 +1870,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "The middle term is the sum of the outer and inner products.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Outer: $x\\cdot({{q}})$. Inner: $({{p}})\\cdot{{a}}x$.",
+          "So $k=({{q}})+{{a}}({{p}})={{k}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -1874,15 +1893,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSubtracted}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dOuterOnly}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dInnerOnly}}"
         }
       ]
     },
@@ -1932,34 +1951,35 @@
         "stemProfile": "three-factor-linear-coefficient",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "The product $x(x+{{p}})(x+{{q}})$ is $x^3+bx^2+cx$. What is the value of $b$?",
+      "prompt": "The product $x(x {{p|signed}})(x {{q|signed}})$ is $x^3+bx^2+cx$. What is the value of $b$?",
       "generator": {
         "parameters": {
           "p": {
             "type": "int",
-            "min": 2,
-            "max": 10
+            "min": -10,
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "q": {
             "type": "int",
-            "min": 2,
-            "max": 10
+            "min": -10,
+            "max": 10,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "b": "p+q",
-          "satDistractor1": "p-q",
-          "satDistractor2": "p",
-          "satDistractor3": "q"
+          "dSubtracted": "p-q",
+          "dFirstFactor": "p",
+          "dSecondFactor": "q"
         },
         "constraints": [
           "p!=q",
-          "satDistractor1!=b",
-          "satDistractor2!=b",
-          "satDistractor3!=b",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "p!=2*q"
         ]
       },
       "attemptFeedback": [
@@ -1969,11 +1989,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "The $x^2$-coefficient collects both constants.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Expanding $(x {{p|signed}})(x {{q|signed}})$ gives $x^2+({{p}}+{{q}})x+{{p}}\\cdot{{q}}$.",
+          "Multiplying by $x$ leaves $b={{p}}+({{q}})={{b}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "$b={{b}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -1991,15 +2012,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSubtracted}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dFirstFactor}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSecondFactor}}"
         }
       ]
     },
@@ -2766,35 +2787,39 @@
         "stemProfile": "quadratic-dividend-parameter",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For $x\\ne-{{p}}$, $\\dfrac{x^2+{{sum}}x+k}{x+{{p}}}=x+{{q}}$. What is the value of $k$?",
+      "prompt": "For $x\\ne {{negp}}$, $\\dfrac{x^2+bx {{k|signed}}}{x {{p|signed}}}=x {{q|signed}}$. What is the value of $b$?",
       "generator": {
         "parameters": {
           "p": {
             "type": "int",
-            "min": 2,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0,
+              1
+            ]
           },
           "q": {
             "type": "int",
-            "min": 2,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0,
+              1
+            ]
           }
         },
         "derived": {
-          "sum": "p+q",
+          "negp": "-p",
           "k": "p*q",
-          "satDistractor1": "(p+q)",
-          "satDistractor2": "p",
-          "satDistractor3": "q"
+          "sum": "p+q",
+          "dProduct": "p*q",
+          "dDifference": "p-q",
+          "dDivisorOnly": "p"
         },
         "constraints": [
           "p!=q",
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "p*q!=p-q"
         ]
       },
       "attemptFeedback": [
@@ -2804,11 +2829,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Multiply the quotient by the divisor.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$(x {{p|signed}})(x {{q|signed}})=x^2+({{p}}+{{q}})x+{{k}}$.",
+          "Matching the $x$-terms gives $b={{p}}+({{q}})={{sum}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "$b={{sum}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -2822,19 +2848,19 @@
       "choices": [
         {
           "id": "choice-c",
-          "label": "{{k}}"
+          "label": "{{sum}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dProduct}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dDifference}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dDivisorOnly}}"
         }
       ]
     },
@@ -3325,7 +3351,7 @@
         "stemProfile": "missing-distributed-coefficient",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For all values of $x$, ${{k}}({{a}}x+{{b}})=cx+{{B}}$. What is the value of $c$?",
+      "prompt": "For all values of $x$, ${{k}}({{a}}x {{b|signed}})=cx {{B|signed}}$. What is the value of $c$?",
       "generator": {
         "parameters": {
           "k": {
@@ -3335,29 +3361,36 @@
           },
           "a": {
             "type": "int",
-            "min": 2,
-            "max": 7
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "b": {
             "type": "int",
-            "min": 1,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0,
+              1
+            ]
           }
         },
         "derived": {
           "B": "k*b",
           "c": "k*a",
-          "satDistractor1": "(k+a)",
-          "satDistractor2": "k",
-          "satDistractor3": "a"
+          "dMultiplierOnly": "k",
+          "dCoefficientOnly": "a",
+          "dConstantTerm": "k*b"
         },
         "constraints": [
-          "satDistractor1!=c",
-          "satDistractor2!=c",
-          "satDistractor3!=c",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "a!=k",
+          "a!=k*b",
+          "a!=b",
+          "k*a!=k*b"
         ]
       },
       "attemptFeedback": [
@@ -3367,11 +3400,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Distribute across both terms.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "${{k}}({{a}}x {{b|signed}})={{c}}x {{B|signed}}$.",
+          "The $x$-coefficient is ${{k}}({{a}})={{c}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "$c={{c}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -3389,15 +3423,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dMultiplierOnly}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dCoefficientOnly}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dConstantTerm}}"
         }
       ]
     },
@@ -3684,8 +3718,11 @@
           },
           "a": {
             "type": "int",
-            "min": 2,
-            "max": 6
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
           },
           "b": {
             "type": "int",
@@ -3699,8 +3736,11 @@
           },
           "c": {
             "type": "int",
-            "min": 1,
-            "max": 6
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
           },
           "d": {
             "type": "int",
@@ -3711,17 +3751,13 @@
         "derived": {
           "k": "p*a+q*c",
           "constant": "p*b+q*d",
-          "satDistractor1": "p*a-q*c",
-          "satDistractor2": "p*a",
-          "satDistractor3": "p+a+q*c"
+          "dSubtracted": "p*a-q*c",
+          "dFirstOnly": "p*a",
+          "dSecondOnly": "q*c"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "p*a!=q*c",
+          "p*a!=2*q*c"
         ]
       },
       "attemptFeedback": [
@@ -3731,11 +3767,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Distribute both products, then collect the $x$-terms.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "The $x$-terms are ${{p}}({{a}})$ and ${{q}}({{c}})$.",
+          "Their sum is $k={{k}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -3753,15 +3790,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSubtracted}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dFirstOnly}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSecondOnly}}"
         }
       ]
     },
@@ -4117,35 +4154,38 @@
         "stemProfile": "coefficient-from-factors",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "The expression $x^2+bx+{{product}}$ is equivalent to $(x+{{p}})(x+{{q}})$. What is the value of $b$?",
+      "prompt": "The expression $x^2+bx {{product|signed}}$ is equivalent to $(x {{p|signed}})(x {{q|signed}})$. What is the value of $b$?",
       "generator": {
         "parameters": {
           "p": {
             "type": "int",
-            "min": 2,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "q": {
             "type": "int",
-            "min": 2,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "product": "p*q",
           "sum": "p+q",
-          "satDistractor1": "p-q",
-          "satDistractor2": "p",
-          "satDistractor3": "q"
+          "dSubtracted": "p-q",
+          "dProduct": "p*q",
+          "dFirstFactor": "p"
         },
         "constraints": [
           "p!=q",
-          "satDistractor1!=sum",
-          "satDistractor2!=sum",
-          "satDistractor3!=sum",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "p!=2*q",
+          "p*q!=p-q",
+          "p*q!=p"
         ]
       },
       "attemptFeedback": [
@@ -4155,11 +4195,12 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Expand and match the $x$-terms.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "$(x {{p|signed}})(x {{q|signed}})=x^2+({{p}}+{{q}})x+{{product}}$.",
+          "So $b={{p}}+({{q}})={{sum}}$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "answerSummary": "$b={{sum}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -4177,15 +4218,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSubtracted}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dProduct}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dFirstFactor}}"
         }
       ]
     },
@@ -4354,23 +4395,26 @@
             "type": "int",
             "min": 2,
             "max": 9
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "m2": "m*m",
           "n2": "n*n",
           "k": "2*m*n",
-          "satDistractor1": "2*m",
-          "satDistractor2": "2*n",
-          "satDistractor3": "(2+m+n)"
+          "dNoDouble": "m*n",
+          "dSumOfSquares": "m*m+n*n",
+          "dSquaredOne": "hi*(2*m*m)+(1-hi)*(2*n*n)"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "m!=n",
+          "m*n!=m*m+n*n",
+          "dSquaredOne!=dNoDouble",
+          "dSquaredOne!=dSumOfSquares"
         ]
       },
       "attemptFeedback": [
@@ -4380,11 +4424,12 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "A perfect square has a middle term of twice the product of the roots.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "${{m2}}x^2+kx+{{n2}}=({{m}}x+{{n}})^2$ requires $k=2({{m}})({{n}})$.",
+          "So $k={{k}}$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -4402,15 +4447,15 @@
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dNoDouble}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
+          "label": "{{dSumOfSquares}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSquaredOne}}"
         }
       ]
     },
@@ -4581,7 +4626,7 @@
         "stemProfile": "nonmonic-coefficient-from-factors",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "A polynomial ${{r}}x^2+bx+{{constant}}$ is equivalent to $(x+{{p}})({{r}}x+{{q}})$. What is the value of $b$?",
+      "prompt": "A polynomial ${{r}}x^2+bx {{constant|signed}}$ is equivalent to $(x {{p|signed}})({{r}}x {{q|signed}})$. What is the value of $b$?",
       "generator": {
         "parameters": {
           "r": {
@@ -4591,29 +4636,33 @@
           },
           "p": {
             "type": "int",
-            "min": 2,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "q": {
             "type": "int",
-            "min": 1,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "constant": "p*q",
           "middle": "q+p*r",
-          "satDistractor1": "q-p*r",
-          "satDistractor2": "q",
-          "satDistractor3": "q+p+r"
+          "dSubtracted": "q-p*r",
+          "dNoLeading": "q+p",
+          "dInnerOnly": "p*r"
         },
         "constraints": [
-          "satDistractor1!=middle",
-          "satDistractor2!=middle",
-          "satDistractor3!=middle",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "q!=p*r",
+          "q!=2*p*r",
+          "q+p!=p*r",
+          "q+p!=q-p*r"
         ]
       },
       "attemptFeedback": [
@@ -4623,11 +4672,12 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "The middle term collects the outer and inner products.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "Outer: $x\\cdot({{q}})$. Inner: $({{p}})\\cdot{{r}}x$.",
+          "So $b=({{q}})+({{p}})({{r}})={{middle}}$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "answerSummary": "$b={{middle}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -4645,15 +4695,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSubtracted}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dNoLeading}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dInnerOnly}}"
         }
       ]
     },
@@ -5002,28 +5052,31 @@
         "stemProfile": "difference-squares-missing-constant",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "$25x^2-k=(5x-{{n}})(5x+{{n}})$. What is the value of $k$?",
+      "prompt": "${{c2}}x^2-k=({{c}}x-{{n}})({{c}}x+{{n}})$. What is the value of $k$?",
       "generator": {
         "parameters": {
+          "c": {
+            "type": "int",
+            "min": 3,
+            "max": 9
+          },
           "n": {
             "type": "int",
-            "min": 2,
-            "max": 12
+            "min": 3,
+            "max": 9
           }
         },
         "derived": {
+          "c2": "c*c",
           "k": "n*n",
-          "satDistractor1": "(n+n)",
-          "satDistractor2": "n",
-          "satDistractor3": "25"
+          "dDoubled": "2*n",
+          "dLeadingSquare": "c*c",
+          "dSumOfSquares": "c*c+n*n"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "c!=n",
+          "2*n!=c*c",
+          "2*n!=c*c+n*n"
         ]
       },
       "attemptFeedback": [
@@ -5033,11 +5086,12 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "A difference of squares has the second square as its constant.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "$({{c}}x-{{n}})({{c}}x+{{n}})={{c2}}x^2-{{k}}$.",
+          "So $k={{n}}^2={{k}}$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -5055,15 +5109,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dDoubled}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dLeadingSquare}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSumOfSquares}}"
         }
       ]
     },
@@ -5418,29 +5472,26 @@
         "parameters": {
           "m": {
             "type": "int",
-            "min": 2,
+            "min": 3,
             "max": 9
           },
           "n": {
             "type": "int",
-            "min": 2,
-            "max": 11
+            "min": 3,
+            "max": 9
           }
         },
         "derived": {
           "n2": "n*n",
           "k": "m*m",
-          "satDistractor1": "(m+m)",
-          "satDistractor2": "m",
-          "satDistractor3": "n*n"
+          "dDoubled": "2*m",
+          "dOtherSquare": "n*n",
+          "dSumOfSquares": "m*m+n*n"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "m!=n",
+          "2*m!=n*n",
+          "2*m!=m*m+n*n"
         ]
       },
       "attemptFeedback": [
@@ -5450,11 +5501,12 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Expand the difference of squares and match coefficients.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "$({{m}}x-{{n}})({{m}}x+{{n}})={{k}}x^2-{{n2}}$.",
+          "So $k={{m}}^2={{k}}$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -5472,15 +5524,15 @@
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor1}}"
+          "label": "{{dDoubled}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor2}}"
+          "label": "{{dOtherSquare}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSumOfSquares}}"
         }
       ]
     },
@@ -5756,37 +5808,36 @@
         "stemProfile": "radical-product-integer",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For positive integers $a$ and $m$, $\\sqrt{{{rad}}}\\cdot\\sqrt{{{m}}}=n$, where ${{rad}}={{a2}}\\cdot{{m}}$. What is the value of $n$?",
+      "prompt": "$\\sqrt{{{rad}}}\\cdot\\sqrt{{{m}}}=n$, where $n$ is a positive integer. What is the value of $n$?",
       "generator": {
         "parameters": {
           "a": {
             "type": "int",
             "min": 2,
-            "max": 8
+            "max": 10
           },
           "m": {
             "type": "int",
             "min": 2,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              4,
+              9
+            ]
           }
         },
         "derived": {
           "a2": "a*a",
           "rad": "a*a*m",
           "n": "a*m",
-          "satDistractor1": "(a+m)",
-          "satDistractor2": "a",
-          "satDistractor3": "m"
+          "dAdded": "a+m",
+          "dRadicand": "a*a*m",
+          "dSquaredFactor": "a*a"
         },
         "constraints": [
-          "m!=4",
-          "m!=9",
-          "satDistractor1!=n",
-          "satDistractor2!=n",
-          "satDistractor3!=n",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "a!=m",
+          "a+m!=a*a",
+          "a+m!=a*a*m"
         ]
       },
       "attemptFeedback": [
@@ -5796,11 +5847,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Multiply under a single radical, then simplify.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$\\sqrt{{{rad}}}\\cdot\\sqrt{{{m}}}=\\sqrt{{{a2}}\\cdot{{m}}\\cdot{{m}}}$.",
+          "That is ${{a}}\\cdot{{m}}={{n}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "$n={{n}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -5818,15 +5870,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dAdded}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dRadicand}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSquaredFactor}}"
         }
       ]
     },
@@ -5997,29 +6049,26 @@
         "parameters": {
           "a": {
             "type": "int",
-            "min": 3,
-            "max": 14
+            "min": 2,
+            "max": 9
           },
           "b": {
             "type": "int",
             "min": 2,
-            "max": 8
+            "max": 9
           }
         },
         "derived": {
           "rad": "a*a*b*b",
           "answer": "a*b",
-          "satDistractor1": "(a+b)",
-          "satDistractor2": "a",
-          "satDistractor3": "b"
+          "dAdded": "a+b",
+          "dRadicand": "a*a*b*b",
+          "dSquaredFirst": "a*a"
         },
         "constraints": [
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "a!=b",
+          "a+b!=a*a",
+          "a+b!=a*a*b*b"
         ]
       },
       "attemptFeedback": [
@@ -6029,11 +6078,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Split the radicand into its two square factors.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "${{rad}}={{a}}^2\\cdot{{b}}^2$.",
+          "So $\\sqrt{{{rad}}}={{a}}\\cdot{{b}}={{answer}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "${{answer}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -6051,15 +6101,15 @@
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dAdded}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
+          "label": "{{dRadicand}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSquaredFirst}}"
         }
       ]
     },
@@ -6243,26 +6293,26 @@
           "m": {
             "type": "int",
             "min": 2,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              4,
+              9
+            ]
           }
         },
         "derived": {
           "rad1": "a*a*m",
           "rad2": "b*b*m",
           "answer": "a*b*m",
-          "satDistractor1": "a*b",
-          "satDistractor2": "a*m",
-          "satDistractor3": "(a+b+m)"
+          "dDroppedRadicand": "a*b",
+          "dRadicandProduct": "a*b*m*m",
+          "dSquaredFirst": "a*a*m"
         },
         "constraints": [
-          "m!=4",
-          "m!=9",
-          "satDistractor1!=answer",
-          "satDistractor2!=answer",
-          "satDistractor3!=answer",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "a!=b",
+          "a*b!=a*a*m",
+          "a*b!=a*b*m*m",
+          "a*a*m!=a*b*m*m"
         ]
       },
       "attemptFeedback": [
@@ -6272,11 +6322,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Combine under one radical, then take the root.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$\\sqrt{{{rad1}}}\\cdot\\sqrt{{{rad2}}}=\\sqrt{{{a}}^2{{b}}^2\\cdot{{m}}^2}$.",
+          "That is ${{a}}\\cdot{{b}}\\cdot{{m}}={{answer}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "${{answer}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -6294,15 +6345,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dDroppedRadicand}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dRadicandProduct}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSquaredFirst}}"
         }
       ]
     },
@@ -6357,38 +6408,36 @@
         "parameters": {
           "a": {
             "type": "int",
-            "min": 2,
+            "min": 3,
             "max": 8
           },
           "b": {
             "type": "int",
-            "min": 2,
+            "min": 3,
             "max": 8
           },
           "m": {
             "type": "int",
             "min": 2,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              4,
+              9
+            ]
           }
         },
         "derived": {
           "rad1": "a*a*m",
           "rad2": "b*b*m",
           "k": "a+b",
-          "satDistractor1": "a-b",
-          "satDistractor2": "a",
-          "satDistractor3": "b"
+          "dSubtracted": "a-b",
+          "dProduct": "a*b",
+          "dDoubledFirst": "2*a"
         },
         "constraints": [
-          "m!=4",
-          "m!=9",
           "a!=b",
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "a*b!=2*a",
+          "a-b!=2*a"
         ]
       },
       "attemptFeedback": [
@@ -6398,11 +6447,12 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Simplify each radical, then add like radicals.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "$\\sqrt{{{rad1}}}={{a}}\\sqrt{{{m}}}$ and $\\sqrt{{{rad2}}}={{b}}\\sqrt{{{m}}}$.",
+          "Adding gives $({{a}}+{{b}})\\sqrt{{{m}}}$, so $k={{k}}$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -6420,15 +6470,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSubtracted}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dProduct}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dDoubledFirst}}"
         }
       ]
     },
@@ -6476,28 +6526,42 @@
         "officialSkillFamily": "equivalent expressions",
         "stemProfile": "product-law"
       },
-      "prompt": "For $x\\ne0$, $x^{{a}}\\cdot x^{{b}}=x^n$. What is the value of $n$?",
+      "prompt": "For $x\\ne0$, $x^{ {{a}} }\\cdot x^{ {{b}} }=x^n$. What is the value of $n$?",
       "generator": {
         "parameters": {
           "a": {
             "type": "int",
-            "min": 2,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "b": {
             "type": "int",
-            "min": 2,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           }
         },
         "derived": {
           "n": "a+b",
-          "prod": "a*b",
-          "d1": "a-b",
-          "d2": "b-a"
+          "dProduct": "a*b",
+          "dDifference": "a-b",
+          "dFirstOnly": "a"
         },
         "constraints": [
-          "a!=b"
+          "a!=b",
+          "a*b!=a+b",
+          "a*b!=a-b",
+          "a*b!=a",
+          "a-b!=a"
         ]
       },
       "attemptFeedback": [
@@ -6507,11 +6571,12 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Multiplying like bases adds the exponents.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "$x^{ {{a}} }\\cdot x^{ {{b}} }=x^{ {{a}}+{{b}} }$.",
+          "So $n={{n}}$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "answerSummary": "$n={{n}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -6521,15 +6586,15 @@
         },
         {
           "id": "choice-d",
-          "label": "${{prod}}$"
+          "label": "${{dProduct}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d1}}$"
+          "label": "${{dDifference}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d2}}$"
+          "label": "${{dFirstOnly}}$"
         }
       ],
       "responseFields": [
@@ -6585,28 +6650,31 @@
         "officialSkillFamily": "equivalent expressions",
         "stemProfile": "power-law"
       },
-      "prompt": "For $x\\ne0$, $(x^{{a}})^{{b}}=x^n$. What is the value of $n$?",
+      "prompt": "For $x\\ne0$, $(x^{ {{a}} })^{ {{b}} }=x^n$. What is the value of $n$?",
       "generator": {
         "parameters": {
           "a": {
             "type": "int",
             "min": 2,
-            "max": 8
+            "max": 9
           },
           "b": {
             "type": "int",
             "min": 2,
-            "max": 8
+            "max": 9
           }
         },
         "derived": {
           "n": "a*b",
-          "sum": "a+b",
-          "d1": "a-b",
-          "d2": "b-a"
+          "dSum": "a+b",
+          "dExtraCopy": "a*(b+1)",
+          "dSquaredFirst": "a*a"
         },
         "constraints": [
-          "a!=b"
+          "a!=b",
+          "abs(a-b)!=1",
+          "a+b!=a*a",
+          "a+b!=a*(b+1)"
         ]
       },
       "attemptFeedback": [
@@ -6616,11 +6684,12 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "A power of a power multiplies the exponents.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "$(x^{ {{a}} })^{ {{b}} }=x^{ {{a}}\\cdot{{b}} }$.",
+          "So $n={{n}}$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "answerSummary": "$n={{n}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -6630,15 +6699,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{sum}}$"
+          "label": "${{dSum}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d1}}$"
+          "label": "${{dExtraCopy}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d2}}$"
+          "label": "${{dSquaredFirst}}$"
         }
       ],
       "responseFields": [
@@ -6695,33 +6764,42 @@
         "stemProfile": "quotient-law",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For $x\\ne0$, $\\dfrac{x^{{a}}}{x^{{b}}}=x^n$. What is the value of $n$?",
+      "prompt": "For $x\\ne0$, $\\dfrac{x^{ {{a}} }}{x^{ {{b}} }}=x^n$. What is the value of $n$?",
       "generator": {
         "parameters": {
           "a": {
             "type": "int",
-            "min": 5,
-            "max": 12
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "b": {
             "type": "int",
-            "min": 2,
-            "max": 4
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           }
         },
         "derived": {
           "n": "a-b",
-          "satDistractor1": "a+b",
-          "satDistractor2": "a",
-          "satDistractor3": "b"
+          "dAdded": "a+b",
+          "dNumeratorOnly": "a",
+          "dProduct": "a*b"
         },
         "constraints": [
-          "satDistractor1!=n",
-          "satDistractor2!=n",
-          "satDistractor3!=n",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "a!=b",
+          "a*b!=a-b",
+          "a*b!=a+b",
+          "a*b!=a",
+          "a+b!=a"
         ]
       },
       "attemptFeedback": [
@@ -6731,11 +6809,12 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Dividing like bases subtracts the exponents.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "$\\dfrac{x^{ {{a}} }}{x^{ {{b}} }}=x^{ {{a}}-({{b}}) }$.",
+          "So $n={{n}}$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "answerSummary": "$n={{n}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -6753,15 +6832,15 @@
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor1}}"
+          "label": "{{dAdded}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor2}}"
+          "label": "{{dNumeratorOnly}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor3}}"
+          "label": "{{dProduct}}"
         }
       ]
     },
@@ -6824,7 +6903,8 @@
           }
         },
         "constraints": [
-          "p!=q"
+          "p!=q",
+          "gcd(p,q)==1"
         ]
       },
       "attemptFeedback": [
@@ -6933,7 +7013,11 @@
         },
         "derived": {
           "n": "p+r"
-        }
+        },
+        "constraints": [
+          "gcd(p,q)==1",
+          "gcd(r,q)==1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression rather than changing its value."
@@ -7004,13 +7088,18 @@
         "stemProfile": "nested-rational-exponents",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For $x>0$, $\\dfrac{(x^{ {{p}}/{{q}} })^{{r}}}{x^{ {{s}}/{{q}} }}=x^{n/{{q}}}$. What is the value of $n$?",
+      "prompt": "For $x>0$, $\\dfrac{(x^{ {{p}}/{{q}} })^{ {{r}} }}{x^{ {{s}}/{{q}} }}=x^{ n/{{q}} }$. What is the value of $n$?",
       "generator": {
         "parameters": {
           "p": {
             "type": "int",
-            "min": 2,
-            "max": 6
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "q": {
             "type": "int",
@@ -7024,24 +7113,27 @@
           },
           "s": {
             "type": "int",
-            "min": 1,
-            "max": 5
+            "min": -5,
+            "max": 5,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "n": "p*r-s",
-          "satDistractor1": "p*r+s",
-          "satDistractor2": "p*r",
-          "satDistractor3": "p+r-s"
+          "dAdded": "p*r+s",
+          "dNoSubtraction": "p*r",
+          "dAddedExponents": "p+r-s"
         },
         "constraints": [
-          "p*r>s",
-          "satDistractor1!=n",
-          "satDistractor2!=n",
-          "satDistractor3!=n",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "p*r-s!=0",
+          "p+r!=p*r",
+          "dAddedExponents!=dAdded",
+          "dAddedExponents!=dNoSubtraction",
+          "dAddedExponents!=n",
+          "gcd(abs(p),q)==1",
+          "gcd(abs(s),q)==1"
         ]
       },
       "attemptFeedback": [
@@ -7051,11 +7143,12 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Apply the power rule, then the quotient rule.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "$(x^{ {{p}}/{{q}} })^{ {{r}} }=x^{ {{p}}\\cdot{{r}}/{{q}} }$.",
+          "Dividing subtracts ${{s}}/{{q}}$, leaving $n={{n}}$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "answerSummary": "$n={{n}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -7073,15 +7166,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dAdded}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dNoSubtraction}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dAddedExponents}}"
         }
       ]
     },
@@ -7131,13 +7224,18 @@
         "stemProfile": "missing-exponent-parameter",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "For $x\\ne0$, $\\dfrac{(x^{{p}})^{{q}}}{x^k}=x^{{r}}$. What is the value of $k$?",
+      "prompt": "For $x\\ne0$, $\\dfrac{(x^{ {{p}} })^{ {{q}} }}{x^k}=x^{ {{r}} }$. What is the value of $k$?",
       "generator": {
         "parameters": {
           "p": {
             "type": "int",
-            "min": 2,
-            "max": 6
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "q": {
             "type": "int",
@@ -7146,24 +7244,24 @@
           },
           "r": {
             "type": "int",
-            "min": 1,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "k": "p*q-r",
-          "satDistractor1": "p*q+r",
-          "satDistractor2": "p*q",
-          "satDistractor3": "p+q-r"
+          "dAdded": "p*q+r",
+          "dNoSubtraction": "p*q",
+          "dReversed": "r-p*q"
         },
         "constraints": [
-          "p*q>r",
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "p*q-r!=0",
+          "dReversed!=k",
+          "dReversed!=dAdded",
+          "dReversed!=dNoSubtraction"
         ]
       },
       "attemptFeedback": [
@@ -7173,11 +7271,12 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Use the expression structure.",
+        "headline": "Match the exponents on both sides.",
         "reasoning": [
-          "Rewrite the expression using an equivalent algebraic form and check by expansion or exponent laws."
+          "The left side is $x^{ {{p}}\\cdot{{q}}-k }$, so ${{p}}({{q}})-k={{r}}$.",
+          "Therefore $k={{k}}$."
         ],
-        "answerSummary": "Verify that the rewritten form is equivalent for all allowed values."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -7195,15 +7294,15 @@
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dAdded}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
+          "label": "{{dNoSubtraction}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dReversed}}"
         }
       ]
     },
@@ -7267,7 +7366,8 @@
           }
         },
         "constraints": [
-          "p!=q"
+          "p!=q",
+          "gcd(p,q)==1"
         ]
       },
       "attemptFeedback": [
@@ -7362,14 +7462,15 @@
         "Substitute the given input carefully, or use the stated output to determine an input that satisfies the original function."
       ],
       "solutionReview": {
-        "headline": "Evaluate or solve the nonlinear function.",
+        "headline": "Substitute, then square before multiplying.",
         "reasoning": [
-          "Use the function definition and preserve the nonlinear operation when substituting or solving for the requested value."
+          "$f({{p}})={{a}}({{p}})^2 {{b|signed}}$.",
+          "That is ${{a}}({{p}}\\cdot{{p}}) {{b|signed}}={{ans}}$."
         ],
-        "answerSummary": "Check the result in the original function notation."
+        "answerSummary": "$f({{p}})={{ans}}$"
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "For $f(x)={{a}}x^2+{{b}}$, what is the value of $f({{p}})$?",
+      "prompt": "For $f(x)={{a}}x^2 {{b|signed}}$, what is the value of $f({{p}})$?",
       "generator": {
         "parameters": {
           "a": {
@@ -7379,23 +7480,34 @@
           },
           "b": {
             "type": "int",
-            "min": 1,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           },
           "p": {
             "type": "int",
-            "min": 2,
-            "max": 6
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           }
         },
         "derived": {
           "ans": "a*p*p+b",
-          "d1": "a*p+b",
-          "d2": "a*p*p-b",
-          "d3": "a*p*p+b+1"
+          "dLinearSubstitution": "a*p+b",
+          "dConstantSign": "a*p*p-b",
+          "dSquaredCoefficient": "a*a*p*p+b"
         },
         "constraints": [
-          "d1!=d2"
+          "dLinearSubstitution!=ans",
+          "dLinearSubstitution!=dConstantSign",
+          "dLinearSubstitution!=dSquaredCoefficient",
+          "dConstantSign!=dSquaredCoefficient"
         ]
       },
       "choices": [
@@ -7405,15 +7517,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{d1}}$"
+          "label": "${{dLinearSubstitution}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d2}}$"
+          "label": "${{dConstantSign}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d3}}$"
+          "label": "${{dSquaredCoefficient}}$"
         }
       ],
       "responseFields": [
@@ -7476,11 +7588,12 @@
         "Substitute the given input carefully, or use the stated output to determine an input that satisfies the original function."
       ],
       "solutionReview": {
-        "headline": "Evaluate or solve the nonlinear function.",
+        "headline": "Raise only the growth factor to the power.",
         "reasoning": [
-          "Use the function definition and preserve the nonlinear operation when substituting or solving for the requested value."
+          "$g(2)={{a}}({{b}})^2={{a}}\\cdot{{b}}\\cdot{{b}}$.",
+          "That is ${{ans}}$."
         ],
-        "answerSummary": "Check the result in the original function notation."
+        "answerSummary": "$g(2)={{ans}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "For $g(x)={{a}}({{b}})^x$, what is the value of $g(2)$?",
@@ -7489,20 +7602,25 @@
           "a": {
             "type": "int",
             "min": 2,
-            "max": 6
+            "max": 7
           },
           "b": {
             "type": "int",
-            "min": 3,
-            "max": 6
+            "min": 2,
+            "max": 7
           }
         },
         "derived": {
           "ans": "a*b*b",
-          "d1": "2*a*b",
-          "d2": "a*b",
-          "d3": "a*b*b+1"
-        }
+          "dNoExponent": "a*b",
+          "dBaseAsCoefficient": "b*b*b",
+          "dSquaredCoefficient": "a*a*b*b"
+        },
+        "constraints": [
+          "a!=b",
+          "a!=b*b",
+          "b!=a*a"
+        ]
       },
       "choices": [
         {
@@ -7511,15 +7629,15 @@
         },
         {
           "id": "choice-a",
-          "label": "${{d1}}$"
+          "label": "${{dNoExponent}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d2}}$"
+          "label": "${{dBaseAsCoefficient}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d3}}$"
+          "label": "${{dSquaredCoefficient}}$"
         }
       ],
       "responseFields": [
@@ -7673,14 +7791,15 @@
         "Substitute the given input carefully, or use the stated output to determine an input that satisfies the original function."
       ],
       "solutionReview": {
-        "headline": "Evaluate or solve the nonlinear function.",
+        "headline": "Evaluate inside the bars, then take the absolute value.",
         "reasoning": [
-          "Use the function definition and preserve the nonlinear operation when substituting or solving for the requested value."
+          "${{a}}({{p}}) {{negc|signed}}={{v}}$.",
+          "So $q({{p}})=|{{v}}|={{ans}}$."
         ],
-        "answerSummary": "Check the result in the original function notation."
+        "answerSummary": "$q({{p}})={{ans}}$"
       },
       "assessmentItemFormat": "multipleChoice",
-      "prompt": "For $q(x)=|{{a}}x-{{c}}|$, what is the value of $q({{p}})$?",
+      "prompt": "For $q(x)=|{{a}}x {{negc|signed}}|$, what is the value of $q({{p}})$?",
       "generator": {
         "parameters": {
           "a": {
@@ -7690,21 +7809,38 @@
           },
           "p": {
             "type": "int",
-            "min": 2,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
-          "n": {
+          "v": {
             "type": "int",
-            "min": 1,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
-          "c": "a*p+n",
-          "ans": "n",
-          "neg": "-n",
-          "sum": "a*p+c"
-        }
+          "c": "a*p-v",
+          "negc": "-c",
+          "ans": "abs(v)",
+          "dNegated": "-abs(v)",
+          "dAddedConstant": "abs(a*p+c)",
+          "dConstant": "c"
+        },
+        "constraints": [
+          "dConstant!=ans",
+          "dConstant!=dNegated",
+          "dConstant!=dAddedConstant",
+          "dAddedConstant!=ans",
+          "dAddedConstant!=dNegated"
+        ]
       },
       "choices": [
         {
@@ -7713,15 +7849,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{neg}}$"
+          "label": "${{dNegated}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{c}}$"
+          "label": "${{dConstant}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{sum}}$"
+          "label": "${{dAddedConstant}}$"
         }
       ],
       "responseFields": [
@@ -7873,11 +8009,12 @@
         "Substitute the given input carefully, or use the stated output to determine an input that satisfies the original function."
       ],
       "solutionReview": {
-        "headline": "Evaluate or solve the nonlinear function.",
+        "headline": "Undo the square, then undo the shift.",
         "reasoning": [
-          "Use the function definition and preserve the nonlinear operation when substituting or solving for the requested value."
+          "${{a}}(x {{nh|signed}})^2 {{k|signed}}={{target}}$ gives $(x {{nh|signed}})^2={{d}}^2$.",
+          "So $x={{h}}\\pm{{d}}$ and the greater value is {{hi}}."
         ],
-        "answerSummary": "Check the result in the original function notation."
+        "answerSummary": "$x={{hi}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "For $f(x)={{a}}(x {{nh|signed}})^2 {{k|signed}}$, $f(x)={{target}}$. What is the greater possible value of $x$?",
@@ -7885,13 +8022,16 @@
         "parameters": {
           "a": {
             "type": "int",
-            "min": 1,
+            "min": 2,
             "max": 5
           },
           "h": {
             "type": "int",
-            "min": -5,
-            "max": 8
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
           },
           "k": {
             "type": "int",
@@ -7909,9 +8049,18 @@
           "target": "a*d*d+k",
           "lo": "h-d",
           "hi": "h+d",
-          "d1": "h+d+1",
-          "d2": "h-d-1"
-        }
+          "dLesserRoot": "h-d",
+          "dNoVertexShift": "d",
+          "dNoSquareRoot": "h+d*d"
+        },
+        "constraints": [
+          "d!=1",
+          "dNoVertexShift!=hi",
+          "dNoVertexShift!=lo",
+          "dNoVertexShift!=dNoSquareRoot",
+          "dNoSquareRoot!=hi",
+          "dNoSquareRoot!=lo"
+        ]
       },
       "choices": [
         {
@@ -7920,15 +8069,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{lo}}$"
+          "label": "${{dLesserRoot}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d1}}$"
+          "label": "${{dNoVertexShift}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{d2}}$"
+          "label": "${{dNoSquareRoot}}$"
         }
       ],
       "responseFields": [
@@ -7992,11 +8141,12 @@
         "Substitute the given input carefully, or use the stated output to determine an input that satisfies the original function."
       ],
       "solutionReview": {
-        "headline": "Evaluate or solve the nonlinear function.",
+        "headline": "Expand the difference rather than evaluating twice.",
         "reasoning": [
-          "Use the function definition and preserve the nonlinear operation when substituting or solving for the requested value."
+          "$f({{p1}})-f({{p}})={{a}}[({{p1}})^2-({{p}})^2]+{{b}}$.",
+          "That is ${{a}}(2\\cdot{{p}}+1)+({{b}})={{ans}}$."
         ],
-        "answerSummary": "Check the result in the original function notation."
+        "answerSummary": "${{ans}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "For $f(x)={{a}}x^2 {{b|signed}}x {{c|signed}}$, which expression gives $f({{p1}})-f({{p}})$?",
@@ -8009,8 +8159,11 @@
           },
           "b": {
             "type": "int",
-            "min": -5,
-            "max": 7
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              0
+            ]
           },
           "c": {
             "type": "int",
@@ -8026,10 +8179,14 @@
         "derived": {
           "p1": "p+1",
           "ans": "a*(2*p+1)+b",
-          "d1": "a+b",
-          "d2": "2*a*p+b",
-          "d3": "a*(2*p+1)+b+1"
-        }
+          "dMissingLead": "2*a*p+b",
+          "dNoLinearTerm": "a*(2*p+1)",
+          "dNextStep": "a*(2*p+3)+b"
+        },
+        "constraints": [
+          "dNoLinearTerm!=dMissingLead",
+          "dNoLinearTerm!=dNextStep"
+        ]
       },
       "choices": [
         {
@@ -8038,15 +8195,15 @@
         },
         {
           "id": "choice-d",
-          "label": "${{d1}}$"
+          "label": "${{dNoLinearTerm}}$"
         },
         {
           "id": "choice-a",
-          "label": "${{d2}}$"
+          "label": "${{dMissingLead}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d3}}$"
+          "label": "${{dNextStep}}$"
         }
       ],
       "responseFields": [
@@ -8111,11 +8268,12 @@
         "Substitute the given input carefully, or use the stated output to determine an input that satisfies the original function."
       ],
       "solutionReview": {
-        "headline": "Evaluate or solve the nonlinear function.",
+        "headline": "Evaluate the quotient first, then apply the shift.",
         "reasoning": [
-          "Use the function definition and preserve the nonlinear operation when substituting or solving for the requested value."
+          "$\\dfrac{{{A}}}{{{x0}}-{{h}}}=\\dfrac{{{A}}}{{{r}}}={{m}}$.",
+          "Adding the shift gives $g({{x0}})={{m}}+({{k}})={{ans}}$."
         ],
-        "answerSummary": "Check the result in the original function notation."
+        "answerSummary": "$g({{x0}})={{ans}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "prompt": "For $g(x)=\\dfrac{{{A}}}{x-{{h}}} {{k|signed}}$, what is the value of $g({{x0}})$?",
@@ -8133,30 +8291,38 @@
           },
           "m": {
             "type": "int",
-            "min": 2,
-            "max": 7
+            "min": -7,
+            "max": 7,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "k": {
             "type": "int",
-            "min": -6,
-            "max": 8
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "A": "m*r",
           "x0": "h+r",
           "ans": "m+k",
-          "satDistractor1": "m-k",
-          "satDistractor2": "m",
-          "satDistractor3": "k"
+          "dSubtracted": "m-k",
+          "dQuotientOnly": "m",
+          "dConstantOnly": "k"
         },
         "constraints": [
-          "satDistractor1!=ans",
-          "satDistractor2!=ans",
-          "satDistractor3!=ans",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "dSubtracted!=ans",
+          "dQuotientOnly!=ans",
+          "dConstantOnly!=ans",
+          "dSubtracted!=dQuotientOnly",
+          "dSubtracted!=dConstantOnly",
+          "dQuotientOnly!=dConstantOnly"
         ]
       },
       "responseFields": [
@@ -8174,15 +8340,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSubtracted}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dQuotientOnly}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dConstantOnly}}"
         }
       ]
     },
@@ -8320,13 +8486,16 @@
         "officialSkillFamily": "nonlinear equations in one variable and systems of equations in two variables",
         "stemProfile": "inverse-parameter"
       },
-      "prompt": "For the formula $P=\\dfrac{{{a}}}{x-{{b}}}$, $P={{p}}$. What is the value of $x$?",
+      "prompt": "For the formula $P=\\dfrac{{{a}}}{x {{nb|signed}}}$, $P={{p}}$. What is the value of $x$?",
       "generator": {
         "parameters": {
           "b": {
             "type": "int",
-            "min": -5,
-            "max": 8
+            "min": -6,
+            "max": 6,
+            "exclude": [
+              0
+            ]
           },
           "p": {
             "type": "int",
@@ -8341,11 +8510,19 @@
         },
         "derived": {
           "a": "p*r",
+          "nb": "-b",
           "x": "b+r",
-          "d1": "b-r",
-          "d2": "b+r+1",
-          "d3": "b+r+2"
-        }
+          "dSubtracted": "b-r",
+          "dQuotientOnly": "r",
+          "dUsedNumerator": "a+b"
+        },
+        "constraints": [
+          "dQuotientOnly!=x",
+          "dQuotientOnly!=dSubtracted",
+          "dQuotientOnly!=dUsedNumerator",
+          "dUsedNumerator!=x",
+          "dUsedNumerator!=dSubtracted"
+        ]
       },
       "attemptFeedback": [
         "Treat the other quantities as fixed parameters and isolate the requested variable."
@@ -8354,11 +8531,12 @@
         "Use the structure of the formula and inverse operations. If squaring is involved, use the condition in the question to select the appropriate real value."
       ],
       "solutionReview": {
-        "headline": "Solve the formula for the variable of interest.",
+        "headline": "Clear the fraction, then isolate $x$.",
         "reasoning": [
-          "Hold the other quantities fixed, isolate the requested variable, and verify the result in the original formula."
+          "${{p}}=\\dfrac{{{a}}}{x {{nb|signed}}}$ gives $x {{nb|signed}}=\\dfrac{{{a}}}{{{p}}}={{r}}$.",
+          "So $x={{x}}$."
         ],
-        "answerSummary": "Use any stated positivity or context condition when a formula has two algebraic branches."
+        "answerSummary": "$x={{x}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -8368,15 +8546,15 @@
         },
         {
           "id": "choice-a",
-          "label": "${{d1}}$"
+          "label": "${{dSubtracted}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d2}}$"
+          "label": "${{dQuotientOnly}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d3}}$"
+          "label": "${{dUsedNumerator}}$"
         }
       ],
       "responseFields": [
@@ -8432,18 +8610,21 @@
         "officialSkillFamily": "nonlinear equations in one variable and systems of equations in two variables",
         "stemProfile": "shifted-quadratic-formula"
       },
-      "prompt": "The formula $y={{a}}(x-{{h}})^2 {{k|signed}}$ has $a>0$. If $y={{yval}}$, what is the greater possible value of $x$?",
+      "prompt": "The formula $y={{a}}(x {{nh|signed}})^2 {{k|signed}}$ has $a>0$. If $y={{yval}}$, what is the lesser possible value of $x$?",
       "generator": {
         "parameters": {
           "a": {
             "type": "int",
-            "min": 1,
+            "min": 2,
             "max": 5
           },
           "h": {
             "type": "int",
-            "min": 1,
-            "max": 10
+            "min": -8,
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "r": {
             "type": "int",
@@ -8457,16 +8638,21 @@
           }
         },
         "derived": {
+          "nh": "-h",
           "yval": "a*r*r+k",
-          "answer": "h+r",
-          "lower": "h-r",
-          "d2": "h+r+1",
-          "d3": "h-r-1"
+          "answer": "h-r",
+          "upper": "h+r",
+          "dGreaterRoot": "h+r",
+          "dNoVertexShift": "-r",
+          "dNoSquareRoot": "h-r*r"
         },
         "constraints": [
-          "answer!=lower",
-          "answer!=d2",
-          "answer!=d3"
+          "r!=1",
+          "dNoVertexShift!=answer",
+          "dNoVertexShift!=dGreaterRoot",
+          "dNoVertexShift!=dNoSquareRoot",
+          "dNoSquareRoot!=answer",
+          "dNoSquareRoot!=dGreaterRoot"
         ]
       },
       "attemptFeedback": [
@@ -8476,11 +8662,12 @@
         "Use the structure of the formula and inverse operations. If squaring is involved, use the condition in the question to select the appropriate real value."
       ],
       "solutionReview": {
-        "headline": "Solve the formula for the variable of interest.",
+        "headline": "Undo the square, then undo the shift.",
         "reasoning": [
-          "Hold the other quantities fixed, isolate the requested variable, and verify the result in the original formula."
+          "$(x {{nh|signed}})^2=\\dfrac{{{yval}}-({{k}})}{{{a}}}={{r}}^2$.",
+          "So $x={{h}}\\pm{{r}}$ and the lesser value is {{answer}}."
         ],
-        "answerSummary": "Use any stated positivity or context condition when a formula has two algebraic branches."
+        "answerSummary": "$x={{answer}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -8490,15 +8677,15 @@
         },
         {
           "id": "choice-a",
-          "label": "${{lower}}$"
+          "label": "${{dGreaterRoot}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d2}}$"
+          "label": "${{dNoVertexShift}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d3}}$"
+          "label": "${{dNoSquareRoot}}$"
         }
       ],
       "responseFields": [
@@ -8837,20 +9024,29 @@
             "type": "int",
             "min": 2,
             "max": 8
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "a": "t*(t+u)",
           "b": "u*(t+u)",
           "R": "t*u",
-          "d1": "t+u",
-          "d2": "t*u+1",
-          "d3": "(t+u)*(t+u)"
+          "dSum": "(t+u)*(t+u)",
+          "dDifference": "(t-u)*(t+u)",
+          "dHarmonicConfusion": "hi*(2*t*u)+(1-hi)*(t*u/2)"
         },
         "constraints": [
           "t!=u",
-          "R!=d1",
-          "R!=d3"
+          "t*u%2==0",
+          "dHarmonicConfusion!=R",
+          "dHarmonicConfusion!=dSum",
+          "dHarmonicConfusion!=dDifference",
+          "dDifference!=R",
+          "dDifference!=dSum"
         ]
       },
       "attemptFeedback": [
@@ -8860,11 +9056,12 @@
         "Use the structure of the formula and inverse operations. If squaring is involved, use the condition in the question to select the appropriate real value."
       ],
       "solutionReview": {
-        "headline": "Solve the formula for the variable of interest.",
+        "headline": "Substitute both values and simplify the single fraction.",
         "reasoning": [
-          "Hold the other quantities fixed, isolate the requested variable, and verify the result in the original formula."
+          "$R=\\dfrac{{{a}}\\cdot{{b}}}{{{a}}+{{b}}}$ with ${{a}}+{{b}}={{dSum}}$.",
+          "That reduces to $R={{R}}$."
         ],
-        "answerSummary": "Use any stated positivity or context condition when a formula has two algebraic branches."
+        "answerSummary": "$R={{R}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -8874,15 +9071,15 @@
         },
         {
           "id": "choice-a",
-          "label": "${{d1}}$"
+          "label": "${{dSum}}$"
         },
         {
           "id": "choice-b",
-          "label": "${{d2}}$"
+          "label": "${{dDifference}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{d3}}$"
+          "label": "${{dHarmonicConfusion}}$"
         }
       ],
       "responseFields": [
@@ -8951,22 +9148,19 @@
           "r": {
             "type": "int",
             "min": 2,
-            "max": 10
+            "max": 9
           }
         },
         "derived": {
           "k": "F*r*r",
-          "satDistractor1": "F*r",
-          "satDistractor2": "r*r",
-          "satDistractor3": "(F+r+r)"
+          "dNoSquare": "F*r",
+          "dSquaredForce": "F*F*r",
+          "dSquaredBoth": "F*F*r*r"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "F!=r",
+          "dNoSquare!=dSquaredForce",
+          "dNoSquare!=k"
         ]
       },
       "attemptFeedback": [
@@ -8976,11 +9170,12 @@
         "Use the structure of the formula and inverse operations. If squaring is involved, use the condition in the question to select the appropriate real value."
       ],
       "solutionReview": {
-        "headline": "Solve the formula for the variable of interest.",
+        "headline": "Multiply both sides by $r^2$.",
         "reasoning": [
-          "Hold the other quantities fixed, isolate the requested variable, and verify the result in the original formula."
+          "$k=F\\cdot r^2={{F}}({{r}})^2$.",
+          "That is $k={{k}}$."
         ],
-        "answerSummary": "Use any stated positivity or context condition when a formula has two algebraic branches."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -8998,15 +9193,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dNoSquare}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dSquaredForce}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSquaredBoth}}"
         }
       ]
     },
@@ -13151,24 +13346,34 @@
           "r1": {
             "type": "int",
             "min": -8,
-            "max": -1
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "r2": {
             "type": "int",
-            "min": 2,
-            "max": 9
+            "min": -9,
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
-          "nr1": "-r1",
-          "r1p": "r1+1",
-          "r2p": "r2+1",
           "f1": "-r1",
-          "f2": "-r2"
+          "f2": "-r2",
+          "dNegatedSelf": "-r2",
+          "dNegatedOther": "-r1",
+          "dSum": "r1+r2"
         },
         "constraints": [
+          "r1!=r2",
           "-r1!=r2",
-          "-r1!=r2+1"
+          "-r2!=r1",
+          "r1+r2!=-r1",
+          "r1+r2!=-r2",
+          "-r1!=-r2"
         ]
       },
       "attemptFeedback": [
@@ -13178,11 +13383,12 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "A product is zero when a factor is zero.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "$x {{f1|signed}}=0$ gives $x={{r1}}$; $x {{f2|signed}}=0$ gives $x={{r2}}$.",
+          "Of the values offered, {{r2}} is a solution."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "answerSummary": "$x={{r2}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -13192,15 +13398,15 @@
         },
         {
           "id": "choice-b",
-          "label": "${{nr1}}$"
+          "label": "${{dNegatedSelf}}$"
         },
         {
           "id": "choice-c",
-          "label": "${{r1p}}$"
+          "label": "${{dNegatedOther}}$"
         },
         {
           "id": "choice-d",
-          "label": "${{r2p}}$"
+          "label": "${{dSum}}$"
         }
       ],
       "responseFields": [
@@ -13441,12 +13647,24 @@
             "type": "int",
             "min": 2,
             "max": 7
+          },
+          "kind": {
+            "type": "int",
+            "min": 0,
+            "max": 2
           }
         },
         "derived": {
           "twoh": "2*h",
-          "c": "h*h-d*d"
-        }
+          "c": "h*h+d*d*((kind==0)-(kind==2))",
+          "count": "kind",
+          "altOne": "(kind==0)*1",
+          "altTwo": "(kind<2)*2+(kind==2)*1",
+          "altThree": "3"
+        },
+        "constraints": [
+          "h!=d"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -13455,29 +13673,30 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "The discriminant decides how many real solutions there are.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "For $x^2-{{twoh}}x {{c|signed}}=0$, $b^2-4ac=({{twoh}})^2-4({{c}})$.",
+          "The sign of that discriminant gives the count: {{count}}."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "answerSummary": "{{count}}"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
         {
           "id": "choice-a",
-          "label": "2"
+          "label": "{{count}}"
         },
         {
           "id": "choice-b",
-          "label": "1"
+          "label": "{{altOne}}"
         },
         {
           "id": "choice-c",
-          "label": "0"
+          "label": "{{altTwo}}"
         },
         {
           "id": "choice-d",
-          "label": "3"
+          "label": "{{altThree}}"
         }
       ],
       "responseFields": [
@@ -13622,28 +13841,24 @@
           "r1": {
             "type": "int",
             "min": 2,
-            "max": 7
+            "max": 12
           },
           "r2": {
             "type": "int",
-            "min": 8,
-            "max": 14
+            "min": 2,
+            "max": 12
           }
         },
         "derived": {
           "S": "r1+r2",
           "k": "r1*r2",
-          "satDistractor1": "(r1+r2)",
-          "satDistractor2": "r1",
-          "satDistractor3": "r2"
+          "dSumOfRoots": "r1+r2",
+          "dSquaredFirst": "r1*r1",
+          "dSumSquared": "(r1+r2)*(r1+r2)"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "r1!=r2",
+          "r1+r2!=r1*r1"
         ]
       },
       "attemptFeedback": [
@@ -13653,11 +13868,12 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "For a monic quadratic, the constant is the product of the roots.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "$x^2-{{S}}x+k=(x-{{r1}})(x-{{r2}})$.",
+          "So $k={{r1}}\\cdot{{r2}}={{k}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -13675,15 +13891,15 @@
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dSumOfRoots}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
+          "label": "{{dSquaredFirst}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSumSquared}}"
         }
       ]
     },
@@ -13738,24 +13954,26 @@
         "parameters": {
           "h": {
             "type": "int",
-            "min": 2,
+            "min": 3,
             "max": 10
+          },
+          "hi": {
+            "type": "int",
+            "min": 0,
+            "max": 1
           }
         },
         "derived": {
           "twoh": "2*h",
           "k": "h*h",
-          "satDistractor1": "(h+h)",
-          "satDistractor2": "h",
-          "satDistractor3": "4*h*h"
+          "dDoubled": "2*h",
+          "dFourTimes": "4*h*h",
+          "dCompletingSquare": "hi*(2*h*h)+(1-hi)*(-h*h)"
         },
         "constraints": [
-          "satDistractor1!=k",
-          "satDistractor2!=k",
-          "satDistractor3!=k",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "dCompletingSquare!=k",
+          "dCompletingSquare!=dDoubled",
+          "dCompletingSquare!=dFourTimes"
         ]
       },
       "attemptFeedback": [
@@ -13765,11 +13983,12 @@
         "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "One real solution means a perfect square.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "$x^2-{{twoh}}x+k=(x-{{h}})^2$ requires $k={{h}}^2$.",
+          "So $k={{k}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -13787,15 +14006,15 @@
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor1}}"
+          "label": "{{dDoubled}}"
         },
         {
           "id": "choice-b",
-          "label": "{{satDistractor2}}"
+          "label": "{{dCompletingSquare}}"
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor3}}"
+          "label": "{{dFourTimes}}"
         }
       ]
     },
@@ -16036,19 +16255,25 @@
         "For an exponential function, identify the initial value, multiplicative factor, and the length of one growth or decay interval."
       ],
       "solutionReview": {
-        "headline": "Connect the exponential representations.",
+        "headline": "At the centre the exponent is zero.",
         "reasoning": [
-          "Use the initial value and multiplicative factor to connect the equation, table, graph, or context."
+          "$f({{h}})={{A}}({{b}})^{0} {{k|signed}}={{A}} {{k|signed}}$.",
+          "So $f({{h}})={{value}}$."
         ],
-        "answerSummary": "Check that the model uses the correct starting value and factor for each interval."
+        "answerSummary": "$f({{h}})={{value}}$"
       },
       "prompt": "For $f(x)={{A}}({{b}})^{x-{{h}}} {{k|signed}}$, what is the value of $f({{h}})$?",
       "generator": {
         "parameters": {
           "A": {
             "type": "int",
-            "min": 2,
-            "max": 15
+            "min": -15,
+            "max": 15,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "b": {
             "type": "int",
@@ -16063,22 +16288,25 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "value": "A+k",
-          "satDistractor1": "A-k",
-          "satDistractor2": "A",
-          "satDistractor3": "k"
+          "dSubtracted": "A-k",
+          "dCoefficientOnly": "A",
+          "dShiftOnly": "k"
         },
         "constraints": [
-          "satDistractor1!=value",
-          "satDistractor2!=value",
-          "satDistractor3!=value",
-          "satDistractor1!=satDistractor2",
-          "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "dSubtracted!=value",
+          "dCoefficientOnly!=value",
+          "dShiftOnly!=value",
+          "dSubtracted!=dCoefficientOnly",
+          "dSubtracted!=dShiftOnly",
+          "dCoefficientOnly!=dShiftOnly"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -16097,15 +16325,15 @@
         },
         {
           "id": "choice-c",
-          "label": "{{satDistractor1}}"
+          "label": "{{dCoefficientOnly}}"
         },
         {
           "id": "choice-d",
-          "label": "{{satDistractor2}}"
+          "label": "{{dShiftOnly}}"
         },
         {
           "id": "choice-a",
-          "label": "{{satDistractor3}}"
+          "label": "{{dSubtracted}}"
         }
       ]
     },
