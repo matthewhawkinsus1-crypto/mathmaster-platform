@@ -294,7 +294,7 @@
         "After converting form, use the sign of a to decide whether k is a minimum or maximum."
       ],
       "supportHints": [
-        "Use the sign of the leading coefficient to decide whether the vertex is an upper or lower extreme, then translate that extreme into a range inequality."
+        "Complete the square first, then interpret the coefficient sign and the vertex relative to the rest of the graph before describing the output set."
       ],
       "generator": {
         "parameters": {
@@ -422,7 +422,7 @@
         "Do not identify the vertex directly from b and c; first perform the standard-to-vertex transformation."
       ],
       "supportHints": [
-        "After writing vertex form, use the leading coefficient and nearby y-values to decide which kind of extreme the vertex represents."
+        "Complete the square carefully, then use the transformed form to interpret symmetry and the vertex relative to nearby outputs."
       ],
       "generator": {
         "parameters": {
