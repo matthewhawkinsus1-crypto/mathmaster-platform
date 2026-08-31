@@ -334,6 +334,40 @@ export const getPeriodWindow = (scheduleValue, classPeriod, nowValue = Date.now(
   };
 };
 
+export const getClassPackUpState = ({
+  schedule,
+  classPeriod,
+  nowValue = Date.now(),
+  minutesBeforeEnd = 5,
+} = {}) => {
+  const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
+  const window = getPeriodWindow(schedule, classPeriod, now);
+  const leadMinutes = Math.max(0, Number(minutesBeforeEnd) || 5);
+  if (!window) {
+    return { status: 'unavailable', window: null, startsAt: null, endsAt: null, millisecondsRemaining: 0, minutesBeforeEnd: leadMinutes };
+  }
+
+  const startsAt = new Date(Math.max(window.start.getTime(), window.end.getTime() - leadMinutes * 60000));
+  const status = now < startsAt
+    ? 'waiting'
+    : now <= window.end
+      ? 'active'
+      : 'ended';
+
+  return {
+    status,
+    window,
+    startsAt,
+    endsAt: window.end,
+    millisecondsRemaining: status === 'active'
+      ? Math.max(0, window.end.getTime() - now.getTime())
+      : status === 'waiting'
+        ? Math.max(0, startsAt.getTime() - now.getTime())
+        : 0,
+    minutesBeforeEnd: leadMinutes,
+  };
+};
+
 export const getWarmupState = ({ assignment, schedule, classId = null, classPeriod, nowValue = Date.now() }) => {
   const questions = getStoredAssignmentQuestions(assignment);
   const includedQuestions = questions.filter(questionIsIncluded);
@@ -445,8 +479,20 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
     return { enabled: true, status: 'unavailable', questionIndex, questionIndices, window: null, instructionDateKey, millisecondsRemaining: null };
   }
 
+  // A lesson DOL now finishes before the bell so students have a real pack-up
+  // window. `minutesBeforeEnd` remains the authored working-time duration for
+  // backward compatibility; `closeMinutesBeforeEnd` shifts that whole timer
+  // earlier without shortening it.
   const durationMinutes = Math.max(1, Number(assignment?.dol?.minutesBeforeEnd || 10));
-  const regularOpensAt = new Date(window.end.getTime() - durationMinutes * 60000);
+  const closeMinutesBeforeEnd = Math.max(0, Number(assignment?.dol?.closeMinutesBeforeEnd ?? 5));
+  const regularEndsAt = new Date(Math.max(
+    window.start.getTime(),
+    window.end.getTime() - closeMinutesBeforeEnd * 60000,
+  ));
+  const regularOpensAt = new Date(Math.max(
+    window.start.getTime(),
+    regularEndsAt.getTime() - durationMinutes * 60000,
+  ));
   const unlock = scopedOverride({ byClassId: assignment?.dol?.earlyUnlocksByClassId, classId });
   const unlockDateKey = typeof unlock === 'object' ? unlock?.dateKey : null;
   const unlockAtValue = typeof unlock === 'object' ? unlock?.unlockedAt : unlock;
@@ -455,12 +501,12 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
   const earlyUnlocked = unlockMatchesToday && unlockAtParsed < regularOpensAt;
 
   let opensAt = regularOpensAt;
-  let endsAt = window.end;
+  let endsAt = regularEndsAt;
   if (earlyUnlocked) {
     opensAt = new Date(Math.max(window.start.getTime(), unlockAtParsed.getTime()));
-    // Early release starts the same DOL timer immediately instead of silently
-    // giving a class more time than the authored DOL window.
-    endsAt = new Date(Math.min(window.end.getTime(), opensAt.getTime() + durationMinutes * 60000));
+    // Early release starts the same DOL timer immediately, but the DOL can
+    // never extend into the final technology-return window.
+    endsAt = new Date(Math.min(regularEndsAt.getTime(), opensAt.getTime() + durationMinutes * 60000));
   }
 
   const status = now < window.start
@@ -482,6 +528,7 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
     endsAt,
     earlyUnlocked,
     durationMinutes,
+    closeMinutesBeforeEnd,
     millisecondsRemaining: status === 'active'
       ? Math.max(0, endsAt.getTime() - now.getTime())
       : status === 'waiting'
