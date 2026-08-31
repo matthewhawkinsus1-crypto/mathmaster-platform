@@ -4063,7 +4063,7 @@ function App() {
 
     const proceed = await confirmAction({
       title: `Repair ${inspection.questionIds.length} corrupted question${inspection.questionIds.length === 1 ? '' : 's'}?`,
-      message: 'MathMaster will restore only the collapsed workflow question content from the matching Library source. The live assignment ID, question IDs, question order, dates, classes, scores, attempts, and all other student progress stay attached to this assignment.',
+      message: 'MathMaster will restore only the collapsed workflow question content from the matching Library source. The live assignment ID, question IDs/order, dates, classes, and every other question stay unchanged. Because the corrupted question was not valid work, students receive fresh attempts on that repaired question only; they do not restart the assignment.',
       confirmLabel: 'Repair assignment',
     });
     if (!proceed) return;
