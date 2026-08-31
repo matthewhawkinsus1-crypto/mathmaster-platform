@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { diagnosePathSkill, fetchPathCoverage, fetchPathRuntimeStatus, initializeBundledPathBankStarter, PATH_COVERAGE_COURSE_IDS, rebuildPathCoverage, seedPathQuestionBank } from '../../platform/path/pathCoverageService.js';
+import { diagnosePathSkill, fetchPathCoverage, fetchPathRuntimeStatus, initializeBundledPathBankStarter, PATH_COVERAGE_COURSE_IDS, rebuildPathCoverage, refreshBundledCourseAndAsvabPathBank, refreshBundledReleasedCcmrPathBanks, seedPathQuestionBank } from '../../platform/path/pathCoverageService.js';
 import { clearTeacherPathBankSnapshotCache } from '../../platform/path/pathBankSimulationService.js';
 import {
   COVERAGE_STATE, COVERAGE_STATE_LABELS, summarizeCoverage,
@@ -204,6 +204,85 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
     }
   };
 
+  const refreshCourseAndAsvab = async () => {
+    setBusy(true);
+    setError(null);
+    setSeed(null);
+    setSeedPhase('Validating the bundled Grade 6–8, Algebra I/II, and ASVAB bank on the server…');
+    try {
+      const result = await refreshBundledCourseAndAsvabPathBank({
+        onProgress: ({ phase }) => {
+          if (phase === 'refreshing-course-asvab') {
+            setSeedPhase('Validating and refreshing course + ASVAB built-ins…');
+          } else if (phase === 'coverage-complete') {
+            setSeedPhase('Rebuilding canonical course coverage…');
+          }
+        },
+      });
+      setSeed(result.seed);
+      if (!result.refreshed) {
+        const rejected = result.seed?.rejected?.length || 0;
+        const topReason = sortedGroups(result.seed?.rejectionSummary?.byReason)[0];
+        setError(
+          rejected
+            ? `The live course + ASVAB bank was NOT changed. ${rejected} document${rejected === 1 ? '' : 's'} failed production validation${topReason ? `; the largest group is “${humanizeReason(topReason[0])}” (${topReason[1]})` : ''}.`
+            : 'The live course + ASVAB bank was not changed. Review the server report below.',
+        );
+        return;
+      }
+      clearTeacherPathBankSnapshotCache();
+      if (result.coverage?.indexes) setIndexes(result.coverage.indexes);
+      else await load();
+      await loadRuntimeStatus();
+      setSeedPhase(null);
+    } catch (caught) {
+      setError(friendlyPathError(caught, 'Could not refresh the live course + ASVAB Path bank.'));
+      setSeedPhase(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const refreshReleasedCcmr = async () => {
+    const approved = typeof window === 'undefined' || window.confirm(
+      'Refresh the coordinated Digital SAT, ACT, and TSIA2 production Path release now? ASVAB will not be changed by this action.',
+    );
+    if (!approved) return;
+
+    setBusy(true);
+    setError(null);
+    setSeed(null);
+    setSeedPhase('Validating the coordinated Digital SAT / ACT / TSIA2 release before any live write…');
+    try {
+      const result = await refreshBundledReleasedCcmrPathBanks({
+        onProgress: ({ phase }) => {
+          if (phase === 'refreshing-ccmr-release') {
+            setSeedPhase('Validating and atomically refreshing Digital SAT / ACT / TSIA2…');
+          }
+        },
+      });
+      setSeed(result.seed);
+      if (!result.refreshed) {
+        const rejected = result.seed?.rejected?.length || 0;
+        setError(
+          rejected
+            ? `The coordinated CCMR release was NOT changed. ${rejected} document${rejected === 1 ? '' : 's'} failed production validation.`
+            : 'The coordinated CCMR release was not changed. Review the server report below.',
+        );
+        return;
+      }
+      clearTeacherPathBankSnapshotCache();
+      await load();
+      await loadRuntimeStatus();
+      setSeedPhase(null);
+    } catch (caught) {
+      setError(friendlyPathError(caught, 'Could not refresh the coordinated Digital SAT / ACT / TSIA2 release.'));
+      setSeedPhase(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const runDiagnostic = async (requestedTarget = diagnosticTarget, requestedFramework = diagnosticFramework) => {
     const target = String(requestedTarget || '').trim();
     if (!target) {
@@ -261,6 +340,12 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
             {runtimeStatus && (
               <p style={{ margin: '4px 0 0', color: '#5f6368', fontSize: 13 }}>
                 Secure bank: <strong>{runtimeStatus.bankCount ?? 0}</strong> questions · Built-in starter: <strong>{runtimeStatus.starterAvailable ? `${runtimeStatus.starterCount} available` : 'unavailable'}</strong>
+              </p>
+            )}
+            {runtimeStatus?.assessmentRelease && (
+              <p style={{ margin: '4px 0 0', color: runtimeStatus.assessmentRelease.status === 'updating' ? '#a50e0e' : '#5f6368', fontSize: 13, fontWeight: runtimeStatus.assessmentRelease.status === 'updating' ? 800 : 400 }}>
+                SAT / ACT / TSIA2 release manifest: <strong>{runtimeStatus.assessmentRelease.status || 'unknown'}</strong>
+                {runtimeStatus.assessmentRelease.updateOperation ? ` · ${runtimeStatus.assessmentRelease.updateOperation}` : ''}
               </p>
             )}
           </div>
@@ -460,16 +545,43 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
           so a seed file cannot put content in front of a student that the
           runtime would refuse to issue. */}
       <section style={card}>
-        <h3 style={{ margin: 0 }}>Import a Path bank seed package</h3>
-        <p style={{ margin: '6px 0 14px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 720 }}>
-          The built-in bank is the server-owned starting content for course Path and CCMR practice. Refreshing it validates
-          every bundled template with the production issuer, replaces each built-in Firestore document authoritatively, removes
-          superseded built-in documents, and then rebuilds Grade 6, Grade 7, Grade 8, Algebra I, and Algebra II coverage from
-          the canonical Texas registry. Teacher assignments are not consulted. The answer key never enters the browser.
+        <h3 style={{ margin: 0 }}>Manage the live built-in Path bank</h3>
+        <p style={{ margin: '6px 0 14px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 800 }}>
+          These controls intentionally separate three different release operations. <strong>Fresh install</strong> is only for an empty bank.
+          On an existing installation, refresh <strong>course + ASVAB</strong> first, then refresh the release-managed
+          <strong>Digital SAT / ACT / TSIA2</strong> package atomically. Expected answers stay inside Cloud Functions and never enter the browser.
         </p>
-        <button type="button" style={{ ...primary, marginBottom: 16 }} onClick={initializeStarter} disabled={busy}>
-          {busy ? 'Working…' : 'Initialize / refresh built-in starter bank'}
-        </button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+          <button
+            type="button"
+            style={quiet}
+            onClick={initializeStarter}
+            disabled={busy || (runtimeStatus?.bankCount ?? 0) > 0}
+            title={(runtimeStatus?.bankCount ?? 0) > 0 ? 'Fresh-install initialization is disabled because the secure bank already contains content.' : ''}
+          >
+            {busy ? 'Working…' : 'Initialize all built-ins (empty bank only)'}
+          </button>
+          <button
+            type="button"
+            style={primary}
+            onClick={refreshCourseAndAsvab}
+            disabled={busy || !runtimeStatus || (runtimeStatus.bankCount ?? 0) === 0}
+          >
+            {busy ? 'Working…' : '1. Refresh course + ASVAB built-ins'}
+          </button>
+          <button
+            type="button"
+            style={{ ...primary, background: '#5f3dc4' }}
+            onClick={refreshReleasedCcmr}
+            disabled={busy || !runtimeStatus || (runtimeStatus.bankCount ?? 0) === 0}
+          >
+            {busy ? 'Working…' : '2. Refresh SAT / ACT / TSIA2 release'}
+          </button>
+        </div>
+        <p style={{ margin: '0 0 16px', color: '#5f6368', fontSize: 12, lineHeight: 1.55, maxWidth: 800 }}>
+          The first refresh cannot write SAT, ACT, or TSIA2. The second refresh cannot write ASVAB. This prevents one bank operation
+          from silently replacing another framework's certified release.
+        </p>
         <details style={{ marginBottom: 10 }}>
           <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#3c4043' }}>Import a different seed package instead</summary>
           <p style={{ margin: '8px 0 12px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 720 }}>
