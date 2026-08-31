@@ -13,7 +13,7 @@ test('ordered pair format guarantees parentheses and comma in entry order', () =
 });
 
 test('interval, set, and inequality profiles guarantee their structural notation', () => {
-  assert.deepEqual(resolveRequiredAnswerSymbols({ toolProfile: 'interval' }), ['(', ')', '[', ']', '∞', '∪']);
+  assert.deepEqual(resolveRequiredAnswerSymbols({ toolProfile: 'interval' }), ['(', ',', ')', '[', ']', '∞', '∪']);
   assert.deepEqual(resolveRequiredAnswerSymbols({ toolProfile: 'set' }), ['{', ',', '}']);
   assert.deepEqual(resolveRequiredAnswerSymbols({ toolProfile: 'inequality' }), ['<', '≤', '>', '≥']);
 });
@@ -70,6 +70,15 @@ test('required variable letters resolve to real keypad tools dynamically', () =>
 
 test('unsupported notation is detectable for Preflight', () => {
   assert.deepEqual(unsupportedRequiredAnswerSymbols(['(', 'x', 'θ', ')']), ['θ']);
+});
+
+
+test('interval keypad always exposes a comma for bounded intervals and coordinates', () => {
+  const source = readFileSync('src/MathInput.jsx', 'utf8');
+  const intervalStart = source.indexOf('const INTERVAL_KEYS = [');
+  const intervalEnd = source.indexOf('];', intervalStart);
+  const intervalBlock = source.slice(intervalStart, intervalEnd);
+  assert.match(intervalBlock, /label: ',', command: ','/);
 });
 
 
