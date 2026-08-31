@@ -15,13 +15,6 @@ const sectionQuestions = (section = {}) => (
   Array.isArray(section?.questions) ? section.questions : []
 );
 
-const questionIdentity = (question = {}) => clean(
-  question.questionId
-  || question.id
-  || question.familyId
-  || '',
-);
-
 const visibleStem = (question = {}) => clean(
   question.prompt
   || question.scenario
@@ -116,11 +109,6 @@ export const applyHonorsDepthAiSections = (currentAssignment = {}, aiAssignment 
 
     before.forEach((sourceQuestion, questionIndex) => {
       const nextQuestion = after[questionIndex] || {};
-      const sourceIdentity = questionIdentity(sourceQuestion);
-      const nextIdentity = questionIdentity(nextQuestion);
-      if (sourceIdentity && sourceIdentity !== nextIdentity) {
-        throw new Error('MathMaster AI reordered or replaced an existing question; the repair was rejected.');
-      }
       const sourceStem = visibleStem(sourceQuestion);
       const nextStem = visibleStem(nextQuestion);
       if (sourceStem && nextStem !== sourceStem) {
@@ -167,7 +155,15 @@ export const separateHonorsDepthAiRepair = (currentAssignment = {}, guardedCandi
     }
     return {
       ...section,
-      questions: questions.slice(0, originalCount),
+      questions: questions.slice(0, originalCount).map((question, questionIndex) => {
+        const sourceQuestion = sectionQuestions(sourceSection)[questionIndex] || {};
+        return {
+          ...question,
+          ...(sourceQuestion.questionId ? { questionId: sourceQuestion.questionId } : {}),
+          ...(sourceQuestion.id ? { id: sourceQuestion.id } : {}),
+          ...(sourceQuestion.familyId ? { familyId: sourceQuestion.familyId } : {}),
+        };
+      }),
     };
   });
 
@@ -207,7 +203,8 @@ export const buildHonorsDepthAiRepairRequest = ({
     `Non-CCMR Honors gaps to repair: ${honorsMissingLabels(missing).join(', ')}`,
     '',
     '## Repair boundaries',
-    '- Preserve the assignment title, course, section ids, section roles, existing question order, existing question ids/family ids, prompts, mathematical tasks, answers, and interaction types.',
+    '- Preserve the assignment title, course, section ids, section roles, existing question order, prompts, mathematical tasks, answers, and interaction types.',
+    '- Do not invent platform-owned question ids. MathMaster preserves existing runtime question identity after the AI repair is accepted.',
     '- Do not remove an existing question.',
     '- You may add AT MOST ONE new Honors extension question, and only to Classwork or Practice, if a new question is necessary to supply missing depth.',
     '- Existing questions may receive corrected/added TEKS alignment metadata when the mathematics they already contain clearly supports that alignment.',
