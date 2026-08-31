@@ -705,7 +705,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.5E",
       "representation": "context",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "In a model, t is elapsed time, so $t\\ge0$. A student proposes $t={{candidate}}$ for $\\log_2(t+{{offset}})={{n}}$ and says it is reasonable because it satisfies the logarithmic equation. Check the original equation AND the context, then repair the student's verdict.",
