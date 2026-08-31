@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { effectivePathVariants } from '../../functions/shared/pathQuestionGeneration.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const primary = resolve(root, 'seed/pathQuestionBank');
@@ -33,15 +34,23 @@ test('the synchronized active bank contains exactly 3,334 renderable documents',
     assert.ok(Array.isArray(parsed.documents), `${name} has no documents array`);
     total += parsed.documents.length;
     for (const entry of parsed.documents) {
-      if (entry?.generator) continue;
-      const rendered = JSON.stringify({
-        prompt: entry?.prompt ?? '',
-        choices: entry?.choices ?? [],
-        stimulus: entry?.stimulus ?? null,
-        responseFields: entry?.responseFields ?? [],
-        solutionReview: entry?.solutionReview ?? null,
-      });
-      assert.ok(!PLACEHOLDER.test(rendered), `${name}: ${entry?.id} has placeholders but no generator to fill them`);
+      for (const { template, coverageKey } of effectivePathVariants(entry)) {
+        if (template?.generator) continue;
+        const rendered = JSON.stringify({
+          prompt: template?.prompt ?? '',
+          choices: template?.choices ?? [],
+          stimulus: template?.stimulus ?? null,
+          responseFields: template?.responseFields ?? [],
+          solutionReview: template?.solutionReview ?? null,
+          functionSpec: template?.functionSpec ?? null,
+          pointTasks: template?.pointTasks ?? [],
+          analysisRequests: template?.analysisRequests ?? [],
+        });
+        assert.ok(
+          !PLACEHOLDER.test(rendered),
+          `${name}: ${entry?.id}#${coverageKey || 'base'} has placeholders but no generator to fill them`,
+        );
+      }
     }
   }
   assert.equal(total, 3334);
