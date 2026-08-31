@@ -788,3 +788,122 @@ All figures below are from the shipping seed and this branch's HEAD.
 
 The bank ships 664 families: 415 direct, 249 challenge, 498 multiple choice and
 166 student-produced response, 79 standards, all calculator-permitted.
+
+# Part IV — synchronization with main, and the SPR stem-leak review
+
+## Merge
+
+`origin/main` had moved 1,049 commits since this branch was cut. Merged with a
+real merge commit; no `--ours`, no `--theirs`.
+
+| | |
+| --- | --- |
+| Synchronized against | `d5431e099a07aba37fd06c99111bbb0c82bc5dd4` |
+| Merge base | `87ac9b32daabbf8a23845692b234421e57a9d436` |
+| Files main changed | 270 |
+| Files this branch changed | 102 |
+| Files changed by both | **0** — no textual conflicts |
+
+Zero overlap is not zero risk, and one of main's changes mattered. Main
+rewrote `functions/shared/pathQuestionGeneration.mjs` — the generator every
+measurement in this report runs through — adding template-level `variants`,
+target-aware variant selection, and a redraw-past-excluded-values loop. Two
+things had to be re-checked rather than assumed:
+
+* The static-item repair in Part II adds a `variant` *parameter* to a
+  generator so the option shuffle runs. Main's new `variants` is a different
+  concept — an array on the template. They do not collide: the new early return
+  is `if (!hasDirectPathGenerator(resolvedTemplate))`, and a family with a
+  `variant` parameter still has a direct generator, so it still shuffles.
+* Every certification number was re-measured under the merged generator. All
+  identical: keep 664, revise 0, replace 0, zero cross-tier and generator
+  clones, zero generation-yield failures.
+
+Main's redraw loop is a straight improvement for this branch, incidentally:
+excluding 0 and ±1 from a coefficient range no longer costs a generation
+attempt per rejection.
+
+Preserved from main: 48 Algebra II fidelity-v2 drafts, the Algebra I/II seed
+mirrors, 16 changed `functions/shared` modules, Path activation and deployment
+wiring, graph and sequence work, ASVAB release guards, and 69 test files. The
+ACT, TSIA2, ASVAB, Algebra I and Algebra II production seeds are **byte-identical
+to `origin/main`** in both the root and Functions mirrors.
+
+## The 15 SPR stem-leak findings, reviewed one at a time
+
+Part III found that the sweep's strong checks all need four options, so none of
+them looks at the student-produced-response families, and that fifteen of those
+print their own expected answer in the stem. Each was read by hand and placed in
+one of three classes.
+
+### Genuine answer disclosure — repaired (7)
+
+| Family | Band / DOK | What the stem did | Repair |
+| --- | --- | --- | --- |
+| `A_7A_challenge_challenge-feature-from-expanded` | 5 / 3 | Printed the vertex, then asked for `k` — which the stem never defined | Names the target form `f(x)=(x-h)^2+k` instead of printing the vertex; completing the square is now the work |
+| `A2_3F_challenge_3_challenge-three-constraint-vertex` | 5 / 3 | "The two non-axis boundary lines intersect at (5,4). What is the value of y?" | The sentence is gone; the two boundary equations must be solved |
+| `A_7C_challenge_challenge-parameter-for-vertex` | 4 / 2 | Printed the vertex, then asked for `p` | Gives two points at equal height; `p` is the axis of symmetry between them |
+| `A_3G_5_graph-solution-context` | 3 / 2 | Printed the intersection, then asked when the models agree | The intersection is gone; the two models must be set equal |
+| `A2_3F_2_vertical-slice-maximum` | 3 / 2 | `y ≤ 14` then "greatest integer y?" — the bound *was* the answer | The bound is strict now, restoring the fencepost step |
+| `A_3F_1_intersection-from-two-lines` | 2 / 2 | Printed the intersection, then asked for its `x` | The intersection is gone; both equations were already in the stem |
+| `native_1vd_1_mean-symmetric-data` | 2 / 1 | Five values symmetric about the mean, so the mean was always the middle value in the list | Offsets are free and the fifth absorbs the remainder: the mean stays an integer and never appears among the data |
+
+All seven verified by hand at 400 draws each: 100% generation yield, arithmetic
+checked on three instances apiece, and none now prints its answer.
+
+### Harmless wording coincidence — kept (5)
+
+The answer coincides with a printed number because of the mathematics, not
+because of a leak.
+
+| Family | Why the number is there |
+| --- | --- |
+| `A_12A_challenge_1_parameter-repeated-input` | A repeated input must map to one output, so `k` equals the printed partner. The other printed output is equally available and wrong |
+| `A2_6J_challenge_2_parameter-denominator` | The expression is undefined exactly at the proposed solution — that equality is the concept |
+| `A2_7C_challenge_quotient_linear_coefficient` | Cancelling the common factor leaves the quadratic unchanged, so `k` carries through |
+| `A_10C_4_quotient-parameter` | Dividing by `x` leaves the leading coefficient unchanged |
+| `A2_3C_nonzero-intersection-parabola-line` | `x² = kx` has non-zero solution `x = k`, so the answer equals the printed slope |
+
+### Legitimate necessary given — kept (3)
+
+| Family | Why the value must be stated |
+| --- | --- |
+| `A_7A_challenge_challenge-max-value` | The maximum of `a(x-h)²+k` with `a<0` is `k`, part of the printed function's own definition |
+| `A_7B_product-of-zeros` | Vieta's relation: the product of the zeros of a monic quadratic *is* the constant term |
+| `A_3G_4_context-intersection-output` | There are no equations to solve; the intersection is the stimulus and interpretation is the task, labelled band 2 / DOK 1 |
+
+## A stronger regression contract
+
+The crude "count stays at 15" ceiling is gone. `digitalSatSprStemLeak.test.mjs`
+now holds an allowlist keyed by family id, each entry carrying the reason that
+family is allowed to print its answer, and asserts in both directions:
+
+* a family that prints its answer and is **not** on the list fails, with a
+  message telling the reader to repair it or justify it — so a new disclosure
+  cannot arrive unreviewed;
+* a listed family that **no longer** prints its answer also fails, so the list
+  is pruned when an item is repaired rather than left to rot.
+
+## Verification after synchronization and repair
+
+| Check | Result |
+| --- | --- |
+| `node --test "tests/platform/*.test.mjs"` | 2,951 tests, **2,951 pass, 0 fail** |
+| CCMR / Path / framework-bank subset (139 files) | 967 tests, **967 pass** |
+| ACT / TSIA2 / ASVAB / Algebra / deployment / Path-release subset (74 files) | 350 tests, **350 pass** |
+| `tests/platform/digitalSat*.test.mjs` (8 files) | 25 tests, **25 pass** |
+| `ccmrV21ProductionReleaseContent.test.mjs` | 7 tests, **7 pass** |
+| Root / Functions Digital SAT seed drift | **0 / 0**, mirrors byte-identical |
+| Certification sweep, shipping seed | **keep 664, revise 0, replace 0** |
+| Generation yield, 2,000 draws per family | **0 failures** |
+| Cross-tier clones / generator clones | **0 / 0** |
+| Cross-framework contamination | **0** |
+| Rendering warts | **0** |
+| Audit self-test | **6 / 6** |
+| Independent re-derivation | **0 findings** |
+| SPR families printing their answer | 15 → **8**, all reviewed and justified |
+| `npm run build` / `npm run lint` | clean / **0 errors** |
+
+Same-tier clone findings moved 156 → 155 (86 frame, 45 prompt overlap, 24 task)
+as a side effect of the repairs. They remain untouched, as does the domain
+weighting.

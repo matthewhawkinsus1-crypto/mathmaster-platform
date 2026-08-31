@@ -12095,7 +12095,7 @@
         "officialSkillFamily": "nonlinear functions",
         "stemProfile": "challenge-feature-from-expanded"
       },
-      "prompt": "The quadratic $f(x)=x^2-{{twoh}}x {{c|signed}}$ has vertex $({{h}},{{k}})$. What is the value of $k$?",
+      "prompt": "The quadratic $f(x)=x^2-{{twoh}}x {{c|signed}}$ can be written in the form $f(x)=(x-h)^2+k$. What is the value of $k$?",
       "generator": {
         "parameters": {
           "h": {
@@ -12124,14 +12124,15 @@
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
       ],
       "supportHints": [
-        "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
+        "In vertex form the constant is what remains after subtracting the square of half the $x$-coefficient."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Complete the square to reach vertex form.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "Half the $x$-coefficient is {{h}}, and $(x-{{h}})^2=x^2-{{twoh}}x+{{h}}^2$.",
+          "So $k={{c}}-{{h}}^2={{k}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "answerSummary": "$k={{k}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -13679,7 +13680,7 @@
         "officialSkillFamily": "nonlinear functions",
         "stemProfile": "challenge-parameter-for-vertex"
       },
-      "prompt": "The graph of $f(x)=(x-p)^2 {{k|signed}}$ has vertex $({{h}},{{k}})$. What is the value of $p$?",
+      "prompt": "The graph of $f(x)=(x-p)^2 {{k|signed}}$ passes through $({{x1}},{{y1}})$ and $({{x2}},{{y1}})$. What is the value of $p$?",
       "generator": {
         "parameters": {
           "h": {
@@ -13694,21 +13695,37 @@
             "exclude": [
               0
             ]
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 6
           }
-        }
+        },
+        "derived": {
+          "x1": "h-d",
+          "x2": "h+d",
+          "y1": "d*d+k"
+        },
+        "constraints": [
+          "x1!=x2",
+          "x1!=0",
+          "x2!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
       ],
       "supportHints": [
-        "Connect the equation, factors, zeros, vertex, or graph features that describe the same function."
+        "Two inputs with the same output are the same distance from the axis of symmetry."
       ],
       "solutionReview": {
-        "headline": "Connect the nonlinear representations.",
+        "headline": "Equal outputs sit symmetrically about the axis.",
         "reasoning": [
-          "Use equivalent forms and key features to identify the value, equation, or graph relationship."
+          "$f({{x1}})=f({{x2}})={{y1}}$, so the axis of symmetry is halfway between them.",
+          "That gives $p=\\dfrac{ {{x1}}+{{x2}} }{2}={{h}}$."
         ],
-        "answerSummary": "Verify the result in the original nonlinear relationship."
+        "answerSummary": "$p={{h}}$"
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -51963,7 +51980,7 @@
         "officialSkillFamily": "systems of two linear equations in two variables",
         "stemProfile": "intersection-from-two-lines"
       },
-      "prompt": "The graphs of $y={{m1}}x {{b1|signed}}$ and $y={{m2}}x {{b2|signed}}$ intersect at $({{x}},{{y}})$. What is the value of $x$?",
+      "prompt": "The graphs of $y={{m1}}x {{b1|signed}}$ and $y={{m2}}x {{b2|signed}}$ intersect at exactly one point. What is the $x$-coordinate of that point?",
       "generator": {
         "parameters": {
           "x": {
@@ -52021,14 +52038,15 @@
         "Connect the algebraic relationship to the graph or condition described before selecting a response."
       ],
       "supportHints": [
-        "Use the defining property of the requested graph, intersection, or solution region."
+        "Two lines meet where their outputs are equal, so set the right-hand sides equal and solve."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "Set the two expressions equal.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "${{m1}}x {{b1|signed}}={{m2}}x {{b2|signed}}$ gives $({{m1}}-{{m2}})x={{b2}}-({{b1}})$.",
+          "So $x={{answer}}$."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "answerSummary": "$x={{answer}}$"
       }
     },
     {
@@ -53357,7 +53375,7 @@
         "officialSkillFamily": "systems of two linear equations in two variables",
         "stemProfile": "graph-solution-context"
       },
-      "prompt": "A graph of the equations $y={{m1}}x {{b1|signed}}$ and $y={{m2}}x {{b2|signed}}$ shows their intersection at $({{x}},{{y}})$. If $x$ represents weeks and $y$ represents accumulated units, after how many weeks do the models have the same value?",
+      "prompt": "Two models are given by $y={{m1}}x {{b1|signed}}$ and $y={{m2}}x {{b2|signed}}$, where $x$ is weeks and $y$ is accumulated units. After how many weeks do the models give the same value?",
       "generator": {
         "parameters": {
           "x": {
@@ -53405,14 +53423,15 @@
         "Connect the algebraic relationship to the graph or condition described before selecting a response."
       ],
       "supportHints": [
-        "Use the defining property of the requested graph, intersection, or solution region."
+        "Set the two expressions for $y$ equal and solve for the number of weeks."
       ],
       "solutionReview": {
-        "headline": "Connect the representation to the required feature.",
+        "headline": "The models agree where their outputs are equal.",
         "reasoning": [
-          "Use the generated relationships to identify the graph feature, intersection, or feasible condition being asked about."
+          "${{m1}}x {{b1|signed}}={{m2}}x {{b2|signed}}$ gives $({{m1}}-{{m2}})x={{b2}}-({{b1}})$.",
+          "So the models agree after {{answer}} weeks."
         ],
-        "answerSummary": "Verify the result against every stated condition."
+        "answerSummary": "{{answer}} weeks"
       }
     },
     {
@@ -58615,7 +58634,7 @@
         "officialSkillFamily": "linear inequalities in one or two variables",
         "stemProfile": "vertical-slice-maximum"
       },
-      "prompt": "For a fixed value $x={{x}}$, the system requires $y\\ge {{lower}}$ and $y\\le {{upper}}$. What is the greatest possible integer value of $y$?",
+      "prompt": "For a fixed value $x={{x}}$, the system requires $y\\ge {{lower}}$ and $y< {{upper}}$. What is the greatest possible integer value of $y$?",
       "generator": {
         "parameters": {
           "x": {
@@ -58636,8 +58655,9 @@
         },
         "derived": {
           "upper": "lower+gap",
-          "ymax": "upper"
-        }
+          "ymax": "upper-1"
+        },
+        "constraints": []
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -58652,14 +58672,15 @@
         "Translate each stated condition carefully and check every inequality before selecting a response."
       ],
       "supportHints": [
-        "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
+        "A strict inequality excludes the boundary value, so the greatest integer is one below it."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "A strict bound excludes its own value.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "$y$ must satisfy ${{lower}}\\le y<{{upper}}$.",
+          "The greatest integer strictly below {{upper}} is {{ymax}}."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "answerSummary": "${{ymax}}$"
       }
     },
     {
@@ -59273,7 +59294,7 @@
         "officialSkillFamily": "linear inequalities in one or two variables",
         "stemProfile": "challenge-three-constraint-vertex"
       },
-      "prompt": "A feasible region satisfies $x\\ge0$, $y\\ge0$, $x+y\\le {{sumMax}}$, and ${{A}}x+{{B}}y\\le {{resource}}$. The two non-axis boundary lines intersect at $({{x}},{{y}})$. What is the value of $y$?",
+      "prompt": "A feasible region satisfies $x\\ge0$, $y\\ge0$, $x+y\\le {{sumMax}}$, and ${{A}}x+{{B}}y\\le {{resource}}$. What is the $y$-coordinate of the point where the two non-axis boundary lines intersect?",
       "generator": {
         "parameters": {
           "A": {
@@ -59315,14 +59336,15 @@
         "Translate each stated condition carefully and check every inequality before selecting a response."
       ],
       "supportHints": [
-        "Words such as at least, at most, no more than, and no fewer than determine the inequality symbols."
+        "The corner where two constraints meet is the solution of the two equations taken with equality."
       ],
       "solutionReview": {
-        "headline": "Use all of the constraints.",
+        "headline": "The two boundaries meet where both hold with equality.",
         "reasoning": [
-          "Translate or apply each condition, including any nonnegativity or boundary requirement."
+          "Solving $x+y={{sumMax}}$ and ${{A}}x+{{B}}y={{resource}}$ eliminates $x$: $({{B}}-{{A}})y={{resource}}-{{A}}({{sumMax}})$.",
+          "So $y={{y}}$."
         ],
-        "answerSummary": "Verify the result against every inequality."
+        "answerSummary": "$y={{y}}$"
       }
     },
     {
@@ -71492,14 +71514,15 @@
         "Use the data values and the requested measure. Keep measures of center separate from measures of spread."
       ],
       "supportHints": [
-        "Mean uses all values, median depends on order, range is maximum minus minimum, and standard deviation reflects how far values typically lie from the mean."
+        "Add all five values and divide by 5; the mean need not be one of the values."
       ],
       "solutionReview": {
-        "headline": "Match the statistic to what it measures.",
+        "headline": "The mean adds every value and divides by how many there are.",
         "reasoning": [
-          "Compute or compare the requested measure using the full data set or frequency information. For transformed data, track how center and spread change."
+          "The five values total ${{m}}\\times5$.",
+          "So the mean is {{m}}."
         ],
-        "answerSummary": "Check that the result is consistent with the distribution and the statistic named in the question."
+        "answerSummary": "{{m}}"
       },
       "prompt": "The data values are {{v1}}, {{v2}}, {{v3}}, {{v4}}, and {{v5}}. What is the mean?",
       "generator": {
@@ -71518,18 +71541,40 @@
             "type": "int",
             "min": 1,
             "max": 3
+          },
+          "c": {
+            "type": "int",
+            "min": 2,
+            "max": 9
+          },
+          "d": {
+            "type": "int",
+            "min": 1,
+            "max": 6
           }
         },
         "derived": {
+          "e": "a+b-c-d",
           "v1": "m-a",
           "v2": "m-b",
-          "v3": "m",
-          "v4": "m+b",
-          "v5": "m+a",
+          "v3": "m+c",
+          "v4": "m+d",
+          "v5": "m+e",
           "answer": "m"
         },
         "constraints": [
-          "b<a"
+          "e!=0",
+          "a!=b",
+          "c!=d",
+          "a+b!=c+d",
+          "e!=c",
+          "e!=d",
+          "e!=-a",
+          "e!=-b",
+          "c!=-a",
+          "c!=-b",
+          "d!=-a",
+          "d!=-b"
         ]
       },
       "assessmentItemFormat": "studentProducedResponse",
