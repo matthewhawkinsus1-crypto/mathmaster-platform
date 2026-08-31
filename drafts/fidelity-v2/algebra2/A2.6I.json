@@ -61,7 +61,7 @@
         "First isolate the fraction; then clear the denominator without losing the horizontal shift."
       ],
       "supportHints": [
-        "Before solving, find the excluded input by setting the denominator expression equal to zero; then isolate the rational term."
+        "Before solving, identify the input that would make the original denominator zero and keep that restriction throughout the work."
       ],
       "generator": {
         "parameters": {
