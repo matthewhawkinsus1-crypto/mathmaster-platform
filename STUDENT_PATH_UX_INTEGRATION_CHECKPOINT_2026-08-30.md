@@ -442,3 +442,50 @@ Promoted shipping commit: `4c4917030ecb`.
 
 Next evidence required:
 - one complete expanded Full Platform Test Suite run on a normal checkpoint commit after `4c4917030ecb`.
+
+
+## 2026-08-30 — audit-branch preproduction certification GREEN
+
+The expanded preproduction gate is fully green on the Algebra/Path audit branch.
+
+Final candidate:
+- branch head: `d704cddb764c5b90bd101d278b1fafd39caf3d2c`;
+- Full Platform Test Suite: run `33346958570`;
+- conclusion: **PASS**.
+
+The single candidate passed all of the following in sequence:
+1. every platform regression test;
+2. standalone math-tool tests;
+3. both Firestore emulator/security-rule suites;
+4. certified Algebra I/II source ↔ compatibility draft ↔ web seed ↔ Functions seed parity;
+5. certified Algebra release-authority audit;
+6. strict independent DOK/difficulty metadata audit;
+7. strict Challenge quality audit;
+8. correct-answer acceptance audit;
+9. standard web production build;
+10. Firebase-production web build;
+11. lint.
+
+### Firestore consolidation closed
+
+The older behavioral rule suite was brought into the current scoped-teacher security model without weakening production rules:
+- `fd30b20d126308591e7439e56544665b35df579c` — current teacher-email, assigned-student, authorized-child-record, scoped-roster-query, and evidence-context fixtures;
+- `d704cddb764c5b90bd101d278b1fafd39caf3d2c` — separate scratchpad read/delete fixtures so the suite does not delete the record it later verifies.
+
+Result: both Firestore rule suites pass together under the actual emulator configuration.
+
+### Algebra/Path audit status
+
+The Algebra I/II content fidelity, Challenge/DOK/difficulty work, five-family session durability, student solution-review coverage, navigation/completion recovery, release authority, secure grading, and production packaging are now **LOCKED GREEN** on this branch.
+
+Do not reopen these areas unless a named regression fails.
+
+### Final integration phase
+
+The audit branch still diverges from current `main` because ASVAB was completed and merged separately after this audit branch split.
+
+Next:
+1. bring current `main` into this certified audit branch while preserving both the ASVAB release and the Algebra/Path release;
+2. resolve only true overlapping integration surfaces;
+3. rerun this same expanded Full Platform Test Suite on the combined state;
+4. only after combined green should the final merge/deployment and one-time built-in Path bank refresh be prepared.
