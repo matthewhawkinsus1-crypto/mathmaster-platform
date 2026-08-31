@@ -70,12 +70,18 @@
           "d": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "e": {
             "type": "int",
             "min": 1,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              1
+            ]
           },
           "f": {
             "type": "int",
@@ -87,7 +93,16 @@
           "A": "a+d",
           "B": "b+e",
           "C": "c+f"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "C!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -195,12 +210,18 @@
           "d": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "e": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "f": {
             "type": "int",
@@ -215,7 +236,23 @@
           "Aplus": "a+d",
           "Bplus": "b+e",
           "Cplus": "c+f"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "Aplus!=0",
+          "Aplus!=1",
+          "Aplus!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "Bplus!=0",
+          "Bplus!=1",
+          "Bplus!=-1",
+          "C!=0",
+          "Cplus!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -309,14 +346,19 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "p": {
             "type": "int",
             "min": -9,
             "max": 9,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "c": {
@@ -327,14 +369,19 @@
           "d": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "q": {
             "type": "int",
             "min": -9,
             "max": 9,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "f": {
@@ -353,7 +400,11 @@
         },
         "constraints": [
           "p!=q",
-          "p!=2*q"
+          "p!=2*q",
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "C!=0"
         ]
       },
       "attemptFeedback": [
@@ -463,7 +514,10 @@
           "d": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "e": {
             "type": "int",
@@ -485,7 +539,18 @@
         },
         "constraints": [
           "e!=b",
-          "c!=f"
+          "c!=f",
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "C!=0",
+          "Cwrong!=0",
+          "M!=0",
+          "M!=1",
+          "M!=-1",
+          "Mwrong!=0",
+          "Mwrong!=1",
+          "Mwrong!=-1"
         ]
       },
       "attemptFeedback": [
@@ -590,12 +655,18 @@
           "d": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "e": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "f": {
             "type": "int",
@@ -624,7 +695,13 @@
         },
         "constraints": [
           "target!=2*f",
-          "target!=f"
+          "target!=f",
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1"
         ]
       },
       "attemptFeedback": [
@@ -743,7 +820,9 @@
             "min": -8,
             "max": 8,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "f": {
@@ -754,14 +833,19 @@
           "g": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "h": {
             "type": "int",
             "min": -7,
             "max": 7,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "j": {
@@ -878,7 +962,9 @@
             "min": -10,
             "max": 10,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "r": {
@@ -891,7 +977,9 @@
             "min": -9,
             "max": 9,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "s": {
@@ -909,7 +997,8 @@
         },
         "constraints": [
           "p!=q",
-          "p!=2*q"
+          "p!=2*q",
+          "constant!=0"
         ]
       },
       "attemptFeedback": [
@@ -1025,12 +1114,18 @@
           "d": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           },
           "e": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           },
           "f": {
             "type": "int",
@@ -1045,7 +1140,23 @@
           "Aw": "m*a+d",
           "Bw": "m*b+e",
           "Cw": "m*c+f"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "Aw!=0",
+          "Aw!=1",
+          "Aw!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "Bw!=0",
+          "Bw!=1",
+          "Bw!=-1",
+          "C!=0",
+          "Cw!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -1148,7 +1259,10 @@
           "b": {
             "type": "int",
             "min": 1,
-            "max": 9
+            "max": 9,
+            "exclude": [
+              1
+            ]
           }
         },
         "derived": {
@@ -1156,7 +1270,15 @@
           "B": "k*b",
           "Aw": "a",
           "Bw": "b"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -1263,7 +1385,16 @@
           "diff": "p-q"
         },
         "constraints": [
-          "p!=q"
+          "p!=q",
+          "diff!=0",
+          "diff!=1",
+          "diff!=-1",
+          "prod!=0",
+          "prod!=1",
+          "prod!=-1",
+          "sum!=0",
+          "sum!=1",
+          "sum!=-1"
         ]
       },
       "attemptFeedback": [
@@ -1376,7 +1507,20 @@
           "M1": "a*c",
           "Cplus": "b*c+1",
           "Aplus": "a+1"
-        }
+        },
+        "constraints": [
+          "Aplus!=0",
+          "Aplus!=1",
+          "Aplus!=-1",
+          "C!=0",
+          "Cplus!=0",
+          "M!=0",
+          "M!=1",
+          "M!=-1",
+          "M1!=0",
+          "M1!=1",
+          "M1!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -1504,7 +1648,11 @@
         },
         "constraints": [
           "a*q!=b*p",
-          "a*q!=2*b*p"
+          "a*q!=2*b*p",
+          "constant!=0",
+          "lead!=0",
+          "lead!=1",
+          "lead!=-1"
         ]
       },
       "attemptFeedback": [
@@ -1616,7 +1764,16 @@
           "M": "q+a*p",
           "C": "p*q",
           "Mw": "q+p"
-        }
+        },
+        "constraints": [
+          "C!=0",
+          "M!=0",
+          "M!=1",
+          "M!=-1",
+          "Mw!=0",
+          "Mw!=1",
+          "Mw!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -1736,7 +1893,18 @@
           "Cplus": "p*q"
         },
         "constraints": [
-          "b*p!=a*q"
+          "b*p!=a*q",
+          "C!=0",
+          "Cplus!=0",
+          "L!=0",
+          "L!=1",
+          "L!=-1",
+          "M!=0",
+          "M!=1",
+          "M!=-1",
+          "Mplus!=0",
+          "Mplus!=1",
+          "Mplus!=-1"
         ]
       },
       "attemptFeedback": [
@@ -1860,7 +2028,8 @@
         },
         "constraints": [
           "q!=a*p",
-          "q!=2*a*p"
+          "q!=2*a*p",
+          "constant!=0"
         ]
       },
       "attemptFeedback": [
@@ -2087,7 +2256,13 @@
           "coefPlus": "a/b+1"
         },
         "constraints": [
-          "a%b==0"
+          "a%b==0",
+          "coef!=0",
+          "coef!=1",
+          "coef!=-1",
+          "coefPlus!=0",
+          "coefPlus!=1",
+          "coefPlus!=-1"
         ]
       },
       "attemptFeedback": [
@@ -2197,7 +2372,15 @@
         "derived": {
           "A": "k*p",
           "B": "k*q"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -2398,7 +2581,10 @@
           "b": {
             "type": "int",
             "min": 1,
-            "max": 9
+            "max": 9,
+            "exclude": [
+              1
+            ]
           }
         }
       },
@@ -2491,7 +2677,15 @@
         "derived": {
           "A": "w*ell",
           "B": "w*c"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -2716,7 +2910,15 @@
         "derived": {
           "A": "k*p",
           "B": "k*q"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -2819,7 +3021,8 @@
         },
         "constraints": [
           "p!=q",
-          "p*q!=p-q"
+          "p*q!=p-q",
+          "k!=0"
         ]
       },
       "attemptFeedback": [
@@ -2931,7 +3134,16 @@
           "A": "k*a",
           "B": "k*b",
           "Aplus": "k*a+1"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "Aplus!=0",
+          "Aplus!=1",
+          "Aplus!=-1",
+          "B!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -3042,7 +3254,11 @@
           "B": "g*d"
         },
         "constraints": [
-          "g!=c"
+          "g!=c",
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "B!=0"
         ]
       },
       "attemptFeedback": [
@@ -3154,7 +3370,17 @@
           "B": "k*b",
           "Aw": "k*a",
           "Bw": "-(k*b)"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "Aw!=0",
+          "Aw!=1",
+          "Aw!=-1",
+          "B!=0",
+          "Bw!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -3263,7 +3489,15 @@
         "derived": {
           "A": "k*a",
           "B": "k*b"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -3390,7 +3624,11 @@
           "a!=k",
           "a!=k*b",
           "a!=b",
-          "k*a!=k*b"
+          "k*a!=k*b",
+          "B!=0",
+          "c!=0",
+          "c!=1",
+          "c!=-1"
         ]
       },
       "attemptFeedback": [
@@ -3496,7 +3734,10 @@
           "b": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "c": {
             "type": "int",
@@ -3509,7 +3750,17 @@
           "C": "m*c",
           "Xw": "m*a+b",
           "Cw": "c"
-        }
+        },
+        "constraints": [
+          "C!=0",
+          "Cw!=0",
+          "X!=0",
+          "X!=1",
+          "X!=-1",
+          "Xw!=0",
+          "Xw!=1",
+          "Xw!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -3597,7 +3848,7 @@
         "officialSkillFamily": "equivalent expressions",
         "stemProfile": "factor-with-negative-common"
       },
-      "prompt": "Which expression is equivalent to $-{{A}}x-{{B}}$?",
+      "prompt": "Which expression is equivalent to $-{{A}}x^2-{{B}}x$?",
       "generator": {
         "parameters": {
           "k": {
@@ -3619,7 +3870,16 @@
         "derived": {
           "A": "k*a",
           "B": "k*b"
-        }
+        },
+        "constraints": [
+          "a!=b",
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -3628,29 +3888,30 @@
         "Combine like terms, distribute, factor, or simplify the radical structure as appropriate."
       ],
       "solutionReview": {
-        "headline": "Preserve equivalence.",
+        "headline": "Take out the negative and the variable together.",
         "reasoning": [
-          "Use the structure of the expression to rewrite it without changing its value."
+          "Both terms share ${{k}}x$, and both are negative.",
+          "So $-{{A}}x^2-{{B}}x=-{{k}}x({{a}}x+{{b}})$."
         ],
-        "answerSummary": "Check the rewritten form against the original expression."
+        "answerSummary": "$-{{k}}x({{a}}x+{{b}})$"
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
         {
           "id": "choice-b",
-          "label": "$-{{k}}({{a}}x+{{b}})$"
+          "label": "$-{{k}}x({{a}}x+{{b}})$"
         },
         {
           "id": "choice-c",
-          "label": "${{k}}(-{{a}}x+{{b}})$"
+          "label": "${{k}}x(-{{a}}x+{{b}})$"
         },
         {
           "id": "choice-d",
-          "label": "$-{{k}}({{a}}x-{{b}})$"
+          "label": "$-{{k}}x({{a}}x-{{b}})$"
         },
         {
           "id": "choice-a",
-          "label": "${{k}}({{a}}x+{{b}})$"
+          "label": "$-{{k}}({{a}}x+{{b}})$"
         }
       ],
       "responseFields": [
@@ -3721,7 +3982,9 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
@@ -3739,7 +4002,9 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "d": {
@@ -3757,7 +4022,8 @@
         },
         "constraints": [
           "p*a!=q*c",
-          "p*a!=2*q*c"
+          "p*a!=2*q*c",
+          "constant!=0"
         ]
       },
       "attemptFeedback": [
@@ -3865,7 +4131,11 @@
           "product": "p*q"
         },
         "constraints": [
-          "p!=q"
+          "p!=q",
+          "product!=0",
+          "sum!=0",
+          "sum!=1",
+          "sum!=-1"
         ]
       },
       "attemptFeedback": [
@@ -3984,7 +4254,14 @@
         },
         "constraints": [
           "a!=b",
-          "p!=q"
+          "p!=q",
+          "constant!=0",
+          "lead!=0",
+          "lead!=1",
+          "lead!=-1",
+          "middle!=0",
+          "middle!=1",
+          "middle!=-1"
         ]
       },
       "attemptFeedback": [
@@ -4084,7 +4361,13 @@
         "derived": {
           "twor": "2*r",
           "square": "r*r"
-        }
+        },
+        "constraints": [
+          "square!=0",
+          "twor!=0",
+          "twor!=1",
+          "twor!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression rather than changing its value."
@@ -4185,7 +4468,8 @@
           "p!=q",
           "p!=2*q",
           "p*q!=p-q",
-          "p*q!=p"
+          "p*q!=p",
+          "product!=0"
         ]
       },
       "attemptFeedback": [
@@ -4293,7 +4577,11 @@
           "product": "p*q"
         },
         "constraints": [
-          "p!=q"
+          "p!=q",
+          "product!=0",
+          "sum!=0",
+          "sum!=1",
+          "sum!=-1"
         ]
       },
       "attemptFeedback": [
@@ -4414,7 +4702,11 @@
           "m!=n",
           "m*n!=m*m+n*n",
           "dSquaredOne!=dNoDouble",
-          "dSquaredOne!=dSumOfSquares"
+          "dSquaredOne!=dSumOfSquares",
+          "m2!=0",
+          "m2!=1",
+          "m2!=-1",
+          "n2!=0"
         ]
       },
       "attemptFeedback": [
@@ -4536,7 +4828,13 @@
         "constraints": [
           "a!=b",
           "p!=q",
-          "b*p!=a*q"
+          "b*p!=a*q",
+          "lead!=0",
+          "lead!=1",
+          "lead!=-1",
+          "middle!=0",
+          "middle!=1",
+          "middle!=-1"
         ]
       },
       "attemptFeedback": [
@@ -4662,7 +4960,8 @@
           "q!=p*r",
           "q!=2*p*r",
           "q+p!=p*r",
-          "q+p!=q-p*r"
+          "q+p!=q-p*r",
+          "constant!=0"
         ]
       },
       "attemptFeedback": [
@@ -4866,7 +5165,12 @@
         "derived": {
           "m2": "m*m",
           "n2": "n*n"
-        }
+        },
+        "constraints": [
+          "m2!=0",
+          "m2!=1",
+          "m2!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression rather than changing its value."
@@ -4964,7 +5268,12 @@
         },
         "derived": {
           "a2": "a*a"
-        }
+        },
+        "constraints": [
+          "a2!=0",
+          "a2!=1",
+          "a2!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression rather than changing its value."
@@ -5076,7 +5385,10 @@
         "constraints": [
           "c!=n",
           "2*n!=c*c",
-          "2*n!=c*c+n*n"
+          "2*n!=c*c+n*n",
+          "c2!=0",
+          "c2!=1",
+          "c2!=-1"
         ]
       },
       "attemptFeedback": [
@@ -5273,7 +5585,10 @@
         "derived": {
           "a2": "a*a",
           "a4": "a*a*a*a"
-        }
+        },
+        "constraints": [
+          "a2!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression rather than changing its value."
@@ -5378,7 +5693,12 @@
         "derived": {
           "m2": "m*m",
           "n2": "n*n"
-        }
+        },
+        "constraints": [
+          "m2!=0",
+          "m2!=1",
+          "m2!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression rather than changing its value."
@@ -5467,7 +5787,7 @@
         "stemProfile": "difference-squares-leading-parameter",
         "responseEcologyRevision": "v2.1-75pct-mcq"
       },
-      "prompt": "$kx^2-{{n2}}=({{m}}x-{{n}})({{m}}x+{{n}})$. What is the value of $k$?",
+      "prompt": "$kx^2-{{n2}}y^2=({{m}}x-{{n}}y)({{m}}x+{{n}}y)$. What is the value of $k$?",
       "generator": {
         "parameters": {
           "m": {
@@ -5491,7 +5811,13 @@
         "constraints": [
           "m!=n",
           "2*m!=n*n",
-          "2*m!=m*m+n*n"
+          "2*m!=m*m+n*n",
+          "k!=0",
+          "k!=1",
+          "k!=-1",
+          "n2!=0",
+          "n2!=1",
+          "n2!=-1"
         ]
       },
       "attemptFeedback": [
@@ -5501,9 +5827,9 @@
         "Look for a factoring or exponent-law relationship that preserves equivalence."
       ],
       "solutionReview": {
-        "headline": "Expand the difference of squares and match coefficients.",
+        "headline": "Expand the difference of squares in two variables.",
         "reasoning": [
-          "$({{m}}x-{{n}})({{m}}x+{{n}})={{k}}x^2-{{n2}}$.",
+          "$({{m}}x-{{n}}y)({{m}}x+{{n}}y)={{k}}x^2-{{n2}}y^2$.",
           "So $k={{m}}^2={{k}}$."
         ],
         "answerSummary": "$k={{k}}$"
@@ -7839,7 +8165,8 @@
           "dConstant!=dNegated",
           "dConstant!=dAddedConstant",
           "dAddedConstant!=ans",
-          "dAddedConstant!=dNegated"
+          "dAddedConstant!=dNegated",
+          "negc!=0"
         ]
       },
       "choices": [
@@ -7938,7 +8265,10 @@
           "c": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -8036,7 +8366,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "d": {
             "type": "int",
@@ -8059,7 +8392,8 @@
           "dNoVertexShift!=lo",
           "dNoVertexShift!=dNoSquareRoot",
           "dNoSquareRoot!=hi",
-          "dNoSquareRoot!=lo"
+          "dNoSquareRoot!=lo",
+          "nh!=0"
         ]
       },
       "choices": [
@@ -8162,13 +8496,18 @@
             "min": -7,
             "max": 7,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "c": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "p": {
             "type": "int",
@@ -8521,7 +8860,8 @@
           "dQuotientOnly!=dSubtracted",
           "dQuotientOnly!=dUsedNumerator",
           "dUsedNumerator!=x",
-          "dUsedNumerator!=dSubtracted"
+          "dUsedNumerator!=dSubtracted",
+          "nb!=0"
         ]
       },
       "attemptFeedback": [
@@ -8634,7 +8974,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -8652,7 +8995,8 @@
           "dNoVertexShift!=dGreaterRoot",
           "dNoVertexShift!=dNoSquareRoot",
           "dNoSquareRoot!=answer",
-          "dNoSquareRoot!=dGreaterRoot"
+          "dNoSquareRoot!=dGreaterRoot",
+          "nh!=0"
         ]
       },
       "attemptFeedback": [
@@ -9046,7 +9390,8 @@
           "dHarmonicConfusion!=dSum",
           "dHarmonicConfusion!=dDifference",
           "dDifference!=R",
-          "dDifference!=dSum"
+          "dDifference!=dSum",
+          "b!=0"
         ]
       },
       "attemptFeedback": [
@@ -9255,12 +9600,18 @@
           "h": {
             "type": "int",
             "min": -5,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              0
+            ]
           },
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "a": {
             "type": "int",
@@ -9283,7 +9634,10 @@
           "nh1": "-(h+1)"
         },
         "constraints": [
-          "h!=0"
+          "h!=0",
+          "k1!=0",
+          "nh!=0",
+          "nh1!=0"
         ]
       },
       "attemptFeedback": [
@@ -9377,7 +9731,10 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "h": {
             "type": "int",
@@ -9387,13 +9744,19 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "b": "-2*a*h",
           "nh": "-h"
-        }
+        },
+        "constraints": [
+          "nh!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -9478,7 +9841,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -9489,7 +9855,8 @@
         },
         "constraints": [
           "h!=0",
-          "k!=0"
+          "k!=0",
+          "nh!=0"
         ]
       },
       "attemptFeedback": [
@@ -9588,7 +9955,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "a0": {
             "type": "int",
@@ -9605,7 +9975,10 @@
           "x1": "h+dx",
           "y1": "a0*dx*dx+k",
           "nh": "-h"
-        }
+        },
+        "constraints": [
+          "nh!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -9680,7 +10053,10 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           },
           "h": {
             "type": "int",
@@ -9699,7 +10075,20 @@
           "Bw": "2*a*h",
           "Cw": "a*h*h-k",
           "A1": "a+1"
-        }
+        },
+        "constraints": [
+          "A1!=0",
+          "A1!=1",
+          "A1!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "Bw!=0",
+          "Bw!=1",
+          "Bw!=-1",
+          "C!=0",
+          "Cw!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -9819,7 +10208,8 @@
           "k1": "k+1"
         },
         "constraints": [
-          "k-a0*dt*dt>0"
+          "k-a0*dt*dt>0",
+          "k1!=0"
         ]
       },
       "attemptFeedback": [
@@ -9936,7 +10326,10 @@
           "x1": "h+dx",
           "y1": "a*dx*dx+k0",
           "nh": "-h"
-        }
+        },
+        "constraints": [
+          "nh!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -10017,13 +10410,22 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "twoh": "2*h0",
           "c": "h0*h0+k"
-        }
+        },
+        "constraints": [
+          "c!=0",
+          "twoh!=0",
+          "twoh!=1",
+          "twoh!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -10115,7 +10517,10 @@
           "nr1p": "-(r1+1)"
         },
         "constraints": [
-          "-r1!=r2"
+          "-r1!=r2",
+          "f1!=0",
+          "f2!=0",
+          "nr1p!=0"
         ]
       },
       "attemptFeedback": [
@@ -10227,7 +10632,11 @@
           "y0": "a0*(r2+1-r1)",
           "f1": "-r1",
           "f2": "-r2"
-        }
+        },
+        "constraints": [
+          "f1!=0",
+          "f2!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -10323,7 +10732,9 @@
           "f2": "-r2"
         },
         "constraints": [
-          "-r1!=r2"
+          "-r1!=r2",
+          "f1!=0",
+          "f2!=0"
         ]
       },
       "attemptFeedback": [
@@ -10522,7 +10933,11 @@
         },
         "constraints": [
           "r1+r2!=-1",
-          "-r1!=r2"
+          "-r1!=r2",
+          "f1!=0",
+          "f2!=0",
+          "nr1p!=0",
+          "nr2p!=0"
         ]
       },
       "attemptFeedback": [
@@ -10849,7 +11264,11 @@
           "yint": "a0*r1*r2",
           "f1": "-r1",
           "f2": "-r2"
-        }
+        },
+        "constraints": [
+          "f1!=0",
+          "f2!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -10934,7 +11353,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -10945,7 +11367,8 @@
         },
         "constraints": [
           "h!=0",
-          "k!=0"
+          "k!=0",
+          "nh!=0"
         ]
       },
       "attemptFeedback": [
@@ -11049,7 +11472,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -11059,7 +11485,8 @@
           "nh": "-h"
         },
         "constraints": [
-          "h!=0"
+          "h!=0",
+          "nh!=0"
         ]
       },
       "attemptFeedback": [
@@ -11163,12 +11590,18 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "nh": "-h"
-        }
+        },
+        "constraints": [
+          "nh!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -11259,7 +11692,9 @@
           "f2": "-r2"
         },
         "constraints": [
-          "-r1!=r2"
+          "-r1!=r2",
+          "f1!=0",
+          "f2!=0"
         ]
       },
       "attemptFeedback": [
@@ -11353,17 +11788,28 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "b": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "c": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -11483,7 +11929,10 @@
         "derived": {
           "aneg": "-a",
           "nh": "-h"
-        }
+        },
+        "constraints": [
+          "nh!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -11572,7 +12021,11 @@
           "r2": "mid+d",
           "f1": "-(mid-d)",
           "f2": "-(mid+d)"
-        }
+        },
+        "constraints": [
+          "f1!=0",
+          "f2!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -11659,7 +12112,13 @@
         "derived": {
           "twoh": "2*h",
           "c": "h*h+k"
-        }
+        },
+        "constraints": [
+          "c!=0",
+          "twoh!=0",
+          "twoh!=1",
+          "twoh!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -11763,7 +12222,9 @@
           "r1+r2!=r2",
           "-r1!=-r2",
           "r1+r2!=-r1",
-          "r1+r2!=-r2"
+          "r1+r2!=-r2",
+          "f1!=0",
+          "f2!=0"
         ]
       },
       "attemptFeedback": [
@@ -11877,7 +12338,11 @@
         },
         "constraints": [
           "-r1!=r2",
-          "r1+r2!=-1"
+          "r1+r2!=-1",
+          "f1!=0",
+          "f2!=0",
+          "nf1p!=0",
+          "nf2p!=0"
         ]
       },
       "attemptFeedback": [
@@ -11984,7 +12449,13 @@
           "sum": "p+q",
           "prod": "p*q",
           "q1": "q+1"
-        }
+        },
+        "constraints": [
+          "prod!=0",
+          "sum!=0",
+          "sum!=1",
+          "sum!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -12089,7 +12560,13 @@
         "derived": {
           "S": "r+s",
           "P": "r*s"
-        }
+        },
+        "constraints": [
+          "P!=0",
+          "S!=0",
+          "S!=1",
+          "S!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -12178,7 +12655,13 @@
           "s": "q+1",
           "S": "r+s",
           "P": "r*s"
-        }
+        },
+        "constraints": [
+          "P!=0",
+          "S!=0",
+          "S!=1",
+          "S!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -12276,7 +12759,9 @@
           "f2": "-r2"
         },
         "constraints": [
-          "-r1!=r2"
+          "-r1!=r2",
+          "f1!=0",
+          "f2!=0"
         ]
       },
       "attemptFeedback": [
@@ -12383,7 +12868,10 @@
         "derived": {
           "P": "r1*r2",
           "b": "-(r1+r2)"
-        }
+        },
+        "constraints": [
+          "P!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -12771,7 +13259,8 @@
           }
         },
         "constraints": [
-          "h!=k"
+          "h!=k",
+          "nh!=0"
         ],
         "derived": {
           "nh": "-h"
@@ -12873,7 +13362,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "a": {
             "type": "int",
@@ -12883,7 +13375,10 @@
         },
         "derived": {
           "nh": "-h"
-        }
+        },
+        "constraints": [
+          "nh!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -12958,7 +13453,10 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 3
+            "max": 3,
+            "exclude": [
+              1
+            ]
           },
           "gap": {
             "type": "int",
@@ -12968,7 +13466,12 @@
         },
         "derived": {
           "b": "a+gap"
-        }
+        },
+        "constraints": [
+          "b!=0",
+          "b!=1",
+          "b!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -13072,7 +13575,10 @@
           "k": {
             "type": "int",
             "min": -9,
-            "max": 9
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -13083,7 +13589,8 @@
         },
         "constraints": [
           "h!=0",
-          "k!=0"
+          "k!=0",
+          "nh!=0"
         ]
       },
       "attemptFeedback": [
@@ -13183,7 +13690,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         }
       },
@@ -13261,19 +13771,36 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           },
           "gap": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           }
         },
         "derived": {
           "b": "a+gap",
           "gap2": "gap+1",
           "sum": "a+b"
-        }
+        },
+        "constraints": [
+          "b!=0",
+          "b!=1",
+          "b!=-1",
+          "gap2!=0",
+          "gap2!=1",
+          "gap2!=-1",
+          "sum!=0",
+          "sum!=1",
+          "sum!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -13393,7 +13920,9 @@
           "-r2!=r1",
           "r1+r2!=-r1",
           "r1+r2!=-r2",
-          "-r1!=-r2"
+          "-r1!=-r2",
+          "f1!=0",
+          "f2!=0"
         ]
       },
       "attemptFeedback": [
@@ -13500,7 +14029,10 @@
           "d2": "d*d",
           "greater": "h+d",
           "nh": "-h"
-        }
+        },
+        "constraints": [
+          "nh!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -13586,7 +14118,13 @@
         "derived": {
           "S": "r1+r2",
           "P": "r1*r2"
-        }
+        },
+        "constraints": [
+          "P!=0",
+          "S!=0",
+          "S!=1",
+          "S!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -13683,7 +14221,11 @@
           "altThree": "3"
         },
         "constraints": [
-          "h!=d"
+          "h!=d",
+          "c!=0",
+          "twoh!=0",
+          "twoh!=1",
+          "twoh!=-1"
         ]
       },
       "attemptFeedback": [
@@ -13784,7 +14326,13 @@
         "derived": {
           "twoh": "2*h",
           "h2": "h*h"
-        }
+        },
+        "constraints": [
+          "h2!=0",
+          "twoh!=0",
+          "twoh!=1",
+          "twoh!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the structure of the nonlinear relationship and the information given to determine the requested value or representation."
@@ -13878,7 +14426,10 @@
         },
         "constraints": [
           "r1!=r2",
-          "r1+r2!=r1*r1"
+          "r1+r2!=r1*r1",
+          "S!=0",
+          "S!=1",
+          "S!=-1"
         ]
       },
       "attemptFeedback": [
@@ -13993,7 +14544,10 @@
         "constraints": [
           "dCompletingSquare!=k",
           "dCompletingSquare!=dDoubled",
-          "dCompletingSquare!=dFourTimes"
+          "dCompletingSquare!=dFourTimes",
+          "twoh!=0",
+          "twoh!=1",
+          "twoh!=-1"
         ]
       },
       "attemptFeedback": [
@@ -16183,7 +16737,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -16431,7 +16988,10 @@
           "k": {
             "type": "int",
             "min": -6,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -16546,7 +17106,10 @@
           "k": {
             "type": "int",
             "min": -6,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -16556,7 +17119,8 @@
           "Ap": "A+1"
         },
         "constraints": [
-          "k!=0"
+          "k!=0",
+          "kn!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -17442,7 +18006,10 @@
           "nb": "-b",
           "nh": "-h",
           "aneg": "-a"
-        }
+        },
+        "constraints": [
+          "nb!=0"
+        ]
       },
       "choices": [
         {
@@ -17545,7 +18112,10 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "c": {
             "type": "int",
@@ -17560,7 +18130,13 @@
           "a1": "a+1"
         },
         "constraints": [
-          "b!=c"
+          "b!=c",
+          "a1!=0",
+          "a1!=1",
+          "a1!=-1",
+          "m1!=0",
+          "m1!=1",
+          "m1!=-1"
         ]
       },
       "choices": [
@@ -17664,7 +18240,10 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           },
           "p": {
             "type": "int",
@@ -17676,7 +18255,16 @@
           "p1": "p+1",
           "b1": "b+1",
           "aneg": "-a"
-        }
+        },
+        "constraints": [
+          "aneg!=0",
+          "aneg!=1",
+          "aneg!=-1",
+          "b1!=0",
+          "p1!=0",
+          "p1!=1",
+          "p1!=-1"
+        ]
       },
       "choices": [
         {
@@ -17769,7 +18357,10 @@
           "m": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "b": {
             "type": "int",
@@ -17795,7 +18386,12 @@
           "r2p": "r2+1"
         },
         "constraints": [
-          "-r1!=r2"
+          "-r1!=r2",
+          "f1!=0",
+          "f2!=0",
+          "m1!=0",
+          "m1!=1",
+          "m1!=-1"
         ]
       },
       "choices": [
@@ -17894,7 +18490,10 @@
           "d": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           },
           "m": {
             "type": "int",
@@ -17912,7 +18511,13 @@
           "m1": "m+1",
           "b1": "b+1",
           "p1": "p0+1"
-        }
+        },
+        "constraints": [
+          "b1!=0",
+          "m1!=0",
+          "m1!=1",
+          "m1!=-1"
+        ]
       },
       "choices": [
         {
@@ -18039,7 +18644,12 @@
           "nh": "-h",
           "m1": "m+1",
           "a1": "a+1"
-        }
+        },
+        "constraints": [
+          "m1!=0",
+          "m1!=1",
+          "m1!=-1"
+        ]
       },
       "choices": [
         {
@@ -18138,7 +18748,10 @@
           "q": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           },
           "b": {
             "type": "int",
@@ -18148,7 +18761,10 @@
           "s": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           }
         },
         "derived": {
@@ -18157,7 +18773,15 @@
           "qneg": "-q",
           "s1": "s+1",
           "T1": "2*m+1"
-        }
+        },
+        "constraints": [
+          "qneg!=0",
+          "qneg!=1",
+          "qneg!=-1",
+          "s1!=0",
+          "s1!=1",
+          "s1!=-1"
+        ]
       },
       "choices": [
         {
@@ -18251,7 +18875,10 @@
           "A": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "C": {
             "type": "int",
@@ -18282,7 +18909,16 @@
           "y0": "a*r1*r2",
           "a1": "a+1",
           "C1": "C+1"
-        }
+        },
+        "constraints": [
+          "C1!=0",
+          "b!=0",
+          "f1!=0",
+          "f2!=0",
+          "m!=0",
+          "m!=1",
+          "m!=-1"
+        ]
       },
       "choices": [
         {
@@ -18476,7 +19112,8 @@
         "constraints": [
           "v!=h",
           "v!=-h",
-          "v!=-2*h"
+          "v!=-2*h",
+          "nh!=0"
         ]
       },
       "choices": [
@@ -18587,7 +19224,13 @@
           "sum": "p+q",
           "product": "p*q",
           "b": "c-product"
-        }
+        },
+        "constraints": [
+          "b!=0",
+          "sum!=0",
+          "sum!=1",
+          "sum!=-1"
+        ]
       },
       "responseFields": [
         {
@@ -18668,7 +19311,10 @@
           "v": {
             "type": "int",
             "min": -6,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              0
+            ]
           },
           "gap": {
             "type": "int",
@@ -18786,7 +19432,10 @@
           "v": {
             "type": "int",
             "min": -5,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              0
+            ]
           },
           "r": {
             "type": "int",
@@ -18796,7 +19445,12 @@
           "m": {
             "type": "int",
             "min": -4,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           }
         },
         "derived": {
@@ -18809,7 +19463,8 @@
         },
         "constraints": [
           "m!=0",
-          "m!=2*r"
+          "m!=2*r",
+          "b!=0"
         ]
       },
       "choices": [
@@ -18925,7 +19580,10 @@
         "constraints": [
           "dSquareSlip!=k",
           "dSquareSlip!=dNoSign",
-          "dSquareSlip!=dFullCoefficientSquared"
+          "dSquareSlip!=dFullCoefficientSquared",
+          "twoR!=0",
+          "twoR!=1",
+          "twoR!=-1"
         ]
       },
       "responseFields": [
@@ -19037,7 +19695,13 @@
           "sum": "p+q",
           "prod": "p*q",
           "b": "c-prod"
-        }
+        },
+        "constraints": [
+          "b!=0",
+          "sum!=0",
+          "sum!=1",
+          "sum!=-1"
+        ]
       },
       "responseFields": [
         {
@@ -19122,7 +19786,10 @@
           "v": {
             "type": "int",
             "min": -5,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              0
+            ]
           },
           "r": {
             "type": "int",
@@ -19144,7 +19811,8 @@
           "2*h!=h-r",
           "2*r!=h+r",
           "2*r!=h-r",
-          "h+r!=h-r"
+          "h+r!=h-r",
+          "nh!=0"
         ]
       },
       "choices": [
@@ -19243,7 +19911,10 @@
           "v": {
             "type": "int",
             "min": -7,
-            "max": 9
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -19348,12 +20019,20 @@
           "c": {
             "type": "int",
             "min": -4,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "m": {
             "type": "int",
             "min": -4,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           }
         },
         "derived": {
@@ -19364,7 +20043,8 @@
           "ym1": "y0-1"
         },
         "constraints": [
-          "m!=0"
+          "m!=0",
+          "b!=0"
         ]
       },
       "choices": [
@@ -19465,7 +20145,10 @@
           "v": {
             "type": "int",
             "min": -4,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "gap": {
             "type": "int",
@@ -19486,7 +20169,10 @@
           "c": "1+gap*((kind==0)-(kind==2))",
           "lineConstant": "v-c"
         },
-        "constraints": []
+        "constraints": [
+          "c!=0",
+          "lineConstant!=0"
+        ]
       },
       "choices": [
         {
@@ -19585,7 +20271,10 @@
           "v": {
             "type": "int",
             "min": -5,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "gap": {
             "type": "int",
@@ -19605,7 +20294,9 @@
           "altThree": "3",
           "w": "v+gap*((kind==2)-(kind==0))"
         },
-        "constraints": []
+        "constraints": [
+          "w!=0"
+        ]
       },
       "choices": [
         {
@@ -19822,7 +20513,9 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           }
         },
@@ -19952,7 +20645,12 @@
           "twoR": "2*r",
           "k": "-(r*r)+gap*((kind==2)-(kind==0))"
         },
-        "constraints": []
+        "constraints": [
+          "k!=0",
+          "twoR!=0",
+          "twoR!=1",
+          "twoR!=-1"
+        ]
       },
       "choices": [
         {
@@ -20063,7 +20761,13 @@
           "sum": "p+q",
           "prod": "p*q",
           "b": "c-prod"
-        }
+        },
+        "constraints": [
+          "b!=0",
+          "sum!=0",
+          "sum!=1",
+          "sum!=-1"
+        ]
       },
       "choices": [
         {
@@ -20156,12 +20860,18 @@
           "h": {
             "type": "int",
             "min": -5,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              0
+            ]
           },
           "k": {
             "type": "int",
             "min": -8,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "a": {
             "type": "int",
@@ -20184,7 +20894,9 @@
           "k1": "k+1"
         },
         "constraints": [
-          "h!=0"
+          "h!=0",
+          "k1!=0",
+          "nh!=0"
         ]
       },
       "choices": [
@@ -20278,17 +20990,28 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           },
           "b": {
             "type": "int",
             "min": -6,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "c": {
             "type": "int",
             "min": -7,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -20300,7 +21023,14 @@
           "a1": "a+1"
         },
         "constraints": [
-          "b!=0"
+          "b!=0",
+          "a1!=0",
+          "a1!=1",
+          "a1!=-1",
+          "c1!=0",
+          "nb!=0",
+          "nb!=1",
+          "nb!=-1"
         ]
       },
       "choices": [
@@ -20411,7 +21141,11 @@
           "y0": "a0*r1*r2",
           "f1": "-r1",
           "f2": "-r2"
-        }
+        },
+        "constraints": [
+          "f1!=0",
+          "f2!=0"
+        ]
       },
       "responseFields": [
         {
@@ -20486,17 +21220,28 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "b": {
             "type": "int",
             "min": -6,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "c": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -20508,7 +21253,14 @@
           "c1": "c+1"
         },
         "constraints": [
-          "b!=0"
+          "b!=0",
+          "a1!=0",
+          "a1!=1",
+          "a1!=-1",
+          "c1!=0",
+          "nb!=0",
+          "nb!=1",
+          "nb!=-1"
         ]
       },
       "choices": [
@@ -20607,7 +21359,10 @@
           "q": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           }
         },
         "derived": {
@@ -20993,7 +21748,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -21002,7 +21760,14 @@
           "nh": "-h",
           "hp1": "h+1",
           "kp1": "k+1"
-        }
+        },
+        "constraints": [
+          "c!=0",
+          "kp1!=0",
+          "twoh!=0",
+          "twoh!=1",
+          "twoh!=-1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -21105,7 +21870,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -21113,7 +21881,14 @@
           "C": "a*h*h+k",
           "hp1": "h+1",
           "kp1": "k+1"
-        }
+        },
+        "constraints": [
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "C!=0",
+          "kp1!=0"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -21217,7 +21992,13 @@
         "derived": {
           "twoh": "2*h",
           "c": "h*h+k0"
-        }
+        },
+        "constraints": [
+          "c!=0",
+          "twoh!=0",
+          "twoh!=1",
+          "twoh!=-1"
+        ]
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -21302,13 +22083,22 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "B": "-2*a*h0",
           "C": "a*h0*h0+k"
-        }
+        },
+        "constraints": [
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "C!=0"
+        ]
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -21383,7 +22173,10 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "h": {
             "type": "int",
@@ -21393,7 +22186,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -21404,7 +22200,11 @@
           "hp1": "h+1"
         },
         "constraints": [
-          "k!=0"
+          "k!=0",
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "C!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -21499,7 +22299,10 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "h": {
             "type": "int",
@@ -21509,7 +22312,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -21517,7 +22323,14 @@
           "C": "-a*h*h+k",
           "hp1": "h+1",
           "kp1": "k+1"
-        }
+        },
+        "constraints": [
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "C!=0",
+          "kp1!=0"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -21633,7 +22446,10 @@
         },
         "constraints": [
           "2*k!=h*h-2*h",
-          "2*k!=-3*h*h"
+          "2*k!=-3*h*h",
+          "twoh!=0",
+          "twoh!=1",
+          "twoh!=-1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -21728,7 +22544,10 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "h": {
             "type": "int",
@@ -21744,7 +22563,13 @@
         "derived": {
           "B": "-2*a*h",
           "C": "a*h*h+k"
-        }
+        },
+        "constraints": [
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "C!=0"
+        ]
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -21830,7 +22655,10 @@
         },
         "derived": {
           "a": "b*b-xsol"
-        }
+        },
+        "constraints": [
+          "a!=0"
+        ]
       },
       "responseFields": [
         {
@@ -21936,7 +22764,8 @@
           "dNoSquare!=dNoDivide",
           "dNoSquare!=dSignError",
           "dNoDivide!=dSignError",
-          "dSignError!=xsol"
+          "dSignError!=xsol",
+          "a!=0"
         ]
       },
       "choices": [
@@ -22268,7 +23097,8 @@
           "dNoShift!=xsol",
           "dNoShift!=dNoDivide",
           "dNoShift!=dNoSquare",
-          "dNoSquare!=dNoDivide"
+          "dNoSquare!=dNoDivide",
+          "nh!=0"
         ]
       },
       "choices": [
@@ -22509,7 +23339,10 @@
           "s!=r",
           "r!=s*s",
           "r!=dval*dval",
-          "s*s!=dval*dval"
+          "s*s!=dval*dval",
+          "k!=0",
+          "k!=1",
+          "k!=-1"
         ]
       },
       "responseFields": [
@@ -22625,7 +23458,10 @@
         "derived": {
           "a": "r*r-m*xsol",
           "n": "r+c"
-        }
+        },
+        "constraints": [
+          "a!=0"
+        ]
       },
       "responseFields": [
         {
@@ -22722,7 +23558,8 @@
           "dRadicandConstant!=q",
           "dRadicandConstant!=b*b",
           "b*b!=p",
-          "b*b!=q"
+          "b*b!=q",
+          "a!=0"
         ]
       },
       "choices": [
@@ -22837,7 +23674,8 @@
           "p>=1",
           "dRadicandConstant!=p",
           "dRadicandConstant!=q",
-          "dRadicandConstant!=c*c"
+          "dRadicandConstant!=c*c",
+          "a!=0"
         ]
       },
       "choices": [
@@ -23070,7 +23908,8 @@
           "a": "b*b-(b+v)*(b+u)"
         },
         "constraints": [
-          "u!=v"
+          "u!=v",
+          "a!=0"
         ]
       },
       "choices": [
@@ -23184,7 +24023,8 @@
           "a": "B*B-p*q"
         },
         "constraints": [
-          "q>=1"
+          "q>=1",
+          "a!=0"
         ]
       },
       "choices": [
@@ -23306,7 +24146,8 @@
         "constraints": [
           "dRadicandConstant!=q",
           "dRadicandConstant!=p",
-          "dRadicandConstant!=-(b+m+extra)"
+          "dRadicandConstant!=-(b+m+extra)",
+          "a!=0"
         ]
       },
       "responseFields": [
@@ -23540,7 +24381,8 @@
           "dSubtractedSquare!=q",
           "dSubtractedSquare!=a",
           "dRadicandConstant!=p",
-          "dRadicandConstant!=q"
+          "dRadicandConstant!=q",
+          "a!=0"
         ]
       },
       "choices": [
@@ -25161,12 +26003,18 @@
           "c": {
             "type": "int",
             "min": -6,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "d": "(p-q)*x0+c"
-        }
+        },
+        "constraints": [
+          "d!=0"
+        ]
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -25361,7 +26209,10 @@
         },
         "derived": {
           "a": "r*r*r-xsol"
-        }
+        },
+        "constraints": [
+          "a!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the inverse relationship between cubing and taking a cube root, then verify the result in the original equation."
@@ -25466,7 +26317,8 @@
           "dSquaredNotCubed!=dNoDivide",
           "dSquaredNotCubed!=dSignError",
           "dNoDivide!=dSignError",
-          "dSignError!=xsol"
+          "dSignError!=xsol",
+          "a!=0"
         ]
       },
       "attemptFeedback": [
@@ -25578,7 +26430,8 @@
         "constraints": [
           "xsol!=0",
           "xsol+1!=-xsol",
-          "xsol-1!=-xsol"
+          "xsol-1!=-xsol",
+          "a!=0"
         ]
       },
       "attemptFeedback": [
@@ -25791,7 +26644,8 @@
           "dNoShift!=xsol",
           "dNoShift!=dNoDivide",
           "dNoShift!=dSquaredNotCubed",
-          "dSquaredNotCubed!=dNoDivide"
+          "dSquaredNotCubed!=dNoDivide",
+          "nh!=0"
         ]
       },
       "attemptFeedback": [
@@ -26151,7 +27005,10 @@
         "derived": {
           "a": "r*r*r-m*xsol",
           "n": "r+c"
-        }
+        },
+        "constraints": [
+          "a!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the inverse relationship between cubing and taking a cube root, then verify the result in the original equation."
@@ -26251,7 +27108,10 @@
         "derived": {
           "greater": "h+r",
           "neg_h": "-h"
-        }
+        },
+        "constraints": [
+          "neg_h!=0"
+        ]
       },
       "responseFields": [
         {
@@ -26360,7 +27220,8 @@
           "dNoShift!=dNoDivide",
           "dSignError!=h-r",
           "dNoShift!=h-r",
-          "dNoDivide!=h-r"
+          "dNoDivide!=h-r",
+          "b!=0"
         ]
       },
       "choices": [
@@ -26464,7 +27325,8 @@
           "d3": "-h"
         },
         "constraints": [
-          "h!=0"
+          "h!=0",
+          "neg_h!=0"
         ]
       },
       "choices": [
@@ -26778,7 +27640,10 @@
           "left": "k-r",
           "right": "k+r",
           "neg_k": "-k"
-        }
+        },
+        "constraints": [
+          "neg_k!=0"
+        ]
       },
       "responseFields": [
         {
@@ -26886,7 +27751,8 @@
           "dCentre!=sum",
           "dGreaterSolution!=dLesserSolution",
           "dGreaterSolution!=dCentre",
-          "dLesserSolution!=dCentre"
+          "dLesserSolution!=dCentre",
+          "b!=0"
         ]
       },
       "responseFields": [
@@ -27118,7 +27984,10 @@
         "derived": {
           "neg_h": "-h",
           "answer": "h+r"
-        }
+        },
+        "constraints": [
+          "neg_h!=0"
+        ]
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -27204,7 +28073,10 @@
         "derived": {
           "neg_h": "-h",
           "answer": "2*r-1"
-        }
+        },
+        "constraints": [
+          "neg_h!=0"
+        ]
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -27303,7 +28175,8 @@
           "rightout": "h+r+1"
         },
         "constraints": [
-          "r>=2"
+          "r>=2",
+          "b!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -27411,7 +28284,10 @@
           "right": "h+r",
           "leftin": "h-r+1",
           "rightin": "h+r-1"
-        }
+        },
+        "constraints": [
+          "neg_h!=0"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -27622,7 +28498,8 @@
           "dNoShift!=answer",
           "dInclusiveBound!=dLeastValue",
           "dInclusiveBound!=dNoShift",
-          "dLeastValue!=dNoShift"
+          "dLeastValue!=dNoShift",
+          "neg_h!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -27729,7 +28606,10 @@
           "p": "h+d",
           "neg_h": "-h",
           "answer": "d"
-        }
+        },
+        "constraints": [
+          "neg_h!=0"
+        ]
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -27842,7 +28722,8 @@
           "dOtherEndpoint!=answer",
           "dOneEndpoint!=dCentre",
           "dOneEndpoint!=dOtherEndpoint",
-          "dCentre!=dOtherEndpoint"
+          "dCentre!=dOtherEndpoint",
+          "b!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -27946,7 +28827,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -27955,7 +28839,8 @@
           "hp1": "h+1"
         },
         "constraints": [
-          "h!=0"
+          "h!=0",
+          "nh!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -28059,7 +28944,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -28068,7 +28956,8 @@
           "kp1": "k+1"
         },
         "constraints": [
-          "k!=0"
+          "k!=0",
+          "nh!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -28172,7 +29061,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -28268,7 +29160,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -28276,7 +29171,10 @@
           "a": "m*d",
           "x0": "h+d",
           "answer": "m+k"
-        }
+        },
+        "constraints": [
+          "nh!=0"
+        ]
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -28361,12 +29259,18 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "nh": "-h"
-        }
+        },
+        "constraints": [
+          "nh!=0"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -28465,7 +29369,10 @@
           "k": {
             "type": "int",
             "min": -6,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "a": {
             "type": "int",
@@ -28479,7 +29386,10 @@
           "nh": "-h",
           "aneg": "-a",
           "kp1": "k+1"
-        }
+        },
+        "constraints": [
+          "kp1!=0"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -28614,7 +29524,8 @@
           "dUsedInput!=a0",
           "dSum!=dUsedOutput",
           "dSum!=dUsedInput",
-          "dUsedOutput!=dUsedInput"
+          "dUsedOutput!=dUsedInput",
+          "nh!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -28749,7 +29660,8 @@
           "dAddedNumerator!=answer",
           "dSubtractedNumerator!=answer",
           "dSingleShift!=dAddedNumerator",
-          "dSingleShift!=dSubtractedNumerator"
+          "dSingleShift!=dSubtractedNumerator",
+          "nh!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -28847,7 +29759,10 @@
           "A": "m*r",
           "xsol": "h+r",
           "nh": "-h"
-        }
+        },
+        "constraints": [
+          "nh!=0"
+        ]
       },
       "attemptFeedback": [
         "Solve the rational equation and check the result in the original equation, including all denominator restrictions."
@@ -28937,7 +29852,10 @@
         },
         "derived": {
           "a": "c*(xsol+b)-xsol"
-        }
+        },
+        "constraints": [
+          "a!=0"
+        ]
       },
       "attemptFeedback": [
         "Solve the rational equation and check the result in the original equation, including all denominator restrictions."
@@ -29146,7 +30064,8 @@
           "r!=s",
           "r*t!=r+s",
           "s*t!=r+s",
-          "(r+s)*t!=r+s"
+          "(r+s)*t!=r+s",
+          "a!=0"
         ]
       },
       "attemptFeedback": [
@@ -29276,7 +30195,8 @@
           "dNoShift!=dSubtracted",
           "dNoShift!=dNoDivide",
           "dNoDivide!=xsol",
-          "dNoDivide!=dSubtracted"
+          "dNoDivide!=dSubtracted",
+          "nh!=0"
         ]
       },
       "attemptFeedback": [
@@ -29399,7 +30319,9 @@
         "constraints": [
           "xsol!=h",
           "xsol!=k",
-          "h!=k"
+          "h!=k",
+          "nh!=0",
+          "nk!=0"
         ]
       },
       "attemptFeedback": [
@@ -29494,7 +30416,8 @@
           "nh": "-h"
         },
         "constraints": [
-          "p!=h"
+          "p!=h",
+          "nh!=0"
         ]
       },
       "attemptFeedback": [
@@ -29611,7 +30534,10 @@
           "dIncludedExcluded!=answer",
           "dProduct!=dDifference",
           "dProduct!=dIncludedExcluded",
-          "dDifference!=dIncludedExcluded"
+          "dDifference!=dIncludedExcluded",
+          "np!=0",
+          "nq!=0",
+          "nr!=0"
         ]
       },
       "attemptFeedback": [
@@ -29833,7 +30759,9 @@
           "dSum!=q",
           "dDifference!=p",
           "dDifference!=q",
-          "dSum!=dDifference"
+          "dSum!=dDifference",
+          "np!=0",
+          "nq!=0"
         ]
       },
       "attemptFeedback": [
@@ -29945,7 +30873,10 @@
           "A": "m*r",
           "p": "h+r",
           "nh": "-h"
-        }
+        },
+        "constraints": [
+          "nh!=0"
+        ]
       },
       "attemptFeedback": [
         "A rational equation is defined only where every original denominator is nonzero. Check candidate values in the original equation."
@@ -30078,7 +31009,10 @@
         "constraints": [
           "p!=q",
           "s!=p",
-          "s!=q"
+          "s!=q",
+          "nden!=0",
+          "np!=0",
+          "nq!=0"
         ]
       },
       "attemptFeedback": [
@@ -30204,7 +31138,8 @@
           "dRightSide!=q",
           "dNumeratorZero!=dNegatedExcluded",
           "dNumeratorZero!=dRightSide",
-          "dNegatedExcluded!=dRightSide"
+          "dNegatedExcluded!=dRightSide",
+          "nq!=0"
         ]
       },
       "attemptFeedback": [
@@ -30327,7 +31262,9 @@
           "dSum!=h",
           "dNegated!=p",
           "dNegated!=h",
-          "dSum!=dNegated"
+          "dSum!=dNegated",
+          "nh!=0",
+          "np!=0"
         ]
       },
       "attemptFeedback": [
@@ -30603,12 +31540,18 @@
           "b": {
             "type": "int",
             "min": 1,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              1
+            ]
           },
           "c": {
             "type": "int",
             "min": 1,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              1
+            ]
           },
           "d": {
             "type": "int",
@@ -30618,17 +31561,26 @@
           "e": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "f": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "g": {
             "type": "int",
             "min": 1,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              1
+            ]
           },
           "h": {
             "type": "int",
@@ -30644,7 +31596,28 @@
           "A1": "a+e+1",
           "B1": "b+f+1",
           "C1": "c+g+1"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "A1!=0",
+          "A1!=1",
+          "A1!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "B1!=0",
+          "B1!=1",
+          "B1!=-1",
+          "C!=0",
+          "C!=1",
+          "C!=-1",
+          "C1!=0",
+          "C1!=1",
+          "C1!=-1",
+          "D!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -30762,22 +31735,34 @@
           "f": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "g": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "h": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "j": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "k": {
             "type": "int",
@@ -30794,7 +31779,29 @@
           "Aw": "a+f",
           "Bw": "b+g",
           "Ew": "e+k"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "Aw!=0",
+          "Aw!=1",
+          "Aw!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "Bw!=0",
+          "Bw!=1",
+          "Bw!=-1",
+          "C!=0",
+          "C!=1",
+          "C!=-1",
+          "D!=0",
+          "D!=1",
+          "D!=-1",
+          "E!=0",
+          "Ew!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -30897,12 +31904,18 @@
           "b": {
             "type": "int",
             "min": 1,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              1
+            ]
           },
           "c": {
             "type": "int",
             "min": 1,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              1
+            ]
           },
           "d": {
             "type": "int",
@@ -30917,7 +31930,27 @@
           "D": "k*d",
           "Aw": "a",
           "Dw": "d"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "Aw!=0",
+          "Aw!=1",
+          "Aw!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "C!=0",
+          "C!=1",
+          "C!=-1",
+          "D!=0",
+          "D!=1",
+          "D!=-1",
+          "Dw!=0",
+          "Dw!=1",
+          "Dw!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -31030,7 +32063,23 @@
           "B1": "p+r+1",
           "C1": "q+p*r+1",
           "D1": "q*r+1"
-        }
+        },
+        "constraints": [
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "B1!=0",
+          "B1!=1",
+          "B1!=-1",
+          "C!=0",
+          "C!=1",
+          "C!=-1",
+          "C1!=0",
+          "C1!=1",
+          "C1!=-1",
+          "D!=0",
+          "D1!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -31133,7 +32182,10 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              1
+            ]
           },
           "b": {
             "type": "int",
@@ -31143,7 +32195,10 @@
           "c": {
             "type": "int",
             "min": 1,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              1
+            ]
           },
           "d": {
             "type": "int",
@@ -31155,7 +32210,13 @@
           "k": "p+q",
           "L": "a+c",
           "C": "b+d"
-        }
+        },
+        "constraints": [
+          "C!=0",
+          "L!=0",
+          "L!=1",
+          "L!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -31256,17 +32317,26 @@
           "e": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           },
           "f": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           },
           "g": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           },
           "h": {
             "type": "int",
@@ -31282,7 +32352,26 @@
           "Aw": "m*a+e",
           "Bw": "m*b+f",
           "Dw": "m*d+h"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "Aw!=0",
+          "Aw!=1",
+          "Aw!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "Bw!=0",
+          "Bw!=1",
+          "Bw!=-1",
+          "C!=0",
+          "C!=1",
+          "C!=-1",
+          "D!=0",
+          "Dw!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -31379,7 +32468,9 @@
             "min": -7,
             "max": 7,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "q": {
@@ -31395,7 +32486,9 @@
             "min": -8,
             "max": 8,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "s": {
@@ -31538,7 +32631,21 @@
         },
         "constraints": [
           "q!=p",
-          "r!=p*q"
+          "r!=p*q",
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "Bw!=0",
+          "Bw!=1",
+          "Bw!=-1",
+          "C!=0",
+          "C!=1",
+          "C!=-1",
+          "Cw!=0",
+          "Cw!=1",
+          "Cw!=-1",
+          "D!=0",
+          "Dw!=0"
         ]
       },
       "attemptFeedback": [
@@ -31649,7 +32756,8 @@
           "r1": "r+1"
         },
         "constraints": [
-          "p!=q"
+          "p!=q",
+          "r1!=0"
         ]
       },
       "attemptFeedback": [
@@ -31743,7 +32851,10 @@
           "p": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "q": {
             "type": "int",
@@ -31765,7 +32876,8 @@
           "s1": "s+1"
         },
         "constraints": [
-          "p!=r"
+          "p!=r",
+          "s1!=0"
         ]
       },
       "attemptFeedback": [
@@ -31864,12 +32976,18 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              1
+            ]
           },
           "b": {
             "type": "int",
             "min": 1,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              1
+            ]
           },
           "c": {
             "type": "int",
@@ -31881,7 +32999,16 @@
           "a1": "a+1",
           "b1": "b+1",
           "c1": "c+1"
-        }
+        },
+        "constraints": [
+          "a1!=0",
+          "a1!=1",
+          "a1!=-1",
+          "b1!=0",
+          "b1!=1",
+          "b1!=-1",
+          "c1!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -31984,12 +33111,18 @@
           "b": {
             "type": "int",
             "min": 1,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              1
+            ]
           },
           "c": {
             "type": "int",
             "min": 1,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              1
+            ]
           }
         },
         "derived": {
@@ -31998,7 +33131,24 @@
           "C": "k*c",
           "a1": "a+1",
           "b1": "b+1"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1",
+          "C!=0",
+          "C!=1",
+          "C!=-1",
+          "a1!=0",
+          "a1!=1",
+          "a1!=-1",
+          "b1!=0",
+          "b1!=1",
+          "b1!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -32108,7 +33258,15 @@
           "A": "p+q",
           "B": "r+p*q",
           "k": "p*r"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "B!=0",
+          "B!=1",
+          "B!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -32194,7 +33352,9 @@
             "min": -8,
             "max": 8,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "r": {
@@ -32226,7 +33386,8 @@
           "dValueAtZero!=rem",
           "dQuotientConstant!=dDivisorRoot",
           "dQuotientConstant!=dValueAtZero",
-          "dDivisorRoot!=dValueAtZero"
+          "dDivisorRoot!=dValueAtZero",
+          "np!=0"
         ]
       },
       "attemptFeedback": [
@@ -32332,7 +33493,10 @@
           "b": {
             "type": "int",
             "min": 1,
-            "max": 9
+            "max": 9,
+            "exclude": [
+              1
+            ]
           },
           "c": {
             "type": "int",
@@ -32430,7 +33594,10 @@
           "b": {
             "type": "int",
             "min": 1,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              1
+            ]
           },
           "c": {
             "type": "int",
@@ -32442,7 +33609,15 @@
           "a1": "a+1",
           "b1": "b+1",
           "c1": "c+1"
-        }
+        },
+        "constraints": [
+          "a1!=0",
+          "a1!=1",
+          "a1!=-1",
+          "b1!=0",
+          "b1!=1",
+          "b1!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -32760,7 +33935,10 @@
         "derived": {
           "p1": "p+1",
           "q1": "q+1"
-        }
+        },
+        "constraints": [
+          "q1!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -33077,7 +34255,13 @@
           "sum": "q+r",
           "prod": "q*r",
           "qp": "q+1"
-        }
+        },
+        "constraints": [
+          "prod!=0",
+          "sum!=0",
+          "sum!=1",
+          "sum!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -33270,7 +34454,10 @@
           "b": {
             "type": "int",
             "min": 1,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              1
+            ]
           },
           "c": {
             "type": "int",
@@ -33281,7 +34468,10 @@
         "derived": {
           "a2": "a*a",
           "ap": "a+1"
-        }
+        },
+        "constraints": [
+          "ap!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -33381,7 +34571,10 @@
           "a2": "a*a",
           "a3": "a*a*a",
           "ap": "a+1"
-        }
+        },
+        "constraints": [
+          "a2!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -33481,7 +34674,12 @@
           "b2": "b*b",
           "b3": "b*b*b",
           "bp": "b+1"
-        }
+        },
+        "constraints": [
+          "b2!=0",
+          "b3!=0",
+          "bp!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -33579,7 +34777,10 @@
           "b": {
             "type": "int",
             "min": 1,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              1
+            ]
           },
           "p": {
             "type": "int",
@@ -33591,7 +34792,14 @@
           "ap": "a*p",
           "bp": "b*p",
           "bp1": "b*p+1"
-        }
+        },
+        "constraints": [
+          "ap!=0",
+          "ap!=1",
+          "ap!=-1",
+          "bp!=0",
+          "bp1!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -33696,7 +34904,12 @@
           "pq": "p*q",
           "p1": "p+1",
           "q1": "q+1"
-        }
+        },
+        "constraints": [
+          "p1!=0",
+          "pq!=0",
+          "q1!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -33795,7 +35008,10 @@
         "derived": {
           "a2": "a*a",
           "k": "a*a*a"
-        }
+        },
+        "constraints": [
+          "a2!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -33885,7 +35101,19 @@
           "n2": "n*n",
           "n3": "n*n*n",
           "mn": "m*n"
-        }
+        },
+        "constraints": [
+          "m2!=0",
+          "m2!=1",
+          "m2!=-1",
+          "m3!=0",
+          "m3!=1",
+          "m3!=-1",
+          "mn!=0",
+          "mn!=1",
+          "mn!=-1",
+          "n2!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -34103,7 +35331,10 @@
         "derived": {
           "a2": "a*a",
           "a6": "a*a*a*a*a*a"
-        }
+        },
+        "constraints": [
+          "a2!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -34416,7 +35647,10 @@
           "c": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "d": {
             "type": "int",
@@ -34434,7 +35668,17 @@
           "B": "b+d",
           "A1": "a+c+1",
           "B1": "b+d+1"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "A1!=0",
+          "A1!=1",
+          "A1!=-1",
+          "B!=0",
+          "B1!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -34537,7 +35781,10 @@
           "c": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "d": {
             "type": "int",
@@ -34555,7 +35802,17 @@
           "B": "b-d",
           "Aw": "a+c",
           "Bw": "b+d"
-        }
+        },
+        "constraints": [
+          "A!=0",
+          "A!=1",
+          "A!=-1",
+          "Aw!=0",
+          "Aw!=1",
+          "Aw!=-1",
+          "B!=0",
+          "Bw!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -34764,7 +36021,10 @@
         },
         "derived": {
           "sum": "p+q"
-        }
+        },
+        "constraints": [
+          "sum!=0"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -34972,7 +36232,9 @@
             "min": -8,
             "max": 8,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
@@ -34988,7 +36250,9 @@
             "min": -8,
             "max": 8,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "d": {
@@ -35015,7 +36279,8 @@
         "constraints": [
           "a!=c",
           "a!=2*c",
-          "b+d!=0"
+          "b+d!=0",
+          "B!=0"
         ]
       },
       "attemptFeedback": [
@@ -35124,7 +36389,13 @@
         },
         "constraints": [
           "m!=4",
-          "m!=9"
+          "m!=9",
+          "k2!=0",
+          "k2!=1",
+          "k2!=-1",
+          "radCoef!=0",
+          "radCoef!=1",
+          "radCoef!=-1"
         ]
       },
       "attemptFeedback": [
@@ -35324,7 +36595,12 @@
         "derived": {
           "a2": "a*a",
           "answer": "a*xval"
-        }
+        },
+        "constraints": [
+          "a2!=0",
+          "a2!=1",
+          "a2!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -35500,7 +36776,15 @@
         "derived": {
           "a2": "a*a",
           "aPlus": "a+1"
-        }
+        },
+        "constraints": [
+          "a2!=0",
+          "a2!=1",
+          "a2!=-1",
+          "aPlus!=0",
+          "aPlus!=1",
+          "aPlus!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -35608,7 +36892,18 @@
           "sum": "a+b",
           "prod": "a*b",
           "sumSq": "a*a+b*b"
-        }
+        },
+        "constraints": [
+          "a2!=0",
+          "a2!=1",
+          "a2!=-1",
+          "b2!=0",
+          "b2!=1",
+          "b2!=-1",
+          "sumSq!=0",
+          "sumSq!=1",
+          "sumSq!=-1"
+        ]
       },
       "attemptFeedback": [
         "Use the algebraic structure of the expression and preserve equivalence."
@@ -35725,7 +37020,10 @@
           "dSquaredCoefficient!=answer",
           "dDroppedCoefficient!=dSquaredCoefficient",
           "dDroppedCoefficient!=dRoundedUp",
-          "dSquaredCoefficient!=dRoundedUp"
+          "dSquaredCoefficient!=dRoundedUp",
+          "a2!=0",
+          "a2!=1",
+          "a2!=-1"
         ]
       },
       "attemptFeedback": [
@@ -35844,7 +37142,8 @@
           "dDoubledWrong!=n",
           "dNoDouble!=dDoubledBoth",
           "dNoDouble!=dDoubledWrong",
-          "dDoubledBoth!=dDoubledWrong"
+          "dDoubledBoth!=dDoubledWrong",
+          "m!=0"
         ]
       },
       "attemptFeedback": [
@@ -36182,13 +37481,18 @@
             "min": -7,
             "max": 7,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           }
         }
       },
@@ -36383,7 +37687,10 @@
           "b": {
             "type": "int",
             "min": -6,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              0
+            ]
           }
         }
       },
@@ -36768,13 +38075,18 @@
             "min": -7,
             "max": 7,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "a": {
             "type": "int",
@@ -37078,7 +38390,10 @@
           "b": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "k": {
             "type": "int",
@@ -37191,13 +38506,18 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "p": {
             "type": "int",
@@ -37327,7 +38647,10 @@
           "b": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -37411,7 +38734,9 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "m2": {
@@ -37419,18 +38744,26 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b1": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "b2": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "a": {
             "type": "int",
@@ -38218,7 +39551,10 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              1
+            ]
           },
           "b": {
             "type": "int",
@@ -38413,7 +39749,9 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "x1": {
@@ -38427,14 +39765,24 @@
           "y1": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "b": "y1-m*x1",
           "b_alt": "y1+m*x1",
           "mneg": "-m"
-        }
+        },
+        "constraints": [
+          "b!=0",
+          "b_alt!=0",
+          "mneg!=0",
+          "mneg!=1",
+          "mneg!=-1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -38530,7 +39878,9 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "x1": {
@@ -38559,7 +39909,12 @@
         "constraints": [
           "x1!=0",
           "m!=dx",
-          "mneg!=dx"
+          "mneg!=dx",
+          "b!=0",
+          "b_alt!=0",
+          "mneg!=0",
+          "mneg!=1",
+          "mneg!=-1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -38797,7 +40152,12 @@
           "Cplus": "m*x1+y1",
           "Cswap": "x1-m*y1",
           "mneg": "-m"
-        }
+        },
+        "constraints": [
+          "mneg!=0",
+          "mneg!=1",
+          "mneg!=-1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -38892,7 +40252,9 @@
             "min": -7,
             "max": 7,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "x1": {
@@ -39373,7 +40735,9 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
@@ -39381,7 +40745,9 @@
             "min": -9,
             "max": 9,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "x1": {
@@ -39400,7 +40766,11 @@
           "mneg": "-m"
         },
         "constraints": [
-          "b!=m"
+          "b!=m",
+          "bneg!=0",
+          "mneg!=0",
+          "mneg!=1",
+          "mneg!=-1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -39818,7 +41188,9 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
@@ -39920,7 +41292,9 @@
             "min": -7,
             "max": 7,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
@@ -39928,7 +41302,9 @@
             "min": -12,
             "max": 12,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "x1": {
@@ -39957,7 +41333,11 @@
           "bneg": "-b"
         },
         "constraints": [
-          "b!=m"
+          "b!=m",
+          "bneg!=0",
+          "mneg!=0",
+          "mneg!=1",
+          "mneg!=-1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -40315,7 +41695,15 @@
         "derived": {
           "y": "k*x",
           "kplus": "k+1"
-        }
+        },
+        "constraints": [
+          "kplus!=0",
+          "kplus!=1",
+          "kplus!=-1",
+          "y!=0",
+          "y!=1",
+          "y!=-1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -40593,7 +41981,9 @@
             "min": -7,
             "max": 7,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "p": {
@@ -41078,7 +42468,10 @@
         "constraints": [
           "k1!=delta",
           "delta!=k1*x",
-          "delta!=(k1+k2)*x"
+          "delta!=(k1+k2)*x",
+          "k2!=0",
+          "k2!=1",
+          "k2!=-1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -41161,13 +42554,18 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b0": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "x1": {
             "type": "int",
@@ -41185,7 +42583,11 @@
           "mneg": "-m"
         },
         "constraints": [
-          "b0!=b1"
+          "b0!=b1",
+          "b1!=0",
+          "mneg!=0",
+          "mneg!=1",
+          "mneg!=-1"
         ]
       },
       "solutionReview": {
@@ -41638,13 +43040,18 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b0": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "x1": {
             "type": "int",
@@ -41801,7 +43208,10 @@
         "constraints": [
           "A!=B",
           "A*scale!=B",
-          "C2!=C1*scale"
+          "C2!=C1*scale",
+          "As!=0",
+          "As!=1",
+          "As!=-1"
         ]
       },
       "solutionReview": {
@@ -41900,7 +43310,9 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "bf": {
@@ -41911,7 +43323,10 @@
           "bg": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "x1": {
             "type": "int",
@@ -42780,7 +44195,10 @@
           "dParallel": "A*k"
         },
         "constraints": [
-          "A!=B"
+          "A!=B",
+          "q!=0",
+          "q!=1",
+          "q!=-1"
         ]
       },
       "solutionReview": {
@@ -44264,13 +45682,18 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "xt": {
             "type": "int",
@@ -44287,7 +45710,12 @@
           "yb": "m*xt+b",
           "yt": "yb+offset",
           "mneg": "-m"
-        }
+        },
+        "constraints": [
+          "mneg!=0",
+          "mneg!=1",
+          "mneg!=-1"
+        ]
       },
       "solutionReview": {
         "headline": "Use the boundary and a known solution point.",
@@ -44716,7 +46144,10 @@
           "b": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "x1": {
             "type": "int",
@@ -44736,7 +46167,12 @@
           "mneg": "-m"
         },
         "constraints": [
-          "m!=0"
+          "m!=0",
+          "m!=1",
+          "m!=-1",
+          "mneg!=0",
+          "mneg!=1",
+          "mneg!=-1"
         ]
       },
       "solutionReview": {
@@ -45185,7 +46621,10 @@
           "r2": {
             "type": "int",
             "min": 1,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              1
+            ]
           }
         },
         "constraints": [
@@ -45287,26 +46726,40 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b1": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "m2": {
             "type": "int",
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b2": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "x1": {
             "type": "int",
@@ -45554,26 +47007,40 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b1": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "m2": {
             "type": "int",
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b2": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "x1": {
             "type": "int",
@@ -45831,7 +47298,9 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "m2": {
@@ -45839,7 +47308,9 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           }
         },
@@ -46201,7 +47672,10 @@
         },
         "constraints": [
           "m!=B",
-          "m!=-B"
+          "m!=-B",
+          "A!=0",
+          "A!=1",
+          "A!=-1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -46626,7 +48100,9 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "y1": {
@@ -46637,7 +48113,10 @@
           "bq": {
             "type": "int",
             "min": -9,
-            "max": 9
+            "max": 9,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -47765,13 +49244,18 @@
             "min": -7,
             "max": 7,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -12,
-            "max": 12
+            "max": 12,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -47853,7 +49337,9 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "x0": {
@@ -47873,7 +49359,8 @@
         },
         "constraints": [
           "x0!=1",
-          "x0!=-1"
+          "x0!=-1",
+          "b!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -47969,7 +49456,9 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "zero": {
@@ -47981,7 +49470,10 @@
         "derived": {
           "b": "-m*zero",
           "answer": "zero"
-        }
+        },
+        "constraints": [
+          "b!=0"
+        ]
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -48396,14 +49888,19 @@
           "xint": {
             "type": "int",
             "min": 1,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              1
+            ]
           },
           "m": {
             "type": "int",
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           }
         },
@@ -48416,7 +49913,12 @@
           "m!=1",
           "m!=-1",
           "xint!=m",
-          "xint!=-m"
+          "xint!=-m",
+          "negm!=0",
+          "negm!=1",
+          "negm!=-1",
+          "wrongb!=0",
+          "yint!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -48636,13 +50138,18 @@
             "min": -4,
             "max": 4,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "x": {
             "type": "int",
@@ -48757,13 +50264,18 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         }
       },
@@ -48858,12 +50370,18 @@
           "A": {
             "type": "int",
             "min": 1,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              1
+            ]
           },
           "B": {
             "type": "int",
             "min": 1,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              1
+            ]
           },
           "C": {
             "type": "int",
@@ -49076,7 +50594,10 @@
           "Q": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "R": {
             "type": "int",
@@ -49190,7 +50711,10 @@
           "b": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -49272,12 +50796,18 @@
           "A": {
             "type": "int",
             "min": 1,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              1
+            ]
           },
           "B": {
             "type": "int",
             "min": 1,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              1
+            ]
           },
           "C": {
             "type": "int",
@@ -49507,13 +51037,18 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "k": {
             "type": "int",
@@ -49600,13 +51135,18 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b1": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "delta": {
             "type": "int",
@@ -49616,7 +51156,10 @@
         },
         "derived": {
           "b2": "b1+delta"
-        }
+        },
+        "constraints": [
+          "b2!=0"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -49711,13 +51254,18 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "h": {
             "type": "int",
@@ -49729,7 +51277,14 @@
           "newb": "b-m*h",
           "wrong1": "b+m*h",
           "negm": "-m"
-        }
+        },
+        "constraints": [
+          "negm!=0",
+          "negm!=1",
+          "negm!=-1",
+          "newb!=0",
+          "wrong1!=0"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -49829,13 +51384,18 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -50049,13 +51609,18 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "h": {
             "type": "int",
@@ -50177,13 +51742,18 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "x": {
             "type": "int",
@@ -50411,7 +51981,9 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "m2": {
@@ -50419,7 +51991,9 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           }
         },
@@ -50429,7 +52003,9 @@
           "answer": "x"
         },
         "constraints": [
-          "m1!=m2"
+          "m1!=m2",
+          "b1!=0",
+          "b2!=0"
         ]
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -50505,12 +52081,18 @@
           "A": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "B": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "C1": {
             "type": "int",
@@ -50532,7 +52114,15 @@
           "sA": "s*A",
           "sB": "s*B",
           "C2": "s*C1+offset"
-        }
+        },
+        "constraints": [
+          "sA!=0",
+          "sA!=1",
+          "sA!=-1",
+          "sB!=0",
+          "sB!=1",
+          "sB!=-1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -50625,12 +52215,18 @@
           "A": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "B": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "C": {
             "type": "int",
@@ -50647,7 +52243,15 @@
           "kA": "k*A",
           "kB": "k*B",
           "kC": "k*C"
-        }
+        },
+        "constraints": [
+          "kA!=0",
+          "kA!=1",
+          "kA!=-1",
+          "kB!=0",
+          "kB!=1",
+          "kB!=-1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -50994,7 +52598,13 @@
         "constraints": [
           "A!=scale",
           "scale*C1!=C1+scale",
-          "A*C1!=C1+scale"
+          "A*C1!=C1+scale",
+          "sA!=0",
+          "sA!=1",
+          "sA!=-1",
+          "sB!=0",
+          "sB!=1",
+          "sB!=-1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -51103,7 +52713,9 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "m2": {
@@ -51111,7 +52723,9 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           }
         },
@@ -51130,7 +52744,9 @@
           "satDistractor3!=answer",
           "satDistractor1!=satDistractor2",
           "satDistractor1!=satDistractor3",
-          "satDistractor2!=satDistractor3"
+          "satDistractor2!=satDistractor3",
+          "b1!=0",
+          "b2!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -51256,7 +52872,13 @@
         },
         "constraints": [
           "s*C!=C+s",
-          "s*s*C!=C+s"
+          "s*s*C!=C+s",
+          "sA!=0",
+          "sA!=1",
+          "sA!=-1",
+          "sB!=0",
+          "sB!=1",
+          "sB!=-1"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -51765,7 +53387,9 @@
           "answer": "x"
         },
         "constraints": [
-          "m1!=m2"
+          "m1!=m2",
+          "b1!=0",
+          "b2!=0"
         ]
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -52079,7 +53703,9 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "m2": {
@@ -52087,7 +53713,9 @@
             "min": -6,
             "max": 6,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           }
         },
@@ -52102,7 +53730,9 @@
           "m1!=m2",
           "p!=1",
           "p!=-1",
-          "p!=0"
+          "p!=0",
+          "b1!=0",
+          "b2!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -52201,12 +53831,22 @@
           "m1": {
             "type": "int",
             "min": -3,
-            "max": 3
+            "max": 3,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "m2": {
             "type": "int",
             "min": -3,
-            "max": 3
+            "max": 3,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "low": {
             "type": "int",
@@ -52230,7 +53870,9 @@
           "yabove2": "high+2"
         },
         "constraints": [
-          "m1!=m2"
+          "m1!=m2",
+          "b1!=0",
+          "b2!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -52324,17 +53966,30 @@
           "m1": {
             "type": "int",
             "min": -4,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "m2": {
             "type": "int",
             "min": -4,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "b1": {
             "type": "int",
             "min": -8,
-            "max": 2
+            "max": 2,
+            "exclude": [
+              0
+            ]
           },
           "gap": {
             "type": "int",
@@ -52346,7 +54001,8 @@
           "b2": "b1+gap"
         },
         "constraints": [
-          "m1!=m2"
+          "m1!=m2",
+          "b2!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -52553,22 +54209,38 @@
           "m1": {
             "type": "int",
             "min": -4,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "m2": {
             "type": "int",
             "min": -4,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "b1": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "b2": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "constraints": [
@@ -52928,7 +54600,10 @@
           "c": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "gap": {
             "type": "int",
@@ -53051,7 +54726,9 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "m2": {
@@ -53059,7 +54736,9 @@
             "min": -5,
             "max": 5,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           }
         },
@@ -53074,7 +54753,9 @@
           "m1!=m2",
           "x!=1",
           "x!=-1",
-          "x!=0"
+          "x!=0",
+          "b1!=0",
+          "b2!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -53187,7 +54868,10 @@
           "c": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "x": {
             "type": "int",
@@ -53197,14 +54881,18 @@
           "b": {
             "type": "int",
             "min": -12,
-            "max": 12
+            "max": 12,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "d": "a*x+b-c*x"
         },
         "constraints": [
-          "a!=c"
+          "a!=c",
+          "d!=0"
         ]
       },
       "responseFields": [
@@ -53282,7 +54970,9 @@
             "min": -8,
             "max": 8,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "x": {
@@ -53293,7 +54983,10 @@
           "b": {
             "type": "int",
             "min": -12,
-            "max": 12
+            "max": 12,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -53472,7 +55165,10 @@
           "b": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "x": {
             "type": "int",
@@ -53560,7 +55256,9 @@
             "min": -8,
             "max": 8,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "x": {
@@ -53685,17 +55383,28 @@
           "b": {
             "type": "int",
             "min": -7,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              0
+            ]
           },
           "c": {
             "type": "int",
             "min": -12,
-            "max": 12
+            "max": 12,
+            "exclude": [
+              0
+            ]
           },
           "d": {
             "type": "int",
             "min": -5,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "x": {
             "type": "int",
@@ -53707,7 +55416,8 @@
           "e": "a*(x+b)+c-d*x"
         },
         "constraints": [
-          "a!=d"
+          "a!=d",
+          "e!=0"
         ]
       },
       "responseFields": [
@@ -53917,7 +55627,11 @@
         "constraints": [
           "u!=t",
           "u!=-t",
-          "u!=a*t"
+          "u!=a*t",
+          "c!=0",
+          "c!=1",
+          "c!=-1",
+          "d!=0"
         ]
       },
       "assessmentItemFormat": "multipleChoice",
@@ -54021,7 +55735,10 @@
           "b": {
             "type": "int",
             "min": -12,
-            "max": 12
+            "max": 12,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -54131,7 +55848,10 @@
           "b": {
             "type": "int",
             "min": -12,
-            "max": 12
+            "max": 12,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
@@ -54139,7 +55859,12 @@
           "rhs": "-m*t+b",
           "d1": "t+1",
           "d2": "t-1"
-        }
+        },
+        "constraints": [
+          "a!=0",
+          "a!=1",
+          "a!=-1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -54237,7 +55962,10 @@
           "c": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           },
           "t": {
             "type": "int",
@@ -54247,14 +55975,20 @@
           "b": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "d": "(a-c)*t+b",
           "d1": "t+1",
           "d2": "t-1"
-        }
+        },
+        "constraints": [
+          "d!=0"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -54538,12 +56272,18 @@
           "b": {
             "type": "int",
             "min": -7,
-            "max": 7
+            "max": 7,
+            "exclude": [
+              0
+            ]
           },
           "c": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "t": {
             "type": "int",
@@ -54782,7 +56522,8 @@
         },
         "constraints": [
           "c!=2*delta",
-          "delta!=c+delta*t"
+          "delta!=c+delta*t",
+          "d!=0"
         ]
       },
       "responseFields": [
@@ -54977,22 +56718,34 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "b": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "c": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "d": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           }
         },
         "derived": {
@@ -55182,13 +56935,18 @@
             "min": -4,
             "max": 4,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           },
           "a": {
             "type": "int",
@@ -55274,12 +57032,18 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "b": {
             "type": "int",
             "min": 1,
-            "max": 6
+            "max": 6,
+            "exclude": [
+              1
+            ]
           },
           "c": {
             "type": "int",
@@ -55301,7 +57065,15 @@
           "ka": "k*a",
           "kb": "k*b",
           "d": "k*c+offset"
-        }
+        },
+        "constraints": [
+          "ka!=0",
+          "ka!=1",
+          "ka!=-1",
+          "kb!=0",
+          "kb!=1",
+          "kb!=-1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -55426,7 +57198,10 @@
         "constraints": [
           "a!=b",
           "b!=mult*a",
-          "a!=mult*b"
+          "a!=mult*b",
+          "ka!=0",
+          "ka!=1",
+          "ka!=-1"
         ]
       },
       "responseFields": [
@@ -55642,12 +57417,18 @@
           "a": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "c": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "b": {
             "type": "int",
@@ -55868,7 +57649,10 @@
           "woodS": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "laborT": {
             "type": "int",
@@ -55878,7 +57662,10 @@
           "laborS": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           },
           "woodMax": {
             "type": "int",
@@ -55987,12 +57774,18 @@
           "m1": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "m2": {
             "type": "int",
             "min": -5,
-            "max": -1
+            "max": -1,
+            "exclude": [
+              -1
+            ]
           },
           "b1": {
             "type": "int",
@@ -56352,7 +58145,10 @@
           "hoursB": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "spaceMax": {
             "type": "int",
@@ -56482,7 +58278,12 @@
           "m": {
             "type": "int",
             "min": -4,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              -1,
+              0,
+              1
+            ]
           },
           "b": {
             "type": "int",
@@ -56911,12 +58712,18 @@
           "m1": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "m2": {
             "type": "int",
             "min": -5,
-            "max": -1
+            "max": -1,
+            "exclude": [
+              -1
+            ]
           },
           "xint": {
             "type": "int",
@@ -56926,12 +58733,18 @@
           "b1": {
             "type": "int",
             "min": -8,
-            "max": 8
+            "max": 8,
+            "exclude": [
+              0
+            ]
           }
         },
         "derived": {
           "b2": "m1*xint+b1-m2*xint"
-        }
+        },
+        "constraints": [
+          "b2!=0"
+        ]
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -57358,12 +59171,18 @@
           "m1": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "m2": {
             "type": "int",
             "min": -5,
-            "max": -1
+            "max": -1,
+            "exclude": [
+              -1
+            ]
           },
           "b1": {
             "type": "int",
@@ -57381,7 +59200,10 @@
           "v2": "v1-gap",
           "b2": "v2-m2*x",
           "ymax": "v2"
-        }
+        },
+        "constraints": [
+          "b2!=0"
+        ]
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -57558,12 +59380,18 @@
           "m1": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           },
           "m2": {
             "type": "int",
             "min": -4,
-            "max": -1
+            "max": -1,
+            "exclude": [
+              -1
+            ]
           },
           "low": {
             "type": "int",
@@ -57584,7 +59412,11 @@
           "ybelow": "low-1",
           "yabove": "high+1",
           "yfar": "high+3"
-        }
+        },
+        "constraints": [
+          "b1!=0",
+          "b2!=0"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -57926,7 +59758,10 @@
           "m": {
             "type": "int",
             "min": 1,
-            "max": 4
+            "max": 4,
+            "exclude": [
+              1
+            ]
           },
           "b": {
             "type": "int",
@@ -59638,7 +61473,11 @@
           "r2": "r*r",
           "mh": "-h",
           "mk": "-k"
-        }
+        },
+        "constraints": [
+          "nh!=0",
+          "nk!=0"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "responseFields": [
@@ -59853,7 +61692,14 @@
           "b": "2*I-(2*c+1)*x",
           "central": "2*I",
           "inscribed": "I"
-        }
+        },
+        "constraints": [
+          "a!=0",
+          "a!=1",
+          "a!=-1",
+          "b!=0",
+          "d!=0"
+        ]
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -60056,7 +61902,16 @@
           "E": "-2*k",
           "F": "h*h+k*k-r*r",
           "answer": "r"
-        }
+        },
+        "constraints": [
+          "D!=0",
+          "D!=1",
+          "D!=-1",
+          "E!=0",
+          "E!=1",
+          "E!=-1",
+          "F!=0"
+        ]
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -60250,7 +62105,10 @@
           "angle": "m*x+b"
         },
         "constraints": [
-          "m*x+b<175"
+          "m*x+b<175",
+          "mp2!=0",
+          "mp2!=1",
+          "mp2!=-1"
         ]
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -60650,7 +62508,8 @@
         "constraints": [
           "m*x+b>20",
           "m*x+b<160",
-          "n*x+(180-(m+n)*x-b)>20"
+          "n*x+(180-(m+n)*x-b)>20",
+          "c!=0"
         ]
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -61883,13 +63742,18 @@
             "min": -9,
             "max": 9,
             "exclude": [
-              0
+              -1,
+              0,
+              1
             ]
           },
           "b": {
             "type": "int",
             "min": -20,
-            "max": 20
+            "max": 20,
+            "exclude": [
+              0
+            ]
           },
           "dx": {
             "type": "int",
@@ -62815,7 +64679,10 @@
           "b": {
             "type": "int",
             "min": -12,
-            "max": 12
+            "max": 12,
+            "exclude": [
+              0
+            ]
           },
           "x1": {
             "type": "int",
@@ -62853,7 +64720,16 @@
           "mp1": "m+1",
           "mm1": "m-1",
           "bp4": "b+4"
-        }
+        },
+        "constraints": [
+          "bp4!=0",
+          "mm1!=0",
+          "mm1!=1",
+          "mm1!=-1",
+          "mp1!=0",
+          "mp1!=1",
+          "mp1!=-1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -63051,7 +64927,10 @@
           "b": {
             "type": "int",
             "min": -15,
-            "max": 15
+            "max": 15,
+            "exclude": [
+              0
+            ]
           },
           "x0": {
             "type": "int",
@@ -63416,7 +65295,10 @@
           "b": {
             "type": "int",
             "min": -10,
-            "max": 10
+            "max": 10,
+            "exclude": [
+              0
+            ]
           },
           "x1": {
             "type": "int",
@@ -63451,7 +65333,13 @@
           "y3": "m*x3+b+e2",
           "m2": "m+2",
           "b2": "b-3"
-        }
+        },
+        "constraints": [
+          "b2!=0",
+          "m2!=0",
+          "m2!=1",
+          "m2!=-1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -63550,7 +65438,10 @@
           "b": {
             "type": "int",
             "min": -20,
-            "max": 20
+            "max": 20,
+            "exclude": [
+              0
+            ]
           },
           "x0": {
             "type": "int",
@@ -63652,7 +65543,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 12
+            "max": 12,
+            "exclude": [
+              0
+            ]
           },
           "e1": {
             "type": "choice",
@@ -63683,7 +65577,12 @@
           "hp1": "h+1",
           "nh": "-h",
           "nhp1": "-(h+1)"
-        }
+        },
+        "constraints": [
+          "kp4!=0",
+          "nh!=0",
+          "nhp1!=0"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -64024,7 +65923,10 @@
           "k": {
             "type": "int",
             "min": -10,
-            "max": 15
+            "max": 15,
+            "exclude": [
+              0
+            ]
           },
           "d": {
             "type": "int",
@@ -64046,7 +65948,10 @@
           "observed": "predicted+r",
           "answer": "r",
           "neg_h": "-h"
-        }
+        },
+        "constraints": [
+          "neg_h!=0"
+        ]
       },
       "assessmentItemFormat": "studentProducedResponse",
       "responseFields": [
@@ -64355,7 +66260,10 @@
           "k": {
             "type": "int",
             "min": -8,
-            "max": 12
+            "max": 12,
+            "exclude": [
+              0
+            ]
           },
           "e1": {
             "type": "choice",
@@ -64383,7 +66291,11 @@
           "k2": "k-3",
           "nh": "-h",
           "advantage": "abs(3-e1)-1"
-        }
+        },
+        "constraints": [
+          "k2!=0",
+          "nh!=0"
+        ]
       },
       "assessmentItemFormat": "studentProducedResponse",
       "choices": [],
@@ -64470,7 +66382,10 @@
           "k": {
             "type": "int",
             "min": -10,
-            "max": 15
+            "max": 15,
+            "exclude": [
+              0
+            ]
           },
           "d": {
             "type": "int",
@@ -64491,7 +66406,8 @@
           "neg_h": "-h"
         },
         "constraints": [
-          "d!=e"
+          "d!=e",
+          "neg_h!=0"
         ]
       },
       "assessmentItemFormat": "studentProducedResponse",
@@ -65716,7 +67632,12 @@
         },
         "derived": {
           "k": "w0*h0"
-        }
+        },
+        "constraints": [
+          "k!=0",
+          "k!=1",
+          "k!=-1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -65826,7 +67747,12 @@
           "y2": "2*k0",
           "y3": "k0",
           "Kp": "4*m*k0+1"
-        }
+        },
+        "constraints": [
+          "K!=0",
+          "K!=1",
+          "K!=-1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -66580,7 +68506,10 @@
           "b": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "c": {
             "type": "int",
@@ -66597,7 +68526,13 @@
           "linb": "c",
           "expA": "c",
           "expr": "2"
-        }
+        },
+        "constraints": [
+          "linb!=0",
+          "linm!=0",
+          "linm!=1",
+          "linm!=-1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -67063,7 +68998,15 @@
           "y3": "A*r^3-e1",
           "linm": "A*(r-1)",
           "quadA": "A"
-        }
+        },
+        "constraints": [
+          "linm!=0",
+          "linm!=1",
+          "linm!=-1",
+          "quadA!=0",
+          "quadA!=1",
+          "quadA!=-1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
@@ -67895,7 +69838,10 @@
           "b": {
             "type": "int",
             "min": 1,
-            "max": 5
+            "max": 5,
+            "exclude": [
+              1
+            ]
           },
           "c": {
             "type": "int",
@@ -67915,7 +69861,12 @@
           "y1": "a+b+c+e1",
           "y2": "4*a+2*b+c-e1",
           "m": "2*a+b"
-        }
+        },
+        "constraints": [
+          "m!=0",
+          "m!=1",
+          "m!=-1"
+        ]
       },
       "assessmentItemFormat": "multipleChoice",
       "choices": [
