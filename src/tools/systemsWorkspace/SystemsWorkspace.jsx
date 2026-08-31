@@ -79,7 +79,7 @@ function LinearMode({ questionData, onAction }) {
         ariaLabel="Graph of both equations in the system"
         // Marking and labelling the intersection is the answer to the question
         // being asked, so only the teacher bench draws it.
-        points={revealAnswers && solution.type === 'one' ? [{0:solution.x,1:solution.y,label:'intersection'}] : []} />
+        points={revealAnswers && solution.type === 'one' ? [{x:solution.x,y:solution.y,label:'intersection'}] : []} />
       <Legend items={[
         { label:'Equation 1', color:'#1a73e8', note:formatLine({m:system.m1,b:system.b1}) },
         { label:'Equation 2', color:'#d93025', dashed:true, note:formatLine({m:system.m2,b:system.b2}) },
@@ -162,7 +162,7 @@ function InequalityMode({ questionData, onAction }) {
       }));
 
   const plottedPoints = [
-    ...(ask.includes('testPoint') ? [{0:testPoint.x,1:testPoint.y,label:'test point',fill:'#8a3ffc'}] : []),
+    ...(ask.includes('testPoint') ? [{x:testPoint.x,y:testPoint.y,label:'test point',fill:'#8a3ffc'}] : []),
     ...(requiresConstruction ? construction.flatMap((entry, index) => {
       const points = [
         [parseNumericAnswer(entry.x1), parseNumericAnswer(entry.y1)],
@@ -170,7 +170,7 @@ function InequalityMode({ questionData, onAction }) {
       ];
       return points
         .filter(([px, py]) => px != null && py != null)
-        .map(([px, py], pointIndex) => ({ 0:px, 1:py, label:`B${index + 1} P${pointIndex + 1}` }));
+        .map(([px, py], pointIndex) => ({ x:px, y:py, label:`B${index + 1} P${pointIndex + 1}` }));
     }) : []),
   ];
 
@@ -371,7 +371,7 @@ function LinearQuadraticMode({ questionData, onAction }) {
         lines={[{ ...config.line, stroke:'#d93025', dash:'10 6' }]}
         functions={[(x)=>Number(config.quadratic.a??1)*x*x+Number(config.quadratic.b??0)*x+Number(config.quadratic.c??0)]}
         ariaLabel="Graph of a line and a parabola"
-        points={revealAnswers ? intersections.map((point)=>({0:point.x,1:point.y,label:'intersection'})) : []} />
+        points={revealAnswers ? intersections.map((point)=>({x:point.x,y:point.y,label:'intersection'})) : []} />
       <Legend items={[
         { label:'Parabola', color:'#1a73e8', note:`y = ${config.quadratic.a}x² ${Number(config.quadratic.b)>=0?'+':'−'} ${Math.abs(Number(config.quadratic.b))}x ${Number(config.quadratic.c)>=0?'+':'−'} ${Math.abs(Number(config.quadratic.c))}` },
         { label:'Line', color:'#d93025', dashed:true, note:formatLine(config.line) },
