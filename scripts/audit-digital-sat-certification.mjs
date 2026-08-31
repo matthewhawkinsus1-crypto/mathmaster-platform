@@ -14,6 +14,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { samplePathInstances } from '../functions/shared/pathQuestionGeneration.mjs';
+import { codeOf, isCountOptionSet, isComputational } from './lib/digital-sat-audit-rules.mjs';
 import {
   analyzeAnswerKeyBias,
   analyzeFamilySet,
@@ -50,9 +51,6 @@ const OTHER_FRAMEWORKS = {
 
 const domainOf = (q) => q?.assessmentContext?.domainId || '(none)';
 const roleOf = (q) => q?.ccmrFamilyRole || '(none)';
-const codeOf = (q) => String((q.alignmentKeys || []).find((k) => /^texas:/i.test(String(k))) || '')
-  .replace(/^texas:/i, '').toUpperCase();
-
 // ---------------------------------------------------------------- 2. voice
 //
 // The Digital SAT asks a question; it does not address the test taker as a
@@ -174,14 +172,7 @@ for (const q of SAT) {
       counted += 1;
       const sorted = values.map((v) => v.value).sort((a, b) => a - b);
       const gaps = sorted.slice(1).map((v, i) => v - sorted[i]);
-      // "How many solutions does this have?" has exactly one honest option set:
-      // 0, 1, 2, 3. That is an equally spaced ladder, and flagging it would be
-      // asking the item to offer a count nobody could reach. The exemption is
-      // deliberately narrow - the run must start at 0 and step by 1 - so it
-      // cannot cover a key+1/key+2/key+3 distractor set, which is what the
-      // ladder rule exists to catch.
-      const countOptions = sorted[0] === 0 && sorted.every((v, i) => v === i);
-      if (!countOptions && gaps.length && gaps.every((g) => Math.abs(g - gaps[0]) < 1e-9)) ladder += 1;
+      if (!isCountOptionSet(sorted) && gaps.length && gaps.every((g) => Math.abs(g - gaps[0]) < 1e-9)) ladder += 1;
       const others = values.filter((v) => v.id !== keyId).map((v) => v.value);
       if (Math.abs(key) >= 8 && others.every((v) => Math.abs(v - key) <= 3)) nearKey += 1;
     }
@@ -241,26 +232,20 @@ for (const [code, rows] of byCode) {
 for (const [, rows] of byCode) {
   const direct = rows.filter((q) => roleOf(q) === 'direct');
   const challenge = rows.filter((q) => roleOf(q) === 'challenge');
-  // A family whose only generator parameter is `variant` has no mathematics in
-  // its generator at all - that parameter exists to seed the option shuffle on
-  // an otherwise static item. Comparing two of those to each other says nothing
-  // about whether the items duplicate one another, and counting it as a clone
-  // fired on every pair of static families in a standard.
-  const computational = (q) => Object.keys((q.generator || {}).parameters || {}).some((k) => k !== 'variant');
-  for (const c of challenge.filter(computational)) {
+  for (const c of challenge.filter(isComputational)) {
     const print = taskFingerprint(c);
     // taskFingerprint reads the generator's structure, so two prose items that
     // merely share a sentence shape collapse onto the same print. Requiring the
     // wording to overlap as well keeps the finding to families that really are
     // the same item twice.
-    const twin = direct.filter(computational)
+    const twin = direct.filter(isComputational)
       .find((d) => taskFingerprint(d) === print && promptOverlap(c.prompt || '', d.prompt || '') > 0.25);
     if (twin) {
       cloneCounts.crossTierTaskClone += 1;
       finding('replace', 'crossTierTaskClone', c.id, `challenge family shares its task structure with direct ${twin.id}`);
     }
     const gen = JSON.stringify(c.generator || {});
-    const genTwin = direct.filter(computational)
+    const genTwin = direct.filter(isComputational)
       .find((d) => JSON.stringify(d.generator || {}) === gen && gen !== '{}');
     if (genTwin) {
       cloneCounts.generatorClone += 1;

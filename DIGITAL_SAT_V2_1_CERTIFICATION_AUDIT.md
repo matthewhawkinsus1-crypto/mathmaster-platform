@@ -569,3 +569,222 @@ deployment configuration, and nothing under `drafts/fidelity-v2/algebra2/**`.
 | `scripts/` — Digital-SAT-specific audit and repair tooling | 6 |
 | `tests/platform/digitalSat*.test.mjs` | 3 |
 | This report | 1 |
+
+# Part III — production seed regeneration and skeptical validation
+
+Part II measured everything against the compiled draft, because the production
+mirrors were out of scope at the time. They are in scope now. This part covers
+the regeneration, and a deliberate attempt to break the tooling the KEEP=664
+verdict rests on.
+
+## Seed regeneration
+
+Both Digital SAT mirrors were regenerated from the repaired drafts by the
+coordinator, not patched by hand:
+
+```
+node scripts/build-ccmr-v2-1-production-release.mjs --write
+```
+
+| | |
+| --- | --- |
+| Command | the repo's own unified writer, no manual edits |
+| Files written | `seed/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json`, `functions/seeds/pathQuestionBank/digitalSAT_pathQuestionBank_seed.json` |
+| Both mirrors identical | yes — `sha256 a8506ac3e9f6fab11f45ab92c2180ec5d6207b61a9949f9ee738c4463be9ba21` |
+| Documents changed vs main | 580 of 664 |
+| Root drift / Functions drift | **0 / 0** |
+| ACT and TSIA2 mirrors | untouched, still matching |
+
+`ccmrV21ProductionReleaseContent.test.mjs` is green, 7 of 7. The regenerated
+seed agrees with the compiled draft on every field the sweep touched — prompt,
+generator, choices, responseFields, solutionReview — across all 664 families,
+with zero mismatches.
+
+## Counts verified against the authored sources
+
+Counted straight from `drafts/ccmr-v2.1/digitalSAT/**` by a script sharing no
+code with the compiler or the audit, then compared to the compiled draft and to
+the shipping seed.
+
+| Measure | Authored source | Compiled draft | Shipping seed |
+| --- | --- | --- | --- |
+| Active documents | 664 | 664 | 664 |
+| Duplicate ids | 0 | 0 | 0 |
+| Direct / challenge | 415 / 249 | 415 / 249 | 415 / 249 |
+| Advanced Math / Algebra / PSDA / Geometry & Trig | 328 / 200 / 104 / 32 | same | same |
+| DOK, direct | 1:33, 2:382 | same | same |
+| DOK, challenge | 2:149, 3:100 | same | same |
+| Band, direct | 1:4, 2:71, 3:337, 4:3 | same | same |
+| Band, challenge | 4:166, 5:83 | same | same |
+| Calculator policy | graphing ×664 | same | same |
+| Item format | **502 / 162** | 498 / 166 | 498 / 166 |
+
+The one difference is explained and is not a defect. Four Problem-Solving and
+Data Analysis families are authored as multiple choice and ship as
+student-produced response, because `DIGITAL_SAT_PSDA_ANTI_CLONE_OVERRIDES.v2.1.json`
+patches them. That override file predates this branch (commit `2d44f16`) and the
+compiler deep-merges it by design; 502 − 4 = 498 and 162 + 4 = 166 exactly. It
+does mean "the authored source" is the draft files *plus* an override layer, and
+a count taken from the files alone will disagree by four.
+
+## The five tooling fixes, inspected
+
+Three of the five narrow what the audit reports, so each is a place a real
+defect could hide. Every one is now asserted in both directions.
+
+| Fix | What it changed | Could it hide a defect? |
+| --- | --- | --- |
+| Numeric label parser returned null for numeric labels | Ladder and fixed-offset checks had been reduced to LaTeX-labelled families only | It *had been* hiding defects; the fix widens coverage. Unit-tested against integers, negatives, thousands separators and `\frac{a}{b}` |
+| Distractor profile read `--draws` as a family filter | The script profiled nothing | Diagnostic only, never fed a verdict |
+| `generatorClone` compared variant-only generators | Skips generators whose only parameter is the shuffle seed | **Narrowed.** Verified: a direct/challenge pair with an identical *real* generator is still caught; same-tier clone detection still covers static families |
+| `crossTierTaskClone` compared fingerprints alone | Now also requires >25% prompt overlap | **Narrowed.** Verified: a pair with the same task *and* the same wording is still caught |
+| Ladder rule flagged 0,1,2,3 on counting items | Exempts a run starting at 0 stepping by 1 | **Narrowed.** Verified: `key-1, key, key+1, key+2` is still caught; so are runs around zero, steps of two, and gaps |
+
+`scripts/digital-sat-audit-selftest.mjs` appends six deliberately defective
+families to the real bank and runs the shipped audit against it. All six behave
+as intended, against both the draft and the shipping seed:
+
+```
+  ok  an arithmetic ladder that does not start at zero            -> arithmeticLadderChoices
+  ok  a count item offering 0, 1, 2, 3                            -> silent (the exemption)
+  ok  a challenge reusing a direct family's real generator        -> generatorClone + crossTierTaskClone
+  ok  two static families sharing the variant shuffle seed        -> silent on clone rules, still flagged same-tier
+  ok  a key that is the largest of four in every draw             -> answerKeyMagnitudeBias + ExtremeBias
+  ok  a choice id that names the answer                           -> transparentChoiceId
+```
+
+Note the fourth line: the variant-only exemption silences only the cross-tier
+and generator checks. Same-tier `taskClone` and `frameClone` still fire on those
+families, which is the narrowness the exemption needs to have.
+
+## A sixth tooling defect, found during this validation
+
+The audit grouped families by their TEKS alignment key. The 80 native SAT
+families carry no TEKS key in the drafts, so `codeOf` returned an empty string
+for every one of them and dropped all 80 into a single bucket — area and volume
+compared against percentages, circles against inference. It also meant the
+reported "standards" figure counted only TEKS codes.
+
+Grouping too coarsely produces *more* comparisons, not fewer, so this inflated
+clone counts rather than hiding anything: 25 task clones became 24 once fixed.
+But the figure was wrong and the comparisons were meaningless, so `codeOf` now
+falls back to `assessedConstruct`.
+
+Two consequences worth stating, because the audit reports different numbers
+depending on what it is pointed at:
+
+* Against the **compiled draft**, standards = 80 (71 TEKS codes plus 9 native
+  SAT skills).
+* Against the **shipping seed**, standards = 79, because the production
+  compiler attaches real TEKS alignment keys to the native families — area and
+  volume becomes 6.8B, circles becomes 7.5B — and a few native skills share a
+  code. The seed's grouping is the better one, and the seed is what students
+  get, so the certification numbers below are the seed run.
+
+## Independent re-derivation of the verdict
+
+A second checker was written from the definitions rather than copied: its own
+numeric parser, its own rank computation, the same published thresholds. It
+shares nothing with the audit or with `asvabFidelity.mjs` except the generator.
+
+| Bank | magnitude | extreme | key-naming ids | duplicate options | generation failures | orphan keys |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Shipping seed, this branch | **0** | **0** | **0** | **0** | **0** | **0** |
+| Compiled draft, this branch | **0** | **0** | **0** | **0** | **0** | **0** |
+| `main`'s seed (control) | 145 | 91 | 498 | 1 | 1 | 0 |
+
+The control matters: a checker that finds nothing everywhere is worthless. This
+one finds 145 magnitude-biased families and 498 leaked keys on the pre-repair
+bank and none on the repaired one.
+
+Set-compared against the audit on `main`'s seed: the audit flagged 170 families,
+the independent checker 164, and **the independent checker found nothing the
+audit missed**. The audit is stricter on six families, because it reads percent
+labels the independent parser does not. The audit is not under-reporting
+relative to a from-scratch implementation of the same rules.
+
+## Hand spot-checks
+
+Sixteen multiple-choice families were sampled across all four domains and both
+tiers and read by hand — mathematics checked, key confirmed, distractors judged.
+All correct. Examples: `A_2H_7` (boundary through (4,−30) gives p−5 = −9, and
+(4,−34) below it gives `y ≤ −9x + 6`); `A_3F_challenge_2` (lines meeting at
+(−5,3), p+q = −2, ranks spread 23/26/29/22); `A2_6B_challenge_1`
+(∛(x+k) = 6 with x = −7 gives k = 223, ranks 26/26/24/25).
+
+A separate stratified sample of seven families the sweep never touched was also
+read. All seven are mathematically correct — but all seven turned out to be
+student-produced response, which exposed a gap described next.
+
+## Known non-blocking findings
+
+**1. Fifteen SPR families print their own answer in the stem.**
+
+Every strong check in the sweep — rank bias, choice-id leakage, ladders,
+duplicate options — needs four options, so none of them looks at the 166
+student-produced-response families. Hand-reading found this; a probe then
+quantified it.
+
+Some are the skill itself: "the zeros of $x^2-12x+32$ are $r$ and $s$; what is
+$rs$?" prints 32 because Vieta's relation is the point. Others are read-offs
+wearing a challenge label — `A2.3F challenge_3` states "the two non-axis
+boundary lines intersect at (5,4)" and then asks for the value of $y$, at band 5
+and DOK 3. Sorting the two apart is authoring work and is **not** done here:
+
+```
+band 5, DOK 3   A_7A_challenge_challenge-feature-from-expanded
+band 5, DOK 3   A2_3F_challenge_3_challenge-three-constraint-vertex
+band 4, DOK 2   A_12A_challenge_1_parameter-repeated-input
+band 4, DOK 2   A_7A_challenge_challenge-max-value
+band 4, DOK 2   A_7C_challenge_challenge-parameter-for-vertex
+band 4, DOK 2   A2_6J_challenge_2_parameter-denominator
+band 4, DOK 2   A2_7C_challenge_quotient_linear_coefficient
+band 3, DOK 2   A_10C_4_quotient-parameter
+band 3, DOK 2   A_3G_5_graph-solution-context
+band 3, DOK 2   A_7B_product-of-zeros
+band 3, DOK 2   A2_3C_nonzero-intersection-parabola-line
+band 3, DOK 2   A2_3F_2_vertical-slice-maximum
+band 2, DOK 2   A_3F_1_intersection-from-two-lines
+band 2, DOK 1   A_3G_4_context-intersection-output
+band 2, DOK 1   native_1vd_1_mean-symmetric-data
+```
+
+`scripts/digital-sat-spr-stem-probe.mjs` reports them and
+`digitalSatSprStemLeak.test.mjs` pins the count at 15 so it can only fall.
+
+**2. 156 same-tier clone findings** — 87 shared sentence frames, 45 prompt
+overlaps, 24 shared task structures, all within one standard. Unchanged, per the
+instruction not to rewrite them.
+
+**3. Domain weighting is still off blueprint** — Advanced Math +18 points,
+Geometry and Trigonometry −10. Untouched, per the instruction not to start that
+expansion.
+
+One thing *was* repaired here, because it is a voice defect rather than new
+authoring: `A2.2A`'s challenge stem ended "…where $s=r+1$", but `r` and `s` are
+generator variables that render as numbers everywhere else, so a reader saw
+"f(25)=5, and f(36)=6, where s=r+1" with no `r` or `s` in sight. The clause is
+gone.
+
+## Final verification
+
+All figures below are from the shipping seed and this branch's HEAD.
+
+| Check | Result |
+| --- | --- |
+| `node --test "tests/platform/*.test.mjs"` | 2,666 tests, **2,666 pass, 0 fail** |
+| CCMR / Path / framework-bank subset (127 files) | 864 tests, **864 pass, 0 fail** |
+| `tests/platform/digitalSat*.test.mjs` (8 files) | 25 tests, **25 pass** |
+| `ccmrV21ProductionReleaseContent.test.mjs` | 7 tests, **7 pass**, zero drift |
+| `npm run build` | clean |
+| `npm run lint` | **0 errors** |
+| Certification sweep, shipping seed | **keep 664, revise 0, replace 0** |
+| Generation yield, 2,000 draws per family | **0 failures** |
+| Cross-tier clones / generator clones | **0 / 0** |
+| Cross-framework contamination (ACT, TSIA2, ASVAB) | **0** |
+| Rendering warts | **0** |
+| Audit self-test | **6 / 6** |
+| Independent re-derivation | **0 findings**, control finds 145 + 498 on `main` |
+
+The bank ships 664 families: 415 direct, 249 challenge, 498 multiple choice and
+166 student-produced response, 79 standards, all calculator-permitted.

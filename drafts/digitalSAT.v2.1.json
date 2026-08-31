@@ -17872,7 +17872,7 @@
         ],
         "answerSummary": "Check the requested feature against the original function and any stated interval."
       },
-      "prompt": "A function satisfies $f(0)=0$, $f({{R2}})={{r}}$, and $f({{S2}})={{s}}$, where $s=r+1$. Which function is consistent with these values and has no real outputs for negative inputs?",
+      "prompt": "A function satisfies $f(0)=0$, $f({{R2}})={{r}}$, and $f({{S2}})={{s}}$. Which function is consistent with these values and has no real outputs for negative inputs?",
       "generator": {
         "parameters": {
           "r": {
