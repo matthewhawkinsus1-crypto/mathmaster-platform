@@ -240,7 +240,7 @@
         "If the first differences change, compare how those first differences change."
       ],
       "supportHints": [
-        "For equally spaced inputs, compare first differences and then compare the differences of those differences."
+        "Compute successive changes in the table before choosing a model, and base the classification on the pattern in those changes rather than direction alone."
       ],
       "generator": {
         "parameters": {
@@ -297,7 +297,7 @@
         "A decreasing data set can still be exponential; calculate the ratios rather than classifying from direction alone."
       ],
       "supportHints": [
-        "For equally spaced inputs, compare multiplicative ratios between consecutive outputs rather than additive changes."
+        "Compare each output with the previous output and decide whether the consistent pattern is additive or multiplicative before classifying the data."
       ],
       "variants": [
         {
@@ -772,7 +772,7 @@
         "Compute the change pattern rather than classifying from 'increasing' alone."
       ],
       "supportHints": [
-        "Check whether first differences are constant; if not, compare the differences of those differences before choosing a model type."
+        "Calculate the successive changes instead of relying on whether the data increase, then use the pattern in those changes to repair the classification."
       ],
       "generator": {
         "parameters": {
