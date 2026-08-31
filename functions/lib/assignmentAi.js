@@ -186,6 +186,18 @@ async function callOpenAiAssignmentAuthor({
     throw new AssignmentAiError("failed-precondition", "The AI response was not a complete current MathMaster assignment. MathMaster did not accept it.");
   }
 
+  const notes = parsed?.outputProfiles?.lessonNotesPdf;
+  if (notes?.enabled === true) {
+    const noteSections = Array.isArray(notes.sections) ? notes.sections : [];
+    const learningGoal = String(notes.learningGoal || "").trim();
+    if (!learningGoal || noteSections.length < 2) {
+      throw new AssignmentAiError(
+        "failed-precondition",
+        "MathMaster AI returned an assignment with lesson notes enabled but without a complete student notes package. The assignment was rejected instead of saving blank notes. Use the outside-AI import option or try the build again.",
+      );
+    }
+  }
+
   const banked = replaceDirectCcmrQuestionsWithAuditedBank(parsed);
 
   return {
