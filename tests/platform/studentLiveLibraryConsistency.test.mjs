@@ -63,7 +63,8 @@ test('editing Dates & Classes publishes newly added Classroom destinations befor
 
 test('adding a new Standard or Honors destination reuses the assignment instead of requiring manual duplication', () => {
   const app = fs.readFileSync('src/App.jsx', 'utf8');
-  const start = app.indexOf('if (changesDestination)');
+  const saveDatesStart = app.indexOf('const handleSaveAssignmentDates');
+  const start = app.indexOf('if (changesDestination)', saveDatesStart);
   const end = app.indexOf('const hasDOL', start);
   const block = app.slice(start, end);
 
