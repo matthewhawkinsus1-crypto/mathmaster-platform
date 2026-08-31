@@ -24,18 +24,25 @@ test('V5 deployment helper runs release gates before deploying', () => {
   assert.match(script, /audit:no-legacy-assignment-bundle/);
 });
 
-test('V5 deployment helper builds Firebase production mode and deploys all server surfaces', () => {
+test('V5 deployment helper builds Firebase production mode and deploys server before web', () => {
   assert.match(script, /VITE_MATHMASTER_EXECUTION_MODE=firebaseProduction/);
   assert.match(script, /npm run build:firebase/);
-  assert.match(script, /firebase deploy --only firestore:rules,hosting/);
   assert.match(script, /deploy-functions-in-groups\.sh/);
+  assert.match(script, /firebase deploy --only firestore:rules/);
+  assert.match(script, /firebase deploy --only hosting/);
+  assert.ok(
+    script.indexOf('deploy-functions-in-groups.sh') < script.indexOf('firebase deploy --only hosting'),
+    'Functions must deploy before Hosting so the new client never leads the server runtime.',
+  );
 });
 
 test('V5 deployment helper verifies live Hosting after deployment', () => {
   assert.match(script, /https:\/\/\$PROJECT\.web\.app/);
   assert.match(script, /HTTP_STATUS/);
   assert.match(script, /firebase functions:list/);
-  assert.match(script, /Initialize \/ refresh built-in starter bank/);
+  assert.match(script, /Refresh course \+ ASVAB built-ins/);
+  assert.match(script, /Refresh released SAT \/ ACT \/ TSIA2/);
+  assert.match(script, /Initialize built-in bank \(fresh install\)/);
 });
 
 console.log('v5PreproductionDeployHelper.test.mjs: all assertions passed');
