@@ -806,25 +806,54 @@ export const LessonPreflightModal = ({
           </div>
         )}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.isHonorsReady && honorsReport.missing.some((key) => key !== 'ccmrEnrichment') && (
-          <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={buildHonorsDepthWithAi}
-              disabled={honorsAiBusy || !allowQuestionRepair}
-              title={!allowQuestionRepair ? 'Duplicate the assignment before rewriting Honors content because student records already exist.' : 'Use MathMaster’s embedded AI to repair the missing Honors depth requirements, then rerun Preflight.'}
-              style={{ minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: honorsAiBusy || !allowQuestionRepair ? '#c9b5df' : '#6f2da8', color: '#fff', fontWeight: 900, cursor: honorsAiBusy || !allowQuestionRepair ? 'not-allowed' : 'pointer' }}
-            >
-              {honorsAiBusy ? '✨ Repairing Honors depth…' : '✨ Build Honors Depth with MathMaster AI'}
-            </button>
+          <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
             {honorsReport.checks.coreTeks && (
-              <button type="button" disabled={!allowQuestionRepair || honorsAiBusy} onClick={() => {
-                const firstHonorsClass = selectedClassChoices.find((entry) => entry.courseLevel === 'honors');
-                setHonorsEnrichmentQuestion(buildHonorsEnrichmentQuestion({ questions: sourceRigorQuestions, course: firstHonorsClass?.course || 'algebra1' }));
-                setHonorsAiMessage('Local MathMaster extension added. This fallback can add depth, but it does not invent missing TEKS alignment.');
-              }} style={{ minHeight: 44, padding: '9px 15px', border: '1px solid #c7a9ea', borderRadius: 8, background: '#fff', color: '#6f2da8', fontWeight: 900 }}>
-                Add local depth extension
-              </button>
+              <div style={{ padding: '10px 11px', borderRadius: 9, background: '#f6f8ff', border: '1px solid #c7d5ef' }}>
+                <strong style={{ color: '#174ea6' }}>Fastest option — no AI required</strong>
+                <div style={{ marginTop: 4, color: '#4b5563', fontSize: 12.5, lineHeight: 1.5 }}>
+                  MathMaster can add one TEKS-preserving Honors extension that supplies multiple representations, justification, modeling/application, and DOK 3 depth. It does not change the existing questions.
+                </div>
+                <button
+                  type="button"
+                  disabled={!allowQuestionRepair || honorsAiBusy}
+                  onClick={addLocalHonorsDepth}
+                  style={{ marginTop: 8, minHeight: 42, padding: '8px 13px', border: '1px solid #6f2da8', borderRadius: 8, background: '#fff', color: '#6f2da8', fontWeight: 900, cursor: !allowQuestionRepair || honorsAiBusy ? 'not-allowed' : 'pointer' }}
+                >
+                  Add built-in Honors extension (no AI)
+                </button>
+              </div>
             )}
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={buildHonorsDepthWithAi}
+                disabled={honorsAiBusy || !allowQuestionRepair}
+                title={!allowQuestionRepair ? 'Duplicate the assignment before rewriting Honors content because student records already exist.' : 'Use MathMaster’s embedded AI to repair the missing Honors depth requirements, then rerun Preflight.'}
+                style={{ minHeight: 44, padding: '9px 15px', border: 0, borderRadius: 8, background: honorsAiBusy || !allowQuestionRepair ? '#c9b5df' : '#6f2da8', color: '#fff', fontWeight: 900, cursor: honorsAiBusy || !allowQuestionRepair ? 'not-allowed' : 'pointer' }}
+              >
+                {honorsAiBusy ? '✨ Repairing Honors depth…' : '✨ Build Honors Depth with MathMaster AI'}
+              </button>
+              <button type="button" onClick={copyHonorsDepthRepairRequest} disabled={honorsAiBusy || !allowQuestionRepair} style={{ minHeight: 44, padding: '9px 13px', border: '1px solid #c7a9ea', borderRadius: 8, background: '#fff', color: '#6f2da8', fontWeight: 900 }}>
+                Copy outside-AI repair request
+              </button>
+              <button type="button" onClick={pasteHonorsDepthResult} disabled={honorsAiBusy || !allowQuestionRepair} style={{ minHeight: 44, padding: '9px 13px', border: '1px solid #c7a9ea', borderRadius: 8, background: '#fff', color: '#6f2da8', fontWeight: 900 }}>
+                Paste AI Honors result
+              </button>
+              <button type="button" onClick={() => honorsRepairFileRef.current?.click()} disabled={honorsAiBusy || !allowQuestionRepair} style={{ minHeight: 44, padding: '9px 13px', border: '1px solid #c7a9ea', borderRadius: 8, background: '#fff', color: '#6f2da8', fontWeight: 900 }}>
+                Upload Honors JSON
+              </button>
+              <input
+                ref={honorsRepairFileRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={(event) => uploadHonorsDepthResult(event.target.files?.[0])}
+                style={{ display: 'none' }}
+              />
+            </div>
+            <div style={{ color: '#5f6368', fontSize: 11.5, lineHeight: 1.45 }}>
+              Outside-AI imports go through the same MathMaster safety gate as the embedded AI. Existing questions cannot be silently rewritten, removed, or reordered just to make the Honors check turn green.
+            </div>
           </div>
         )}
         {honorsAiMessage && (
