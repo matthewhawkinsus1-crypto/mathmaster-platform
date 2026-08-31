@@ -580,7 +580,7 @@
         "Track what reflection across $y=x$ does to both coordinates and to horizontal versus vertical lines."
       ],
       "supportHints": [
-        "A horizontal line $y=c$ reflects across $y=x$ to the vertical line $x=c$."
+        "Track how input-output coordinates exchange roles, then compare corresponding points and the orientation of key graph features."
       ],
       "generator": {
         "parameters": {
