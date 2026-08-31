@@ -60,17 +60,21 @@ echo "VITE_MATHMASTER_EXECUTION_MODE=firebaseProduction" > .env.production.local
 npm run build:firebase
 
 echo
-echo "6/7 Deploying Firestore rules and Hosting..."
-firebase deploy --only firestore:rules,hosting --project "$PROJECT"
-
-echo
-echo "Deploying Cloud Functions in quota-safe groups..."
+echo "6/7 Deploying Cloud Functions first in quota-safe groups..."
 if [ ! -d "$REPO_ROOT/functions/node_modules/firebase-functions" ]; then
   echo "Cloud Functions dependencies are missing after npm ci --prefix functions." >&2
   echo "Refusing to start grouped function deployment." >&2
   exit 4
 fi
 FIREBASE_PROJECT="$PROJECT" bash scripts/deploy-functions-in-groups.sh
+
+echo
+echo "Deploying Firestore rules..."
+firebase deploy --only firestore:rules --project "$PROJECT"
+
+echo
+echo "Deploying Hosting last, after the server runtime is current..."
+firebase deploy --only hosting --project "$PROJECT"
 
 echo
 echo "7/7 Verifying deployment..."
@@ -90,7 +94,11 @@ firebase functions:list --project "$PROJECT" | head -20 || true
 
 echo
 echo "=== V5 pre-production deploy completed ==="
-echo "Next browser step:"
+echo "Next browser steps:"
 echo "  Administration -> My Math Path content coverage"
-echo "  Run: Initialize / refresh built-in starter bank"
-echo "Then confirm Path deployment status shows matching web/server releases."
+echo "  Existing bank:"
+echo "    1. Refresh course + ASVAB built-ins"
+echo "    2. Refresh released SAT / ACT / TSIA2"
+echo "  Empty fresh installation:"
+echo "    Initialize built-in bank (fresh install)"
+echo "Then confirm Path deployment status shows matching web/server releases and run the live smoke checks."
