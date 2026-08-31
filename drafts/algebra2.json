@@ -1954,7 +1954,7 @@
       "assessedConstruct": "A2.2B",
       "type": "functionInvestigation",
       "representation": "graph",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "reverseReasoning",
       "prompt": "Construct both branches of $f(x)=\\frac{{{a}}}{x-({{h}})}{{k|signed}}$. Reflect the graph across $y=x$, draw the inverse, and write the inverse equation in $f^{-1}(x)$ notation.",
@@ -3623,7 +3623,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.2D",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "A student claims $f(x)=(x-({{h}}))^2{{k|signed}}$ on all real x and $g(x)=\\sqrt{x-({{k}})}+{{h}}$ are inverses because $f(g(x))=x$. Analyze the claim using the other composition.",
@@ -10709,7 +10709,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.4C",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "A student analyzes $g(x)=3\\sqrt{-9(x-({{h}}))}{{k|signed}}$ and says: “The -9 causes a horizontal stretch by 9 and reflects across the x-axis.” Diagnose both errors and give the correct graph effects.",
@@ -10832,7 +10832,7 @@
         {
           "coverageKey": "core-d3b5",
           "dok": 3,
-          "difficultyBand": 5
+          "difficultyBand": 4
         },
         {
           "coverageKey": "adaptive-d3b3-horizontal-scale-claim-repair",
@@ -11462,7 +11462,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.4D",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "Starting from standard form: A student transforms $f(x)={{a}}x^2{{b|signed}}x{{c|signed}}$ by completing the square, but makes the factoring mistake shown below. Diagnose it, repair the completing-square setup, finish vertex form, and identify the corrected vertex and extreme value.",
@@ -12093,7 +12093,7 @@
       "calculatorPolicy": "graphing",
       "assessedConstruct": "A2.4E",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "type": "dataModelingLab",
@@ -12183,7 +12183,7 @@
         {
           "coverageKey": "core-d3b5",
           "dok": 3,
-          "difficultyBand": 5
+          "difficultyBand": 4
         },
         {
           "coverageKey": "adaptive-d3b3-simple-regression-sign-audit",
@@ -13557,7 +13557,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.4G",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "A student squares $\\sqrt{x{{c|signed}}}=x-({{k}})$, solves the resulting quadratic, gets x={{u}} and x={{v}}, and declares BOTH answers valid because both satisfy the squared equation. Repair the student's conclusion by checking the original equation.",
@@ -13669,7 +13669,7 @@
         {
           "coverageKey": "core-d3b5",
           "dok": 3,
-          "difficultyBand": 5
+          "difficultyBand": 4
         },
         {
           "coverageKey": "adaptive-d3b3-small-number-squaring-audit",
@@ -15161,7 +15161,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.5A",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "A student analyzes $g(x)=-2\\log_3(x-({{h}})){{k|signed}}$ and claims: “The -2 moves the vertical asymptote to x=-2, the domain becomes x<-2, and the +{{k}} makes the graph increasing.” Repair the reasoning and give the corrected key attributes.",
@@ -15284,7 +15284,7 @@
         {
           "coverageKey": "core-d3b5",
           "dok": 3,
-          "difficultyBand": 5
+          "difficultyBand": 4
         },
         {
           "coverageKey": "adaptive-d3b3-single-role-error-audit",
@@ -17746,7 +17746,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.5E",
       "representation": "context",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "In a model, t is elapsed time, so $t\\ge0$. A student proposes $t={{candidate}}$ for $\\log_2(t+{{offset}})={{n}}$ and says it is reasonable because it satisfies the logarithmic equation. Check the original equation AND the context, then repair the student's verdict.",
@@ -18694,7 +18694,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.6A",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "For either odd parent $f(u)=u^3$ or $f(u)=\\sqrt[3]{u}$, a student analyzes $g(x)=-3f(-4(x-({{h}}))){{k|signed}}$ and says, “The two negatives mean there are no reflections, and 4 is the horizontal scale factor.” Diagnose the parameter effects correctly.",
@@ -20259,7 +20259,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.6C",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "A student says $g(x)=-2|-3(x-({{h}}))|{{k|signed}}$ has two visible reflections that cancel and a horizontal stretch by 3. Repair the analysis.",
@@ -23028,7 +23028,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.6G",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "A student analyzes $g(x)=2\\left(\\frac1{-4(x-({{h}}))}\\right){{k|signed}}$ and says b=-4 gives a horizontal stretch by 4 and moves the vertical asymptote to x=-{{h}}. Repair the analysis.",
