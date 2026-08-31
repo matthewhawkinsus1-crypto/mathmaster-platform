@@ -310,3 +310,27 @@ test('bank summary and revision brief expose QA state', () => {
   assert.equal(summary.production, 0);
   assert.match(buildPathQuestionRevisionBrief(question), /Secure expected answer/);
 });
+
+
+test('a stimulus graph satisfies a prompt that points to the displayed graph', () => {
+  const audit = auditPathQuestionQuality({
+    alignmentKeys: ['texas:A.6C'],
+    dok: 2,
+    difficultyBand: 4,
+    taskType: 'reverseReasoning',
+    representation: 'graph',
+    prompt: 'Read the two x-intercepts from the graph and write the quadratic equation.',
+    stimulus: {
+      kind: 'graph',
+      graph: {
+        points: [{ x: -2, y: 0 }, { x: 3, y: 0 }],
+      },
+    },
+    responseFields: [
+      { id: 'answer', label: 'Equation', inputProfile: 'equation', expected: 'y=(x+2)(x-3)' },
+    ],
+    supportHints: ['Use the intercepts to identify the factors.'],
+    solutionReview: { reasoning: ['Each zero gives one factor.', 'The monic product gives the equation.'] },
+  });
+  assert.ok(!audit.blockers.some((issue) => issue.code === 'missing-graph-representation'));
+});
