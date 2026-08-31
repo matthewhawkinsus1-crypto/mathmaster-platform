@@ -117,3 +117,50 @@ test('provider fails closed on malformed or non-V5 model output', async () => {
 });
 
 console.log('assignmentAiProvider.test.mjs: all assertions passed');
+
+
+test('provider rejects a creator result that omits required two-page lesson notes', async () => {
+  await assert.rejects(
+    () => callOpenAiAssignmentAuthor({
+      apiKey: 'ok',
+      prompt: [
+        '# MathMaster request',
+        '- REQUIRED OUTPUT CONTRACT: lessonNotesPdf.enabled=true; targetPages=2; learningGoal required; at least two content-bearing sections.',
+      ].join('\n'),
+      fetchImpl: async () => response(200, {
+        output: [{ content: [{ type: 'output_text', text: JSON.stringify(validAssignment) }] }],
+      }),
+    }),
+    /required two-page student notes package/i,
+  );
+});
+
+test('provider accepts a complete required two-page lesson notes package', async () => {
+  const complete = {
+    ...validAssignment,
+    outputProfiles: {
+      lessonNotesPdf: {
+        enabled: true,
+        targetPages: 2,
+        learningGoal: 'Represent and interpret linear relationships.',
+        sections: [
+          { heading: 'Key ideas', bullets: ['Slope describes rate of change.'] },
+          { heading: 'Reference pattern', bullets: ['Use y = mx + b to organize the model.'] },
+        ],
+      },
+    },
+  };
+  const result = await callOpenAiAssignmentAuthor({
+    apiKey: 'ok',
+    prompt: [
+      '# MathMaster request',
+      '- REQUIRED OUTPUT CONTRACT: lessonNotesPdf.enabled=true; targetPages=2; learningGoal required; at least two content-bearing sections.',
+    ].join('\n'),
+    fetchImpl: async () => response(200, {
+      output: [{ content: [{ type: 'output_text', text: JSON.stringify(complete) }] }],
+    }),
+  });
+  const parsed = JSON.parse(result.assignmentJson);
+  assert.equal(parsed.outputProfiles.lessonNotesPdf.targetPages, 2);
+  assert.equal(parsed.outputProfiles.lessonNotesPdf.sections.length, 2);
+});
