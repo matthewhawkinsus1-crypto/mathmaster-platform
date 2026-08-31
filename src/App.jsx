@@ -2908,7 +2908,7 @@ function App() {
               throw new Error('MathMaster could not find an audited CCMR Fidelity V2.1 Practice family on the same lesson TEKS for this Honors destination. Review the Practice TEKS or use a short checkpoint that is exempt from the CCMR target.');
             }
             if (!teacherReview?.honorsEnrichmentQuestion) {
-              throw new Error('This Honors destination still needs additional Honors depth. Return to preflight and choose Build Honors Depth Extension.');
+              throw new Error('This Honors destination still needs additional Honors depth. Return to preflight and choose Build Honors Depth with MathMaster AI.');
             }
             const firstHonorsDestination = destinationGroups.find((entry) => entry.courseLevel === 'honors');
             enrichmentQuestion = destination.course === firstHonorsDestination?.course
