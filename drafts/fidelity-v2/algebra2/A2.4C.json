@@ -796,7 +796,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.4C",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "A student analyzes $g(x)=3\\sqrt{-9(x-({{h}}))}{{k|signed}}$ and says: “The -9 causes a horizontal stretch by 9 and reflects across the x-axis.” Diagnose both errors and give the correct graph effects.",
@@ -919,7 +919,7 @@
         {
           "coverageKey": "core-d3b5",
           "dok": 3,
-          "difficultyBand": 5
+          "difficultyBand": 4
         },
         {
           "coverageKey": "adaptive-d3b3-horizontal-scale-claim-repair",
