@@ -4083,7 +4083,7 @@ function App() {
       || (targetGroups.length === 1 && currentLevel && targetGroups[0].courseLevel !== currentLevel);
     if (changesDestination) {
       toastError(
-        'Keep the destination separate',
+        'Use a destination copy',
         'This edit would move or mix a destination-specific Standard/Honors delivery. Add another class without removing the current class, or use the reusable Library source so MathMaster can preserve the correct rigor version.',
       );
       return;
