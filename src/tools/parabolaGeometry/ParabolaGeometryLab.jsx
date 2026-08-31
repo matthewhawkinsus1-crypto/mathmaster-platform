@@ -27,8 +27,8 @@ export default function ParabolaGeometryLab({ questionData = {}, onAction }) {
 function ParabolaVisual({spec,point=null}){
   const features=parabolaFeatures(spec);
   const fn=parabolaFunction(spec);
-  const points=[{0:features.vertex[0],1:features.vertex[1],label:'vertex',fill:'#1a73e8'},{0:features.focus[0],1:features.focus[1],label:'focus',fill:'#d93025'},...features.latusRectumEndpoints.map((p,i)=>({0:p[0],1:p[1],label:i===0?'latus rectum':'',fill:'#8a3ffc'}))];
-  if(point) points.push({0:point[0],1:point[1],label:'P',fill:'#137333'});
+  const points=[{x:features.vertex[0],y:features.vertex[1],label:'vertex',fill:'#1a73e8'},{x:features.focus[0],y:features.focus[1],label:'focus',fill:'#d93025'},...features.latusRectumEndpoints.map((p,i)=>({x:p[0],y:p[1],label:i===0?'latus rectum':'',fill:'#8a3ffc'}))];
+  if(point) points.push({x:point[0],y:point[1],label:'P',fill:'#137333'});
   return <CoordinatePlane xMin={-10} xMax={10} yMin={-10} yMax={10} functions={fn?[fn]:[]} points={points} verticalLines={features.directrix.kind==='vertical'?[features.directrix.value]:[]} horizontalLines={features.directrix.kind==='horizontal'?[features.directrix.value]:[]}>
     {({sx,sy})=> spec.orientation==='horizontal' ? <path d={`M ${sx(features.vertex[0])} ${sy(features.vertex[1]-5)} Q ${sx(features.vertex[0]+(spec.p>0?4:-4))} ${sy(features.vertex[1])} ${sx(features.vertex[0])} ${sy(features.vertex[1]+5)}`} fill="none" stroke="#1a73e8" strokeWidth="3"/> : null}
   </CoordinatePlane>;
