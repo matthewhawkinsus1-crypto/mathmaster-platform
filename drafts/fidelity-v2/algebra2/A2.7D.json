@@ -91,7 +91,7 @@
         "Use a valid rational-root candidate to reduce the degree before factoring the quotient."
       ],
       "supportHints": [
-        "Once P(r)=0, divide by x-r; the resulting quadratic is easier to factor."
+        "Verify a rational-root candidate by substitution first; once it makes the polynomial vanish, divide by its matching linear factor and factor the quotient."
       ],
       "generator": {
         "parameters": {
@@ -298,7 +298,7 @@
         "After each confirmed root, reduce the polynomial and continue on the quotient."
       ],
       "supportHints": [
-        "The Rational Root Theorem narrows candidates; P(r)=0 confirms a factor x-r."
+        "Use the Rational Root Theorem to narrow candidates, verify one by substitution, then use its matching linear factor to reduce the polynomial's degree."
       ],
       "generator": {
         "parameters": {
