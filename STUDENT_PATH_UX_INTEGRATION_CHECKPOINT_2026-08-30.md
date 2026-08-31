@@ -489,3 +489,108 @@ Next:
 2. resolve only true overlapping integration surfaces;
 3. rerun this same expanded Full Platform Test Suite on the combined state;
 4. only after combined green should the final merge/deployment and one-time built-in Path bank refresh be prepared.
+
+
+## 2026-08-30 — FINAL COMBINED PREPRODUCTION CERTIFICATION LOCKED
+
+The Algebra I/II Path fidelity/adaptive/student-experience audit is complete and certified together with the current `main` ASVAB release.
+
+### Green Algebra/Path candidate before main integration
+
+Full Platform Test Suite run `33346958570`: **PASS** on `d704cddb764c5b90bd101d278b1fafd39caf3d2c`.
+It passed:
+- all platform tests;
+- standalone tool tests;
+- both Firestore security-rule suites;
+- certified Algebra shipping-seed parity;
+- certified Algebra single release-authority audit;
+- strict Algebra adaptive metadata;
+- strict Algebra Challenge quality;
+- correct-answer acceptance;
+- standard web production build;
+- Firebase production web build;
+- lint.
+
+A normal durable checkpoint commit `9f82fd644fa3cffe4da2e9ff29e0b9a8c710c30e` locked that green state.
+
+### Current main / ASVAB integration
+
+At integration time `main` was:
+- `87ac9b32daabbf8a23845692b234421e57a9d436`
+- ASVAB direct: 735 authored families;
+- ASVAB Challenge: 441 authored families;
+- ASVAB total: 1,176 documents across 147 standard-subtest pairs;
+- Path release: `path-bank-2026-08-30-r13-asvab-challenge`.
+
+The audit branch was initially 35 commits behind `main`. The 21 files changed by those 35 commits were classified:
+- 18 main-only files were taken directly from current `main`;
+- 3 true overlaps were resolved deliberately:
+  - `functions/index.js`: take the r13 ASVAB runtime release while retaining the audited Functions work;
+  - `tests/platform/pathBankSeed.test.mjs`: retain the audit's variant-aware/no-repeat/student-safety checks and take ASVAB's 1,176 / 735 / 441 counts plus strict direct/challenge set parity;
+  - `tests/platform/pathSeedMirrorSync.test.mjs`: retain effective-variant renderability auditing and move total bundled documents 3,334 → 3,337.
+
+Integrated-content commit:
+- `b741886c51ab9d7fa9fec0af2b1183807e006df9`.
+
+True two-parent merge commit:
+- `4d103b25addbf2fdfc785dc3b923ac7268302850`;
+- parents:
+  - `b741886c51ab9d7fa9fec0af2b1183807e006df9` (certified audit/integrated content);
+  - `87ac9b32daabbf8a23845692b234421e57a9d436` (current main).
+
+After this merge:
+- audit branch status versus `main`: **ahead**;
+- behind `main`: **0**;
+- merge base: current `main`.
+
+A small reconciliation-only comment cleanup:
+- `0c9fafdc15fdc3794398013fc9bcd0cbbeac0a66`.
+
+### Final combined evidence
+
+Full Platform Test Suite run `33347293616`: **PASS** on `0c9fafdc15fdc3794398013fc9bcd0cbbeac0a66`.
+
+Every step passed on the combined Algebra + ASVAB branch:
+1. all platform tests;
+2. standalone tool tests;
+3. both Firestore security-rule suites;
+4. certified Algebra shipping-seed parity;
+5. certified Algebra release authority;
+6. strict adaptive DOK/difficulty metadata;
+7. strict Challenge quality;
+8. correct-answer acceptance;
+9. standard web runtime build;
+10. Firebase production web runtime build;
+11. lint.
+
+No integration-specific regression appeared.
+
+### Audit status
+
+**LOCKED / COMPLETE.**
+
+Do not reopen:
+- Algebra I TEKS Fidelity V2;
+- Algebra II TEKS Fidelity V2;
+- cross-course Challenge/Extension;
+- independent DOK × Difficulty family coverage;
+- Path adaptive targeting;
+- student Path journey UX;
+- navigation/completion recovery;
+- solution review coverage;
+- Algebra shipping-seed/release authority;
+- cross-system preproduction regression;
+
+unless a named regression gate fails.
+
+### Next phase
+
+The content/audit phase is finished. Remaining release work is operational:
+1. create the audit → `main` release PR from the combined green commit;
+2. verify the PR diff/merge boundary and required checks;
+3. merge to `main`;
+4. deploy the required Functions / Firestore rules / web surfaces;
+5. refresh the built-in production Path bank once after deployment;
+6. run a short post-deploy smoke check in live student + Teacher Path Simulator surfaces.
+
+Production Firestore Path content has **not** been refreshed by this audit checkpoint alone.
