@@ -1419,6 +1419,16 @@ const COORDINATED_CCMR_RELEASE_SEED_FILES = Object.freeze([
 ]);
 const COORDINATED_CCMR_RELEASE_FRAMEWORKS = Object.freeze(["act", "digitalSAT", "tsia2"]);
 
+const LIVE_BUILT_IN_REFRESH_SEED_FILES = Object.freeze([
+  "algebra1_pathQuestionBank_seed.json",
+  "algebra2_pathQuestionBank_seed.json",
+  "grade6_pathQuestionBank_seed.json",
+  "grade7_pathQuestionBank_seed.json",
+  "grade8_pathQuestionBank_seed.json",
+  "asvab_pathQuestionBank_seed.json",
+]);
+const LIVE_BUILT_IN_REFRESH_FRAMEWORKS = Object.freeze(["course", "asvab"]);
+
 async function loadAssessmentContentReleaseState(db, framework, records = []) {
   const manifestSnapshot = await db.collection(CONTENT_RELEASE_MANIFEST_COLLECTION).doc(CONTENT_RELEASE_MANIFEST_DOC).get();
   const manifest = manifestSnapshot.exists ? manifestSnapshot.data() : null;
@@ -1767,6 +1777,20 @@ function loadBuiltInStarterPathSeed() {
   return builtInStarterPathSeedCache;
 }
 
+function loadLiveBuiltInPathRefreshSeed() {
+  const seedDirectory = path.join(__dirname, "seeds", "pathQuestionBank");
+  const items = LIVE_BUILT_IN_REFRESH_SEED_FILES.flatMap((fileName) => {
+    const parsed = JSON.parse(fs.readFileSync(path.join(seedDirectory, fileName), "utf8"));
+    return Array.isArray(parsed) ? parsed : (parsed.documents || parsed.items || parsed.questions || []);
+  });
+  if (!items.length) throw new Error("The live course + ASVAB Path refresh package is empty.");
+  const ids = new Set(items.map((item) => String(item?.id || "").trim()));
+  if (ids.size !== items.length || ids.has("")) {
+    throw new Error("The live course + ASVAB Path refresh package contains missing or duplicate IDs.");
+  }
+  return items;
+}
+
 function loadCoordinatedCcmrReleaseSeed() {
   const seedDirectory = path.join(__dirname, "seeds", "pathQuestionBank");
   const items = COORDINATED_CCMR_RELEASE_SEED_FILES.flatMap((fileName) => {
@@ -1785,6 +1809,27 @@ async function removeSupersededBuiltInPathSeedRecords(db, currentItems) {
   const obsolete = snapshot.docs.filter((doc) => {
     if (currentIds.has(doc.id)) return false;
     const data = doc.data() || {};
+    return data.builtInPathSeed === BUILT_IN_PATH_SEED_MARKER
+      || data?.seedMetadata?.source === LEGACY_BUILT_IN_PATH_SEED_SOURCE;
+  });
+
+  for (let index = 0; index < obsolete.length; index += 400) {
+    const batch = db.batch();
+    obsolete.slice(index, index + 400).forEach((doc) => batch.delete(doc.ref));
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+  return obsolete.length;
+}
+
+async function removeSupersededBuiltInCourseAndAsvabRecords(db, currentItems) {
+  const currentIds = new Set(currentItems.map((item) => String(item?.id || "").trim()).filter(Boolean));
+  const snapshot = await db.collection("pathQuestionBank").get();
+  const obsolete = snapshot.docs.filter((doc) => {
+    if (currentIds.has(doc.id)) return false;
+    const data = doc.data() || {};
+    const framework = String(data?.assessmentContext?.framework || data?.assessmentFramework || "course").trim() || "course";
+    if (!LIVE_BUILT_IN_REFRESH_FRAMEWORKS.includes(framework)) return false;
     return data.builtInPathSeed === BUILT_IN_PATH_SEED_MARKER
       || data?.seedMetadata?.source === LEGACY_BUILT_IN_PATH_SEED_SOURCE;
   });
@@ -1903,6 +1948,80 @@ async function livePathSkillIsLaunchable(db, targetAlignmentKey) {
  * the root-admin callable can ask the server to install it, and the client gets
  * counts/status back rather than the seed contents.
  */
+/**
+ * Root-admin existing-install refresh for the built-in COURSE + ASVAB banks.
+ *
+ * SAT, ACT, and TSIA2 are intentionally absent. They are release-managed by
+ * refreshReleasedCcmrPathBanks and must never be changed by this operation.
+ */
+exports.refreshBuiltInCourseAndAsvabPathBanks = onCall({ timeoutSeconds: 540, memory: "1GiB" }, async (request) => {
+  const actor = await requireRootAdmin(request);
+  const db = getFirestore();
+
+  let items;
+  try {
+    items = loadLiveBuiltInPathRefreshSeed();
+  } catch (error) {
+    logger.error("Could not load live course + ASVAB Path refresh package", error);
+    throw new HttpsError("failed-precondition", "The course + ASVAB Path refresh package is unavailable in this deployment.");
+  }
+
+  const unexpectedFrameworks = [...new Set(items.map((item) => (
+    String(item?.assessmentContext?.framework || item?.assessmentFramework || "course").trim() || "course"
+  )).filter((framework) => !LIVE_BUILT_IN_REFRESH_FRAMEWORKS.includes(framework)))].sort();
+  if (unexpectedFrameworks.length) {
+    throw new HttpsError(
+      "failed-precondition",
+      "The course + ASVAB refresh package contains protected framework content: " + unexpectedFrameworks.join(", ") + ".",
+    );
+  }
+
+  const taggedItems = items.map((item) => ({
+    ...item,
+    builtInPathSeed: BUILT_IN_PATH_SEED_MARKER,
+    builtInPathSeedRelease: PATH_RUNTIME_RELEASE,
+  }));
+
+  // Validate the entire package first. No Firestore mutation occurs unless
+  // every course/ASVAB family is issuable by the production server.
+  const validation = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: true });
+  if (validation.rejected?.length || validation.wouldAccept !== taggedItems.length) {
+    return { ...validation, phase: "validation" };
+  }
+
+  const seed = await processPathSeedImport({ db, actor, items: taggedItems, dryRun: false });
+  if (!seed.imported) {
+    throw new HttpsError("failed-precondition", "The course + ASVAB Path refresh failed its write-time validation.");
+  }
+
+  // Cleanup is scoped to course and ASVAB built-ins only. Coordinated
+  // SAT/ACT/TSIA2 documents and their release manifest are untouched.
+  const removedSuperseded = await removeSupersededBuiltInCourseAndAsvabRecords(db, taggedItems);
+  const coverage = await rebuildStoredPathCoverage(db);
+
+  const frameworkCounts = taggedItems.reduce((acc, item) => {
+    const framework = String(item?.assessmentContext?.framework || item?.assessmentFramework || "course").trim() || "course";
+    acc[framework] = (acc[framework] || 0) + 1;
+    return acc;
+  }, {});
+
+  await writeAdminAudit(db, actor, "course_asvab_path_banks_refreshed", "pathQuestionBank", {
+    accepted: seed.accepted,
+    removedSuperseded,
+    frameworkCounts,
+    runtimeRelease: PATH_RUNTIME_RELEASE,
+  });
+
+  return {
+    ...seed,
+    phase: "complete",
+    removedSuperseded,
+    coverage,
+    frameworkCounts,
+    runtimeRelease: PATH_RUNTIME_RELEASE,
+  };
+});
+
 exports.initializeStarterPathQuestionBank = onCall({ timeoutSeconds: 540, memory: "1GiB" }, async (request) => {
   const actor = await requireRootAdmin(request);
   const db = getFirestore();
