@@ -48,7 +48,7 @@ const studentNameKeys = (student = {}) => {
     labels.add(normalizePersonName(`${last} ${first}`));
     labels.add(normalizePersonName(`${last}, ${first}`));
   }
-  [student.displayName, student.name, student.profile?.displayName]
+  [student.displayName, student.name, student.googleName, student.profile?.displayName, student.profile?.googleName]
     .filter(Boolean)
     .forEach((value) => labels.add(normalizePersonName(value)));
   return [...labels].filter(Boolean);
@@ -140,8 +140,11 @@ export const applyRosterIdentityRows = (students = [], identityRows = []) => {
     if (!row) return student;
     return {
       ...student,
-      displayName: student.displayName || student.googleName || row.name || undefined,
-      schoolEmail: student.schoolEmail || student.googleEmail || row.email || undefined,
+      // A teacher-supplied identity bridge is explicitly for resolving an
+      // ID-only or incorrectly-linked roster, so it takes precedence for this
+      // temporary matching view. It does not persist anything by itself.
+      displayName: row.name || student.displayName || student.googleName || undefined,
+      schoolEmail: row.email || student.schoolEmail || student.googleEmail || undefined,
       identityBridge: {
         source: 'teacher-paste',
         name: row.name || '',
