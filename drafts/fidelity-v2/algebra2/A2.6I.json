@@ -61,7 +61,7 @@
         "First isolate the fraction; then clear the denominator without losing the horizontal shift."
       ],
       "supportHints": [
-        "The denominator is x-({{h}}), so x={{h}} is excluded before you solve."
+        "Before solving, find the excluded input by setting the denominator expression equal to zero; then isolate the rational term."
       ],
       "generator": {
         "parameters": {
