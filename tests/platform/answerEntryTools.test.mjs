@@ -73,8 +73,14 @@ test('unsupported notation is detectable for Preflight', () => {
 });
 
 
-test('interval keypad always exposes a comma for bounded intervals and coordinates', () => {
+test('mobile math entry and the interval profile always expose a comma', () => {
   const source = readFileSync('src/MathInput.jsx', 'utf8');
+  const mobileStart = source.indexOf('const MOBILE_ENTRY_KEYS = [');
+  const mobileEnd = source.indexOf('];', mobileStart);
+  const mobileBlock = source.slice(mobileStart, mobileEnd);
+  assert.match(mobileBlock, /label: ',', command: ','/);
+
+
   const intervalStart = source.indexOf('const INTERVAL_KEYS = [');
   const intervalEnd = source.indexOf('];', intervalStart);
   const intervalBlock = source.slice(intervalStart, intervalEnd);
