@@ -65,13 +65,15 @@ test('unstaged Algebra I families are carried forward without mutation', () => {
   }
 });
 
-test('staged standards contain only new Fidelity V2 family ids', () => {
-  const oldIds = new Set(base.filter((doc) => overrideCodes.has(codeOf(doc))).map((doc) => doc.id));
-  const oldFamilyIds = new Set(base.filter((doc) => overrideCodes.has(codeOf(doc))).map((doc) => doc.familyId));
+test('certified standards contain only Fidelity V2 identities and no duplicate ids', () => {
+  const ids = new Set();
+  const familyIds = new Set();
   for (const doc of replacements) {
-    assert.equal(oldIds.has(doc.id), false, `${doc.id} reuses a published id`);
-    assert.equal(oldFamilyIds.has(doc.familyId), false, `${doc.familyId} reuses a published familyId`);
-    assert.ok(doc.id.includes('_v2_'));
-    assert.ok(doc.familyId.includes(':v2-'));
+    assert.ok(doc.id.includes('_v2_'), `${doc.id} is not a Fidelity V2 id`);
+    assert.ok(doc.familyId.includes(':v2-'), `${doc.familyId} is not a Fidelity V2 family id`);
+    assert.equal(ids.has(doc.id), false, `duplicate certified id ${doc.id}`);
+    assert.equal(familyIds.has(doc.familyId), false, `duplicate certified familyId ${doc.familyId}`);
+    ids.add(doc.id);
+    familyIds.add(doc.familyId);
   }
 });
