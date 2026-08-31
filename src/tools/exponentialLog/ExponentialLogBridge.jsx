@@ -46,8 +46,8 @@ function InversePairGraph({ spec, sampleX = 1 }) {
       verticalLines={[spec.k]}
       horizontalLines={[spec.k]}
       points={[
-        { 0: pointPair.exponential[0], 1: pointPair.exponential[1], label: 'on f', fill: '#1a73e8' },
-        { 0: pointPair.logarithm[0], 1: pointPair.logarithm[1], label: 'on f⁻¹', fill: '#d93025' },
+        { x: pointPair.exponential[0], y: pointPair.exponential[1], label: 'on f', fill: '#1a73e8' },
+        { x: pointPair.logarithm[0], y: pointPair.logarithm[1], label: 'on f⁻¹', fill: '#d93025' },
       ]}
     />
     <p style={{ color: '#5f6b7a', marginBottom: 0 }}>Blue f and red f⁻¹ reflect across y = x. The horizontal asymptote y = k becomes the inverse’s vertical asymptote x = k.</p>

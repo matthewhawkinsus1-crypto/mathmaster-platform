@@ -189,8 +189,8 @@ export default function InverseCompositionLab({ questionData = {}, onAction }) {
             functions={[graphF, ...(canInvert ? [graphInverse] : [])]}
             lines={[{m:1,b:0,stroke:'#667085'}]}
             points={Number.isFinite(fx) && canInvert ? [
-              {0:Number(x),1:fx,label:'(x, f(x))',fill:'#1a73e8'},
-              {0:fx,1:inverseAtFx,label:'swapped',fill:'#d93025'},
+              {x:Number(x),y:fx,label:'(x, f(x))',fill:'#1a73e8'},
+              {x:fx,y:inverseAtFx,label:'swapped',fill:'#d93025'},
             ] : []}
           />
           <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginTop:10,fontSize:12}}>

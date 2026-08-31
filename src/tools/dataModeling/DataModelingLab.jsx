@@ -57,7 +57,7 @@ function ResidualPlot({ rows, xMin, xMax }) {
   const absMax = Math.max(2, ...rows.map((row) => Math.abs(row.residual || 0)));
   return (
     <CoordinatePlane xMin={xMin} xMax={xMax} yMin={-Math.ceil(absMax)} yMax={Math.ceil(absMax)} height={250}
-      points={rows.map((row) => ({ 0:row.x, 1:row.residual, label:'' }))}
+      points={rows.map((row) => ({ x:row.x, y:row.residual, label:'' }))}
       horizontalLines={[0]} />
   );
 }
@@ -239,7 +239,7 @@ export default function DataModelingLab({ questionData = {}, onAction }) {
         <Panel title="1 · Scatter plot and your model">
           <CoordinatePlane
             xMin={xMin} xMax={xMax} yMin={yMin} yMax={yMax}
-            points={points.map(([x,y]) => ({ 0:x, 1:y }))}
+            points={points.map(([x,y]) => ({ x, y }))}
             lines={showModelEntry && !['quadraticFit', 'quadraticFitPrediction', 'exponentialFit', 'exponentialFitPrediction', 'squareRootFitPrediction'].includes(mode) && linearModelReady ? [{ m:Number(m), b:Number(b) }] : []}
             functions={['quadraticFit', 'quadraticFitPrediction', 'exponentialFit', 'exponentialFitPrediction', 'squareRootFitPrediction'].includes(mode) && nonlinearModelReady ? [studentPredict] : []}
           />
