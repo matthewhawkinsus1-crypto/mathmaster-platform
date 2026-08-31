@@ -18,6 +18,7 @@ const certifiedDocuments = () => COURSE_DIRS.flatMap((dir) => (
     .flatMap((name) => JSON.parse(readFileSync(join(dir, name), 'utf8')).documents || [])
 ));
 
+// This source gate runs again after shipping promotion so source and deployed mirrors cannot quietly diverge.
 test('every effective certified Algebra I/II Path row keeps hints non-revealing', () => {
   const leaks = [];
   for (const family of certifiedDocuments()) {
