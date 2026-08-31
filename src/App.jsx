@@ -4082,40 +4082,9 @@ function App() {
       || (targetGroups.length === 1 && currentCourse && targetGroups[0].course !== currentCourse)
       || (targetGroups.length === 1 && currentLevel && targetGroups[0].courseLevel !== currentLevel);
     if (changesDestination) {
-      const originalClassIds = Array.isArray(assignment.assignedClassIds)
-        ? assignment.assignedClassIds.filter(Boolean)
-        : [];
-      const addedClassIds = editedClassIds.filter((classId) => !originalClassIds.includes(classId));
-      const keptEveryOriginalClass = originalClassIds.every((classId) => editedClassIds.includes(classId));
-
-      // Adding another destination is a reuse operation, not a reason to make
-      // the teacher duplicate/rebuild the assignment. Preserve the existing
-      // class delivery and send only the newly-added classes through the same
-      // reviewed destination pipeline used at creation. That pipeline is what
-      // safely produces an Honors-depth variant when Standard + Honors differ.
-      if (addedClassIds.length && keptEveryOriginalClass) {
-        const addedRecords = classes.filter((entry) => addedClassIds.includes(entry.classId) && entry?.status !== 'archived');
-        const addedPeriods = [...new Set(addedRecords.map((entry) => entry.period).filter(Boolean))];
-        openStoredAssignmentForPreflight(assignment, {
-          title: assignment.title,
-          folder: assignment.folder || '',
-          dueAt: editingAssignmentDates.dueAt,
-          lateDueAt: editingAssignmentDates.lateDueAt || '',
-          assignedClassIds: addedClassIds,
-          assignedClassPeriods: addedPeriods,
-          dolInstructionDate: editingAssignmentDates.dolInstructionDate || '',
-        });
-        setEditingAssignmentId(null);
-        toastInfo(
-          'Review the added class delivery',
-          'Your existing class assignment stays unchanged. MathMaster reused its content and prepared only the newly added class(es), including the correct Standard/Honors depth.',
-        );
-        return;
-      }
-
       toastError(
         'Keep the destination separate',
-        'This edit would move or mix a destination-specific Standard/Honors delivery. Add the new class while keeping the current class selected, or use the reusable Library source so MathMaster can preserve the correct rigor version.',
+        'This edit would move or mix a destination-specific Standard/Honors delivery. Add another class without removing the current class, or use the reusable Library source so MathMaster can preserve the correct rigor version.',
       );
       return;
     }
