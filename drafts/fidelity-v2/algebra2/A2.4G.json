@@ -606,7 +606,7 @@
         "Do not use 'time must be nonnegative' as the reason here; both candidates pass that context check."
       ],
       "supportHints": [
-        "Check each candidate in the original radical equation; reject any candidate that fails the original condition."
+        "Substitute each proposed time into the original relation and compare the two sides before accepting or rejecting a candidate."
       ],
       "generator": {
         "parameters": {
