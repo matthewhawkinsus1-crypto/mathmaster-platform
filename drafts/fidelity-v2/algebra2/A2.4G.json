@@ -606,7 +606,7 @@
         "Do not use 'time must be nonnegative' as the reason here; both candidates pass that context check."
       ],
       "supportHints": [
-        "Substitution into the original radical equation is what identifies the extraneous candidate."
+        "Substitute each candidate into the original radical equation and compare its left and right sides; keep only candidates that make the original equation true."
       ],
       "generator": {
         "parameters": {
