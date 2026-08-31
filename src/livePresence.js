@@ -1,3 +1,5 @@
+import { formatStudentName } from './platform/studentName.js';
+
 // Live class monitoring, as pure functions so the whole thing is testable
 // without Firestore.
 //
@@ -152,7 +154,7 @@ const mean = (values) => (values.length
  */
 export const classifyLiveStudent = (student, { classStats = null, nowValue = Date.now() } = {}) => {
   const live = student?.liveStatus && typeof student.liveStatus === 'object' ? student.liveStatus : null;
-  const name = student?.name || student?.profile?.name || student?.id || 'Student';
+  const name = formatStudentName(student, { lastFirst: false, fallbackToId: true });
   const base = {
     id: student?.id || '',
     name,
