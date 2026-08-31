@@ -125,3 +125,65 @@ test('five families is exactly what a five-question session needs', () => {
   assert.equal(canFillSessionWithoutRepeats(STANDARD, 5), true);
   assert.equal(canFillSessionWithoutRepeats(STANDARD.slice(0, 4), 5), false);
 });
+
+
+test('an unused Candidate family beats a used Production family', () => {
+  const production = {
+    id: 'production-used',
+    difficultyBand: 3,
+    dok: 2,
+    prompt: 'Use the displayed choices to identify the correct mathematical relationship.',
+    alignmentKeys: ['texas:A.2A'],
+    taskType: 'conceptual',
+    representation: 'verbal',
+    responseFields: [{ id: 'answer', label: 'Answer', inputProfile: 'choice', expected: 'a' }],
+    choices: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+    solutionReview: { reasoning: ['First reason.', 'Second reason.'] },
+  };
+  const candidate = {
+    id: 'candidate-unused',
+    difficultyBand: 3,
+    dok: 2,
+    prompt: 'Determine the interval represented by the mathematical condition shown.',
+    alignmentKeys: ['texas:A.2A'],
+    taskType: 'procedural',
+    representation: 'symbolic',
+    responseFields: [{ id: 'answer', label: 'Interval', inputProfile: 'interval', expected: '[0,1]' }],
+    solutionReview: { reasoning: ['Read the lower endpoint.'] },
+  };
+  const choice = selectNextFamily([production, candidate], {
+    preferredBand: 3,
+    usage: { 'production-used': { timesUsed: 1, lastUsedAt: 1 } },
+  });
+  assert.equal(choice.question.id, 'candidate-unused');
+  assert.equal(choice.isRepeat, false);
+});
+
+test('an Operational placeholder does not beat a used Production family just to avoid a repeat', () => {
+  const production = {
+    id: 'production-used',
+    difficultyBand: 3,
+    dok: 2,
+    prompt: 'Use the displayed choices to identify the correct mathematical relationship.',
+    alignmentKeys: ['texas:A.2A'],
+    taskType: 'conceptual',
+    representation: 'verbal',
+    responseFields: [{ id: 'answer', label: 'Answer', inputProfile: 'choice', expected: 'a' }],
+    choices: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+    solutionReview: { reasoning: ['First reason.', 'Second reason.'] },
+  };
+  const placeholder = {
+    id: 'placeholder-unused',
+    difficultyBand: 3,
+    dok: 2,
+    prompt: 'Enter the requested mathematical response in the box provided below.',
+    alignmentKeys: ['texas:A.2A'],
+    responseFields: [{ id: 'answer', label: 'Answer', inputProfile: 'text', expected: 'value' }],
+  };
+  const choice = selectNextFamily([production, placeholder], {
+    preferredBand: 3,
+    usage: { 'production-used': { timesUsed: 1, lastUsedAt: 1 } },
+  });
+  assert.equal(choice.question.id, 'production-used');
+  assert.equal(choice.isRepeat, true);
+});
