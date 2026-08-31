@@ -224,7 +224,18 @@ const studentFacingStrings = (question = {}) => [
 ].filter(Boolean).map(String);
 
 const expectedValues = (question = {}) => [
-  ...list(question.responseFields).map((field) => field?.expected),
+  ...list(question.responseFields).map((field) => {
+    if (text(field?.inputProfile) !== 'choice') return field?.expected;
+    const choices = list(field?.choices).length ? list(field.choices) : list(question.choices);
+    const expectedId = text(field?.expected);
+    const choice = choices.find((entry) => text(
+      typeof entry === 'object' ? (entry?.id ?? entry?.value) : entry,
+    ) === expectedId);
+    // Choice ids are internal routing keys, not student-facing answers. A hint
+    // that happens to contain "no", "a" or "scale" must not be treated as an
+    // answer leak unless it actually states the visible correct option.
+    return choice && typeof choice === 'object' ? choice.label : choice;
+  }),
   question.answer,
   question.correctAnswer,
 ].filter((value) => value !== undefined && value !== null).map((value) => String(value));
