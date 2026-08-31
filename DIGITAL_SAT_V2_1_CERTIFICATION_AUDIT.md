@@ -349,61 +349,125 @@ taken against the compiled draft:
 ```
 node scripts/build-digital-sat-v2-1.mjs --release          # -> drafts/digitalSAT.v2.1.json
 node scripts/audit-digital-sat-certification.mjs --source drafts/digitalSAT.v2.1.json \
-  --samples 400 --yield 2000 --json drafts/ccmr-v2.1/audit-results/digital-sat-certification.json
+  --samples 400 --yield 2000
 ```
 
 ## Verdicts, before and after
 
 | Verdict | Audited | After repairs |
 | --- | ---: | ---: |
-| KEEP | 165 | **508** |
+| KEEP | 165 | **664** |
 | REVISE | 320 | **0** |
-| REPLACE | 179 | **156** |
+| REPLACE | 179 | **0** |
+
+Every one of the 664 families is defensible on its own: no family leaks its key,
+none is answerable without doing the mathematics, none fails to generate, and
+no challenge family repeats a direct family's task.
 
 ## What is fixed
 
 | Defect | Before | After |
 | --- | ---: | ---: |
 | Multiple-choice families leaking the key through `sat-correct` | 498 | **0** |
+| Static families rendering the answer in position A every time | 9 | **0** |
+| Families whose correct answer never changed across draws | 8 | **0** |
+| Magnitude-answerable families | 177 | **0** |
+| Families rendering `1x`, `+ 0`, or an unresolved placeholder | 244 | **0** |
 | Families failing to generate on some seeds | 1 | **0** |
 | Families rendering duplicate options | 1 | **0** |
-| Magnitude-answerable families, Geometry and Trigonometry | 21 | **0** |
-| Magnitude-answerable families, all domains | 177 | 156 |
-| Genuine unreduced-fraction items | 3 | **1** |
+| Challenge families repeating a direct family's task | 2 | **0** |
+| Challenge families reusing a direct family's generator | 0 | 0 |
 | Cross-framework contamination | 0 | 0 |
-| Generator clones | 0 | 0 |
 
-The answer key is now spread across choice ids — a 123, b 127, c 119, d 129 —
+The answer key is spread across choice ids — a 121, b 131, c 120, d 126 —
 rather than sitting on one, and every multiple-choice family still keys a choice
 that exists and carries its answer variable.
 
-Geometry and Trigonometry is the one domain fully certified: all 21 flagged
-families now bracket their key with an overshoot, an undershoot and a genuine
-straddle, verified at 800 draws each and read by hand.
+### The two answer leaks
+
+Both were readable from the browser with no mathematics at all.
+
+Every multiple-choice family keyed its correct option with the literal id
+`sat-correct`, and `buildSanitizedQuestion` strips `expected`, not `id` — so the
+key travelled to the DOM on all 498 of them. The ids are opaque letters now,
+rotated per family by a hash of the family id so the letter itself carries
+nothing.
+
+Nine families had no generator at all. `generatePathInstance` returns before the
+option shuffle when a template has no parameters, so those nine rendered their
+key at index 0 in 45 draws out of 45 — while generated families spread across
+all four positions. They now draw a `variant` parameter whose only job is to
+seed the shuffle. Digital SAT was the only bank with static multiple-choice
+families, so nothing else was affected.
+
+### Eight items whose answer never changed
+
+Separate from the position leak, eight families constructed their parameters so
+the correct answer was the same in every draw: "how many distinct real
+solutions" was always 2, "how many points of intersection" always 2, "how many
+solutions does the original equation have" always 1, "how many points do the
+graphs have in common" always 0. A student who never read the equation scored
+every time. Each now draws which case it presents — a negative, zero or positive
+discriminant; a line above, through or below the vertex; a denominator that does
+or does not cancel a numerator factor — and derives the three wrong counts
+around whichever came up.
+
+### 177 magnitude-answerable families
+
+The single largest body of work. Three shapes of defect, and the fix in each
+case is that at least one option now crosses the key as the parameters move:
+
+* **Ordered offset sets.** Distractors built as `answer-1`, `answer+1`,
+  `answer+2` put the key on a fixed rung of a ladder. Replaced with real
+  misconceptions.
+* **Symmetric quartets.** Options of the form `{x, -x, y, -y}` make the key an
+  extreme by construction. Each gains a value outside that symmetry.
+* **One-sided scaling.** Every distractor below the key because scaling only
+  ever grows from positive parameters. Signed parameters — which is how the exam
+  writes coefficients anyway — put options on both sides.
+
+A generic distractor template had also leaked into eleven families: for a key of
+`2h` the options were literally `2+h`, `2`, and `h`. Those carry no
+misconception at all and are replaced throughout.
+
+Where the mathematics resisted, the item changed rather than the options.
+A.10C's challenge asked for the constant of a quadratic dividend, which is the
+product of the two divisor constants and therefore dwarfs every honest
+distractor; it asks for the linear coefficient now. A.6C's y-intercept is the
+product of the roots, so it gains a leading coefficient, which puts the same
+product at two other scales, one either side of the key. A2.7G's exponent item
+had a single parameter, so all four options were built from it; it carries a
+second exponent under the radical now.
+
+### 244 rendering warts
+
+Rendering every family and reading the output turned up text the exam never
+prints: `y > 1x + 4`, `y = 6x + 0`, `$5(x + 0)=-40$`, `x^{2/4}`, `x^{-4/2}`,
+`x^12` rendering as `x¹` followed by a loose `2`, and one placeholder
+(`{{2*x0}}`) that the renderer passed through verbatim because the expression
+grammar is not available inside review text. Every one comes from a parameter
+range that admits 0 or ±1 in a coefficient or constant slot, so every repair is
+an exclude on a parameter or a constraint on a derived value. No renderer and no
+shared code is touched.
 
 ## What is not fixed
 
-**156 families remain answerable by the size of their options**, all outside
-Geometry and Trigonometry:
+**156 clone findings remain**, all of them same-tier similarity inside a single
+standard: 87 shared sentence frames, 44 prompt overlaps, 25 shared task
+structures. These are `revise`-severity and largely inherent to a bank organised
+five-direct-plus-three-challenge per standard — A.10A's "add these two
+quadratics" and "subtract these two quadratics" families are word-identical
+apart from the operator, and that contrast is the point of the pair. They were
+not churned, per the instruction not to rewrite good material.
 
-| Domain | Remaining | Of which challenge |
-| --- | ---: | ---: |
-| Advanced Math | 91 | ~60 |
-| Algebra | 37 | ~20 |
-| Problem-Solving and Data Analysis | 28 | ~10 |
+One cross-tier pair is accepted with a reason rather than repaired.
+`taskFingerprint` reads generator structure, so A.10D's challenge ("factor
+`-Ax² - Bx`", which needs the negative and the variable factor together)
+fingerprints the same as the direct family's "factor `Ax + B`". The challenge
+does strictly more work; distorting the item to satisfy a fingerprint would make
+it worse, not better.
 
-These are pinned in `tests/platform/digitalSatAnswerKeyIntegrity.test.mjs` as
-`MAGNITUDE_ANSWERABLE_CEILING`, asserted exactly, so the count can only fall:
-repairing families fails the test and forces the ceiling down, and a regression
-fails it too.
-
-The 165 clone findings (87 frame, 46 prompt overlap, 31 task, 17 cross-tier)
-are unchanged. Section 7 explains why the cross-tier figure is largely an
-artifact of a task fingerprint tuned to the ASVAB register; the frame and
-overlap findings are real but cosmetic, and were not worth churning content for
-ahead of the distractor work.
-
-Domain weighting is unchanged and still off blueprint — Advanced Math +18
+**Domain weighting is unchanged and still off blueprint** — Advanced Math +18
 points, Geometry and Trigonometry −10. Raising Geometry and Trigonometry toward
 its real weight is new authoring at a scale that deserves its own decision, as
 section 12 said.
@@ -423,26 +487,41 @@ production mirrors are not, because refreshing them was explicitly out of scope.
 The test goes green the moment a seed regeneration is authorised. ACT, TSIA2 and
 the three course banks show no drift.
 
-The test was not modified to accommodate this. Two fixtures in
-`digitalSatDistractorQualityRegression.test.mjs` were re-pointed, and only
-because the two families they pin were rebuilt here: `satDistractor3: 'r*r'`
-became `dWhole: '4*k*k'` and `satDistractor3: '180-answer'` became
-`dAdjacent: '180-a-b'`. Both are the same quantity under a name that says what
-the misconception is.
+The test was not modified to accommodate this. Fixtures in
+`digitalSatDistractorQualityRegression.test.mjs` were re-pointed, and only for
+families rebuilt here. Most are renames — `satDistractor3: 'r*r'` became
+`dWhole: '4*k*k'`, the same quantity under a name that says which misconception
+it encodes. Six are genuine replacements, and each carries a comment saying what
+the old option was and why it had to go: in every case the pinned option was
+itself part of what kept the key at a fixed rank.
 
 ## Verification
 
 | Check | Result |
 | --- | --- |
-| `node --test "tests/platform/*.test.mjs"` | 2,659 tests, 2,658 pass, **1 fail** (the mirror drift above) |
-| `node --test tests/platform/digitalSat*.test.mjs` | 18 tests, **18 pass** |
+| `node --test "tests/platform/*.test.mjs"` | 2,660 tests, 2,659 pass, **1 fail** (the mirror drift above) |
+| `node --test "tests/platform/digitalSat*.test.mjs"` | 19 tests, **19 pass** |
 | `npm run build` | clean |
 | `npm run lint` | **0 errors** |
-| Compiled draft | 664 documents, 415 direct / 249 challenge, unchanged |
+| Compiled draft | 664 documents, 415 direct / 249 challenge, 498 MCQ / 166 SPR |
 | Generation yield | **0 failures** across 664 families at 2,000 draws |
+| Answer-key spread | a 121, b 131, c 120, d 126 |
 | Cross-framework contamination | **0** |
+| Cross-tier and generator clones | **0** |
 
-## Two bugs in the audit tooling, found and fixed
+The 19 Digital SAT tests live in six files, three of them written or extended
+by this sweep:
+
+| Test file | Holds |
+| --- | --- |
+| `digitalSatAnswerKeyIntegrity.test.mjs` (new) | no choice id names the key; the key is spread across ids; every key names a real choice; **no family is answerable by magnitude, asserted at zero in all four domains**; every family generates on every seed; no duplicate options |
+| `digitalSatRenderQuality.test.mjs` (new) | no family renders `1x`, `+ 0`, doubled signs, an empty group, or an unresolved placeholder |
+| `digitalSatDistractorQualityRegression.test.mjs` (extended) | 30 named families keep their intentional misconception distractors |
+| `digitalSatProductionSeedContent.test.mjs` | the compiler emits only routeable authored V2.1 content; 75% MCQ in every domain; four distinct keyed choices per MCQ |
+| `digitalSatRuntimeIssuability.test.mjs` | every compiled family is issuable by the production runtime |
+| `digitalSatV21AuthoringGate.test.mjs` | underlying-task clones stay blocked, and static items are allowed to omit generators |
+
+## Bugs found in the audit tooling, and fixed
 
 Recorded because they changed reported numbers:
 
@@ -452,8 +531,41 @@ Recorded because they changed reported numbers:
   count moved 11 → 13 once fixed. The shared rank analyzer was never affected.
 * The distractor profile mistook the `--draws` value for a family filter and
   profiled nothing.
+* `generatorClone` compared any two generators, including the ones whose only
+  parameter is the `variant` shuffle seed. Those carry no mathematics, so the
+  check fired on every pair of static families in a standard — three false
+  positives, now excluded.
+* `crossTierTaskClone` compared task fingerprints alone, which collapsed prose
+  items that merely share a sentence shape: a random-assignment inference item
+  and an observational-study item, with different scenarios and different
+  correct answers, counted as clones. The check now requires the wording to
+  overlap as well — 17 findings became 2, both of which were real and are
+  repaired.
+* The arithmetic-ladder rule flagged `0, 1, 2, 3` on eight counting items. That
+  is the only honest option set for "how many solutions does this have", so the
+  rule gains one narrow exemption: the run must start at zero and step by one,
+  which cannot cover a `key+1`/`key+2`/`key+3` set.
 
-Two defects I introduced while repairing, both caught by the verification loop
-that is now committed as `scripts/digital-sat-verify-file.mjs`: reordering a
-choices array without moving `expected` left five families grading the wrong
-option, and one retuned family rendered `1:4` twice.
+Defects I introduced while repairing, all caught by the verification loop that
+is committed as `scripts/digital-sat-verify-file.mjs` and
+`scripts/digital-sat-render-lint.mjs`: reordering a choices array without moving
+`expected` left five families grading the wrong option; one retuned family
+rendered `1:4` twice; a first pass at the rendering fixer used a regex that
+could run from the end of one text field into the start of the next, which added
+one bogus constraint and pinned a family's answer.
+
+## Files changed
+
+95 files. No shared runtime, no production seed, no manifest, no Firebase or
+deployment configuration, and nothing under `drafts/fidelity-v2/algebra2/**`.
+
+| Area | Files |
+| --- | ---: |
+| `drafts/ccmr-v2.1/digitalSAT/advancedMath/**` | 41 |
+| `drafts/ccmr-v2.1/digitalSAT/algebra/**` | 25 |
+| `drafts/ccmr-v2.1/digitalSAT/problemSolvingData/**` | 13 |
+| `drafts/ccmr-v2.1/digitalSAT/geometryTrigonometry/**` | 4 |
+| `drafts/digitalSAT.v2.1.json` (compiled draft) + audit results | 2 |
+| `scripts/` — Digital-SAT-specific audit and repair tooling | 6 |
+| `tests/platform/digitalSat*.test.mjs` | 3 |
+| This report | 1 |
