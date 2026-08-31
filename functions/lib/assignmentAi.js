@@ -187,13 +187,14 @@ async function callOpenAiAssignmentAuthor({
   }
 
   const notes = parsed?.outputProfiles?.lessonNotesPdf;
-  if (notes?.enabled === true) {
-    const noteSections = Array.isArray(notes.sections) ? notes.sections : [];
-    const learningGoal = String(notes.learningGoal || "").trim();
-    if (Number(notes.targetPages) !== 2 || !learningGoal || noteSections.length < 2) {
+  const requiresTwoPageNotes = /REQUIRED OUTPUT CONTRACT:\s*lessonNotesPdf\.enabled=true/i.test(String(prompt || ""));
+  if (notes?.enabled === true || requiresTwoPageNotes) {
+    const noteSections = Array.isArray(notes?.sections) ? notes.sections : [];
+    const learningGoal = String(notes?.learningGoal || "").trim();
+    if (notes?.enabled !== true || Number(notes?.targetPages) !== 2 || !learningGoal || noteSections.length < 2) {
       throw new AssignmentAiError(
         "failed-precondition",
-        "MathMaster AI returned an assignment with lesson notes enabled but without the required two-page student notes package (learning goal plus at least two substantive sections). The assignment was rejected instead of saving incomplete notes. Use the outside-AI import option or try the build again.",
+        "MathMaster AI returned an assignment without the required two-page student notes package (enabled=true, targetPages=2, learning goal, and at least two substantive sections). The assignment was rejected instead of saving incomplete notes. Use the outside-AI import option or try the build again.",
       );
     }
   }
