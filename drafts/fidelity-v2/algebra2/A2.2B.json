@@ -713,7 +713,7 @@
       "assessedConstruct": "A2.2B",
       "type": "functionInvestigation",
       "representation": "graph",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "reverseReasoning",
       "prompt": "Construct both branches of $f(x)=\\frac{{{a}}}{x-({{h}})}{{k|signed}}$. Reflect the graph across $y=x$, draw the inverse, and write the inverse equation in $f^{-1}(x)$ notation.",
