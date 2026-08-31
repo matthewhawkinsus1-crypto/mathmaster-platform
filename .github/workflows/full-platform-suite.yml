@@ -41,6 +41,9 @@ jobs:
       - name: Verify certified Algebra shipping-seed parity
         run: node scripts/build-algebra-fidelity-v2-production-seeds.mjs --check
 
+      - name: Audit certified Algebra release authority
+        run: node scripts/audit-algebra1-path-release-authority.mjs --strict
+
       - name: Re-run strict Algebra adaptive metadata audit
         run: node scripts/audit-challenge-dok-difficulty-v2.mjs --strict
 
