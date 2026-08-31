@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { clientPointToGraphCoordinate } from '../../utils/responsiveCoordinates.js';
 import { resolvePointFill, resolvePointRadius } from '../../graphSpecUtils';
+import { readGraphPointCoordinates } from '../../graphPointUtils';
 
 // Shared by every Batch A-D tool, so an unguarded window froze three labs at
 // once. A step of 0/NaN never terminates, and a legitimate step across a huge
@@ -44,7 +45,10 @@ const snapValue = (value, step) => {
   return tidy(Math.round(value / size) * size);
 };
 
-const pointXY = (point) => Array.isArray(point) ? [Number(point[0]), Number(point[1])] : [Number(point?.x), Number(point?.y)];
+const pointXY = (point) => {
+  const coordinates = readGraphPointCoordinates(point);
+  return coordinates || [Number.NaN, Number.NaN];
+};
 const formatCoordinate = (point) => { const [x, y] = pointXY(point); return `(${tidy(x)}, ${tidy(y)})`; };
 
 export default function CoordinatePlane({
