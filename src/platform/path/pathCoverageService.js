@@ -137,6 +137,20 @@ export const seedPathQuestionBank = async (items, { chunkSize = 400, onProgress 
  * every student. The callable returns counts/status only; coverage is rebuilt
  * afterward from Firestore.
  */
+/** Refresh the existing built-in course + ASVAB banks without touching SAT/ACT/TSIA2. */
+export const refreshBuiltInCourseAndAsvabPathBanks = async () => {
+  const call = httpsCallable(functions, 'refreshBuiltInCourseAndAsvabPathBanks');
+  const result = await call({});
+  return result.data || {};
+};
+
+/** Run the atomic release-managed SAT/ACT/TSIA2 refresh. ASVAB is excluded. */
+export const refreshReleasedCcmrPathBanks = async () => {
+  const call = httpsCallable(functions, 'refreshReleasedCcmrPathBanks');
+  const result = await call({});
+  return result.data || {};
+};
+
 export const initializeBundledPathBankStarter = async ({ onProgress = null } = {}) => {
   onProgress?.({ phase: 'initializing', chunk: 0, chunks: 0 });
   const call = httpsCallable(functions, 'initializeStarterPathQuestionBank');
