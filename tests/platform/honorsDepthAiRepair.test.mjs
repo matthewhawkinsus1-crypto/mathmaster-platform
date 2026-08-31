@@ -5,6 +5,7 @@ import {
   applyHonorsDepthAiSections,
   buildHonorsDepthAiRepairRequest,
   nonCcmrHonorsMissing,
+  separateHonorsDepthAiRepair,
 } from '../../src/platform/contract/honorsDepthAiRepair.js';
 
 const base = () => ({
@@ -79,6 +80,16 @@ test('accepted Honors AI repair may add TEKS metadata and one extension without 
   assert.equal(merged.sections[0].questions.length, 2);
   assert.equal(merged.sections[0].questions[0].prompt, source.sections[0].questions[0].prompt);
   assert.deepEqual(merged.supportPolicy, source.supportPolicy);
+
+  const separated = separateHonorsDepthAiRepair(source, merged);
+  assert.equal(separated.assignmentV5.sections[0].questions.length, 1, 'Standard source keeps its original question count');
+  assert.equal(separated.honorsEnrichmentQuestion.questionId, 'honors-extension-1');
+  assert.equal(separated.honorsEnrichmentQuestion.activityRole, 'classwork');
+  assert.deepEqual(
+    separated.assignmentV5.sections[0].questions[0].alignments,
+    ai.sections[0].questions[0].alignments,
+    'safe TEKS metadata repair remains on the shared source question',
+  );
 });
 
 test('Honors AI repair rejects assignment rewrites, deletions, course changes, and excessive additions', () => {
@@ -95,6 +106,10 @@ test('Honors AI repair rejects assignment rewrites, deletions, course changes, a
   const course = structuredClone(source);
   course.assignment.courseId = 'algebra2';
   assert.throws(() => applyHonorsDepthAiSections(source, course), /changed the course/);
+
+  const answerRewrite = structuredClone(source);
+  answerRewrite.sections[0].questions[0].responseFields[0].expected = '5';
+  assert.throws(() => applyHonorsDepthAiSections(source, answerRewrite), /mathematics, grading, or rigor metadata/);
 
   const tooMany = structuredClone(source);
   tooMany.sections[0].questions.push(
