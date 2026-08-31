@@ -11,6 +11,7 @@ import {
   buildHonorsDepthAiRepairRequest,
   honorsMissingLabels,
   nonCcmrHonorsMissing,
+  separateHonorsDepthAiRepair,
 } from '../../platform/contract/honorsDepthAiRepair.js';
 import {
   assignmentAiFallbackRecommended,
@@ -368,8 +369,14 @@ export const LessonPreflightModal = ({
         throw new Error(`MathMaster AI could not safely resolve: ${honorsMissingLabels(unresolved).join(', ')}. The original assignment was kept unchanged.`);
       }
 
-      setWorkingAssignmentV5(candidateModel.assignmentV5);
-      setHonorsEnrichmentQuestion(null);
+      const separated = separateHonorsDepthAiRepair(effectiveAssignmentV5, candidateModel.assignmentV5);
+      const sourceOnlyModel = buildAssignmentV5PreflightModel(separated.assignmentV5);
+      const sourceOnlyNewErrors = newlyIntroducedPreflightErrors(validationErrors, sourceOnlyModel.errors);
+      if (sourceOnlyNewErrors.length) {
+        throw new Error(`The source assignment gained a new blocker while separating the Honors-only extension:\n${sourceOnlyNewErrors.join('\n')}`);
+      }
+      setWorkingAssignmentV5(sourceOnlyModel.assignmentV5);
+      setHonorsEnrichmentQuestion(separated.honorsEnrichmentQuestion);
       setHonorsAiMessage(
         candidateReport.checks.ccmrEnrichment
           ? 'MathMaster AI repaired the Honors depth requirements and the assignment passed Preflight again.'
