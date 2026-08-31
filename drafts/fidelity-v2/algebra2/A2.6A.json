@@ -674,7 +674,7 @@
         "Compare displacements from the center rather than raw coordinates."
       ],
       "supportHints": [
-        "Horizontal scale uses the reciprocal of the inside coefficient; compute that reciprocal before comparing point distances."
+        "Compare horizontal distances from the transformed center separately from vertical distances, using corresponding parent and image points."
       ],
       "generator": {
         "parameters": {
