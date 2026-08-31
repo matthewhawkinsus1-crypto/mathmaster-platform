@@ -68,3 +68,45 @@ test('sequence graph bounds no longer force zero into far-away positive data', (
   assert.match(graphBlock, /dataHigh/);
   assert.doesNotMatch(graphBlock, /Math\.min\(0, \.\.\.finite\)/);
 });
+
+
+test('sequence comparison can require student-created plots for both models before comparison', () => {
+  const compareStart = source.indexOf('function CompareSequences');
+  const compareBlock = source.slice(compareStart);
+  assert.match(compareBlock, /actions\.includes\('plotSequence'\)/);
+  assert.match(compareBlock, /leftPlottedPoints/);
+  assert.match(compareBlock, /rightPlottedPoints/);
+  assert.match(compareBlock, /onPlot=\{requirePlot \? handlePlot : null\}/);
+  assert.match(compareBlock, /pointSetMatchesRows\(leftPlottedPoints, leftRows/);
+  assert.match(compareBlock, /pointSetMatchesRows\(rightPlottedPoints, rightRows/);
+  assert.match(compareBlock, /points=\{visiblePoints\}/);
+  assert.match(compareBlock, /Plot both sequences as discrete functions/);
+  assert.doesNotMatch(compareBlock, /\{\s*0:\s*row\.n/);
+});
+
+test('V5 compare-plus-plot intent stays a comparison while preserving the plotting requirement', () => {
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: { title: 'Compare plotted sequences', courseId: 'algebra1' },
+    sections: [{
+      role: 'practice',
+      questions: [{
+        standard: 'A.12C',
+        prompt: 'Plot both sequences through term 7, then compare their seventh terms.',
+        studentActions: ['plotSequence', 'compareSequences'],
+        left: { kind: 'arithmetic', first: 2, difference: 5 },
+        right: { kind: 'geometric', first: 2, ratio: 2 },
+        leftLabel: 'Sequence A',
+        rightLabel: 'Sequence B',
+        displayCount: 7,
+        compareN: 7,
+      }],
+    }],
+  }).package.sections[0].questions[0];
+
+  assert.equal(compiled.type, 'sequenceExplorer');
+  assert.equal(compiled.mode, 'compare');
+  assert.equal(compiled.displayCount, 7);
+  assert.equal(compiled.compareN, 7);
+  assert.deepEqual(compiled.studentActions, ['plotSequence', 'compareSequences']);
+});

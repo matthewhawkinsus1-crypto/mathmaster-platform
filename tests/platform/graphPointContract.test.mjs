@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { auditStaticGraphViewport } from '../../src/graphSpecUtils.js';
 import {
@@ -11,6 +12,10 @@ assert.deepEqual(readGraphPointCoordinates({ x: 0.5, y: 0.9 }), [0.5, 0.9]);
 assert.deepEqual(readGraphPointCoordinates({ coordinates: [2, 5] }), [2, 5]);
 assert.deepEqual(readGraphPointCoordinates([3, -4]), [3, -4]);
 assert.equal(readGraphPointCoordinates({ x: 2 }), null);
+
+const coordinatePlaneSource = fs.readFileSync('src/tools/shared/CoordinatePlane.jsx', 'utf8');
+assert.match(coordinatePlaneSource, /readGraphPointCoordinates/);
+assert.match(coordinatePlaneSource, /coordinates \|\| \[Number\.NaN, Number\.NaN\]/);
 
 assert.deepEqual(normalizeGraphPointForRuntime({ x: 1, y: 5, label: 'A' }), {
   coordinates: [1, 5],
