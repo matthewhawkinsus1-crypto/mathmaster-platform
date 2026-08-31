@@ -553,7 +553,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.4D",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "Starting from standard form: A student transforms $f(x)={{a}}x^2{{b|signed}}x{{c|signed}}$ by completing the square, but makes the factoring mistake shown below. Diagnose it, repair the completing-square setup, finish vertex form, and identify the corrected vertex and extreme value.",
