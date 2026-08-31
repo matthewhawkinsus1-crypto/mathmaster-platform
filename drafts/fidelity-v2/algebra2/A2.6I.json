@@ -61,7 +61,7 @@
         "First isolate the fraction; then clear the denominator without losing the horizontal shift."
       ],
       "supportHints": [
-        "Before solving, identify the input that would make the original denominator zero and keep that restriction throughout the work."
+        "Work in stages: identify the excluded input, isolate the rational term, and then solve the resulting reciprocal relation while keeping the restriction."
       ],
       "generator": {
         "parameters": {
