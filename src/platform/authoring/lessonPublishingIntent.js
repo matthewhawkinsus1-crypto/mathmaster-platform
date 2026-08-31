@@ -86,7 +86,13 @@ export const normalizeClassroomIntent = (raw, assignment = {}, notesPdf = null) 
   const topic = isObject(source.topic) ? source.topic : {};
   const assignmentTitle = clean(assignmentPost.title) || clean(assignment.title) || 'MathMaster Lesson';
   const topicName = clean(topic.name) || topicNameFromFolder(assignment.folder, assignmentTitle);
-  const resourcesEnabled = resourcesPost.enabled !== false && notesPdf?.enabled !== false;
+  const additionalLinks = asArray(source.additionalLinks)
+    .filter(isObject)
+    .map((link) => ({ title: clean(link.title), url: clean(link.url) }))
+    .filter((link) => link.title && /^https?:\/\//i.test(link.url))
+    .slice(0, 10);
+  const resourcesEnabled = resourcesPost.enabled !== false
+    && (notesPdf?.enabled === true || additionalLinks.length > 0);
   return {
     enabled: source.enabled !== false,
     topic: {
@@ -115,11 +121,7 @@ export const normalizeClassroomIntent = (raw, assignment = {}, notesPdf = null) 
       when: 'finalized',
       mode: 'assignedGrade',
     },
-    additionalLinks: asArray(source.additionalLinks)
-      .filter(isObject)
-      .map((link) => ({ title: clean(link.title), url: clean(link.url) }))
-      .filter((link) => link.title && /^https?:\/\//i.test(link.url))
-      .slice(0, 10),
+    additionalLinks,
   };
 };
 
@@ -131,7 +133,7 @@ export const normalizeLessonPublishingIntentV5 = (input = {}, assignment = {}, r
 
   if (!isObject(input.classroom)) repairs.push('generated Google Classroom publishing metadata from the assignment title/folder');
   if (!isObject(rawNotes) || !Array.isArray(rawNotes.sections)) {
-    repairs.push('created the lesson-notes PDF plan; author structured notes sections for a richer student handout');
+    repairs.push('no authored lesson-note sections were supplied, so MathMaster left the notes PDF disabled instead of publishing a blank handout');
   }
 
   return {
