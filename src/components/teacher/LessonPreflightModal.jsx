@@ -570,7 +570,15 @@ export const LessonPreflightModal = ({
         {honorsSelected && honorsReport.isNarrowCheckpoint && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: '#e8f0fe', color: '#174ea6', fontSize: 12, lineHeight: 1.5 }}><strong>Narrow Honors checkpoint.</strong> Warm-Ups and DOLs with three or fewer items may stay focused on the current TEKS. Depth, prerequisite repair, and CCMR are balanced across the recent Honors sequence instead of forced into every short check.</div>}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(190px, 1fr))', gap: 7 }}>{[
           ['coreTeks', 'Core TEKS'], ['higherOrderReasoning', 'Higher-order reasoning'], ['multipleRepresentations', 'Multiple representations'], ['justification', 'Explanation / justification'], ['modelingApplication', 'Modeling / application'], ['ccmrEnrichment', 'Authentic CCMR Practice'],
-        ].map(([key, label]) => <div key={key} style={{ padding: '8px 10px', borderRadius: 8, background: honorsReport.checks[key] ? '#e6f4ea' : '#fff4ce', color: honorsReport.checks[key] ? '#137333' : '#7a4f00', fontWeight: 800, fontSize: 12 }}>{honorsReport.checks[key] ? '✓' : '!'} {label}</div>)}</div>}
+        ].map(([key, label]) => {
+          const present = honorsReport.checks[key];
+          const queuedAtPublish = key === 'ccmrEnrichment' && !present;
+          return (
+            <div key={key} style={{ padding: '8px 10px', borderRadius: 8, background: present ? '#e6f4ea' : queuedAtPublish ? '#e8f0fe' : '#fff4ce', color: present ? '#137333' : queuedAtPublish ? '#174ea6' : '#7a4f00', fontWeight: 800, fontSize: 12 }}>
+              {present ? '✓' : queuedAtPublish ? '↻' : '!'} {queuedAtPublish ? 'Audited CCMR at publish' : label}
+            </div>
+          );
+        })}</div>}
         {honorsSelected && !honorsReport.isNarrowCheckpoint && !honorsReport.checks.ccmrEnrichment && (
           <div style={{ marginTop: 11, padding: '11px 13px', borderRadius: 9, background: '#fff4ce', border: '1px solid #f0d489', color: '#7a4f00', fontSize: 12.5, lineHeight: 1.55 }}>
             <strong>Audited CCMR Practice will be sourced at publish.</strong> Because an Honors destination is selected, MathMaster will replace matching Practice work with an audited CCMR Fidelity V2.1 family on the same lesson TEKS. Standard destinations keep the regular course Practice. Exam-looking wording by itself never counts as authentic CCMR.
