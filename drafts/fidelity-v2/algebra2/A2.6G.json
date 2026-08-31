@@ -267,7 +267,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "For reciprocal transformations, a and b combine into the coefficient a/b.",
+        "reasoning": [
+          "The outside factor gives vertical scale $|a|={{va}}$ and, since a is negative, an x-axis reflection.",
+          "The inside factor gives horizontal scale $1/|b|={{hb}}$ and, since b is negative, a horizontal reflection.",
+          "The center translates to $({{h}},{{k}})$, so the asymptotes are $x={{h}}$ and $y={{k}}$. Algebraically the reciprocal coefficient is $a/b={{ratio}}$."
+        ],
+        "answerSummary": "Scales {{va}} vertically and {{hb}} horizontally; asymptotes $x={{h}}$, $y={{k}}$; coefficient $a/b={{ratio}}$."
+      }
     },
     {
       "id": "mm_A2_6G_v2_negative-b-point-map",
@@ -379,6 +388,15 @@
           "km3": "k-3",
           "kp3": "k+3"
         }
+      },
+      "solutionReview": {
+        "headline": "A negative inside factor both compresses and reverses reciprocal inputs.",
+        "reasoning": [
+          "With $b=-2$, parent x-coordinates are divided by -2 and then shifted by {{h}}, which swaps the left/right locations.",
+          "The outside factor 3 scales y-values before the vertical shift {{k}}, producing the mapped points $({{hp}},{{km3}})$ and $({{hm}},{{kp3}})$.",
+          "The horizontal scale is 0.5, the asymptotes remain $x={{h}}$ and $y={{k}}$, and $a/b=3/(-2)=-1.5$."
+        ],
+        "answerSummary": "Horizontal scale 0.5, horizontal reflection, asymptotes $x={{h}}$, $y={{k}}$, equivalent coefficient -1.5."
       }
     },
     {
@@ -544,7 +562,16 @@
             "answerSummary": "Horizontal scale 2, vertical scale 2, asymptotes 0 and 0, effective coefficient 4."
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "An inside factor of 0.5 doubles horizontal distances from the vertical asymptote.",
+        "reasoning": [
+          "The horizontal scale is $1/0.5=2$, while the outside factor gives vertical scale 2.",
+          "Translations move the reciprocal center to $({{h}},{{k}})$, so its asymptotes are $x={{h}}$ and $y={{k}}$.",
+          "The transformed reciprocal coefficient is $a/b=2/0.5=4$."
+        ],
+        "answerSummary": "Horizontal scale 2, vertical scale 2, asymptotes $x={{h}}$, $y={{k}}$, coefficient 4."
+      }
     },
     {
       "id": "mm_A2_6G_v2_reverse-specified-sequence",
@@ -697,7 +724,16 @@
             "answerSummary": "a=-3, b=-2, a/b=1.5, asymptotes x=0 and y=0, same orientation."
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "Reverse the stated transformations to recover the reciprocal parameters.",
+        "reasoning": [
+          "Vertical stretch 3 with x-axis reflection gives $a=-3$.",
+          "Horizontal compression $1/2$ with horizontal reflection gives $b=-2$.",
+          "Thus $a/b=1.5$. Two sign reflections cancel visually for the odd reciprocal parent, while the asymptotes translate to $x={{h}}$ and $y={{k}}$."
+        ],
+        "answerSummary": "$a=-3$, $b=-2$, coefficient 1.5, asymptotes $x={{h}}$ and $y={{k}}$, same branch orientation as the parent."
+      }
     },
     {
       "id": "mm_A2_6G_v2_inside-factor-error",
@@ -788,6 +824,15 @@
             "max": 5
           }
         }
+      },
+      "solutionReview": {
+        "headline": "The inside factor uses reciprocal horizontal scale and does not negate the translation.",
+        "reasoning": [
+          "With $b=-4$, the horizontal scale is $1/4$, not 4, and the negative sign produces a horizontal reflection.",
+          "The expression uses $(x-{{h}})$, so the vertical asymptote is $x={{h}}$; the vertical translation gives horizontal asymptote $y={{k}}$.",
+          "The equivalent reciprocal coefficient is $a/b=2/(-4)=-0.5$, so the branch orientation is opposite the parent."
+        ],
+        "answerSummary": "Horizontal scale 0.25; asymptotes $x={{h}}$, $y={{k}}$; coefficient -0.5; opposite orientation."
       }
     }
   ]
