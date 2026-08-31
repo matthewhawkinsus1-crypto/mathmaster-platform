@@ -4425,7 +4425,7 @@
         "Check whether the unchanging coordinate causes the numerator or denominator of rise/run to be zero."
       ],
       "supportHints": [
-        "Zero rise gives slope 0; zero run gives undefined slope."
+        "Compare the vertical change and horizontal change, then decide which one becomes the denominator of the slope ratio."
       ],
       "generator": {
         "parameters": {
@@ -4518,7 +4518,7 @@
             "For slope, ask whether the horizontal change Δx is zero or the vertical change Δy is zero."
           ],
           "supportHints": [
-            "A vertical line has Δx=0, so its slope denominator is zero."
+            "For each line, compare which coordinate changes and which coordinate stays fixed before classifying the slope."
           ],
           "generator": {
             "parameters": {
@@ -7690,7 +7690,7 @@
             "Write each intercept as an ordered pair before labeling it."
           ],
           "supportHints": [
-            "At an x-intercept y=0; at a y-intercept x=0."
+            "Use the definition of each axis intercept to decide which coordinate is constrained, then write each intercept as an ordered pair."
           ]
         }
       ]
@@ -26855,7 +26855,7 @@
         "Move an imaginary vertical line from left to right and check whether it ever hits two points at the same $x$-value."
       ],
       "supportHints": [
-        "Functions may repeat outputs; the problem is one input paired with two different outputs."
+        "Repeated outputs alone are not the conflict; inspect whether any single input is paired with two different outputs."
       ],
       "generator": {
         "parameters": {
@@ -27252,7 +27252,7 @@
             "Track which coordinate is the input before and after the swap."
           ],
           "supportHints": [
-            "Repeated outputs are allowed in a function; one input with two different outputs is not."
+            "Track what becomes the input after the coordinates are swapped, then look for one input paired with more than one output."
           ]
         }
       ]

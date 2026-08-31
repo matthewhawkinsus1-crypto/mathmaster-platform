@@ -3482,7 +3482,7 @@
             "Check the composition in the direction the student skipped."
           ],
           "supportHints": [
-            "Remember that $\\sqrt{x^2}=|x|$ for real x."
+            "Evaluate the composition the student skipped, and test it with a negative input before deciding whether the unrestricted claim works."
           ]
         }
       ]
@@ -3592,7 +3592,7 @@
         "The sign in front of the square root tells you which side of the quadratic is being reversed."
       ],
       "supportHints": [
-        "On the left of the vertex, $|x-h|=h-x$."
+        "On the left branch, determine the sign of the input minus the vertex coordinate before simplifying the absolute-value expression."
       ],
       "generator": {
         "parameters": {
@@ -10552,7 +10552,7 @@
         "Compare horizontal distances from the endpoints, not the x-coordinates by themselves."
       ],
       "supportHints": [
-        "Inside factors act reciprocally: b=1/4 corresponds to a horizontal scale factor of 4."
+        "For a horizontal scale, use the reciprocal of the magnitude of the inside coefficient before comparing distances from the endpoint."
       ],
       "generator": {
         "parameters": {
