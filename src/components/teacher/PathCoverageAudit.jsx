@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { diagnosePathSkill, fetchPathCoverage, fetchPathRuntimeStatus, initializeBundledPathBankStarter, PATH_COVERAGE_COURSE_IDS, rebuildPathCoverage, seedPathQuestionBank } from '../../platform/path/pathCoverageService.js';
+import { diagnosePathSkill, fetchPathCoverage, fetchPathRuntimeStatus, initializeBundledPathBankStarter, PATH_COVERAGE_COURSE_IDS, rebuildPathCoverage, refreshBuiltInCourseAndAsvabPathBanks, refreshReleasedCcmrPathBanks, seedPathQuestionBank } from '../../platform/path/pathCoverageService.js';
 import { clearTeacherPathBankSnapshotCache } from '../../platform/path/pathBankSimulationService.js';
 import {
   COVERAGE_STATE, COVERAGE_STATE_LABELS, summarizeCoverage,
@@ -198,6 +198,52 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
       setSeedPhase(null);
     } catch (caught) {
       setError(friendlyPathError(caught, 'Could not initialize the starter Path bank.'));
+      setSeedPhase(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const refreshCourseAndAsvab = async () => {
+    if (typeof window !== 'undefined' && !window.confirm(
+      'Refresh the built-in Grade 6–8, Algebra I/II, and ASVAB Path banks now? SAT, ACT, and TSIA2 will not be changed.',
+    )) return;
+    setBusy(true);
+    setError(null);
+    setSeed(null);
+    setSeedPhase('Validating and refreshing course + ASVAB Path content…');
+    try {
+      const result = await refreshBuiltInCourseAndAsvabPathBanks();
+      setSeed(result);
+      clearTeacherPathBankSnapshotCache();
+      if (result.coverage?.indexes) setIndexes(result.coverage.indexes);
+      else await load();
+      await loadRuntimeStatus();
+      setSeedPhase(null);
+    } catch (caught) {
+      setError(friendlyPathError(caught, 'Could not refresh the built-in course + ASVAB Path banks.'));
+      setSeedPhase(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const refreshCcmrRelease = async () => {
+    if (typeof window !== 'undefined' && !window.confirm(
+      'Run the coordinated Digital SAT / ACT / TSIA2 production refresh now? ASVAB and course Path content will not be changed.',
+    )) return;
+    setBusy(true);
+    setError(null);
+    setSeed(null);
+    setSeedPhase('Validating the coordinated SAT / ACT / TSIA2 release before the live bank switch…');
+    try {
+      const result = await refreshReleasedCcmrPathBanks();
+      setSeed(result);
+      clearTeacherPathBankSnapshotCache();
+      await loadRuntimeStatus();
+      setSeedPhase(null);
+    } catch (caught) {
+      setError(friendlyPathError(caught, 'Could not refresh the coordinated SAT / ACT / TSIA2 release.'));
       setSeedPhase(null);
     } finally {
       setBusy(false);
@@ -467,9 +513,25 @@ export default function PathCoverageAudit({ courseIds = PATH_COVERAGE_COURSE_IDS
           superseded built-in documents, and then rebuilds Grade 6, Grade 7, Grade 8, Algebra I, and Algebra II coverage from
           the canonical Texas registry. Teacher assignments are not consulted. The answer key never enters the browser.
         </p>
-        <button type="button" style={{ ...primary, marginBottom: 16 }} onClick={initializeStarter} disabled={busy}>
-          {busy ? 'Working…' : 'Initialize / refresh built-in starter bank'}
-        </button>
+        {Number(runtimeStatus?.bankCount || 0) > 0 ? (
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+            <button type="button" style={primary} onClick={refreshCourseAndAsvab} disabled={busy}>
+              {busy ? 'Working…' : 'Refresh course + ASVAB built-ins'}
+            </button>
+            <button type="button" style={{ ...primary, background: '#5f3dc4' }} onClick={refreshCcmrRelease} disabled={busy}>
+              {busy ? 'Working…' : 'Refresh released SAT / ACT / TSIA2'}
+            </button>
+          </div>
+        ) : (
+          <button type="button" style={{ ...primary, marginBottom: 16 }} onClick={initializeStarter} disabled={busy}>
+            {busy ? 'Working…' : 'Initialize built-in bank (fresh install)'}
+          </button>
+        )}
+        <p style={{ margin: '0 0 14px', color: '#5f6368', fontSize: 12, lineHeight: 1.55, maxWidth: 760 }}>
+          Existing installations use two protected refreshes: course + ASVAB is updated independently, while Digital SAT,
+          ACT, and TSIA2 move together through the atomic release manifest. The fresh-install initializer is intentionally
+          unavailable once the secure bank already contains content.
+        </p>
         <details style={{ marginBottom: 10 }}>
           <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#3c4043' }}>Import a different seed package instead</summary>
           <p style={{ margin: '8px 0 12px', color: '#5f6368', fontSize: 13, lineHeight: 1.55, maxWidth: 720 }}>

@@ -85,25 +85,39 @@ Expect `HTTP 200` and a list of functions.
 
 ---
 
-## Block 4 — refresh the question bank (in the browser, not the terminal)
+## Block 4 — activate the live Path banks (in the browser, not the terminal)
 
-Deploying updates the questions **inside Cloud Functions**. The copies already
-saved in Firestore stay as they were until you do this, so new and corrected
-questions do not reach students without it.
+Deploying updates the certified bank packages **inside Cloud Functions**. The
+copies already stored in Firestore do not change until a root administrator runs
+the live-bank controls.
 
 1. Open **https://mathmaster-aleks.web.app**
-2. Sign in as **matthew.hawkins@desotoisd.org** — the administrator account. No
-   other account can do this, and the error now names the required account if
-   you use the wrong one.
-3. **Administration → My Math Path content coverage**
-4. Press **Initialize / refresh built-in starter bank**
-5. Wait for **Import complete**
+2. Sign in with the MathMaster root-administrator account.
+3. Go to **Administration → My Math Path content coverage**.
+4. Confirm **Path deployment status** shows the web release and server release
+   matching.
+5. If the secure bank already contains content, run these two protected actions
+   in order:
+   - **Refresh course + ASVAB built-ins**
+   - **Refresh released SAT / ACT / TSIA2**
+6. If and only if this is a completely empty fresh installation, use
+   **Initialize built-in bank (fresh install)** instead.
+7. Wait for each operation to complete before starting the next one.
 
-Safe to run as often as you like. It is all-or-nothing: every question is
-validated by the production issuer before anything is written.
+The two production refreshes are intentionally separate:
 
-Then, on the same screen, **Path deployment status** should show the web release
-and the server release **matching**, and a secure bank count in the thousands.
+- **Course + ASVAB** updates Grade 6, Grade 7, Grade 8, Algebra I, Algebra II,
+  and the merged ASVAB bank. It cannot write Digital SAT, ACT, or TSIA2.
+- **Released SAT / ACT / TSIA2** uses the atomic coordinated release manifest.
+  It validates the complete package before the live switch and cannot alter
+  ASVAB or ordinary course Path content.
+
+Do **not** use the custom JSON importer to replace SAT, ACT, or TSIA2. Those
+frameworks are release-managed and the server rejects generic writes to them.
+
+Finish by pressing **Recompute from bank** and confirm the course coverage and
+assessment publication audit show no hard release mismatch.
+
 
 ---
 

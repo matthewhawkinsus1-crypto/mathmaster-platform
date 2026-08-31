@@ -95,6 +95,7 @@ export const ADMIN_ONLY_OPERATIONS = Object.freeze([
   'backfillRecordAuthorization',
   'seedPathQuestionBank',
   'initializeStarterPathQuestionBank',
+  'refreshBuiltInCourseAndAsvabPathBanks',
   'getPathRuntimeStatus',
   'rebuildPathCoverage',
   'refreshReleasedCcmrPathBanks',

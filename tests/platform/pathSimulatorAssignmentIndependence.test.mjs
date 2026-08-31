@@ -18,9 +18,13 @@ test('simulated student path reads the secure Path bank rather than assignment c
   assert.match(experience, /Classroom assignments are evidence only/);
 });
 
-test('root admin can initialize the bundled starter bank without manually selecting seed files', () => {
-  assert.match(coverage, /Initialize \/ refresh built-in starter bank/);
+test('root admin gets protected built-in bank controls without manually selecting seed files', () => {
+  assert.match(coverage, /Initialize built-in bank \(fresh install\)/);
+  assert.match(coverage, /Refresh course \+ ASVAB built-ins/);
+  assert.match(coverage, /Refresh released SAT \/ ACT \/ TSIA2/);
   assert.match(coverage, /initializeBundledPathBankStarter/);
+  assert.match(coverage, /refreshBuiltInCourseAndAsvabPathBanks/);
+  assert.match(coverage, /refreshReleasedCcmrPathBanks/);
 });
 
 test('built-in Path starter answers stay server-side rather than in public hosting assets', () => {
