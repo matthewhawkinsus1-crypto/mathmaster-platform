@@ -167,7 +167,7 @@
       "difficultyBand": 3,
       "dok": 2,
       "taskType": "interpretation",
-      "prompt": "Solve $-{{a}}(x-({{u}}))(x-({{v}}))>0$ in interval notation. Use the downward-opening sign pattern rather than applying the upward-opening rule automatically.",
+      "prompt": "Solve $-{{a}}(x-({{u}}))(x-({{v}}))>0$ in interval notation. Use the sign of the leading factor and the two zeros to determine the quadratic's sign pattern rather than applying a memorized interval rule automatically.",
       "stimulus": {
         "kind": "table",
         "title": "Critical points",
@@ -225,7 +225,7 @@
         "Account for the negative leading coefficient before choosing inside versus outside."
       ],
       "supportHints": [
-        "Downward opening means the graph lies above the x-axis between its two real zeros."
+        "Determine the opening from the leading coefficient, then test the sign of the expression in the intervals created by the two zeros."
       ],
       "generator": {
         "parameters": {
@@ -258,7 +258,7 @@
           "difficultyBand": 4,
           "taskType": "procedural",
           "representation": "multipleRepresentation",
-          "prompt": "Solve the expanded inequality $-{{a}}x^2+({{B}})x+({{C}})>0$. Determine its two zeros, use the negative leading coefficient to choose the correct sign interval, and give the complete solution set.",
+          "prompt": "Solve the expanded inequality $-{{a}}x^2+({{B}})x+({{C}})>0$. Determine its two zeros, use the leading coefficient to choose the correct sign interval, and give the complete solution set.",
           "responseFields": [
             {
               "id": "zero1",
@@ -308,7 +308,7 @@
             "Find the zeros first; then use the opening direction to choose the positive interval."
           ],
           "supportHints": [
-            "A downward-opening quadratic with two roots is above the x-axis between them."
+            "Use the leading coefficient and a test point between the zeros to determine where the quadratic is positive."
           ],
           "generator": {
             "parameters": {
@@ -598,7 +598,7 @@
         "The student got the sign interval right but did not finish checking whether equality is allowed."
       ],
       "supportHints": [
-        "Substitute either root: the quadratic equals 0, and 0≤0 is true."
+        "Test each boundary value in the original inequality and decide from the inequality symbol whether equality at a boundary is allowed."
       ],
       "generator": {
         "parameters": {
@@ -676,7 +676,7 @@
             "Repair the endpoint reasoning and the final interval notation."
           ],
           "supportHints": [
-            "Substitute each root and compare 0 with the ≤ relation."
+            "Evaluate the original expression at each boundary, then use the inequality symbol to decide whether those boundary points belong in the solution set."
           ],
           "generator": {
             "parameters": {
