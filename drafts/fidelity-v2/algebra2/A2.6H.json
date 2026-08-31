@@ -56,6 +56,14 @@
             "max": 12
           }
         }
+      },
+      "solutionReview": {
+        "headline": "Work rates add when both machines contribute to the same job.",
+        "reasoning": [
+          "A machine that finishes one job in {{a}} hours has rate $1/{{a}}$ job per hour; the other has rate $1/{{b}}$.",
+          "Working together, their rates add and must equal the combined rate $1/t$."
+        ],
+        "answerSummary": "$1/{{a}}+1/{{b}}=1/t$."
       }
     },
     {
@@ -270,7 +278,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "Average speed must be built from total distance divided by total time.",
+        "reasoning": [
+          "The segment times are distance divided by speed: ${{d1}}/{{v1}}$ and ${{d2}}/{{v2}}$.",
+          "Total time is their sum, while the same trip written with overall average speed v has time $({{d1}}+{{d2}})/v$.",
+          "Equating those two expressions formulates the required rational model."
+        ],
+        "answerSummary": "${{d1}}/{{v1}}+{{d2}}/{{v2}}=({{d1}}+{{d2}})/v$."
+      }
     },
     {
       "id": "mm_A2_6H_v2_round-trip-current-equation",
@@ -358,6 +375,15 @@
             "max": 8
           }
         }
+      },
+      "solutionReview": {
+        "headline": "Current changes the upstream and downstream rates in opposite directions.",
+        "reasoning": [
+          "Upstream speed is $v-{{c}}$, so upstream time is ${{d}}/(v-{{c}})$.",
+          "Downstream speed is $v+{{c}}$, so downstream time is ${{d}}/(v+{{c}})$.",
+          "Their times sum to {{T}} hours. Physically, $v>{{c}}$ is required so the upstream speed is positive."
+        ],
+        "answerSummary": "${{d}}/(v-{{c}})+{{d}}/(v+{{c}})={{T}}$, with $v>{{c}}$."
       }
     },
     {
@@ -411,6 +437,14 @@
         "derived": {
           "solute": "(V+x0)/5"
         }
+      },
+      "solutionReview": {
+        "headline": "Adding pure solvent changes volume but not the amount of solute.",
+        "reasoning": [
+          "The solute amount stays {{solute}} while the final volume becomes ${{V}}+x$.",
+          "Concentration is solute divided by total volume, so a 20% target is represented by ${{solute}}/({{V}}+x)=0.2$."
+        ],
+        "answerSummary": "${{solute}}/({{V}}+x)=0.2$."
       }
     },
     {
@@ -552,7 +586,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "A drain contributes a negative work rate.",
+        "reasoning": [
+          "The fill pipe contributes $1/{{a}}$ tank per hour.",
+          "The drain removes $1/{{b}}$ tank per hour, so its rate must be subtracted rather than added.",
+          "The net rate equals $1/t$, giving the corrected rational equation."
+        ],
+        "answerSummary": "$1/{{a}}-1/{{b}}=1/t$."
+      }
     }
   ]
 }
