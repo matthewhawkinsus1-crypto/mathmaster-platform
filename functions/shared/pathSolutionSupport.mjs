@@ -95,9 +95,20 @@ export const hintRevealsAnswer = (hint, expectedValues = []) => {
       // earth would look like a leak. The trailing lookahead is what keeps
       // "12" from matching inside "12.5", while still catching the far more
       // common "… is x = 12." with a sentence-ending full stop.
-      if (value.length >= 3) return haystack.includes(value);
+      const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\      if (value.length >= 3) return haystack.includes(value);
       const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      return new RegExp(`(^|[^\\w.\\-])${escaped}(?![\\d.]*\\d)`).test(haystack);
+      return new RegExp(`(^|[^\\w.\\-])${escaped}(?![\\d.]*\\d)`).test(haystack);');
+      const numeric = /^-?(?:\\d+(?:\\.\\d+)?|\\.\\d+)$/.test(value);
+      if (numeric) {
+        return new RegExp(`(^|[^\\d.\\-])${escaped}(?![\\d.]*\\d)`).test(haystack);
+      }
+      // Short text needs BOTH token boundaries. The previous numeric-only
+      // trailing rule made "no" match the beginning of "not" and let
+      // one-letter internal ids match ordinary prose.
+      if (value.length < 3) {
+        return new RegExp(`(^|[^\\w])${escaped}($|[^\\w])`).test(haystack);
+      }
+      return haystack.includes(value);
     });
 };
 
