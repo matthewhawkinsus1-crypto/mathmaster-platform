@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import {
   MINIMUM_ISSUABLE_FAMILIES, buildCoverageIndex, summarizeCoverage,
 } from '../../functions/shared/pathCoverage.mjs';
-import { recordFamilyUse, selectNextFamily } from '../../functions/shared/pathQuestionSelection.mjs';
+import { rankCandidates, recordFamilyUse, selectNextFamily } from '../../functions/shared/pathQuestionSelection.mjs';
 import { getWheelTeksForCourse } from '../../src/platform/mastery/strandConfig.js';
 
 const require = createRequire(import.meta.url);
@@ -285,8 +285,27 @@ test('every routeable standard launches a full five-question session', () => {
       let usage = {};
       const issued = [];
       for (let question = 0; question < 5; question += 1) {
+        const ranking = rankCandidates(candidates, { preferredBand: rigor.preferredDifficultyBand, usage });
         const choice = selectNextFamily(candidates, { preferredBand: rigor.preferredDifficultyBand, usage });
         if (!choice) { failures.push({ code, courseLevel, reason: 'selector_returned_nothing' }); return; }
+        if (choice.isRepeat && ranking.some((entry) => entry.timesUsed === 0)) {
+          failures.push({
+            code,
+            courseLevel,
+            reason: 'repeat_selected_while_unused_family_exists',
+            issued,
+            ranking: ranking.map((entry) => ({
+              id: entry.question.id,
+              quality: entry.quality,
+              safetyTier: entry.qualitySafetyTier,
+              timesUsed: entry.timesUsed,
+              band: entry.band,
+              distance: entry.distance,
+              dok: entry.dok,
+            })),
+          });
+          return;
+        }
         issued.push(choice.question.id);
         usage = recordFamilyUse(usage, choice.question.id, question + 1);
       }
