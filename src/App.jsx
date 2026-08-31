@@ -4070,19 +4070,53 @@ function App() {
 
     try {
       const repair = buildSafeLibraryContentRepair(assignment, inspection.source);
-      await updateDoc(doc(db, 'assignments', assignment.id), {
+      const currentQuestions = getStoredAssignmentQuestions(assignment);
+      const repairedIndices = repair.repairedQuestionIds
+        .map((questionId) => currentQuestions.findIndex((question) => question?.questionId === questionId))
+        .filter((index) => index >= 0);
+      const studentsWithThisAssignment = allStudents.filter((student) => (
+        student?.id && student.gradesByAssignment?.[assignment.id]
+      ));
+
+      // The assignment itself and the repaired-question attempt reset are one
+      // Firestore batch. Students keep every other answer/score. Only work on a
+      // question that MathMaster rendered incorrectly is cleared, because
+      // carrying an "expired" attempt record into the restored workflow would
+      // leave the repaired question impossible to answer.
+      if (studentsWithThisAssignment.length > 450) {
+        throw new Error('This assignment has too many active student grade records for one safe atomic repair. Contact the platform administrator before repairing it.');
+      }
+      const repairedAt = new Date().toISOString();
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'assignments', assignment.id), {
         sections: repair.sections,
         contentRepair: {
           kind: 'libraryCanonicalWorkflowRestore',
           sourceAssignmentId: inspection.source.id,
           repairedQuestionIds: repair.repairedQuestionIds,
-          repairedAt: new Date().toISOString(),
+          repairedQuestionIndices: repairedIndices,
+          repairedAt,
+          studentQuestionAttemptsReset: true,
         },
       });
+      studentsWithThisAssignment.forEach((student) => {
+        const gradePatch = {};
+        repairedIndices.forEach((questionIndex) => {
+          gradePatch[`gradesByAssignment.${assignment.id}.${questionIndex}`] = emptyQuestionRecord();
+        });
+        // Classwork completion is a derived summary. The student's other
+        // question records remain untouched, and the summary will be earned
+        // again from the repaired content rather than retaining a score based
+        // on the broken renderer.
+        gradePatch[`classworkGradesByAssignment.${assignment.id}`] = deleteField();
+        batch.update(doc(db, 'grades', student.id), gradePatch);
+      });
+      await batch.commit();
+
       await fetchAssignments();
       toastSuccess(
         'Assignment repaired without restarting students',
-        `Restored ${repair.repairedQuestionIds.length} question${repair.repairedQuestionIds.length === 1 ? '' : 's'} in place. Existing student progress and grades were preserved.`,
+        `Restored ${repair.repairedQuestionIds.length} corrupted question${repair.repairedQuestionIds.length === 1 ? '' : 's'} in place. Students keep all other work and receive fresh attempts only on the repaired question${repair.repairedQuestionIds.length === 1 ? '' : 's'}.`,
       );
     } catch (error) {
       console.error(error);
