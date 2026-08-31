@@ -61,17 +61,18 @@ test('editing Dates & Classes publishes newly added Classroom destinations befor
 });
 
 
-test('adding a new Standard or Honors destination reuses the assignment instead of requiring manual duplication', () => {
+test('adding a class reuses the assignment as an independent class delivery with its own dates', () => {
   const app = fs.readFileSync('src/App.jsx', 'utf8');
   const saveDatesStart = app.indexOf('const handleSaveAssignmentDates');
-  const start = app.indexOf('if (changesDestination)', saveDatesStart);
-  const end = app.indexOf('const hasDOL', start);
+  const start = app.indexOf('// Adding another class is a NEW delivery', saveDatesStart);
+  const end = app.indexOf('// Existing assigned variants may move', start);
   const block = app.slice(start, end);
 
   assert.match(block, /addedClassIds/);
   assert.match(block, /keptEveryOriginalClass/);
   assert.match(block, /openStoredAssignmentForPreflight\(assignment/);
   assert.match(block, /assignedClassIds:\s*addedClassIds/);
-  assert.match(block, /existing class assignment stays unchanged/i);
-  assert.doesNotMatch(block, /Duplicate it to the library/);
+  assert.match(block, /current class assignment and its dates stay unchanged/i);
+  assert.match(block, /due date and Standard\/Honors depth can be managed independently/i);
+  assert.doesNotMatch(block, /updateDoc\(/, 'adding a class must not overwrite the existing class delivery dates');
 });
