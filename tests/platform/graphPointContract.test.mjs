@@ -70,4 +70,31 @@ const badAudit = auditStaticGraphViewport({
 assert.ok(badAudit.errors.some((message) => message.includes('graph.points[0]')));
 assert.ok(badAudit.errors.some((message) => message.includes('{x, y}')));
 
+
+const coordinatePlaneConsumers = [
+  'src/tools/complexPlane/ComplexPlaneLab.jsx',
+  'src/tools/constraintFunctionBuilder/ConstraintFunctionBuilder.jsx',
+  'src/tools/dataModeling/DataModelingLab.jsx',
+  'src/tools/exponentialLog/ExponentialLogBridge.jsx',
+  'src/tools/functionInvestigation2/FunctionInvestigation2.jsx',
+  'src/tools/graphing2/Graphing2.jsx',
+  'src/tools/inverseComposition/InverseCompositionLab.jsx',
+  'src/tools/openSortBoard/OpenSortBoard.jsx',
+  'src/tools/parabolaGeometry/ParabolaGeometryLab.jsx',
+  'src/tools/polynomialWorkshop/PolynomialWorkshop.jsx',
+  'src/tools/representationMatch/RepresentationMatch.jsx',
+  'src/tools/sequenceExplorer/SequenceExplorer.jsx',
+  'src/tools/systemsWorkspace/SystemsWorkspace.jsx',
+  'src/tools/transformations/TransformationsLab.jsx',
+];
+
+for (const consumerPath of coordinatePlaneConsumers) {
+  const source = fs.readFileSync(consumerPath, 'utf8');
+  assert.doesNotMatch(
+    source,
+    /\{\s*0\s*:[\s\S]{0,180}?\b1\s*:/,
+    `${consumerPath} must pass CoordinatePlane points as [x,y], {x,y}, or {coordinates:[x,y]} — not numeric-key objects.`,
+  );
+}
+
 console.log('graphPointContract.test.mjs: passed');
