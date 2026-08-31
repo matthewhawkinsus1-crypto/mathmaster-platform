@@ -91,7 +91,7 @@
         "Use a valid rational-root candidate to reduce the degree before factoring the quotient."
       ],
       "supportHints": [
-        "Use a candidate root to create a linear factor, then divide to reduce the polynomial's degree before factoring further."
+        "Test rational candidates until one reduces the polynomial, then divide and continue factoring the lower-degree quotient."
       ],
       "generator": {
         "parameters": {
@@ -298,7 +298,7 @@
         "After each confirmed root, reduce the polynomial and continue on the quotient."
       ],
       "supportHints": [
-        "Use the Rational Root Theorem to narrow candidates, confirm a root, then reduce the polynomial one factor at a time."
+        "Use rational candidates to reduce the polynomial one degree at a time, checking each factorization step before continuing."
       ],
       "generator": {
         "parameters": {
