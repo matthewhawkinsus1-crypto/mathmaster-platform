@@ -315,7 +315,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "Read outside and inside factors on different transformation axes.",
+        "reasoning": [
+          "The outside factor gives vertical scale $|a|={{va}}$; because $a<0$, the V reflects across the x-axis and opens down.",
+          "The inside factor gives horizontal scale $1/|b|={{hb}}$. The translation moves the vertex to $({{h}},{{k}})$.",
+          "A downward-opening absolute-value graph with vertex height {{k}} has range $y\\le {{k}}$."
+        ],
+        "answerSummary": "Vertical scale {{va}}, horizontal scale {{hb}}, x-axis reflection, vertex $({{h}},{{k}})$, opens down, range $y\\le {{k}}$."
+      }
     },
     {
       "id": "mm_A2_6C_v2_negative-b-point-map",
@@ -533,7 +542,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "A negative inside factor reverses input direction, but absolute value is symmetric.",
+        "reasoning": [
+          "For $b=-4$, horizontal coordinates are divided by -4 before shifting by h, so the parent points at x=-4 and x=4 land one unit to opposite sides of {{h}}.",
+          "The outside factor 2 doubles the parent y-value, then {{k}} shifts it vertically, giving the two arm images and vertex $({{h}},{{k}})$.",
+          "The horizontal scale is $1/4$. Because $|x|$ is even, the negative inside factor swaps the two arms without creating a visibly different reflection."
+        ],
+        "answerSummary": "Images $({{hp1}},{{ay}})$, $({{h}},{{k}})$, $({{hm1}},{{ay}})$; horizontal scale $1/4$; no distinct visible reflection."
+      }
     },
     {
       "id": "mm_A2_6C_v2_graph-horizontal-stretch",
@@ -620,6 +638,15 @@
           "rx": "h+4",
           "ay": "k+1"
         }
+      },
+      "solutionReview": {
+        "headline": "Inside 0.5 stretches horizontally while outside 0.5 compresses vertically.",
+        "reasoning": [
+          "The horizontal scale is the reciprocal of the inside magnitude: $1/0.5=2$.",
+          "The outside factor gives vertical scale 0.5, and the translation places the vertex at $({{h}},{{k}})$.",
+          "For an absolute-value graph the arm slope magnitude is $|ab|=0.5(0.5)=0.25$."
+        ],
+        "answerSummary": "Horizontal stretch 2, vertical scale 0.5, vertex $({{h}},{{k}})$, arm slope magnitude 0.25."
       }
     },
     {
@@ -695,6 +722,15 @@
             "max": 5
           }
         }
+      },
+      "solutionReview": {
+        "headline": "Recover a and b from the stated transformation sequence.",
+        "reasoning": [
+          "Vertical stretch 3 with x-axis reflection requires $a=-3$.",
+          "Horizontal compression by $1/2$ means $|b|=2$; the stated negative inside parameter makes $b=-2$.",
+          "The vertex is $({{h}},{{k}})$ and the arm slope magnitude is $|ab|=6$. For $|x|$, negative b only swaps symmetric arms."
+        ],
+        "answerSummary": "$a=-3$, $b=-2$, vertex $({{h}},{{k}})$, arm slope magnitude 6, no distinct visible inside reflection."
       }
     },
     {
@@ -787,6 +823,15 @@
             "max": 5
           }
         }
+      },
+      "solutionReview": {
+        "headline": "The inside magnitude controls reciprocal horizontal scale, not direct scale.",
+        "reasoning": [
+          "With $b=-3$, the horizontal scale is $1/|b|=1/3$, so this is a compression, not a stretch by 3.",
+          "With $a=-2$, the graph has vertical scale 2 and reflects across the x-axis, so it opens down.",
+          "For the even parent $|x|$, negative b swaps the arms rather than producing a second visible reflection. The arm slope magnitude is $|-2(-3)|=6$ and the vertex is $({{h}},{{k}})$."
+        ],
+        "answerSummary": "Horizontal scale $1/3$, vertical scale 2, opens down, arm slope magnitude 6, vertex $({{h}},{{k}})$."
       }
     }
   ]
