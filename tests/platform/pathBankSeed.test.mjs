@@ -298,6 +298,7 @@ test('every routeable standard launches a full five-question session', () => {
               id: entry.question.id,
               quality: entry.quality,
               safetyTier: entry.qualitySafetyTier,
+              blockers: entry.qualityBlockers,
               timesUsed: entry.timesUsed,
               band: entry.band,
               distance: entry.distance,
