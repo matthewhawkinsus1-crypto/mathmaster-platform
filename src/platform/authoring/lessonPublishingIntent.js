@@ -61,8 +61,12 @@ export const normalizeNotesPdfIntent = (raw, assignment = {}) => {
   const sections = asArray(source.sections).map(normalizeSection).filter((section) => (
     section.heading || section.content.length || section.bullets.length || section.equations.length || section.workedExample || section.callout
   ));
+  const hasAuthoredContent = sections.length > 0;
   return {
-    enabled: source.enabled !== false,
+    // Missing notes metadata means "no notes", not "publish a placeholder".
+    // Authored sections may opt an older V5 package in even if it omitted the
+    // explicit enabled flag, but an empty object can never create a blank PDF.
+    enabled: source.enabled === true || (source.enabled == null && hasAuthoredContent),
     title,
     fileName: slugFile(source.fileName || title),
     targetPages,
@@ -82,7 +86,13 @@ export const normalizeClassroomIntent = (raw, assignment = {}, notesPdf = null) 
   const topic = isObject(source.topic) ? source.topic : {};
   const assignmentTitle = clean(assignmentPost.title) || clean(assignment.title) || 'MathMaster Lesson';
   const topicName = clean(topic.name) || topicNameFromFolder(assignment.folder, assignmentTitle);
-  const resourcesEnabled = resourcesPost.enabled !== false && notesPdf?.enabled !== false;
+  const additionalLinks = asArray(source.additionalLinks)
+    .filter(isObject)
+    .map((link) => ({ title: clean(link.title), url: clean(link.url) }))
+    .filter((link) => link.title && /^https?:\/\//i.test(link.url))
+    .slice(0, 10);
+  const resourcesEnabled = resourcesPost.enabled !== false
+    && (notesPdf?.enabled === true || additionalLinks.length > 0);
   return {
     enabled: source.enabled !== false,
     topic: {
@@ -111,11 +121,7 @@ export const normalizeClassroomIntent = (raw, assignment = {}, notesPdf = null) 
       when: 'finalized',
       mode: 'assignedGrade',
     },
-    additionalLinks: asArray(source.additionalLinks)
-      .filter(isObject)
-      .map((link) => ({ title: clean(link.title), url: clean(link.url) }))
-      .filter((link) => link.title && /^https?:\/\//i.test(link.url))
-      .slice(0, 10),
+    additionalLinks,
   };
 };
 
@@ -127,7 +133,7 @@ export const normalizeLessonPublishingIntentV5 = (input = {}, assignment = {}, r
 
   if (!isObject(input.classroom)) repairs.push('generated Google Classroom publishing metadata from the assignment title/folder');
   if (!isObject(rawNotes) || !Array.isArray(rawNotes.sections)) {
-    repairs.push('created the lesson-notes PDF plan; author structured notes sections for a richer student handout');
+    repairs.push('no authored lesson-note sections were supplied, so MathMaster left the notes PDF disabled instead of publishing a blank handout');
   }
 
   return {
@@ -145,7 +151,7 @@ export const validateLessonPublishingIntent = ({ classroomPackage, lessonResourc
   if (notes?.enabled) {
     if (![1, 2].includes(Number(notes.targetPages))) errors.push('notesPdf.targetPages must be 1 or 2.');
     if (!Array.isArray(notes.sections) || notes.sections.length === 0) {
-      warnings.push('The notes PDF is enabled but has no authored sections; MathMaster will create a short title/objective handout.');
+      errors.push('The notes PDF is enabled but has no authored sections. Author the student notes before publishing, or turn lesson notes off.');
     }
     const wordEstimate = (notes.sections || []).reduce((total, section) => {
       const text = [section.heading, ...(section.content || []), ...(section.bullets || []), section.callout,

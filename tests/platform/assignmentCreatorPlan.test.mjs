@@ -17,6 +17,7 @@ assert.equal(defaults.sections.test.enabled, false);
 assert.equal(defaults.sections.practice.mode, 'personalized');
 assert.equal(defaults.outputs.teacherWorksheetPdf, false);
 assert.equal(defaults.outputs.answerKeyPdf, false);
+assert.equal(defaults.outputs.lessonNotesPdf, true);
 assert.equal(defaults.rigorPreset, 'balanced');
 assert.equal(defaults.supportMode, 'inheritStudentProfile');
 assert.equal(defaults.modificationsAllowed, false);
@@ -34,6 +35,7 @@ const normalized = normalizeAssignmentCreatorPlan({
 assert.equal(normalized.sections.warmup.enabled, false);
 assert.equal(normalized.sections.practice.count, 10);
 assert.equal(normalized.sections.practice.mode, 'adaptive');
+assert.equal(normalized.outputs.lessonNotesPdf, true);
 
 const request = buildAssignmentCreatorRequest({
   courseId: 'algebra1',
@@ -63,6 +65,8 @@ assert.match(request, /Curriculum modifications: not allowed/);
 assert.match(request, /Student worksheet PDF: enabled/);
 assert.match(request, /Teacher copy PDF with answers\/available solutions: disabled/);
 assert.match(request, /Compact answer-key PDF: disabled/);
+assert.match(request, /DOLs are quick foundational checks/i);
+assert.match(request, /never return an enabled notes PDF with an empty sections array/i);
 assert.match(request, /roughly 15%/);
 assert.match(request, /Return exactly one complete MathMaster Assignment V5 JSON object/);
 const unsafePlan = normalizeAssignmentCreatorPlan({
