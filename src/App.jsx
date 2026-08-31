@@ -182,6 +182,7 @@ import {
   inspectLibraryContentRepair,
   prepareStoredAssignmentForReuse,
 } from './platform/assignments/libraryAssignmentReuse.js';
+import { applyCcmrHydrationToCanonicalAssignment } from './platform/assignments/canonicalCcmrHydration.js';
 import {
   assignmentNeedsStudentForWorksheet,
   buildTeacherAssignmentWorksheetModel,
@@ -2643,7 +2644,15 @@ function App() {
     // exam-style item that lacks audited-bank provenance.
     try {
       const raw = JSON.parse(String(text || ''));
-      if (raw && !Array.isArray(raw) && Number(raw.schemaVersion) === 5 && Array.isArray(raw.sections)) {
+      const isCanonicalSelfExport = raw?.portableContract?.kind === 'mathmasterCanonicalAssignmentV5'
+        && Number(raw?.portableContract?.version) === 1;
+      if (
+        raw
+        && !Array.isArray(raw)
+        && Number(raw.schemaVersion) === 5
+        && Array.isArray(raw.sections)
+        && !isCanonicalSelfExport
+      ) {
         const hydrated = await hydrateAssignmentCcmr(raw, { ensurePracticeTarget: false });
         sourceText = JSON.stringify(hydrated.assignment);
         ccmrAudit = hydrated.audit;
@@ -2867,12 +2876,12 @@ function App() {
       // then compiles that Honors-only V5 variant through the normal pipeline.
       if (hasHonorsDestination) {
         const hydratedHonors = await hydrateAssignmentCcmr(reviewedV5, { ensurePracticeTarget: true });
-        const honorsRead = readAssignmentJson(JSON.stringify(hydratedHonors.assignment));
-        if (!honorsRead.ok) {
-          throw new Error(`MathMaster could not prepare the Honors CCMR variant: ${honorsRead.errors.join(' ')}`);
-        }
+        const honorsCanonical = applyCcmrHydrationToCanonicalAssignment({
+          baseAssignmentV5: reviewedV5,
+          hydratedAssignment: hydratedHonors.assignment,
+        });
         honorsParsedQuestions = normalizeAssignmentQuestions(
-          validateAssignmentQuestions(honorsRead.parsed.questions, { variantMode }),
+          validateAssignmentQuestions(honorsCanonical.questions, { variantMode }),
         );
       }
 
@@ -3934,11 +3943,8 @@ function App() {
 
   const beginEditAssignmentSetup = (assignment) => {
     try {
-      const canonicalV5 = storedAssignmentToV5(assignment);
-      const result = readAssignmentJson(JSON.stringify(canonicalV5));
-      if (!result.ok) {
-        throw new Error(`This assignment cannot be opened in Assignment Review:\n${result.errors.join('\n')}`);
-      }
+      const prepared = prepareStoredAssignmentForReuse(assignment, { resetAssignmentKey: false });
+      const canonicalV5 = prepared.assignmentV5;
       const currentDraft = {
         title: assignment.title || canonicalV5.assignment.title || '',
         folder: assignment.folder || canonicalV5.assignment.folder || '',
@@ -3984,7 +3990,11 @@ function App() {
         preflight: canonicalV5.preflight,
       };
         const opened = openAssignmentPreflight(
-        { ...result.parsed, authoringWarnings: result.warnings },
+        {
+          assignmentV5: canonicalV5,
+          questions: prepared.questions,
+          authoringWarnings: prepared.warnings,
+        },
         `Existing · ${assignment.title}`,
         currentDraft,
         {
