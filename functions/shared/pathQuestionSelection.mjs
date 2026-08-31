@@ -54,6 +54,17 @@ const QUALITY_RANK = {
   [QUESTION_QUALITY.BLOCKED]: 3,
 };
 
+// Production and Candidate are both real teachable questions. Operational means
+// placeholder-only, and Blocked is not acceptable. This safety tier lets the
+// selector exhaust unused teachable families before repeating a polished one,
+// without ever choosing a placeholder merely to avoid a repeat.
+const QUALITY_SAFETY_TIER = {
+  [QUESTION_QUALITY.PRODUCTION]: 0,
+  [QUESTION_QUALITY.CANDIDATE]: 0,
+  [QUESTION_QUALITY.OPERATIONAL]: 1,
+  [QUESTION_QUALITY.BLOCKED]: 2,
+};
+
 /**
  * Order candidates the way selection should consider them.
  *
@@ -117,16 +128,21 @@ export const rankCandidates = (candidates = [], {
       lastUsedAt,
       quality: audit.level,
       qualityRank: QUALITY_RANK[audit.level] ?? 3,
+      qualitySafetyTier: QUALITY_SAFETY_TIER[audit.level] ?? 2,
       representation: audit.representation,
       taskType: audit.taskType,
       representationRepeat: seenRepresentations.has(audit.representation) ? 1 : 0,
       taskTypeRepeat: audit.taskType && seenTaskTypes.has(audit.taskType) ? 1 : 0,
     };
   }).sort((a, b) => (
-    // Polished content before placeholders, always.
-    a.qualityRank - b.qualityRank
-    // Unused before used.
+    // Never use placeholder/blocked content merely to avoid a repeat.
+    a.qualitySafetyTier - b.qualitySafetyTier
+    // Within the teachable pool, unused before used. This preserves the
+    // five-family session contract even when one unused family is Candidate
+    // while a previously used family is Production.
     || (a.timesUsed === 0 ? 0 : 1) - (b.timesUsed === 0 ? 0 : 1)
+    // Then prefer the more polished family.
+    || a.qualityRank - b.qualityRank
     // A representation this session has not used yet.
     || a.representationRepeat - b.representationRepeat
     // A kind of thinking this session has not used yet.
