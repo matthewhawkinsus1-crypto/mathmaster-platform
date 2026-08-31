@@ -19831,7 +19831,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "Read outside and inside factors on different transformation axes.",
+        "reasoning": [
+          "The outside factor gives vertical scale $|a|={{va}}$; because $a<0$, the V reflects across the x-axis and opens down.",
+          "The inside factor gives horizontal scale $1/|b|={{hb}}$. The translation moves the vertex to $({{h}},{{k}})$.",
+          "A downward-opening absolute-value graph with vertex height {{k}} has range $y\\le {{k}}$."
+        ],
+        "answerSummary": "Vertical scale {{va}}, horizontal scale {{hb}}, x-axis reflection, vertex $({{h}},{{k}})$, opens down, range $y\\le {{k}}$."
+      }
     },
     {
       "id": "mm_A2_6C_v2_negative-b-point-map",
@@ -20049,7 +20058,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "A negative inside factor reverses input direction, but absolute value is symmetric.",
+        "reasoning": [
+          "For $b=-4$, horizontal coordinates are divided by -4 before shifting by h, so the parent points at x=-4 and x=4 land one unit to opposite sides of {{h}}.",
+          "The outside factor 2 doubles the parent y-value, then {{k}} shifts it vertically, giving the two arm images and vertex $({{h}},{{k}})$.",
+          "The horizontal scale is $1/4$. Because $|x|$ is even, the negative inside factor swaps the two arms without creating a visibly different reflection."
+        ],
+        "answerSummary": "Images $({{hp1}},{{ay}})$, $({{h}},{{k}})$, $({{hm1}},{{ay}})$; horizontal scale $1/4$; no distinct visible reflection."
+      }
     },
     {
       "id": "mm_A2_6C_v2_graph-horizontal-stretch",
@@ -20136,6 +20154,15 @@
           "rx": "h+4",
           "ay": "k+1"
         }
+      },
+      "solutionReview": {
+        "headline": "Inside 0.5 stretches horizontally while outside 0.5 compresses vertically.",
+        "reasoning": [
+          "The horizontal scale is the reciprocal of the inside magnitude: $1/0.5=2$.",
+          "The outside factor gives vertical scale 0.5, and the translation places the vertex at $({{h}},{{k}})$.",
+          "For an absolute-value graph the arm slope magnitude is $|ab|=0.5(0.5)=0.25$."
+        ],
+        "answerSummary": "Horizontal stretch 2, vertical scale 0.5, vertex $({{h}},{{k}})$, arm slope magnitude 0.25."
       }
     },
     {
@@ -20211,6 +20238,15 @@
             "max": 5
           }
         }
+      },
+      "solutionReview": {
+        "headline": "Recover a and b from the stated transformation sequence.",
+        "reasoning": [
+          "Vertical stretch 3 with x-axis reflection requires $a=-3$.",
+          "Horizontal compression by $1/2$ means $|b|=2$; the stated negative inside parameter makes $b=-2$.",
+          "The vertex is $({{h}},{{k}})$ and the arm slope magnitude is $|ab|=6$. For $|x|$, negative b only swaps symmetric arms."
+        ],
+        "answerSummary": "$a=-3$, $b=-2$, vertex $({{h}},{{k}})$, arm slope magnitude 6, no distinct visible inside reflection."
       }
     },
     {
@@ -20303,6 +20339,15 @@
             "max": 5
           }
         }
+      },
+      "solutionReview": {
+        "headline": "The inside magnitude controls reciprocal horizontal scale, not direct scale.",
+        "reasoning": [
+          "With $b=-3$, the horizontal scale is $1/|b|=1/3$, so this is a compression, not a stretch by 3.",
+          "With $a=-2$, the graph has vertical scale 2 and reflects across the x-axis, so it opens down.",
+          "For the even parent $|x|$, negative b swaps the arms rather than producing a second visible reflection. The arm slope magnitude is $|-2(-3)|=6$ and the vertex is $({{h}},{{k}})$."
+        ],
+        "answerSummary": "Horizontal scale $1/3$, vertical scale 2, opens down, arm slope magnitude 6, vertex $({{h}},{{k}})$."
       }
     },
     {
@@ -20346,6 +20391,14 @@
             "max": 15
           }
         }
+      },
+      "solutionReview": {
+        "headline": "Absolute value models distance from a target.",
+        "reasoning": [
+          "The expression $x-{{target}}$ is the signed difference between the measurement and the target.",
+          "Distance ignores direction, so taking absolute value and setting it equal to {{d}} captures values {{d}} units on either side."
+        ],
+        "answerSummary": "$|x-{{target}}|={{d}}$."
       }
     },
     {
@@ -20528,7 +20581,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "Two symmetric solutions determine a center and a distance.",
+        "reasoning": [
+          "The midpoint of {{left}} and {{right}} is {{center}}, so {{center}} is the center of the absolute-value equation.",
+          "Each marked value is {{d}} units from the center.",
+          "A number whose distance from {{center}} is {{d}} satisfies $|x-{{center}}|={{d}}$."
+        ],
+        "answerSummary": "Center {{center}}, distance {{d}}, equation $|x-{{center}}|={{d}}$."
+      }
     },
     {
       "id": "mm_A2_6D_v2_linear-reading-deviation",
@@ -20606,6 +20668,15 @@
         "derived": {
           "insideConstant": "b-target"
         }
+      },
+      "solutionReview": {
+        "headline": "Translate 'exactly d units from target' into a distance equation.",
+        "reasoning": [
+          "The deviation from the target is $R(t)-{{target}}={{m}}t{{insideConstant|signed}}$.",
+          "Because deviation can occur above or below the target, use absolute value.",
+          "Set the magnitude of that deviation equal to {{d}}."
+        ],
+        "answerSummary": "$|{{m}}t{{insideConstant|signed}}|={{d}}$."
       }
     },
     {
@@ -20684,6 +20755,15 @@
           "b": "-m*center",
           "rhs": "m*d"
         }
+      },
+      "solutionReview": {
+        "headline": "A scaled absolute-value equation can represent the same two symmetric solutions.",
+        "reasoning": [
+          "The two allowed values are centered at {{center}} and are {{d}} units from that center.",
+          "The center-distance form is $|x-{{center}}|={{d}}$.",
+          "Multiplying the inside and the right side by {{m}} gives the equivalent relation $|{{m}}x{{b|signed}}|={{rhs}}$."
+        ],
+        "answerSummary": "Center {{center}}; one equivalent equation is $|{{m}}x{{b|signed}}|={{rhs}}$."
       }
     },
     {
@@ -20824,7 +20904,15 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "A one-sided linear equation does not represent distance in both directions.",
+        "reasoning": [
+          "The equation ${{m}}x{{b|signed}}={{d}}$ captures only the positive signed difference.",
+          "Distance from zero must allow the expression to be either {{d}} or -{{d}}, which absolute value encodes in one equation."
+        ],
+        "answerSummary": "$|{{m}}x{{b|signed}}|={{d}}$."
+      }
     },
     {
       "id": "mm_A2_6E_v2_two-case-complete",
@@ -20968,7 +21056,15 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "A positive absolute-value equation splits into two linear cases.",
+        "reasoning": [
+          "$|x-{{h}}|={{d}}$ means the inside expression can equal {{d}} or -{{d}}.",
+          "Solving $x-{{h}}={{d}}$ and $x-{{h}}=-{{d}}$ gives the two symmetric solutions {{right}} and {{left}}."
+        ],
+        "answerSummary": "Cases $x-{{h}}={{d}}$ and $x-{{h}}=-{{d}}$; solutions {{left}} and {{right}}."
+      }
     },
     {
       "id": "mm_A2_6E_v2_scaled-linear-inside",
@@ -21159,7 +21255,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "Isolate the absolute value before splitting into cases.",
+        "reasoning": [
+          "Undo the outside addition and multiplication first to obtain $|{{m}}x{{b|signed}}|={{D}}$.",
+          "Because {{D}} is positive, use the two cases ${{m}}x{{b|signed}}={{D}}$ and ${{m}}x{{b|signed}}=-{{D}}$.",
+          "Solving the two linear equations gives {{left}} and {{right}}."
+        ],
+        "answerSummary": "$|{{m}}x{{b|signed}}|={{D}}$; solutions {{left}} and {{right}}."
+      }
     },
     {
       "id": "mm_A2_6E_v2_zero-distance-one-solution",
@@ -21265,6 +21370,15 @@
         "derived": {
           "b": "-m*h"
         }
+      },
+      "solutionReview": {
+        "headline": "Absolute value equals zero only when its inside is zero.",
+        "reasoning": [
+          "After isolation the equation is $|{{m}}x{{b|signed}}|=0$.",
+          "An absolute value is zero only at zero, so the single remaining equation is ${{m}}x{{b|signed}}=0$.",
+          "That equation gives the one real solution $x={{h}}$."
+        ],
+        "answerSummary": "One real solution: $x={{h}}$."
       }
     },
     {
@@ -21355,6 +21469,15 @@
           "early": "h-s",
           "late": "h+s"
         }
+      },
+      "solutionReview": {
+        "headline": "The absolute-value model reaches a positive target on two sides of its center.",
+        "reasoning": [
+          "Isolating the absolute value gives $|{{m}}t{{b|signed}}|={{D}}$.",
+          "Split into ${{m}}t{{b|signed}}={{D}}$ and ${{m}}t{{b|signed}}=-{{D}}$.",
+          "The two solutions are times {{early}} and {{late}}, both of which satisfy the original reading target."
+        ],
+        "answerSummary": "Earlier time {{early}}; later time {{late}}."
       }
     },
     {
@@ -21454,6 +21577,15 @@
         "derived": {
           "y": "k-a*d"
         }
+      },
+      "solutionReview": {
+        "headline": "An absolute value cannot equal a negative number.",
+        "reasoning": [
+          "The correct isolated equation is $|{{m}}x{{b|signed}}|=-{{d}}$.",
+          "Every absolute value is at least zero, while -{{d}} is negative.",
+          "Therefore splitting into two linear cases would be invalid and the real solution set is empty."
+        ],
+        "answerSummary": "No real solutions."
       }
     },
     {
@@ -21535,6 +21667,15 @@
           "left": "h-s",
           "right": "h+s"
         }
+      },
+      "solutionReview": {
+        "headline": "Dividing by a negative reverses the inequality before the absolute-value rule is applied.",
+        "reasoning": [
+          "After moving {{k}} and dividing by the negative outside coefficient, the inequality becomes $|{{m}}x{{b|signed}}|\\le {{D}}$.",
+          "A less-than-or-equal absolute-value inequality means the inside stays between -{{D}} and {{D}}.",
+          "Solving those bounds gives the closed interval $[{{left}},{{right}}]$."
+        ],
+        "answerSummary": "$[{{left}},{{right}}]$."
       }
     },
     {
@@ -21772,7 +21913,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "Greater-than absolute-value inequalities describe points outside two boundaries.",
+        "reasoning": [
+          "Isolation gives $|{{m}}x{{b|signed}}|>{{D}}$.",
+          "Being more than {{D}} units from the center means $x<{{left}}$ OR $x>{{right}}$.",
+          "Because the inequality is strict, both interval endpoints are open."
+        ],
+        "answerSummary": "$(-\\infty,{{left}})\\cup({{right}},\\infty)$."
+      }
     },
     {
       "id": "mm_A2_6F_v2_negative-bound-contrast",
@@ -21869,6 +22019,14 @@
             "max": 8
           }
         }
+      },
+      "solutionReview": {
+        "headline": "Use the nonnegative nature of absolute value before doing algebra.",
+        "reasoning": [
+          "An absolute value can never be less than a negative number, so the '< negative' inequality has no real solutions.",
+          "An absolute value is always greater than any strictly negative number, so the '> negative' inequality is true for every real x."
+        ],
+        "answerSummary": "First inequality: no real solutions. Second inequality: $(-\\infty,\\infty)$."
       }
     },
     {
@@ -21945,6 +22103,15 @@
           "early": "h-s",
           "late": "h+s"
         }
+      },
+      "solutionReview": {
+        "headline": "Within a tolerance means an absolute deviation no larger than that tolerance.",
+        "reasoning": [
+          "Subtract the target from the reading to get the deviation ${{m}}t{{inside|signed}}$.",
+          "The condition 'within {{tol}} units' becomes $|{{m}}t{{inside|signed}}|\\le {{tol}}$.",
+          "The resulting compound inequality keeps t between {{early}} and {{late}}, inclusive."
+        ],
+        "answerSummary": "Acceptable interval $[{{early}},{{late}}]$."
       }
     },
     {
@@ -22109,7 +22276,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "Greater than an absolute distance uses OR, not AND.",
+        "reasoning": [
+          "$|{{m}}x{{b|signed}}|>{{D}}$ asks for points farther than the boundary distance from the center.",
+          "Those points lie outside the two boundary values, so the branches are $x<{{left}}$ OR $x>{{right}}$.",
+          "The corrected union is $(-\\infty,{{left}})\\cup({{right}},\\infty)$."
+        ],
+        "answerSummary": "$x<{{left}}$ or $x>{{right}}$."
+      }
     },
     {
       "id": "mm_A2_6G_v2_combined-symbolic-effects",
@@ -22374,7 +22550,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "For reciprocal transformations, a and b combine into the coefficient a/b.",
+        "reasoning": [
+          "The outside factor gives vertical scale $|a|={{va}}$ and, since a is negative, an x-axis reflection.",
+          "The inside factor gives horizontal scale $1/|b|={{hb}}$ and, since b is negative, a horizontal reflection.",
+          "The center translates to $({{h}},{{k}})$, so the asymptotes are $x={{h}}$ and $y={{k}}$. Algebraically the reciprocal coefficient is $a/b={{ratio}}$."
+        ],
+        "answerSummary": "Scales {{va}} vertically and {{hb}} horizontally; asymptotes $x={{h}}$, $y={{k}}$; coefficient $a/b={{ratio}}$."
+      }
     },
     {
       "id": "mm_A2_6G_v2_negative-b-point-map",
@@ -22486,6 +22671,15 @@
           "km3": "k-3",
           "kp3": "k+3"
         }
+      },
+      "solutionReview": {
+        "headline": "A negative inside factor both compresses and reverses reciprocal inputs.",
+        "reasoning": [
+          "With $b=-2$, parent x-coordinates are divided by -2 and then shifted by {{h}}, which swaps the left/right locations.",
+          "The outside factor 3 scales y-values before the vertical shift {{k}}, producing the mapped points $({{hp}},{{km3}})$ and $({{hm}},{{kp3}})$.",
+          "The horizontal scale is 0.5, the asymptotes remain $x={{h}}$ and $y={{k}}$, and $a/b=3/(-2)=-1.5$."
+        ],
+        "answerSummary": "Horizontal scale 0.5, horizontal reflection, asymptotes $x={{h}}$, $y={{k}}$, equivalent coefficient -1.5."
       }
     },
     {
@@ -22651,7 +22845,16 @@
             "answerSummary": "Horizontal scale 2, vertical scale 2, asymptotes 0 and 0, effective coefficient 4."
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "An inside factor of 0.5 doubles horizontal distances from the vertical asymptote.",
+        "reasoning": [
+          "The horizontal scale is $1/0.5=2$, while the outside factor gives vertical scale 2.",
+          "Translations move the reciprocal center to $({{h}},{{k}})$, so its asymptotes are $x={{h}}$ and $y={{k}}$.",
+          "The transformed reciprocal coefficient is $a/b=2/0.5=4$."
+        ],
+        "answerSummary": "Horizontal scale 2, vertical scale 2, asymptotes $x={{h}}$, $y={{k}}$, coefficient 4."
+      }
     },
     {
       "id": "mm_A2_6G_v2_reverse-specified-sequence",
@@ -22804,7 +23007,16 @@
             "answerSummary": "a=-3, b=-2, a/b=1.5, asymptotes x=0 and y=0, same orientation."
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "Reverse the stated transformations to recover the reciprocal parameters.",
+        "reasoning": [
+          "Vertical stretch 3 with x-axis reflection gives $a=-3$.",
+          "Horizontal compression $1/2$ with horizontal reflection gives $b=-2$.",
+          "Thus $a/b=1.5$. Two sign reflections cancel visually for the odd reciprocal parent, while the asymptotes translate to $x={{h}}$ and $y={{k}}$."
+        ],
+        "answerSummary": "$a=-3$, $b=-2$, coefficient 1.5, asymptotes $x={{h}}$ and $y={{k}}$, same branch orientation as the parent."
+      }
     },
     {
       "id": "mm_A2_6G_v2_inside-factor-error",
@@ -22895,6 +23107,15 @@
             "max": 5
           }
         }
+      },
+      "solutionReview": {
+        "headline": "The inside factor uses reciprocal horizontal scale and does not negate the translation.",
+        "reasoning": [
+          "With $b=-4$, the horizontal scale is $1/4$, not 4, and the negative sign produces a horizontal reflection.",
+          "The expression uses $(x-{{h}})$, so the vertical asymptote is $x={{h}}$; the vertical translation gives horizontal asymptote $y={{k}}$.",
+          "The equivalent reciprocal coefficient is $a/b=2/(-4)=-0.5$, so the branch orientation is opposite the parent."
+        ],
+        "answerSummary": "Horizontal scale 0.25; asymptotes $x={{h}}$, $y={{k}}$; coefficient -0.5; opposite orientation."
       }
     },
     {
@@ -22949,6 +23170,14 @@
             "max": 12
           }
         }
+      },
+      "solutionReview": {
+        "headline": "Work rates add when both machines contribute to the same job.",
+        "reasoning": [
+          "A machine that finishes one job in {{a}} hours has rate $1/{{a}}$ job per hour; the other has rate $1/{{b}}$.",
+          "Working together, their rates add and must equal the combined rate $1/t$."
+        ],
+        "answerSummary": "$1/{{a}}+1/{{b}}=1/t$."
       }
     },
     {
@@ -23163,7 +23392,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "Average speed must be built from total distance divided by total time.",
+        "reasoning": [
+          "The segment times are distance divided by speed: ${{d1}}/{{v1}}$ and ${{d2}}/{{v2}}$.",
+          "Total time is their sum, while the same trip written with overall average speed v has time $({{d1}}+{{d2}})/v$.",
+          "Equating those two expressions formulates the required rational model."
+        ],
+        "answerSummary": "${{d1}}/{{v1}}+{{d2}}/{{v2}}=({{d1}}+{{d2}})/v$."
+      }
     },
     {
       "id": "mm_A2_6H_v2_round-trip-current-equation",
@@ -23251,6 +23489,15 @@
             "max": 8
           }
         }
+      },
+      "solutionReview": {
+        "headline": "Current changes the upstream and downstream rates in opposite directions.",
+        "reasoning": [
+          "Upstream speed is $v-{{c}}$, so upstream time is ${{d}}/(v-{{c}})$.",
+          "Downstream speed is $v+{{c}}$, so downstream time is ${{d}}/(v+{{c}})$.",
+          "Their times sum to {{T}} hours. Physically, $v>{{c}}$ is required so the upstream speed is positive."
+        ],
+        "answerSummary": "${{d}}/(v-{{c}})+{{d}}/(v+{{c}})={{T}}$, with $v>{{c}}$."
       }
     },
     {
@@ -23304,6 +23551,14 @@
         "derived": {
           "solute": "(V+x0)/5"
         }
+      },
+      "solutionReview": {
+        "headline": "Adding pure solvent changes volume but not the amount of solute.",
+        "reasoning": [
+          "The solute amount stays {{solute}} while the final volume becomes ${{V}}+x$.",
+          "Concentration is solute divided by total volume, so a 20% target is represented by ${{solute}}/({{V}}+x)=0.2$."
+        ],
+        "answerSummary": "${{solute}}/({{V}}+x)=0.2$."
       }
     },
     {
@@ -23445,7 +23700,16 @@
             }
           }
         }
-      ]
+      ],
+      "solutionReview": {
+        "headline": "A drain contributes a negative work rate.",
+        "reasoning": [
+          "The fill pipe contributes $1/{{a}}$ tank per hour.",
+          "The drain removes $1/{{b}}$ tank per hour, so its rate must be subtracted rather than added.",
+          "The net rate equals $1/t$, giving the corrected rational equation."
+        ],
+        "answerSummary": "$1/{{a}}-1/{{b}}=1/t$."
+      }
     },
     {
       "id": "mm_A2_6I_v2_shifted-isolate-complete",
