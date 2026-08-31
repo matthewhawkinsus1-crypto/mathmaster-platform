@@ -178,6 +178,11 @@ import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './platform/re
 import { downloadAssignmentWorksheetPdf } from './platform/resources/assignmentWorksheetPdf.js';
 import { defaultAssignmentDateInputs } from './platform/assignments/assignmentDateDefaults.js';
 import {
+  buildSafeLibraryContentRepair,
+  inspectLibraryContentRepair,
+  prepareStoredAssignmentForReuse,
+} from './platform/assignments/libraryAssignmentReuse.js';
+import {
   assignmentNeedsStudentForWorksheet,
   buildTeacherAssignmentWorksheetModel,
   eligibleStudentsForTeacherWorksheet,
@@ -3907,18 +3912,24 @@ function App() {
   };
 
   const openStoredAssignmentForPreflight = (assignment, draftOverrides = {}) => {
-    const canonicalV5 = storedAssignmentToV5(assignment, { resetAssignmentKey: true });
-    const result = readAssignmentJson(JSON.stringify(canonicalV5));
-    if (!result.ok) {
-      throw new Error(`This saved assignment cannot be reopened in Assignment Review:\n${result.errors.join('\n')}`);
-    }
+    // A stored assignment is ALREADY canonical V5. Sending it back through the
+    // authoring compiler used to reinterpret internal renderer contracts as new
+    // AI intent. A composed function workflow could therefore collapse into the
+    // legacy y=x free-plot tool while being moved from the Library to a class.
+    // Reuse validates the stored canonical object directly and never recompiles
+    // its questions.
+    const prepared = prepareStoredAssignmentForReuse(assignment, { resetAssignmentKey: true });
     const opened = openAssignmentPreflight(
-      { ...result.parsed, authoringWarnings: result.warnings },
+      {
+        assignmentV5: prepared.assignmentV5,
+        questions: prepared.questions,
+        authoringWarnings: prepared.warnings,
+      },
       `Library · ${assignment.title}`,
       draftOverrides,
     );
     if (opened !== true) throw new Error(opened?.error || 'Could not open Assignment Review for this saved assignment.');
-    return canonicalV5;
+    return prepared.assignmentV5;
   };
 
   const beginEditAssignmentSetup = (assignment) => {
@@ -4014,6 +4025,59 @@ function App() {
       assignedClassPeriods: existingPeriods,
       assignedClassIds: existingIds,
     });
+  };
+
+  const beginAssignLibraryAssignment = (assignment) => {
+    // Give Library rows a real Assign action. The existing Dates & Classes
+    // editor owns destination/date selection; saving a library item from there
+    // opens canonical Preflight and then uses the normal Classroom publisher.
+    setLibraryNavigation(null);
+    setAssignmentSearch('');
+    beginEditAssignmentDates(assignment);
+    setTeacherTab('assignments');
+    toastInfo(
+      'Choose the class and dates',
+      'This Library lesson will stay reusable. After you choose a class, Assignment Review will preserve the exact questions and publish the saved Google Classroom post, notes, resources, and grade-passback settings.',
+    );
+  };
+
+  const handleRepairAssignmentFromLibrary = async (assignment) => {
+    const inspection = inspectLibraryContentRepair(assignment, assignments);
+    if (!inspection.source || !inspection.questionIds.length) {
+      toastError(
+        'No safe Library repair found',
+        'MathMaster could not find one unambiguous Library source with the same question identity and the richer workflow. No student work was changed.',
+      );
+      return;
+    }
+
+    const proceed = await confirmAction({
+      title: `Repair ${inspection.questionIds.length} corrupted question${inspection.questionIds.length === 1 ? '' : 's'}?`,
+      message: 'MathMaster will restore only the collapsed workflow question content from the matching Library source. The live assignment ID, question IDs, question order, dates, classes, scores, attempts, and all other student progress stay attached to this assignment.',
+      confirmLabel: 'Repair assignment',
+    });
+    if (!proceed) return;
+
+    try {
+      const repair = buildSafeLibraryContentRepair(assignment, inspection.source);
+      await updateDoc(doc(db, 'assignments', assignment.id), {
+        sections: repair.sections,
+        contentRepair: {
+          kind: 'libraryCanonicalWorkflowRestore',
+          sourceAssignmentId: inspection.source.id,
+          repairedQuestionIds: repair.repairedQuestionIds,
+          repairedAt: new Date().toISOString(),
+        },
+      });
+      await fetchAssignments();
+      toastSuccess(
+        'Assignment repaired without restarting students',
+        `Restored ${repair.repairedQuestionIds.length} question${repair.repairedQuestionIds.length === 1 ? '' : 's'} in place. Existing student progress and grades were preserved.`,
+      );
+    } catch (error) {
+      console.error(error);
+      toastError('Could not repair assignment', error.message);
+    }
   };
 
   const handleSaveAssignmentDates = async (assignmentId) => {
@@ -5702,6 +5766,7 @@ function App() {
                 onRenameFolder={handleRenameFolder}
                 onDeleteFolder={handleDeleteFolder}
                 onMoveAssignment={handleMoveAssignmentToFolder}
+                onAssignAssignment={beginAssignLibraryAssignment}
                 onNavigateToAssignments={(navigation) => { setLibraryNavigation(navigation); setTeacherTab('assignments'); }}
                 nowValue={now}
                 classSchedule={classSchedule}
@@ -5801,6 +5866,7 @@ function App() {
                   const assignmentType = getStoredAssignmentTypeProjection(assignment);
                   const assignmentVariantMode = getStoredAssignmentVariantMode(assignment);
                   const hasSectionVersions = Object.keys(getStoredSectionVariantModes(assignment)).length > 0;
+                  const libraryRepair = inspectLibraryContentRepair(assignment, assignments);
                   return (
                     <article key={assignment.id} style={{ background: '#f8f9fa', padding: '18px', marginBottom: '12px', borderRadius: '10px', border: `1px solid ${isSelected ? 'var(--mm-primary)' : lifecycle.isLate ? '#f9ab00' : lifecycle.isPracticeOnly ? '#5f6368' : '#e0e3e7'}`, boxShadow: isSelected ? '0 0 0 2px var(--mm-primary-soft)' : 'none' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -5832,7 +5898,12 @@ function App() {
                             { key: 'edit-setup', label: 'Review / Edit Setup', onClick: () => beginEditAssignmentSetup(assignment) },
                             { key: 'export-pdf', label: 'Print / Answer Key', onClick: () => beginTeacherWorksheetExport(assignment) },
                             { key: 'export-json', label: 'Export Assignment', onClick: () => { setExportJsonAssignment(assignment); setExportJsonCopied(false); } },
-                            { key: 'dates-classes', label: 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
+                            { key: 'dates-classes', label: isLibraryAssignment(assignment) ? 'Assign to Class / Dates' : 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
+                            ...(libraryRepair.source && libraryRepair.questionIds.length ? [{
+                              key: 'repair-library-content',
+                              label: `Repair Corrupted Question${libraryRepair.questionIds.length === 1 ? '' : 's'} from Library`,
+                              onClick: () => handleRepairAssignmentFromLibrary(assignment),
+                            }] : []),
                             { key: 'move-folder', label: 'Move to Folder', onClick: () => { setMovingFolderAssignmentId(assignment.id); setMovingFolderValue(assignment.folder || ''); } },
                             { key: 'duplicate', label: 'Duplicate', onClick: () => handleDuplicateAssignment(assignment) },
                             { key: 'archive', label: assignment.archived ? 'Unarchive' : 'Archive', onClick: () => handleToggleArchiveAssignment(assignment) },
