@@ -112,6 +112,55 @@ export const inferStoredAssignmentCourseId = (
   return null;
 };
 
+const reusableOutputProfiles = (assignment = {}) => {
+  const outputProfiles = isObject(assignment.outputProfiles) ? { ...assignment.outputProfiles } : {};
+  const canonicalNotes = isObject(outputProfiles.lessonNotesPdf) ? outputProfiles.lessonNotesPdf : {};
+  const runtimeNotes = isObject(assignment.lessonResources?.notesPdf) ? assignment.lessonResources.notesPdf : {};
+  const runtimeSections = Array.isArray(runtimeNotes.sections) ? runtimeNotes.sections : [];
+  const canonicalSections = Array.isArray(canonicalNotes.sections) ? canonicalNotes.sections : [];
+
+  if (!Object.keys(runtimeNotes).length) return outputProfiles;
+
+  const {
+    asset: _asset,
+    ...portableRuntimeNotes
+  } = runtimeNotes;
+  return {
+    ...outputProfiles,
+    lessonNotesPdf: {
+      ...portableRuntimeNotes,
+      ...canonicalNotes,
+      // A generated Storage asset belongs to one delivery, but the authored
+      // note sections belong to the reusable lesson. Restore them when an older
+      // library record kept them only in lessonResources.
+      sections: canonicalSections.length ? canonicalSections : runtimeSections,
+    },
+  };
+};
+
+const reusableClassroomIntegration = (assignment = {}) => {
+  const canonical = isObject(assignment.classroomIntegration) ? assignment.classroomIntegration : {};
+  const runtime = isObject(assignment.classroomPackage) ? assignment.classroomPackage : {};
+  if (!Object.keys(runtime).length) return canonical;
+
+  const mergeNested = (key) => ({
+    ...(isObject(runtime[key]) ? runtime[key] : {}),
+    ...(isObject(canonical[key]) ? canonical[key] : {}),
+  });
+
+  return {
+    ...runtime,
+    ...canonical,
+    topic: mergeNested('topic'),
+    assignmentPost: mergeNested('assignmentPost'),
+    resourcesPost: mergeNested('resourcesPost'),
+    gradePassback: mergeNested('gradePassback'),
+    additionalLinks: Array.isArray(canonical.additionalLinks)
+      ? canonical.additionalLinks
+      : (Array.isArray(runtime.additionalLinks) ? runtime.additionalLinks : []),
+  };
+};
+
 export const storedAssignmentToV5 = (assignment = {}, {
   titleOverride = null,
   questions = null,
@@ -165,8 +214,8 @@ export const storedAssignmentToV5 = (assignment = {}, {
     deliveryPolicy: assignment.deliveryPolicy,
     gradingPolicy: assignment.gradingPolicy,
     evidencePolicy: assignment.evidencePolicy,
-    outputProfiles: assignment.outputProfiles,
-    classroomIntegration: assignment.classroomIntegration,
+    outputProfiles: reusableOutputProfiles(assignment),
+    classroomIntegration: reusableClassroomIntegration(assignment),
     provenance: assignment.provenance,
     preflight: assignment.preflight,
   });
