@@ -1408,7 +1408,7 @@ async function pathCoverage() {
 
 const COVERAGE_COLLECTION = "pathCoverage";
 
-const PATH_RUNTIME_RELEASE = "path-bank-2026-08-29-r12-asvab-rebuild";
+const PATH_RUNTIME_RELEASE = "path-bank-2026-08-30-r13-asvab-challenge";
 const PATH_COURSE_IDS = Object.freeze(["grade6", "grade7", "grade8", "algebra1", "algebra2"]);
 const CONTENT_RELEASE_MANIFEST_COLLECTION = "pathContentReleases";
 const CONTENT_RELEASE_MANIFEST_DOC = "current";
