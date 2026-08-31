@@ -7,6 +7,8 @@ on:
       - audit/teks-fidelity-v2-algebra2-current
     paths:
       - scripts/build-algebra-fidelity-v2-production-seeds.mjs
+      - drafts/fidelity-v2/algebra1/*.json
+      - drafts/fidelity-v2/algebra2/*.json
       - .github/workflows/promote-algebra-fidelity-v2-seeds.yml
 
 permissions:
