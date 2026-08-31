@@ -61,6 +61,7 @@ import {
   formatDateTime,
   formatRemainingTime,
   getAssignmentLifecycle,
+  getClassPackUpState,
   getDOLState,
   getWarmupState,
   getSectionAccessState,
@@ -175,6 +176,7 @@ import {
 } from './platform/resources/lessonNotesPdf.js';
 import { buildAssignmentWorksheetModel, PRINT_OUTPUT_MODES } from './platform/resources/assignmentWorksheetPdfModel.js';
 import { downloadAssignmentWorksheetPdf } from './platform/resources/assignmentWorksheetPdf.js';
+import { defaultAssignmentDateInputs } from './platform/assignments/assignmentDateDefaults.js';
 import {
   assignmentNeedsStudentForWorksheet,
   buildTeacherAssignmentWorksheetModel,
@@ -816,8 +818,9 @@ function App() {
   }, []);
 
   // The general dashboard clock can stay inexpensive at 30 seconds, while DOL
-  // transitions need to happen at the actual bell-derived second. Schedule one
-  // precise wake-up for the next class start, DOL opening, or DOL ending.
+  // and pack-up transitions need to happen at the actual bell-derived second.
+  // Schedule one precise wake-up for the next class start, DOL transition, or
+  // five-minute technology-return window.
   useEffect(() => {
     if (user?.role !== 'student' || !user.classPeriod) return undefined;
     const realNow = Date.now();
@@ -829,6 +832,20 @@ function App() {
           : state.status === 'active' ? state.endsAt?.getTime() + 100
             : null)
       .filter((target) => Number.isFinite(target) && target > realNow);
+
+    const packUp = getClassPackUpState({
+      schedule: classSchedule,
+      classPeriod: user.classPeriod,
+      nowValue: realNow,
+      minutesBeforeEnd: 5,
+    });
+    const packTarget = packUp.status === 'waiting'
+      ? packUp.startsAt?.getTime()
+      : packUp.status === 'active'
+        ? packUp.endsAt?.getTime() + 100
+        : null;
+    if (Number.isFinite(packTarget) && packTarget > realNow) targets.push(packTarget);
+
     if (!targets.length) return undefined;
     const nextTarget = Math.min(...targets);
     const timer = window.setTimeout(() => setNow(Date.now()), Math.max(50, nextTarget - realNow));
@@ -1046,7 +1063,13 @@ function App() {
         .filter((link) => link.title && /^https?:\/\//i.test(link.url))
       : [];
 
-    if (notesPdf?.enabled) {
+    const hasAuthoredNotes = notesPdf?.enabled === true
+      && Array.isArray(notesPdf?.sections)
+      && notesPdf.sections.length > 0;
+    if (notesPdf?.enabled && !hasAuthoredNotes) {
+      console.warn('Lesson notes are enabled but contain no authored sections; skipping the notes PDF so an empty handout can never reach Google Classroom.');
+    }
+    if (hasAuthoredNotes) {
       let notesUrl = notesPdf?.asset?.url || null;
       if (!notesUrl) {
         const generated = await generateLessonNotesPdfBlob({ assignment, notesPdf });
@@ -2547,11 +2570,12 @@ function App() {
         classroom: assignmentV5.classroomIntegration,
         lessonResources: { notesPdf: assignmentV5.outputProfiles?.lessonNotesPdf },
       }, assignmentV5.assignment, []);
+      const defaultDates = defaultAssignmentDateInputs();
       const initialDraft = {
         title: assignmentV5.assignment?.title || '',
         folder: assignmentV5.assignment?.folder || '',
-        dueAt: '',
-        lateDueAt: '',
+        dueAt: defaultDates.dueAt,
+        lateDueAt: defaultDates.lateDueAt,
         releaseAt: '',
         sectionVariantModes: getStoredSectionVariantModes(assignmentV5),
         sectionAccessDefaults: { classwork: 'open', practice: 'open' },
@@ -2564,6 +2588,7 @@ function App() {
         warmupInstructionDatesByClassPeriod: {},
         dolEnabled: sections.some((section) => section.role === 'dol'),
         dolMinutesBeforeEnd: 10,
+        dolCloseMinutesBeforeEnd: 5,
         dolInstructionDate: '',
         dolInstructionDatesByClassPeriod: {},
         dolQuestionIndex: dolQuestionFromRole >= 0 ? dolQuestionFromRole : null,
@@ -2715,6 +2740,7 @@ function App() {
         && Number.isInteger(dolQuestionIndex),
       );
       const dolMinutesBeforeEnd = Math.max(1, Number(teacherReview.dolMinutesBeforeEnd) || 10);
+      const dolCloseMinutesBeforeEnd = Math.max(0, Number(teacherReview.dolCloseMinutesBeforeEnd ?? 5));
       const dolInstructionDate = String(
         teacherReview.dolInstructionDate
         || (releaseAt ? localDateKey(new Date(releaseAt)) : '')
@@ -2772,6 +2798,7 @@ function App() {
         dol: {
           enabled: dolEnabled,
           minutesBeforeEnd: dolMinutesBeforeEnd,
+          closeMinutesBeforeEnd: dolCloseMinutesBeforeEnd,
           instructionDate: dolInstructionDate,
           instructionDatesByClassPeriod: teacherReview.dolInstructionDatesByClassPeriod || {},
           questionIndex: dolQuestionIndex,
@@ -3140,6 +3167,7 @@ function App() {
         ...(existing.dol || {}),
         enabled: hasDOL && draft.dolEnabled === true,
         minutesBeforeEnd: Math.max(1, Number(draft.dolMinutesBeforeEnd) || 10),
+        closeMinutesBeforeEnd: Math.max(0, Number(draft.dolCloseMinutesBeforeEnd ?? existing.dol?.closeMinutesBeforeEnd ?? 5)),
         instructionDate: draft.dolInstructionDate || existing.dol?.instructionDate || null,
         instructionDatesByClassPeriod: draft.dolInstructionDatesByClassPeriod || existing.dol?.instructionDatesByClassPeriod || {},
         questionIndex: dolQuestionIndex,
@@ -3923,6 +3951,7 @@ function App() {
         warmupInstructionDatesByClassPeriod: assignment.warmup?.instructionDatesByClassPeriod || {},
         dolEnabled: assignment.dol?.enabled === true,
         dolMinutesBeforeEnd: assignment.dol?.minutesBeforeEnd ?? 10,
+        dolCloseMinutesBeforeEnd: assignment.dol?.closeMinutesBeforeEnd ?? 5,
         dolInstructionDate: assignment.dol?.instructionDate || '',
         dolInstructionDatesByClassPeriod: assignment.dol?.instructionDatesByClassPeriod || {},
         dolQuestionIndex: Number.isInteger(assignment.dol?.questionIndex) ? assignment.dol.questionIndex : null,
@@ -3975,10 +4004,11 @@ function App() {
       .filter((entry) => existingIds.includes(entry.classId) && entry?.status !== 'archived')
       .map((entry) => entry.period)
       .filter(Boolean))];
+    const defaultDates = defaultAssignmentDateInputs();
     setEditingAssignmentId(assignment.id);
     setEditingAssignmentDates({
-      dueAt: toLocalInput(assignment.dueAt || assignment.dueDate),
-      lateDueAt: toLocalInput(assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate),
+      dueAt: toLocalInput(assignment.dueAt || assignment.dueDate) || defaultDates.dueAt,
+      lateDueAt: toLocalInput(assignment.lateDueAt || assignment.lateDueDate) || defaultDates.lateDueAt,
       dolInstructionDate: assignment.dol?.instructionDate
         || (assignment.releaseAt ? toLocalInput(assignment.releaseAt).slice(0, 10) : localDateKey(Date.now())),
       assignedClassPeriods: existingPeriods,
@@ -4240,6 +4270,45 @@ function App() {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const renderStudentPackUpBanner = () => {
+    if (user?.role !== 'student' || !user.classPeriod) return null;
+    const packUp = getClassPackUpState({
+      schedule: classSchedule,
+      classPeriod: user.classPeriod,
+      nowValue: now,
+      minutesBeforeEnd: 5,
+    });
+    if (packUp.status !== 'active') return null;
+
+    return (
+      <aside
+        role="alert"
+        aria-live="assertive"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 20000,
+          background: '#fbbc04',
+          color: '#202124',
+          borderBottom: '5px solid #d93025',
+          boxShadow: '0 8px 28px rgba(0,0,0,0.28)',
+          padding: '18px 24px',
+          textAlign: 'center',
+        }}
+      >
+        <div style={{ fontSize: 'clamp(24px, 4vw, 42px)', fontWeight: 1000, lineHeight: 1.05 }}>
+          ⏰ PACK UP & RETURN TECHNOLOGY
+        </div>
+        <div style={{ marginTop: 8, fontSize: 'clamp(16px, 2.2vw, 24px)', fontWeight: 900 }}>
+          Save your work, sign out, and return your device now. The bell is in{' '}
+          <DOLCountdown endsAt={packUp.endsAt} />.
+        </div>
+      </aside>
+    );
   };
 
   const renderIdleOverlay = () => {
@@ -4951,6 +5020,7 @@ function App() {
           fontSize: supportPresentation.largeText ? '120%' : undefined,
         }}
       >
+        {!preview && renderStudentPackUpBanner()}
         {!preview && !supportPresentation.disableIdleTimer && renderIdleOverlay()}
         <div className="mathmaster-assignment-shell" style={{ maxWidth: '1120px', margin: '0 auto' }}>
           {!preview && liveChallengeInvite?.status === 'running' && (
@@ -6081,18 +6151,23 @@ function App() {
   if (user.role === 'student' && activeView === 'dashboard') {
     if (studentDashboardMode === 'liveChallenge') {
       return (
-        <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading Live Challenge…</div>}>
+        <>
+          {renderStudentPackUpBanner()}
+          <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading Live Challenge…</div>}>
           <LiveChallengeStudent
             invite={liveChallengeInvite}
             studentProfile={user.profile}
             onExit={() => setStudentDashboardMode('assignments')}
           />
-        </Suspense>
+          </Suspense>
+        </>
       );
     }
     if (studentDashboardMode === 'mathPath') {
       return (
-        <MyMathPathApp
+        <>
+          {renderStudentPackUpBanner()}
+          <MyMathPathApp
           studentId={user.id}
           studentName={user.displayName || user.id}
           studentProfile={adaptiveStudentProfile || user.profile}
@@ -6103,15 +6178,19 @@ function App() {
           courseId={studentCourseId}
           studentRecord={studentRecord}
           onExit={() => { setPathLaunchTeks(null); setStudentDashboardMode('assignments'); }}
-        />
+          />
+        </>
       );
     }
     if (studentDashboardMode === 'secureExams') {
       return (
-        <StudentSecureExamDashboard
+        <>
+          {renderStudentPackUpBanner()}
+          <StudentSecureExamDashboard
           studentProfile={user.profile}
           onExit={() => setStudentDashboardMode('assignments')}
-        />
+          />
+        </>
       );
     }
 
@@ -6148,7 +6227,9 @@ function App() {
     // "your week is done" claim nobody checked is worse than not mentioning it.
     const studentNextAction = resolveNextAction({ dashboard });
     return (
-      <StudentDashboardView
+      <>
+        {renderStudentPackUpBanner()}
+        <StudentDashboardView
         dashboard={dashboard}
         student={{ id: user.id, displayName: user.displayName, classPeriod: user.classPeriod, inclusionStatus: user.profile?.inclusionStatus }}
         supportPresentation={supportPresentation}
@@ -6170,7 +6251,8 @@ function App() {
           pathOptions: studentPathOptions,
           onChooseSkill: handleChooseSkill,
         }}
-      />
+        />
+      </>
     );
   }
 
