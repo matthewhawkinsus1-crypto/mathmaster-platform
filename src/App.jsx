@@ -4081,9 +4081,15 @@ function App() {
 
     if (shouldAutoPublishClassroomPackage(nextAssignment)) {
       try {
+        // Publishing is idempotent for courses that already have a MathMaster
+        // post and creates the missing post for any class just added in Dates &
+        // Classes. Only after that do we patch every existing post's due date.
+        // Previously we only ran the update call, which cannot create a
+        // Classroom post and made "add another class" appear not to work.
+        await autoPublishAssignmentPackageToClassroom(nextAssignment);
         await updateAssignmentClassroomPublications({ assignmentId });
       } catch (classroomError) {
-        console.warn('Classroom due-date sync after assignment edit failed:', classroomError);
+        console.warn('Classroom publish/sync after assignment edit failed:', classroomError);
       }
     }
 
@@ -5258,7 +5264,14 @@ function App() {
     // the free-text search. Computed once so the header count, the
     // select-all-visible checkbox and the rendered cards can never disagree.
     const visibleAssignments = assignments.filter((assignment) => (
-      assignmentFolderMatches(assignment, libraryNavigation?.folder)
+      // The Assignments tab is class-scoped whenever the class bar names a
+      // specific class. Library-only/unassigned work must not leak into a class
+      // view simply because its title or folder matches the search.
+      (!activeClass.classId || assignmentIsForStudent(assignment, {
+        classId: activeClass.classId,
+        classPeriod: activeClass.classPeriod,
+      }))
+      && assignmentFolderMatches(assignment, libraryNavigation?.folder)
       && matchesSmartView(assignment, libraryNavigation?.smartView, { nowValue: now, classSchedule, classes })
       && titleOrFolderMatches(assignment, assignmentSearch)
     ));
