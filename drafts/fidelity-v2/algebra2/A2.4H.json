@@ -225,7 +225,7 @@
         "Account for the negative leading coefficient before choosing inside versus outside."
       ],
       "supportHints": [
-        "Use the sign of the leading coefficient to decide on which side of the roots the expression is positive."
+        "Locate the boundary values, test one input from each resulting interval, and apply the strictness of the original inequality when writing the solution set."
       ],
       "generator": {
         "parameters": {
@@ -598,7 +598,7 @@
         "The student got the sign interval right but did not finish checking whether equality is allowed."
       ],
       "supportHints": [
-        "Test each boundary value in the original inequality and decide from the inequality symbol whether equality at a boundary is allowed."
+        "Check each boundary in the original inequality, then decide separately which intervals work and whether each boundary belongs in the final set."
       ],
       "generator": {
         "parameters": {
