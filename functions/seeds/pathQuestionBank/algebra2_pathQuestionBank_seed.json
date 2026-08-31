@@ -2650,7 +2650,7 @@
         "Track what reflection across $y=x$ does to both coordinates and to horizontal versus vertical lines."
       ],
       "supportHints": [
-        "A horizontal line $y=c$ reflects across $y=x$ to the vertical line $x=c$."
+        "Track how input-output coordinates exchange roles, then compare corresponding points and the orientation of key graph features."
       ],
       "generator": {
         "parameters": {
@@ -11207,7 +11207,7 @@
         "After converting form, use the sign of a to decide whether k is a minimum or maximum."
       ],
       "supportHints": [
-        "Use the sign of the leading coefficient to decide whether the vertex is an upper or lower extreme, then translate that extreme into a range inequality."
+        "Complete the square first, then interpret the coefficient sign and the vertex relative to the rest of the graph before describing the output set."
       ],
       "generator": {
         "parameters": {
@@ -11335,7 +11335,7 @@
         "Do not identify the vertex directly from b and c; first perform the standard-to-vertex transformation."
       ],
       "supportHints": [
-        "After writing vertex form, use the leading coefficient and nearby y-values to decide which kind of extreme the vertex represents."
+        "Complete the square carefully, then use the transformed form to interpret symmetry and the vertex relative to nearby outputs."
       ],
       "generator": {
         "parameters": {
@@ -13523,7 +13523,7 @@
         "Do not use 'time must be nonnegative' as the reason here; both candidates pass that context check."
       ],
       "supportHints": [
-        "Check each candidate in the original radical equation; reject any candidate that fails the original condition."
+        "Substitute each proposed time into the original relation and compare the two sides before accepting or rejecting a candidate."
       ],
       "generator": {
         "parameters": {
@@ -13986,7 +13986,7 @@
         "Account for the negative leading coefficient before choosing inside versus outside."
       ],
       "supportHints": [
-        "Use the sign of the leading coefficient to decide on which side of the roots the expression is positive."
+        "Locate the boundary values, test one input from each resulting interval, and apply the strictness of the original inequality when writing the solution set."
       ],
       "generator": {
         "parameters": {
@@ -14359,7 +14359,7 @@
         "The student got the sign interval right but did not finish checking whether equality is allowed."
       ],
       "supportHints": [
-        "Test each boundary value in the original inequality and decide from the inequality symbol whether equality at a boundary is allowed."
+        "Check each boundary in the original inequality, then decide separately which intervals work and whether each boundary belongs in the final set."
       ],
       "generator": {
         "parameters": {
@@ -18537,7 +18537,7 @@
         "Compare displacements from the center rather than raw coordinates."
       ],
       "supportHints": [
-        "Horizontal scale uses the reciprocal of the inside coefficient; compute that reciprocal before comparing point distances."
+        "Compare horizontal distances from the transformed center separately from vertical distances, using corresponding parent and image points."
       ],
       "generator": {
         "parameters": {
@@ -23768,7 +23768,7 @@
         "First isolate the fraction; then clear the denominator without losing the horizontal shift."
       ],
       "supportHints": [
-        "Before solving, identify the input that would make the original denominator zero and keep that restriction throughout the work."
+        "Work in stages: identify the excluded input, isolate the rational term, and then solve the resulting reciprocal relation while keeping the restriction."
       ],
       "generator": {
         "parameters": {
@@ -29065,7 +29065,7 @@
         "Use a valid rational-root candidate to reduce the degree before factoring the quotient."
       ],
       "supportHints": [
-        "Use a candidate root to create a linear factor, then divide to reduce the polynomial's degree before factoring further."
+        "Test rational candidates until one reduces the polynomial, then divide and continue factoring the lower-degree quotient."
       ],
       "generator": {
         "parameters": {
@@ -29272,7 +29272,7 @@
         "After each confirmed root, reduce the polynomial and continue on the quotient."
       ],
       "supportHints": [
-        "Use the Rational Root Theorem to narrow candidates, confirm a root, then reduce the polynomial one factor at a time."
+        "Use rational candidates to reduce the polynomial one degree at a time, checking each factorization step before continuing."
       ],
       "generator": {
         "parameters": {
@@ -30091,7 +30091,7 @@
         "Complete the grouping step first; then inspect the remaining cubic for a special pattern."
       ],
       "supportHints": [
-        "Factor each grouped pair and look for a common binomial factor before continuing the factorization."
+        "Group terms to expose a shared factor first, then inspect the remaining lower-degree expression for a standard factoring identity."
       ],
       "generator": {
         "parameters": {
@@ -31804,7 +31804,7 @@
         "Separate the largest even power of x from the one x that remains under the radical."
       ],
       "supportHints": [
-        "Separate the variable exponent into an even part and one leftover factor before simplifying the square root."
+        "Separate the coefficient and variable parts into perfect-square pieces, extract only complete square factors, and verify the simplified form structurally."
       ],
       "generator": {
         "parameters": {
@@ -32209,7 +32209,7 @@
         "Check whether each quantity pulled from an even root is guaranteed nonnegative."
       ],
       "supportHints": [
-        "The principal square root is nonnegative; if the original variable has no sign restriction, account for both possible signs in the simplification."
+        "Compare the simplification for positive and negative inputs before removing a square from under a principal square root."
       ],
       "generator": {
         "parameters": {
@@ -33558,7 +33558,7 @@
         "If the first differences change, compare how those first differences change."
       ],
       "supportHints": [
-        "For equally spaced inputs, compare first differences and then compare the differences of those differences."
+        "Compute successive changes in the table before choosing a model, and base the classification on the pattern in those changes rather than direction alone."
       ],
       "generator": {
         "parameters": {
@@ -33615,7 +33615,7 @@
         "A decreasing data set can still be exponential; calculate the ratios rather than classifying from direction alone."
       ],
       "supportHints": [
-        "For equally spaced inputs, compare multiplicative ratios between consecutive outputs rather than additive changes."
+        "Compare each output with the previous output and decide whether the consistent pattern is additive or multiplicative before classifying the data."
       ],
       "variants": [
         {
@@ -34090,7 +34090,7 @@
         "Compute the change pattern rather than classifying from 'increasing' alone."
       ],
       "supportHints": [
-        "Check whether first differences are constant; if not, compare the differences of those differences before choosing a model type."
+        "Calculate the successive changes instead of relying on whether the data increase, then use the pattern in those changes to repair the classification."
       ],
       "generator": {
         "parameters": {
