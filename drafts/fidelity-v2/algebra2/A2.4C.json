@@ -639,7 +639,7 @@
         "Compare horizontal distances from the endpoints, not the x-coordinates by themselves."
       ],
       "supportHints": [
-        "Inside factors act reciprocally: b=1/4 corresponds to a horizontal scale factor of 4."
+        "For a horizontal scale, use the reciprocal of the magnitude of the inside coefficient before comparing distances from the endpoint."
       ],
       "generator": {
         "parameters": {
