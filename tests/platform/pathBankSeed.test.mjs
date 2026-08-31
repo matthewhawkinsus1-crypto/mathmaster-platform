@@ -271,6 +271,8 @@ const candidatesFor = (code) => SEED.filter((entry) => (
 ));
 
 test('every routeable standard launches a full five-question session', () => {
+  // A fifth family may be blocked by the quality audit; that is a content
+  // defect to repair, not permission to repeat one of the first four.
   const targets = routeableTargets();
   assert.equal(targets.length, 49 + 48 + REACHABLE_PREREQUISITES.length, 'the routeable set is both wheels plus every reachable prerequisite');
 
