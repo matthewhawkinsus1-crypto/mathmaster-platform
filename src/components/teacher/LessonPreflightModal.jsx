@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { MathMasterToolWrapper } from '../../platform/ToolWrapper';
 import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies';
 import { PUBLICATION_STRATEGIES, planClassroomPublication } from '../../platform/publishing/publicationPlanner';
-import { normalizeLessonPublishingIntentV5 } from '../../platform/authoring/lessonPublishingIntent.js';
+import {
+  normalizeLessonPublishingIntentV5,
+  validateLessonPublishingIntent,
+} from '../../platform/authoring/lessonPublishingIntent.js';
 import { defaultAssignmentDateInputs } from '../../platform/assignments/assignmentDateDefaults.js';
 import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
 import InteractiveModelingLabPlayer from '../labs/InteractiveModelingLabPlayer.jsx';
@@ -159,6 +162,8 @@ export const LessonPreflightModal = ({
   const [honorsEnrichmentQuestion, setHonorsEnrichmentQuestion] = useState(null);
   const [honorsAiBusy, setHonorsAiBusy] = useState(false);
   const [honorsAiMessage, setHonorsAiMessage] = useState('');
+  const [publishingAiBusy, setPublishingAiBusy] = useState(false);
+  const [publishingAiMessage, setPublishingAiMessage] = useState('');
   const [workingAssignmentV5, setWorkingAssignmentV5] = useState(() => assignmentV5);
   const [repairTargetIndex, setRepairTargetIndex] = useState(null);
   const [repairInstruction, setRepairInstruction] = useState('');
@@ -186,7 +191,16 @@ export const LessonPreflightModal = ({
   const hasAuthoredWarmup = activityRoles.includes('warmup');
   const hasAuthoredDOL = activityRoles.includes('dol');
   const previewQuestions = preflightModel.questions;
-  const validationErrors = preflightModel.errors;
+  const publishingValidation = useMemo(
+    () => validateLessonPublishingIntent(publishingIntent),
+    [publishingIntent],
+  );
+  const validationErrors = [
+    ...preflightModel.errors,
+    ...publishingValidation.errors,
+  ];
+  const notesNeedAuthoring = publishingIntent.lessonResources?.notesPdf?.enabled === true
+    && (publishingIntent.lessonResources?.notesPdf?.sections || []).length === 0;
   const questionRepairIssues = useMemo(
     () => groupQuestionPreflightIssues(validationErrors, previewQuestions),
     [validationErrors, previewQuestions],
@@ -508,6 +522,75 @@ export const LessonPreflightModal = ({
     }
   };
 
+  const buildMissingPublishingPackageWithAi = async () => {
+    if (!notesNeedAuthoring || publishingAiBusy) return;
+    setPublishingAiBusy(true);
+    setPublishingAiMessage('');
+    try {
+      const request = [
+        'Repair ONLY the Google Classroom publishing metadata and student lesson-notes package for this existing MathMaster Assignment V5.',
+        'Return one complete schemaVersion 5 assignment JSON object.',
+        'Do not rewrite, reorder, add, remove, or reinterpret any assignment sections or questions. MathMaster will ignore all returned question content and will extract publishing metadata only.',
+        'Keep outputProfiles.lessonNotesPdf.enabled true. Author substantive student-facing lesson notes with a learning goal and at least two content-bearing sections suitable for a 1–2 page PDF.',
+        'The notes should explain prerequisite/key ideas, vocabulary, representations, and one general worked example when helpful, but must not reveal answers to the live assignment questions.',
+        'Also ensure classroomIntegration contains a useful topic, nonblank assignment instructions, a Notes & Resources post, and finalized grade-passback metadata. Preserve any existing teacher-authored Classroom wording when it is already present.',
+        '',
+        'CURRENT CANONICAL ASSIGNMENT:',
+        JSON.stringify(effectiveAssignmentV5),
+      ].join('\n');
+
+      const built = await buildAssignmentWithAI(request);
+      const authored = JSON.parse(built.assignmentJson);
+      const candidatePublishing = normalizeLessonPublishingIntentV5({
+        classroom: authored.classroomIntegration,
+        lessonResources: { notesPdf: authored.outputProfiles?.lessonNotesPdf },
+      }, effectiveAssignmentV5.assignment, []);
+      const candidateValidation = validateLessonPublishingIntent(candidatePublishing);
+      if (candidateValidation.errors.length) {
+        throw new Error(`MathMaster AI returned an incomplete publishing package: ${candidateValidation.errors.join(' ')}`);
+      }
+
+      const authoredNotes = candidatePublishing.lessonResources?.notesPdf;
+      if (!authoredNotes?.enabled || !Array.isArray(authoredNotes.sections) || authoredNotes.sections.length < 2) {
+        throw new Error('MathMaster AI did not produce enough student-note content. Try the notes repair again.');
+      }
+
+      setWorkingAssignmentV5((current) => {
+        const currentClassroom = current.classroomIntegration && typeof current.classroomIntegration === 'object'
+          ? current.classroomIntegration
+          : {};
+        const aiClassroom = candidatePublishing.classroomPackage || {};
+        const mergeNested = (key) => ({
+          ...(aiClassroom[key] && typeof aiClassroom[key] === 'object' ? aiClassroom[key] : {}),
+          ...(currentClassroom[key] && typeof currentClassroom[key] === 'object' ? currentClassroom[key] : {}),
+        });
+        return {
+          ...current,
+          outputProfiles: {
+            ...(current.outputProfiles || {}),
+            lessonNotesPdf: authoredNotes,
+          },
+          classroomIntegration: {
+            ...aiClassroom,
+            ...currentClassroom,
+            topic: mergeNested('topic'),
+            assignmentPost: mergeNested('assignmentPost'),
+            resourcesPost: mergeNested('resourcesPost'),
+            gradePassback: mergeNested('gradePassback'),
+            additionalLinks: Array.isArray(currentClassroom.additionalLinks)
+              ? currentClassroom.additionalLinks
+              : (Array.isArray(aiClassroom.additionalLinks) ? aiClassroom.additionalLinks : []),
+          },
+        };
+      });
+      setPublishingAiMessage('Student notes and Google Classroom publishing details are ready. Review them below, then assign normally.');
+    } catch (error) {
+      setPublishingAiMessage(error.message);
+    } finally {
+      setPublishingAiBusy(false);
+    }
+  };
+
   const renderDetails = () => (
     <section aria-label="Details">
       {isNarrow && <StepBlockers blockers={blockersForStep(readiness, 'details')} />}
@@ -522,6 +605,25 @@ export const LessonPreflightModal = ({
             <div><strong>Assignment post:</strong> {publishingIntent.classroomPackage?.assignmentPost?.title || draft.title || 'Prepared from the lesson title'}</div>
             {publishingIntent.lessonResources?.notesPdf?.enabled && <div><strong>Student notes PDF:</strong> {publishingIntent.lessonResources.notesPdf.title || 'Student Notes'} · {Number(publishingIntent.lessonResources.notesPdf.targetPages) === 1 ? 1 : 2} page target · {(publishingIntent.lessonResources.notesPdf.sections || []).length} authored section{(publishingIntent.lessonResources.notesPdf.sections || []).length === 1 ? '' : 's'}</div>}
             {publishingIntent.classroomPackage?.resourcesPost?.enabled !== false && <div><strong>Resources post:</strong> {publishingIntent.classroomPackage?.resourcesPost?.postingMode === 'attachToAssignment' ? 'attach resources to the graded assignment' : 'separate Notes & Resources material post'}</div>}
+          </div>
+        )}
+        {notesNeedAuthoring && (
+          <div style={{ marginTop: 10, padding: '10px 11px', borderRadius: 8, background: '#fff4ce', border: '1px solid #f0d489', color: '#7a4f00' }}>
+            <strong>Student notes are turned on, but this saved lesson has no note content.</strong>
+            <div style={{ marginTop: 5 }}>MathMaster will not post a blank handout. Build the missing notes here; the assignment questions will not be rewritten.</div>
+            <button
+              type="button"
+              disabled={publishingAiBusy}
+              onClick={buildMissingPublishingPackageWithAi}
+              style={{ marginTop: 9, minHeight: 42, padding: '8px 13px', border: '1px solid #b78103', borderRadius: 8, background: '#fff', color: '#7a4f00', fontWeight: 900, cursor: publishingAiBusy ? 'wait' : 'pointer' }}
+            >
+              {publishingAiBusy ? 'Building notes…' : 'Build missing notes with MathMaster AI'}
+            </button>
+          </div>
+        )}
+        {publishingAiMessage && (
+          <div role="status" style={{ marginTop: 9, padding: '9px 10px', borderRadius: 8, background: notesNeedAuthoring ? '#fff4ce' : '#e6f4ea', color: notesNeedAuthoring ? '#7a4f00' : '#137333', fontSize: 12.5 }}>
+            {publishingAiMessage}
           </div>
         )}
       </div>
