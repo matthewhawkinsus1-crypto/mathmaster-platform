@@ -61,7 +61,7 @@
         "Separate the largest even power of x from the one x that remains under the radical."
       ],
       "supportHints": [
-        "Write the variable exponent as 2m+1 before taking the square root."
+        "Separate the variable exponent into its largest even part plus the leftover exponent before extracting factors from the square root."
       ],
       "generator": {
         "parameters": {
@@ -466,7 +466,7 @@
         "Check whether each quantity pulled from an even root is guaranteed nonnegative."
       ],
       "supportHints": [
-        "A square root cannot return a negative value; that is why |x| is required when x has no sign restriction."
+        "Use the fact that a principal square root is nonnegative, then ask what form of the x-factor stays nonnegative for either sign of x."
       ],
       "generator": {
         "parameters": {
