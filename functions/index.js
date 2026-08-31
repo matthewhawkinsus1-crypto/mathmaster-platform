@@ -3488,8 +3488,14 @@ exports.linkClassroomRosterBatch = onCall(async (request) => {
   });
 
   const batch = db.batch();
+  const targetRosterLinkIds = new Set(
+    prepared.map((item) => rosterLinkDocumentId(cleanCourseId, item.studentId))
+  );
   for (const replaced of linksBeingReplaced.values()) {
-    batch.delete(replaced.ref);
+    // If this same document is also one of the new targets (for example two
+    // links being corrected/swapped in one teacher action), the later set()
+    // replaces it. Avoid a delete+set pair on one document in the same batch.
+    if (!targetRosterLinkIds.has(replaced.id)) batch.delete(replaced.ref);
   }
 
   // Remove the course from any old MathMaster owner. If that old ID has no
@@ -3498,7 +3504,11 @@ exports.linkClassroomRosterBatch = onCall(async (request) => {
   const oldStudentIds = [...new Set(
     [...linksBeingReplaced.values()].map((entry) => String(entry.studentId || "")).filter(Boolean)
   )];
+  const targetStudentIds = new Set(prepared.map((item) => item.studentId));
   for (const oldStudentId of oldStudentIds) {
+    // A student who is also a target in this same batch remains linked to the
+    // course; the target write below will replace the copied Google identity.
+    if (targetStudentIds.has(oldStudentId)) continue;
     const hasRemainingLink = existingLinks.some((entry) => (
       String(entry.studentId || "") === oldStudentId
       && !linksBeingReplaced.has(entry.id)
