@@ -514,7 +514,7 @@
       "calculatorPolicy": "graphing",
       "assessedConstruct": "A2.4E",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "type": "dataModelingLab",
@@ -604,7 +604,7 @@
         {
           "coverageKey": "core-d3b5",
           "dok": 3,
-          "difficultyBand": 5
+          "difficultyBand": 4
         },
         {
           "coverageKey": "adaptive-d3b3-simple-regression-sign-audit",
