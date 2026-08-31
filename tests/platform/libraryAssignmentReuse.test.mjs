@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { parseAssignmentBlueprintText } from '../../src/assignmentBlueprint.js';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 import { getStoredAssignmentQuestions, storedAssignmentToV5 } from '../../src/platform/contract/storedAssignmentV5.js';
+import { applyCcmrHydrationToCanonicalAssignment } from '../../src/platform/assignments/canonicalCcmrHydration.js';
 import {
   buildSafeLibraryContentRepair,
   inspectLibraryContentRepair,
@@ -220,4 +221,22 @@ test('MathMaster portable self-export re-import keeps the exact composed workflo
   assert.deepEqual(importedQuestion.grading, sourceQuestion.grading);
   assert.equal(importedQuestion.studentChoosesX, undefined);
   assert.ok(imported.repairs.some((message) => /preserved MathMaster canonical V5 renderer contracts/i.test(message)));
+});
+
+
+test('Honors CCMR hydration preserves unchanged canonical workflow questions byte-for-byte', () => {
+  const library = buildCanonicalLibraryLesson();
+  const before = getStoredAssignmentQuestions(library)[0];
+
+  const hydrated = applyCcmrHydrationToCanonicalAssignment({
+    baseAssignmentV5: library,
+    hydratedAssignment: library,
+  });
+
+  const after = hydrated.questions[0];
+  assert.equal(hydrated.replacements, 0);
+  assert.deepEqual(after, before);
+  assert.equal(after.workflow.length, 8);
+  assert.equal(after.grading.equation, 'V = 12t');
+  assert.equal(after.studentChoosesX, undefined);
 });
