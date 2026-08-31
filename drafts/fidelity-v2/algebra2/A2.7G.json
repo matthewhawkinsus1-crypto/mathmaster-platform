@@ -61,7 +61,7 @@
         "Separate the largest even power of x from the one x that remains under the radical."
       ],
       "supportHints": [
-        "Separate the variable exponent into an even part and one leftover factor before simplifying the square root."
+        "Separate the coefficient and variable parts into perfect-square pieces, extract only complete square factors, and verify the simplified form structurally."
       ],
       "generator": {
         "parameters": {
@@ -466,7 +466,7 @@
         "Check whether each quantity pulled from an even root is guaranteed nonnegative."
       ],
       "supportHints": [
-        "The principal square root is nonnegative; if the original variable has no sign restriction, account for both possible signs in the simplification."
+        "Compare the simplification for positive and negative inputs before removing a square from under a principal square root."
       ],
       "generator": {
         "parameters": {
