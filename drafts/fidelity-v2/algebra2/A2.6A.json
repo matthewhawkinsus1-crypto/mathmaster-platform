@@ -835,7 +835,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.6A",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "For either odd parent $f(u)=u^3$ or $f(u)=\\sqrt[3]{u}$, a student analyzes $g(x)=-3f(-4(x-({{h}}))){{k|signed}}$ and says, “The two negatives mean there are no reflections, and 4 is the horizontal scale factor.” Diagnose the parameter effects correctly.",
