@@ -129,6 +129,7 @@ export const rankCandidates = (candidates = [], {
       quality: audit.level,
       qualityRank: QUALITY_RANK[audit.level] ?? 3,
       qualitySafetyTier: QUALITY_SAFETY_TIER[audit.level] ?? 2,
+      qualityBlockers: audit.blockers.map((issue) => issue.code),
       representation: audit.representation,
       taskType: audit.taskType,
       representationRepeat: seenRepresentations.has(audit.representation) ? 1 : 0,
