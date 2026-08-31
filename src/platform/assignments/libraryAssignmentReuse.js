@@ -69,7 +69,10 @@ export const inspectLibraryContentRepair = (targetAssignment, assignments = []) 
 
   const candidates = (Array.isArray(assignments) ? assignments : [])
     .filter((candidate) => candidate?.id && candidate.id !== targetAssignment.id)
-    .filter(isUnassignedLibraryRecord)
+    // Prefer the reusable Library source, but also accept an intact sibling
+    // delivery. A teacher may have created the broken class copy before the
+    // Library workflow was fixed, while another class still has the exact
+    // canonical question students originally received.
     .map((source) => {
       const sourceQuestions = getStoredAssignmentQuestions(source);
       const sourceById = new Map(sourceQuestions.map((question) => [clean(question?.questionId), question]));
@@ -87,13 +90,17 @@ export const inspectLibraryContentRepair = (targetAssignment, assignments = []) 
       return {
         source,
         questionIds: repairable.map((question) => clean(question.questionId)),
-        score: repairable.length * 100 + (exactOrder ? 20 : 0) + (sameTitle ? 10 : 0) + (sameCourse ? 5 : 0),
+        score: repairable.length * 100
+          + (isUnassignedLibraryRecord(source) ? 50 : 0)
+          + (exactOrder ? 20 : 0)
+          + (sameTitle ? 10 : 0)
+          + (sameCourse ? 5 : 0),
       };
     })
     .filter(Boolean)
     .sort((left, right) => right.score - left.score);
 
-  if (!candidates.length) return { source: null, questionIds: [], reason: 'no-matching-library-source' };
+  if (!candidates.length) return { source: null, questionIds: [], reason: 'no-matching-canonical-source' };
   if (candidates.length > 1 && candidates[0].score === candidates[1].score) {
     return { source: null, questionIds: [], reason: 'ambiguous-library-source' };
   }
