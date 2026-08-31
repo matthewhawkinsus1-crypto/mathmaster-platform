@@ -14,6 +14,17 @@ export const assignmentAiFallbackRecommended = (error) => (
     .includes(assignmentAiErrorCode(error))
 );
 
+export const assignmentAiFailureMessage = (error) => {
+  const code = assignmentAiErrorCode(error);
+  const message = String(error?.message || '').replace(/^Firebase:\s*/i, '').trim();
+  if (message && !/^internal$/i.test(message)) return message;
+  if (code === 'deadline-exceeded') return 'MathMaster AI timed out before it finished. Use the outside-AI import option or try again.';
+  if (code === 'resource-exhausted') return 'MathMaster AI is temporarily rate-limited. Use the outside-AI import option or try again shortly.';
+  if (code === 'unavailable') return 'MathMaster AI could not reach its server provider. Use the outside-AI import option while the connection is checked.';
+  if (code === 'failed-precondition') return 'MathMaster AI is not fully configured on this deployment. The outside-AI import option will still work.';
+  return 'MathMaster AI returned a server error. The outside-AI import option will still work while the server configuration is checked.';
+};
+
 export async function buildAssignmentWithAI(prompt) {
   const text = String(prompt || '').trim();
   if (!text) throw new Error('Finish the assignment plan before building with AI.');
