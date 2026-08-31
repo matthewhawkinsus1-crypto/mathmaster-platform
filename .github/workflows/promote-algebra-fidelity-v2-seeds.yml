@@ -1,5 +1,9 @@
 name: Promote certified Algebra Fidelity V2 seeds
 
+concurrency:
+  group: promote-algebra-fidelity-v2
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   push:
@@ -78,4 +82,6 @@ jobs:
             functions/seeds/pathQuestionBank/algebra2_pathQuestionBank_seed.json \
             seed/pathQuestionBank/PATH_BANK_COVERAGE_MANIFEST.json
           git commit -m "Promote certified Algebra I II Fidelity V2 Path seeds"
+          git fetch origin audit/teks-fidelity-v2-algebra2-current
+          git rebase origin/audit/teks-fidelity-v2-algebra2-current
           git push origin HEAD:audit/teks-fidelity-v2-algebra2-current
