@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MathMasterToolWrapper } from '../../platform/ToolWrapper';
 import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies';
 import { PUBLICATION_STRATEGIES, planClassroomPublication } from '../../platform/publishing/publicationPlanner';
@@ -18,6 +18,7 @@ import {
   separateHonorsDepthAiRepair,
 } from '../../platform/contract/honorsDepthAiRepair.js';
 import {
+  assignmentAiFailureMessage,
   assignmentAiFallbackRecommended,
   buildAssignmentWithAI,
 } from '../../services/assignmentAiService.js';
@@ -79,6 +80,34 @@ const checkboxStyle = { width: 20, height: 20, flexShrink: 0 };
 const fieldsetStyle = { marginTop: 18, padding: 15, border: '1px solid #d8dde6', borderRadius: 10 };
 const legendStyle = { fontWeight: 900 };
 const labelStyle = { fontWeight: 800, display: 'block' };
+
+const parseExternalAiJson = (raw) => {
+  let text = String(raw || '').trim();
+  const fenced = text.match(/^\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`$/i);
+  if (fenced) text = fenced[1].trim();
+  if (!text.startsWith('{')) {
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start >= 0 && end > start) text = text.slice(start, end + 1);
+  }
+  const parsed = JSON.parse(text);
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+    throw new Error('The AI result must be one JSON object.');
+  }
+  return parsed;
+};
+
+const writeClipboardText = async (text) => {
+  if (!navigator.clipboard?.writeText) throw new Error('Clipboard copy is unavailable in this browser.');
+  await navigator.clipboard.writeText(String(text || ''));
+};
+
+const readClipboardText = async () => {
+  if (!navigator.clipboard?.readText) throw new Error('Clipboard paste is unavailable in this browser.');
+  const text = await navigator.clipboard.readText();
+  if (!String(text || '').trim()) throw new Error('The clipboard is empty.');
+  return text;
+};
 
 const initialReviewDraft = (draft = {}) => {
   const { assignedClassPeriods, assignedClassIds, ...rest } = draft;
@@ -164,6 +193,8 @@ export const LessonPreflightModal = ({
   const [honorsAiMessage, setHonorsAiMessage] = useState('');
   const [publishingAiBusy, setPublishingAiBusy] = useState(false);
   const [publishingAiMessage, setPublishingAiMessage] = useState('');
+  const honorsRepairFileRef = useRef(null);
+  const notesRepairFileRef = useRef(null);
   const [workingAssignmentV5, setWorkingAssignmentV5] = useState(() => assignmentV5);
   const [repairTargetIndex, setRepairTargetIndex] = useState(null);
   const [repairInstruction, setRepairInstruction] = useState('');
