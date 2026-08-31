@@ -711,7 +711,7 @@
       "calculatorPolicy": "inherit",
       "assessedConstruct": "A2.5A",
       "representation": "verbal",
-      "difficultyBand": 5,
+      "difficultyBand": 4,
       "dok": 3,
       "taskType": "errorAnalysis",
       "prompt": "A student analyzes $g(x)=-2\\log_3(x-({{h}})){{k|signed}}$ and claims: “The -2 moves the vertical asymptote to x=-2, the domain becomes x<-2, and the +{{k}} makes the graph increasing.” Repair the reasoning and give the corrected key attributes.",
@@ -834,7 +834,7 @@
         {
           "coverageKey": "core-d3b5",
           "dok": 3,
-          "difficultyBand": 5
+          "difficultyBand": 4
         },
         {
           "coverageKey": "adaptive-d3b3-single-role-error-audit",
