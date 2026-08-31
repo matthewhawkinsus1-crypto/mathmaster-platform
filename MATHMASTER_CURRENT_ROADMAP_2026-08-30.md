@@ -114,3 +114,53 @@ After deployment:
 
 Future chats should read this file first, then the relevant detailed checkpoint.
 Do not restart Algebra I/II fidelity, Challenge/DOK/difficulty, or the certified Path recovery work unless a named regression fails.
+
+
+## Deployment readiness update — current main
+
+This section supersedes the earlier pre-deploy release-state wording.
+
+### Current production candidate
+
+- PR #87 is merged.
+- Current `main`: `cbe325ba0347e1a8f1f21a59a83e909b499cb317`.
+- Full Platform Test Suite run `33348760148`: **PASS**.
+- The post-merge release-safety work is included and green:
+  - safe refresh of existing course Path banks;
+  - independent ASVAB release activation;
+  - coordinated SAT / ACT / TSIA2 V2.1 release activation that preserves ASVAB;
+  - root-admin production Path activation controls;
+  - admin client wiring for those activation operations;
+  - Functions-first deployment order before any release-managed bank activation;
+  - release/activation regression coverage.
+
+### Deployment status
+
+**Code is clear for deployment.**
+
+Production Firestore Path content is still unchanged until deployment finishes and the root administrator runs the release activation controls.
+
+Use `docs/DEPLOY_FROM_CLOUD_SHELL.md` and:
+1. deploy current `main` with `scripts/deploy-v5-preproduction.sh`;
+2. in Administration → My Math Path content coverage:
+   - Refresh course Path bank;
+   - Refresh ASVAB release;
+   - Refresh SAT / ACT / TSIA2 release;
+3. run the live smoke checks before beginning the next major implementation phase.
+
+### Path / CCMR UI distinction
+
+Already implemented:
+- clickable TEKS/CCMR context inside student instructional work;
+- explicit CCMR session identity;
+- Challenge/advanced completion states;
+- Back/resume/completed-session recovery;
+- weekly planning that preserves both course Challenge and CCMR transfer for Honors students when capacity allows;
+- secure CCMR direct/challenge issuance and release-aware routing.
+
+Still post-deploy planned:
+- a visually browsable topic-selection surface where students can deliberately see and choose available TEKS and CCMR work before recommendation;
+- weekly goal/credit visualization and due-date/grade-contribution goals;
+- clearer curriculum-vs-transfer/enrichment visual separation on the selection surface.
+
+Therefore: **deploy now; do not block this release on the later topic-browser redesign.**
