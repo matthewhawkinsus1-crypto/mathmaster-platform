@@ -161,7 +161,7 @@
           "coverageKey": "adaptive-d2b2-unit-step-table-rate",
           "dok": 2,
           "difficultyBand": 2,
-          "prompt": "Use the three-row table to determine the constant rate of change. The x-values increase by 1 each time, so compare consecutive output changes.",
+          "prompt": "Use the three-row table to determine the constant rate of change. Compare consecutive changes in x and y, then use those changes to compute the rate.",
           "stimulus": {
             "kind": "table",
             "table": {
@@ -218,7 +218,7 @@
             "Compare the same pair of consecutive rows for Δx and Δy."
           ],
           "supportHints": [
-            "When Δx=1, the rate equals Δy."
+            "Compute Δy and Δx from the same pair of consecutive rows, then divide the output change by the input change."
           ],
           "generator": {
             "parameters": {
