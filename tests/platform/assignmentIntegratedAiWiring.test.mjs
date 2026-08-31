@@ -56,12 +56,16 @@ test('integrated and external AI results share the same MathMaster accept/valida
   assert.match(intake, /await acceptJson\(text, 'Pasted from clipboard'\)/);
 });
 
-test('existing-assignment Honors review uses the same embedded AI instead of copy-paste', () => {
+test('existing-assignment Honors review has embedded, no-AI, and external-AI repair paths', () => {
   assert.match(preflight, /Build Honors Depth with MathMaster AI/);
   assert.match(preflight, /buildHonorsDepthWithAi/);
   assert.match(preflight, /buildAssignmentWithAI\(request\)/);
   assert.match(preflight, /applyHonorsDepthAiSections/);
   assert.match(preflight, /buildAssignmentV5PreflightModel\(guardedCandidate\)/);
+  assert.match(preflight, /Add built-in Honors extension \(no AI\)/);
+  assert.match(preflight, /Copy outside-AI repair request/);
+  assert.match(preflight, /Paste AI Honors result/);
+  assert.match(preflight, /Upload Honors JSON/);
   assert.match(preflight, /Audited CCMR Practice will be sourced from Fidelity V2\.1 at publish/);
 });
 
@@ -72,3 +76,11 @@ test('provider boundary uses current Responses API and Structured Outputs', () =
 });
 
 console.log('assignmentIntegratedAiWiring.test.mjs: all assertions passed');
+
+
+test('integrated AI failures expose actionable configuration messages instead of hiding every error', () => {
+  assert.match(functionsIndex, /OPENAI_API_KEY\s+is not configured/);
+  assert.match(functionsIndex, /not configured on this Firebase deployment/);
+  assert.match(service, /assignmentAiFailureMessage/);
+  assert.match(preflight, /assignmentAiFailureMessage\(error\)/);
+});
