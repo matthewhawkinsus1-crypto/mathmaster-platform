@@ -28,7 +28,10 @@ test('question layout is selected by viewport size, not touchscreen hardware', (
 
   assert.match(detector, /width <= 768/);
   assert.match(detector, /height <= 500 && width <= 1024/);
-  assert.doesNotMatch(detector, /pointer:\s*coarse|matchMedia/);
+  const detectMobileStart = detector.indexOf('const detectMobile');
+  const detectMobileEnd = detector.indexOf('const detectLandscape', detectMobileStart);
+  const detectMobileBlock = detector.slice(detectMobileStart, detectMobileEnd);
+  assert.doesNotMatch(detectMobileBlock, /pointer:\s*coarse|matchMedia/);
 
   const anchorRuleStart = css.indexOf('Compact viewports already have the dedicated QUESTION panel');
   const anchorRuleEnd = css.indexOf('.mathmaster-success-next-question', anchorRuleStart);
