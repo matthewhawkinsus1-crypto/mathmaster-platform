@@ -46,6 +46,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'grades/S1042'), { classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_EMAIL });
   await setDoc(doc(db, 'grades/S2000'), { classPeriod: 'Period 2', assignedTeacherEmail: OTHER_TEACHER_EMAIL });
   await setDoc(doc(db, 'grades/S1042/scratchpads/a__question_0'), { dataUrl: 'x', authorizedTeacherEmails: [TEACHER_EMAIL] });
+  await setDoc(doc(db, 'grades/S1042/scratchpads/a__question_delete'), { dataUrl: 'delete-me', authorizedTeacherEmails: [TEACHER_EMAIL] });
   await setDoc(doc(db, 'assignments/A1'), { title: 'Unit 1' });
   await setDoc(doc(db, 'settings/classSchedule'), { periods: {} });
   await setDoc(doc(db, 'studentCredentials/S1042'), { hash: 'secret' });
@@ -85,7 +86,7 @@ await check('student CANNOT read another scratchpad', assertFails(getDoc(doc(stu
 await check('student CANNOT list the roster', assertFails(getDocs(collection(student, 'grades'))));
 await check('student CANNOT delete own record', assertFails(deleteDoc(doc(student, 'grades/S1042'))));
 await check('student CANNOT delete own scratchpad', assertFails(deleteDoc(doc(student, 'grades/S1042/scratchpads/a__question_0'))));
-await check('teacher CAN delete a scratchpad', assertSucceeds(deleteDoc(doc(teacher, 'grades/S1042/scratchpads/a__question_0'))));
+await check('teacher CAN delete an authorized scratchpad', assertSucceeds(deleteDoc(doc(teacher, 'grades/S1042/scratchpads/a__question_delete'))));
 await check('student reads own Phase 5C evidence', assertSucceeds(getDoc(doc(student, 'grades/S1042/evidenceEvents/ev_existing'))));
 await check('student appends own Phase 5C evidence', assertSucceeds(setDoc(doc(student, 'grades/S1042/evidenceEvents/ev_new'), { eventKey: 'ev_new', studentId: 'S1042', occurredAt: 2, authorizedTeacherEmails: [TEACHER_EMAIL] })));
 await check('student CANNOT mutate existing Phase 5C evidence', assertFails(setDoc(doc(student, 'grades/S1042/evidenceEvents/ev_existing'), { eventKey: 'ev_existing', studentId: 'S1042', occurredAt: 999 }, { merge: true })));
