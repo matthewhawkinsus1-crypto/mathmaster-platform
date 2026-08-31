@@ -152,6 +152,35 @@ export const initializeBundledPathBankStarter = async ({ onProgress = null } = {
 };
 
 /**
+ * Refresh the EXISTING built-in course + ASVAB bank from the server bundle.
+ *
+ * Release-managed Digital SAT / ACT / TSIA2 content is deliberately excluded
+ * and must use refreshBundledReleasedCcmrPathBanks below.
+ */
+export const refreshBundledCourseAndAsvabPathBank = async ({ onProgress = null } = {}) => {
+  onProgress?.({ phase: 'refreshing-course-asvab', chunk: 0, chunks: 0 });
+  const call = httpsCallable(functions, 'refreshBuiltInCourseAndAsvabPathBank');
+  const raw = (await call({})).data || {};
+  const seed = { ...raw, documentCount: raw.received ?? 0 };
+  if (!seed.imported) return { refreshed: false, seed, coverage: null };
+  onProgress?.({ phase: 'coverage-complete', chunk: 0, chunks: 0 });
+  return { refreshed: true, seed, coverage: raw.coverage || null };
+};
+
+/**
+ * Atomically refresh the release-managed Digital SAT / ACT / TSIA2 banks.
+ * ASVAB is intentionally untouched by this callable.
+ */
+export const refreshBundledReleasedCcmrPathBanks = async ({ onProgress = null } = {}) => {
+  onProgress?.({ phase: 'refreshing-ccmr-release', chunk: 0, chunks: 0 });
+  const call = httpsCallable(functions, 'refreshReleasedCcmrPathBanks');
+  const raw = (await call({})).data || {};
+  const seed = { ...raw, documentCount: raw.received ?? 0 };
+  if (!seed.imported) return { refreshed: false, seed };
+  return { refreshed: true, seed };
+};
+
+/**
  * A predicate bound to one course's index.
  *
  * Handed to the engines so they can ask "can a student work here?" without
