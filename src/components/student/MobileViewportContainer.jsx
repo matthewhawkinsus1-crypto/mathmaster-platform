@@ -10,8 +10,24 @@ import {
 
 const NUMERIC_SELECTOR = 'input[type="number"], input[inputmode="numeric"], input[inputmode="decimal"], input[data-mathmaster-mobile-keypad="true"]';
 const KEYS = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '±', '0', '.'];
-const detectMobile = () => typeof window !== 'undefined' && (window.innerWidth <= 768 || window.matchMedia?.('(pointer: coarse)')?.matches === true);
-const detectLandscape = () => detectMobile() && window.innerWidth > window.innerHeight && window.innerHeight <= 500;
+const viewportSize = () => ({
+  width: typeof window !== 'undefined' ? Number(window.visualViewport?.width || window.innerWidth || 0) : 0,
+  height: typeof window !== 'undefined' ? Number(window.visualViewport?.height || window.innerHeight || 0) : 0,
+});
+
+// Layout mode is based on available screen space, not whether the Chromebook
+// happens to have a touchscreen. Using pointer:coarse here made two students on
+// the same size Chromebook receive different question layouts: one kept the
+// sticky desktop task anchor while the touchscreen device silently switched to
+// the phone viewport.
+const detectMobile = () => {
+  const { width, height } = viewportSize();
+  return width > 0 && (width <= 768 || (height <= 500 && width <= 1024));
+};
+const detectLandscape = () => {
+  const { width, height } = viewportSize();
+  return detectMobile() && width > height && height <= 500;
+};
 
 const setReactInputValue = (element, value) => {
   if (!element) return;

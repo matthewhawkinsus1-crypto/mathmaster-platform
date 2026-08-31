@@ -198,8 +198,11 @@ math-field:focus-within {
   display: none;
 }
 
-/* Phones already have the dedicated QUESTION panel in MobileViewportContainer. */
-@media (max-width: 768px), (pointer: coarse) {
+/* Compact viewports already have the dedicated QUESTION panel in
+   MobileViewportContainer. Touch capability alone must never hide the desktop
+   sticky task anchor: many Chromebooks have both a touchscreen and a normal
+   desktop-sized viewport. */
+@media (max-width: 768px), (orientation: landscape) and (max-height: 500px) and (max-width: 1024px) {
   .mathmaster-desktop-question-anchor {
     display: none;
   }
@@ -277,7 +280,7 @@ math-field:focus-within {
   text-transform: uppercase;
 }
 
-@media (max-width: 768px), (pointer: coarse) {
+@media (max-width: 768px), (orientation: landscape) and (max-height: 500px) and (max-width: 1024px) {
   .mathmaster-reference-info-card {
     margin: 8px 0 10px;
     padding: 12px 13px 13px;
