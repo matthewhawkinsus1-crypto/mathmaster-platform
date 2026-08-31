@@ -188,3 +188,44 @@ The matrix must test complete journeys through shared production/simulator logic
 9. free-choice Level 1 → Level 2 → Level 3 progression;
 10. weekly assigned work staying separate from numbered free-choice pass progression.
 
+## 2026-08-30 — end-to-end Path journey matrix LOCKED
+
+Added:
+- `tests/platform/pathJourneyScenarioMatrix.test.mjs`
+- Student Path UX workflow coverage for the matrix.
+
+The matrix binds the real weekly planner, adaptive target resolver, secure Teacher Simulator runtime, server routing engine, pass presentation, and weekly/pass bookkeeping across ten complete learner journeys:
+
+1. fresh regular student;
+2. below-level foundation bridge and return;
+3. Honors Challenge + CCMR Transfer as distinct journeys;
+4. above-level regular Challenge;
+5. CCMR-disabled week retaining its full session count;
+6. retention remaining retention rather than being relabelled Challenge;
+7. Band-4 miss lowering complexity on the same TEKS first;
+8. repeated misses entering diagnosis/bounded repair rather than looping;
+9. free-choice Foundation → Deeper practice → Mastery challenge progression;
+10. weekly assigned work remaining separate from numbered free-choice pass progression.
+
+First matrix run `33343181375` found one real simulator initialization defect:
+- JavaScript `Number(null)` was treated as 0 when no explicit DOK/difficulty target was supplied;
+- selection later recovered through `0 || default`, so the issued question looked correct while the session metadata was wrong;
+- fixed in `src/platform/simulation/teacherPathRuntime.js` by distinguishing absent targets from numeric targets — commit `ee5bbbbd9267f45e88f7970144fd70c6efb14b22`.
+
+Replacement Student Path UX Certification `33343254847`: **PASS**.
+- all ten journey scenarios passed;
+- all existing student Path UX/parity tests passed;
+- student runtime build passed.
+
+This scenario-matrix phase is now locked. Do not reopen it unless a named journey regression fails.
+
+### Next active audit
+
+Audit navigation/completion recovery end to end:
+- browser/platform Back from active Path work;
+- leave and resume without losing current work;
+- completed Path session returns to a visibly completed skill rather than requesting another question;
+- next-level unavailable states preserve prior completion and provide an exit;
+- no stale-session or infinite-loop behavior after a completed skill;
+- Teacher Simulator and live student container present the same completion/recovery semantics.
+
