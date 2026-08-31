@@ -635,72 +635,144 @@ export const LessonPreflightModal = ({
     }
   };
 
+  const publishingRepairRequest = (completeAssignment = true) => {
+    const instructions = [
+      'Create the missing Google Classroom publishing metadata and a substantive TWO-PAGE student notes package for this existing MathMaster lesson.',
+      completeAssignment
+        ? 'Return one complete schemaVersion 5 Assignment V5 JSON object because MathMaster’s embedded AI endpoint requires the full assignment shape.'
+        : 'Return one JSON object with ONLY lessonNotesPdf and classroomIntegration. Do not return questions.',
+      'Do not rewrite, reorder, add, remove, or reinterpret any assignment question.',
+      'The student notes must be useful before/during the lesson, not an answer key for this assignment.',
+      'Set lessonNotesPdf.enabled true and targetPages 2.',
+      'Include a clear learningGoal and at least two content-bearing sections. Prefer 3–4 concise sections when the topic needs it.',
+      'Include key ideas/vocabulary and at least one general worked example or reference pattern when mathematically appropriate.',
+      'Do not copy an assignment question and solve it verbatim.',
+      'classroomIntegration must include a useful topic, nonblank assignment instructions, a Notes & Resources post, and grade passback enabled/finalized.',
+      'Preserve any teacher-authored Classroom wording already present.',
+      '',
+      'CURRENT CANONICAL ASSIGNMENT:',
+      JSON.stringify(effectiveAssignmentV5),
+    ];
+    return instructions.join('\n');
+  };
+
+  const applyPublishingRepairCandidate = (authored, sourceLabel = 'AI') => {
+    const rawNotes = authored?.outputProfiles?.lessonNotesPdf
+      || authored?.lessonNotesPdf
+      || authored?.lessonResources?.notesPdf
+      || authored?.notesPdf
+      || {};
+    const rawClassroom = authored?.classroomIntegration
+      || authored?.classroomPackage
+      || {};
+
+    const candidatePublishing = normalizeLessonPublishingIntentV5({
+      classroom: rawClassroom,
+      lessonResources: { notesPdf: rawNotes },
+    }, effectiveAssignmentV5.assignment, []);
+    const candidateValidation = validateLessonPublishingIntent(candidatePublishing);
+    if (candidateValidation.errors.length) {
+      throw new Error(`${sourceLabel} returned an incomplete publishing package: ${candidateValidation.errors.join(' ')}`);
+    }
+
+    const authoredNotes = candidatePublishing.lessonResources?.notesPdf;
+    if (
+      !authoredNotes?.enabled
+      || Number(authoredNotes.targetPages) !== 2
+      || !String(authoredNotes.learningGoal || '').trim()
+      || !Array.isArray(authoredNotes.sections)
+      || authoredNotes.sections.length < 2
+    ) {
+      throw new Error(`${sourceLabel} must return enabled two-page student notes with a learning goal and at least two substantive sections.`);
+    }
+
+    setWorkingAssignmentV5((current) => {
+      const currentClassroom = current.classroomIntegration && typeof current.classroomIntegration === 'object'
+        ? current.classroomIntegration
+        : {};
+      const aiClassroom = candidatePublishing.classroomPackage || {};
+      const mergeNested = (key) => ({
+        ...(aiClassroom[key] && typeof aiClassroom[key] === 'object' ? aiClassroom[key] : {}),
+        ...(currentClassroom[key] && typeof currentClassroom[key] === 'object' ? currentClassroom[key] : {}),
+      });
+      return {
+        ...current,
+        outputProfiles: {
+          ...(current.outputProfiles || {}),
+          lessonNotesPdf: authoredNotes,
+        },
+        classroomIntegration: {
+          ...aiClassroom,
+          ...currentClassroom,
+          topic: mergeNested('topic'),
+          assignmentPost: mergeNested('assignmentPost'),
+          resourcesPost: mergeNested('resourcesPost'),
+          gradePassback: mergeNested('gradePassback'),
+          additionalLinks: Array.isArray(currentClassroom.additionalLinks)
+            ? currentClassroom.additionalLinks
+            : (Array.isArray(aiClassroom.additionalLinks) ? aiClassroom.additionalLinks : []),
+        },
+      };
+    });
+    setPublishingAiMessage(`${sourceLabel} notes and Google Classroom publishing details are ready. The assignment questions were not changed.`);
+  };
+
   const buildMissingPublishingPackageWithAi = async () => {
     if (!notesNeedAuthoring || publishingAiBusy) return;
     setPublishingAiBusy(true);
     setPublishingAiMessage('');
     try {
-      const request = [
-        'Repair ONLY the Google Classroom publishing metadata and student lesson-notes package for this existing MathMaster Assignment V5.',
-        'Return one complete schemaVersion 5 assignment JSON object.',
-        'Do not rewrite, reorder, add, remove, or reinterpret any assignment sections or questions. MathMaster will ignore all returned question content and will extract publishing metadata only.',
-        'Keep outputProfiles.lessonNotesPdf.enabled true. Author substantive student-facing lesson notes with a learning goal and at least two content-bearing sections suitable for a 1–2 page PDF.',
-        'The notes should explain prerequisite/key ideas, vocabulary, representations, and one general worked example when helpful, but must not reveal answers to the live assignment questions.',
-        'Also ensure classroomIntegration contains a useful topic, nonblank assignment instructions, a Notes & Resources post, and finalized grade-passback metadata. Preserve any existing teacher-authored Classroom wording when it is already present.',
-        '',
-        'CURRENT CANONICAL ASSIGNMENT:',
-        JSON.stringify(effectiveAssignmentV5),
-      ].join('\n');
+      const built = await buildAssignmentWithAI(publishingRepairRequest(true));
+      applyPublishingRepairCandidate(JSON.parse(built.assignmentJson), 'MathMaster AI');
+    } catch (error) {
+      setPublishingAiMessage(
+        assignmentAiFallbackRecommended(error)
+          ? `${assignmentAiFailureMessage(error)} Nothing was changed. Use “Copy notes request” with ChatGPT/Claude/Gemini, then paste or upload the result here.`
+          : error.message,
+      );
+    } finally {
+      setPublishingAiBusy(false);
+    }
+  };
 
-      const built = await buildAssignmentWithAI(request);
-      const authored = JSON.parse(built.assignmentJson);
-      const candidatePublishing = normalizeLessonPublishingIntentV5({
-        classroom: authored.classroomIntegration,
-        lessonResources: { notesPdf: authored.outputProfiles?.lessonNotesPdf },
-      }, effectiveAssignmentV5.assignment, []);
-      const candidateValidation = validateLessonPublishingIntent(candidatePublishing);
-      if (candidateValidation.errors.length) {
-        throw new Error(`MathMaster AI returned an incomplete publishing package: ${candidateValidation.errors.join(' ')}`);
-      }
+  const copyPublishingRepairRequest = async () => {
+    try {
+      await writeClipboardText(publishingRepairRequest(false));
+      setPublishingAiMessage('Two-page notes request copied. Paste it into ChatGPT, Claude, or Gemini. Copy the JSON result, then use “Paste AI notes result” here.');
+    } catch (error) {
+      setPublishingAiMessage(error.message);
+    }
+  };
 
-      const authoredNotes = candidatePublishing.lessonResources?.notesPdf;
-      if (!authoredNotes?.enabled || !Array.isArray(authoredNotes.sections) || authoredNotes.sections.length < 2) {
-        throw new Error('MathMaster AI did not produce enough student-note content. Try the notes repair again.');
-      }
-
-      setWorkingAssignmentV5((current) => {
-        const currentClassroom = current.classroomIntegration && typeof current.classroomIntegration === 'object'
-          ? current.classroomIntegration
-          : {};
-        const aiClassroom = candidatePublishing.classroomPackage || {};
-        const mergeNested = (key) => ({
-          ...(aiClassroom[key] && typeof aiClassroom[key] === 'object' ? aiClassroom[key] : {}),
-          ...(currentClassroom[key] && typeof currentClassroom[key] === 'object' ? currentClassroom[key] : {}),
-        });
-        return {
-          ...current,
-          outputProfiles: {
-            ...(current.outputProfiles || {}),
-            lessonNotesPdf: authoredNotes,
-          },
-          classroomIntegration: {
-            ...aiClassroom,
-            ...currentClassroom,
-            topic: mergeNested('topic'),
-            assignmentPost: mergeNested('assignmentPost'),
-            resourcesPost: mergeNested('resourcesPost'),
-            gradePassback: mergeNested('gradePassback'),
-            additionalLinks: Array.isArray(currentClassroom.additionalLinks)
-              ? currentClassroom.additionalLinks
-              : (Array.isArray(aiClassroom.additionalLinks) ? aiClassroom.additionalLinks : []),
-          },
-        };
-      });
-      setPublishingAiMessage('Student notes and Google Classroom publishing details are ready. Review them below, then assign normally.');
+  const importPublishingRepairRaw = async (raw, sourceLabel = 'Outside AI') => {
+    setPublishingAiBusy(true);
+    setPublishingAiMessage('');
+    try {
+      applyPublishingRepairCandidate(parseExternalAiJson(raw), sourceLabel);
     } catch (error) {
       setPublishingAiMessage(error.message);
     } finally {
       setPublishingAiBusy(false);
+    }
+  };
+
+  const pastePublishingRepairResult = async () => {
+    try {
+      await importPublishingRepairRaw(await readClipboardText(), 'Outside AI');
+    } catch (error) {
+      setPublishingAiMessage(error.message);
+    }
+  };
+
+  const uploadPublishingRepairResult = async (file) => {
+    if (!file) return;
+    try {
+      if (!/\.json$/i.test(file.name || '')) throw new Error('Choose the JSON file returned by the AI.');
+      await importPublishingRepairRaw(await file.text(), 'Imported AI file');
+    } catch (error) {
+      setPublishingAiMessage(error.message);
+    } finally {
+      if (notesRepairFileRef.current) notesRepairFileRef.current.value = '';
     }
   };
 
