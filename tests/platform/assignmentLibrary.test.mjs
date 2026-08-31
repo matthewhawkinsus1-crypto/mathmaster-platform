@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   assertPublishable, buildDestinationGroups, canPublishToClassroom,
   destinationAssignmentKey, isLibraryAssignment,
@@ -174,4 +175,14 @@ test('the DOL window blocker still fires', () => {
 test('a null draft does not throw', () => {
   assert.doesNotThrow(() => collectReviewBlockers({ draft: null, classPeriods: CLASS_PERIODS }));
   assert.equal(describePreflightAction(null).mode, 'library');
+});
+
+
+test('Library UI exposes a direct Assign to class action instead of forcing export/import copies', () => {
+  const source = fs.readFileSync('src/AssignmentLibrary.jsx', 'utf8');
+  const app = fs.readFileSync('src/App.jsx', 'utf8');
+  assert.match(source, /onAssignAssignment/);
+  assert.match(source, />\s*Assign to class\s*</);
+  assert.match(app, /onAssignAssignment=\{beginAssignLibraryAssignment\}/);
+  assert.match(app, /publish the saved Google Classroom post, notes, resources, and grade-passback settings/);
 });
