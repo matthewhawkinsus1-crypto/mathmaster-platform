@@ -3,6 +3,7 @@ import { MathMasterToolWrapper } from '../../platform/ToolWrapper';
 import { getEffectiveActivityPolicy } from '../../platform/policies/activityPolicies';
 import { PUBLICATION_STRATEGIES, planClassroomPublication } from '../../platform/publishing/publicationPlanner';
 import { normalizeLessonPublishingIntentV5 } from '../../platform/authoring/lessonPublishingIntent.js';
+import { defaultAssignmentDateInputs } from '../../platform/assignments/assignmentDateDefaults.js';
 import { buildAssignmentV5PreflightModel } from '../../platform/preflight/assignmentV5PreflightModel.js';
 import InteractiveModelingLabPlayer from '../labs/InteractiveModelingLabPlayer.jsx';
 import { buildHonorsEnrichmentQuestion, inspectHonorsRigor } from '../../platform/rigor/courseRigor.js';
@@ -78,11 +79,12 @@ const labelStyle = { fontWeight: 800, display: 'block' };
 
 const initialReviewDraft = (draft = {}) => {
   const { assignedClassPeriods, assignedClassIds, ...rest } = draft;
+  const defaultDates = defaultAssignmentDateInputs();
   return {
     title: '',
     folder: '',
-    dueAt: '',
-    lateDueAt: '',
+    dueAt: defaultDates.dueAt,
+    lateDueAt: defaultDates.lateDueAt,
     releaseAt: '',
     sectionVariantModes: {},
     sectionAccessDefaults: { classwork: 'open', practice: 'open' },
@@ -93,6 +95,7 @@ const initialReviewDraft = (draft = {}) => {
     warmupInstructionDatesByClassPeriod: {},
     dolEnabled: false,
     dolMinutesBeforeEnd: 10,
+    dolCloseMinutesBeforeEnd: 5,
     dolInstructionDate: '',
     dolInstructionDatesByClassPeriod: {},
     dolQuestionIndex: null,
@@ -457,6 +460,9 @@ export const LessonPreflightModal = ({
     period,
     draft.dolInstructionDatesByClassPeriod?.[period] || resolvedDOLInstructionDate,
   ]).filter(([, date]) => Boolean(date)));
+  const dolWorkMinutes = Math.max(1, Number(draft.dolMinutesBeforeEnd) || 10);
+  const dolCloseMinutesBeforeEnd = Math.max(0, Number(draft.dolCloseMinutesBeforeEnd ?? 5));
+  const dolOpensMinutesBeforeEnd = dolWorkMinutes + dolCloseMinutesBeforeEnd;
   const setDOLClassDate = (period, value) => setDraft((current) => {
     const next = { ...(current.dolInstructionDatesByClassPeriod || {}) };
     if (value) next[period] = value;
@@ -514,7 +520,7 @@ export const LessonPreflightModal = ({
           <div style={{ marginTop: 9, padding: '9px 10px', borderRadius: 8, background: '#fff', border: '1px solid #c5d5ef', color: '#3c4043' }}>
             <div><strong>Classroom topic:</strong> {publishingIntent.classroomPackage?.topic?.name || 'MathMaster will infer this from the folder.'}</div>
             <div><strong>Assignment post:</strong> {publishingIntent.classroomPackage?.assignmentPost?.title || draft.title || 'Prepared from the lesson title'}</div>
-            {publishingIntent.lessonResources?.notesPdf && <div><strong>Student notes PDF:</strong> {publishingIntent.lessonResources.notesPdf.title || 'Student Notes'} · {Number(publishingIntent.lessonResources.notesPdf.targetPages) === 1 ? 1 : 2} page target · {(publishingIntent.lessonResources.notesPdf.sections || []).length} authored section{(publishingIntent.lessonResources.notesPdf.sections || []).length === 1 ? '' : 's'}</div>}
+            {publishingIntent.lessonResources?.notesPdf?.enabled && <div><strong>Student notes PDF:</strong> {publishingIntent.lessonResources.notesPdf.title || 'Student Notes'} · {Number(publishingIntent.lessonResources.notesPdf.targetPages) === 1 ? 1 : 2} page target · {(publishingIntent.lessonResources.notesPdf.sections || []).length} authored section{(publishingIntent.lessonResources.notesPdf.sections || []).length === 1 ? '' : 's'}</div>}
             {publishingIntent.classroomPackage?.resourcesPost?.enabled !== false && <div><strong>Resources post:</strong> {publishingIntent.classroomPackage?.resourcesPost?.postingMode === 'attachToAssignment' ? 'attach resources to the graded assignment' : 'separate Notes & Resources material post'}</div>}
           </div>
         )}
@@ -800,10 +806,11 @@ export const LessonPreflightModal = ({
             {draft.dolEnabled && (
               <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'repeat(auto-fit, minmax(210px, 1fr))', gap: 12, marginTop: 10 }}>
                 <label style={labelStyle}>DOL instructional date<input type="date" value={resolvedDOLInstructionDate} onChange={(event) => setField('dolInstructionDate', event.target.value)} style={inputStyle} /></label>
-                <label style={labelStyle}>DOL timer / final-window minutes<input type="number" min="1" max="30" value={draft.dolMinutesBeforeEnd || 10} onChange={(event) => setField('dolMinutesBeforeEnd', event.target.value)} style={inputStyle} /></label>
+                <label style={labelStyle}>DOL working time (minutes)<input type="number" min="1" max="20" value={draft.dolMinutesBeforeEnd || 10} onChange={(event) => setField('dolMinutesBeforeEnd', event.target.value)} style={inputStyle} /></label>
+                <label style={labelStyle}>Close before the bell (minutes)<input type="number" min="0" max="15" value={draft.dolCloseMinutesBeforeEnd ?? 5} onChange={(event) => setField('dolCloseMinutesBeforeEnd', event.target.value)} style={inputStyle} /></label>
               </div>
             )}
-            {draft.dolEnabled && <p style={{ margin: '10px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>The DOL stays locked until the final {draft.dolMinutesBeforeEnd || 10} minutes of that class on its instructional date. If you unlock it early from the live class controls, its {draft.dolMinutesBeforeEnd || 10}-minute timer starts at the early unlock.</p>}
+            {draft.dolEnabled && <p style={{ margin: '10px 0 0', color: '#5f6368', fontSize: 12, lineHeight: 1.5 }}>The DOL opens {dolOpensMinutesBeforeEnd} minutes before the bell, gives students {dolWorkMinutes} minutes to work, and closes {dolCloseMinutesBeforeEnd} minutes before class ends so technology can be returned. If you unlock it early from the live class controls, the same {dolWorkMinutes}-minute timer starts then but still cannot run into the final {dolCloseMinutesBeforeEnd}-minute pack-up window.</p>}
             {draft.dolEnabled && draft.assignedClassPeriods.length > 0 && (
               <details style={{ marginTop: 12, padding: '10px 12px', border: '1px solid #d8dde6', borderRadius: 8, background: '#fff' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Different DOL date for a specific class (optional)</summary>
