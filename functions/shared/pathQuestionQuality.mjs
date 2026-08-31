@@ -93,8 +93,14 @@ const hasExpectedAnswer = (question = {}) => {
   const tool = text(question.pathToolId || question.toolId || question.type);
   const serverDerivableToolAnswer = (
     tool === 'systemsWorkspace'
-      && text(question.mode) === 'inequalities'
-      && list(question.inequalities).length > 0
+      && (
+        (text(question.mode) === 'inequalities' && list(question.inequalities).length > 0)
+        || (text(question.mode) === 'matrix3' && list(question.matrix?.rows).length === 3)
+        || (
+          !['inequalities', 'matrix3'].includes(text(question.mode))
+          && question.system
+        )
+      )
   ) || (
     ['dataModeling', 'dataModelingLab'].includes(tool)
       && list(question.points).length >= 2
