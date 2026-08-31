@@ -77,6 +77,7 @@ const algebraOperationKeysForContext = (contextSymbols = []) => {
 
 const INTERVAL_KEYS = [
   { label: '(', command: '(', ariaLabel: 'Insert open parenthesis' },
+  { label: ',', command: ',', ariaLabel: 'Insert comma' },
   { label: ')', command: ')', ariaLabel: 'Insert close parenthesis' },
   { label: '[', command: '[', ariaLabel: 'Insert open bracket' },
   { label: ']', command: ']', ariaLabel: 'Insert close bracket' },
