@@ -332,7 +332,7 @@
         "Complete the grouping step first; then inspect the remaining cubic for a special pattern."
       ],
       "supportHints": [
-        "Factor each grouped pair and look for a common binomial factor before continuing the factorization."
+        "Group terms to expose a shared factor first, then inspect the remaining lower-degree expression for a standard factoring identity."
       ],
       "generator": {
         "parameters": {
