@@ -8,6 +8,7 @@ import {
   buildParentFollowUpCandidates,
   buildSuggestedSmallGroups,
   buildWatchPracticeList,
+  hasDismissedSignal,
   sessionProductivitySignal,
 } from '../../platform/teacher/studentSupportSignals.js';
 
@@ -90,12 +91,28 @@ export default function StudentSupportDashboard({
     .filter((entry) => entry.signal)
     .filter((entry) => {
       const endedAt = Number(entry.summary.endedAt) || 0;
-      return endedAt > 0 && nowValue - endedAt <= 7 * 86400000;
+      if (!(endedAt > 0 && nowValue - endedAt <= 7 * 86400000)) return false;
+      return !hasDismissedSignal({
+        supportEvents: classEvents,
+        studentId: entry.summary.studentId,
+        assignmentId: entry.summary.assignmentId || null,
+        sessionKey: entry.summary.sessionKey || null,
+        afterMs: Number(entry.summary.startedAt) || 0,
+      });
     })
     .sort((a, b) => Number(b.summary.endedAt || 0) - Number(a.summary.endedAt || 0))
-    .slice(0, 8), [classSessions, nowValue]);
+    .slice(0, 8), [classSessions, classEvents, nowValue]);
 
   const integrity = useMemo(() => rows
+    .filter((row) => !hasDismissedSignal({
+      supportEvents: classEvents,
+      studentId: row.id,
+      assignmentId: row.live?.assignmentId || null,
+      sessionKey: row.live?.assignmentId && row.live?.startedAt
+        ? `${row.live.assignmentId}:${row.live.startedAt}`
+        : null,
+      afterMs: Number(row.live?.startedAt) || 0,
+    }))
     .map((row) => ({
       row,
       signal: buildIntegrityReviewSignal({
@@ -103,7 +120,7 @@ export default function StudentSupportDashboard({
         profile: profilesByStudentId[row.id] || null,
       }),
     }))
-    .filter((entry) => entry.signal), [rows, profilesByStudentId]);
+    .filter((entry) => entry.signal), [rows, profilesByStudentId, classEvents]);
 
   const recent = classEvents.slice(0, 8);
 
