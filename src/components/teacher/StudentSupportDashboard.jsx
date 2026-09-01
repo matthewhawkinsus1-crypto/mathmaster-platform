@@ -12,6 +12,7 @@ import {
   buildWatchPracticeList,
   hasDismissedSignal,
   sessionProductivitySignal,
+  supportSessionKey,
 } from '../../platform/teacher/studentSupportSignals.js';
 
 const cardStyle = {
@@ -119,9 +120,7 @@ export default function StudentSupportDashboard({
         supportEvents: classEvents,
         studentId: row.id,
         assignmentId: row.live?.assignmentId || null,
-        sessionKey: row.live?.assignmentId && row.live?.startedAt
-          ? `${row.live.assignmentId}:${row.live.startedAt}`
-          : null,
+        sessionKey: supportSessionKey({ studentId: row.id, assignmentId: row.live?.assignmentId, startedAt: row.live?.startedAt }),
         afterMs: Number(row.live?.startedAt) || 0,
       }))
       .map((row) => ({
@@ -130,9 +129,7 @@ export default function StudentSupportDashboard({
         studentName: row.name,
         assignmentId: row.live?.assignmentId || null,
         assignmentTitle: row.live?.assignmentTitle || null,
-        sessionKey: row.live?.assignmentId && row.live?.startedAt
-          ? `${row.live.assignmentId}:${row.live.startedAt}`
-          : null,
+        sessionKey: supportSessionKey({ studentId: row.id, assignmentId: row.live?.assignmentId, startedAt: row.live?.startedAt }),
         startedAt: Number(row.live?.startedAt) || 0,
         sourceLabel: 'Live now',
         signal: buildIntegrityReviewSignal({
