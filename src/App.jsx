@@ -848,6 +848,7 @@ function App() {
   // timers are cumulative across resumes, and assignment-activity pending time
   // is periodically flushed/reset, so neither is a valid class-session clock.
   const liveSessionActiveSecondsRef = useRef({ assignmentId: null, seconds: 0 });
+  const liveSessionAttemptBaselineRef = useRef({ assignmentId: null, totalAttemptsByIndex: {} });
   const activeTimeRef = useRef(0);
   const pendingAssignmentSecondsRef = useRef(0);
   const lastDOLStatusRef = useRef({});
@@ -1621,6 +1622,15 @@ function App() {
     }
 
     const included = getIncludedQuestionIndices(activeAssignmentData);
+    if (liveSessionAttemptBaselineRef.current.assignmentId !== activeAssignmentId) {
+      liveSessionAttemptBaselineRef.current = {
+        assignmentId: activeAssignmentId,
+        totalAttemptsByIndex: Object.fromEntries(included.map((index) => [
+          index,
+          Number(normalizeQuestionRecord(activeWorkingTracker?.[index]).totalAttempts) || 0,
+        ])),
+      };
+    }
     const question = activeQuestions[currentQuestionIndex];
     const record = normalizeQuestionRecord(activeWorkingTracker?.[currentQuestionIndex]);
     const liveTracker = {
@@ -1630,10 +1640,18 @@ function App() {
         timeSpent: Math.max(Number(record.timeSpent) || 0, Number(activeTimeRef.current) || 0),
       },
     };
+    const sessionFinalizedIndices = included.filter((index) => {
+      const current = normalizeQuestionRecord(liveTracker?.[index]);
+      const baselineAttempts = Number(
+        liveSessionAttemptBaselineRef.current.totalAttemptsByIndex?.[index],
+      ) || 0;
+      return current.totalAttempts > baselineAttempts
+        && ['correct', 'expired'].includes(current.status);
+    });
     const rapid = summarizeRapidCorrectness({
       questions: activeQuestions,
       tracker: liveTracker,
-      includedIndices: included,
+      includedIndices: sessionFinalizedIndices,
     });
     const sectionIndices = included.filter((index) => (
       resolveQuestionActivityRole({ question: activeQuestions[index], assignment: activeAssignmentData }) === activeQuestionRole
@@ -1666,6 +1684,9 @@ function App() {
         questionStates: encodeQuestionStates(activeWorkingTracker, included),
         currentAttempts: record.attemptCount,
         focusLossCount,
+        answeredCount: rapid.answered,
+        correctCount: rapid.correct,
+        accuracy: rapid.accuracy,
         rapidCorrectCount: rapid.rapidCorrect,
         rapidDeepCorrectCount: rapid.rapidDeepCorrect,
         timedIndependentCorrectCount: rapid.timedIndependentCorrect,
@@ -2248,6 +2269,15 @@ function App() {
     lastActivityRef.current = Date.now();
     pendingAssignmentSecondsRef.current = 0;
     liveSessionActiveSecondsRef.current = { assignmentId, seconds: 0 };
+    liveSessionAttemptBaselineRef.current = {
+      assignmentId,
+      totalAttemptsByIndex: Object.fromEntries(
+        getIncludedQuestionIndices(assignmentData).map((index) => [
+          index,
+          Number(normalizeQuestionRecord(tracker?.[assignmentId]?.[index]).totalAttempts) || 0,
+        ]),
+      ),
+    };
     liveFocusLossRef.current = { assignmentId, count: 0, hiddenAt: null };
     setIsIdle(false);
 
