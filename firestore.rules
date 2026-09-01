@@ -104,6 +104,14 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Compact server-generated session summaries. Students never write or read
+    // these directly. They contain only counts/durations already visible to the
+    // teacher in Live Class — no answers, URLs, screenshots or keystrokes.
+    match /studentSessionSummaries/{summaryId} {
+      allow read: if rootAdmin() || authorizedTeacher();
+      allow create, update, delete: if false;
+    }
+
     // Live class monitoring. Ephemeral by design: a student's client writes
     // its own document on a heartbeat and deletes it on leaving, and nothing
     // reads it outside the teacher's live grid. It carries no response text —
