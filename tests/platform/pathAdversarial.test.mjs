@@ -215,7 +215,7 @@ test('ATTACK a browser cannot grant itself an accommodation', () => {
 test('ATTACK a browser cannot grant itself extra attempts', () => {
   // Attempts are computed on the server from the stored profile. Nothing in the
   // request participates.
-  assert.ok(serverSource.includes('await mathPath.attemptsFor(baseAttempts, entitlements)'));
+  assert.ok(serverSource.includes('await mathPath.attemptsForQuestion(issued, baseAttempts, entitlements)'));
   assert.ok(!/attemptsAllowed[^\n]*request\.data/.test(serverSource),
     'the request must never influence how many attempts a question allows');
   const none = resolveSupportEntitlements({});
