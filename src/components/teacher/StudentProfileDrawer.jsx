@@ -3,7 +3,7 @@ import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import StudentLearningProfileView from './StudentLearningProfileView.jsx';
 import { resolveAdaptiveRigorFromProfile } from '../../platform/rigor/courseRigor.js';
 import { courseLabel, courseLevelLabel } from '../../../functions/shared/classModel.mjs';
-import { SUPPORT_EVENT_LABEL } from '../../platform/teacher/studentSupportSignals.js';
+import { SUPPORT_EVENT_LABEL, SUPPORT_STAGE_LABEL } from '../../platform/teacher/studentSupportSignals.js';
 
 /*
  * ONE STUDENT, ONE ANSWER, FROM ANYWHERE.
@@ -146,7 +146,7 @@ export default function StudentProfileDrawer({
                         <span style={{ fontSize: 11, color: '#80868b' }}>{when}</span>
                       </div>
                       <div style={{ marginTop: 2, fontSize: 11.5, color: '#5f6368' }}>
-                        {event.stage}{event.source ? ` · ${event.source}` : ''}
+                        {SUPPORT_STAGE_LABEL[event.stage] || event.stage}{event.source ? ` · ${event.source}` : ''}
                       </div>
                       {event.summary && <div style={{ marginTop: 4, fontSize: 12, color: '#3c4043', lineHeight: 1.4 }}>{event.summary}</div>}
                       {event.note && <div style={{ marginTop: 4, fontSize: 12, color: '#3c4043', lineHeight: 1.4 }}><strong>Teacher note:</strong> {event.note}</div>}
