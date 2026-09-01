@@ -62,6 +62,16 @@ service cloud.firestore {
           == request.auth.token.email;
     }
 
+    // Roster membership is authorization, not ordinary grade/profile data.
+    // Client updates may change student work fields, but moving a student or
+    // changing their teacher must go through the audited Admin SDK callables.
+    function rosterAuthorizationUnchanged() {
+      return request.resource.data.get('classId', null) == resource.data.get('classId', null)
+        && request.resource.data.get('classPeriod', null) == resource.data.get('classPeriod', null)
+        && request.resource.data.get('assignedTeacherEmail', null)
+          == resource.data.get('assignedTeacherEmail', null);
+    }
+
     // Student work: students read/update only their own document; a teacher
     // only their own students; the root administrator the school. Permanent
     // account deletion is never a client permission — even the root
@@ -69,7 +79,8 @@ service cloud.firestore {
     // student's complete cross-collection footprint.
     match /grades/{studentId} {
       allow read: if rootAdmin() || ownsStudent(studentId) || teachesStudent();
-      allow update: if rootAdmin() || ownsStudent(studentId) || teachesStudent();
+      allow update: if (rootAdmin() || ownsStudent(studentId) || teachesStudent())
+        && rosterAuthorizationUnchanged();
       // Creation stays open to any teacher: a roster row may be written before
       // the student has been placed in a class, and it carries no work yet.
       allow create: if teacher() || ownsStudent(studentId);
