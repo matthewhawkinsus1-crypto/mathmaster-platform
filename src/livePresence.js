@@ -80,6 +80,9 @@ export const buildLiveStatus = ({
   questionStates = [],
   currentAttempts = 0,
   focusLossCount = 0,
+  answeredCount = 0,
+  correctCount = 0,
+  accuracy = null,
   rapidCorrectCount = 0,
   rapidDeepCorrectCount = 0,
   timedIndependentCorrectCount = 0,
@@ -105,6 +108,14 @@ export const buildLiveStatus = ({
   // screenshots are collected. These are corroborating signals for a teacher
   // review, never proof of behavior or academic integrity.
   focusLossCount: clampInt(focusLossCount),
+  // Session-only terminal outcomes. Assignment progress stays in questionStates
+  // for the live tile, while review/archives use these counters so a resumed
+  // assignment cannot make yesterday's answers look like today's behavior.
+  answeredCount: clampInt(answeredCount),
+  correctCount: clampInt(correctCount),
+  accuracy: accuracy == null
+    ? null
+    : Math.max(0, Math.min(100, Math.round(Number(accuracy) || 0))),
   rapidCorrectCount: clampInt(rapidCorrectCount),
   rapidDeepCorrectCount: clampInt(rapidDeepCorrectCount),
   timedIndependentCorrectCount: clampInt(timedIndependentCorrectCount),
