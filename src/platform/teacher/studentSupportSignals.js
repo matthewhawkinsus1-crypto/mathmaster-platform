@@ -546,6 +546,19 @@ export const buildParentFollowUpCandidates = ({
     .sort((a, b) => b.score - a.score || a.studentName.localeCompare(b.studentName));
 };
 
+export const supportSessionKey = ({
+  studentId,
+  assignmentId,
+  startedAt,
+} = {}) => {
+  const student = clean(studentId);
+  const assignment = clean(assignmentId);
+  const start = num(startedAt);
+  if (!student || !assignment || !start) return null;
+  // Must stay byte-for-byte compatible with functions/lib/studentSessionSummary.js.
+  return `${student}|${assignment}|${start}`;
+};
+
 export const supportEventSignalKey = ({
   kind,
   studentId,
