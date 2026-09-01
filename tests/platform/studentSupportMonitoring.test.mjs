@@ -8,6 +8,8 @@ test('Live Class exposes teacher-confirmed intervention actions rather than auto
   const live = read('src/components/teacher/LiveClassMonitor.jsx');
   assert.match(live, /Watch Practice/);
   assert.match(live, /Adjust Path/);
+  assert.match(live, /Use this move/);
+  assert.match(live, /coachingSuggestion/);
   assert.match(live, /onOpenWeeklyPath/);
   assert.match(live, /Small-group candidate/);
   assert.match(live, /Confirm off-task/);
@@ -15,6 +17,11 @@ test('Live Class exposes teacher-confirmed intervention actions rather than auto
   assert.match(live, /Log integrity review/);
   assert.match(live, /Dismiss pattern/);
   assert.match(live, /This is not a cheating finding/);
+});
+
+test('teacher home scopes Live Class to the actual in-session class id', () => {
+  const home = read('src/TeacherHome.jsx');
+  assert.match(home, /activeClassId=\{classIdInSession\}/);
 });
 
 test('teacher home exposes the unified support dashboard', () => {
