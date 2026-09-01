@@ -56,6 +56,7 @@ before(async () => {
     await setDoc(doc(db, 'grades/STUDENT_B'), { displayName: 'Student B', classId: 'class-b', classPeriod: 'Period 2', assignedTeacherEmail: TEACHER_B, status: 'active', gradesByAssignment: {} });
     // A student nobody has placed. Belongs to no teacher by construction.
     await setDoc(doc(db, 'grades/STUDENT_UNPLACED'), { displayName: 'Unplaced', classId: null, classPeriod: 'Unassigned', assignedTeacherEmail: null, status: 'active', gradesByAssignment: {} });
+    await setDoc(doc(db, 'grades/STUDENT_LEGACY'), { displayName: 'Legacy Student', classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_A, status: 'active', gradesByAssignment: {} });
     await setDoc(doc(db, 'studentSupportEvents/support-a'), {
       schemaVersion: 1,
       kind: 'offTaskConcern',
@@ -335,6 +336,31 @@ test('student support history is teacher-authorized and append-only', async () =
   await assertFails(setDoc(doc(teacherA(), 'studentSupportEvents/support-a'), {
     stage: 'resolved',
   }, { merge: true }));
+});
+
+test('teacher support logging still works for an authorized legacy period roster row', async () => {
+  await assertSucceeds(setDoc(doc(teacherA(), 'studentSupportEvents/support-legacy'), {
+    schemaVersion: 1,
+    kind: 'teacherIntervention',
+    stage: 'actionTaken',
+    studentId: 'STUDENT_LEGACY',
+    classId: null,
+    classPeriod: 'Period 1',
+    createdByEmail: TEACHER_A,
+    authorizedTeacherEmails: [TEACHER_A],
+    createdAt: '2026-09-01T12:10:00.000Z',
+  }));
+
+  await assertFails(setDoc(doc(teacherA(), 'studentSupportEvents/support-legacy-wrong-period'), {
+    schemaVersion: 1,
+    kind: 'teacherIntervention',
+    stage: 'actionTaken',
+    studentId: 'STUDENT_LEGACY',
+    classId: null,
+    classPeriod: 'Period 2',
+    createdByEmail: TEACHER_A,
+    authorizedTeacherEmails: [TEACHER_A],
+  }));
 });
 
 test('archived session summaries are teacher-authorized and server-owned', async () => {
