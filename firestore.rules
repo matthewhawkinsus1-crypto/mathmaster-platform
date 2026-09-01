@@ -114,7 +114,18 @@ service cloud.firestore {
         && request.resource.data.authorizedTeacherEmails.size() == 1
         && request.auth.token.email in request.resource.data.authorizedTeacherEmails
         && get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.assignedTeacherEmail == request.auth.token.email
-        && request.resource.data.classId == get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.classId
+        && (
+          (
+            get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.get('classId', null) != null
+            && request.resource.data.get('classId', null)
+              == get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.get('classId', null)
+          )
+          || (
+            get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.get('classId', null) == null
+            && request.resource.data.get('classPeriod', null)
+              == get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.get('classPeriod', null)
+          )
+        )
       );
       allow update, delete: if false;
     }
