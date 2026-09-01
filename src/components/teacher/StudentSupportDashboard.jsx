@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { summarizeLiveClass } from '../../livePresence.js';
 import {
   SUPPORT_EVENT_KIND,
   SUPPORT_EVENT_LABEL,
   SUPPORT_EVENT_STAGE,
+  SUPPORT_STAGE_LABEL,
   buildArchivedIntegrityReviewSignal,
   buildIntegrityReviewSignal,
   buildParentFollowUpCandidates,
@@ -50,6 +51,11 @@ export default function StudentSupportDashboard({
   onOpenStudent = null,
   onRecordEvent = null,
 }) {
+  const [noteStudentId, setNoteStudentId] = useState('');
+  const [noteKind, setNoteKind] = useState(SUPPORT_EVENT_KIND.TEACHER_INTERVENTION);
+  const [noteText, setNoteText] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
+
   const { rows } = useMemo(
     () => summarizeLiveClass(students, { nowValue }),
     [students, nowValue],
@@ -176,6 +182,36 @@ export default function StudentSupportDashboard({
     source: event.source || 'supportDashboard',
     ...event,
   });
+
+  const saveTeacherNote = async () => {
+    const student = students.find((entry) => String(entry.id) === String(noteStudentId));
+    const note = String(noteText || '').trim();
+    if (!student || !note || !onRecordEvent) return;
+
+    const stage = noteKind === SUPPORT_EVENT_KIND.TEACHER_INTERVENTION
+      ? SUPPORT_EVENT_STAGE.ACTION_TAKEN
+      : noteKind === SUPPORT_EVENT_KIND.PARENT_FOLLOW_UP
+        ? SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED
+        : SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED;
+
+    setNoteSaving(true);
+    try {
+      await record({
+        kind: noteKind,
+        stage,
+        studentId: student.id,
+        studentName: student.name || student.displayName || student.id,
+        summary: noteKind === SUPPORT_EVENT_KIND.TEACHER_INTERVENTION
+          ? 'Teacher added an intervention/check-in note.'
+          : 'Teacher added a reviewed support concern/follow-up note.',
+        note,
+        source: 'teacherNote',
+      });
+      setNoteText('');
+    } finally {
+      setNoteSaving(false);
+    }
+  };
 
   const saveGroup = async (group) => {
     if (!onRecordEvent) return;
@@ -358,6 +394,43 @@ export default function StudentSupportDashboard({
       </div>
 
       <details style={{ marginTop: 10, border: '1px solid #d8dde6', borderRadius: 10, background: '#fff', padding: '10px 12px' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Add teacher note / intervention</summary>
+        <div style={{ marginTop: 9, display: 'grid', gap: 8 }}>
+          <div style={{ fontSize: 11.5, color: '#5f6368' }}>
+            Optional. Use this for something you actually observed or did; MathMaster never writes the teacher note for you.
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 1fr) minmax(180px, 1fr)', gap: 8 }}>
+            <select value={noteStudentId} onChange={(event) => setNoteStudentId(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid #c9ced6', borderRadius: 7, background: '#fff' }}>
+              <option value="">Choose student…</option>
+              {[...students].sort((a, b) => String(a.name || a.displayName || a.id).localeCompare(String(b.name || b.displayName || b.id))).map((student) => (
+                <option key={student.id} value={student.id}>{student.name || student.displayName || student.id}</option>
+              ))}
+            </select>
+            <select value={noteKind} onChange={(event) => setNoteKind(event.target.value)} style={{ minHeight: 38, padding: '7px 8px', border: '1px solid #c9ced6', borderRadius: 7, background: '#fff' }}>
+              <option value={SUPPORT_EVENT_KIND.TEACHER_INTERVENTION}>Teacher check-in / intervention</option>
+              <option value={SUPPORT_EVENT_KIND.OFF_TASK_CONCERN}>Productivity / off-task concern</option>
+              <option value={SUPPORT_EVENT_KIND.WATCH_PRACTICE}>Watch Practice</option>
+              <option value={SUPPORT_EVENT_KIND.SMALL_GROUP}>Small-group concern</option>
+              <option value={SUPPORT_EVENT_KIND.PARENT_FOLLOW_UP}>Parent follow-up</option>
+            </select>
+          </div>
+          <textarea
+            value={noteText}
+            onChange={(event) => setNoteText(event.target.value)}
+            maxLength={1200}
+            placeholder="What did you observe or do?"
+            style={{ width: '100%', minHeight: 72, resize: 'vertical', padding: 9, border: '1px solid #c9ced6', borderRadius: 7, boxSizing: 'border-box', font: 'inherit' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 10.5, color: '#80868b' }}>{noteText.length}/1200</span>
+            <button type="button" disabled={noteSaving || !noteStudentId || !noteText.trim()} onClick={saveTeacherNote} style={{ ...actionButton, minHeight: 38, opacity: noteSaving || !noteStudentId || !noteText.trim() ? 0.55 : 1 }}>
+              {noteSaving ? 'Saving…' : 'Save teacher note'}
+            </button>
+          </div>
+        </div>
+      </details>
+
+      <details style={{ marginTop: 10, border: '1px solid #d8dde6', borderRadius: 10, background: '#fff', padding: '10px 12px' }}>
         <summary style={{ cursor: 'pointer', fontWeight: 900 }}>Recent support history ({recent.length})</summary>
         <div style={{ marginTop: 8, display: 'grid', gap: 7 }}>
           {recent.length ? recent.map((event) => (
@@ -367,7 +440,7 @@ export default function StudentSupportDashboard({
                 <span style={{ fontSize: 11, color: '#80868b' }}>{fmt(event.createdAt)}</span>
               </div>
               <div style={{ marginTop: 2, fontSize: 11.5 }}>
-                <strong>{SUPPORT_EVENT_LABEL[event.kind] || event.kind}</strong> · {event.stage}
+                <strong>{SUPPORT_EVENT_LABEL[event.kind] || event.kind}</strong> · {SUPPORT_STAGE_LABEL[event.stage] || event.stage}
               </div>
               {event.summary && <div style={{ marginTop: 2, fontSize: 11.5, color: '#5f6368' }}>{event.summary}</div>}
             </div>
