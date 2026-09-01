@@ -156,9 +156,21 @@ test('provider errors are translated into safe service categories', async () => 
     () => callOpenAiAssignmentAuthor({
       apiKey: 'busy',
       prompt: '# MathMaster request',
-      fetchImpl: async () => response(429, { error: { message: 'rate' } }),
+      fetchImpl: async () => response(429, { error: { type: 'rate_limit_exceeded', message: 'rate' } }),
     }),
-    (error) => error.code === 'resource-exhausted',
+    (error) => error.code === 'resource-exhausted' && /rate-limited/i.test(error.message),
+  );
+  await assert.rejects(
+    () => callOpenAiAssignmentAuthor({
+      apiKey: 'quota',
+      prompt: '# MathMaster request',
+      fetchImpl: async () => response(429, { error: { code: 'insufficient_quota', message: 'quota' } }),
+    }),
+    (error) => (
+      error.code === 'resource-exhausted'
+      && /billing\/quota needs attention/i.test(error.message)
+      && error.details?.providerCode === 'insufficient_quota'
+    ),
   );
   await assert.rejects(
     () => callOpenAiAssignmentAuthor({
