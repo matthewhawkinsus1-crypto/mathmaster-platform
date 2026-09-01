@@ -6536,7 +6536,7 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
   // one-attempt diagnostic — that task is one attempt by design, because it is
   // asking what the student can do unaided right now. Resolved on the server,
   // so the browser cannot grant itself a fourth try.
-  const attemptsAllowed = await mathPath.attemptsFor(baseAttempts, entitlements);
+  const attemptsAllowed = await mathPath.attemptsForQuestion(issued, baseAttempts, entitlements);
   const currentQuestion = {
     // The public half — the authentic tool, by allowlist — plus the private
     // grading definition, which lives only in this session document.
