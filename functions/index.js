@@ -7,7 +7,7 @@ const { getFirestore, FieldPath, FieldValue } = require("firebase-admin/firestor
 const { getStorage } = require("firebase-admin/storage");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
-const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { onDocumentCreated, onDocumentDeleted, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
 
 const classroomLib = require("./lib/classroom");
@@ -7740,6 +7740,96 @@ function translateAssignmentAiError(error) {
     "MathMaster Assignment AI hit a server error. Use the outside-AI import option while the server configuration is checked.",
   );
 }
+
+// Archive the LAST known state of a live presence session when a presence
+// document is deleted. The student client may recreate the same presence record
+// several times while React switches questions, so the archive id is stable and
+// the transaction keeps the maximum observed counters rather than creating a
+// trail of 20-second heartbeats.
+const STUDENT_SESSION_SUMMARY_COLLECTION = "studentSessionSummaries";
+
+function countLiveQuestionStates(value) {
+  const text = String(value || "");
+  let correct = 0;
+  let incorrect = 0;
+  let attempted = 0;
+  for (const character of text) {
+    if (character === "c") correct += 1;
+    else if (character === "x") incorrect += 1;
+    else if (character === "a") attempted += 1;
+  }
+  const answered = correct + incorrect;
+  return {
+    answered,
+    correct,
+    incorrect,
+    attempted,
+    accuracy: answered ? Math.round((correct / answered) * 100) : null,
+  };
+}
+
+exports.archiveStudentPresenceSession = onDocumentDeleted("presence/{studentId}", async (event) => {
+  const live = event.data?.data() || {};
+  const studentId = String(event.params.studentId || live.studentId || "").trim();
+  const assignmentId = String(live.assignmentId || "").trim();
+  const startedAt = Number(live.startedAt) || 0;
+  if (!studentId || !assignmentId || !startedAt) return;
+
+  const db = getFirestore();
+  const grade = await db.collection("grades").doc(studentId).get();
+  const gradeData = grade.exists ? (grade.data() || {}) : {};
+  const assignedTeacherEmail = String(gradeData.assignedTeacherEmail || "").trim().toLowerCase();
+  const authorizedTeacherEmails = assignedTeacherEmail ? [assignedTeacherEmail] : [];
+  const sessionKey = `${studentId}|${assignmentId}|${startedAt}`;
+  const summaryId = crypto.createHash("sha256").update(sessionKey).digest("hex").slice(0, 40);
+  const ref = db.collection(STUDENT_SESSION_SUMMARY_COLLECTION).doc(summaryId);
+  const counts = countLiveQuestionStates(live.questionStates);
+  const observedAt = Number(live.updatedAt) || Date.now();
+
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const previous = snapshot.exists ? (snapshot.data() || {}) : {};
+    const previousEndedAt = Number(previous.endedAt) || 0;
+    const previousActive = Number(previous.activeSeconds) || 0;
+    const previousFocus = Number(previous.focusLossCount) || 0;
+    const previousAnswered = Number(previous.answered) || 0;
+    const previousCorrect = Number(previous.correct) || 0;
+    const previousRapid = Number(previous.rapidCorrectCount) || 0;
+    const previousRapidDeep = Number(previous.rapidDeepCorrectCount) || 0;
+    const previousTimed = Number(previous.timedIndependentCorrectCount) || 0;
+
+    const answered = Math.max(previousAnswered, counts.answered);
+    const correct = Math.max(previousCorrect, counts.correct);
+    transaction.set(ref, {
+      schemaVersion: 1,
+      sessionKey,
+      studentId,
+      studentName: String(live.name || gradeData.displayName || studentId).slice(0, 180),
+      classId: String(live.classId || gradeData.classId || "").trim() || null,
+      classPeriod: String(live.classPeriod || gradeData.classPeriod || "").trim() || null,
+      assignmentId,
+      assignmentTitle: String(live.assignmentTitle || "").slice(0, 180),
+      activityRole: String(live.activityRole || "classwork").slice(0, 40),
+      startedAt,
+      endedAt: Math.max(previousEndedAt, observedAt),
+      activeSeconds: Math.max(previousActive, Number(live.sessionActiveSeconds) || 0),
+      focusLossCount: Math.max(previousFocus, Number(live.focusLossCount) || 0),
+      answered,
+      correct,
+      accuracy: answered ? Math.round((correct / answered) * 100) : null,
+      rapidCorrectCount: Math.max(previousRapid, Number(live.rapidCorrectCount) || 0),
+      rapidDeepCorrectCount: Math.max(previousRapidDeep, Number(live.rapidDeepCorrectCount) || 0),
+      timedIndependentCorrectCount: Math.max(previousTimed, Number(live.timedIndependentCorrectCount) || 0),
+      originTeacherEmail: previous.originTeacherEmail || assignedTeacherEmail || null,
+      authorizedTeacherEmails: [...new Set([
+        ...(Array.isArray(previous.authorizedTeacherEmails) ? previous.authorizedTeacherEmails : []),
+        ...authorizedTeacherEmails,
+      ])].filter(Boolean),
+      updatedAt: FieldValue.serverTimestamp(),
+      createdAt: previous.createdAt || FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+});
 
 exports.hydrateAssignmentCcmr = onCall({
   timeoutSeconds: 60,
