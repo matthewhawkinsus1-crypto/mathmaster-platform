@@ -139,7 +139,7 @@ Divisions render as stacked fractions automatically: `$3/4$` and
 | `inequality` | an inequality — `< ≤ > ≥` |
 | `set` | roster notation |
 | `orderedPair` | a coordinate pair |
-| `choice` | multiple choice; supply `choices` |
+| `choice` | multiple choice; supply `choices`. Pure choice items are one attempt per issued question. |
 | `text` | words are genuinely the answer |
 
 The grader already accepts, without help: unreduced fractions, decimals for
@@ -165,6 +165,8 @@ a session, so **give each question for a standard a different `familyId`**),
 `solutionReview` is what a student reads when the question closes. Reasoning
 first, then the answer — **not** "the answer is B". It is released by the server
 after the question finalizes and never travels early.
+
+**Choice policy.** Ordinary My Math Path practice should prefer a response the student must construct: number, expression, equation, interval/inequality, graph, table, mapping, model, or another interactive tool. Use pure multiple choice deliberately rather than as the default. A pure choice question gets exactly **one attempt**; after an incorrect response the Path closes that item and routes to a fresh question. Authentic SAT/ACT/TSIA2/ASVAB items may remain multiple choice when that matches the assessment format.
 
 **Analysis parts on graph questions** — `kind` must say what the part asks:
 `value` for a slope, rate, intercept or word answer; `domain`/`range`/
