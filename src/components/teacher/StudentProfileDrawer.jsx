@@ -59,6 +59,7 @@ export default function StudentProfileDrawer({
   classRecord = null,
   courseContext = null,
   supportEvents = [],
+  sessionSummaries = [],
   onClose = null,
   onOpenFullRecord = null,
   onOpenGradebook = null,
@@ -155,6 +156,38 @@ export default function StudentProfileDrawer({
               </div>
             ) : (
               <div style={{ color: '#80868b', fontSize: 12.5 }}>No stored support/intervention events for this student yet.</div>
+            )}
+          </section>
+
+          <section style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #eef0f2' }}>
+            <h3 style={{ margin: '0 0 5px', fontSize: 16 }}>Recent class-session summaries</h3>
+            <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: 12.5 }}>
+              Objective platform counts only. These summaries are supporting context, not behavior or integrity findings unless a teacher separately confirms a concern above.
+            </p>
+            {sessionSummaries.length ? (
+              <div style={{ display: 'grid', gap: 7 }}>
+                {sessionSummaries.slice(0, 8).map((summary) => {
+                  const ended = new Date(Number(summary.endedAt) || 0);
+                  const when = Number.isNaN(ended.getTime()) ? '' : ended.toLocaleString();
+                  const elapsedMinutes = Math.max(0, Math.round(((Number(summary.endedAt) || 0) - (Number(summary.startedAt) || 0)) / 60000));
+                  const activeMinutes = Math.max(0, Math.round((Number(summary.activeSeconds) || 0) / 60));
+                  return (
+                    <div key={summary.id} style={{ padding: '9px 10px', borderRadius: 8, background: '#fff', border: '1px solid #eef0f2' }}>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                        <strong style={{ fontSize: 12.5 }}>{summary.assignmentTitle || 'Assignment session'}</strong>
+                        <span style={{ fontSize: 11, color: '#80868b' }}>{when}</span>
+                      </div>
+                      <div style={{ marginTop: 3, fontSize: 11.5, color: '#5f6368', lineHeight: 1.45 }}>
+                        {activeMinutes} active min of {elapsedMinutes} elapsed · {Number(summary.answered) || 0} answered
+                        {summary.accuracy != null ? ` · ${summary.accuracy}% correct` : ''}
+                        {Number(summary.focusLossCount) > 0 ? ` · ${summary.focusLossCount} focus-loss event${Number(summary.focusLossCount) === 1 ? '' : 's'}` : ''}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ color: '#80868b', fontSize: 12.5 }}>No archived class-session summaries yet.</div>
             )}
           </section>
         </div>
