@@ -214,6 +214,32 @@ test('low activity needs corroborating low progress or repeated focus loss', () 
   }), null, 'low mouse/keyboard activity with real progress can be paper work or reading');
 });
 
+test('low productivity review stays quiet when classmates were not demonstrably working in MathMaster', () => {
+  const target = {
+    studentId: 's1',
+    assignmentId: 'a1',
+    startedAt: NOW - 30 * 60000,
+    endedAt: NOW,
+    activeSeconds: 5 * 60,
+    answered: 1,
+    focusLossCount: 4,
+    activityRole: 'practice',
+  };
+  const teacherLedPeers = [
+    { studentId: 's2', assignmentId: 'a1', startedAt: NOW - 30 * 60000, endedAt: NOW, activeSeconds: 4 * 60, answered: 1 },
+    { studentId: 's3', assignmentId: 'a1', startedAt: NOW - 30 * 60000, endedAt: NOW, activeSeconds: 3 * 60, answered: 0 },
+  ];
+  assert.equal(sessionProductivitySignal(target, { peerSummaries: [target, ...teacherLedPeers] }), null);
+
+  const independentWorkPeers = [
+    { studentId: 's2', assignmentId: 'a1', startedAt: NOW - 30 * 60000, endedAt: NOW, activeSeconds: 22 * 60, answered: 6 },
+    { studentId: 's3', assignmentId: 'a1', startedAt: NOW - 30 * 60000, endedAt: NOW, activeSeconds: 20 * 60, answered: 5 },
+  ];
+  const signal = sessionProductivitySignal(target, { peerSummaries: [target, ...independentWorkPeers] });
+  assert.ok(signal);
+  assert.equal(signal.evidence.activePeerCount, 2);
+});
+
 test('platform session telemetry alone can never place a student on Parent Follow-Up', () => {
   const sessions = [
     {
@@ -241,11 +267,23 @@ test('one teacher-confirmed productivity concern plus independent corroboration 
     studentName: 'Student One',
     createdAt: '2026-08-31T15:00:00.000Z',
   }];
-  const sessions = [{
-    studentId: 's1', studentName: 'Student One', assignmentId: 'a1',
-    startedAt: NOW - 30 * 60000, endedAt: NOW,
-    activeSeconds: 5 * 60, answered: 1, focusLossCount: 4, activityRole: 'practice',
-  }];
+  const sessions = [
+    {
+      studentId: 's1', studentName: 'Student One', assignmentId: 'a1',
+      startedAt: NOW - 30 * 60000, endedAt: NOW,
+      activeSeconds: 5 * 60, answered: 1, focusLossCount: 4, activityRole: 'practice',
+    },
+    {
+      studentId: 's2', studentName: 'Student Two', assignmentId: 'a1',
+      startedAt: NOW - 30 * 60000, endedAt: NOW,
+      activeSeconds: 22 * 60, answered: 6, focusLossCount: 0, activityRole: 'practice',
+    },
+    {
+      studentId: 's3', studentName: 'Student Three', assignmentId: 'a1',
+      startedAt: NOW - 30 * 60000, endedAt: NOW,
+      activeSeconds: 20 * 60, answered: 5, focusLossCount: 0, activityRole: 'practice',
+    },
+  ];
   const candidates = buildParentFollowUpCandidates({
     supportEvents,
     sessionSummaries: sessions,
