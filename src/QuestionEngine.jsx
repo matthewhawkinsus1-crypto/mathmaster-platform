@@ -47,7 +47,6 @@ import ReferenceInfoCard from './ReferenceInfoCard';
 import { resolveReferenceInfo } from './referenceInfo';
 import {
   getAttemptsRemaining,
-  MAX_ATTEMPTS_PER_QUESTION,
   normalizeQuestionRecord,
   resolveQuestionMaximumAttempts,
 } from './attemptPolicy';
