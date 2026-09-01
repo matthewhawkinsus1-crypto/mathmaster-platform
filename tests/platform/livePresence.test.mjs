@@ -130,14 +130,23 @@ test('the summary counts what the teacher reads at a glance', () => {
   assert.equal(counts.needsAttention, 2, 'not started and offline both need a look');
 });
 
-test('the payload carries no student response text', () => {
+test('the payload carries only coarse monitoring telemetry and no student response text', () => {
   const payload = buildLiveStatus({
     assignmentId: 'a1', questionStates: 'cc', nowValue: NOW,
     questionLabel: 'Solve for x', representation: 'graph',
+    focusLossCount: 3,
+    rapidCorrectCount: 2,
+    rapidDeepCorrectCount: 1,
+    timedIndependentCorrectCount: 4,
+    sessionActiveSeconds: 420,
   });
   const serialized = JSON.stringify(payload);
-  assert.ok(serialized.length < 400, `payload should stay tiny, was ${serialized.length} bytes`);
+  assert.ok(serialized.length < 650, `payload should stay compact, was ${serialized.length} bytes`);
   assert.ok(!('response' in payload) && !('answers' in payload));
+  assert.ok(!('url' in payload) && !('activeUrl' in payload) && !('keystrokes' in payload));
+  assert.equal(payload.focusLossCount, 3);
+  assert.equal(payload.rapidCorrectCount, 2);
+  assert.equal(payload.sessionActiveSeconds, 420);
   assert.equal(payload.updatedAt, NOW);
 });
 
