@@ -216,12 +216,26 @@ export const buildWatchPracticeList = ({
   nowValue = Date.now(),
   maxStudents = 6,
 } = {}) => {
+  const latestWatchAt = new Map();
+  const latestResolvedAt = new Map();
+  list(supportEvents)
+    .filter((event) => recent(event, nowValue, 7))
+    .forEach((event) => {
+      const at = Date.parse(event.createdAt || event.recordedAt || '') || num(event.createdAtMs);
+      if (!event.studentId || !at) return;
+      if (event.kind === SUPPORT_EVENT_KIND.WATCH_PRACTICE
+        && event.stage !== SUPPORT_EVENT_STAGE.DISMISSED) {
+        latestWatchAt.set(event.studentId, Math.max(latestWatchAt.get(event.studentId) || 0, at));
+      }
+      if (event.kind === SUPPORT_EVENT_KIND.RESOLVED
+        && event.stage === SUPPORT_EVENT_STAGE.RESOLVED) {
+        latestResolvedAt.set(event.studentId, Math.max(latestResolvedAt.get(event.studentId) || 0, at));
+      }
+    });
   const pinned = new Set(
-    list(supportEvents)
-      .filter((event) => event.kind === SUPPORT_EVENT_KIND.WATCH_PRACTICE
-        && event.stage !== SUPPORT_EVENT_STAGE.DISMISSED
-        && recent(event, nowValue, 7))
-      .map((event) => event.studentId),
+    [...latestWatchAt.entries()]
+      .filter(([studentId, at]) => at > (latestResolvedAt.get(studentId) || 0))
+      .map(([studentId]) => studentId),
   );
 
   return list(rows)
