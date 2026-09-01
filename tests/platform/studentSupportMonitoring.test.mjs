@@ -49,11 +49,20 @@ test('student clients publish only coarse live integrity/productivity counters',
 
 test('presence deletion archives one compact session summary instead of heartbeat history', () => {
   const functionsIndex = read('functions/index.js');
+  const summaryLib = read('functions/lib/studentSessionSummary.js');
+
+  // Lock the deployed trigger path without coupling the test to whitespace,
+  // quote style, or whether Firebase trigger options are added later.
   assert.match(functionsIndex, /archiveStudentPresenceSession/);
-  assert.match(functionsIndex, /onDocumentDeleted\("presence\/\{studentId\}"\)/);
+  assert.match(functionsIndex, /onDocumentDeleted[\s\S]{0,300}presence\/\{studentId\}/);
   assert.match(functionsIndex, /studentSessionSummaries/);
-  assert.match(functionsIndex, /crypto\.createHash\("sha256"\)/);
-  assert.match(functionsIndex, /Math\.max\(previousActive/);
+  assert.match(functionsIndex, /studentSessionSummary\.sessionSummaryIdFor/);
+  assert.match(functionsIndex, /studentSessionSummary\.buildMergedSessionSummary/);
+
+  // Stable identity and monotonic merging belong to the helper that actually
+  // implements them, not to index.js merely because it imports that helper.
+  assert.match(summaryLib, /crypto\.createHash\("sha256"\)/);
+  assert.match(summaryLib, /Math\.max\(previousActive/);
 });
 
 test('support history is append-only and session summaries are server-owned in Firestore rules', () => {
