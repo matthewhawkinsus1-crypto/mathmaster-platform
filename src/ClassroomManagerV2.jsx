@@ -140,16 +140,44 @@ export default function ClassroomManagerV2({
   );
 
   const refreshManagerData = async () => {
-    const [connectionResult, mappingResult, linksResult, gradeResult] = await Promise.all([
+    // The Classroom manager is a dashboard, not one giant transaction. One
+    // auxiliary read (for example stale course mappings) must not hide the
+    // teacher's Google connection status, published links, or grade-sync data.
+    const results = await Promise.allSettled([
       getClassroomConnectionStatus(),
       listClassroomCourseMappings(),
       listPublishedAssignments(),
       listClassroomGradeSyncs(),
     ]);
-    setConnection(connectionResult || { connected: false });
-    setMappings(mappingResult.mappings || []);
-    setLinks(linksResult.links || []);
-    setGradeSyncs(gradeResult.syncs || []);
+    const [connectionResult, mappingResult, linksResult, gradeResult] = results;
+
+    if (connectionResult.status === 'fulfilled') {
+      setConnection(connectionResult.value || { connected: false });
+    }
+    if (mappingResult.status === 'fulfilled') {
+      setMappings(mappingResult.value?.mappings || []);
+    }
+    if (linksResult.status === 'fulfilled') {
+      setLinks(linksResult.value?.links || []);
+    }
+    if (gradeResult.status === 'fulfilled') {
+      setGradeSyncs(gradeResult.value?.syncs || []);
+    }
+
+    const failures = [
+      ['Connection status', connectionResult],
+      ['Saved course mappings', mappingResult],
+      ['Published assignments', linksResult],
+      ['Grade passback monitor', gradeResult],
+    ].filter(([, result]) => result.status === 'rejected');
+
+    if (failures.length) {
+      const details = failures
+        .map(([label, result]) => `${label}: ${result.reason?.message || String(result.reason)}`)
+        .join(' | ');
+      setError(details);
+    }
+    return { failures: failures.length };
   };
 
   useEffect(() => {
