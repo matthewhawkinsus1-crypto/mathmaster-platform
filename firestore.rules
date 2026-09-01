@@ -50,6 +50,13 @@ service cloud.firestore {
         && request.auth.token.email in resource.data.authorizedTeacherEmails;
     }
 
+    // Presence is readable only for a student the signed-in teacher currently
+    // teaches. Live presence is intentionally NOT a school-wide teacher feed.
+    function teachesPresenceStudent(studentId) {
+      return teacher()
+        && get(/databases/$(database)/documents/grades/$(studentId)).data.assignedTeacherEmail == request.auth.token.email;
+    }
+
     // Student work: students read/update only their own document; a teacher
     // only their own students; the root administrator the school. Permanent
     // account deletion is never a client permission — even the root
@@ -101,8 +108,13 @@ service cloud.firestore {
         && request.resource.data.studentId is string
         && request.resource.data.createdByEmail == request.auth.token.email
         && request.resource.data.authorizedTeacherEmails is list
+        // A teacher may not mint a record that grants another teacher access.
+        // Reassignment adds the next authorized teacher through the audited
+        // Admin SDK path later, while preserving the original teacher.
+        && request.resource.data.authorizedTeacherEmails.size() == 1
         && request.auth.token.email in request.resource.data.authorizedTeacherEmails
         && get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.assignedTeacherEmail == request.auth.token.email
+        && request.resource.data.classId == get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.classId
       );
       allow update, delete: if false;
     }
@@ -121,8 +133,11 @@ service cloud.firestore {
     // only which question the student is on and how many are right — so a
     // teacher reading it learns no more than walking past the desk.
     match /presence/{studentId} {
-      allow read: if teacher();
-      allow create, update, delete: if ownsStudent(studentId) || teacher();
+      allow read: if rootAdmin() || teachesPresenceStudent(studentId);
+      // A teacher observes presence; only the student owns the heartbeat. This
+      // prevents one teacher client from fabricating or clearing another
+      // student's live telemetry.
+      allow create, update, delete: if ownsStudent(studentId);
     }
 
     // Live Challenge. All writes go through Cloud Functions so a student can
