@@ -5,6 +5,7 @@ import { LIVE_FLAGS, LIVE_SEVERITY } from '../../src/livePresence.js';
 import {
   SUPPORT_EVENT_KIND,
   SUPPORT_EVENT_STAGE,
+  buildArchivedIntegrityReviewSignal,
   buildIntegrityReviewSignal,
   buildParentFollowUpCandidates,
   buildSuggestedSmallGroups,
@@ -145,6 +146,29 @@ test('an extreme repeated pattern can reach review without focus telemetry but s
   });
   assert.ok(signal);
   assert.equal(signal.confidence, 'strong-review-signal');
+});
+
+test('archived sessions preserve only an extreme pattern for later Integrity Review', () => {
+  assert.equal(buildArchivedIntegrityReviewSignal({
+    answered: 6,
+    accuracy: 100,
+    rapidCorrectCount: 4,
+    rapidDeepCorrectCount: 2,
+    timedIndependentCorrectCount: 6,
+  }), null, 'ordinary fast work is too weak without live corroboration');
+
+  const signal = buildArchivedIntegrityReviewSignal({
+    answered: 8,
+    accuracy: 100,
+    rapidCorrectCount: 7,
+    rapidDeepCorrectCount: 4,
+    timedIndependentCorrectCount: 8,
+    focusLossCount: 0,
+  });
+  assert.ok(signal);
+  assert.equal(signal.confidence, 'strong-review-signal');
+  assert.equal(signal.evidence.archivedSession, true);
+  assert.doesNotMatch(JSON.stringify(signal), /cheat/i);
 });
 
 test('productivity telemetry stays silent for short sessions and legitimate active work', () => {
