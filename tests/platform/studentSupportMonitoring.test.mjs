@@ -112,13 +112,21 @@ test('student deletion and pre-production reset include the persistent monitorin
 
 test('recent support/session listeners are bounded and backed by declared Firestore indexes', () => {
   const store = read('src/platform/teacher/studentSupportStore.js');
+  const app = read('src/App.jsx');
   const firebase = read('firebase.json');
   const indexes = read('firestore.indexes.json');
   assert.match(store, /limit\(750\)/);
   assert.match(store, /limit\(1000\)/);
   assert.match(store, /orderBy\('createdAt', 'desc'\)/);
   assert.match(store, /orderBy\('endedAt', 'desc'\)/);
+  assert.match(store, /where\('classId', '==', classId\)/);
+  assert.match(store, /fetchStudentSupportHistory/);
+  assert.match(store, /where\('studentId', '==', student\)/);
+  assert.match(app, /classIds: classes/);
+  assert.match(app, /profileSupportHistory/);
   assert.match(firebase, /firestore\.indexes\.json/);
   assert.match(indexes, /studentSupportEvents/);
   assert.match(indexes, /studentSessionSummaries/);
+  assert.match(indexes, /"fieldPath": "classId"/);
+  assert.match(indexes, /"fieldPath": "studentId"/);
 });
