@@ -77,6 +77,8 @@ function StudentTile({
   integritySignal = null,
   onSupportAction = null,
   onAdjustPath = null,
+  onRecommendPath = null,
+  pathInterventionBusy = false,
 }) {
   const style = SEVERITY_STYLE[row.severity] || SEVERITY_STYLE[LIVE_SEVERITY.OK];
   const live = row.live;
@@ -138,6 +140,7 @@ function StudentTile({
           <div style={{ fontSize: '11px', color: '#80868b', marginTop: '6px' }}>
             {row.counts.answered} of {live.questionCount || row.counts.answered} answered
             {row.counts.accuracy !== null && ` · ${row.counts.accuracy}% correct`}
+            {live.currentTeksCode && ` · TEKS ${live.currentTeksCode}`}
           </div>
         </>
       ) : (
@@ -210,6 +213,26 @@ function StudentTile({
           <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.WATCH_PRACTICE, SUPPORT_EVENT_STAGE.ACTION_TAKEN)} style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #9aa0a6', background: '#fff', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' }}>
             Watch Practice
           </button>
+          {onRecommendPath && live?.currentTeksCode && (
+            <button
+              type="button"
+              disabled={pathInterventionBusy}
+              onClick={() => onRecommendPath(live.currentTeksCode)}
+              title="Put this TEKS at the front of this student's personal My Math Path recommendations for 48 hours. Normal prerequisites still apply."
+              style={{
+                padding: '5px 8px',
+                borderRadius: 7,
+                border: '1px solid #188038',
+                background: pathInterventionBusy ? '#eef0f2' : '#e6f4ea',
+                color: '#137333',
+                fontWeight: 900,
+                fontSize: 11.5,
+                cursor: pathInterventionBusy ? 'wait' : 'pointer',
+              }}
+            >
+              {pathInterventionBusy ? 'Updating Path…' : `Recommend ${live.currentTeksCode} in Path`}
+            </button>
+          )}
           {onAdjustPath && (
             <button type="button" onClick={onAdjustPath} style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #1a73e8', background: '#eef4ff', color: '#174ea6', fontWeight: 900, fontSize: 11.5, cursor: 'pointer' }}>
               Adjust Path
@@ -259,6 +282,8 @@ export default function LiveClassMonitor({
   classes = [],
   supportEvents = [],
   onRecordSupportEvent = null,
+  onRecommendPersonalPath = null,
+  pathInterventionBusyStudentId = null,
   onOpenWeeklyPath = null,
 }) {
   // Opens on whichever period is in session; the teacher can widen it from
@@ -453,6 +478,16 @@ export default function LiveClassMonitor({
               roomMode={roomMode}
               integritySignal={integrityByStudentId[row.id] || null}
               onSupportAction={(kind, stage, signal, extra) => handleSupportAction(row, kind, stage, signal, extra)}
+              onRecommendPath={onRecommendPersonalPath ? (teksCode) => onRecommendPersonalPath({
+                studentId: row.id,
+                studentName: row.name,
+                teksCode,
+                classId: activeClassId || row.live?.classId || null,
+                classPeriod: row.classPeriod || row.live?.classPeriod || null,
+                assignmentId: row.live?.assignmentId || null,
+                assignmentTitle: row.live?.assignmentTitle || null,
+              }) : null}
+              pathInterventionBusy={pathInterventionBusyStudentId === row.id}
               onAdjustPath={onOpenWeeklyPath ? () => onOpenWeeklyPath(row.id) : null}
             />
           ))}
