@@ -457,7 +457,7 @@ export const getQuestionCardState = (record) => {
     return {
       background: percent >= 50 ? '#fbbc04' : '#c5221f',
       color: percent >= 50 ? '#3c2f00' : '#fff',
-      label: percent >= 50 ? `${percent}% · Almost` : 'Incorrect · Try again',
+      label: percent >= 50 ? `${percent}% · Almost` : 'Incorrect',
     };
   }
   if (normalized.status === 'attempted') {
