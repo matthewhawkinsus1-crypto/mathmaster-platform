@@ -7,6 +7,8 @@ const read = (path) => fs.readFileSync(path, 'utf8');
 test('Live Class exposes teacher-confirmed intervention actions rather than automatic plan changes', () => {
   const live = read('src/components/teacher/LiveClassMonitor.jsx');
   assert.match(live, /Watch Practice/);
+  assert.match(live, /Adjust Path/);
+  assert.match(live, /onOpenWeeklyPath/);
   assert.match(live, /Small-group candidate/);
   assert.match(live, /Confirm off-task/);
   assert.match(live, /Parent follow-up/);
