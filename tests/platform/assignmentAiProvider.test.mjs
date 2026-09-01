@@ -9,6 +9,7 @@ const {
   assignmentResponseSchema,
   buildOpenAiAssignmentRequest,
   extractResponseText,
+  postJsonWithNativeHttps,
   callOpenAiAssignmentAuthor,
 } = require('../../functions/lib/assignmentAi.js');
 
@@ -61,6 +62,63 @@ test('response text extraction supports the raw Responses API output shape', () 
   assert.equal(text, '{"schemaVersion":5}');
 });
 
+test('native HTTPS transport posts directly to api.openai.com without depending on global fetch', async () => {
+  let capturedOptions = null;
+  let capturedBody = '';
+  const fakeHttps = {
+    request(options, onResponse) {
+      capturedOptions = options;
+      const requestHandlers = {};
+      const request = {
+        setTimeout() {},
+        on(event, handler) {
+          requestHandlers[event] = handler;
+          return request;
+        },
+        write(body) {
+          capturedBody += String(body);
+        },
+        end() {
+          queueMicrotask(() => {
+            const responseHandlers = {};
+            const response = {
+              statusCode: 200,
+              statusMessage: 'OK',
+              on(event, handler) {
+                responseHandlers[event] = handler;
+                return response;
+              },
+            };
+            onResponse(response);
+            queueMicrotask(() => {
+              responseHandlers.data?.(Buffer.from('{"ok":true}'));
+              responseHandlers.end?.();
+            });
+          });
+        },
+        destroy(error) {
+          requestHandlers.error?.(error);
+        },
+      };
+      return request;
+    },
+  };
+
+  const result = await postJsonWithNativeHttps('https://api.openai.com/v1/responses', {
+    headers: { Authorization: 'Bearer server-test-key', 'Content-Type': 'application/json' },
+    body: '{"hello":"world"}',
+    httpsImpl: fakeHttps,
+  });
+
+  assert.equal(capturedOptions.hostname, 'api.openai.com');
+  assert.equal(capturedOptions.path, '/v1/responses');
+  assert.equal(capturedOptions.method, 'POST');
+  assert.equal(capturedOptions.headers.Authorization, 'Bearer server-test-key');
+  assert.equal(capturedBody, '{"hello":"world"}');
+  assert.equal(result.status, 200);
+  assert.equal(await result.text(), '{"ok":true}');
+});
+
 test('successful provider call returns normalized assignment JSON and usage', async () => {
   let request;
   const result = await callOpenAiAssignmentAuthor({
@@ -100,6 +158,22 @@ test('provider errors are translated into safe service categories', async () => 
       fetchImpl: async () => response(429, { error: { message: 'rate' } }),
     }),
     (error) => error.code === 'resource-exhausted',
+  );
+  await assert.rejects(
+    () => callOpenAiAssignmentAuthor({
+      apiKey: 'network-test',
+      prompt: '# MathMaster request',
+      fetchImpl: async () => {
+        const error = new Error('dns lookup failed');
+        error.code = 'ENOTFOUND';
+        throw error;
+      },
+    }),
+    (error) => (
+      error.code === 'unavailable'
+      && /ENOTFOUND/.test(error.message)
+      && error.details?.networkCode === 'ENOTFOUND'
+    ),
   );
 });
 
