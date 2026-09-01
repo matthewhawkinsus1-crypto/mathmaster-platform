@@ -107,3 +107,17 @@ test('Classroom manager loads independent dashboard panels with allSettled', () 
   assert.match(src, /Saved course mappings/);
   assert.match(src, /Grade passback monitor/);
 });
+
+
+test('Classroom mapping loader survives an index failure with a bounded server-side fallback', () => {
+  const src = read('functions/index.js');
+  const block = src.slice(
+    src.indexOf('exports.listClassroomCourseMappings'),
+    src.indexOf('exports.saveClassroomCourseMapping'),
+  );
+  assert.match(block, /indexed query failed; trying bounded fallback/);
+  assert.match(block, /collection\("classroomCourseMappings"\)[\s\S]*limit\(5000\)/);
+  assert.match(block, /filter\(\(doc\) => String\(doc\.data\(\)\?\.teacherUid \|\| ""\) === teacherUid\)/);
+  assert.match(block, /degradedRead: true/);
+  assert.match(block, /stage: "load-course-mappings"/);
+});
