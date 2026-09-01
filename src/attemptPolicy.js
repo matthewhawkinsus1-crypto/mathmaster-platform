@@ -32,15 +32,22 @@ const isChoiceField = (field = {}) => (
  */
 export const isChoiceOnlyQuestion = (question = {}) => {
   const type = String(question?.type || question?.toolId || '').trim().toLowerCase();
-  if (!SIMPLE_CHOICE_TYPES.has(type)) return false;
-  if (type === 'numberline') return Array.isArray(question?.choices) && question.choices.length > 1;
-  if (type !== 'multianswer') return true;
-
+  const pathQuestionType = String(question?.questionType || '').trim().toLowerCase();
   const fields = [
     ...(Array.isArray(question.answerFields) ? question.answerFields : []),
     ...(Array.isArray(question.responseFields) ? question.responseFields : []),
     ...(Array.isArray(question.responses) ? question.responses.filter((field) => field && typeof field === 'object' && !Array.isArray(field)) : []),
   ];
+
+  // My Math Path's generic secure field payload is questionType:"response".
+  // Treat it as finite choice only when EVERY response is explicitly a choice.
+  if (pathQuestionType === 'response' && fields.length > 0) {
+    return fields.every(isChoiceField);
+  }
+
+  if (!SIMPLE_CHOICE_TYPES.has(type)) return false;
+  if (type === 'numberline') return Array.isArray(question?.choices) && question.choices.length > 1;
+  if (type !== 'multianswer') return true;
   return fields.length > 0 && fields.every(isChoiceField);
 };
 
