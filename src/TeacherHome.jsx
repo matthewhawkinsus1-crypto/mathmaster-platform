@@ -227,6 +227,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
         classes={classes}
         supportEvents={studentSupportEvents}
         onRecordSupportEvent={onRecordStudentSupportEvent}
+        onOpenWeeklyPath={onOpenWeeklyPath}
       />
 
       {currentClass && (
