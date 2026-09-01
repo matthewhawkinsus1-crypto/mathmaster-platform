@@ -31,6 +31,7 @@ import {
 import AdaptivePreview from './AdaptivePreview.jsx';
 import { buildPreflightReviewedAssignmentV5 } from './preflightV5Review.js';
 import { buildQuestionRepairRequest, parseQuestionRepairResponse } from '../../platform/contract/questionRepairRequest.js';
+import { parseExternalAiJson } from '../../platform/contract/externalAiJson.js';
 import {
   groupQuestionPreflightIssues,
   newlyIntroducedPreflightErrors,
@@ -80,22 +81,6 @@ const checkboxStyle = { width: 20, height: 20, flexShrink: 0 };
 const fieldsetStyle = { marginTop: 18, padding: 15, border: '1px solid #d8dde6', borderRadius: 10 };
 const legendStyle = { fontWeight: 900 };
 const labelStyle = { fontWeight: 800, display: 'block' };
-
-const parseExternalAiJson = (raw) => {
-  let text = String(raw || '').trim();
-  const fenced = text.match(/^\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`$/i);
-  if (fenced) text = fenced[1].trim();
-  if (!text.startsWith('{')) {
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
-    if (start >= 0 && end > start) text = text.slice(start, end + 1);
-  }
-  const parsed = JSON.parse(text);
-  if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
-    throw new Error('The AI result must be one JSON object.');
-  }
-  return parsed;
-};
 
 const writeClipboardText = async (text) => {
   if (!navigator.clipboard?.writeText) throw new Error('Clipboard copy is unavailable in this browser.');
