@@ -7844,7 +7844,13 @@ exports.archiveReplacedStudentPresenceSession = onDocumentWritten("presence/{stu
 // document immediately before deleting it, so a student who just reconnected is
 // never expired by an old query result. The deletion trigger above performs the
 // archive.
-exports.expireStaleStudentPresence = onSchedule("every 5 minutes", async () => {
+exports.expireStaleStudentPresence = onSchedule({
+  schedule: "every 5 minutes",
+  // setGlobalOptions({ invoker: "public" }) exists for Firebase client callables.
+  // A scheduler job is server infrastructure, so override that global HTTPS
+  // setting here rather than exposing the cleanup endpoint publicly.
+  invoker: "private",
+}, async () => {
   const db = getFirestore();
   const cutoff = Date.now() - PRESENCE_STALE_AFTER_MS;
   const stale = await db.collection("presence")
