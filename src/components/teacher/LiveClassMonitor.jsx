@@ -5,6 +5,11 @@ import {
 import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import { studentsInClass } from '../../../functions/shared/classModel.mjs';
 import { suggestMovesForClass } from '../../platform/teacher/liveCoaching.js';
+import {
+  SUPPORT_EVENT_KIND,
+  SUPPORT_EVENT_STAGE,
+  buildIntegrityReviewSignal,
+} from '../../platform/teacher/studentSupportSignals.js';
 
 // A tile per student, sorted so whoever needs the teacher is first. The
 // "thumbnail" is a reconstruction of the student's screen state, not a
@@ -61,15 +66,28 @@ function ProgressStrip({ questionStates, questionIndex }) {
   );
 }
 
-function StudentTile({ row, onOpenStudent, profile = null, suggestion = null, roomMode = false }) {
+function StudentTile({
+  row,
+  onOpenStudent,
+  profile = null,
+  suggestion = null,
+  roomMode = false,
+  integritySignal = null,
+  supportEvents = [],
+  onSupportAction = null,
+}) {
   const style = SEVERITY_STYLE[row.severity] || SEVERITY_STYLE[LIVE_SEVERITY.OK];
   const live = row.live;
   const glyph = REPRESENTATION_GLYPH[live?.representation] || REPRESENTATION_GLYPH.text;
 
   return (
-    <button
-      type="button"
+    <div
+      role={onOpenStudent ? 'button' : undefined}
+      tabIndex={onOpenStudent ? 0 : undefined}
       onClick={() => onOpenStudent?.(row.id)}
+      onKeyDown={(event) => {
+        if (onOpenStudent && (event.key === 'Enter' || event.key === ' ')) onOpenStudent(row.id);
+      }}
       style={{
         textAlign: 'left',
         padding: roomMode ? '18px 20px' : '12px 14px',
@@ -153,9 +171,47 @@ function StudentTile({ row, onOpenStudent, profile = null, suggestion = null, ro
               {FLAG_LABEL[flag] || flag}
             </span>
           ))}
+          {integritySignal && (
+            <span style={{ fontSize: '11px', fontWeight: 800, padding: '2px 7px', borderRadius: 999, background: '#fff4ce', border: '1px solid #d9a400', color: '#6b4c00' }}>
+              Integrity review
+            </span>
+          )}
         </div>
       )}
-    </button>
+
+      {onSupportAction && (row.flags.length > 0 || integritySignal) && !roomMode && (
+        <div
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+          style={{ marginTop: 9, paddingTop: 8, borderTop: '1px solid rgba(95,99,104,.18)', display: 'flex', flexWrap: 'wrap', gap: 6 }}
+        >
+          <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.WATCH_PRACTICE, SUPPORT_EVENT_STAGE.ACTION_TAKEN)} style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #9aa0a6', background: '#fff', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' }}>
+            Watch Practice
+          </button>
+          <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.SMALL_GROUP, SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED)} style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #9aa0a6', background: '#fff', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' }}>
+            Small-group candidate
+          </button>
+          {(row.flags.includes(LIVE_FLAGS.IDLE) || row.flags.includes(LIVE_FLAGS.BEHIND_PACE)) && (
+            <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.OFF_TASK_CONCERN, SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED)} style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #b06000', background: '#fff8df', color: '#6a4900', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' }}>
+              Confirm off-task
+            </button>
+          )}
+          <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.PARENT_FOLLOW_UP, SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED)} style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #9aa0a6', background: '#fff', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' }}>
+            Parent follow-up
+          </button>
+          {integritySignal && (
+            <>
+              <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.INTEGRITY_REVIEW, SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED, integritySignal)} style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #d9a400', background: '#fff4ce', color: '#6b4c00', fontWeight: 900, fontSize: 11.5, cursor: 'pointer' }}>
+                Log integrity review
+              </button>
+              <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.SIGNAL_DISMISSED, SUPPORT_EVENT_STAGE.DISMISSED, integritySignal)} style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #dadce0', background: '#fff', color: '#5f6368', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' }}>
+                Dismiss pattern
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -174,6 +230,8 @@ export default function LiveClassMonitor({
   // that happen to share a period label into one live grid.
   activeClassId = null,
   classes = [],
+  supportEvents = [],
+  onRecordSupportEvent = null,
 }) {
   // Opens on whichever period is in session; the teacher can widen it from
   // there. Deliberately not re-synced when the period changes mid-view, so a
@@ -209,6 +267,61 @@ export default function LiveClassMonitor({
     () => suggestMovesForClass({ rows: visibleRows, profilesByStudentId: learningProfilesByStudentId }),
     [visibleRows, learningProfilesByStudentId],
   );
+
+  const integrityByStudentId = useMemo(() => Object.fromEntries(
+    visibleRows
+      .map((row) => [row.id, buildIntegrityReviewSignal({
+        row,
+        profile: learningProfilesByStudentId[row.id] || null,
+      })])
+      .filter(([, signal]) => Boolean(signal)),
+  ), [visibleRows, learningProfilesByStudentId]);
+
+  const handleSupportAction = (row, kind, stage, integritySignal = null) => {
+    if (!onRecordSupportEvent) return;
+    const live = row.live || {};
+    const evidence = {
+      flags: row.flags,
+      severity: row.severity,
+      answered: row.counts?.answered ?? 0,
+      accuracy: row.counts?.accuracy,
+      idleMs: row.idleMs,
+      currentAttempts: live.currentAttempts,
+      focusLossCount: live.focusLossCount,
+      rapidCorrectCount: live.rapidCorrectCount,
+      rapidDeepCorrectCount: live.rapidDeepCorrectCount,
+      timedIndependentCorrectCount: live.timedIndependentCorrectCount,
+      sessionActiveSeconds: live.sessionActiveSeconds,
+      ...(integritySignal?.evidence || {}),
+    };
+    const summary = kind === SUPPORT_EVENT_KIND.SIGNAL_DISMISSED
+      ? 'Teacher reviewed and dismissed the unusual-response signal.'
+      : kind === SUPPORT_EVENT_KIND.INTEGRITY_REVIEW
+        ? 'Teacher marked the unusual response pattern for integrity review. This is not a cheating finding.'
+        : kind === SUPPORT_EVENT_KIND.OFF_TASK_CONCERN
+          ? 'Teacher confirmed an off-task/productivity concern after reviewing the live signal.'
+          : kind === SUPPORT_EVENT_KIND.WATCH_PRACTICE
+            ? 'Teacher added the student to the live Watch Practice list.'
+            : kind === SUPPORT_EVENT_KIND.SMALL_GROUP
+              ? 'Teacher added the student as a small-group candidate.'
+              : 'Teacher added the student to Parent Follow-Up for review.';
+
+    onRecordSupportEvent({
+      kind,
+      stage,
+      studentId: row.id,
+      studentName: row.name,
+      classId: activeClassId || live.classId || null,
+      classPeriod: row.classPeriod || live.classPeriod || null,
+      assignmentId: live.assignmentId || null,
+      assignmentTitle: live.assignmentTitle || null,
+      sessionKey: live.assignmentId && live.startedAt ? `${live.assignmentId}:${live.startedAt}` : null,
+      source: 'liveMonitor',
+      confidence: integritySignal?.confidence || null,
+      summary,
+      evidence,
+    });
+  };
 
   const selectStyle = {
     padding: '8px 10px', borderRadius: '8px', border: '1px solid #dadce0',
@@ -284,7 +397,17 @@ export default function LiveClassMonitor({
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${roomMode ? 330 : 230}px, 1fr))`, gap: roomMode ? '16px' : '12px' }}>
           {visibleRows.map((row) => (
-            <StudentTile key={row.id} row={row} onOpenStudent={onOpenStudent} profile={learningProfilesByStudentId[row.id] || null} suggestion={suggestions[row.id] || null} roomMode={roomMode} />
+            <StudentTile
+              key={row.id}
+              row={row}
+              onOpenStudent={onOpenStudent}
+              profile={learningProfilesByStudentId[row.id] || null}
+              suggestion={suggestions[row.id] || null}
+              roomMode={roomMode}
+              integritySignal={integrityByStudentId[row.id] || null}
+              supportEvents={supportEvents}
+              onSupportAction={(kind, stage, signal) => handleSupportAction(row, kind, stage, signal)}
+            />
           ))}
         </div>
       )}
