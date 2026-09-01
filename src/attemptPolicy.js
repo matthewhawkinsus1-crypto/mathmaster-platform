@@ -22,6 +22,11 @@ const isChoiceField = (field = {}) => (
   ['choice', 'multiplechoice', 'multiple-choice', 'select'].includes(choiceProfile(field))
 );
 
+const isRenderedAssignmentChoiceField = (field = {}) => (
+  isChoiceField(field)
+  || (Array.isArray(field?.options) && field.options.length > 1)
+);
+
 /**
  * A pure finite-choice question gets one submission, regardless of section.
  *
@@ -48,7 +53,7 @@ export const isChoiceOnlyQuestion = (question = {}) => {
   if (!SIMPLE_CHOICE_TYPES.has(type)) return false;
   if (type === 'numberline') return Array.isArray(question?.choices) && question.choices.length > 1;
   if (type !== 'multianswer') return true;
-  return fields.length > 0 && fields.every(isChoiceField);
+  return fields.length > 0 && fields.every(isRenderedAssignmentChoiceField);
 };
 
 export const resolveQuestionMaximumAttempts = ({
