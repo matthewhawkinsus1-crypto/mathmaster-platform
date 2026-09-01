@@ -6494,6 +6494,8 @@ function App() {
                 studentSupportEvents={studentSupportEvents}
                 studentSessionSummaries={studentSessionSummaries}
                 onRecordStudentSupportEvent={handleRecordStudentSupportEvent}
+                onRecommendPersonalPath={handlePersonalPathRecommendation}
+                pathInterventionBusyStudentId={pathInterventionBusyStudentId}
                 onOpenWeeklyPath={() => setTeacherTab('weeklyPath')}
                 onOpenAdministration={() => setTeacherWorkspaceMode('administration')}
                 onUnlockDOL={handleUnlockDOLForClass}
