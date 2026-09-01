@@ -305,9 +305,18 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
     const authenticExamStyle = question?.assessmentContext?.examStyle === true
       && ['digitalSAT', 'act', 'tsia2', 'asvab'].includes(String(question?.assessmentContext?.framework || ''));
     if (choiceOnly && ['classwork', 'practice'].includes(role) && !authenticExamStyle) {
+      const hasFreshReplacement = Boolean(
+        question?.generator
+        || (Array.isArray(question?.variants) && question.variants.length >= 2)
+      );
       warnings.push(
         `${label} is a choice-only ${role} item. MathMaster will allow only one attempt, but ordinary Classwork/Practice should usually require students to produce mathematics through a constructed, symbolic, graphing, modeling, table, mapping, or other interactive response. Multiple choice is better reserved for concise checks or authentic assessment-format transfer.`,
       );
+      if (!hasFreshReplacement) {
+        warnings.push(
+          `${label} is also a static one-attempt choice item, so MathMaster will not offer "Request New Question" because reopening the same choices would just permit elimination guessing. Add a generator/two or more real variants, or replace the item with a constructed-response interaction.`,
+        );
+      }
     }
   }
 
