@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import {
   isChoiceOnlyQuestion,
   resolveQuestionMaximumAttempts,
+  resolveQuestionReplacementAllowed,
 } from '../../src/attemptPolicy.js';
 
 const require = createRequire(import.meta.url);
@@ -56,6 +57,42 @@ test('one-attempt choice rule also overrides higher section attempt counts', () 
     maximumAttempts: 5,
     activityPolicy: { attempts: 5 },
   }), 1);
+});
+
+test('static choice questions cannot reset the same choices as a fake replacement', () => {
+  const question = {
+    type: 'multiAnswer',
+    answerFields: [
+      { id: 'answer', type: 'choice', options: ['A', 'B', 'C', 'D'] },
+    ],
+  };
+
+  assert.equal(resolveQuestionReplacementAllowed({
+    question,
+    activityPolicy: { allowReplacement: true },
+    canGenerateFresh: false,
+  }), false);
+
+  assert.equal(resolveQuestionReplacementAllowed({
+    question,
+    activityPolicy: { allowReplacement: true },
+    canGenerateFresh: true,
+  }), true);
+});
+
+test('constructed-response questions keep section replacement behavior', () => {
+  const question = {
+    type: 'multiAnswer',
+    answerFields: [
+      { id: 'answer', type: 'equation' },
+    ],
+  };
+
+  assert.equal(resolveQuestionReplacementAllowed({
+    question,
+    activityPolicy: { allowReplacement: true },
+    canGenerateFresh: false,
+  }), true);
 });
 
 test('legacy choose-a-number-line questions are also one attempt', () => {
