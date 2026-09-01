@@ -3313,28 +3313,64 @@ function classroomMappingResponse(doc) {
 
 exports.listClassroomCourseMappings = onCall(async (request) => {
   const teacherUid = await requireTeacher(request);
+  const db = getFirestore();
+
   try {
-    const snap = await getFirestore()
+    const snap = await db
       .collection("classroomCourseMappings")
       .where("teacherUid", "==", teacherUid)
       .limit(100)
       .get();
     return { mappings: snap.docs.map(classroomMappingResponse) };
-  } catch (error) {
-    logger.error("listClassroomCourseMappings failed", {
+  } catch (primaryError) {
+    // This collection is intentionally tiny (one record per Classroom course).
+    // If a project has an old single-field index exemption or an index is still
+    // building after migration, do not take the entire Classroom Manager down.
+    // Fall back to one bounded collection read and filter by teacher UID on the
+    // trusted server. This also lets the teacher reconnect/remove stale mappings
+    // instead of being trapped behind an index failure.
+    logger.warn("Classroom mapping indexed query failed; trying bounded fallback", {
       teacherUid,
-      code: error?.code || null,
-      name: error?.name || null,
-      message: error?.message || String(error),
+      code: primaryError?.code || null,
+      name: primaryError?.name || null,
+      message: primaryError?.message || String(primaryError),
     });
-    throw new HttpsError(
-      "internal",
-      "MathMaster could not load your saved Google Classroom mappings.",
-      {
-        stage: "load-course-mappings",
-        errorCode: String(error?.code || error?.name || "unknown").slice(0, 80),
-      },
-    );
+
+    try {
+      const fallback = await db
+        .collection("classroomCourseMappings")
+        .limit(5000)
+        .get();
+      return {
+        mappings: fallback.docs
+          .filter((doc) => String(doc.data()?.teacherUid || "") === teacherUid)
+          .slice(0, 100)
+          .map(classroomMappingResponse),
+        degradedRead: true,
+      };
+    } catch (fallbackError) {
+      logger.error("listClassroomCourseMappings failed", {
+        teacherUid,
+        primaryCode: primaryError?.code || primaryError?.name || null,
+        primaryMessage: primaryError?.message || String(primaryError),
+        fallbackCode: fallbackError?.code || fallbackError?.name || null,
+        fallbackMessage: fallbackError?.message || String(fallbackError),
+      });
+      throw new HttpsError(
+        "internal",
+        "MathMaster could not load your saved Google Classroom mappings.",
+        {
+          stage: "load-course-mappings",
+          errorCode: String(
+            fallbackError?.code
+            || fallbackError?.name
+            || primaryError?.code
+            || primaryError?.name
+            || "unknown"
+          ).slice(0, 80),
+        },
+      );
+    }
   }
 });
 
