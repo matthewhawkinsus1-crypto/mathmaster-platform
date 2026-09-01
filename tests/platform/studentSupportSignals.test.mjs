@@ -14,6 +14,7 @@ import {
   rapidCorrectThresholdSeconds,
   sessionProductivitySignal,
   summarizeRapidCorrectness,
+  supportSessionKey,
 } from '../../src/platform/teacher/studentSupportSignals.js';
 
 const NOW = Date.parse('2026-09-01T15:00:00.000Z');
@@ -444,6 +445,27 @@ test('a later Watch Practice action can intentionally put a resolved student bac
   });
   assert.equal(watch.length, 1);
   assert.ok(watch[0].reasons.includes('teacher watch-list'));
+});
+
+test('live and archived support use the same stable session identity', () => {
+  const key = supportSessionKey({ studentId: 's1', assignmentId: 'a1', startedAt: 1000 });
+  assert.equal(key, 's1|a1|1000');
+
+  const events = [{
+    kind: SUPPORT_EVENT_KIND.SIGNAL_DISMISSED,
+    stage: SUPPORT_EVENT_STAGE.DISMISSED,
+    studentId: 's1',
+    assignmentId: 'a1',
+    sessionKey: key,
+    createdAt: '2026-09-01T14:00:00.000Z',
+  }];
+
+  assert.equal(hasDismissedSignal({
+    supportEvents: events,
+    studentId: 's1',
+    assignmentId: 'a1',
+    sessionKey: 's1|a1|1000',
+  }), true, 'a dismissal made live must suppress the matching archived summary');
 });
 
 test('dismissed signals stay quiet for the same session but do not suppress a later session', () => {
