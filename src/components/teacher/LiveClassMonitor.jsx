@@ -10,6 +10,7 @@ import {
   SUPPORT_EVENT_STAGE,
   buildIntegrityReviewSignal,
   hasDismissedSignal,
+  supportSessionKey,
 } from '../../platform/teacher/studentSupportSignals.js';
 
 // A tile per student, sorted so whoever needs the teacher is first. The
@@ -301,9 +302,7 @@ export default function LiveClassMonitor({
         supportEvents,
         studentId: row.id,
         assignmentId: row.live?.assignmentId || null,
-        sessionKey: row.live?.assignmentId && row.live?.startedAt
-          ? `${row.live.assignmentId}:${row.live.startedAt}`
-          : null,
+        sessionKey: supportSessionKey({ studentId: row.id, assignmentId: row.live?.assignmentId, startedAt: row.live?.startedAt }),
         afterMs: Number(row.live?.startedAt) || 0,
       }))
       .map((row) => [row.id, buildIntegrityReviewSignal({
@@ -359,7 +358,11 @@ export default function LiveClassMonitor({
       classPeriod: row.classPeriod || live.classPeriod || null,
       assignmentId: live.assignmentId || null,
       assignmentTitle: live.assignmentTitle || null,
-      sessionKey: live.assignmentId && live.startedAt ? `${live.assignmentId}:${live.startedAt}` : null,
+      sessionKey: supportSessionKey({
+        studentId: row.id,
+        assignmentId: live.assignmentId,
+        startedAt: live.startedAt,
+      }),
       source: 'liveMonitor',
       confidence: integritySignal?.confidence || null,
       summary,
