@@ -24,6 +24,7 @@ const PROJECT = 'mathmaster-rules-test';
 const ROOT_ADMIN = 'matthew.hawkins@desotoisd.org';
 const TEACHER_A = 'teacher.a@desotoisd.org';
 const TEACHER_B = 'teacher.b@desotoisd.org';
+const TEACHER_LEGACY = 'teacher.legacy@desotoisd.org';
 
 let env;
 
@@ -32,6 +33,7 @@ let env;
 const admin = () => env.authenticatedContext('uid-admin', { role: 'teacher', admin: true, rootAdmin: true, email: ROOT_ADMIN }).firestore();
 const teacherA = () => env.authenticatedContext('uid-a', { role: 'teacher', email: TEACHER_A }).firestore();
 const teacherB = () => env.authenticatedContext('uid-b', { role: 'teacher', email: TEACHER_B }).firestore();
+const teacherLegacy = () => env.authenticatedContext('uid-legacy', { role: 'teacher', email: TEACHER_LEGACY }).firestore();
 const studentA = () => env.authenticatedContext('uid-sa', { role: 'student', studentId: 'STUDENT_A' }).firestore();
 const studentB = () => env.authenticatedContext('uid-sb', { role: 'student', studentId: 'STUDENT_B' }).firestore();
 const stranger = () => env.unauthenticatedContext().firestore();
@@ -56,7 +58,7 @@ before(async () => {
     await setDoc(doc(db, 'grades/STUDENT_B'), { displayName: 'Student B', classId: 'class-b', classPeriod: 'Period 2', assignedTeacherEmail: TEACHER_B, status: 'active', gradesByAssignment: {} });
     // A student nobody has placed. Belongs to no teacher by construction.
     await setDoc(doc(db, 'grades/STUDENT_UNPLACED'), { displayName: 'Unplaced', classId: null, classPeriod: 'Unassigned', assignedTeacherEmail: null, status: 'active', gradesByAssignment: {} });
-    await setDoc(doc(db, 'grades/STUDENT_LEGACY'), { displayName: 'Legacy Student', classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_A, status: 'active', gradesByAssignment: {} });
+    await setDoc(doc(db, 'grades/STUDENT_LEGACY'), { displayName: 'Legacy Student', classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_LEGACY, status: 'active', gradesByAssignment: {} });
     await setDoc(doc(db, 'studentSupportEvents/support-a'), {
       schemaVersion: 1,
       kind: 'offTaskConcern',
@@ -339,27 +341,27 @@ test('student support history is teacher-authorized and append-only', async () =
 });
 
 test('teacher support logging still works for an authorized legacy period roster row', async () => {
-  await assertSucceeds(setDoc(doc(teacherA(), 'studentSupportEvents/support-legacy'), {
+  await assertSucceeds(setDoc(doc(teacherLegacy(), 'studentSupportEvents/support-legacy'), {
     schemaVersion: 1,
     kind: 'teacherIntervention',
     stage: 'actionTaken',
     studentId: 'STUDENT_LEGACY',
     classId: null,
     classPeriod: 'Period 1',
-    createdByEmail: TEACHER_A,
-    authorizedTeacherEmails: [TEACHER_A],
+    createdByEmail: TEACHER_LEGACY,
+    authorizedTeacherEmails: [TEACHER_LEGACY],
     createdAt: '2026-09-01T12:10:00.000Z',
   }));
 
-  await assertFails(setDoc(doc(teacherA(), 'studentSupportEvents/support-legacy-wrong-period'), {
+  await assertFails(setDoc(doc(teacherLegacy(), 'studentSupportEvents/support-legacy-wrong-period'), {
     schemaVersion: 1,
     kind: 'teacherIntervention',
     stage: 'actionTaken',
     studentId: 'STUDENT_LEGACY',
     classId: null,
     classPeriod: 'Period 2',
-    createdByEmail: TEACHER_A,
-    authorizedTeacherEmails: [TEACHER_A],
+    createdByEmail: TEACHER_LEGACY,
+    authorizedTeacherEmails: [TEACHER_LEGACY],
   }));
 });
 
