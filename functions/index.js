@@ -7809,35 +7809,6 @@ exports.archiveStudentPresenceSession = onDocumentDeleted("presence/{studentId}"
   });
 });
 
-// Recovery boundary for reloads/crashes/session replacement. If a new presence
-// session overwrites the old document before the old one could be deleted, the
-// BEFORE snapshot is still a real session and must not disappear from history.
-// Ordinary 20-second heartbeats keep the same session key and do nothing here.
-exports.archiveReplacedStudentPresenceSession = onDocumentWritten("presence/{studentId}", async (event) => {
-  const before = event.data?.before?.data() || null;
-  const after = event.data?.after?.data() || null;
-  if (!before || !after) return;
-
-  const studentId = String(event.params.studentId || before.studentId || "").trim();
-  const beforeKey = studentSessionSummary.sessionKeyFor({
-    studentId,
-    assignmentId: before.assignmentId,
-    startedAt: before.startedAt,
-  });
-  const afterKey = studentSessionSummary.sessionKeyFor({
-    studentId,
-    assignmentId: after.assignmentId,
-    startedAt: after.startedAt,
-  });
-  if (!beforeKey || beforeKey === afterKey) return;
-
-  await archiveStudentPresenceSnapshot({
-    live: before,
-    studentId,
-    observedAt: Number(before.updatedAt) || Date.now(),
-  });
-});
-
 // Browsers cannot guarantee a Firestore delete when a Chromebook tab is killed,
 // the device sleeps, or Wi-Fi disappears. Sweep only documents whose heartbeat
 // has been stale for at least three minutes. The transaction re-checks the live
