@@ -164,6 +164,9 @@ test('the payload carries only coarse monitoring telemetry and no student respon
     assignmentId: 'a1', questionStates: 'cc', nowValue: NOW,
     questionLabel: 'Solve for x', representation: 'graph',
     focusLossCount: 3,
+    answeredCount: 5,
+    correctCount: 4,
+    accuracy: 80,
     rapidCorrectCount: 2,
     rapidDeepCorrectCount: 1,
     timedIndependentCorrectCount: 4,
@@ -174,6 +177,9 @@ test('the payload carries only coarse monitoring telemetry and no student respon
   assert.ok(!('response' in payload) && !('answers' in payload));
   assert.ok(!('url' in payload) && !('activeUrl' in payload) && !('keystrokes' in payload));
   assert.equal(payload.focusLossCount, 3);
+  assert.equal(payload.answeredCount, 5);
+  assert.equal(payload.correctCount, 4);
+  assert.equal(payload.accuracy, 80);
   assert.equal(payload.rapidCorrectCount, 2);
   assert.equal(payload.sessionActiveSeconds, 420);
   assert.equal(payload.updatedAt, NOW);
