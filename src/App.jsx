@@ -5778,6 +5778,9 @@ function App() {
           courseContext={profileDrawerStudent
             ? resolveStudentCourseContext({ student: profileDrawerStudent, classesById, courseProfiles })
             : null}
+          supportEvents={profileDrawerStudent
+            ? studentSupportEvents.filter((event) => event.studentId === profileDrawerStudent.id)
+            : []}
           onClose={() => setProfileDrawerStudentId(null)}
           onOpenFullRecord={(studentId) => {
             setProfileDrawerStudentId(null);
