@@ -79,3 +79,31 @@ test('schema v3 publications do not use the legacy global student google id fall
   const src = read('functions/index.js');
   assert.match(src, /Number\(publication\.schemaVersion\) < 2/);
 });
+
+
+test('Classroom mapping list returns a primitive public contract instead of raw Firestore documents', () => {
+  const src = read('functions/index.js');
+  assert.match(src, /function classroomMappingResponse/);
+  assert.match(src, /updatedAtMillis/);
+  assert.match(src, /snap\.docs\.map\(classroomMappingResponse\)/);
+  assert.doesNotMatch(
+    src.slice(src.indexOf('exports.listClassroomCourseMappings'), src.indexOf('exports.saveClassroomCourseMapping')),
+    /\.\.\.doc\.data\(\)/,
+  );
+});
+
+test('Classroom mapping failures include a safe server stage and error code', () => {
+  const server = read('functions/index.js');
+  const client = read('src/classroomApi.js');
+  assert.match(server, /stage: "load-course-mappings"/);
+  assert.match(server, /errorCode:/);
+  assert.match(client, /Stage: \$\{stage\}/);
+  assert.match(client, /Code: \$\{errorCode\}/);
+});
+
+test('Classroom manager loads independent dashboard panels with allSettled', () => {
+  const src = read('src/ClassroomManagerV2.jsx');
+  assert.match(src, /Promise\.allSettled/);
+  assert.match(src, /Saved course mappings/);
+  assert.match(src, /Grade passback monitor/);
+});
