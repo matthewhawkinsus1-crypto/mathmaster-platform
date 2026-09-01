@@ -28,6 +28,22 @@ test('pure assignment choice questions get exactly one attempt', () => {
   }), 1);
 });
 
+test('legacy multiAnswer fields with options still count as rendered multiple choice', () => {
+  const question = {
+    type: 'multiAnswer',
+    answerFields: [
+      { id: 'answer', options: ['A', 'B', 'C', 'D'], answer: 'B' },
+    ],
+  };
+
+  assert.equal(isChoiceOnlyQuestion(question), true);
+  assert.equal(resolveQuestionMaximumAttempts({
+    question,
+    maximumAttempts: 3,
+    activityPolicy: { attempts: 3 },
+  }), 1);
+});
+
 test('mixed choice plus constructed response keeps normal instructional attempts', () => {
   const question = {
     type: 'multiAnswer',
