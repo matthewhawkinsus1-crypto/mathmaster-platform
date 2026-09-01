@@ -50,6 +50,7 @@ const pathRouting = require("./lib/pathRouting");
 const pathContentRelease = require("./lib/pathContentRelease");
 const assignmentAi = require("./lib/assignmentAi");
 const ccmrAssignmentBank = require("./lib/ccmrAssignmentBank");
+const studentSessionSummary = require("./lib/studentSessionSummary");
 
 // HTTPS/callable transport must be reachable by the Firebase client SDK.
 // MathMaster authorization still happens INSIDE each callable through
@@ -7758,84 +7759,34 @@ function translateAssignmentAiError(error) {
 // trail of 20-second heartbeats.
 const STUDENT_SESSION_SUMMARY_COLLECTION = "studentSessionSummaries";
 
-function countLiveQuestionStates(value) {
-  const text = String(value || "");
-  let correct = 0;
-  let incorrect = 0;
-  let attempted = 0;
-  for (const character of text) {
-    if (character === "c") correct += 1;
-    else if (character === "x") incorrect += 1;
-    else if (character === "a") attempted += 1;
-  }
-  const answered = correct + incorrect;
-  return {
-    answered,
-    correct,
-    incorrect,
-    attempted,
-    accuracy: answered ? Math.round((correct / answered) * 100) : null,
-  };
-}
-
 exports.archiveStudentPresenceSession = onDocumentDeleted("presence/{studentId}", async (event) => {
   const live = event.data?.data() || {};
   const studentId = String(event.params.studentId || live.studentId || "").trim();
   const assignmentId = String(live.assignmentId || "").trim();
   const startedAt = Number(live.startedAt) || 0;
-  if (!studentId || !assignmentId || !startedAt) return;
+  const summaryId = studentSessionSummary.sessionSummaryIdFor({ studentId, assignmentId, startedAt });
+  if (!summaryId) return;
 
   const db = getFirestore();
   const grade = await db.collection("grades").doc(studentId).get();
   const gradeData = grade.exists ? (grade.data() || {}) : {};
-  const assignedTeacherEmail = String(gradeData.assignedTeacherEmail || "").trim().toLowerCase();
-  const authorizedTeacherEmails = assignedTeacherEmail ? [assignedTeacherEmail] : [];
-  const sessionKey = `${studentId}|${assignmentId}|${startedAt}`;
-  const summaryId = crypto.createHash("sha256").update(sessionKey).digest("hex").slice(0, 40);
   const ref = db.collection(STUDENT_SESSION_SUMMARY_COLLECTION).doc(summaryId);
-  const counts = countLiveQuestionStates(live.questionStates);
   const observedAt = Number(live.updatedAt) || Date.now();
 
   await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     const previous = snapshot.exists ? (snapshot.data() || {}) : {};
-    const previousEndedAt = Number(previous.endedAt) || 0;
-    const previousActive = Number(previous.activeSeconds) || 0;
-    const previousFocus = Number(previous.focusLossCount) || 0;
-    const previousAnswered = Number(previous.answered) || 0;
-    const previousCorrect = Number(previous.correct) || 0;
-    const previousRapid = Number(previous.rapidCorrectCount) || 0;
-    const previousRapidDeep = Number(previous.rapidDeepCorrectCount) || 0;
-    const previousTimed = Number(previous.timedIndependentCorrectCount) || 0;
-
-    const answered = Math.max(previousAnswered, counts.answered);
-    const correct = Math.max(previousCorrect, counts.correct);
-    transaction.set(ref, {
-      schemaVersion: 1,
-      sessionKey,
+    const summary = studentSessionSummary.buildMergedSessionSummary({
+      live,
+      gradeData,
       studentId,
-      studentName: String(live.name || gradeData.displayName || studentId).slice(0, 180),
-      classId: String(live.classId || gradeData.classId || "").trim() || null,
-      classPeriod: String(live.classPeriod || gradeData.classPeriod || "").trim() || null,
-      assignmentId,
-      assignmentTitle: String(live.assignmentTitle || "").slice(0, 180),
-      activityRole: String(live.activityRole || "classwork").slice(0, 40),
-      startedAt,
-      endedAt: Math.max(previousEndedAt, observedAt),
-      activeSeconds: Math.max(previousActive, Number(live.sessionActiveSeconds) || 0),
-      focusLossCount: Math.max(previousFocus, Number(live.focusLossCount) || 0),
-      answered,
-      correct,
-      accuracy: answered ? Math.round((correct / answered) * 100) : null,
-      rapidCorrectCount: Math.max(previousRapid, Number(live.rapidCorrectCount) || 0),
-      rapidDeepCorrectCount: Math.max(previousRapidDeep, Number(live.rapidDeepCorrectCount) || 0),
-      timedIndependentCorrectCount: Math.max(previousTimed, Number(live.timedIndependentCorrectCount) || 0),
-      originClassId: previous.originClassId || String(live.classId || gradeData.classId || "").trim() || null,
-      originTeacherEmail: previous.originTeacherEmail || assignedTeacherEmail || null,
-      authorizedTeacherEmails: [...new Set([
-        ...(Array.isArray(previous.authorizedTeacherEmails) ? previous.authorizedTeacherEmails : []),
-        ...authorizedTeacherEmails,
-      ])].filter(Boolean),
+      previous,
+      observedAt,
+    });
+    if (!summary) return;
+
+    transaction.set(ref, {
+      ...summary,
       updatedAt: FieldValue.serverTimestamp(),
       createdAt: previous.createdAt || FieldValue.serverTimestamp(),
     }, { merge: true });
