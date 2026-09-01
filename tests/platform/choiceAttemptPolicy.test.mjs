@@ -128,6 +128,22 @@ test('constructed interval number lines keep normal instructional attempts', () 
   }), 3);
 });
 
+test('shared attempt resolver recognizes the Path simulator response shape', () => {
+  const question = {
+    questionType: 'response',
+    responseFields: [
+      { id: 'answer', inputProfile: 'choice', choices: ['A', 'B', 'C', 'D'] },
+    ],
+  };
+
+  assert.equal(isChoiceOnlyQuestion(question), true);
+  assert.equal(resolveQuestionMaximumAttempts({
+    question,
+    maximumAttempts: 3,
+    activityPolicy: { attempts: 3 },
+  }), 1);
+});
+
 test('My Math Path recognizes pure field-graded multiple choice', () => {
   const question = {
     questionType: 'response',
