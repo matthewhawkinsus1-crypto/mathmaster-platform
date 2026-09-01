@@ -33,7 +33,7 @@ service cloud.firestore {
     // unplaced students findable and resolvable.
     function teachesStudent() {
       return teacher()
-        && resource.data.assignedTeacherEmail == request.auth.token.email;
+        && resource.data.get('assignedTeacherEmail', null) == request.auth.token.email;
     }
 
     // The same question for a child record — evidence, mastery, a scratchpad —
@@ -58,7 +58,8 @@ service cloud.firestore {
     // teaches. Live presence is intentionally NOT a school-wide teacher feed.
     function teachesPresenceStudent(studentId) {
       return teacher()
-        && get(/databases/$(database)/documents/grades/$(studentId)).data.assignedTeacherEmail == request.auth.token.email;
+        && get(/databases/$(database)/documents/grades/$(studentId)).data.get('assignedTeacherEmail', null)
+          == request.auth.token.email;
     }
 
     // Student work: students read/update only their own document; a teacher
@@ -117,7 +118,7 @@ service cloud.firestore {
         // Admin SDK path later, while preserving the original teacher.
         && request.resource.data.authorizedTeacherEmails.size() == 1
         && request.auth.token.email in request.resource.data.authorizedTeacherEmails
-        && get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.assignedTeacherEmail == request.auth.token.email
+        && get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.get('assignedTeacherEmail', null) == request.auth.token.email
         && (
           (
             get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.get('classId', null) != null
