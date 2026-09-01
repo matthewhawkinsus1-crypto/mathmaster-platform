@@ -1,0 +1,409 @@
+import { LIVE_FLAGS, LIVE_SEVERITY } from '../../livePresence.js';
+
+export const SUPPORT_EVENT_KIND = Object.freeze({
+  WATCH_PRACTICE: 'watchPractice',
+  SMALL_GROUP: 'smallGroup',
+  PARENT_FOLLOW_UP: 'parentFollowUp',
+  TEACHER_INTERVENTION: 'teacherIntervention',
+  OFF_TASK_CONCERN: 'offTaskConcern',
+  INTEGRITY_REVIEW: 'integrityReview',
+  SIGNAL_DISMISSED: 'signalDismissed',
+  RESOLVED: 'resolved',
+});
+
+export const SUPPORT_EVENT_STAGE = Object.freeze({
+  SYSTEM_SIGNAL: 'systemSignal',
+  TEACHER_CONFIRMED: 'teacherConfirmed',
+  ACTION_TAKEN: 'actionTaken',
+  DISMISSED: 'dismissed',
+  RESOLVED: 'resolved',
+});
+
+const list = (value) => (Array.isArray(value) ? value : []);
+const clean = (value) => String(value ?? '').trim();
+const num = (value, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const isIndependentRecord = (record = {}) => (
+  record?.supportUsage?.isMathematicallyIndependent !== false
+  && record?.supportUsage?.teacherAssisted !== true
+  && record?.supportUsage?.hintUsed !== true
+  && record?.supportUsage?.scaffoldUsed !== true
+  && record?.supportUsage?.workedExampleUsed !== true
+  && record?.supportUsage?.remediationUsed !== true
+);
+
+const questionDemand = (question = {}) => {
+  const dok = Math.max(1, num(question.dok ?? question.cognitiveDemand?.dok, 1));
+  const difficulty = Math.max(1, num(
+    question.difficultyBand
+      ?? question.difficulty
+      ?? question.cognitiveDemand?.difficultyBand,
+    1,
+  ));
+  const type = clean(question.type || question.toolId).toLowerCase();
+  const constructed = [
+    'functiongraph', 'modelinglab', 'relationshipmodel', 'equationinput',
+    'stepalgebra2', 'systemsworkspace', 'sequenceexplorer', 'transformationslab',
+  ].some((token) => type.includes(token));
+  return { dok, difficulty, constructed };
+};
+
+/**
+ * "Fast" is contextual, not one magic number. A DOK-1 recognition item and a
+ * multi-step graphing/modeling task should never share the same threshold.
+ *
+ * These thresholds are deliberately conservative because they are only one
+ * ingredient in an Integrity Review signal; speed alone never produces one.
+ */
+export const rapidCorrectThresholdSeconds = (question = {}) => {
+  const { dok, difficulty, constructed } = questionDemand(question);
+  if (constructed || dok >= 3 || difficulty >= 4) return 12;
+  if (dok >= 2 || difficulty >= 3) return 8;
+  return 5;
+};
+
+/**
+ * Compact live response-timing summary. No response text, answer key, or raw
+ * keystroke history leaves the student device.
+ */
+export const summarizeRapidCorrectness = ({
+  questions = [],
+  tracker = {},
+  includedIndices = null,
+} = {}) => {
+  const indices = Array.isArray(includedIndices)
+    ? includedIndices
+    : list(questions).map((unused, index) => index);
+
+  let answered = 0;
+  let correct = 0;
+  let rapidCorrect = 0;
+  let rapidDeepCorrect = 0;
+  let timedIndependentCorrect = 0;
+
+  indices.forEach((index) => {
+    const record = tracker?.[index] || {};
+    const status = clean(record.status);
+    if (!['correct', 'expired', 'incorrect'].includes(status)) return;
+    answered += 1;
+    if (status !== 'correct') return;
+    correct += 1;
+
+    const seconds = num(record.timeSpent, 0);
+    if (seconds <= 0 || !isIndependentRecord(record)) return;
+    timedIndependentCorrect += 1;
+
+    const question = questions[index] || {};
+    const threshold = rapidCorrectThresholdSeconds(question);
+    if (seconds > threshold) return;
+
+    rapidCorrect += 1;
+    const demand = questionDemand(question);
+    if (demand.dok >= 2 || demand.difficulty >= 3 || demand.constructed) {
+      rapidDeepCorrect += 1;
+    }
+  });
+
+  return {
+    answered,
+    correct,
+    accuracy: answered ? Math.round((correct / answered) * 100) : null,
+    timedIndependentCorrect,
+    rapidCorrect,
+    rapidDeepCorrect,
+    rapidShare: timedIndependentCorrect
+      ? rapidCorrect / timedIndependentCorrect
+      : 0,
+  };
+};
+
+const profileMismatch = (profile = null) => {
+  if (!profile?.baseline?.established) return false;
+  if (profile.instructionalBand === 'below') return true;
+  const deepBuckets = [profile?.dokProfile?.['2'], profile?.dokProfile?.['3']]
+    .filter((bucket) => bucket?.confident);
+  if (!deepBuckets.length) return false;
+  const attempts = deepBuckets.reduce((sum, bucket) => sum + num(bucket.attempts), 0);
+  const weighted = deepBuckets.reduce(
+    (sum, bucket) => sum + num(bucket.accuracy) * num(bucket.attempts),
+    0,
+  );
+  return attempts >= 4 && (weighted / attempts) < 0.5;
+};
+
+/**
+ * This never says "cheating". It says only that the combination of signals is
+ * unusual enough for a teacher to review.
+ *
+ * False-positive protection:
+ *  - speed alone is insufficient;
+ *  - fewer than five terminal answers is insufficient;
+ *  - ordinary strong-student speed is insufficient unless the pattern is
+ *    extreme across six or more independent correct responses;
+ *  - otherwise a rapid pattern must be corroborated by repeated focus loss or
+ *    a large contradiction with established performance.
+ */
+export const buildIntegrityReviewSignal = ({ row = null, profile = null } = {}) => {
+  if (!row?.live || !row.isOnline) return null;
+  const live = row.live;
+  const answered = num(live.answeredCount ?? row.counts?.answered);
+  const accuracy = num(live.accuracy ?? row.counts?.accuracy, -1);
+  const rapidCorrect = num(live.rapidCorrectCount);
+  const rapidDeepCorrect = num(live.rapidDeepCorrectCount);
+  const timedIndependentCorrect = num(live.timedIndependentCorrectCount);
+  const rapidShare = timedIndependentCorrect > 0
+    ? rapidCorrect / timedIndependentCorrect
+    : num(live.rapidCorrectShare);
+  const focusLossCount = num(live.focusLossCount);
+
+  if (answered < 5 || accuracy < 80 || rapidCorrect < 3) return null;
+
+  const strongRapidPattern = rapidCorrect >= 4 && rapidDeepCorrect >= 2 && rapidShare >= 0.6;
+  const extremeRapidPattern = rapidCorrect >= 6 && rapidDeepCorrect >= 3 && rapidShare >= 0.75;
+  const focusCorroboration = focusLossCount >= 3;
+  const mismatchCorroboration = profileMismatch(profile);
+
+  if (!extremeRapidPattern && !(strongRapidPattern && (focusCorroboration || mismatchCorroboration))) {
+    return null;
+  }
+
+  const reasons = [];
+  if (strongRapidPattern || extremeRapidPattern) {
+    reasons.push(`${rapidCorrect} unusually fast independent correct responses`);
+  }
+  if (rapidDeepCorrect >= 2) {
+    reasons.push(`${rapidDeepCorrect} were on higher-demand items`);
+  }
+  if (focusCorroboration) {
+    reasons.push(`${focusLossCount} focus-loss events during the session`);
+  }
+  if (mismatchCorroboration) {
+    reasons.push('the pattern differs sharply from established performance');
+  }
+
+  return {
+    kind: SUPPORT_EVENT_KIND.INTEGRITY_REVIEW,
+    stage: SUPPORT_EVENT_STAGE.SYSTEM_SIGNAL,
+    label: 'Unusual response pattern — review',
+    confidence: extremeRapidPattern ? 'strong-review-signal' : 'review-signal',
+    reasons,
+    evidence: {
+      answered,
+      accuracy,
+      rapidCorrect,
+      rapidDeepCorrect,
+      timedIndependentCorrect,
+      rapidShare: Number(rapidShare.toFixed(3)),
+      focusLossCount,
+      profileMismatch: mismatchCorroboration,
+    },
+  };
+};
+
+const hasFlag = (row, flag) => list(row?.flags).includes(flag);
+const recent = (event, nowValue, days = 7) => {
+  const time = Date.parse(event?.createdAt || event?.recordedAt || '') || num(event?.createdAtMs);
+  return time > 0 && nowValue - time <= days * 86400000;
+};
+
+export const buildWatchPracticeList = ({
+  rows = [],
+  profilesByStudentId = {},
+  supportEvents = [],
+  nowValue = Date.now(),
+  maxStudents = 6,
+} = {}) => {
+  const pinned = new Set(
+    list(supportEvents)
+      .filter((event) => event.kind === SUPPORT_EVENT_KIND.WATCH_PRACTICE
+        && event.stage !== SUPPORT_EVENT_STAGE.DISMISSED
+        && recent(event, nowValue, 7))
+      .map((event) => event.studentId),
+  );
+
+  return list(rows)
+    .filter((row) => row?.id && row.isOnline && !hasFlag(row, LIVE_FLAGS.OFFLINE))
+    .map((row) => {
+      const profile = profilesByStudentId[row.id] || null;
+      const integrity = buildIntegrityReviewSignal({ row, profile });
+      let score = pinned.has(row.id) ? 4 : 0;
+      const reasons = [];
+
+      if (pinned.has(row.id)) reasons.push('teacher watch-list');
+      if (hasFlag(row, LIVE_FLAGS.STUCK)) { score += 5; reasons.push('repeated attempts'); }
+      if (hasFlag(row, LIVE_FLAGS.STRUGGLING)) { score += 4; reasons.push('accuracy well below class'); }
+      if (hasFlag(row, LIVE_FLAGS.BEHIND_PACE)) { score += 2; reasons.push('well behind class pace'); }
+      if (hasFlag(row, LIVE_FLAGS.IDLE)) { score += 2; reasons.push('extended inactivity'); }
+      if (integrity) { score += 4; reasons.push('unusual response pattern'); }
+
+      const dok2 = profile?.dokProfile?.['2'];
+      const dok3 = profile?.dokProfile?.['3'];
+      const reasoningWeak = [dok2, dok3].some((bucket) => (
+        bucket?.confident && num(bucket.accuracy, 1) < 0.5
+      ));
+      if (reasoningWeak) { score += 2; reasons.push('established reasoning gap'); }
+
+      return {
+        studentId: row.id,
+        studentName: row.name,
+        score,
+        reasons: [...new Set(reasons)],
+        integrity,
+        row,
+      };
+    })
+    .filter((entry) => entry.score >= 3)
+    .sort((a, b) => b.score - a.score || a.studentName.localeCompare(b.studentName))
+    .slice(0, Math.max(1, maxStudents));
+};
+
+const SMALL_GROUP_LABELS = Object.freeze({
+  foundationGap: 'Prerequisite / foundation bridge',
+  reasoningGap: 'Reasoning and interpretation',
+  retentionSlipping: 'Retention rebuild',
+  belowLevel: 'Course-access support',
+});
+
+export const buildSuggestedSmallGroups = ({
+  needsAttention = [],
+  maxGroups = 4,
+} = {}) => {
+  const byKey = new Map();
+
+  list(needsAttention)
+    .filter((alert) => alert?.kind === 'academic')
+    .forEach((alert) => {
+      const students = alert.studentId
+        ? [{ studentId: alert.studentId, studentName: alert.studentName }]
+        : list(alert.students);
+      if (!students.length) return;
+      const key = `${clean(alert.classId)}::${clean(alert.rule)}`;
+      if (!byKey.has(key)) {
+        byKey.set(key, {
+          key,
+          classId: alert.classId || null,
+          rule: alert.rule,
+          label: SMALL_GROUP_LABELS[alert.rule] || alert.headline || 'Targeted support',
+          students: new Map(),
+          detail: alert.detail || '',
+        });
+      }
+      const group = byKey.get(key);
+      students.forEach((student) => {
+        if (student?.studentId) group.students.set(student.studentId, student);
+      });
+    });
+
+  return [...byKey.values()]
+    .map((group) => ({
+      ...group,
+      students: [...group.students.values()],
+    }))
+    .filter((group) => group.students.length >= 2)
+    .sort((a, b) => b.students.length - a.students.length || a.label.localeCompare(b.label))
+    .slice(0, Math.max(1, maxGroups));
+};
+
+const eventDateKey = (event) => {
+  const raw = event?.createdAt || event?.recordedAt || '';
+  const parsed = Date.parse(raw);
+  if (!Number.isFinite(parsed)) return null;
+  return new Date(parsed).toISOString().slice(0, 10);
+};
+
+export const buildParentFollowUpCandidates = ({
+  needsAttention = [],
+  supportEvents = [],
+  nowValue = Date.now(),
+} = {}) => {
+  const map = new Map();
+  const ensure = (studentId, studentName = studentId) => {
+    if (!studentId) return null;
+    if (!map.has(studentId)) {
+      map.set(studentId, {
+        studentId,
+        studentName: studentName || studentId,
+        completionSignals: [],
+        confirmedProductivityDays: new Set(),
+        recentParentContact: false,
+      });
+    }
+    return map.get(studentId);
+  };
+
+  list(needsAttention).forEach((alert) => {
+    if (!alert?.studentId || !['weeklyPathBehind', 'engagementFollowUp'].includes(alert.rule)) return;
+    const entry = ensure(alert.studentId, alert.studentName);
+    entry.completionSignals.push(alert.headline || alert.rule);
+  });
+
+  list(supportEvents)
+    .filter((event) => recent(event, nowValue, 14))
+    .forEach((event) => {
+      const entry = ensure(event.studentId, event.studentName);
+      if (!entry) return;
+      if (
+        event.kind === SUPPORT_EVENT_KIND.OFF_TASK_CONCERN
+        && [SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED, SUPPORT_EVENT_STAGE.ACTION_TAKEN].includes(event.stage)
+      ) {
+        const day = eventDateKey(event);
+        if (day) entry.confirmedProductivityDays.add(day);
+      }
+      if (
+        event.kind === SUPPORT_EVENT_KIND.PARENT_FOLLOW_UP
+        && event.stage === SUPPORT_EVENT_STAGE.ACTION_TAKEN
+        && recent(event, nowValue, 7)
+      ) {
+        entry.recentParentContact = true;
+      }
+    });
+
+  return [...map.values()]
+    .map((entry) => ({
+      ...entry,
+      confirmedProductivityDays: [...entry.confirmedProductivityDays],
+      score: entry.completionSignals.length + entry.confirmedProductivityDays.size * 2,
+    }))
+    .filter((entry) => !entry.recentParentContact
+      && (entry.confirmedProductivityDays.length >= 2
+        || (entry.confirmedProductivityDays.length >= 1 && entry.completionSignals.length >= 1)))
+    .sort((a, b) => b.score - a.score || a.studentName.localeCompare(b.studentName));
+};
+
+export const supportEventSignalKey = ({
+  kind,
+  studentId,
+  classId = null,
+  assignmentId = null,
+  sessionKey = null,
+  dayKey = null,
+} = {}) => [
+  clean(kind),
+  clean(studentId),
+  clean(classId),
+  clean(assignmentId),
+  clean(sessionKey),
+  clean(dayKey),
+].join('|');
+
+export const supportEventIsActive = (event = {}) => (
+  ![SUPPORT_EVENT_STAGE.DISMISSED, SUPPORT_EVENT_STAGE.RESOLVED].includes(event.stage)
+);
+
+export const SUPPORT_EVENT_LABEL = Object.freeze({
+  [SUPPORT_EVENT_KIND.WATCH_PRACTICE]: 'Watch Practice',
+  [SUPPORT_EVENT_KIND.SMALL_GROUP]: 'Small Group',
+  [SUPPORT_EVENT_KIND.PARENT_FOLLOW_UP]: 'Parent Follow-Up',
+  [SUPPORT_EVENT_KIND.TEACHER_INTERVENTION]: 'Teacher Intervention',
+  [SUPPORT_EVENT_KIND.OFF_TASK_CONCERN]: 'Productivity / Off-Task Concern',
+  [SUPPORT_EVENT_KIND.INTEGRITY_REVIEW]: 'Integrity Review',
+  [SUPPORT_EVENT_KIND.SIGNAL_DISMISSED]: 'Signal Dismissed',
+  [SUPPORT_EVENT_KIND.RESOLVED]: 'Resolved',
+});
+
+export const liveRowNeedsAttention = (row = {}) => (
+  row.severity === LIVE_SEVERITY.ALERT || row.severity === LIVE_SEVERITY.WATCH
+);
