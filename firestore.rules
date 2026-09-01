@@ -85,6 +85,25 @@ service cloud.firestore {
       }
     }
 
+    // Persistent teacher support / intervention history. This is deliberately
+    // separate from live presence: presence is ephemeral telemetry, while these
+    // records are the small set of signals, teacher confirmations, dismissals,
+    // interventions and follow-up actions worth keeping.
+    //
+    // Records are append-only. A machine signal is never edited into a teacher
+    // finding later; confirmation/dismissal/resolution is a new event. That
+    // preserves the audit distinction between "the system suggested" and "the
+    // teacher observed".
+    match /studentSupportEvents/{eventId} {
+      allow read: if rootAdmin() || authorizedTeacher();
+      allow create: if teacher()
+        && request.resource.data.studentId is string
+        && request.resource.data.createdByEmail == request.auth.token.email
+        && request.resource.data.authorizedTeacherEmails is list
+        && request.auth.token.email in request.resource.data.authorizedTeacherEmails;
+      allow update, delete: if false;
+    }
+
     // Live class monitoring. Ephemeral by design: a student's client writes
     // its own document on a heartbeat and deletes it on leaving, and nothing
     // reads it outside the teacher's live grid. It carries no response text —
