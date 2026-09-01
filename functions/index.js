@@ -8,6 +8,7 @@ const { getStorage } = require("firebase-admin/storage");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentCreated, onDocumentDeleted, onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 
 const classroomLib = require("./lib/classroom");
@@ -7752,26 +7753,28 @@ function translateAssignmentAiError(error) {
   );
 }
 
-// Archive the LAST known state of a live presence session when a presence
-// document is deleted. The student client may recreate the same presence record
-// several times while React switches questions, so the archive id is stable and
-// the transaction keeps the maximum observed counters rather than creating a
-// trail of 20-second heartbeats.
+// Archive the LAST known state of a live presence session. Presence itself is
+// ephemeral; this durable record keeps only compact objective counts and the
+// teacher authorization context.
 const STUDENT_SESSION_SUMMARY_COLLECTION = "studentSessionSummaries";
+const PRESENCE_STALE_AFTER_MS = 3 * 60 * 1000;
 
-exports.archiveStudentPresenceSession = onDocumentDeleted("presence/{studentId}", async (event) => {
-  const live = event.data?.data() || {};
-  const studentId = String(event.params.studentId || live.studentId || "").trim();
+async function archiveStudentPresenceSnapshot({
+  live = {},
+  studentId: suppliedStudentId = null,
+  observedAt = null,
+} = {}) {
+  const studentId = String(suppliedStudentId || live.studentId || "").trim();
   const assignmentId = String(live.assignmentId || "").trim();
   const startedAt = Number(live.startedAt) || 0;
   const summaryId = studentSessionSummary.sessionSummaryIdFor({ studentId, assignmentId, startedAt });
-  if (!summaryId) return;
+  if (!summaryId) return false;
 
   const db = getFirestore();
   const grade = await db.collection("grades").doc(studentId).get();
   const gradeData = grade.exists ? (grade.data() || {}) : {};
   const ref = db.collection(STUDENT_SESSION_SUMMARY_COLLECTION).doc(summaryId);
-  const observedAt = Number(live.updatedAt) || Date.now();
+  const endedAt = Number(observedAt) || Number(live.updatedAt) || Date.now();
 
   await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
@@ -7781,7 +7784,7 @@ exports.archiveStudentPresenceSession = onDocumentDeleted("presence/{studentId}"
       gradeData,
       studentId,
       previous,
-      observedAt,
+      observedAt: endedAt,
     });
     if (!summary) return;
 
@@ -7791,6 +7794,85 @@ exports.archiveStudentPresenceSession = onDocumentDeleted("presence/{studentId}"
       createdAt: previous.createdAt || FieldValue.serverTimestamp(),
     }, { merge: true });
   });
+  return true;
+}
+
+// Normal clean exit. The stable session id means an accidental duplicate delete
+// can only merge into the same compact record; it cannot manufacture another
+// class session.
+exports.archiveStudentPresenceSession = onDocumentDeleted("presence/{studentId}", async (event) => {
+  const live = event.data?.data() || {};
+  await archiveStudentPresenceSnapshot({
+    live,
+    studentId: event.params.studentId,
+    observedAt: Number(live.updatedAt) || Date.now(),
+  });
+});
+
+// Recovery boundary for reloads/crashes/session replacement. If a new presence
+// session overwrites the old document before the old one could be deleted, the
+// BEFORE snapshot is still a real session and must not disappear from history.
+// Ordinary 20-second heartbeats keep the same session key and do nothing here.
+exports.archiveReplacedStudentPresenceSession = onDocumentWritten("presence/{studentId}", async (event) => {
+  const before = event.data?.before?.data() || null;
+  const after = event.data?.after?.data() || null;
+  if (!before || !after) return;
+
+  const studentId = String(event.params.studentId || before.studentId || "").trim();
+  const beforeKey = studentSessionSummary.sessionKeyFor({
+    studentId,
+    assignmentId: before.assignmentId,
+    startedAt: before.startedAt,
+  });
+  const afterKey = studentSessionSummary.sessionKeyFor({
+    studentId,
+    assignmentId: after.assignmentId,
+    startedAt: after.startedAt,
+  });
+  if (!beforeKey || beforeKey === afterKey) return;
+
+  await archiveStudentPresenceSnapshot({
+    live: before,
+    studentId,
+    observedAt: Number(before.updatedAt) || Date.now(),
+  });
+});
+
+// Browsers cannot guarantee a Firestore delete when a Chromebook tab is killed,
+// the device sleeps, or Wi-Fi disappears. Sweep only documents whose heartbeat
+// has been stale for at least three minutes. The transaction re-checks the live
+// document immediately before deleting it, so a student who just reconnected is
+// never expired by an old query result. The deletion trigger above performs the
+// archive.
+exports.expireStaleStudentPresence = onSchedule("every 5 minutes", async () => {
+  const db = getFirestore();
+  const cutoff = Date.now() - PRESENCE_STALE_AFTER_MS;
+  const stale = await db.collection("presence")
+    .where("updatedAt", "<", cutoff)
+    .limit(500)
+    .get();
+
+  let expired = 0;
+  for (const candidate of stale.docs) {
+    // eslint-disable-next-line no-await-in-loop
+    const didExpire = await db.runTransaction(async (transaction) => {
+      const current = await transaction.get(candidate.ref);
+      if (!current.exists) return false;
+      const live = current.data() || {};
+      if ((Number(live.updatedAt) || 0) >= cutoff) return false;
+      transaction.delete(candidate.ref);
+      return true;
+    });
+    if (didExpire) expired += 1;
+  }
+
+  if (expired) {
+    logger.info("Expired stale student presence documents", {
+      expired,
+      scanned: stale.size,
+      cutoff,
+    });
+  }
 });
 
 exports.hydrateAssignmentCcmr = onCall({
