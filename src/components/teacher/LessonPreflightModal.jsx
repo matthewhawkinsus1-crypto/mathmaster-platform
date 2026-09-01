@@ -230,8 +230,13 @@ export const LessonPreflightModal = ({
     ...preflightModel.errors,
     ...publishingValidation.errors,
   ];
-  const notesNeedAuthoring = publishingIntent.lessonResources?.notesPdf?.enabled === true
-    && (publishingIntent.lessonResources?.notesPdf?.sections || []).length === 0;
+  const reviewedNotesPdf = publishingIntent.lessonResources?.notesPdf || {};
+  const notesNeedAuthoring = reviewedNotesPdf.enabled === true && (
+    Number(reviewedNotesPdf.targetPages) !== 2
+    || !String(reviewedNotesPdf.learningGoal || '').trim()
+    || !Array.isArray(reviewedNotesPdf.sections)
+    || reviewedNotesPdf.sections.length < 2
+  );
   const questionRepairIssues = useMemo(
     () => groupQuestionPreflightIssues(validationErrors, previewQuestions),
     [validationErrors, previewQuestions],
@@ -687,34 +692,48 @@ export const LessonPreflightModal = ({
       throw new Error(`${sourceLabel} must return enabled two-page student notes with a learning goal and at least two substantive sections.`);
     }
 
-    setWorkingAssignmentV5((current) => {
-      const currentClassroom = current.classroomIntegration && typeof current.classroomIntegration === 'object'
-        ? current.classroomIntegration
-        : {};
-      const aiClassroom = candidatePublishing.classroomPackage || {};
-      const mergeNested = (key) => ({
-        ...(aiClassroom[key] && typeof aiClassroom[key] === 'object' ? aiClassroom[key] : {}),
-        ...(currentClassroom[key] && typeof currentClassroom[key] === 'object' ? currentClassroom[key] : {}),
-      });
-      return {
-        ...current,
-        outputProfiles: {
-          ...(current.outputProfiles || {}),
-          lessonNotesPdf: authoredNotes,
-        },
-        classroomIntegration: {
-          ...aiClassroom,
-          ...currentClassroom,
-          topic: mergeNested('topic'),
-          assignmentPost: mergeNested('assignmentPost'),
-          resourcesPost: mergeNested('resourcesPost'),
-          gradePassback: mergeNested('gradePassback'),
-          additionalLinks: Array.isArray(currentClassroom.additionalLinks)
-            ? currentClassroom.additionalLinks
-            : (Array.isArray(aiClassroom.additionalLinks) ? aiClassroom.additionalLinks : []),
-        },
-      };
+    const currentClassroom = effectiveAssignmentV5.classroomIntegration && typeof effectiveAssignmentV5.classroomIntegration === 'object'
+      ? effectiveAssignmentV5.classroomIntegration
+      : {};
+    const aiClassroom = candidatePublishing.classroomPackage || {};
+    const mergeNested = (key) => ({
+      ...(aiClassroom[key] && typeof aiClassroom[key] === 'object' ? aiClassroom[key] : {}),
+      ...(currentClassroom[key] && typeof currentClassroom[key] === 'object' ? currentClassroom[key] : {}),
     });
+    const mergedClassroom = {
+      ...aiClassroom,
+      ...currentClassroom,
+      topic: mergeNested('topic'),
+      assignmentPost: mergeNested('assignmentPost'),
+      resourcesPost: mergeNested('resourcesPost'),
+      gradePassback: mergeNested('gradePassback'),
+      additionalLinks: Array.isArray(currentClassroom.additionalLinks)
+        ? currentClassroom.additionalLinks
+        : (Array.isArray(aiClassroom.additionalLinks) ? aiClassroom.additionalLinks : []),
+    };
+
+    // Keep BOTH layers in sync. Preflight intentionally overlays draft review
+    // fields on top of workingAssignmentV5. Older Library drafts can still carry
+    // lessonNotesPdf.sections=[] and a blank learningGoal; updating only the
+    // working assignment made that stale draft immediately overwrite a valid
+    // outside-AI import, so the UI continued to show "0 authored sections".
+    setWorkingAssignmentV5((current) => ({
+      ...current,
+      outputProfiles: {
+        ...(current.outputProfiles || {}),
+        lessonNotesPdf: authoredNotes,
+      },
+      classroomIntegration: mergedClassroom,
+    }));
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      outputProfiles: {
+        ...(currentDraft.outputProfiles || {}),
+        lessonNotesPdf: authoredNotes,
+      },
+      classroomIntegration: mergedClassroom,
+    }));
+
     setPublishingAiMessage(`${sourceLabel} notes and Google Classroom publishing details are ready. The assignment questions were not changed.`);
   };
 
