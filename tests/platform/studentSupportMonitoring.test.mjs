@@ -71,3 +71,35 @@ test('the teacher subscribes to persistent support history and archived session 
   assert.match(store, /authorizedTeacherEmails/);
   assert.match(store, /array-contains/);
 });
+
+
+test('student reassignment carries support and session history to the new teacher without rewriting origin', () => {
+  const functionsIndex = read('functions/index.js');
+  assert.match(functionsIndex, /\["studentSupportEvents", "studentSessionSummaries"\]/);
+  assert.match(functionsIndex, /reauthorizeContext\(entry\.data\(\).*classRecord/s);
+  const store = read('src/platform/teacher/studentSupportStore.js');
+  assert.match(store, /originClassId/);
+  assert.match(store, /originTeacherEmail/);
+  const summary = read('functions/lib/studentSessionSummary.js');
+  assert.match(summary, /previous\.originClassId \|\| classId/);
+  assert.match(summary, /previous\.originTeacherEmail \|\| assignedTeacherEmail/);
+});
+
+test('student deletion and pre-production reset include the persistent monitoring records', () => {
+  const admin = read('functions/lib/admin.js');
+  assert.match(admin, /"studentSupportEvents"/);
+  assert.match(admin, /"studentSessionSummaries"/);
+});
+
+test('recent support/session listeners are bounded and backed by declared Firestore indexes', () => {
+  const store = read('src/platform/teacher/studentSupportStore.js');
+  const firebase = read('firebase.json');
+  const indexes = read('firestore.indexes.json');
+  assert.match(store, /limit\(750\)/);
+  assert.match(store, /limit\(1000\)/);
+  assert.match(store, /orderBy\('createdAt', 'desc'\)/);
+  assert.match(store, /orderBy\('endedAt', 'desc'\)/);
+  assert.match(firebase, /firestore\.indexes\.json/);
+  assert.match(indexes, /studentSupportEvents/);
+  assert.match(indexes, /studentSessionSummaries/);
+});
