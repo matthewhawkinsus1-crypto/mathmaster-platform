@@ -143,6 +143,14 @@ await check('teacher appends own student support record', assertSucceeds(setDoc(
   createdByEmail: TEACHER_EMAIL,
   authorizedTeacherEmails: [TEACHER_EMAIL],
 })));
+await check('teacher CANNOT append support history for another teacher roster', assertFails(setDoc(doc(teacher, 'studentSupportEvents/support-other-roster'), {
+  schemaVersion: 1,
+  kind: 'watchPractice',
+  stage: 'actionTaken',
+  studentId: 'S2000',
+  createdByEmail: TEACHER_EMAIL,
+  authorizedTeacherEmails: [TEACHER_EMAIL],
+})));
 await check('teacher CANNOT edit existing student support history', assertFails(setDoc(doc(teacher, 'studentSupportEvents/support-1'), { stage: 'resolved' }, { merge: true })));
 await check('teacher reads authorized archived session summary', assertSucceeds(getDoc(doc(teacher, 'studentSessionSummaries/session-1'))));
 await check('student CANNOT read archived session summary', assertFails(getDoc(doc(student, 'studentSessionSummaries/session-1'))));
