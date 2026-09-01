@@ -830,6 +830,11 @@ function App() {
   // Count only page-visibility losses during the current assignment. We never
   // record which tab/site was opened. This is corroborating telemetry only.
   const liveFocusLossRef = useRef({ assignmentId: null, count: 0, hiddenAt: null });
+  // Dynamic question/progress state changes frequently. Keep the latest compact
+  // presence payload in a ref so those changes update the heartbeat WITHOUT
+  // tearing down the presence document (and therefore without creating an
+  // archive-trigger invocation on every answer/question change).
+  const livePresencePayloadRef = useRef(null);
   const activeTimeRef = useRef(0);
   const pendingAssignmentSecondsRef = useRef(0);
   const lastDOLStatusRef = useRef({});
@@ -1573,55 +1578,69 @@ function App() {
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, [user?.role, activeAssignmentId, activeView]);
 
-  // Live class monitoring. The student's client publishes a tiny snapshot of
-  // where it is — assignment, question, per-question progress — onto its own
-  // grades document, which teachers can already read. No new collection, no
-  // rules change, no stored history: the field is overwritten each heartbeat
-  // and cleared when the student leaves the assignment.
+  // Live class monitoring. Presence stays ephemeral: one tiny document per
+  // student is overwritten while they work and deleted when they leave. The
+  // deletion trigger archives only one compact session summary; it does not
+  // keep heartbeat history.
+  //
+  // IMPORTANT LIFECYCLE BOUNDARY:
+  // Question/attempt changes refresh the payload but DO NOT delete presence.
+  // Deletion belongs only to entering/leaving an assignment. That keeps the
+  // server archive trigger to one meaningful session boundary rather than one
+  // invocation per React state change.
   useEffect(() => {
-    if (user?.role !== 'student' || !user.id) return undefined;
-
-    // A dedicated presence document rather than a field on the grades doc:
-    // teachers stream this collection continuously, and a grades document
-    // carries a student's whole history, so putting a 20-second heartbeat on
-    // it would re-send all of that to every watching teacher each time.
-    const presenceRef = doc(db, 'presence', user.id);
-    const clearLiveStatus = () => {
-      deleteDoc(presenceRef).catch(() => { /* sign-out races are not worth reporting */ });
-    };
-
-    if (!isStudentAssignment || !activeAssignmentId || !activeAssignmentData) {
-      clearLiveStatus();
-      return undefined;
+    if (
+      user?.role !== 'student'
+      || !user.id
+      || !isStudentAssignment
+      || !activeAssignmentId
+      || !activeAssignmentData
+    ) {
+      livePresencePayloadRef.current = null;
+      return;
     }
 
     if (liveStartedAtRef.current.assignmentId !== activeAssignmentId) {
       liveStartedAtRef.current = { assignmentId: activeAssignmentId, at: Date.now() };
     }
 
-    const publish = () => {
-      const included = getIncludedQuestionIndices(activeAssignmentData);
-      const question = activeQuestions[currentQuestionIndex];
-      const record = normalizeQuestionRecord(activeWorkingTracker?.[currentQuestionIndex]);
-      const liveTracker = {
-        ...(activeWorkingTracker || {}),
-        [currentQuestionIndex]: {
-          ...record,
-          timeSpent: Math.max(Number(record.timeSpent) || 0, Number(activeTimeRef.current) || 0),
-        },
-      };
-      const rapid = summarizeRapidCorrectness({
-        questions: activeQuestions,
-        tracker: liveTracker,
-        includedIndices: included,
-      });
-      const accumulatedSeconds = included.reduce((sum, index) => (
-        sum + (Number(normalizeQuestionRecord(liveTracker?.[index]).timeSpent) || 0)
-      ), 0);
-      const sectionIndices = included.filter((index) => (
-        resolveQuestionActivityRole({ question: activeQuestions[index], assignment: activeAssignmentData }) === activeQuestionRole
-      ));
-      const payload = buildLiveStatus({
+    const included = getIncludedQuestionIndices(activeAssignmentData);
+    const question = activeQuestions[currentQuestionIndex];
+    const record = normalizeQuestionRecord(activeWorkingTracker?.[currentQuestionIndex]);
+    const liveTracker = {
+      ...(activeWorkingTracker || {}),
+      [currentQuestionIndex]: {
+        ...record,
+        timeSpent: Math.max(Number(record.timeSpent) || 0, Number(activeTimeRef.current) || 0),
+      },
+    };
+    const rapid = summarizeRapidCorrectness({
+      questions: activeQuestions,
+      tracker: liveTracker,
+      includedIndices: included,
+    });
+    const accumulatedSeconds = included.reduce((sum, index) => (
+      sum + (Number(normalizeQuestionRecord(liveTracker?.[index]).timeSpent) || 0)
+    ), 0);
+    const sectionIndices = included.filter((index) => (
+      resolveQuestionActivityRole({ question: activeQuestions[index], assignment: activeAssignmentData }) === activeQuestionRole
+    ));
+    const focusLossCount = liveFocusLossRef.current.assignmentId === activeAssignmentId
+      ? liveFocusLossRef.current.count + (
+        document.hidden
+        && Number(liveFocusLossRef.current.hiddenAt) > 0
+        && Date.now() - Number(liveFocusLossRef.current.hiddenAt) >= 8000
+          ? 1
+          : 0
+      )
+      : 0;
+
+    const payload = {
+      studentId: user.id,
+      name: user.name || user.id,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod || '',
+      ...buildLiveStatus({
         assignmentId: activeAssignmentId,
         assignmentTitle: activeAssignmentData.title,
         activityRole: activeQuestionRole,
@@ -1633,43 +1652,60 @@ function App() {
         representation: getQuestionRepresentation(question),
         questionStates: encodeQuestionStates(activeWorkingTracker, included),
         currentAttempts: record.attemptCount,
-        focusLossCount: liveFocusLossRef.current.assignmentId === activeAssignmentId
-          ? liveFocusLossRef.current.count + (
-            document.hidden
-            && Number(liveFocusLossRef.current.hiddenAt) > 0
-            && Date.now() - Number(liveFocusLossRef.current.hiddenAt) >= 8000
-              ? 1
-              : 0
-          )
-          : 0,
+        focusLossCount,
         rapidCorrectCount: rapid.rapidCorrect,
         rapidDeepCorrectCount: rapid.rapidDeepCorrect,
         timedIndependentCorrectCount: rapid.timedIndependentCorrect,
         sessionActiveSeconds: accumulatedSeconds,
-        // The idle timer already tracks real interaction — mouse, keys,
-        // clicks — so the live grid and the time-on-task accounting agree
-        // about what "working" means.
         lastInteractionAt: lastActivityRef.current,
         startedAt: liveStartedAtRef.current.at,
-      });
-      setDoc(presenceRef, {
-        studentId: user.id,
-        name: user.name || user.id,
-        classId: user.classId || null,
-        classPeriod: user.classPeriod || '',
-        ...payload,
-      }).catch(() => { /* a missed heartbeat self-heals on the next one */ });
+      }),
     };
 
-    publish();
-    const interval = window.setInterval(publish, HEARTBEAT_INTERVAL_MS);
+    livePresencePayloadRef.current = payload;
+    // Push significant state changes immediately; the lifecycle effect below
+    // still supplies the normal heartbeat if nothing changes.
+    setDoc(doc(db, 'presence', user.id), payload).catch(() => {
+      /* a missed update self-heals on the next heartbeat */
+    });
+  }, [
+    user, isStudentAssignment, activeAssignmentId, activeAssignmentData,
+    currentQuestionIndex, activeWorkingTracker, activeQuestionRole,
+  ]);
+
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id) return undefined;
+    const presenceRef = doc(db, 'presence', user.id);
+    const clearLiveStatus = () => {
+      livePresencePayloadRef.current = null;
+      deleteDoc(presenceRef).catch(() => { /* sign-out races are not worth reporting */ });
+    };
+
+    if (!isStudentAssignment || !activeAssignmentId || !activeAssignmentData?.id) {
+      clearLiveStatus();
+      return undefined;
+    }
+
+    const publishLatest = () => {
+      const payload = livePresencePayloadRef.current;
+      if (!payload || payload.assignmentId !== activeAssignmentId) return;
+      setDoc(presenceRef, payload).catch(() => {
+        /* a missed heartbeat self-heals on the next one */
+      });
+    };
+
+    publishLatest();
+    const interval = window.setInterval(publishLatest, HEARTBEAT_INTERVAL_MS);
     return () => {
       window.clearInterval(interval);
       clearLiveStatus();
     };
   }, [
-    user, isStudentAssignment, activeAssignmentId, activeAssignmentData,
-    currentQuestionIndex, activeWorkingTracker, activeQuestionRole,
+    user?.role,
+    user?.id,
+    isStudentAssignment,
+    activeAssignmentId,
+    activeAssignmentData?.id,
   ]);
 
   // Persistent support/intervention history is teacher-authorized and
