@@ -57,18 +57,31 @@ test('student clients publish only coarse live integrity/productivity counters',
 test('live presence payload changes do not delete/recreate the session on every answer', () => {
   const app = read('src/App.jsx');
   assert.match(app, /livePresencePayloadRef/);
-  assert.match(app, /Archive live presence only at real assignment session boundaries|IMPORTANT LIFECYCLE BOUNDARY/i);
+  assert.match(app, /IMPORTANT LIFECYCLE BOUNDARY/i);
   assert.match(app, /const publishLatest/);
   assert.match(app, /activeAssignmentData\?\.id/);
+
+  const payloadSection = app.slice(
+    app.indexOf('const payload = {'),
+    app.indexOf('useEffect(() => {', app.indexOf('const payload = {')),
+  );
+  assert.doesNotMatch(payloadSection, /setDoc\(doc\(db, 'presence'/);
 });
 
 test('crashed, reloaded, and abandoned presence sessions still reach the compact archive', () => {
+  const app = read('src/App.jsx');
   const functionsIndex = read('functions/index.js');
 
-  assert.match(functionsIndex, /archiveReplacedStudentPresenceSession/);
-  assert.match(functionsIndex, /onDocumentWritten\("presence\/\{studentId\}"/);
-  assert.match(functionsIndex, /beforeKey/);
-  assert.match(functionsIndex, /beforeKey === afterKey/);
+  // Reload/session replacement archives through one deliberate client delete,
+  // not a server onWrite trigger that would run every 20-second heartbeat.
+  assert.match(app, /const startPresence = async/);
+  assert.match(app, /await deleteDoc\(presenceRef\)/);
+  assert.match(app, /publishLatest\(\)/);
+  assert.doesNotMatch(functionsIndex, /archiveReplacedStudentPresenceSession/);
+  assert.doesNotMatch(functionsIndex, /onDocumentWritten\("presence\/\{studentId\}"/);
+
+  // A killed tab cannot perform that delete, so stale cleanup remains the
+  // server-side recovery path.
   assert.match(functionsIndex, /expireStaleStudentPresence/);
   assert.match(functionsIndex, /schedule:\s*"every 5 minutes"/);
   assert.match(functionsIndex, /invoker:\s*"private"/);
