@@ -4,6 +4,7 @@ import {
   SUPPORT_EVENT_KIND,
   SUPPORT_EVENT_LABEL,
   SUPPORT_EVENT_STAGE,
+  buildArchivedIntegrityReviewSignal,
   buildIntegrityReviewSignal,
   buildParentFollowUpCandidates,
   buildSuggestedSmallGroups,
@@ -103,24 +104,66 @@ export default function StudentSupportDashboard({
     .sort((a, b) => Number(b.summary.endedAt || 0) - Number(a.summary.endedAt || 0))
     .slice(0, 8), [classSessions, classEvents, nowValue]);
 
-  const integrity = useMemo(() => rows
-    .filter((row) => !hasDismissedSignal({
-      supportEvents: classEvents,
-      studentId: row.id,
-      assignmentId: row.live?.assignmentId || null,
-      sessionKey: row.live?.assignmentId && row.live?.startedAt
-        ? `${row.live.assignmentId}:${row.live.startedAt}`
-        : null,
-      afterMs: Number(row.live?.startedAt) || 0,
-    }))
-    .map((row) => ({
-      row,
-      signal: buildIntegrityReviewSignal({
-        row,
-        profile: profilesByStudentId[row.id] || null,
-      }),
-    }))
-    .filter((entry) => entry.signal), [rows, profilesByStudentId, classEvents]);
+  const integrity = useMemo(() => {
+    const liveEntries = rows
+      .filter((row) => !hasDismissedSignal({
+        supportEvents: classEvents,
+        studentId: row.id,
+        assignmentId: row.live?.assignmentId || null,
+        sessionKey: row.live?.assignmentId && row.live?.startedAt
+          ? `${row.live.assignmentId}:${row.live.startedAt}`
+          : null,
+        afterMs: Number(row.live?.startedAt) || 0,
+      }))
+      .map((row) => ({
+        key: `live:${row.id}:${row.live?.startedAt || 0}`,
+        studentId: row.id,
+        studentName: row.name,
+        assignmentId: row.live?.assignmentId || null,
+        assignmentTitle: row.live?.assignmentTitle || null,
+        sessionKey: row.live?.assignmentId && row.live?.startedAt
+          ? `${row.live.assignmentId}:${row.live.startedAt}`
+          : null,
+        startedAt: Number(row.live?.startedAt) || 0,
+        sourceLabel: 'Live now',
+        signal: buildIntegrityReviewSignal({
+          row,
+          profile: profilesByStudentId[row.id] || null,
+        }),
+      }))
+      .filter((entry) => entry.signal);
+
+    const liveSessionKeys = new Set(liveEntries.map((entry) => entry.sessionKey).filter(Boolean));
+    const archivedEntries = classSessions
+      .filter((summary) => {
+        const endedAt = Number(summary.endedAt) || 0;
+        return endedAt > 0 && nowValue - endedAt <= 7 * 86400000;
+      })
+      .filter((summary) => !liveSessionKeys.has(summary.sessionKey))
+      .filter((summary) => !hasDismissedSignal({
+        supportEvents: classEvents,
+        studentId: summary.studentId,
+        assignmentId: summary.assignmentId || null,
+        sessionKey: summary.sessionKey || null,
+        afterMs: Number(summary.startedAt) || 0,
+      }))
+      .map((summary) => ({
+        key: `archive:${summary.id || summary.sessionKey}`,
+        studentId: summary.studentId,
+        studentName: summary.studentName || summary.studentId,
+        assignmentId: summary.assignmentId || null,
+        assignmentTitle: summary.assignmentTitle || null,
+        sessionKey: summary.sessionKey || null,
+        startedAt: Number(summary.startedAt) || 0,
+        sourceLabel: 'Archived session',
+        signal: buildArchivedIntegrityReviewSignal(summary),
+      }))
+      .filter((entry) => entry.signal);
+
+    return [...liveEntries, ...archivedEntries]
+      .sort((a, b) => Number(b.startedAt || 0) - Number(a.startedAt || 0))
+      .slice(0, 8);
+  }, [rows, profilesByStudentId, classEvents, classSessions, nowValue]);
 
   const recent = classEvents.slice(0, 8);
 
@@ -230,32 +273,34 @@ export default function StudentSupportDashboard({
         <div style={cardStyle}>
           <div style={{ fontWeight: 900 }}>Integrity Review</div>
           <div style={{ color: '#5f6368', fontSize: 11.5, margin: '3px 0 8px' }}>Unusual response patterns only. MathMaster never labels a student as cheating.</div>
-          {integrity.length ? integrity.map(({ row, signal }) => (
-            <div key={row.id} style={{ borderTop: '1px solid #eef0f2', padding: '8px 0' }}>
-              <button type="button" onClick={() => onOpenStudent?.(row.id)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>{row.name}</button>
-              <div style={{ fontSize: 11.5, color: '#6b4c00', marginTop: 3 }}>{signal.reasons.join(' · ')}</div>
+          {integrity.length ? integrity.map((entry) => (
+            <div key={entry.key} style={{ borderTop: '1px solid #eef0f2', padding: '8px 0' }}>
+              <button type="button" onClick={() => onOpenStudent?.(entry.studentId)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>{entry.studentName}</button>
+              <div style={{ fontSize: 10.5, color: '#80868b', marginTop: 2 }}>{entry.sourceLabel}{entry.assignmentTitle ? ` · ${entry.assignmentTitle}` : ''}</div>
+              <div style={{ fontSize: 11.5, color: '#6b4c00', marginTop: 3 }}>{entry.signal.reasons.join(' · ')}</div>
               <div style={{ display: 'flex', gap: 5, marginTop: 6, flexWrap: 'wrap' }}>
                 <button type="button" style={actionButton} onClick={() => record({
                   kind: SUPPORT_EVENT_KIND.INTEGRITY_REVIEW,
                   stage: SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED,
-                  studentId: row.id,
-                  studentName: row.name,
-                  assignmentId: row.live?.assignmentId || null,
-                  assignmentTitle: row.live?.assignmentTitle || null,
-                  sessionKey: row.live?.assignmentId && row.live?.startedAt ? `${row.live.assignmentId}:${row.live.startedAt}` : null,
-                  confidence: signal.confidence,
+                  studentId: entry.studentId,
+                  studentName: entry.studentName,
+                  assignmentId: entry.assignmentId,
+                  assignmentTitle: entry.assignmentTitle,
+                  sessionKey: entry.sessionKey,
+                  confidence: entry.signal.confidence,
                   summary: 'Teacher marked an unusual response pattern for review. This is not a cheating finding.',
-                  evidence: signal.evidence,
+                  evidence: entry.signal.evidence,
                 })}>Log for review</button>
                 <button type="button" style={actionButton} onClick={() => record({
                   kind: SUPPORT_EVENT_KIND.SIGNAL_DISMISSED,
                   stage: SUPPORT_EVENT_STAGE.DISMISSED,
-                  studentId: row.id,
-                  studentName: row.name,
-                  assignmentId: row.live?.assignmentId || null,
-                  assignmentTitle: row.live?.assignmentTitle || null,
+                  studentId: entry.studentId,
+                  studentName: entry.studentName,
+                  assignmentId: entry.assignmentId,
+                  assignmentTitle: entry.assignmentTitle,
+                  sessionKey: entry.sessionKey,
                   summary: 'Teacher reviewed and dismissed the unusual-response signal.',
-                  evidence: signal.evidence,
+                  evidence: entry.signal.evidence,
                 })}>Dismiss</button>
               </div>
             </div>
