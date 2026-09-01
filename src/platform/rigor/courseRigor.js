@@ -66,7 +66,9 @@ const questionTeks = (question = {}) => {
     .map((entry) => entry.code);
   const raw = canonical.length
     ? canonical
-    : question.teks
+    : question.standard
+      || question.primaryStandard
+      || question.teks
       || question.teksAlignments
       || question.standards?.primary
       || question.metadata?.teks
