@@ -28,11 +28,12 @@ import {
 import ClassroomManagerV2 from './ClassroomManagerV2';
 import AssignmentQuestionEditor from './AssignmentQuestionEditor';
 import QuestionEngine from './QuestionEngine';
-import { generateQuestion } from './problemGenerator';
+import { generateQuestion, isPersonalizedBlueprint } from './problemGenerator';
 import {
   emptyQuestionRecord,
   getQuestionCardState,
   getQuestionCredit,
+  isChoiceOnlyQuestion,
   normalizeQuestionRecord,
   recordQuestionAttempt,
   recordQuestionStep,
@@ -2443,6 +2444,11 @@ function App() {
 
   const handleRequestNewQuestion = async (options = {}) => {
     if (!activeAssignmentId) return;
+
+    const replacementBlueprint = activeQuestions[currentQuestionIndex];
+    if (isChoiceOnlyQuestion(replacementBlueprint) && !isPersonalizedBlueprint(replacementBlueprint)) {
+      return;
+    }
 
     if (isTeacherPreview) {
       const replacement = requestReplacementQuestion(
@@ -4981,6 +4987,12 @@ function App() {
       || (activeActivityPolicy.feedback === 'afterAssignmentSubmit' && ['correct', 'expired'].includes(currentRecord.status));
     const runtimeActivityRole = !preview && lifecycle.isPracticeOnly ? 'practice' : activeQuestionRole;
     const runtimeActivityPolicy = getEffectiveActivityPolicy(runtimeActivityRole);
+    const currentQuestionBlueprint = questions[currentQuestionIndex];
+    const currentChoiceCanRefresh = !isChoiceOnlyQuestion(currentQuestionBlueprint)
+      || isPersonalizedBlueprint(currentQuestionBlueprint);
+    const runtimeQuestionActivityPolicy = currentChoiceCanRefresh
+      ? runtimeActivityPolicy
+      : { ...runtimeActivityPolicy, allowReplacement: false };
     const currentSectionVariantMode = getSectionVariantMode(assignment, activeQuestionRole);
     const generationStudentKey = currentSectionVariantMode === 'shared'
       ? `shared-version:${assignment.id}:${activeQuestionRole}`
@@ -5426,11 +5438,11 @@ function App() {
               dolMode={!preview && currentIsDOL && dolState.status === 'active'}
               maximumAttempts={resolveQuestionMaximumAttempts({
                 question: questions[currentQuestionIndex],
-                maximumAttempts: runtimeActivityPolicy.attempts,
-                activityPolicy: runtimeActivityPolicy,
+                maximumAttempts: runtimeQuestionActivityPolicy.attempts,
+                activityPolicy: runtimeQuestionActivityPolicy,
               })}
               activityRole={runtimeActivityRole}
-              activityPolicy={runtimeActivityPolicy}
+              activityPolicy={runtimeQuestionActivityPolicy}
               feedbackReleased={currentFeedbackReleased}
               replacementWarning={replacementWarning}
               draftKey={lifecycle.isPracticeOnly && !preview ? null : buildQuestionDraftKey({ studentId: preview ? 'teacher-preview' : user?.id || 'anonymous', assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, variantIndex: currentRecord.variantIndex, sessionMode: draftSessionMode })}
