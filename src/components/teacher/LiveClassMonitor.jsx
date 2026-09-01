@@ -73,7 +73,6 @@ function StudentTile({
   suggestion = null,
   roomMode = false,
   integritySignal = null,
-  supportEvents = [],
   onSupportAction = null,
 }) {
   const style = SEVERITY_STYLE[row.severity] || SEVERITY_STYLE[LIVE_SEVERITY.OK];
@@ -230,7 +229,6 @@ export default function LiveClassMonitor({
   // that happen to share a period label into one live grid.
   activeClassId = null,
   classes = [],
-  supportEvents = [],
   onRecordSupportEvent = null,
 }) {
   // Opens on whichever period is in session; the teacher can widen it from
@@ -405,7 +403,6 @@ export default function LiveClassMonitor({
               suggestion={suggestions[row.id] || null}
               roomMode={roomMode}
               integritySignal={integrityByStudentId[row.id] || null}
-              supportEvents={supportEvents}
               onSupportAction={(kind, stage, signal) => handleSupportAction(row, kind, stage, signal)}
             />
           ))}
