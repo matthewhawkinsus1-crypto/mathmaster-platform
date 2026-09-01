@@ -1686,11 +1686,13 @@ function App() {
       )
       : 0;
 
+    const currentTeksCode = getQuestionPrimaryTeksCodes(question || {})[0] || null;
     const payload = {
       studentId: user.id,
       name: user.name || user.id,
       classId: user.classId || null,
       classPeriod: user.classPeriod || '',
+      currentTeksCode,
       ...buildLiveStatus({
         assignmentId: activeAssignmentId,
         assignmentTitle: activeAssignmentData.title,
