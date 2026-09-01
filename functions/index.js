@@ -5952,6 +5952,106 @@ exports.getTeacherWeeklyPathCompletions = onCall(async (request) => {
   return { classId, weekKey, byStudentId, goalsByStudentId, truncated };
 });
 
+/**
+ * One teacher can temporarily lift ONE student's current TEKS into the front of
+ * Recommended for You without changing the whole class.
+ *
+ * This is intentionally a recommendation, not a force-start and not a mastery
+ * edit. The normal Path prerequisite/coverage gates still decide whether the
+ * skill can actually be launched. Private concern notes stay in
+ * studentSupportEvents; the student-readable intervention doc contains only the
+ * instructional action.
+ */
+exports.setStudentPathIntervention = onCall(async (request) => {
+  const teacherUid = await requireTeacher(request);
+  const teacherEmail = callerEmail(request);
+  const studentId = String(request.data?.studentId || "").trim();
+  if (!studentId) throw new HttpsError("invalid-argument", "studentId is required.");
+
+  const db = getFirestore();
+  const studentRef = db.collection("grades").doc(studentId);
+  const studentSnapshot = await studentRef.get();
+  if (!studentSnapshot.exists) throw new HttpsError("not-found", "That student is not on the MathMaster roster.");
+  const studentData = studentSnapshot.data() || {};
+  const assignedTeacherEmail = String(studentData.assignedTeacherEmail || "").trim().toLowerCase();
+  const isRoot = authLib.isRootAdminEmail(teacherEmail);
+  if (!isRoot && (!teacherEmail || assignedTeacherEmail !== teacherEmail)) {
+    throw new HttpsError("permission-denied", "Only the student's teacher of record can change this personal Path recommendation.");
+  }
+
+  const interventionRef = db.collection("studentPathInterventions").doc(studentId);
+  const clear = request.data?.clear === true;
+  if (clear) {
+    await interventionRef.delete();
+    await db.collection("studentPathInterventionAudit").add({
+      teacherUid,
+      teacherEmail,
+      studentId,
+      classId: studentData.classId || null,
+      action: "clear",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { success: true, cleared: true };
+  }
+
+  const displayCode = mathPath.displayAlignmentKey(request.data?.teksCode);
+  const canonicalKey = mathPath.canonicalAlignmentKey(displayCode);
+  if (!canonicalKey) throw new HttpsError("invalid-argument", "Choose a valid TEKS before recommending Path practice.");
+
+  const graph = await pathRouting.skillGraph();
+  const skillId = graph.teksSkillId(displayCode);
+  const skill = graph.resolveSkillAnywhere(skillId);
+  if (!skill) throw new HttpsError("invalid-argument", "That TEKS is not a loaded MathMaster Path skill.");
+
+  const studentClass = await loadStudentClass(db, studentData);
+  const studentCourseId = String(studentClass?.course || "").trim();
+  if (studentCourseId && skill.courseId !== studentCourseId) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Live Path recommendations must stay on the student's current course TEKS. Use Weekly Path/Path controls for a broader prerequisite intervention.",
+    );
+  }
+
+  const launchable = await livePathSkillIsLaunchable(db, canonicalKey);
+  if (!launchable) {
+    throw new HttpsError(
+      "failed-precondition",
+      `MathMaster does not have enough published secure Path content for ${displayCode} yet.`,
+      { reason: "no-path-coverage" },
+    );
+  }
+
+  const durationHours = Math.max(1, Math.min(168, Number(request.data?.durationHours) || 48));
+  const now = Date.now();
+  const intervention = {
+    studentId,
+    classId: studentClass?.classId || studentData.classId || null,
+    classPeriod: studentClass?.period || studentData.classPeriod || null,
+    skillId,
+    teksCode: displayCode,
+    action: "recommend",
+    source: "teacher-live",
+    createdAt: now,
+    updatedAt: now,
+    expiresAt: now + durationHours * 60 * 60 * 1000,
+  };
+
+  await interventionRef.set(intervention);
+  await db.collection("studentPathInterventionAudit").add({
+    teacherUid,
+    teacherEmail,
+    studentId,
+    classId: intervention.classId,
+    skillId,
+    teksCode: displayCode,
+    action: "recommend",
+    expiresAt: intervention.expiresAt,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  return { success: true, intervention };
+});
+
 /** Start or resume one server-owned learning-path session for a TEKS target. */
 exports.startMyMathPathSession = onCall((request) => withPathCallableDiagnostics("startMyMathPathSession", async () => {
   const { studentId } = requireStudent(request);
