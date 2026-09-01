@@ -12,6 +12,7 @@ import {
 } from './studentSupportSignals.js';
 
 export const STUDENT_SUPPORT_COLLECTION = 'studentSupportEvents';
+export const STUDENT_SESSION_SUMMARY_COLLECTION = 'studentSessionSummaries';
 
 const clean = (value) => String(value ?? '').trim();
 const list = (value) => (Array.isArray(value) ? value : []);
@@ -118,6 +119,37 @@ export const subscribeStudentSupportEvents = ({
           || String(b.id).localeCompare(String(a.id))
         ));
       onChange(events);
+    },
+    (error) => {
+      if (typeof onError === 'function') onError(error);
+    },
+  );
+};
+
+export const subscribeStudentSessionSummaries = ({
+  db,
+  teacherEmail,
+  onChange,
+  onError = null,
+} = {}) => {
+  const email = clean(teacherEmail).toLowerCase();
+  if (!db || !email || typeof onChange !== 'function') return () => {};
+
+  const q = query(
+    collection(db, STUDENT_SESSION_SUMMARY_COLLECTION),
+    where('authorizedTeacherEmails', 'array-contains', email),
+  );
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const summaries = snapshot.docs
+        .map((entry) => ({ id: entry.id, ...entry.data() }))
+        .sort((a, b) => (
+          Number(b.endedAt || 0) - Number(a.endedAt || 0)
+          || String(b.id).localeCompare(String(a.id))
+        ));
+      onChange(summaries);
     },
     (error) => {
       if (typeof onError === 'function') onError(error);
