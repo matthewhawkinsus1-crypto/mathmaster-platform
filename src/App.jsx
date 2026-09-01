@@ -204,6 +204,7 @@ import {
   summarizeRapidCorrectness,
 } from './platform/teacher/studentSupportSignals.js';
 import {
+  fetchStudentSupportHistory,
   recordStudentSupportEvent,
   subscribeStudentSessionSummaries,
   subscribeStudentSupportEvents,
@@ -405,6 +406,14 @@ function App() {
   // Held here so the drawer opens OVER the teacher's current work rather than
   // navigating them away from the class monitor or gradebook they were reading.
   const [profileDrawerStudentId, setProfileDrawerStudentId] = useState(null);
+  // The global live dashboard keeps bounded recent data. Opening one student's
+  // profile performs a focused query so older history is not silently lost just
+  // because this teacher has many students/classes.
+  const [profileSupportHistory, setProfileSupportHistory] = useState({
+    studentId: null,
+    events: [],
+    summaries: [],
+  });
   const [weeklyPathTruncated, setWeeklyPathTruncated] = useState(false);
   // A prepared Classroom grade payload awaiting the teacher's review. Holding it
   // in state rather than sending it is the whole point: nothing reaches
@@ -1731,10 +1740,13 @@ function App() {
     return subscribeStudentSessionSummaries({
       db,
       teacherEmail: user.email,
+      classIds: classes
+        .filter((entry) => entry?.status !== 'archived' && entry?.classId)
+        .map((entry) => entry.classId),
       onChange: setStudentSessionSummaries,
       onError: (error) => console.error('Student session summaries failed:', error),
     });
-  }, [user?.role, user?.email]);
+  }, [user?.role, user?.email, classes]);
 
   const handleRecordStudentSupportEvent = async (event) => {
     if (user?.role !== 'teacher' || !user.email) return null;
@@ -3570,6 +3582,61 @@ function App() {
     () => allStudents.find((student) => student.id === profileDrawerStudentId) || null,
     [allStudents, profileDrawerStudentId],
   );
+
+  useEffect(() => {
+    if (user?.role !== 'teacher' || !user.email || !profileDrawerStudentId) {
+      setProfileSupportHistory({ studentId: null, events: [], summaries: [] });
+      return undefined;
+    }
+
+    let active = true;
+    setProfileSupportHistory({ studentId: profileDrawerStudentId, events: [], summaries: [] });
+    fetchStudentSupportHistory({
+      db,
+      teacherEmail: user.email,
+      studentId: profileDrawerStudentId,
+    }).then((history) => {
+      if (!active) return;
+      setProfileSupportHistory({
+        studentId: profileDrawerStudentId,
+        events: history.events || [],
+        summaries: history.summaries || [],
+      });
+    }).catch((error) => {
+      if (!active) return;
+      console.error('Could not load full student support history:', error);
+      // Recent globally subscribed records remain available below even if this
+      // focused historical read fails.
+      setProfileSupportHistory({ studentId: profileDrawerStudentId, events: [], summaries: [] });
+    });
+
+    return () => { active = false; };
+  }, [user?.role, user?.email, profileDrawerStudentId]);
+
+  const profileDrawerSupportEvents = useMemo(() => {
+    if (!profileDrawerStudentId) return [];
+    const merged = new Map();
+    [
+      ...(profileSupportHistory.studentId === profileDrawerStudentId ? profileSupportHistory.events : []),
+      ...studentSupportEvents.filter((event) => event.studentId === profileDrawerStudentId),
+    ].forEach((event) => {
+      const key = event.id || `${event.signalKey || ''}:${event.createdAt || ''}`;
+      merged.set(key, event);
+    });
+    return [...merged.values()].sort((a, b) => (
+      Date.parse(b.createdAt || '') - Date.parse(a.createdAt || '')
+    ));
+  }, [profileDrawerStudentId, profileSupportHistory, studentSupportEvents]);
+
+  const profileDrawerSessionSummaries = useMemo(() => {
+    if (!profileDrawerStudentId) return [];
+    const merged = new Map();
+    [
+      ...(profileSupportHistory.studentId === profileDrawerStudentId ? profileSupportHistory.summaries : []),
+      ...studentSessionSummaries.filter((summary) => summary.studentId === profileDrawerStudentId),
+    ].forEach((summary) => merged.set(summary.id || summary.sessionKey, summary));
+    return [...merged.values()].sort((a, b) => Number(b.endedAt || 0) - Number(a.endedAt || 0));
+  }, [profileDrawerStudentId, profileSupportHistory, studentSessionSummaries]);
 
   // The plan shown in the drawer is the SAME plan the student's own screen is
   // built from. If the two ever disagree, a teacher is being shown a
@@ -5881,12 +5948,8 @@ function App() {
           courseContext={profileDrawerStudent
             ? resolveStudentCourseContext({ student: profileDrawerStudent, classesById, courseProfiles })
             : null}
-          supportEvents={profileDrawerStudent
-            ? studentSupportEvents.filter((event) => event.studentId === profileDrawerStudent.id)
-            : []}
-          sessionSummaries={profileDrawerStudent
-            ? studentSessionSummaries.filter((summary) => summary.studentId === profileDrawerStudent.id)
-            : []}
+          supportEvents={profileDrawerStudent ? profileDrawerSupportEvents : []}
+          sessionSummaries={profileDrawerStudent ? profileDrawerSessionSummaries : []}
           onClose={() => setProfileDrawerStudentId(null)}
           onOpenFullRecord={(studentId) => {
             setProfileDrawerStudentId(null);
