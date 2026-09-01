@@ -378,7 +378,9 @@ const eventDateKey = (event) => {
   return new Date(parsed).toISOString().slice(0, 10);
 };
 
-export const sessionProductivitySignal = (summary = {}) => {
+export const sessionProductivitySignal = (summary = {}, {
+  peerSummaries = null,
+} = {}) => {
   const startedAt = num(summary.startedAt);
   const endedAt = num(summary.endedAt);
   const elapsedSeconds = Math.max(0, (endedAt - startedAt) / 1000);
@@ -396,6 +398,33 @@ export const sessionProductivitySignal = (summary = {}) => {
   if (activeRatio == null || activeRatio >= 0.45) return null;
   if (!(answered <= 2 || focusLossCount >= 3)) return null;
 
+  let activePeerCount = null;
+  if (Array.isArray(peerSummaries)) {
+    const assignmentId = clean(summary.assignmentId);
+    activePeerCount = peerSummaries.filter((peer) => {
+      if (!peer || clean(peer.studentId) === clean(summary.studentId)) return false;
+      if (assignmentId && clean(peer.assignmentId) !== assignmentId) return false;
+      const peerStart = num(peer.startedAt);
+      const peerEnd = num(peer.endedAt);
+      const overlapSeconds = Math.max(
+        0,
+        (Math.min(endedAt, peerEnd) - Math.max(startedAt, peerStart)) / 1000,
+      );
+      if (overlapSeconds < 300) return false;
+
+      const peerElapsed = Math.max(0, (peerEnd - peerStart) / 1000);
+      const peerActiveRatio = peerElapsed > 0
+        ? Math.min(1, Math.max(0, num(peer.activeSeconds)) / peerElapsed)
+        : 0;
+      return peerActiveRatio >= 0.55 || num(peer.answered) >= 4;
+    }).length;
+
+    // If the rest of the class was not demonstrably working in MathMaster at
+    // the same time, do not infer low productivity from quiet telemetry. The
+    // teacher may have been explaining, conferencing, or using paper.
+    if (activePeerCount < 2) return null;
+  }
+
   return {
     kind: 'productivityReview',
     label: 'Low-productivity session — review',
@@ -405,6 +434,7 @@ export const sessionProductivitySignal = (summary = {}) => {
       activeRatio: Number(activeRatio.toFixed(3)),
       answered,
       focusLossCount,
+      activePeerCount,
       assignmentId: summary.assignmentId || null,
       activityRole: role,
     },
@@ -474,7 +504,7 @@ export const buildParentFollowUpCandidates = ({
       return endedAt > 0 && nowValue - endedAt <= 14 * 86400000;
     })
     .forEach((summary) => {
-      const signal = sessionProductivitySignal(summary);
+      const signal = sessionProductivitySignal(summary, { peerSummaries: sessionSummaries });
       if (!signal) return;
       const entry = ensure(summary.studentId, summary.studentName);
       if (!entry) return;
