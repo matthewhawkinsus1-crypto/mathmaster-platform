@@ -185,8 +185,8 @@ test('an algebra auto-apply does affect independence, because it does a step', (
 test('the Path server resolves entitlements rather than ignoring the profile', () => {
   assert.ok(serverSource.includes('mathPath.resolveEntitlements(rosterSnapshot.data()?.profile'),
     'issueNextQuestion must read the profile it was already loading');
-  assert.ok(serverSource.includes('await mathPath.attemptsFor(baseAttempts, entitlements)'),
-    'attempts must be resolved through the entitlement model, not hardcoded');
+  assert.ok(serverSource.includes('await mathPath.attemptsForQuestion(issued, baseAttempts, entitlements)'),
+    'attempts must be resolved through the server-side question-aware entitlement policy, not hardcoded');
   assert.ok(!/const attemptsAllowed = session\.sessionKind === "retentionProbe"/.test(serverSource),
     'the old hardcoded 1-or-3 ternary must be gone');
 });
