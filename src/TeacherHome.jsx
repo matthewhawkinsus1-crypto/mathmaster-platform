@@ -225,6 +225,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
         learningProfilesByStudentId={learningProfilesByStudentId}
         activeClassId={activeClassId}
         classes={classes}
+        supportEvents={studentSupportEvents}
         onRecordSupportEvent={onRecordStudentSupportEvent}
       />
 
