@@ -1,0 +1,105 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+
+import {
+  isChoiceOnlyQuestion,
+  resolveQuestionMaximumAttempts,
+} from '../../src/attemptPolicy.js';
+
+const require = createRequire(import.meta.url);
+const mathPath = require('../../functions/lib/mathPath.js');
+
+test('pure assignment choice questions get exactly one attempt', () => {
+  const question = {
+    type: 'multiAnswer',
+    activityRole: 'practice',
+    answerFields: [
+      { id: 'family', type: 'choice', options: ['linear', 'quadratic', 'exponential', 'absolute'] },
+    ],
+  };
+
+  assert.equal(isChoiceOnlyQuestion(question), true);
+  assert.equal(resolveQuestionMaximumAttempts({
+    question,
+    maximumAttempts: 3,
+    activityPolicy: { attempts: 3 },
+  }), 1);
+});
+
+test('mixed choice plus constructed response keeps normal instructional attempts', () => {
+  const question = {
+    type: 'multiAnswer',
+    activityRole: 'classwork',
+    answerFields: [
+      { id: 'classification', type: 'choice', options: ['function', 'not a function'] },
+      { id: 'why', type: 'text' },
+    ],
+  };
+
+  assert.equal(isChoiceOnlyQuestion(question), false);
+  assert.equal(resolveQuestionMaximumAttempts({
+    question,
+    maximumAttempts: 3,
+    activityPolicy: { attempts: 3 },
+  }), 3);
+});
+
+test('one-attempt choice rule also overrides higher section attempt counts', () => {
+  const question = {
+    type: 'choice',
+    choices: ['A', 'B', 'C', 'D'],
+  };
+
+  assert.equal(resolveQuestionMaximumAttempts({
+    question,
+    maximumAttempts: 5,
+    activityPolicy: { attempts: 5 },
+  }), 1);
+});
+
+test('My Math Path recognizes pure field-graded multiple choice', () => {
+  const question = {
+    questionType: 'response',
+    choices: [
+      { id: 'a', label: 'A' },
+      { id: 'b', label: 'B' },
+      { id: 'c', label: 'C' },
+      { id: 'd', label: 'D' },
+    ],
+    responseFields: [
+      { id: 'answer', inputProfile: 'choice', expected: 'a' },
+    ],
+  };
+
+  assert.equal(mathPath.isChoiceOnlyPathQuestion(question), true);
+});
+
+test('My Math Path pure choice remains one attempt even when the base policy is three', async () => {
+  const question = {
+    questionType: 'response',
+    choices: [
+      { id: 'a', label: 'A' },
+      { id: 'b', label: 'B' },
+      { id: 'c', label: 'C' },
+      { id: 'd', label: 'D' },
+    ],
+    responseFields: [
+      { id: 'answer', inputProfile: 'choice', expected: 'a' },
+    ],
+  };
+
+  assert.equal(await mathPath.attemptsForQuestion(question, 3, { authorized: ['extraAttempts'] }), 1);
+});
+
+test('My Math Path mixed response is not misclassified as pure multiple choice', () => {
+  const question = {
+    questionType: 'response',
+    responseFields: [
+      { id: 'classification', inputProfile: 'choice', choices: ['linear', 'quadratic'], expected: 'linear' },
+      { id: 'equation', inputProfile: 'equation', expected: 'y=2x+1' },
+    ],
+  };
+
+  assert.equal(mathPath.isChoiceOnlyPathQuestion(question), false);
+});
