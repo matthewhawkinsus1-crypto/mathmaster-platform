@@ -11,7 +11,7 @@ const {
 } = require('../../functions/lib/studentSessionSummary.js');
 
 test('question-state summary counts only outcomes and never needs response content', () => {
-  assert.deepEqual(countLiveQuestionStates('ccxax..'), {
+  assert.deepEqual(countLiveQuestionStates('ccxaxx..'), {
     answered: 5,
     correct: 2,
     incorrect: 3,
