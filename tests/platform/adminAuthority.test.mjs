@@ -82,6 +82,8 @@ test('student erasure policy spans every server-owned Phase 5/6 student data fam
     'examSessions',
     'examSubmissions',
     'examIntegrityEvents',
+    'studentSupportEvents',
+    'studentSessionSummaries',
   ]) {
     assert.equal(queried.has(collectionName), true, `${collectionName} must be erased by studentId`);
   }
