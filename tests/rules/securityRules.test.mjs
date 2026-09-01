@@ -75,6 +75,8 @@ before(async () => {
       endedAt: 2,
       authorizedTeacherEmails: [TEACHER_A],
     });
+    await setDoc(doc(db, 'presence/STUDENT_A'), { studentId: 'STUDENT_A', classId: 'class-a', assignmentId: 'A1' });
+    await setDoc(doc(db, 'presence/STUDENT_B'), { studentId: 'STUDENT_B', classId: 'class-b', assignmentId: 'A2' });
   });
 });
 
@@ -249,6 +251,26 @@ test('a teacher who never taught the student and does not now is refused', async
   }
 });
 
+test('live presence is scoped to the teacher roster and owned by the student heartbeat', async () => {
+  await assertSucceeds(getDoc(doc(teacherA(), 'presence/STUDENT_A')));
+  await assertFails(getDoc(doc(teacherA(), 'presence/STUDENT_B')));
+  await assertFails(getDoc(doc(teacherB(), 'presence/STUDENT_A')));
+  await assertSucceeds(getDoc(doc(admin(), 'presence/STUDENT_B')));
+
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), {
+    studentId: 'STUDENT_A',
+    classId: 'class-a',
+    assignmentId: 'A1',
+  }, { merge: true }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_B'), {
+    studentId: 'STUDENT_B',
+    classId: 'class-b',
+  }, { merge: true }));
+  await assertFails(setDoc(doc(teacherA(), 'presence/STUDENT_A'), {
+    assignmentId: 'forged-by-teacher',
+  }, { merge: true }));
+});
+
 test('student support history is teacher-authorized and append-only', async () => {
   await assertSucceeds(getDoc(doc(teacherA(), 'studentSupportEvents/support-a')));
   await assertFails(getDoc(doc(teacherB(), 'studentSupportEvents/support-a')));
@@ -270,6 +292,26 @@ test('student support history is teacher-authorized and append-only', async () =
     authorizedTeacherEmails: [TEACHER_A],
     createdAt: '2026-09-01T12:05:00.000Z',
   }));
+
+  await assertFails(setDoc(doc(teacherA(), 'studentSupportEvents/support-shared'), {
+    schemaVersion: 1,
+    kind: 'watchPractice',
+    stage: 'actionTaken',
+    studentId: 'STUDENT_A',
+    classId: 'class-a',
+    createdByEmail: TEACHER_A,
+    authorizedTeacherEmails: [TEACHER_A, TEACHER_B],
+  }), 'a teacher cannot grant another teacher access while creating a support event');
+
+  await assertFails(setDoc(doc(teacherA(), 'studentSupportEvents/support-wrong-class'), {
+    schemaVersion: 1,
+    kind: 'watchPractice',
+    stage: 'actionTaken',
+    studentId: 'STUDENT_A',
+    classId: 'class-b',
+    createdByEmail: TEACHER_A,
+    authorizedTeacherEmails: [TEACHER_A],
+  }), 'support history must carry the student current class');
 
   await assertFails(setDoc(doc(teacherA(), 'studentSupportEvents/support-forged'), {
     schemaVersion: 1,
