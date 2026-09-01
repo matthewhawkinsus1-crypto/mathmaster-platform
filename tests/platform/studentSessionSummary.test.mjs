@@ -74,6 +74,33 @@ test('archived summary preserves compact objective counts and authorization cont
   assert.equal('activeUrl' in summary, false);
 });
 
+test('explicit session outcome counters override cumulative assignment progress', () => {
+  const summary = buildMergedSessionSummary({
+    studentId: 'S1',
+    observedAt: 5_000,
+    gradeData: {
+      classId: 'class-a',
+      classPeriod: 'Period 1',
+      assignedTeacherEmail: 'teacher.a@school.org',
+    },
+    live: {
+      assignmentId: 'A1',
+      startedAt: 1_000,
+      // The assignment already had five terminal answers from an earlier visit.
+      questionStates: 'ccccx.....',
+      // Only these two were finalized in THIS live session.
+      answeredCount: 2,
+      correctCount: 1,
+      accuracy: 50,
+      sessionActiveSeconds: 90,
+    },
+  });
+
+  assert.equal(summary.answered, 2);
+  assert.equal(summary.correct, 1);
+  assert.equal(summary.accuracy, 50);
+});
+
 test('repeat lifecycle deletions merge monotonically instead of becoming false extra sessions', () => {
   const first = buildMergedSessionSummary({
     studentId: 'S1',
