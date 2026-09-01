@@ -51,6 +51,35 @@ test('a heartbeat with no interaction reads as idle', () => {
   assert.match(row.headline, /^Idle \d+ min$/);
 });
 
+test('classwide quiet suppresses individual idle alarms during likely teacher talk or paper work', () => {
+  const roster = Array.from({ length: 6 }, (_, index) => student(`s${index}`, live({
+    questionStates: 'c.........',
+    lastInteractionAt: NOW - IDLE_AFTER_MS - 60000,
+    nowValue: NOW,
+  })));
+  const { rows, classStats } = summarizeLiveClass(roster, { nowValue: NOW, assignmentId: 'a1' });
+  assert.equal(classStats.idleShare, 1);
+  assert.ok(rows.every((entry) => !entry.flags.includes(LIVE_FLAGS.IDLE)));
+});
+
+test('one quiet student is still flagged when the rest of the room is working', () => {
+  const roster = [
+    student('idle', live({
+      questionStates: 'c.........',
+      lastInteractionAt: NOW - IDLE_AFTER_MS - 60000,
+      nowValue: NOW,
+    })),
+    ...['a', 'b', 'c', 'd', 'e'].map((id) => student(id, live({
+      questionStates: 'cccc......',
+      lastInteractionAt: NOW,
+      nowValue: NOW,
+    }))),
+  ];
+  const { rows, classStats } = summarizeLiveClass(roster, { nowValue: NOW, assignmentId: 'a1' });
+  assert.ok(classStats.idleShare < 0.67);
+  assert.ok(rows.find((entry) => entry.id === 'idle').flags.includes(LIVE_FLAGS.IDLE));
+});
+
 test('repeated attempts on one question flag as stuck', () => {
   const row = classifyLiveStudent(
     student('s1', live({ questionStates: 'cc........', currentAttempts: 3, questionIndex: 2 })),
@@ -130,14 +159,29 @@ test('the summary counts what the teacher reads at a glance', () => {
   assert.equal(counts.needsAttention, 2, 'not started and offline both need a look');
 });
 
-test('the payload carries no student response text', () => {
+test('the payload carries only coarse monitoring telemetry and no student response text', () => {
   const payload = buildLiveStatus({
     assignmentId: 'a1', questionStates: 'cc', nowValue: NOW,
     questionLabel: 'Solve for x', representation: 'graph',
+    focusLossCount: 3,
+    answeredCount: 5,
+    correctCount: 4,
+    accuracy: 80,
+    rapidCorrectCount: 2,
+    rapidDeepCorrectCount: 1,
+    timedIndependentCorrectCount: 4,
+    sessionActiveSeconds: 420,
   });
   const serialized = JSON.stringify(payload);
-  assert.ok(serialized.length < 400, `payload should stay tiny, was ${serialized.length} bytes`);
+  assert.ok(serialized.length < 650, `payload should stay compact, was ${serialized.length} bytes`);
   assert.ok(!('response' in payload) && !('answers' in payload));
+  assert.ok(!('url' in payload) && !('activeUrl' in payload) && !('keystrokes' in payload));
+  assert.equal(payload.focusLossCount, 3);
+  assert.equal(payload.answeredCount, 5);
+  assert.equal(payload.correctCount, 4);
+  assert.equal(payload.accuracy, 80);
+  assert.equal(payload.rapidCorrectCount, 2);
+  assert.equal(payload.sessionActiveSeconds, 420);
   assert.equal(payload.updatedAt, NOW);
 });
 

@@ -7,7 +7,8 @@ const { getFirestore, FieldPath, FieldValue } = require("firebase-admin/firestor
 const { getStorage } = require("firebase-admin/storage");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
-const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { onDocumentCreated, onDocumentDeleted, onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 
 const classroomLib = require("./lib/classroom");
@@ -50,6 +51,7 @@ const pathRouting = require("./lib/pathRouting");
 const pathContentRelease = require("./lib/pathContentRelease");
 const assignmentAi = require("./lib/assignmentAi");
 const ccmrAssignmentBank = require("./lib/ccmrAssignmentBank");
+const studentSessionSummary = require("./lib/studentSessionSummary");
 
 // HTTPS/callable transport must be reachable by the Firebase client SDK.
 // MathMaster authorization still happens INSIDE each callable through
@@ -381,6 +383,16 @@ async function reauthorizeStudentRecords(db, studentId, classRecord) {
     const snapshot = await db.collection(collectionSpec.path(studentId)).get();
     // eslint-disable-next-line no-await-in-loop
     counts[collectionSpec.label] = await apply(null, snapshot.docs);
+  }
+
+  // Support/intervention history and archived live-session summaries are
+  // top-level collections keyed by event/session, so reauthorization queries by
+  // studentId. The historical origin stays frozen; only the access list moves.
+  for (const collectionName of ["studentSupportEvents", "studentSessionSummaries"]) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await db.collection(collectionName).where("studentId", "==", studentId).get();
+    // eslint-disable-next-line no-await-in-loop
+    counts[collectionName] = await apply(null, snapshot.docs);
   }
 
   // The derived per-student documents are single records, not collections.
@@ -7740,6 +7752,105 @@ function translateAssignmentAiError(error) {
     "MathMaster Assignment AI hit a server error. Use the outside-AI import option while the server configuration is checked.",
   );
 }
+
+// Archive the LAST known state of a live presence session. Presence itself is
+// ephemeral; this durable record keeps only compact objective counts and the
+// teacher authorization context.
+const STUDENT_SESSION_SUMMARY_COLLECTION = "studentSessionSummaries";
+const PRESENCE_STALE_AFTER_MS = 3 * 60 * 1000;
+
+async function archiveStudentPresenceSnapshot({
+  live = {},
+  studentId: suppliedStudentId = null,
+  observedAt = null,
+} = {}) {
+  const studentId = String(suppliedStudentId || live.studentId || "").trim();
+  const assignmentId = String(live.assignmentId || "").trim();
+  const startedAt = Number(live.startedAt) || 0;
+  const summaryId = studentSessionSummary.sessionSummaryIdFor({ studentId, assignmentId, startedAt });
+  if (!summaryId) return false;
+
+  const db = getFirestore();
+  const grade = await db.collection("grades").doc(studentId).get();
+  const gradeData = grade.exists ? (grade.data() || {}) : {};
+  const ref = db.collection(STUDENT_SESSION_SUMMARY_COLLECTION).doc(summaryId);
+  const endedAt = Number(observedAt) || Number(live.updatedAt) || Date.now();
+
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const previous = snapshot.exists ? (snapshot.data() || {}) : {};
+    const summary = studentSessionSummary.buildMergedSessionSummary({
+      live,
+      gradeData,
+      studentId,
+      previous,
+      observedAt: endedAt,
+    });
+    if (!summary) return;
+
+    transaction.set(ref, {
+      ...summary,
+      updatedAt: FieldValue.serverTimestamp(),
+      createdAt: previous.createdAt || FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+  return true;
+}
+
+// Normal clean exit. The stable session id means an accidental duplicate delete
+// can only merge into the same compact record; it cannot manufacture another
+// class session.
+exports.archiveStudentPresenceSession = onDocumentDeleted("presence/{studentId}", async (event) => {
+  const live = event.data?.data() || {};
+  await archiveStudentPresenceSnapshot({
+    live,
+    studentId: event.params.studentId,
+    observedAt: Number(live.updatedAt) || Date.now(),
+  });
+});
+
+// Browsers cannot guarantee a Firestore delete when a Chromebook tab is killed,
+// the device sleeps, or Wi-Fi disappears. Sweep only documents whose heartbeat
+// has been stale for at least three minutes. The transaction re-checks the live
+// document immediately before deleting it, so a student who just reconnected is
+// never expired by an old query result. The deletion trigger above performs the
+// archive.
+exports.expireStaleStudentPresence = onSchedule({
+  schedule: "every 5 minutes",
+  // setGlobalOptions({ invoker: "public" }) exists for Firebase client callables.
+  // A scheduler job is server infrastructure, so override that global HTTPS
+  // setting here rather than exposing the cleanup endpoint publicly.
+  invoker: "private",
+}, async () => {
+  const db = getFirestore();
+  const cutoff = Date.now() - PRESENCE_STALE_AFTER_MS;
+  const stale = await db.collection("presence")
+    .where("updatedAt", "<", cutoff)
+    .limit(500)
+    .get();
+
+  let expired = 0;
+  for (const candidate of stale.docs) {
+    // eslint-disable-next-line no-await-in-loop
+    const didExpire = await db.runTransaction(async (transaction) => {
+      const current = await transaction.get(candidate.ref);
+      if (!current.exists) return false;
+      const live = current.data() || {};
+      if ((Number(live.updatedAt) || 0) >= cutoff) return false;
+      transaction.delete(candidate.ref);
+      return true;
+    });
+    if (didExpire) expired += 1;
+  }
+
+  if (expired) {
+    logger.info("Expired stale student presence documents", {
+      expired,
+      scanned: stale.size,
+      cutoff,
+    });
+  }
+});
 
 exports.hydrateAssignmentCcmr = onCall({
   timeoutSeconds: 60,

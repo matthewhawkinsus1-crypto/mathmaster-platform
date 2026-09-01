@@ -13,6 +13,8 @@ const STUDENT_QUERY_COLLECTIONS = Object.freeze([
   "examSessions",
   "examSubmissions",
   "examIntegrityEvents",
+  "studentSupportEvents",
+  "studentSessionSummaries",
 ]);
 
 const STUDENT_DIRECT_COLLECTIONS = Object.freeze([
@@ -54,6 +56,8 @@ const PREPRODUCTION_RESET_COLLECTIONS = Object.freeze([
   "examSessions",
   "examSubmissions",
   "examIntegrityEvents",
+  "studentSupportEvents",
+  "studentSessionSummaries",
   "studentMasteryProfiles",
   "studentRetentionSchedules",
 ]);

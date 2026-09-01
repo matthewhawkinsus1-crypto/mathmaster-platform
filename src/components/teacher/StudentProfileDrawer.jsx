@@ -3,6 +3,7 @@ import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import StudentLearningProfileView from './StudentLearningProfileView.jsx';
 import { resolveAdaptiveRigorFromProfile } from '../../platform/rigor/courseRigor.js';
 import { courseLabel, courseLevelLabel } from '../../../functions/shared/classModel.mjs';
+import { SUPPORT_EVENT_LABEL, SUPPORT_STAGE_LABEL } from '../../platform/teacher/studentSupportSignals.js';
 
 /*
  * ONE STUDENT, ONE ANSWER, FROM ANYWHERE.
@@ -57,6 +58,8 @@ export default function StudentProfileDrawer({
   plan = null,
   classRecord = null,
   courseContext = null,
+  supportEvents = [],
+  sessionSummaries = [],
   onClose = null,
   onOpenFullRecord = null,
   onOpenGradebook = null,
@@ -125,6 +128,68 @@ export default function StudentProfileDrawer({
           </section>
 
           <StudentLearningProfileView studentName={studentName} profile={profile} plan={plan} />
+
+          <section style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #eef0f2' }}>
+            <h3 style={{ margin: '0 0 5px', fontSize: 16 }}>Support & intervention history</h3>
+            <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: 12.5 }}>
+              System signals, teacher confirmations, dismissals and actions remain separate in this append-only history.
+            </p>
+            {supportEvents.length ? (
+              <div style={{ display: 'grid', gap: 7 }}>
+                {supportEvents.slice(0, 20).map((event) => {
+                  const date = new Date(event.createdAt || '');
+                  const when = Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
+                  return (
+                    <div key={event.id} style={{ padding: '9px 10px', borderRadius: 8, background: '#f8f9fa', border: '1px solid #eef0f2' }}>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                        <strong style={{ fontSize: 12.5 }}>{SUPPORT_EVENT_LABEL[event.kind] || event.kind}</strong>
+                        <span style={{ fontSize: 11, color: '#80868b' }}>{when}</span>
+                      </div>
+                      <div style={{ marginTop: 2, fontSize: 11.5, color: '#5f6368' }}>
+                        {SUPPORT_STAGE_LABEL[event.stage] || event.stage}{event.source ? ` · ${event.source}` : ''}
+                      </div>
+                      {event.summary && <div style={{ marginTop: 4, fontSize: 12, color: '#3c4043', lineHeight: 1.4 }}>{event.summary}</div>}
+                      {event.note && <div style={{ marginTop: 4, fontSize: 12, color: '#3c4043', lineHeight: 1.4 }}><strong>Teacher note:</strong> {event.note}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ color: '#80868b', fontSize: 12.5 }}>No stored support/intervention events for this student yet.</div>
+            )}
+          </section>
+
+          <section style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #eef0f2' }}>
+            <h3 style={{ margin: '0 0 5px', fontSize: 16 }}>Recent class-session summaries</h3>
+            <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: 12.5 }}>
+              Objective platform counts only. These summaries are supporting context, not behavior or integrity findings unless a teacher separately confirms a concern above.
+            </p>
+            {sessionSummaries.length ? (
+              <div style={{ display: 'grid', gap: 7 }}>
+                {sessionSummaries.slice(0, 8).map((summary) => {
+                  const ended = new Date(Number(summary.endedAt) || 0);
+                  const when = Number.isNaN(ended.getTime()) ? '' : ended.toLocaleString();
+                  const elapsedMinutes = Math.max(0, Math.round(((Number(summary.endedAt) || 0) - (Number(summary.startedAt) || 0)) / 60000));
+                  const activeMinutes = Math.max(0, Math.round((Number(summary.activeSeconds) || 0) / 60));
+                  return (
+                    <div key={summary.id} style={{ padding: '9px 10px', borderRadius: 8, background: '#fff', border: '1px solid #eef0f2' }}>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                        <strong style={{ fontSize: 12.5 }}>{summary.assignmentTitle || 'Assignment session'}</strong>
+                        <span style={{ fontSize: 11, color: '#80868b' }}>{when}</span>
+                      </div>
+                      <div style={{ marginTop: 3, fontSize: 11.5, color: '#5f6368', lineHeight: 1.45 }}>
+                        {activeMinutes} active min of {elapsedMinutes} elapsed · {Number(summary.answered) || 0} answered
+                        {summary.accuracy != null ? ` · ${summary.accuracy}% correct` : ''}
+                        {Number(summary.focusLossCount) > 0 ? ` · ${summary.focusLossCount} focus-loss event${Number(summary.focusLossCount) === 1 ? '' : 's'}` : ''}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ color: '#80868b', fontSize: 12.5 }}>No archived class-session summaries yet.</div>
+            )}
+          </section>
         </div>
 
         <footer style={{ display: 'flex', gap: 9, padding: '13px 22px', borderTop: '1px solid #eef0f2', background: '#f8f9fa', flexWrap: 'wrap' }}>

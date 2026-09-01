@@ -40,6 +40,10 @@ export const LIVE_FLAGS = Object.freeze({
 export const PACE_QUESTION_GAP = 3;
 export const ACCURACY_GAP_POINTS = 25;
 export const MIN_ANSWERED_FOR_ACCURACY = 3;
+// When most of the room goes quiet together, that is more likely teacher talk,
+// paper work or a class transition than twenty simultaneous off-task students.
+// Individual idle alerts are suppressed in that one circumstance.
+export const CLASSWIDE_QUIET_SHARE = 0.67;
 // Repeated wrong attempts on the same question is the clearest "come here" signal.
 export const STUCK_ATTEMPTS = 3;
 
@@ -75,6 +79,14 @@ export const buildLiveStatus = ({
   representation = 'text',
   questionStates = [],
   currentAttempts = 0,
+  focusLossCount = 0,
+  answeredCount = 0,
+  correctCount = 0,
+  accuracy = null,
+  rapidCorrectCount = 0,
+  rapidDeepCorrectCount = 0,
+  timedIndependentCorrectCount = 0,
+  sessionActiveSeconds = 0,
   lastInteractionAt = null,
   startedAt = null,
   nowValue = Date.now(),
@@ -92,6 +104,22 @@ export const buildLiveStatus = ({
   // A whole assignment's progress bar in a handful of bytes.
   questionStates: String(questionStates || '').slice(0, 200),
   currentAttempts: clampInt(currentAttempts),
+  // Coarse session telemetry only. No URLs, response text, keystrokes, or
+  // screenshots are collected. These are corroborating signals for a teacher
+  // review, never proof of behavior or academic integrity.
+  focusLossCount: clampInt(focusLossCount),
+  // Session-only terminal outcomes. Assignment progress stays in questionStates
+  // for the live tile, while review/archives use these counters so a resumed
+  // assignment cannot make yesterday's answers look like today's behavior.
+  answeredCount: clampInt(answeredCount),
+  correctCount: clampInt(correctCount),
+  accuracy: accuracy == null
+    ? null
+    : Math.max(0, Math.min(100, Math.round(Number(accuracy) || 0))),
+  rapidCorrectCount: clampInt(rapidCorrectCount),
+  rapidDeepCorrectCount: clampInt(rapidDeepCorrectCount),
+  timedIndependentCorrectCount: clampInt(timedIndependentCorrectCount),
+  sessionActiveSeconds: clampInt(sessionActiveSeconds),
   lastInteractionAt: toMillis(lastInteractionAt) ?? nowValue,
   startedAt: toMillis(startedAt) ?? nowValue,
   updatedAt: nowValue,
@@ -183,8 +211,14 @@ export const classifyLiveStudent = (student, { classStats = null, nowValue = Dat
   const counts = countQuestionStates(live.questionStates);
   const flags = [];
 
+  const classwideQuiet = Boolean(
+    classStats
+    && classStats.activeCount >= 4
+    && Number(classStats.idleShare) >= CLASSWIDE_QUIET_SHARE
+  );
+
   if (!isOnline) flags.push(LIVE_FLAGS.OFFLINE);
-  else if (idleMs >= IDLE_AFTER_MS) flags.push(LIVE_FLAGS.IDLE);
+  else if (idleMs >= IDLE_AFTER_MS && !classwideQuiet) flags.push(LIVE_FLAGS.IDLE);
 
   if (clampInt(live.currentAttempts) >= STUCK_ATTEMPTS) flags.push(LIVE_FLAGS.STUCK);
 
@@ -258,19 +292,25 @@ export const summarizeLiveClass = (students = [], { nowValue = Date.now(), assig
   // Pace is measured against the students who are actually working. Counting a
   // student whose laptop closed ten minutes ago drags the median down and makes
   // everyone still in the room look fine.
-  const active = relevant
+  const activeEntries = relevant
     .filter((entry) => {
       const live = entry.student?.liveStatus;
       if (!entry.onThisAssignment || !live?.assignmentId) return false;
       return nowValue - (toMillis(live.updatedAt) ?? 0) <= OFFLINE_AFTER_MS;
-    })
-    .map((entry) => countQuestionStates(entry.student.liveStatus.questionStates));
+    });
+  const active = activeEntries.map((entry) => countQuestionStates(entry.student.liveStatus.questionStates));
+  const quietCount = activeEntries.filter((entry) => {
+    const live = entry.student.liveStatus;
+    const lastInteractionAt = toMillis(live.lastInteractionAt) ?? toMillis(live.updatedAt) ?? nowValue;
+    return nowValue - lastInteractionAt >= IDLE_AFTER_MS;
+  }).length;
 
   const classStats = {
     medianAnswered: median(active.map((counts) => counts.answered)),
     meanAccuracy: mean(active.filter((counts) => counts.answered >= MIN_ANSWERED_FOR_ACCURACY)
       .map((counts) => counts.accuracy)),
     activeCount: active.length,
+    idleShare: active.length ? quietCount / active.length : 0,
   };
   if (classStats.meanAccuracy !== null) classStats.meanAccuracy = Math.round(classStats.meanAccuracy);
 

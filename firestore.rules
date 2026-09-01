@@ -7,19 +7,19 @@ service cloud.firestore {
     }
 
     function teacher() {
-      return signedIn() && request.auth.token.role == 'teacher';
+      return signedIn() && request.auth.token.get('role', '') == 'teacher';
     }
 
     function rootAdmin() {
       return teacher()
-        && request.auth.token.admin == true
-        && request.auth.token.rootAdmin == true;
+        && request.auth.token.get('admin', false) == true
+        && request.auth.token.get('rootAdmin', false) == true;
     }
 
     function ownsStudent(studentId) {
       return signedIn()
-        && request.auth.token.role == 'student'
-        && request.auth.token.studentId == studentId;
+        && request.auth.token.get('role', '') == 'student'
+        && request.auth.token.get('studentId', '') == studentId;
     }
 
     // A teacher's roster is the students in the classes they are teacher of
@@ -33,7 +33,7 @@ service cloud.firestore {
     // unplaced students findable and resolvable.
     function teachesStudent() {
       return teacher()
-        && resource.data.assignedTeacherEmail == request.auth.token.email;
+        && resource.data.get('assignedTeacherEmail', null) == request.auth.token.email;
     }
 
     // The same question for a child record — evidence, mastery, a scratchpad —
@@ -45,9 +45,31 @@ service cloud.firestore {
     // teacher, who needs the history to teach them. See the policy note in
     // functions/shared/authorizationContext.mjs.
     function authorizedTeacher() {
+      // hasAny works for both a stored list on a single-document get and the
+      // LIST_CONTAINS constraint Firestore exposes while proving an
+      // array-contains query. Using "in" here makes individual gets work but
+      // list queries fail even when they use the exact authorized-teacher
+      // constraint.
       return teacher()
-        && resource.data.authorizedTeacherEmails is list
-        && request.auth.token.email in resource.data.authorizedTeacherEmails;
+        && resource.data.authorizedTeacherEmails.hasAny([request.auth.token.email]);
+    }
+
+    // Presence is readable only for a student the signed-in teacher currently
+    // teaches. Live presence is intentionally NOT a school-wide teacher feed.
+    function teachesPresenceStudent(studentId) {
+      return teacher()
+        && get(/databases/$(database)/documents/grades/$(studentId)).data.get('assignedTeacherEmail', null)
+          == request.auth.token.email;
+    }
+
+    // Roster membership is authorization, not ordinary grade/profile data.
+    // Client updates may change student work fields, but moving a student or
+    // changing their teacher must go through the audited Admin SDK callables.
+    function rosterAuthorizationUnchanged() {
+      return request.resource.data.get('classId', null) == resource.data.get('classId', null)
+        && request.resource.data.get('classPeriod', null) == resource.data.get('classPeriod', null)
+        && request.resource.data.get('assignedTeacherEmail', null)
+          == resource.data.get('assignedTeacherEmail', null);
     }
 
     // Student work: students read/update only their own document; a teacher
@@ -57,7 +79,8 @@ service cloud.firestore {
     // student's complete cross-collection footprint.
     match /grades/{studentId} {
       allow read: if rootAdmin() || ownsStudent(studentId) || teachesStudent();
-      allow update: if rootAdmin() || ownsStudent(studentId) || teachesStudent();
+      allow update: if (rootAdmin() || ownsStudent(studentId) || teachesStudent())
+        && rosterAuthorizationUnchanged();
       // Creation stays open to any teacher: a roster row may be written before
       // the student has been placed in a class, and it carries no work yet.
       allow create: if teacher() || ownsStudent(studentId);
@@ -85,14 +108,63 @@ service cloud.firestore {
       }
     }
 
+    // Persistent teacher support / intervention history. This is deliberately
+    // separate from live presence: presence is ephemeral telemetry, while these
+    // records are the small set of signals, teacher confirmations, dismissals,
+    // interventions and follow-up actions worth keeping.
+    //
+    // Records are append-only. A machine signal is never edited into a teacher
+    // finding later; confirmation/dismissal/resolution is a new event. That
+    // preserves the audit distinction between "the system suggested" and "the
+    // teacher observed".
+    match /studentSupportEvents/{eventId} {
+      allow read: if rootAdmin() || authorizedTeacher();
+      allow create: if rootAdmin() || (
+        teacher()
+        && request.resource.data.studentId is string
+        && request.resource.data.createdByEmail == request.auth.token.email
+        && request.resource.data.authorizedTeacherEmails is list
+        // A teacher may not mint a record that grants another teacher access.
+        // Reassignment adds the next authorized teacher through the audited
+        // Admin SDK path later, while preserving the original teacher.
+        && request.resource.data.authorizedTeacherEmails.size() == 1
+        && request.auth.token.email in request.resource.data.authorizedTeacherEmails
+        && get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.get('assignedTeacherEmail', null) == request.auth.token.email
+        && (
+          (
+            get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.get('classId', null) != null
+            && request.resource.data.get('classId', null)
+              == get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.get('classId', null)
+          )
+          || (
+            get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.get('classId', null) == null
+            && request.resource.data.get('classPeriod', null)
+              == get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.get('classPeriod', null)
+          )
+        )
+      );
+      allow update, delete: if false;
+    }
+
+    // Compact server-generated session summaries. Students never write or read
+    // these directly. They contain only counts/durations already visible to the
+    // teacher in Live Class — no answers, URLs, screenshots or keystrokes.
+    match /studentSessionSummaries/{summaryId} {
+      allow read: if rootAdmin() || authorizedTeacher();
+      allow create, update, delete: if false;
+    }
+
     // Live class monitoring. Ephemeral by design: a student's client writes
     // its own document on a heartbeat and deletes it on leaving, and nothing
     // reads it outside the teacher's live grid. It carries no response text —
     // only which question the student is on and how many are right — so a
     // teacher reading it learns no more than walking past the desk.
     match /presence/{studentId} {
-      allow read: if teacher();
-      allow create, update, delete: if ownsStudent(studentId) || teacher();
+      allow read: if rootAdmin() || teachesPresenceStudent(studentId);
+      // A teacher observes presence; only the student owns the heartbeat. This
+      // prevents one teacher client from fabricating or clearing another
+      // student's live telemetry.
+      allow create, update, delete: if ownsStudent(studentId);
     }
 
     // Live Challenge. All writes go through Cloud Functions so a student can

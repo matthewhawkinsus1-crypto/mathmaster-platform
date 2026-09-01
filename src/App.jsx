@@ -199,6 +199,17 @@ import {
 import { resolveStudentCourseContext, studentsInClass, unplaceableStudents } from '../functions/shared/classModel.mjs';
 import { buildNeedsAttentionQueue } from './platform/teacher/needsAttention.js';
 import {
+  SUPPORT_EVENT_KIND,
+  SUPPORT_EVENT_STAGE,
+  summarizeRapidCorrectness,
+} from './platform/teacher/studentSupportSignals.js';
+import {
+  fetchStudentSupportHistory,
+  recordStudentSupportEvent,
+  subscribeStudentSessionSummaries,
+  subscribeStudentSupportEvents,
+} from './platform/teacher/studentSupportStore.js';
+import {
   buildHonorsEnrichmentQuestion,
   defaultCourseProfiles,
   inspectHonorsRigor,
@@ -372,6 +383,10 @@ function App() {
   // Live presence for the teacher home grid, keyed by student id. Never stored
   // alongside grades and never read outside the live view.
   const [presenceById, setPresenceById] = useState({});
+  // Persistent teacher-reviewed support history. Unlike presence, these are the
+  // small set of concerns, dismissals and interventions worth keeping.
+  const [studentSupportEvents, setStudentSupportEvents] = useState([]);
+  const [studentSessionSummaries, setStudentSessionSummaries] = useState([]);
   // Curriculum pacing and per-class skill overrides. Teacher-owned inputs to
   // the adaptive path engine, read by the student's Path, Recommended for You
   // and CCMR — a change here changes what a student is offered.
@@ -391,6 +406,14 @@ function App() {
   // Held here so the drawer opens OVER the teacher's current work rather than
   // navigating them away from the class monitor or gradebook they were reading.
   const [profileDrawerStudentId, setProfileDrawerStudentId] = useState(null);
+  // The global live dashboard keeps bounded recent data. Opening one student's
+  // profile performs a focused query so older history is not silently lost just
+  // because this teacher has many students/classes.
+  const [profileSupportHistory, setProfileSupportHistory] = useState({
+    studentId: null,
+    events: [],
+    summaries: [],
+  });
   const [weeklyPathTruncated, setWeeklyPathTruncated] = useState(false);
   // A prepared Classroom grade payload awaiting the teacher's review. Holding it
   // in state rather than sending it is the whole point: nothing reaches
@@ -813,6 +836,19 @@ function App() {
   const lastActivityRef = useRef(Date.now());
   // When the currently open assignment was started, for the live class grid.
   const liveStartedAtRef = useRef({ assignmentId: null, at: Date.now() });
+  // Count only page-visibility losses during the current assignment. We never
+  // record which tab/site was opened. This is corroborating telemetry only.
+  const liveFocusLossRef = useRef({ assignmentId: null, count: 0, hiddenAt: null });
+  // Dynamic question/progress state changes frequently. Keep the latest compact
+  // presence payload in a ref so those changes update the heartbeat WITHOUT
+  // tearing down the presence document (and therefore without creating an
+  // archive-trigger invocation on every answer/question change).
+  const livePresencePayloadRef = useRef(null);
+  // Session-only active time for the live monitor/archive. Assignment question
+  // timers are cumulative across resumes, and assignment-activity pending time
+  // is periodically flushed/reset, so neither is a valid class-session clock.
+  const liveSessionActiveSecondsRef = useRef({ assignmentId: null, seconds: 0 });
+  const liveSessionAttemptBaselineRef = useRef({ assignmentId: null, totalAttemptsByIndex: {} });
   const activeTimeRef = useRef(0);
   const pendingAssignmentSecondsRef = useRef(0);
   const lastDOLStatusRef = useRef({});
@@ -1529,40 +1565,113 @@ function App() {
   }, [isStudentAssignment, activeAssignmentId, isPracticeMode, assignmentActivity, tracker, classworkGradesByAssignment]);
 
 
-  // Live class monitoring. The student's client publishes a tiny snapshot of
-  // where it is — assignment, question, per-question progress — onto its own
-  // grades document, which teachers can already read. No new collection, no
-  // rules change, no stored history: the field is overwritten each heartbeat
-  // and cleared when the student leaves the assignment.
   useEffect(() => {
-    if (user?.role !== 'student' || !user.id) return undefined;
+    if (user?.role !== 'student' || !activeAssignmentId || activeView !== 'assignment') return undefined;
+    if (liveFocusLossRef.current.assignmentId !== activeAssignmentId) {
+      liveFocusLossRef.current = { assignmentId: activeAssignmentId, count: 0, hiddenAt: null };
+    }
 
-    // A dedicated presence document rather than a field on the grades doc:
-    // teachers stream this collection continuously, and a grades document
-    // carries a student's whole history, so putting a 20-second heartbeat on
-    // it would re-send all of that to every watching teacher each time.
-    const presenceRef = doc(db, 'presence', user.id);
-    const clearLiveStatus = () => {
-      deleteDoc(presenceRef).catch(() => { /* sign-out races are not worth reporting */ });
+    // Brief focus changes happen for notifications, accessibility tools,
+    // Classroom resources and accidental taps. They are too ambiguous to be
+    // useful. Count only a sustained hidden episode (8+ seconds), and still use
+    // it only as corroboration — never as proof of off-task behavior.
+    const MIN_FOCUS_LOSS_MS = 8000;
+    const onVisibility = () => {
+      if (liveFocusLossRef.current.assignmentId !== activeAssignmentId) return;
+      if (document.hidden) {
+        if (!liveFocusLossRef.current.hiddenAt) liveFocusLossRef.current.hiddenAt = Date.now();
+        return;
+      }
+      const hiddenAt = Number(liveFocusLossRef.current.hiddenAt) || 0;
+      if (hiddenAt && Date.now() - hiddenAt >= MIN_FOCUS_LOSS_MS) {
+        liveFocusLossRef.current.count += 1;
+      }
+      liveFocusLossRef.current.hiddenAt = null;
     };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [user?.role, activeAssignmentId, activeView]);
 
-    if (!isStudentAssignment || !activeAssignmentId || !activeAssignmentData) {
-      clearLiveStatus();
-      return undefined;
+  // Live class monitoring. Presence stays ephemeral: one tiny document per
+  // student is overwritten while they work and deleted when they leave. The
+  // deletion trigger archives only one compact session summary; it does not
+  // keep heartbeat history.
+  //
+  // IMPORTANT LIFECYCLE BOUNDARY:
+  // Question/attempt changes refresh the payload but DO NOT delete presence.
+  // Deletion belongs only to entering/leaving an assignment. That keeps the
+  // server archive trigger to one meaningful session boundary rather than one
+  // invocation per React state change.
+  useEffect(() => {
+    if (
+      user?.role !== 'student'
+      || !user.id
+      || !isStudentAssignment
+      || !activeAssignmentId
+      || !activeAssignmentData
+    ) {
+      livePresencePayloadRef.current = null;
+      return;
     }
 
     if (liveStartedAtRef.current.assignmentId !== activeAssignmentId) {
       liveStartedAtRef.current = { assignmentId: activeAssignmentId, at: Date.now() };
     }
+    if (liveSessionActiveSecondsRef.current.assignmentId !== activeAssignmentId) {
+      liveSessionActiveSecondsRef.current = { assignmentId: activeAssignmentId, seconds: 0 };
+    }
 
-    const publish = () => {
-      const included = getIncludedQuestionIndices(activeAssignmentData);
-      const question = activeQuestions[currentQuestionIndex];
-      const record = normalizeQuestionRecord(activeWorkingTracker?.[currentQuestionIndex]);
-      const sectionIndices = included.filter((index) => (
-        resolveQuestionActivityRole({ question: activeQuestions[index], assignment: activeAssignmentData }) === activeQuestionRole
-      ));
-      const payload = buildLiveStatus({
+    const included = getIncludedQuestionIndices(activeAssignmentData);
+    if (liveSessionAttemptBaselineRef.current.assignmentId !== activeAssignmentId) {
+      liveSessionAttemptBaselineRef.current = {
+        assignmentId: activeAssignmentId,
+        totalAttemptsByIndex: Object.fromEntries(included.map((index) => [
+          index,
+          Number(normalizeQuestionRecord(activeWorkingTracker?.[index]).totalAttempts) || 0,
+        ])),
+      };
+    }
+    const question = activeQuestions[currentQuestionIndex];
+    const record = normalizeQuestionRecord(activeWorkingTracker?.[currentQuestionIndex]);
+    const liveTracker = {
+      ...(activeWorkingTracker || {}),
+      [currentQuestionIndex]: {
+        ...record,
+        timeSpent: Math.max(Number(record.timeSpent) || 0, Number(activeTimeRef.current) || 0),
+      },
+    };
+    const sessionFinalizedIndices = included.filter((index) => {
+      const current = normalizeQuestionRecord(liveTracker?.[index]);
+      const baselineAttempts = Number(
+        liveSessionAttemptBaselineRef.current.totalAttemptsByIndex?.[index],
+      ) || 0;
+      return current.totalAttempts > baselineAttempts
+        && ['correct', 'expired'].includes(current.status);
+    });
+    const rapid = summarizeRapidCorrectness({
+      questions: activeQuestions,
+      tracker: liveTracker,
+      includedIndices: sessionFinalizedIndices,
+    });
+    const sectionIndices = included.filter((index) => (
+      resolveQuestionActivityRole({ question: activeQuestions[index], assignment: activeAssignmentData }) === activeQuestionRole
+    ));
+    const focusLossCount = liveFocusLossRef.current.assignmentId === activeAssignmentId
+      ? liveFocusLossRef.current.count + (
+        document.hidden
+        && Number(liveFocusLossRef.current.hiddenAt) > 0
+        && Date.now() - Number(liveFocusLossRef.current.hiddenAt) >= 8000
+          ? 1
+          : 0
+      )
+      : 0;
+
+    const payload = {
+      studentId: user.id,
+      name: user.name || user.id,
+      classId: user.classId || null,
+      classPeriod: user.classPeriod || '',
+      ...buildLiveStatus({
         assignmentId: activeAssignmentId,
         assignmentTitle: activeAssignmentData.title,
         activityRole: activeQuestionRole,
@@ -1574,46 +1683,188 @@ function App() {
         representation: getQuestionRepresentation(question),
         questionStates: encodeQuestionStates(activeWorkingTracker, included),
         currentAttempts: record.attemptCount,
-        // The idle timer already tracks real interaction — mouse, keys,
-        // clicks — so the live grid and the time-on-task accounting agree
-        // about what "working" means.
+        focusLossCount,
+        answeredCount: rapid.answered,
+        correctCount: rapid.correct,
+        accuracy: rapid.accuracy,
+        rapidCorrectCount: rapid.rapidCorrect,
+        rapidDeepCorrectCount: rapid.rapidDeepCorrect,
+        timedIndependentCorrectCount: rapid.timedIndependentCorrect,
+        sessionActiveSeconds: Math.max(0, Number(liveSessionActiveSecondsRef.current.seconds) || 0),
         lastInteractionAt: lastActivityRef.current,
         startedAt: liveStartedAtRef.current.at,
-      });
-      setDoc(presenceRef, {
-        studentId: user.id,
-        name: user.name || user.id,
-        classPeriod: user.classPeriod || '',
-        ...payload,
-      }).catch(() => { /* a missed heartbeat self-heals on the next one */ });
+      }),
     };
 
-    publish();
-    const interval = window.setInterval(publish, HEARTBEAT_INTERVAL_MS);
-    return () => {
-      window.clearInterval(interval);
-      clearLiveStatus();
-    };
+    // The heartbeat lifecycle below owns Firestore writes. Keeping question
+    // changes in this ref avoids deleting/recreating presence while still
+    // letting the next heartbeat publish the newest compact state.
+    livePresencePayloadRef.current = payload;
   }, [
     user, isStudentAssignment, activeAssignmentId, activeAssignmentData,
     currentQuestionIndex, activeWorkingTracker, activeQuestionRole,
   ]);
 
-  // Teachers stream presence only while the live grid is on screen, so a
-  // teacher sitting on Grades or Analytics is not paying for a listener.
   useEffect(() => {
-    if (user?.role !== 'teacher' || !['home', 'classesWorkspace'].includes(teacherTab)) return undefined;
-    return onSnapshot(
-      collection(db, 'presence'),
+    if (user?.role !== 'student' || !user.id) return undefined;
+    const presenceRef = doc(db, 'presence', user.id);
+    const sessionAssignmentId = activeAssignmentId;
+    let cancelled = false;
+    let interval = null;
+
+    const clearLiveStatus = () => {
+      // Do not erase a payload that already belongs to the NEXT assignment
+      // while React is cleaning up the previous assignment effect.
+      if (livePresencePayloadRef.current?.assignmentId === sessionAssignmentId) {
+        livePresencePayloadRef.current = null;
+      }
+      deleteDoc(presenceRef).catch(() => { /* sign-out races are not worth reporting */ });
+    };
+
+    if (!isStudentAssignment || !sessionAssignmentId || !activeAssignmentData?.id) {
+      livePresencePayloadRef.current = null;
+      deleteDoc(presenceRef).catch(() => { /* nothing live to preserve */ });
+      return undefined;
+    }
+
+    const publishLatest = () => {
+      if (cancelled) return;
+      const payload = livePresencePayloadRef.current;
+      if (!payload || payload.assignmentId !== sessionAssignmentId) return;
+      setDoc(presenceRef, payload).catch(() => {
+        /* a missed heartbeat self-heals on the next one */
+      });
+    };
+
+    // A reload can leave the prior session document behind. Delete it BEFORE
+    // publishing this new session. The server's delete trigger archives the old
+    // compact snapshot once; after that, ordinary heartbeats are only writes and
+    // do not invoke an archive function.
+    const startPresence = async () => {
+      try {
+        await deleteDoc(presenceRef);
+      } catch {
+        // Missing/offline cleanup is harmless; the first successful heartbeat
+        // still re-establishes presence.
+      }
+      if (cancelled) return;
+      publishLatest();
+      interval = window.setInterval(publishLatest, HEARTBEAT_INTERVAL_MS);
+    };
+
+    startPresence();
+    return () => {
+      cancelled = true;
+      if (interval) window.clearInterval(interval);
+      clearLiveStatus();
+    };
+  }, [
+    user?.role,
+    user?.id,
+    isStudentAssignment,
+    activeAssignmentId,
+    activeAssignmentData?.id,
+  ]);
+
+  // Persistent support/intervention history is teacher-authorized and
+  // append-only. It is loaded independently of the live presence stream.
+  useEffect(() => {
+    if (user?.role !== 'teacher' || !user.email) {
+      setStudentSupportEvents([]);
+      return undefined;
+    }
+    return subscribeStudentSupportEvents({
+      db,
+      teacherEmail: user.email,
+      onChange: setStudentSupportEvents,
+      onError: (error) => console.error('Student support history failed:', error),
+    });
+  }, [user?.role, user?.email]);
+
+  useEffect(() => {
+    if (user?.role !== 'teacher' || !user.email) {
+      setStudentSessionSummaries([]);
+      return undefined;
+    }
+    return subscribeStudentSessionSummaries({
+      db,
+      teacherEmail: user.email,
+      classIds: classes
+        .filter((entry) => entry?.status !== 'archived' && entry?.classId)
+        .map((entry) => entry.classId),
+      onChange: setStudentSessionSummaries,
+      onError: (error) => console.error('Student session summaries failed:', error),
+    });
+  }, [user?.role, user?.email, classes]);
+
+  const handleRecordStudentSupportEvent = async (event) => {
+    if (user?.role !== 'teacher' || !user.email) return null;
+    try {
+      const record = await recordStudentSupportEvent({
+        db,
+        teacherEmail: user.email,
+        event,
+      });
+      const label = event?.kind === SUPPORT_EVENT_KIND.PARENT_FOLLOW_UP
+        ? 'Parent follow-up recorded'
+        : event?.stage === SUPPORT_EVENT_STAGE.DISMISSED
+          ? 'Signal dismissal recorded'
+          : 'Student support note recorded';
+      toastSuccess(label, 'The event was added to the append-only student support history.');
+      return record;
+    } catch (error) {
+      console.error(error);
+      toastError('Could not save support note', error.message);
+      return null;
+    }
+  };
+
+  // Teachers stream presence only while the live grid is on screen. Subscribe
+  // to roster-owned documents individually rather than the whole collection:
+  // Firestore rules can then enforce that a teacher reads only students they
+  // currently teach. Presence should never become a school-wide teacher feed.
+  useEffect(() => {
+    if (user?.role !== 'teacher' || !['home', 'classesWorkspace'].includes(teacherTab)) {
+      setPresenceById({});
+      return undefined;
+    }
+
+    const rosterIds = [...new Set(
+      (Array.isArray(allStudents) ? allStudents : [])
+        .map((student) => String(student?.id || '').trim())
+        .filter(Boolean),
+    )];
+
+    if (!rosterIds.length) {
+      setPresenceById({});
+      return undefined;
+    }
+
+    const unsubs = rosterIds.map((studentId) => onSnapshot(
+      doc(db, 'presence', studentId),
       (snapshot) => {
-        setPresenceById(Object.fromEntries(snapshot.docs.map((presenceDoc) => [
-          presenceDoc.id,
-          presenceDoc.data(),
-        ])));
+        setPresenceById((current) => {
+          if (!snapshot.exists()) {
+            if (!Object.prototype.hasOwnProperty.call(current, studentId)) return current;
+            const next = { ...current };
+            delete next[studentId];
+            return next;
+          }
+          return { ...current, [studentId]: snapshot.data() };
+        });
       },
-      (error) => console.error('Live class update failed:', error),
-    );
-  }, [user, teacherTab]);
+      (error) => {
+        // One stale/reassigned roster row should not take the rest of the live
+        // room down. The scoped roster refresh will remove it on the next load.
+        console.error(`Live class update failed for ${studentId}:`, error);
+      },
+    ));
+
+    return () => {
+      unsubs.forEach((unsubscribe) => unsubscribe());
+      setPresenceById({});
+    };
+  }, [user?.role, teacherTab, allStudents]);
 
   // DOL reminders are global to the student experience, not just the open
   // assignment. The persistent purple DOL card/banner is the primary notice;
@@ -1727,6 +1978,9 @@ function App() {
       if (!isIdle) {
         activeTimeRef.current += 1;
         pendingAssignmentSecondsRef.current += 1;
+        if (liveSessionActiveSecondsRef.current.assignmentId === activeAssignmentId) {
+          liveSessionActiveSecondsRef.current.seconds += 1;
+        }
       }
     }, 1000);
 
@@ -1736,7 +1990,7 @@ function App() {
       window.removeEventListener('click', resetActivity);
       window.clearInterval(interval);
     };
-  }, [user, activeView, isIdle, activeSupportPresentation.disableIdleTimer]);
+  }, [user, activeView, activeAssignmentId, isIdle, activeSupportPresentation.disableIdleTimer]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || activeView !== 'assignment' || !activeAssignmentId) return undefined;
@@ -2014,6 +2268,17 @@ function App() {
     setAssignmentOverviewExpanded(false);
     lastActivityRef.current = Date.now();
     pendingAssignmentSecondsRef.current = 0;
+    liveSessionActiveSecondsRef.current = { assignmentId, seconds: 0 };
+    liveSessionAttemptBaselineRef.current = {
+      assignmentId,
+      totalAttemptsByIndex: Object.fromEntries(
+        getIncludedQuestionIndices(assignmentData).map((index) => [
+          index,
+          Number(normalizeQuestionRecord(tracker?.[assignmentId]?.[index]).totalAttempts) || 0,
+        ]),
+      ),
+    };
+    liveFocusLossRef.current = { assignmentId, count: 0, hiddenAt: null };
     setIsIdle(false);
 
     if (lifecycle.isPracticeOnly) {
@@ -3379,6 +3644,61 @@ function App() {
     () => allStudents.find((student) => student.id === profileDrawerStudentId) || null,
     [allStudents, profileDrawerStudentId],
   );
+
+  useEffect(() => {
+    if (user?.role !== 'teacher' || !user.email || !profileDrawerStudentId) {
+      setProfileSupportHistory({ studentId: null, events: [], summaries: [] });
+      return undefined;
+    }
+
+    let active = true;
+    setProfileSupportHistory({ studentId: profileDrawerStudentId, events: [], summaries: [] });
+    fetchStudentSupportHistory({
+      db,
+      teacherEmail: user.email,
+      studentId: profileDrawerStudentId,
+    }).then((history) => {
+      if (!active) return;
+      setProfileSupportHistory({
+        studentId: profileDrawerStudentId,
+        events: history.events || [],
+        summaries: history.summaries || [],
+      });
+    }).catch((error) => {
+      if (!active) return;
+      console.error('Could not load full student support history:', error);
+      // Recent globally subscribed records remain available below even if this
+      // focused historical read fails.
+      setProfileSupportHistory({ studentId: profileDrawerStudentId, events: [], summaries: [] });
+    });
+
+    return () => { active = false; };
+  }, [user?.role, user?.email, profileDrawerStudentId]);
+
+  const profileDrawerSupportEvents = useMemo(() => {
+    if (!profileDrawerStudentId) return [];
+    const merged = new Map();
+    [
+      ...(profileSupportHistory.studentId === profileDrawerStudentId ? profileSupportHistory.events : []),
+      ...studentSupportEvents.filter((event) => event.studentId === profileDrawerStudentId),
+    ].forEach((event) => {
+      const key = event.id || `${event.signalKey || ''}:${event.createdAt || ''}`;
+      merged.set(key, event);
+    });
+    return [...merged.values()].sort((a, b) => (
+      Date.parse(b.createdAt || '') - Date.parse(a.createdAt || '')
+    ));
+  }, [profileDrawerStudentId, profileSupportHistory, studentSupportEvents]);
+
+  const profileDrawerSessionSummaries = useMemo(() => {
+    if (!profileDrawerStudentId) return [];
+    const merged = new Map();
+    [
+      ...(profileSupportHistory.studentId === profileDrawerStudentId ? profileSupportHistory.summaries : []),
+      ...studentSessionSummaries.filter((summary) => summary.studentId === profileDrawerStudentId),
+    ].forEach((summary) => merged.set(summary.id || summary.sessionKey, summary));
+    return [...merged.values()].sort((a, b) => Number(b.endedAt || 0) - Number(a.endedAt || 0));
+  }, [profileDrawerStudentId, profileSupportHistory, studentSessionSummaries]);
 
   // The plan shown in the drawer is the SAME plan the student's own screen is
   // built from. If the two ever disagree, a teacher is being shown a
@@ -5578,6 +5898,8 @@ function App() {
                     setAssignments([]);
                     setAllStudents([]);
                     setPresenceById({});
+                    setStudentSupportEvents([]);
+                    setStudentSessionSummaries([]);
                     setAssignmentActivity({});
                     setDolGradesByAssignment({});
                     setClassworkGradesByAssignment({});
@@ -5688,6 +6010,8 @@ function App() {
           courseContext={profileDrawerStudent
             ? resolveStudentCourseContext({ student: profileDrawerStudent, classesById, courseProfiles })
             : null}
+          supportEvents={profileDrawerStudent ? profileDrawerSupportEvents : []}
+          sessionSummaries={profileDrawerStudent ? profileDrawerSessionSummaries : []}
           onClose={() => setProfileDrawerStudentId(null)}
           onOpenFullRecord={(studentId) => {
             setProfileDrawerStudentId(null);
@@ -6070,6 +6394,9 @@ function App() {
                 learningProfilesByStudentId={teacherLearningProfiles}
                 activeClassId={activeClass.classId}
                 classes={classes}
+                studentSupportEvents={studentSupportEvents}
+                studentSessionSummaries={studentSessionSummaries}
+                onRecordStudentSupportEvent={handleRecordStudentSupportEvent}
                 onOpenWeeklyPath={() => setTeacherTab('weeklyPath')}
                 onOpenAdministration={() => setTeacherWorkspaceMode('administration')}
                 onUnlockDOL={handleUnlockDOLForClass}

@@ -24,6 +24,7 @@ const PROJECT = 'mathmaster-rules-test';
 const ROOT_ADMIN = 'matthew.hawkins@desotoisd.org';
 const TEACHER_A = 'teacher.a@desotoisd.org';
 const TEACHER_B = 'teacher.b@desotoisd.org';
+const TEACHER_LEGACY = 'teacher.legacy@desotoisd.org';
 
 let env;
 
@@ -32,6 +33,7 @@ let env;
 const admin = () => env.authenticatedContext('uid-admin', { role: 'teacher', admin: true, rootAdmin: true, email: ROOT_ADMIN }).firestore();
 const teacherA = () => env.authenticatedContext('uid-a', { role: 'teacher', email: TEACHER_A }).firestore();
 const teacherB = () => env.authenticatedContext('uid-b', { role: 'teacher', email: TEACHER_B }).firestore();
+const teacherLegacy = () => env.authenticatedContext('uid-legacy', { role: 'teacher', email: TEACHER_LEGACY }).firestore();
 const studentA = () => env.authenticatedContext('uid-sa', { role: 'student', studentId: 'STUDENT_A' }).firestore();
 const studentB = () => env.authenticatedContext('uid-sb', { role: 'student', studentId: 'STUDENT_B' }).firestore();
 const stranger = () => env.unauthenticatedContext().firestore();
@@ -56,6 +58,28 @@ before(async () => {
     await setDoc(doc(db, 'grades/STUDENT_B'), { displayName: 'Student B', classId: 'class-b', classPeriod: 'Period 2', assignedTeacherEmail: TEACHER_B, status: 'active', gradesByAssignment: {} });
     // A student nobody has placed. Belongs to no teacher by construction.
     await setDoc(doc(db, 'grades/STUDENT_UNPLACED'), { displayName: 'Unplaced', classId: null, classPeriod: 'Unassigned', assignedTeacherEmail: null, status: 'active', gradesByAssignment: {} });
+    await setDoc(doc(db, 'grades/STUDENT_LEGACY'), { displayName: 'Legacy Student', classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_LEGACY, status: 'active', gradesByAssignment: {} });
+    await setDoc(doc(db, 'studentSupportEvents/support-a'), {
+      schemaVersion: 1,
+      kind: 'offTaskConcern',
+      stage: 'teacherConfirmed',
+      studentId: 'STUDENT_A',
+      classId: 'class-a',
+      createdByEmail: TEACHER_A,
+      authorizedTeacherEmails: [TEACHER_A],
+      createdAt: '2026-09-01T12:00:00.000Z',
+    });
+    await setDoc(doc(db, 'studentSessionSummaries/session-a'), {
+      schemaVersion: 1,
+      studentId: 'STUDENT_A',
+      classId: 'class-a',
+      assignmentId: 'A1',
+      startedAt: 1,
+      endedAt: 2,
+      authorizedTeacherEmails: [TEACHER_A],
+    });
+    await setDoc(doc(db, 'presence/STUDENT_A'), { studentId: 'STUDENT_A', classId: 'class-a', assignmentId: 'A1' });
+    await setDoc(doc(db, 'presence/STUDENT_B'), { studentId: 'STUDENT_B', classId: 'class-b', assignmentId: 'A2' });
   });
 });
 
@@ -138,6 +162,30 @@ test('moving a student to another class moves who can read them', async () => {
       classId: 'class-a', classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_A,
     }, { merge: true });
   });
+});
+
+test('teacher and student clients cannot rewrite roster authorization fields', async () => {
+  await assertFails(setDoc(doc(teacherA(), 'grades/STUDENT_A'), {
+    assignedTeacherEmail: TEACHER_B,
+  }, { merge: true }));
+  await assertFails(setDoc(doc(teacherA(), 'grades/STUDENT_A'), {
+    classId: 'class-b',
+    classPeriod: 'Period 2',
+  }, { merge: true }));
+  await assertFails(setDoc(doc(studentA(), 'grades/STUDENT_A'), {
+    assignedTeacherEmail: TEACHER_A,
+    classId: 'class-b',
+    classPeriod: 'Period 2',
+  }, { merge: true }));
+
+  // Ordinary work/profile fields are still writable by the identities that
+  // already own this roster row.
+  await assertSucceeds(setDoc(doc(teacherA(), 'grades/STUDENT_A'), {
+    teacherNoteMarker: 'allowed',
+  }, { merge: true }));
+  await assertSucceeds(setDoc(doc(studentA(), 'grades/STUDENT_A'), {
+    studentProgressMarker: 'allowed',
+  }, { merge: true }));
 });
 
 test('a stale denormalized teacher is what a partial move would leave behind', async () => {
@@ -228,6 +276,138 @@ test('a teacher who never taught the student and does not now is refused', async
   for (const path of CHILD_PATHS) {
     await assertFails(getDoc(doc(teacherC, path)));
   }
+});
+
+test('live presence is scoped to the teacher roster and owned by the student heartbeat', async () => {
+  await assertSucceeds(getDoc(doc(teacherA(), 'presence/STUDENT_A')));
+  await assertFails(getDoc(doc(teacherA(), 'presence/STUDENT_B')));
+  await assertFails(getDoc(doc(teacherB(), 'presence/STUDENT_A')));
+  await assertSucceeds(getDoc(doc(admin(), 'presence/STUDENT_B')));
+
+  await assertSucceeds(setDoc(doc(studentA(), 'presence/STUDENT_A'), {
+    studentId: 'STUDENT_A',
+    classId: 'class-a',
+    assignmentId: 'A1',
+  }, { merge: true }));
+  await assertFails(setDoc(doc(studentA(), 'presence/STUDENT_B'), {
+    studentId: 'STUDENT_B',
+    classId: 'class-b',
+  }, { merge: true }));
+  await assertFails(setDoc(doc(teacherA(), 'presence/STUDENT_A'), {
+    assignmentId: 'forged-by-teacher',
+  }, { merge: true }));
+});
+
+test('student support history is teacher-authorized and append-only', async () => {
+  await assertSucceeds(getDoc(doc(teacherA(), 'studentSupportEvents/support-a')));
+  await assertFails(getDoc(doc(teacherB(), 'studentSupportEvents/support-a')));
+  await assertFails(getDoc(doc(studentA(), 'studentSupportEvents/support-a')));
+
+  const mine = await assertSucceeds(getDocs(query(
+    collection(teacherA(), 'studentSupportEvents'),
+    where('authorizedTeacherEmails', 'array-contains', TEACHER_A),
+  )));
+  assert.equal(mine.docs.some((entry) => entry.id === 'support-a'), true);
+
+  await assertSucceeds(setDoc(doc(teacherA(), 'studentSupportEvents/support-new'), {
+    schemaVersion: 1,
+    kind: 'watchPractice',
+    stage: 'actionTaken',
+    studentId: 'STUDENT_A',
+    classId: 'class-a',
+    createdByEmail: TEACHER_A,
+    authorizedTeacherEmails: [TEACHER_A],
+    createdAt: '2026-09-01T12:05:00.000Z',
+  }));
+
+  await assertFails(setDoc(doc(teacherA(), 'studentSupportEvents/support-shared'), {
+    schemaVersion: 1,
+    kind: 'watchPractice',
+    stage: 'actionTaken',
+    studentId: 'STUDENT_A',
+    classId: 'class-a',
+    createdByEmail: TEACHER_A,
+    authorizedTeacherEmails: [TEACHER_A, TEACHER_B],
+  }), 'a teacher cannot grant another teacher access while creating a support event');
+
+  await assertFails(setDoc(doc(teacherA(), 'studentSupportEvents/support-wrong-class'), {
+    schemaVersion: 1,
+    kind: 'watchPractice',
+    stage: 'actionTaken',
+    studentId: 'STUDENT_A',
+    classId: 'class-b',
+    createdByEmail: TEACHER_A,
+    authorizedTeacherEmails: [TEACHER_A],
+  }), 'support history must carry the student current class');
+
+  await assertFails(setDoc(doc(teacherA(), 'studentSupportEvents/support-forged'), {
+    schemaVersion: 1,
+    kind: 'offTaskConcern',
+    stage: 'teacherConfirmed',
+    studentId: 'STUDENT_B',
+    createdByEmail: TEACHER_B,
+    authorizedTeacherEmails: [TEACHER_B],
+  }));
+  await assertFails(setDoc(doc(teacherA(), 'studentSupportEvents/support-other-roster'), {
+    schemaVersion: 1,
+    kind: 'watchPractice',
+    stage: 'actionTaken',
+    studentId: 'STUDENT_B',
+    createdByEmail: TEACHER_A,
+    authorizedTeacherEmails: [TEACHER_A],
+  }), 'a teacher cannot create support history for another teacher\'s roster');
+
+  // A signal is never rewritten into a fact. Confirmation/dismissal/resolution
+  // must be a new append-only event.
+  await assertFails(setDoc(doc(teacherA(), 'studentSupportEvents/support-a'), {
+    stage: 'resolved',
+  }, { merge: true }));
+});
+
+test('teacher support logging still works for an authorized legacy period roster row', async () => {
+  await assertSucceeds(setDoc(doc(teacherLegacy(), 'studentSupportEvents/support-legacy'), {
+    schemaVersion: 1,
+    kind: 'teacherIntervention',
+    stage: 'actionTaken',
+    studentId: 'STUDENT_LEGACY',
+    classId: null,
+    classPeriod: 'Period 1',
+    createdByEmail: TEACHER_LEGACY,
+    authorizedTeacherEmails: [TEACHER_LEGACY],
+    createdAt: '2026-09-01T12:10:00.000Z',
+  }));
+
+  await assertFails(setDoc(doc(teacherLegacy(), 'studentSupportEvents/support-legacy-wrong-period'), {
+    schemaVersion: 1,
+    kind: 'teacherIntervention',
+    stage: 'actionTaken',
+    studentId: 'STUDENT_LEGACY',
+    classId: null,
+    classPeriod: 'Period 2',
+    createdByEmail: TEACHER_LEGACY,
+    authorizedTeacherEmails: [TEACHER_LEGACY],
+  }));
+});
+
+test('archived session summaries are teacher-authorized and server-owned', async () => {
+  await assertSucceeds(getDoc(doc(teacherA(), 'studentSessionSummaries/session-a')));
+  await assertFails(getDoc(doc(teacherB(), 'studentSessionSummaries/session-a')));
+  await assertFails(getDoc(doc(studentA(), 'studentSessionSummaries/session-a')));
+
+  const mine = await assertSucceeds(getDocs(query(
+    collection(teacherA(), 'studentSessionSummaries'),
+    where('authorizedTeacherEmails', 'array-contains', TEACHER_A),
+  )));
+  assert.equal(mine.docs.some((entry) => entry.id === 'session-a'), true);
+
+  await assertFails(setDoc(doc(teacherA(), 'studentSessionSummaries/forged'), {
+    studentId: 'STUDENT_A',
+    authorizedTeacherEmails: [TEACHER_A],
+  }));
+  await assertFails(setDoc(doc(studentA(), 'studentSessionSummaries/forged-student'), {
+    studentId: 'STUDENT_A',
+    authorizedTeacherEmails: [TEACHER_A],
+  }));
 });
 
 test('a student cannot mint evidence that names a teacher, or none at all', async () => {
