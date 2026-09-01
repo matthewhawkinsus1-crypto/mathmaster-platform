@@ -10,7 +10,7 @@
 // the rules can be tested without a network and the Teacher Path Simulator can
 // reuse them against synthetic data.
 
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../../firebase.js';
 import { normalizeClassPacing } from './curriculumPacing.js';
@@ -20,6 +20,7 @@ export const PACING_DOC = 'classPacing';
 export const WEEKLY_GOAL_DOC = 'weeklyPathGoals';
 export const OVERRIDES_DOC = 'skillOverrides';
 export const HISTORY_COLLECTION = 'pathHistory';
+export const STUDENT_PATH_INTERVENTION_COLLECTION = 'studentPathInterventions';
 
 // A student's route history is a rolling window, not an archive. It exists to
 // explain the last few decisions to a teacher and to replay them in the
@@ -157,6 +158,68 @@ export const removeOverride = (overrides, { classId = '', skillId }) => normaliz
 
 export const pruneExpiredOverrides = (overrides, nowValue = Date.now()) => normalizeOverrides(overrides)
   .filter((entry) => !entry.expiresAt || new Date(entry.expiresAt).getTime() >= nowValue);
+
+/**
+ * One temporary, student-specific teacher recommendation.
+ *
+ * This is deliberately separate from class-wide overrides. A live intervention
+ * for one student must never change the recommendation wheel for the other 24
+ * students in the same class. The document is student-readable, so it contains
+ * only the instructional action — never private concern notes.
+ */
+export const normalizeStudentPathIntervention = (raw, nowValue = Date.now()) => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const studentId = String(raw.studentId || '').trim();
+  const skillId = String(raw.skillId || '').trim();
+  const expiresAt = Number(raw.expiresAt) || 0;
+  if (!studentId || !skillId || !expiresAt || expiresAt <= nowValue) return null;
+  return {
+    studentId,
+    classId: String(raw.classId || '').trim() || null,
+    skillId,
+    action: 'recommend',
+    expiresAt,
+    createdAt: Number(raw.createdAt) || null,
+    updatedAt: Number(raw.updatedAt) || null,
+    source: String(raw.source || 'teacher-live').slice(0, 60),
+  };
+};
+
+export const interventionAsOverride = (intervention, nowValue = Date.now()) => {
+  const normalized = normalizeStudentPathIntervention(intervention, nowValue);
+  if (!normalized) return null;
+  return {
+    classId: '',
+    skillId: normalized.skillId,
+    action: 'recommend',
+    expiresAt: new Date(normalized.expiresAt).toISOString(),
+    note: 'Teacher recommended this practice.',
+    createdAt: normalized.createdAt
+      ? new Date(normalized.createdAt).toISOString()
+      : new Date(nowValue).toISOString(),
+  };
+};
+
+export const subscribeStudentPathIntervention = ({
+  studentId,
+  onChange,
+  onError = null,
+  nowValue = () => Date.now(),
+} = {}) => {
+  const id = String(studentId || '').trim();
+  if (!id || typeof onChange !== 'function') return () => {};
+  return onSnapshot(
+    doc(db, STUDENT_PATH_INTERVENTION_COLLECTION, id),
+    (snapshot) => {
+      onChange(snapshot.exists()
+        ? normalizeStudentPathIntervention(snapshot.data(), nowValue())
+        : null);
+    },
+    (error) => {
+      if (typeof onError === 'function') onError(error);
+    },
+  );
+};
 
 // ------------------------------------------------------------- route history
 
