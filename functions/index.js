@@ -383,6 +383,16 @@ async function reauthorizeStudentRecords(db, studentId, classRecord) {
     counts[collectionSpec.label] = await apply(null, snapshot.docs);
   }
 
+  // Support/intervention history and archived live-session summaries are
+  // top-level collections keyed by event/session, so reauthorization queries by
+  // studentId. The historical origin stays frozen; only the access list moves.
+  for (const collectionName of ["studentSupportEvents", "studentSessionSummaries"]) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await db.collection(collectionName).where("studentId", "==", studentId).get();
+    // eslint-disable-next-line no-await-in-loop
+    counts[collectionName] = await apply(null, snapshot.docs);
+  }
+
   // The derived per-student documents are single records, not collections.
   for (const collectionName of ["studentMasteryProfiles", "studentRetentionSchedules"]) {
     const ref = db.collection(collectionName).doc(studentId);
@@ -7820,6 +7830,7 @@ exports.archiveStudentPresenceSession = onDocumentDeleted("presence/{studentId}"
       rapidCorrectCount: Math.max(previousRapid, Number(live.rapidCorrectCount) || 0),
       rapidDeepCorrectCount: Math.max(previousRapidDeep, Number(live.rapidDeepCorrectCount) || 0),
       timedIndependentCorrectCount: Math.max(previousTimed, Number(live.timedIndependentCorrectCount) || 0),
+      originClassId: previous.originClassId || String(live.classId || gradeData.classId || "").trim() || null,
       originTeacherEmail: previous.originTeacherEmail || assignedTeacherEmail || null,
       authorizedTeacherEmails: [...new Set([
         ...(Array.isArray(previous.authorizedTeacherEmails) ? previous.authorizedTeacherEmails : []),
