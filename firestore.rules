@@ -96,11 +96,14 @@ service cloud.firestore {
     // teacher observed".
     match /studentSupportEvents/{eventId} {
       allow read: if rootAdmin() || authorizedTeacher();
-      allow create: if teacher()
+      allow create: if rootAdmin() || (
+        teacher()
         && request.resource.data.studentId is string
         && request.resource.data.createdByEmail == request.auth.token.email
         && request.resource.data.authorizedTeacherEmails is list
-        && request.auth.token.email in request.resource.data.authorizedTeacherEmails;
+        && request.auth.token.email in request.resource.data.authorizedTeacherEmails
+        && get(/databases/$(database)/documents/grades/$(request.resource.data.studentId)).data.assignedTeacherEmail == request.auth.token.email
+      );
       allow update, delete: if false;
     }
 
