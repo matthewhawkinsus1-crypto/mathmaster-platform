@@ -1671,12 +1671,10 @@ function App() {
       }),
     };
 
+    // The heartbeat lifecycle below owns Firestore writes. Keeping question
+    // changes in this ref avoids deleting/recreating presence while still
+    // letting the next heartbeat publish the newest compact state.
     livePresencePayloadRef.current = payload;
-    // Push significant state changes immediately; the lifecycle effect below
-    // still supplies the normal heartbeat if nothing changes.
-    setDoc(doc(db, 'presence', user.id), payload).catch(() => {
-      /* a missed update self-heals on the next heartbeat */
-    });
   }, [
     user, isStudentAssignment, activeAssignmentId, activeAssignmentData,
     currentQuestionIndex, activeWorkingTracker, activeQuestionRole,
@@ -1685,28 +1683,54 @@ function App() {
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) return undefined;
     const presenceRef = doc(db, 'presence', user.id);
+    const sessionAssignmentId = activeAssignmentId;
+    let cancelled = false;
+    let interval = null;
+
     const clearLiveStatus = () => {
-      livePresencePayloadRef.current = null;
+      // Do not erase a payload that already belongs to the NEXT assignment
+      // while React is cleaning up the previous assignment effect.
+      if (livePresencePayloadRef.current?.assignmentId === sessionAssignmentId) {
+        livePresencePayloadRef.current = null;
+      }
       deleteDoc(presenceRef).catch(() => { /* sign-out races are not worth reporting */ });
     };
 
-    if (!isStudentAssignment || !activeAssignmentId || !activeAssignmentData?.id) {
-      clearLiveStatus();
+    if (!isStudentAssignment || !sessionAssignmentId || !activeAssignmentData?.id) {
+      livePresencePayloadRef.current = null;
+      deleteDoc(presenceRef).catch(() => { /* nothing live to preserve */ });
       return undefined;
     }
 
     const publishLatest = () => {
+      if (cancelled) return;
       const payload = livePresencePayloadRef.current;
-      if (!payload || payload.assignmentId !== activeAssignmentId) return;
+      if (!payload || payload.assignmentId !== sessionAssignmentId) return;
       setDoc(presenceRef, payload).catch(() => {
         /* a missed heartbeat self-heals on the next one */
       });
     };
 
-    publishLatest();
-    const interval = window.setInterval(publishLatest, HEARTBEAT_INTERVAL_MS);
+    // A reload can leave the prior session document behind. Delete it BEFORE
+    // publishing this new session. The server's delete trigger archives the old
+    // compact snapshot once; after that, ordinary heartbeats are only writes and
+    // do not invoke an archive function.
+    const startPresence = async () => {
+      try {
+        await deleteDoc(presenceRef);
+      } catch {
+        // Missing/offline cleanup is harmless; the first successful heartbeat
+        // still re-establishes presence.
+      }
+      if (cancelled) return;
+      publishLatest();
+      interval = window.setInterval(publishLatest, HEARTBEAT_INTERVAL_MS);
+    };
+
+    startPresence();
     return () => {
-      window.clearInterval(interval);
+      cancelled = true;
+      if (interval) window.clearInterval(interval);
       clearLiveStatus();
     };
   }, [
