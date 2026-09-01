@@ -39,6 +39,7 @@ import {
   recordQuestionStep,
   requestReplacementQuestion,
   resolveQuestionMaximumAttempts,
+  resolveQuestionReplacementAllowed,
 } from './attemptPolicy';
 import {
   parseAssignmentBlueprintText,
@@ -4988,11 +4989,14 @@ function App() {
     const runtimeActivityRole = !preview && lifecycle.isPracticeOnly ? 'practice' : activeQuestionRole;
     const runtimeActivityPolicy = getEffectiveActivityPolicy(runtimeActivityRole);
     const currentQuestionBlueprint = questions[currentQuestionIndex];
-    const currentChoiceCanRefresh = !isChoiceOnlyQuestion(currentQuestionBlueprint)
-      || isPersonalizedBlueprint(currentQuestionBlueprint);
-    const runtimeQuestionActivityPolicy = currentChoiceCanRefresh
+    const currentReplacementAllowed = resolveQuestionReplacementAllowed({
+      question: currentQuestionBlueprint,
+      activityPolicy: runtimeActivityPolicy,
+      canGenerateFresh: isPersonalizedBlueprint(currentQuestionBlueprint),
+    });
+    const runtimeQuestionActivityPolicy = currentReplacementAllowed === runtimeActivityPolicy.allowReplacement
       ? runtimeActivityPolicy
-      : { ...runtimeActivityPolicy, allowReplacement: false };
+      : { ...runtimeActivityPolicy, allowReplacement: currentReplacementAllowed };
     const currentSectionVariantMode = getSectionVariantMode(assignment, activeQuestionRole);
     const generationStudentKey = currentSectionVariantMode === 'shared'
       ? `shared-version:${assignment.id}:${activeQuestionRole}`
