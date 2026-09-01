@@ -378,6 +378,7 @@ export const buildParentFollowUpCandidates = ({
         confirmedProductivityDays: new Set(),
         systemProductivityDays: new Set(),
         systemProductivitySignals: [],
+        manualParentFollowUp: false,
         recentParentContact: false,
       });
     }
@@ -401,6 +402,12 @@ export const buildParentFollowUpCandidates = ({
       ) {
         const day = eventDateKey(event);
         if (day) entry.confirmedProductivityDays.add(day);
+      }
+      if (
+        event.kind === SUPPORT_EVENT_KIND.PARENT_FOLLOW_UP
+        && event.stage === SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED
+      ) {
+        entry.manualParentFollowUp = true;
       }
       if (
         event.kind === SUPPORT_EVENT_KIND.PARENT_FOLLOW_UP
@@ -437,13 +444,15 @@ export const buildParentFollowUpCandidates = ({
       systemProductivityDays: [...entry.systemProductivityDays],
       score: entry.completionSignals.length
         + entry.confirmedProductivityDays.size * 3
-        + entry.systemProductivityDays.size,
+        + entry.systemProductivityDays.size
+        + (entry.manualParentFollowUp ? 4 : 0),
     }))
     .filter((entry) => {
       if (entry.recentParentContact) return false;
-      // A parent list should never be generated from platform telemetry alone.
-      // Require either repeated teacher confirmation, or one teacher-confirmed
-      // concern plus corroborating completion/session evidence.
+      // A teacher can explicitly add a student to follow-up from Live Class.
+      // Otherwise a parent list should never be generated from platform
+      // telemetry alone: it needs teacher-confirmed productivity evidence.
+      if (entry.manualParentFollowUp) return true;
       if (entry.confirmedProductivityDays.length >= 2) return true;
       if (entry.confirmedProductivityDays.length >= 1
         && (entry.completionSignals.length >= 1 || entry.systemProductivityDays.length >= 1)) return true;
