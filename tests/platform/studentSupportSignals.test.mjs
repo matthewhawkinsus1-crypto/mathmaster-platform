@@ -9,6 +9,7 @@ import {
   buildParentFollowUpCandidates,
   buildSuggestedSmallGroups,
   buildWatchPracticeList,
+  hasDismissedSignal,
   rapidCorrectThresholdSeconds,
   sessionProductivitySignal,
   summarizeRapidCorrectness,
@@ -308,4 +309,93 @@ test('Watch Practice is short and prioritizes students with active classroom nee
   const watch = buildWatchPracticeList({ rows, maxStudents: 6 });
   assert.equal(watch.length, 6);
   assert.ok(watch.slice(0, 4).every((entry) => entry.reasons.includes('repeated attempts')));
+});
+
+
+test('teacher-added Parent Follow-Up appears immediately without pretending telemetry caused it', () => {
+  const candidates = buildParentFollowUpCandidates({
+    supportEvents: [{
+      kind: SUPPORT_EVENT_KIND.PARENT_FOLLOW_UP,
+      stage: SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED,
+      studentId: 's1',
+      studentName: 'Student One',
+      createdAt: '2026-09-01T14:30:00.000Z',
+    }],
+    nowValue: NOW,
+  });
+  assert.equal(candidates.length, 1);
+  assert.equal(candidates[0].manualParentFollowUp, true);
+});
+
+test('resolved Watch Practice does not keep pinning the student for seven days', () => {
+  const supportEvents = [
+    {
+      kind: SUPPORT_EVENT_KIND.WATCH_PRACTICE,
+      stage: SUPPORT_EVENT_STAGE.ACTION_TAKEN,
+      studentId: 's1',
+      createdAt: '2026-09-01T14:00:00.000Z',
+    },
+    {
+      kind: SUPPORT_EVENT_KIND.RESOLVED,
+      stage: SUPPORT_EVENT_STAGE.RESOLVED,
+      studentId: 's1',
+      createdAt: '2026-09-01T14:10:00.000Z',
+    },
+  ];
+  const neutral = row({ flags: [], severity: LIVE_SEVERITY.OK });
+  const watch = buildWatchPracticeList({
+    rows: [neutral],
+    supportEvents,
+    nowValue: NOW,
+  });
+  assert.deepEqual(watch, []);
+});
+
+test('a later Watch Practice action can intentionally put a resolved student back on the list', () => {
+  const supportEvents = [
+    {
+      kind: SUPPORT_EVENT_KIND.RESOLVED,
+      stage: SUPPORT_EVENT_STAGE.RESOLVED,
+      studentId: 's1',
+      createdAt: '2026-09-01T14:00:00.000Z',
+    },
+    {
+      kind: SUPPORT_EVENT_KIND.WATCH_PRACTICE,
+      stage: SUPPORT_EVENT_STAGE.ACTION_TAKEN,
+      studentId: 's1',
+      createdAt: '2026-09-01T14:10:00.000Z',
+    },
+  ];
+  const neutral = row({ flags: [], severity: LIVE_SEVERITY.OK });
+  const watch = buildWatchPracticeList({
+    rows: [neutral],
+    supportEvents,
+    nowValue: NOW,
+  });
+  assert.equal(watch.length, 1);
+  assert.ok(watch[0].reasons.includes('teacher watch-list'));
+});
+
+test('dismissed signals stay quiet for the same session but do not suppress a later session', () => {
+  const events = [{
+    kind: SUPPORT_EVENT_KIND.SIGNAL_DISMISSED,
+    stage: SUPPORT_EVENT_STAGE.DISMISSED,
+    studentId: 's1',
+    assignmentId: 'a1',
+    sessionKey: 'a1:1000',
+    createdAt: '2026-09-01T14:00:00.000Z',
+  }];
+  assert.equal(hasDismissedSignal({
+    supportEvents: events,
+    studentId: 's1',
+    assignmentId: 'a1',
+    sessionKey: 'a1:1000',
+  }), true);
+  assert.equal(hasDismissedSignal({
+    supportEvents: events,
+    studentId: 's1',
+    assignmentId: 'a1',
+    sessionKey: 'a1:2000',
+    afterMs: Date.parse('2026-09-01T14:30:00.000Z'),
+  }), false);
 });
