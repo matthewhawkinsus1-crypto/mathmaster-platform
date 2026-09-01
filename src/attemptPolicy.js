@@ -57,6 +57,16 @@ export const resolveQuestionMaximumAttempts = ({
   return isChoiceOnlyQuestion(question) ? 1 : requested;
 };
 
+export const resolveQuestionReplacementAllowed = ({
+  question = {},
+  activityPolicy = null,
+  canGenerateFresh = false,
+} = {}) => {
+  if (activityPolicy?.allowReplacement !== true) return false;
+  if (!isChoiceOnlyQuestion(question)) return true;
+  return Boolean(canGenerateFresh);
+};
+
 export const emptyQuestionRecord = () => ({
   status: 'unattempted',
   attemptCount: 0,
