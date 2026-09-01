@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  getDocs,
   limit,
   onSnapshot,
   orderBy,
@@ -135,34 +136,106 @@ export const subscribeStudentSupportEvents = ({
 export const subscribeStudentSessionSummaries = ({
   db,
   teacherEmail,
+  classIds = [],
   onChange,
   onError = null,
 } = {}) => {
   const email = clean(teacherEmail).toLowerCase();
   if (!db || !email || typeof onChange !== 'function') return () => {};
 
-  const q = query(
-    collection(db, STUDENT_SESSION_SUMMARY_COLLECTION),
-    where('authorizedTeacherEmails', 'array-contains', email),
-    orderBy('endedAt', 'desc'),
-    limit(1000),
-  );
+  const normalizedClassIds = [...new Set(
+    list(classIds).map((value) => clean(value)).filter(Boolean),
+  )];
 
-  return onSnapshot(
-    q,
-    (snapshot) => {
-      const summaries = snapshot.docs
-        .map((entry) => ({ id: entry.id, ...entry.data() }))
-        .sort((a, b) => (
-          Number(b.endedAt || 0) - Number(a.endedAt || 0)
-          || String(b.id).localeCompare(String(a.id))
-        ));
-      onChange(summaries);
-    },
-    (error) => {
-      if (typeof onError === 'function') onError(error);
-    },
-  );
+  const sortSummaries = (summaries) => [...summaries].sort((a, b) => (
+    Number(b.endedAt || 0) - Number(a.endedAt || 0)
+    || String(b.id).localeCompare(String(a.id))
+  ));
+
+  if (!normalizedClassIds.length) {
+    const q = query(
+      collection(db, STUDENT_SESSION_SUMMARY_COLLECTION),
+      where('authorizedTeacherEmails', 'array-contains', email),
+      orderBy('endedAt', 'desc'),
+      limit(1000),
+    );
+    return onSnapshot(
+      q,
+      (snapshot) => onChange(sortSummaries(
+        snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+      )),
+      (error) => {
+        if (typeof onError === 'function') onError(error);
+      },
+    );
+  }
+
+  // One bounded listener per class is cheaper and more useful than letting a
+  // busy teacher's newest 1,000 sessions crowd every older class out of the
+  // dashboard. Each class keeps enough history for multi-day productivity
+  // review while remaining bounded.
+  const byClass = new Map();
+  const emit = () => {
+    const merged = new Map();
+    [...byClass.values()].flat().forEach((summary) => merged.set(summary.id, summary));
+    onChange(sortSummaries([...merged.values()]));
+  };
+
+  const unsubs = normalizedClassIds.map((classId) => {
+    const q = query(
+      collection(db, STUDENT_SESSION_SUMMARY_COLLECTION),
+      where('authorizedTeacherEmails', 'array-contains', email),
+      where('classId', '==', classId),
+      orderBy('endedAt', 'desc'),
+      limit(1000),
+    );
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        byClass.set(classId, snapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })));
+        emit();
+      },
+      (error) => {
+        if (typeof onError === 'function') onError(error);
+      },
+    );
+  });
+
+  return () => unsubs.forEach((unsubscribe) => unsubscribe());
+};
+
+export const fetchStudentSupportHistory = async ({
+  db,
+  teacherEmail,
+  studentId,
+  supportLimit = 200,
+  sessionLimit = 120,
+} = {}) => {
+  const email = clean(teacherEmail).toLowerCase();
+  const student = clean(studentId);
+  if (!db || !email || !student) return { events: [], summaries: [] };
+
+  const [eventSnapshot, sessionSnapshot] = await Promise.all([
+    getDocs(query(
+      collection(db, STUDENT_SUPPORT_COLLECTION),
+      where('authorizedTeacherEmails', 'array-contains', email),
+      where('studentId', '==', student),
+      orderBy('createdAt', 'desc'),
+      limit(Math.max(1, Math.min(500, Number(supportLimit) || 200))),
+    )),
+    getDocs(query(
+      collection(db, STUDENT_SESSION_SUMMARY_COLLECTION),
+      where('authorizedTeacherEmails', 'array-contains', email),
+      where('studentId', '==', student),
+      orderBy('endedAt', 'desc'),
+      limit(Math.max(1, Math.min(365, Number(sessionLimit) || 120))),
+    )),
+  ]);
+
+  return {
+    events: eventSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+    summaries: sessionSnapshot.docs.map((entry) => ({ id: entry.id, ...entry.data() })),
+  };
 };
 
 export const supportEventsForClass = (events = [], classId = null, classPeriod = null) => (
