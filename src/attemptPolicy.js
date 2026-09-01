@@ -8,6 +8,7 @@ const SIMPLE_CHOICE_TYPES = new Set([
   'singlechoice',
   'single-choice',
   'choice',
+  'numberline',
 ]);
 
 const choiceProfile = (field = {}) => String(
@@ -32,6 +33,7 @@ const isChoiceField = (field = {}) => (
 export const isChoiceOnlyQuestion = (question = {}) => {
   const type = String(question?.type || question?.toolId || '').trim().toLowerCase();
   if (!SIMPLE_CHOICE_TYPES.has(type)) return false;
+  if (type === 'numberline') return Array.isArray(question?.choices) && question.choices.length > 1;
   if (type !== 'multianswer') return true;
 
   const fields = [
