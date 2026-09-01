@@ -52,6 +52,8 @@ test('reset collection policy deletes test/runtime state but explicitly preserve
     'examSessions',
     'examSubmissions',
     'examIntegrityEvents',
+    'studentSupportEvents',
+    'studentSessionSummaries',
     'studentMasteryProfiles',
     'studentRetentionSchedules',
   ]) {
@@ -173,6 +175,8 @@ test('root Administration exposes a dedicated pre-production reset tab and refre
   assert.match(app, /adminTab === 'reset'/);
   assert.match(app, /setAssignments\(\[\]\)/);
   assert.match(app, /setAllStudents\(\[\]\)/);
+  assert.match(app, /setStudentSupportEvents\(\[\]\)/);
+  assert.match(app, /setStudentSessionSummaries\(\[\]\)/);
   assert.match(app, /fetchAssignments\(\)/);
   assert.match(app, /fetchStudents\(\)/);
 });
