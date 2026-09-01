@@ -13,9 +13,10 @@ import { formatStudentName } from './platform/studentName.js';
 // reconstructed from a few hundred bytes rather than a video frame — and it is
 // readable at thumbnail size in a way a real screenshot never is.
 //
-// The payload lives on a single `liveStatus` field of the student's existing
-// grades document. It is overwritten on every heartbeat and cleared on sign
-// out, so nothing accumulates and no new collection or security rule is needed.
+// The payload lives in one ephemeral `presence/{studentId}` document. It is
+// overwritten on every heartbeat and deleted when the student leaves. A server
+// trigger archives only one compact session summary at the session boundary;
+// raw heartbeat history is never retained.
 
 export const HEARTBEAT_INTERVAL_MS = 20000;
 // A tile goes grey when a heartbeat is this late — a closed laptop, a dropped
