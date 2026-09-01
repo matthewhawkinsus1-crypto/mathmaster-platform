@@ -9,6 +9,7 @@ import {
   SUPPORT_EVENT_KIND,
   SUPPORT_EVENT_STAGE,
   buildIntegrityReviewSignal,
+  hasDismissedSignal,
 } from '../../platform/teacher/studentSupportSignals.js';
 
 // A tile per student, sorted so whoever needs the teacher is first. The
@@ -229,6 +230,7 @@ export default function LiveClassMonitor({
   // that happen to share a period label into one live grid.
   activeClassId = null,
   classes = [],
+  supportEvents = [],
   onRecordSupportEvent = null,
 }) {
   // Opens on whichever period is in session; the teacher can widen it from
@@ -268,12 +270,21 @@ export default function LiveClassMonitor({
 
   const integrityByStudentId = useMemo(() => Object.fromEntries(
     visibleRows
+      .filter((row) => !hasDismissedSignal({
+        supportEvents,
+        studentId: row.id,
+        assignmentId: row.live?.assignmentId || null,
+        sessionKey: row.live?.assignmentId && row.live?.startedAt
+          ? `${row.live.assignmentId}:${row.live.startedAt}`
+          : null,
+        afterMs: Number(row.live?.startedAt) || 0,
+      }))
       .map((row) => [row.id, buildIntegrityReviewSignal({
         row,
         profile: learningProfilesByStudentId[row.id] || null,
       })])
       .filter(([, signal]) => Boolean(signal)),
-  ), [visibleRows, learningProfilesByStudentId]);
+  ), [visibleRows, learningProfilesByStudentId, supportEvents]);
 
   const handleSupportAction = (row, kind, stage, integritySignal = null) => {
     if (!onRecordSupportEvent) return;
