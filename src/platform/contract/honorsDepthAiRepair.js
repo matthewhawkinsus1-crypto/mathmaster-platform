@@ -1,5 +1,3 @@
-import { buildAuthoringContract } from './authoringContract.js';
-
 const clean = (value) => String(value ?? '').trim();
 
 const MISSING_LABELS = Object.freeze({
@@ -191,34 +189,41 @@ export const buildHonorsDepthAiRepairRequest = ({
     throw new Error('There are no non-CCMR Honors depth gaps for AI to repair.');
   }
 
-  const contract = buildAuthoringContract({ courseId });
+  const repairSnapshot = {
+    schemaVersion: 5,
+    assignment: {
+      title: clean(assignmentV5?.assignment?.title),
+      courseId,
+      instructionalPurpose: clean(assignmentV5?.assignment?.instructionalPurpose) || 'lesson',
+      gradingPurpose: clean(assignmentV5?.assignment?.gradingPurpose) || 'classwork',
+    },
+    sections: Array.isArray(assignmentV5.sections) ? assignmentV5.sections : [],
+  };
 
   return [
     '# MathMaster Honors-depth repair',
     '',
     'Repair the current assignment only enough to satisfy the listed Honors depth gaps.',
-    'Return exactly one complete MathMaster Assignment V5 JSON object and nothing else.',
+    'Return exactly one MathMaster Assignment V5 JSON object and nothing else.',
+    'The object MUST contain schemaVersion, assignment, and sections. Assignment-level delivery/support/output policies are intentionally omitted from the repair packet because MathMaster preserves them automatically.',
     '',
     `Course: ${courseId}`,
     `Non-CCMR Honors gaps to repair: ${honorsMissingLabels(missing).join(', ')}`,
     '',
-    '## Repair boundaries',
-    '- Preserve the assignment title, course, section ids, section roles, existing question order, prompts, mathematical tasks, answers, and interaction types.',
-    '- Do not invent platform-owned question ids. MathMaster preserves existing runtime question identity after the AI repair is accepted.',
-    '- Do not remove an existing question.',
-    '- You may add AT MOST ONE new Honors extension question, and only to Classwork or Practice, if a new question is necessary to supply missing depth.',
-    '- Existing questions may receive corrected/added TEKS alignment metadata when the mathematics they already contain clearly supports that alignment.',
-    '- If Core TEKS is missing, infer alignment only from the mathematics already visible in that exact question and the stated course. Do not change the mathematics to force a standard and do not introduce a later-unit standard merely to make the audit green.',
-    '- If you cannot determine a TEKS alignment confidently from the existing mathematics, leave it unresolved. MathMaster will reject an uncertain repair rather than invent curriculum metadata.',
-    '- Do not fabricate SAT, ACT, TSIA2, or ASVAB wording or provenance. Audited CCMR Practice is sourced separately from MathMaster Fidelity V2.1 at publish time.',
-    '- Keep DOK and difficulty distinct. A depth extension should require genuine reasoning, representation, justification, or modeling rather than simply larger numbers.',
-    '- Preserve all assignment-level policy objects. MathMaster will ignore provider changes to delivery, grading, supports, evidence, outputs, and publication settings.',
+    '## Compact repair contract',
+    '- Preserve every existing section id, section role, question order, prompt/scenario/title, mathematical task, answer/grading field, interaction type/tool, workflow, graph/function data, DOK, difficulty, calculator policy, and representation field exactly as supplied.',
+    '- Do not remove or reorder an existing question.',
+    '- Do not invent or change platform-owned question ids on existing questions.',
+    '- Existing questions may receive corrected/added TEKS alignment metadata ONLY when their visible mathematics clearly supports that alignment.',
+    '- If Core TEKS is missing, infer alignment only from the mathematics already visible in that exact question and this course. Do not change mathematics to force a standard. Do not introduce a later-unit standard merely to make the audit green.',
+    '- If alignment is uncertain, leave it unresolved.',
+    '- You may add AT MOST ONE new Honors extension question, and only to Classwork or Practice, if needed to supply missing higher-order depth.',
+    '- A new extension must stay on the same lesson TEKS and require genuine reasoning through multiple representations, explanation/justification, or modeling/application as needed. Keep DOK and difficulty distinct.',
+    '- Do not fabricate SAT, ACT, TSIA2, or ASVAB provenance. Audited CCMR Practice is sourced separately from MathMaster Fidelity V2.1 at publish time.',
+    '- Do not add assignment-level delivery, grading, support, evidence, PDF, Classroom, or publication settings. MathMaster keeps those from the reviewed source.',
     '',
-    '## Current MathMaster authoring contract',
-    contract,
-    '',
-    '## Current Assignment V5',
-    JSON.stringify(assignmentV5, null, 2),
+    '## Current Assignment V5 repair snapshot',
+    JSON.stringify(repairSnapshot),
   ].join('\n');
 };
 
