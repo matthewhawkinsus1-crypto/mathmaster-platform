@@ -5683,6 +5683,8 @@ function App() {
                     setAssignments([]);
                     setAllStudents([]);
                     setPresenceById({});
+                    setStudentSupportEvents([]);
+                    setStudentSessionSummaries([]);
                     setAssignmentActivity({});
                     setDolGradesByAssignment({});
                     setClassworkGradesByAssignment({});
