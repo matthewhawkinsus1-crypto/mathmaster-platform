@@ -56,6 +56,16 @@ before(async () => {
     await setDoc(doc(db, 'grades/STUDENT_B'), { displayName: 'Student B', classId: 'class-b', classPeriod: 'Period 2', assignedTeacherEmail: TEACHER_B, status: 'active', gradesByAssignment: {} });
     // A student nobody has placed. Belongs to no teacher by construction.
     await setDoc(doc(db, 'grades/STUDENT_UNPLACED'), { displayName: 'Unplaced', classId: null, classPeriod: 'Unassigned', assignedTeacherEmail: null, status: 'active', gradesByAssignment: {} });
+    await setDoc(doc(db, 'studentSupportEvents/support-a'), {
+      schemaVersion: 1,
+      kind: 'offTaskConcern',
+      stage: 'teacherConfirmed',
+      studentId: 'STUDENT_A',
+      classId: 'class-a',
+      createdByEmail: TEACHER_A,
+      authorizedTeacherEmails: [TEACHER_A],
+      createdAt: '2026-09-01T12:00:00.000Z',
+    });
   });
 });
 
@@ -228,6 +238,44 @@ test('a teacher who never taught the student and does not now is refused', async
   for (const path of CHILD_PATHS) {
     await assertFails(getDoc(doc(teacherC, path)));
   }
+});
+
+test('student support history is teacher-authorized and append-only', async () => {
+  await assertSucceeds(getDoc(doc(teacherA(), 'studentSupportEvents/support-a')));
+  await assertFails(getDoc(doc(teacherB(), 'studentSupportEvents/support-a')));
+  await assertFails(getDoc(doc(studentA(), 'studentSupportEvents/support-a')));
+
+  const mine = await assertSucceeds(getDocs(query(
+    collection(teacherA(), 'studentSupportEvents'),
+    where('authorizedTeacherEmails', 'array-contains', TEACHER_A),
+  )));
+  assert.equal(mine.docs.some((entry) => entry.id === 'support-a'), true);
+
+  await assertSucceeds(setDoc(doc(teacherA(), 'studentSupportEvents/support-new'), {
+    schemaVersion: 1,
+    kind: 'watchPractice',
+    stage: 'actionTaken',
+    studentId: 'STUDENT_A',
+    classId: 'class-a',
+    createdByEmail: TEACHER_A,
+    authorizedTeacherEmails: [TEACHER_A],
+    createdAt: '2026-09-01T12:05:00.000Z',
+  }));
+
+  await assertFails(setDoc(doc(teacherA(), 'studentSupportEvents/support-forged'), {
+    schemaVersion: 1,
+    kind: 'offTaskConcern',
+    stage: 'teacherConfirmed',
+    studentId: 'STUDENT_B',
+    createdByEmail: TEACHER_B,
+    authorizedTeacherEmails: [TEACHER_B],
+  }));
+
+  // A signal is never rewritten into a fact. Confirmation/dismissal/resolution
+  // must be a new append-only event.
+  await assertFails(setDoc(doc(teacherA(), 'studentSupportEvents/support-a'), {
+    stage: 'resolved',
+  }, { merge: true }));
 });
 
 test('a student cannot mint evidence that names a teacher, or none at all', async () => {
