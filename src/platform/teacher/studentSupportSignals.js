@@ -314,9 +314,43 @@ const eventDateKey = (event) => {
   return new Date(parsed).toISOString().slice(0, 10);
 };
 
+export const sessionProductivitySignal = (summary = {}) => {
+  const startedAt = num(summary.startedAt);
+  const endedAt = num(summary.endedAt);
+  const elapsedSeconds = Math.max(0, (endedAt - startedAt) / 1000);
+  const activeSeconds = Math.max(0, num(summary.activeSeconds));
+  const activeRatio = elapsedSeconds > 0 ? Math.min(1, activeSeconds / elapsedSeconds) : null;
+  const answered = Math.max(0, num(summary.answered));
+  const focusLossCount = Math.max(0, num(summary.focusLossCount));
+  const role = clean(summary.activityRole).toLowerCase();
+
+  // Ten minutes gives enough room for reading, teacher talk and paper work.
+  // Even then, low platform activity alone is not enough. It must be paired
+  // with little assignment progress or repeated focus loss, and it is still
+  // only a "review" signal until a teacher confirms what they observed.
+  if (elapsedSeconds < 600 || !['classwork', 'practice'].includes(role)) return null;
+  if (activeRatio == null || activeRatio >= 0.45) return null;
+  if (!(answered <= 2 || focusLossCount >= 3)) return null;
+
+  return {
+    kind: 'productivityReview',
+    label: 'Low-productivity session — review',
+    evidence: {
+      elapsedSeconds: Math.round(elapsedSeconds),
+      activeSeconds: Math.round(activeSeconds),
+      activeRatio: Number(activeRatio.toFixed(3)),
+      answered,
+      focusLossCount,
+      assignmentId: summary.assignmentId || null,
+      activityRole: role,
+    },
+  };
+};
+
 export const buildParentFollowUpCandidates = ({
   needsAttention = [],
   supportEvents = [],
+  sessionSummaries = [],
   nowValue = Date.now(),
 } = {}) => {
   const map = new Map();
@@ -328,6 +362,8 @@ export const buildParentFollowUpCandidates = ({
         studentName: studentName || studentId,
         completionSignals: [],
         confirmedProductivityDays: new Set(),
+        systemProductivityDays: new Set(),
+        systemProductivitySignals: [],
         recentParentContact: false,
       });
     }
@@ -361,15 +397,44 @@ export const buildParentFollowUpCandidates = ({
       }
     });
 
+  list(sessionSummaries)
+    .filter((summary) => {
+      const endedAt = num(summary?.endedAt);
+      return endedAt > 0 && nowValue - endedAt <= 14 * 86400000;
+    })
+    .forEach((summary) => {
+      const signal = sessionProductivitySignal(summary);
+      if (!signal) return;
+      const entry = ensure(summary.studentId, summary.studentName);
+      if (!entry) return;
+      const day = summary.endedAt ? new Date(Number(summary.endedAt)).toISOString().slice(0, 10) : null;
+      if (day) entry.systemProductivityDays.add(day);
+      entry.systemProductivitySignals.push({
+        day,
+        assignmentId: summary.assignmentId || null,
+        evidence: signal.evidence,
+      });
+    });
+
   return [...map.values()]
     .map((entry) => ({
       ...entry,
       confirmedProductivityDays: [...entry.confirmedProductivityDays],
-      score: entry.completionSignals.length + entry.confirmedProductivityDays.size * 2,
+      systemProductivityDays: [...entry.systemProductivityDays],
+      score: entry.completionSignals.length
+        + entry.confirmedProductivityDays.size * 3
+        + entry.systemProductivityDays.size,
     }))
-    .filter((entry) => !entry.recentParentContact
-      && (entry.confirmedProductivityDays.length >= 2
-        || (entry.confirmedProductivityDays.length >= 1 && entry.completionSignals.length >= 1)))
+    .filter((entry) => {
+      if (entry.recentParentContact) return false;
+      // A parent list should never be generated from platform telemetry alone.
+      // Require either repeated teacher confirmation, or one teacher-confirmed
+      // concern plus corroborating completion/session evidence.
+      if (entry.confirmedProductivityDays.length >= 2) return true;
+      if (entry.confirmedProductivityDays.length >= 1
+        && (entry.completionSignals.length >= 1 || entry.systemProductivityDays.length >= 1)) return true;
+      return false;
+    })
     .sort((a, b) => b.score - a.score || a.studentName.localeCompare(b.studentName));
 };
 
