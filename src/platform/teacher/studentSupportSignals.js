@@ -581,6 +581,14 @@ export const hasDismissedSignal = ({
   return !afterMs || at >= afterMs;
 });
 
+export const SUPPORT_STAGE_LABEL = Object.freeze({
+  [SUPPORT_EVENT_STAGE.SYSTEM_SIGNAL]: 'System signal — not teacher-confirmed',
+  [SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED]: 'Teacher reviewed / confirmed',
+  [SUPPORT_EVENT_STAGE.ACTION_TAKEN]: 'Action taken',
+  [SUPPORT_EVENT_STAGE.DISMISSED]: 'Teacher reviewed / dismissed',
+  [SUPPORT_EVENT_STAGE.RESOLVED]: 'Resolved',
+});
+
 export const SUPPORT_EVENT_LABEL = Object.freeze({
   [SUPPORT_EVENT_KIND.WATCH_PRACTICE]: 'Watch Practice',
   [SUPPORT_EVENT_KIND.SMALL_GROUP]: 'Small Group',
