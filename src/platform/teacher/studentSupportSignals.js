@@ -141,9 +141,9 @@ const profileMismatch = (profile = null) => {
  * False-positive protection:
  *  - speed alone is insufficient;
  *  - fewer than five terminal answers is insufficient;
- *  - ordinary strong-student speed is insufficient unless the pattern is
- *    extreme across six or more independent correct responses;
- *  - otherwise a rapid pattern must be corroborated by repeated focus loss or
+ *  - even an extreme repeated speed pattern is still only speed, so it never
+ *    stands alone;
+ *  - a rapid pattern must be corroborated by repeated sustained focus loss or
  *    a large contradiction with established performance.
  */
 export const buildIntegrityReviewSignal = ({ row = null, profile = null } = {}) => {
@@ -166,7 +166,7 @@ export const buildIntegrityReviewSignal = ({ row = null, profile = null } = {}) 
   const focusCorroboration = focusLossCount >= 3;
   const mismatchCorroboration = profileMismatch(profile);
 
-  if (!extremeRapidPattern && !(strongRapidPattern && (focusCorroboration || mismatchCorroboration))) {
+  if (!(strongRapidPattern || extremeRapidPattern) || !(focusCorroboration || mismatchCorroboration)) {
     return null;
   }
 
@@ -221,6 +221,7 @@ export const buildArchivedIntegrityReviewSignal = (summary = {}) => {
     ? rapidCorrect / timedIndependentCorrect
     : 0;
 
+  const focusLossCount = Math.max(0, num(summary.focusLossCount));
   if (
     answered < 6
     || accuracy < 80
@@ -228,6 +229,10 @@ export const buildArchivedIntegrityReviewSignal = (summary = {}) => {
     || rapidCorrect < 6
     || rapidDeepCorrect < 3
     || rapidShare < 0.75
+    // The archive does not carry the student's full profile, so it can only
+    // corroborate timing with repeated sustained focus loss. Without that
+    // second signal the pattern stays unflagged.
+    || focusLossCount < 3
   ) return null;
 
   return {
@@ -247,7 +252,7 @@ export const buildArchivedIntegrityReviewSignal = (summary = {}) => {
       rapidDeepCorrect,
       timedIndependentCorrect,
       rapidShare: Number(rapidShare.toFixed(3)),
-      focusLossCount: Math.max(0, num(summary.focusLossCount)),
+      focusLossCount,
       archivedSession: true,
     },
   };
