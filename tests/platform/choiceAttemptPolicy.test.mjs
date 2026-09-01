@@ -58,6 +58,39 @@ test('one-attempt choice rule also overrides higher section attempt counts', () 
   }), 1);
 });
 
+test('legacy choose-a-number-line questions are also one attempt', () => {
+  const question = {
+    type: 'numberLine',
+    choices: [
+      { id: 'a', points: [-2] },
+      { id: 'b', points: [2] },
+      { id: 'c', points: [-2, 2] },
+      { id: 'd', points: [] },
+    ],
+  };
+
+  assert.equal(isChoiceOnlyQuestion(question), true);
+  assert.equal(resolveQuestionMaximumAttempts({
+    question,
+    maximumAttempts: 3,
+    activityPolicy: { attempts: 3 },
+  }), 1);
+});
+
+test('constructed interval number lines keep normal instructional attempts', () => {
+  const question = {
+    type: 'intervalNumberLine',
+    intervals: [{ min: -3, max: 5, minClosed: true, maxClosed: false }],
+  };
+
+  assert.equal(isChoiceOnlyQuestion(question), false);
+  assert.equal(resolveQuestionMaximumAttempts({
+    question,
+    maximumAttempts: 3,
+    activityPolicy: { attempts: 3 },
+  }), 3);
+});
+
 test('My Math Path recognizes pure field-graded multiple choice', () => {
   const question = {
     questionType: 'response',
