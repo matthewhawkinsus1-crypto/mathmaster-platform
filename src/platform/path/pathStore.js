@@ -200,6 +200,24 @@ export const interventionAsOverride = (intervention, nowValue = Date.now()) => {
   };
 };
 
+export const setStudentPathIntervention = async ({
+  studentId,
+  teksCode = null,
+  durationHours = 48,
+  clear = false,
+} = {}) => {
+  const id = String(studentId || '').trim();
+  if (!id) throw new Error('Choose a student before changing a personal Path recommendation.');
+  const call = httpsCallable(functions, 'setStudentPathIntervention');
+  const result = await call({
+    studentId: id,
+    teksCode: teksCode ? String(teksCode).trim() : null,
+    durationHours: Math.max(1, Math.min(168, Number(durationHours) || 48)),
+    clear: clear === true,
+  });
+  return result?.data || {};
+};
+
 export const subscribeStudentPathIntervention = ({
   studentId,
   onChange,
