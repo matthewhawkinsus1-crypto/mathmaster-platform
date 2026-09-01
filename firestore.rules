@@ -7,19 +7,19 @@ service cloud.firestore {
     }
 
     function teacher() {
-      return signedIn() && request.auth.token.role == 'teacher';
+      return signedIn() && request.auth.token.get('role', '') == 'teacher';
     }
 
     function rootAdmin() {
       return teacher()
-        && request.auth.token.admin == true
-        && request.auth.token.rootAdmin == true;
+        && request.auth.token.get('admin', false) == true
+        && request.auth.token.get('rootAdmin', false) == true;
     }
 
     function ownsStudent(studentId) {
       return signedIn()
-        && request.auth.token.role == 'student'
-        && request.auth.token.studentId == studentId;
+        && request.auth.token.get('role', '') == 'student'
+        && request.auth.token.get('studentId', '') == studentId;
     }
 
     // A teacher's roster is the students in the classes they are teacher of
