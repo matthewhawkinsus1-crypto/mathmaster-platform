@@ -122,7 +122,10 @@ export const summarizeRapidCorrectness = ({
 
 const profileMismatch = (profile = null) => {
   if (!profile?.baseline?.established) return false;
-  if (profile.instructionalBand === 'below') return true;
+  // A broad "below level" label is not enough to corroborate an integrity
+  // review. Students improve, and the label may summarize older/easier work.
+  // Require established higher-demand evidence that directly contradicts the
+  // current rapid higher-demand success pattern.
   const deepBuckets = [profile?.dokProfile?.['2'], profile?.dokProfile?.['3']]
     .filter((bucket) => bucket?.confident);
   if (!deepBuckets.length) return false;
