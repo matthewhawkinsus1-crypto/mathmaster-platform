@@ -24,7 +24,7 @@ const greetingFor = (date) => {
 // Landing tab for teachers: today's classes at a glance, so a period's
 // status and roster are one click away instead of hunting through the
 // class-period dropdown on Grades or scrolling the full Classes grid.
-export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null }) {
+export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
 
   const classOptions = classes.length
@@ -227,6 +227,8 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
         classes={classes}
         supportEvents={studentSupportEvents}
         onRecordSupportEvent={onRecordStudentSupportEvent}
+        onRecommendPersonalPath={onRecommendPersonalPath}
+        pathInterventionBusyStudentId={pathInterventionBusyStudentId}
         onOpenWeeklyPath={onOpenWeeklyPath}
       />
 
