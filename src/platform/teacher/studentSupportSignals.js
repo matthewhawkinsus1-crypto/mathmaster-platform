@@ -481,6 +481,21 @@ export const supportEventIsActive = (event = {}) => (
   ![SUPPORT_EVENT_STAGE.DISMISSED, SUPPORT_EVENT_STAGE.RESOLVED].includes(event.stage)
 );
 
+export const hasDismissedSignal = ({
+  supportEvents = [],
+  studentId,
+  assignmentId = null,
+  sessionKey = null,
+  afterMs = 0,
+} = {}) => list(supportEvents).some((event) => {
+  if (event.kind !== SUPPORT_EVENT_KIND.SIGNAL_DISMISSED || event.stage !== SUPPORT_EVENT_STAGE.DISMISSED) return false;
+  if (clean(event.studentId) !== clean(studentId)) return false;
+  if (sessionKey && event.sessionKey) return clean(event.sessionKey) === clean(sessionKey);
+  if (assignmentId && event.assignmentId && clean(event.assignmentId) !== clean(assignmentId)) return false;
+  const at = Date.parse(event.createdAt || event.recordedAt || '') || num(event.createdAtMs);
+  return !afterMs || at >= afterMs;
+});
+
 export const SUPPORT_EVENT_LABEL = Object.freeze({
   [SUPPORT_EVENT_KIND.WATCH_PRACTICE]: 'Watch Practice',
   [SUPPORT_EVENT_KIND.SMALL_GROUP]: 'Small Group',
