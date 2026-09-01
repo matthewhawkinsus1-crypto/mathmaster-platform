@@ -54,8 +54,33 @@ test('Honors AI repair prompt tells the provider to repair TEKS/depth without fa
   assert.match(prompt, /higher-order reasoning/);
   assert.match(prompt, /Audited CCMR Practice is sourced separately/);
   assert.match(prompt, /AT MOST ONE new Honors extension question/);
-  assert.match(prompt, /Do not change the mathematics to force a standard/);
+  assert.match(prompt, /Do not change mathematics to force a standard/);
   assert.match(prompt, /MathMaster Assignment V5/);
+  assert.match(prompt, /Compact repair contract/);
+  assert.doesNotMatch(prompt, /Current MathMaster authoring contract/);
+});
+
+test('Honors repair stays compact for a rich lesson instead of attaching the full global authoring manual', () => {
+  const source = base();
+  source.sections[0].questions = Array.from({ length: 12 }, (_, index) => ({
+    ...source.sections[0].questions[0],
+    questionId: `cw-${index + 1}`,
+    prompt: `Question ${index + 1}: ${'model this relationship and justify the representation. '.repeat(45)}`,
+  }));
+  source.sections[1].questions = Array.from({ length: 8 }, (_, index) => ({
+    ...source.sections[1].questions[0],
+    questionId: `p-${index + 1}`,
+    prompt: `Practice ${index + 1}: ${'compare the representations and explain the structure. '.repeat(40)}`,
+  }));
+
+  const prompt = buildHonorsDepthAiRepairRequest({
+    assignmentV5: source,
+    honorsReport: { missing: ['coreTeks', 'higherOrderReasoning'] },
+  });
+
+  assert.ok(prompt.length < 120000, `expected compact Honors repair request; got ${prompt.length} characters`);
+  assert.doesNotMatch(prompt, /## Current MathMaster authoring contract/);
+  assert.match(prompt, /Current Assignment V5 repair snapshot/);
 });
 
 test('accepted Honors AI repair may add TEKS metadata and one extension without rewriting source work', () => {
