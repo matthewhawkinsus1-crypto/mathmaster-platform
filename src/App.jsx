@@ -205,6 +205,7 @@ import {
 } from './platform/teacher/studentSupportSignals.js';
 import {
   recordStudentSupportEvent,
+  subscribeStudentSessionSummaries,
   subscribeStudentSupportEvents,
 } from './platform/teacher/studentSupportStore.js';
 import {
@@ -384,6 +385,7 @@ function App() {
   // Persistent teacher-reviewed support history. Unlike presence, these are the
   // small set of concerns, dismissals and interventions worth keeping.
   const [studentSupportEvents, setStudentSupportEvents] = useState([]);
+  const [studentSessionSummaries, setStudentSessionSummaries] = useState([]);
   // Curriculum pacing and per-class skill overrides. Teacher-owned inputs to
   // the adaptive path engine, read by the student's Path, Recommended for You
   // and CCMR — a change here changes what a student is offered.
@@ -1663,6 +1665,19 @@ function App() {
       teacherEmail: user.email,
       onChange: setStudentSupportEvents,
       onError: (error) => console.error('Student support history failed:', error),
+    });
+  }, [user?.role, user?.email]);
+
+  useEffect(() => {
+    if (user?.role !== 'teacher' || !user.email) {
+      setStudentSessionSummaries([]);
+      return undefined;
+    }
+    return subscribeStudentSessionSummaries({
+      db,
+      teacherEmail: user.email,
+      onChange: setStudentSessionSummaries,
+      onError: (error) => console.error('Student session summaries failed:', error),
     });
   }, [user?.role, user?.email]);
 
@@ -5781,6 +5796,9 @@ function App() {
           supportEvents={profileDrawerStudent
             ? studentSupportEvents.filter((event) => event.studentId === profileDrawerStudent.id)
             : []}
+          sessionSummaries={profileDrawerStudent
+            ? studentSessionSummaries.filter((summary) => summary.studentId === profileDrawerStudent.id)
+            : []}
           onClose={() => setProfileDrawerStudentId(null)}
           onOpenFullRecord={(studentId) => {
             setProfileDrawerStudentId(null);
@@ -6164,6 +6182,7 @@ function App() {
                 activeClassId={activeClass.classId}
                 classes={classes}
                 studentSupportEvents={studentSupportEvents}
+                studentSessionSummaries={studentSessionSummaries}
                 onRecordStudentSupportEvent={handleRecordStudentSupportEvent}
                 onOpenWeeklyPath={() => setTeacherTab('weeklyPath')}
                 onOpenAdministration={() => setTeacherWorkspaceMode('administration')}
