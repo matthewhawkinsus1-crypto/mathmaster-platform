@@ -1,5 +1,6 @@
 "use strict";
 
+const https = require("https");
 const { replaceDirectCcmrQuestionsWithAuditedBank } = require("./ccmrAssignmentBank");
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
@@ -114,34 +115,108 @@ function providerMessage(payload, fallback) {
   return String(payload?.error?.message || payload?.message || fallback || "").trim();
 }
 
+function postJsonWithNativeHttps(url, {
+  headers = {},
+  body = "",
+  timeoutMs = 240000,
+  httpsImpl = https,
+} = {}) {
+  return new Promise((resolve, reject) => {
+    const target = new URL(url);
+    const requestBody = String(body || "");
+    const request = httpsImpl.request({
+      protocol: target.protocol,
+      hostname: target.hostname,
+      port: target.port || 443,
+      family: 4,
+      method: "POST",
+      path: `${target.pathname}${target.search}`,
+      headers: {
+        ...headers,
+        "Content-Length": Buffer.byteLength(requestBody),
+      },
+    }, (response) => {
+      const chunks = [];
+      let totalBytes = 0;
+      const maxResponseBytes = 25 * 1024 * 1024;
+
+      response.on("data", (chunk) => {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        totalBytes += buffer.length;
+        if (totalBytes > maxResponseBytes) {
+          const error = new Error("AI provider response exceeded the safe response-size limit.");
+          error.code = "EMSGSIZE";
+          request.destroy(error);
+          return;
+        }
+        chunks.push(buffer);
+      });
+
+      response.on("end", () => {
+        const status = Number(response.statusCode) || 0;
+        const responseText = Buffer.concat(chunks).toString("utf8");
+        resolve({
+          ok: status >= 200 && status < 300,
+          status,
+          statusText: String(response.statusMessage || ""),
+          text: async () => responseText,
+        });
+      });
+
+      response.on("error", reject);
+    });
+
+    const timeout = Math.max(1000, Number(timeoutMs) || 240000);
+    request.setTimeout(timeout, () => {
+      const error = new Error("AI provider request timed out.");
+      error.code = "ETIMEDOUT";
+      request.destroy(error);
+    });
+    request.on("error", reject);
+    request.write(requestBody);
+    request.end();
+  });
+}
+
 async function callOpenAiAssignmentAuthor({
   apiKey,
   prompt,
   model = DEFAULT_ASSIGNMENT_MODEL,
-  fetchImpl = globalThis.fetch,
+  fetchImpl = null,
   timeoutMs = 240000,
+  httpsImpl = https,
 } = {}) {
   if (!String(apiKey || "").trim()) {
     throw new AssignmentAiError("failed-precondition", "MathMaster AI authoring is not configured yet.");
   }
-  if (typeof fetchImpl !== "function") {
-    throw new AssignmentAiError("internal", "This server runtime cannot reach the AI provider.");
-  }
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), Math.max(1000, Number(timeoutMs) || 240000));
+  const requestBody = JSON.stringify(buildOpenAiAssignmentRequest({ prompt, model }));
+  const headers = {
+    Authorization: `Bearer ${String(apiKey).trim()}`,
+    "Content-Type": "application/json",
+  };
   let response;
   let payload;
+  let timer = null;
   try {
-    response = await fetchImpl(OPENAI_RESPONSES_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${String(apiKey).trim()}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(buildOpenAiAssignmentRequest({ prompt, model })),
-      signal: controller.signal,
-    });
+    if (typeof fetchImpl === "function") {
+      const controller = new AbortController();
+      timer = setTimeout(() => controller.abort(), Math.max(1000, Number(timeoutMs) || 240000));
+      response = await fetchImpl(OPENAI_RESPONSES_URL, {
+        method: "POST",
+        headers,
+        body: requestBody,
+        signal: controller.signal,
+      });
+    } else {
+      response = await postJsonWithNativeHttps(OPENAI_RESPONSES_URL, {
+        headers,
+        body: requestBody,
+        timeoutMs,
+        httpsImpl,
+      });
+    }
+
     const text = await response.text();
     try {
       payload = text ? JSON.parse(text) : {};
@@ -149,12 +224,21 @@ async function callOpenAiAssignmentAuthor({
       payload = { raw: text };
     }
   } catch (error) {
-    if (error?.name === "AbortError") {
-      throw new AssignmentAiError("deadline-exceeded", "The AI took too long to build this assignment. Try again or use the copy/paste AI workflow.");
+    const networkCode = String(error?.code || error?.cause?.code || "").trim().slice(0, 64);
+    if (error?.name === "AbortError" || networkCode === "ETIMEDOUT") {
+      throw new AssignmentAiError(
+        "deadline-exceeded",
+        "The AI took too long to build this assignment. Try again or use the outside-AI workflow.",
+        { details: networkCode ? { networkCode } : null },
+      );
     }
-    throw new AssignmentAiError("unavailable", "MathMaster could not reach the AI service. Try again or use the copy/paste AI workflow.");
+    throw new AssignmentAiError(
+      "unavailable",
+      `MathMaster could not reach the AI service${networkCode ? ` (${networkCode})` : ""}. The server now reports the network failure code so this can be diagnosed instead of hidden.`,
+      { details: networkCode ? { networkCode } : null },
+    );
   } finally {
-    clearTimeout(timer);
+    if (timer) clearTimeout(timer);
   }
 
   if (!response.ok) {
@@ -224,5 +308,6 @@ module.exports = {
   assignmentResponseSchema,
   buildOpenAiAssignmentRequest,
   extractResponseText,
+  postJsonWithNativeHttps,
   callOpenAiAssignmentAuthor,
 };
