@@ -8,6 +8,7 @@ import {
   buildParentFollowUpCandidates,
   buildSuggestedSmallGroups,
   buildWatchPracticeList,
+  sessionProductivitySignal,
 } from '../../platform/teacher/studentSupportSignals.js';
 
 const cardStyle = {
@@ -40,6 +41,7 @@ export default function StudentSupportDashboard({
   profilesByStudentId = {},
   needsAttention = [],
   supportEvents = [],
+  sessionSummaries = [],
   classId = null,
   classPeriod = null,
   nowValue = Date.now(),
@@ -54,6 +56,10 @@ export default function StudentSupportDashboard({
   const classEvents = useMemo(() => supportEvents.filter((event) => (
     classId ? event.classId === classId : classPeriod ? event.classPeriod === classPeriod : true
   )), [supportEvents, classId, classPeriod]);
+
+  const classSessions = useMemo(() => sessionSummaries.filter((summary) => (
+    classId ? summary.classId === classId : classPeriod ? summary.classPeriod === classPeriod : true
+  )), [sessionSummaries, classId, classPeriod]);
 
   const classAlerts = useMemo(() => needsAttention.filter((alert) => (
     !classId || !alert.classId || alert.classId === classId
@@ -75,8 +81,19 @@ export default function StudentSupportDashboard({
   const parents = useMemo(() => buildParentFollowUpCandidates({
     needsAttention: classAlerts,
     supportEvents: classEvents,
+    sessionSummaries: classSessions,
     nowValue,
-  }), [classAlerts, classEvents, nowValue]);
+  }), [classAlerts, classEvents, classSessions, nowValue]);
+
+  const productivityReviews = useMemo(() => classSessions
+    .map((summary) => ({ summary, signal: sessionProductivitySignal(summary) }))
+    .filter((entry) => entry.signal)
+    .filter((entry) => {
+      const endedAt = Number(entry.summary.endedAt) || 0;
+      return endedAt > 0 && nowValue - endedAt <= 7 * 86400000;
+    })
+    .sort((a, b) => Number(b.summary.endedAt || 0) - Number(a.summary.endedAt || 0))
+    .slice(0, 8), [classSessions, nowValue]);
 
   const integrity = useMemo(() => rows
     .map((row) => ({
@@ -170,7 +187,7 @@ export default function StudentSupportDashboard({
 
         <div style={cardStyle}>
           <div style={{ fontWeight: 900 }}>Parent Follow-Up</div>
-          <div style={{ color: '#5f6368', fontSize: 11.5, margin: '3px 0 8px' }}>Requires repeated teacher-confirmed productivity concerns; one idle period is never enough.</div>
+          <div style={{ color: '#5f6368', fontSize: 11.5, margin: '3px 0 8px' }}>Requires repeated teacher-confirmed productivity concerns; platform telemetry alone can never place a student here.</div>
           {parents.length ? parents.map((entry) => (
             <div key={entry.studentId} style={{ borderTop: '1px solid #eef0f2', padding: '8px 0' }}>
               <button type="button" onClick={() => onOpenStudent?.(entry.studentId)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>{entry.studentName}</button>
@@ -226,6 +243,52 @@ export default function StudentSupportDashboard({
               </div>
             </div>
           )) : <div style={{ color: '#80868b', fontSize: 12 }}>No unusual response pattern meets the review threshold.</div>}
+        </div>
+
+        <div style={cardStyle}>
+          <div style={{ fontWeight: 900 }}>Productivity Review</div>
+          <div style={{ color: '#5f6368', fontSize: 11.5, margin: '3px 0 8px' }}>
+            Archived session telemetry can suggest a look, but only a teacher can confirm an off-task concern.
+          </div>
+          {productivityReviews.length ? productivityReviews.map(({ summary, signal }) => {
+            const elapsed = Math.max(0, (Number(summary.endedAt || 0) - Number(summary.startedAt || 0)) / 60000);
+            const active = Math.max(0, Number(summary.activeSeconds || 0) / 60);
+            return (
+              <div key={summary.id} style={{ borderTop: '1px solid #eef0f2', padding: '8px 0' }}>
+                <button type="button" onClick={() => onOpenStudent?.(summary.studentId)} style={{ border: 0, padding: 0, background: 'transparent', fontWeight: 900, cursor: 'pointer', textAlign: 'left' }}>
+                  {summary.studentName || summary.studentId}
+                </button>
+                <div style={{ fontSize: 11.5, color: '#5f6368', marginTop: 2 }}>
+                  {summary.assignmentTitle || 'Assignment'} · {Math.round(active)} active min of {Math.round(elapsed)} elapsed · {summary.answered || 0} answered
+                  {Number(summary.focusLossCount) > 0 ? ` · ${summary.focusLossCount} focus loss${Number(summary.focusLossCount) === 1 ? '' : 'es'}` : ''}
+                </div>
+                <div style={{ display: 'flex', gap: 5, marginTop: 6, flexWrap: 'wrap' }}>
+                  <button type="button" style={actionButton} onClick={() => record({
+                    kind: SUPPORT_EVENT_KIND.OFF_TASK_CONCERN,
+                    stage: SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED,
+                    studentId: summary.studentId,
+                    studentName: summary.studentName,
+                    assignmentId: summary.assignmentId || null,
+                    assignmentTitle: summary.assignmentTitle || null,
+                    sessionKey: summary.sessionKey || null,
+                    summary: 'Teacher confirmed an off-task/productivity concern after reviewing archived session telemetry.',
+                    evidence: signal.evidence,
+                  })}>Observed off-task</button>
+                  <button type="button" style={actionButton} onClick={() => record({
+                    kind: SUPPORT_EVENT_KIND.SIGNAL_DISMISSED,
+                    stage: SUPPORT_EVENT_STAGE.DISMISSED,
+                    studentId: summary.studentId,
+                    studentName: summary.studentName,
+                    assignmentId: summary.assignmentId || null,
+                    assignmentTitle: summary.assignmentTitle || null,
+                    sessionKey: summary.sessionKey || null,
+                    summary: 'Teacher reviewed the low-productivity session signal and dismissed it as legitimate quiet work or another non-concern.',
+                    evidence: signal.evidence,
+                  })}>Dismiss / legitimate</button>
+                </div>
+              </div>
+            );
+          }) : <div style={{ color: '#80868b', fontSize: 12 }}>No recent session meets the productivity-review threshold.</div>}
         </div>
       </div>
 
