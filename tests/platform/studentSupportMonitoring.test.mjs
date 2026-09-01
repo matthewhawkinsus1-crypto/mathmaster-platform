@@ -69,8 +69,10 @@ test('presence deletion archives one compact session summary instead of heartbea
 
   // Stable identity and monotonic merging belong to the helper that actually
   // implements them, not to index.js merely because it imports that helper.
+  // The behavioral session-summary tests prove the counters are monotonic; this
+  // wiring test only proves the trigger calls that helper.
   assert.match(summaryLib, /crypto\.createHash\("sha256"\)/);
-  assert.match(summaryLib, /Math\.max\(previousActive/);
+  assert.match(summaryLib, /function buildMergedSessionSummary/);
 });
 
 test('support history is append-only and session summaries are server-owned in Firestore rules', () => {
