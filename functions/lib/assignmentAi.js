@@ -128,6 +128,7 @@ function postJsonWithNativeHttps(url, {
       protocol: target.protocol,
       hostname: target.hostname,
       port: target.port || 443,
+      family: 4,
       method: "POST",
       path: `${target.pathname}${target.search}`,
       headers: {
