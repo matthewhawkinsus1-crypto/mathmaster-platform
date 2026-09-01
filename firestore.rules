@@ -45,13 +45,13 @@ service cloud.firestore {
     // teacher, who needs the history to teach them. See the policy note in
     // functions/shared/authorizationContext.mjs.
     function authorizedTeacher() {
-      // The app queries this collection with
-      // where('authorizedTeacherEmails', 'array-contains', signedInEmail).
-      // Keep the read rule expressed as that same membership constraint so
-      // Firestore can prove a list query is safe. A missing/non-list field
-      // simply evaluates false and remains unreadable.
+      // hasAny works for both a stored list on a single-document get and the
+      // LIST_CONTAINS constraint Firestore exposes while proving an
+      // array-contains query. Using "in" here makes individual gets work but
+      // list queries fail even when they use the exact authorized-teacher
+      // constraint.
       return teacher()
-        && request.auth.token.email in resource.data.authorizedTeacherEmails;
+        && resource.data.authorizedTeacherEmails.hasAny([request.auth.token.email]);
     }
 
     // Presence is readable only for a student the signed-in teacher currently
