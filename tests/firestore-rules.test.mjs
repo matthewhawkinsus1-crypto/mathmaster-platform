@@ -43,8 +43,8 @@ const check = async (label, promise) => {
 // Seed data with rules bypassed.
 await testEnv.withSecurityRulesDisabled(async (ctx) => {
   const db = ctx.firestore();
-  await setDoc(doc(db, 'grades/S1042'), { classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_EMAIL });
-  await setDoc(doc(db, 'grades/S2000'), { classPeriod: 'Period 2', assignedTeacherEmail: OTHER_TEACHER_EMAIL });
+  await setDoc(doc(db, 'grades/S1042'), { classId: 'class-1', classPeriod: 'Period 1', assignedTeacherEmail: TEACHER_EMAIL });
+  await setDoc(doc(db, 'grades/S2000'), { classId: 'class-2', classPeriod: 'Period 2', assignedTeacherEmail: OTHER_TEACHER_EMAIL });
   await setDoc(doc(db, 'grades/S1042/scratchpads/a__question_0'), { dataUrl: 'x', authorizedTeacherEmails: [TEACHER_EMAIL] });
   await setDoc(doc(db, 'grades/S1042/scratchpads/a__question_delete'), { dataUrl: 'delete-me', authorizedTeacherEmails: [TEACHER_EMAIL] });
   await setDoc(doc(db, 'assignments/A1'), { title: 'Unit 1' });
@@ -71,6 +71,7 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
     kind: 'watchPractice',
     stage: 'actionTaken',
     studentId: 'S1042',
+    classId: 'class-1',
     createdByEmail: TEACHER_EMAIL,
     authorizedTeacherEmails: [TEACHER_EMAIL],
     createdAt: '2026-09-01T12:00:00.000Z',
@@ -78,11 +79,14 @@ await testEnv.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'studentSessionSummaries/session-1'), {
     schemaVersion: 1,
     studentId: 'S1042',
+    classId: 'class-1',
     assignmentId: 'A1',
     startedAt: 1,
     endedAt: 2,
     authorizedTeacherEmails: [TEACHER_EMAIL],
   });
+  await setDoc(doc(db, 'presence/S1042'), { studentId: 'S1042', classId: 'class-1', assignmentId: 'A1' });
+  await setDoc(doc(db, 'presence/S2000'), { studentId: 'S2000', classId: 'class-2', assignmentId: 'A2' });
 });
 
 const teacher = testEnv.authenticatedContext('teacher-uid', { role: 'teacher', email: TEACHER_EMAIL }).firestore();
@@ -133,6 +137,9 @@ await check('teacher reads authorized scratchpad', assertSucceeds(getDoc(doc(tea
 await check('teacher writes assignments', assertSucceeds(setDoc(doc(teacher, 'assignments/A2'), { title: 'Unit 2' })));
 await check('teacher writes settings', assertSucceeds(setDoc(doc(teacher, 'settings/assignmentFolders'), { paths: [] })));
 await check('teacher deletes assignments', assertSucceeds(deleteDoc(doc(teacher, 'assignments/A2'))));
+await check('teacher reads live presence only for own roster', assertSucceeds(getDoc(doc(teacher, 'presence/S1042'))));
+await check('teacher CANNOT read another teacher live presence', assertFails(getDoc(doc(teacher, 'presence/S2000'))));
+await check('teacher CANNOT forge student live presence', assertFails(setDoc(doc(teacher, 'presence/S1042'), { assignmentId: 'forged' }, { merge: true })));
 await check('teacher reads authorized student support history', assertSucceeds(getDoc(doc(teacher, 'studentSupportEvents/support-1'))));
 await check('student CANNOT read teacher support history', assertFails(getDoc(doc(student, 'studentSupportEvents/support-1'))));
 await check('teacher appends own student support record', assertSucceeds(setDoc(doc(teacher, 'studentSupportEvents/support-2'), {
@@ -140,14 +147,25 @@ await check('teacher appends own student support record', assertSucceeds(setDoc(
   kind: 'teacherIntervention',
   stage: 'actionTaken',
   studentId: 'S1042',
+  classId: 'class-1',
   createdByEmail: TEACHER_EMAIL,
   authorizedTeacherEmails: [TEACHER_EMAIL],
+})));
+await check('teacher CANNOT grant another teacher support-history access', assertFails(setDoc(doc(teacher, 'studentSupportEvents/support-shared'), {
+  schemaVersion: 1,
+  kind: 'watchPractice',
+  stage: 'actionTaken',
+  studentId: 'S1042',
+  classId: 'class-1',
+  createdByEmail: TEACHER_EMAIL,
+  authorizedTeacherEmails: [TEACHER_EMAIL, OTHER_TEACHER_EMAIL],
 })));
 await check('teacher CANNOT append support history for another teacher roster', assertFails(setDoc(doc(teacher, 'studentSupportEvents/support-other-roster'), {
   schemaVersion: 1,
   kind: 'watchPractice',
   stage: 'actionTaken',
   studentId: 'S2000',
+  classId: 'class-2',
   createdByEmail: TEACHER_EMAIL,
   authorizedTeacherEmails: [TEACHER_EMAIL],
 })));
