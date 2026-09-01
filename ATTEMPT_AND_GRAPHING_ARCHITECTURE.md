@@ -8,13 +8,16 @@ The graph-construction interface is also shared. `src/FunctionGraphBuilder.jsx` 
 
 ## Attempt lifecycle
 
-1. A generated problem starts with three attempts.
-2. The first or second unsuccessful submission changes the question card to amber and shows the remaining attempts.
-3. The third unsuccessful submission marks that generated version expired.
-4. The student presses **Request New Question**.
-5. The stored `variantIndex` increases by one and a new deterministic problem is generated at the same difficulty.
-6. This cycle is unlimited before the assignment deadline.
-7. After the deadline, it remains available in Practice Mode without changing Firestore grades.
+Attempt count is resolved from both the activity role and the response interaction.
+
+- Constructed instructional work in Warm-Up/Classwork/Practice normally keeps the section policy of three attempts so feedback and revision are meaningful.
+- A **pure finite-choice question gets exactly one attempt per issued/generated version**, regardless of section. Repeated guesses on four choices are not useful evidence.
+- Mixed questions such as "choose a classification, then justify it" are not treated as pure multiple choice and keep the normal instructional attempt policy.
+- DOL, quiz, test, diagnostics, and retention probes remain one-attempt checks under their own role policies.
+- For classroom Warm-Up/Classwork/Practice, **Request New Question** is offered after a missed choice item only when the blueprint can genuinely change the mathematics through a generator or multiple authored variants. MathMaster never resets the same static choices and calls them a fresh question.
+- My Math Path applies the same one-attempt finite-choice rule on the server and then routes a finalized miss to a fresh bank question.
+- Generated replacement cycles remain unlimited before the assignment deadline where the activity policy permits replacement.
+- After the deadline, assignment work remains available in Practice Mode without changing Firestore grades.
 
 Only these compact values are stored for each question:
 
