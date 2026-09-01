@@ -199,6 +199,15 @@ import {
 import { resolveStudentCourseContext, studentsInClass, unplaceableStudents } from '../functions/shared/classModel.mjs';
 import { buildNeedsAttentionQueue } from './platform/teacher/needsAttention.js';
 import {
+  SUPPORT_EVENT_KIND,
+  SUPPORT_EVENT_STAGE,
+  summarizeRapidCorrectness,
+} from './platform/teacher/studentSupportSignals.js';
+import {
+  recordStudentSupportEvent,
+  subscribeStudentSupportEvents,
+} from './platform/teacher/studentSupportStore.js';
+import {
   buildHonorsEnrichmentQuestion,
   defaultCourseProfiles,
   inspectHonorsRigor,
@@ -372,6 +381,9 @@ function App() {
   // Live presence for the teacher home grid, keyed by student id. Never stored
   // alongside grades and never read outside the live view.
   const [presenceById, setPresenceById] = useState({});
+  // Persistent teacher-reviewed support history. Unlike presence, these are the
+  // small set of concerns, dismissals and interventions worth keeping.
+  const [studentSupportEvents, setStudentSupportEvents] = useState([]);
   // Curriculum pacing and per-class skill overrides. Teacher-owned inputs to
   // the adaptive path engine, read by the student's Path, Recommended for You
   // and CCMR — a change here changes what a student is offered.
@@ -813,6 +825,9 @@ function App() {
   const lastActivityRef = useRef(Date.now());
   // When the currently open assignment was started, for the live class grid.
   const liveStartedAtRef = useRef({ assignmentId: null, at: Date.now() });
+  // Count only page-visibility losses during the current assignment. We never
+  // record which tab/site was opened. This is corroborating telemetry only.
+  const liveFocusLossRef = useRef({ assignmentId: null, count: 0 });
   const activeTimeRef = useRef(0);
   const pendingAssignmentSecondsRef = useRef(0);
   const lastDOLStatusRef = useRef({});
@@ -1529,6 +1544,20 @@ function App() {
   }, [isStudentAssignment, activeAssignmentId, isPracticeMode, assignmentActivity, tracker, classworkGradesByAssignment]);
 
 
+  useEffect(() => {
+    if (user?.role !== 'student' || !activeAssignmentId || activeView !== 'assignment') return undefined;
+    if (liveFocusLossRef.current.assignmentId !== activeAssignmentId) {
+      liveFocusLossRef.current = { assignmentId: activeAssignmentId, count: 0 };
+    }
+    const onVisibility = () => {
+      if (document.hidden && liveFocusLossRef.current.assignmentId === activeAssignmentId) {
+        liveFocusLossRef.current.count += 1;
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [user?.role, activeAssignmentId, activeView]);
+
   // Live class monitoring. The student's client publishes a tiny snapshot of
   // where it is — assignment, question, per-question progress — onto its own
   // grades document, which teachers can already read. No new collection, no
@@ -1559,6 +1588,21 @@ function App() {
       const included = getIncludedQuestionIndices(activeAssignmentData);
       const question = activeQuestions[currentQuestionIndex];
       const record = normalizeQuestionRecord(activeWorkingTracker?.[currentQuestionIndex]);
+      const liveTracker = {
+        ...(activeWorkingTracker || {}),
+        [currentQuestionIndex]: {
+          ...record,
+          timeSpent: Math.max(Number(record.timeSpent) || 0, Number(activeTimeRef.current) || 0),
+        },
+      };
+      const rapid = summarizeRapidCorrectness({
+        questions: activeQuestions,
+        tracker: liveTracker,
+        includedIndices: included,
+      });
+      const accumulatedSeconds = included.reduce((sum, index) => (
+        sum + (Number(normalizeQuestionRecord(liveTracker?.[index]).timeSpent) || 0)
+      ), 0);
       const sectionIndices = included.filter((index) => (
         resolveQuestionActivityRole({ question: activeQuestions[index], assignment: activeAssignmentData }) === activeQuestionRole
       ));
@@ -1574,6 +1618,13 @@ function App() {
         representation: getQuestionRepresentation(question),
         questionStates: encodeQuestionStates(activeWorkingTracker, included),
         currentAttempts: record.attemptCount,
+        focusLossCount: liveFocusLossRef.current.assignmentId === activeAssignmentId
+          ? liveFocusLossRef.current.count
+          : 0,
+        rapidCorrectCount: rapid.rapidCorrect,
+        rapidDeepCorrectCount: rapid.rapidDeepCorrect,
+        timedIndependentCorrectCount: rapid.timedIndependentCorrect,
+        sessionActiveSeconds: accumulatedSeconds,
         // The idle timer already tracks real interaction — mouse, keys,
         // clicks — so the live grid and the time-on-task accounting agree
         // about what "working" means.
@@ -1583,6 +1634,7 @@ function App() {
       setDoc(presenceRef, {
         studentId: user.id,
         name: user.name || user.id,
+        classId: user.classId || null,
         classPeriod: user.classPeriod || '',
         ...payload,
       }).catch(() => { /* a missed heartbeat self-heals on the next one */ });
@@ -1598,6 +1650,43 @@ function App() {
     user, isStudentAssignment, activeAssignmentId, activeAssignmentData,
     currentQuestionIndex, activeWorkingTracker, activeQuestionRole,
   ]);
+
+  // Persistent support/intervention history is teacher-authorized and
+  // append-only. It is loaded independently of the live presence stream.
+  useEffect(() => {
+    if (user?.role !== 'teacher' || !user.email) {
+      setStudentSupportEvents([]);
+      return undefined;
+    }
+    return subscribeStudentSupportEvents({
+      db,
+      teacherEmail: user.email,
+      onChange: setStudentSupportEvents,
+      onError: (error) => console.error('Student support history failed:', error),
+    });
+  }, [user?.role, user?.email]);
+
+  const handleRecordStudentSupportEvent = async (event) => {
+    if (user?.role !== 'teacher' || !user.email) return null;
+    try {
+      const record = await recordStudentSupportEvent({
+        db,
+        teacherEmail: user.email,
+        event,
+      });
+      const label = event?.kind === SUPPORT_EVENT_KIND.PARENT_FOLLOW_UP
+        ? 'Parent follow-up recorded'
+        : event?.stage === SUPPORT_EVENT_STAGE.DISMISSED
+          ? 'Signal dismissal recorded'
+          : 'Student support note recorded';
+      toastSuccess(label, 'The event was added to the append-only student support history.');
+      return record;
+    } catch (error) {
+      console.error(error);
+      toastError('Could not save support note', error.message);
+      return null;
+    }
+  };
 
   // Teachers stream presence only while the live grid is on screen, so a
   // teacher sitting on Grades or Analytics is not paying for a listener.
@@ -2014,6 +2103,7 @@ function App() {
     setAssignmentOverviewExpanded(false);
     lastActivityRef.current = Date.now();
     pendingAssignmentSecondsRef.current = 0;
+    liveFocusLossRef.current = { assignmentId, count: 0 };
     setIsIdle(false);
 
     if (lifecycle.isPracticeOnly) {
@@ -6070,6 +6160,8 @@ function App() {
                 learningProfilesByStudentId={teacherLearningProfiles}
                 activeClassId={activeClass.classId}
                 classes={classes}
+                studentSupportEvents={studentSupportEvents}
+                onRecordStudentSupportEvent={handleRecordStudentSupportEvent}
                 onOpenWeeklyPath={() => setTeacherTab('weeklyPath')}
                 onOpenAdministration={() => setTeacherWorkspaceMode('administration')}
                 onUnlockDOL={handleUnlockDOLForClass}
