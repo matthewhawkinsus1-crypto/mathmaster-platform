@@ -80,6 +80,7 @@ import {
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
 import { getQuestionRepresentation } from './platform/contract/questionTypeCatalog';
+import { getQuestionPrimaryTeksCodes } from './questionMetadata.js';
 import {
   buildIEPReportHtml,
   buildSupportUsage,
@@ -162,8 +163,9 @@ import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdap
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
 import {
   ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions,
-  logRouteEvent, overridesForClassContext, saveClassPacing, saveSkillOverrides, saveWeeklyGoalSettings,
-  storedPacingForClassContext, storedWeeklyGoalForClassContext,
+  interventionAsOverride, logRouteEvent, overridesForClassContext, saveClassPacing, saveSkillOverrides, saveWeeklyGoalSettings,
+  setStudentPathIntervention, storedPacingForClassContext, storedWeeklyGoalForClassContext,
+  subscribeStudentPathIntervention,
 } from './platform/path/pathStore.js';
 import WeeklyPathControls from './components/teacher/WeeklyPathControls.jsx';
 import StudentPerformanceBadge from './components/common/StudentPerformanceBadge.jsx';
@@ -392,6 +394,8 @@ function App() {
   // and CCMR — a change here changes what a student is offered.
   const [pacingByClass, setPacingByClass] = useState({});
   const [skillOverrides, setSkillOverrides] = useState([]);
+  const [studentPathIntervention, setStudentPathInterventionState] = useState(null);
+  const [pathInterventionBusyStudentId, setPathInterventionBusyStudentId] = useState(null);
   const [pacingBusy, setPacingBusy] = useState(false);
   // Weekly Path goal settings, per class. Stored beside pacing and read the
   // same way — students read them, teachers write them, and a class with
