@@ -88,7 +88,10 @@ export default function StudentSupportDashboard({
   }), [classAlerts, classEvents, classSessions, nowValue]);
 
   const productivityReviews = useMemo(() => classSessions
-    .map((summary) => ({ summary, signal: sessionProductivitySignal(summary) }))
+    .map((summary) => ({
+      summary,
+      signal: sessionProductivitySignal(summary, { peerSummaries: classSessions }),
+    }))
     .filter((entry) => entry.signal)
     .filter((entry) => {
       const endedAt = Number(entry.summary.endedAt) || 0;
