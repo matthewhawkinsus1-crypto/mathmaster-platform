@@ -65,6 +65,10 @@ function buildMergedSessionSummary({
   if (!sessionKey) return null;
 
   const counts = countLiveQuestionStates(live.questionStates);
+  const hasSessionCounts = Number.isFinite(Number(live.answeredCount))
+    && Number.isFinite(Number(live.correctCount));
+  const observedAnswered = hasSessionCounts ? Math.max(0, finite(live.answeredCount)) : counts.answered;
+  const observedCorrect = hasSessionCounts ? Math.max(0, finite(live.correctCount)) : counts.correct;
   const assignedTeacherEmail = clean(gradeData.assignedTeacherEmail).toLowerCase();
   const classId = clean(live.classId || gradeData.classId) || null;
   const previousAuthorized = Array.isArray(previous.authorizedTeacherEmails)
@@ -75,8 +79,8 @@ function buildMergedSessionSummary({
     assignedTeacherEmail,
   ].filter(Boolean))].sort();
 
-  const answered = Math.max(finite(previous.answered), counts.answered);
-  const correct = Math.max(finite(previous.correct), counts.correct);
+  const answered = Math.max(finite(previous.answered), observedAnswered);
+  const correct = Math.max(finite(previous.correct), observedCorrect);
 
   return {
     schemaVersion: 1,
