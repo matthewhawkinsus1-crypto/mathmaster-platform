@@ -66,6 +66,15 @@ before(async () => {
       authorizedTeacherEmails: [TEACHER_A],
       createdAt: '2026-09-01T12:00:00.000Z',
     });
+    await setDoc(doc(db, 'studentSessionSummaries/session-a'), {
+      schemaVersion: 1,
+      studentId: 'STUDENT_A',
+      classId: 'class-a',
+      assignmentId: 'A1',
+      startedAt: 1,
+      endedAt: 2,
+      authorizedTeacherEmails: [TEACHER_A],
+    });
   });
 });
 
@@ -276,6 +285,27 @@ test('student support history is teacher-authorized and append-only', async () =
   await assertFails(setDoc(doc(teacherA(), 'studentSupportEvents/support-a'), {
     stage: 'resolved',
   }, { merge: true }));
+});
+
+test('archived session summaries are teacher-authorized and server-owned', async () => {
+  await assertSucceeds(getDoc(doc(teacherA(), 'studentSessionSummaries/session-a')));
+  await assertFails(getDoc(doc(teacherB(), 'studentSessionSummaries/session-a')));
+  await assertFails(getDoc(doc(studentA(), 'studentSessionSummaries/session-a')));
+
+  const mine = await assertSucceeds(getDocs(query(
+    collection(teacherA(), 'studentSessionSummaries'),
+    where('authorizedTeacherEmails', 'array-contains', TEACHER_A),
+  )));
+  assert.equal(mine.docs.some((entry) => entry.id === 'session-a'), true);
+
+  await assertFails(setDoc(doc(teacherA(), 'studentSessionSummaries/forged'), {
+    studentId: 'STUDENT_A',
+    authorizedTeacherEmails: [TEACHER_A],
+  }));
+  await assertFails(setDoc(doc(studentA(), 'studentSessionSummaries/forged-student'), {
+    studentId: 'STUDENT_A',
+    authorizedTeacherEmails: [TEACHER_A],
+  }));
 });
 
 test('a student cannot mint evidence that names a teacher, or none at all', async () => {
