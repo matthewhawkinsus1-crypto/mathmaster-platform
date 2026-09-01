@@ -1085,6 +1085,81 @@ function App() {
     }
   };
 
+  const handlePersonalPathRecommendation = async ({
+    studentId,
+    studentName = null,
+    teksCode = null,
+    clear = false,
+    classId = null,
+    classPeriod = null,
+    assignmentId = null,
+    assignmentTitle = null,
+  } = {}) => {
+    const id = String(studentId || '').trim();
+    if (!id) return null;
+    setPathInterventionBusyStudentId(id);
+    try {
+      const result = await setStudentPathIntervention({
+        studentId: id,
+        teksCode,
+        durationHours: 48,
+        clear,
+      });
+
+      if (clear) {
+        toastSuccess(
+          'Personal Path recommendation cleared',
+          `${studentName || id} is back to the normal adaptive Path priorities.`,
+        );
+        return result;
+      }
+
+      // The intervention and the support history are different records on
+      // purpose. The student sees only "teacher recommended this skill"; the
+      // private teacher history preserves when/where the action happened.
+      if (user?.email) {
+        recordStudentSupportEvent({
+          db,
+          teacherEmail: user.email,
+          event: {
+            kind: SUPPORT_EVENT_KIND.TEACHER_INTERVENTION,
+            stage: SUPPORT_EVENT_STAGE.ACTION_TAKEN,
+            studentId: id,
+            studentName: studentName || id,
+            classId,
+            classPeriod,
+            assignmentId,
+            assignmentTitle,
+            source: 'liveMonitor',
+            summary: `Teacher recommended ${teksCode} as a temporary personal My Math Path priority for 48 hours.`,
+            evidence: {
+              teksCode,
+              durationHours: 48,
+              interventionType: 'personalPathRecommendation',
+            },
+          },
+        }).catch((error) => {
+          console.error('Path recommendation applied but support history did not save:', error);
+        });
+      }
+
+      toastSuccess(
+        'Path recommendation updated',
+        `${teksCode} is now a personal priority for ${studentName || id} for 48 hours. Normal prerequisite and content safeguards still apply.`,
+      );
+      return result;
+    } catch (error) {
+      console.error(error);
+      toastError(
+        clear ? 'Could not clear Path recommendation' : 'Could not update Path recommendation',
+        error.message,
+      );
+      return null;
+    } finally {
+      setPathInterventionBusyStudentId(null);
+    }
+  };
+
   const fetchAssignments = async () => {
     const querySnapshot = await getDocs(collection(db, 'assignments'));
     const fetchedAssignments = [];
