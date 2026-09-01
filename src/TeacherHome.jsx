@@ -9,6 +9,7 @@ import {
 } from './assignmentLifecycle';
 import LiveClassMonitor from './components/teacher/LiveClassMonitor';
 import NeedsAttentionQueue from './components/teacher/NeedsAttentionQueue';
+import StudentSupportDashboard from './components/teacher/StudentSupportDashboard';
 import { studentsInClass } from '../functions/shared/classModel.mjs';
 
 const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
@@ -23,7 +24,7 @@ const greetingFor = (date) => {
 // Landing tab for teachers: today's classes at a glance, so a period's
 // status and roster are one click away instead of hunting through the
 // class-period dropdown on Grades or scrolling the full Classes grid.
-export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [] }) {
+export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], studentSupportEvents = [], onRecordStudentSupportEvent = null }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
 
   const classOptions = classes.length
@@ -64,6 +65,14 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
     ...student,
     liveStatus: presenceById[student.id] || null,
   }));
+  const supportRoster = currentClass
+    ? studentsInClass({
+      students: monitoredStudents,
+      classes,
+      classId: classIdInSession,
+      classPeriod: periodInSession,
+    })
+    : [];
 
   const totalOpen = assignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isOpen).length;
   const totalStudents = allStudents.length;
@@ -216,7 +225,22 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
         learningProfilesByStudentId={learningProfilesByStudentId}
         activeClassId={activeClassId}
         classes={classes}
+        onRecordSupportEvent={onRecordStudentSupportEvent}
       />
+
+      {currentClass && (
+        <StudentSupportDashboard
+          students={supportRoster}
+          profilesByStudentId={learningProfilesByStudentId}
+          needsAttention={needsAttention}
+          supportEvents={studentSupportEvents}
+          classId={classIdInSession}
+          classPeriod={periodInSession}
+          nowValue={nowValue}
+          onOpenStudent={onOpenStudent}
+          onRecordEvent={onRecordStudentSupportEvent}
+        />
+      )}
 
       <h3 style={{ margin: '0 0 10px' }}>Today&apos;s Classes</h3>
       {todaysClasses.length === 0 ? (
