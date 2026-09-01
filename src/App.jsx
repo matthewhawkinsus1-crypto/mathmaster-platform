@@ -1703,21 +1703,52 @@ function App() {
     }
   };
 
-  // Teachers stream presence only while the live grid is on screen, so a
-  // teacher sitting on Grades or Analytics is not paying for a listener.
+  // Teachers stream presence only while the live grid is on screen. Subscribe
+  // to roster-owned documents individually rather than the whole collection:
+  // Firestore rules can then enforce that a teacher reads only students they
+  // currently teach. Presence should never become a school-wide teacher feed.
   useEffect(() => {
-    if (user?.role !== 'teacher' || !['home', 'classesWorkspace'].includes(teacherTab)) return undefined;
-    return onSnapshot(
-      collection(db, 'presence'),
+    if (user?.role !== 'teacher' || !['home', 'classesWorkspace'].includes(teacherTab)) {
+      setPresenceById({});
+      return undefined;
+    }
+
+    const rosterIds = [...new Set(
+      (Array.isArray(allStudents) ? allStudents : [])
+        .map((student) => String(student?.id || '').trim())
+        .filter(Boolean),
+    )];
+
+    if (!rosterIds.length) {
+      setPresenceById({});
+      return undefined;
+    }
+
+    const unsubs = rosterIds.map((studentId) => onSnapshot(
+      doc(db, 'presence', studentId),
       (snapshot) => {
-        setPresenceById(Object.fromEntries(snapshot.docs.map((presenceDoc) => [
-          presenceDoc.id,
-          presenceDoc.data(),
-        ])));
+        setPresenceById((current) => {
+          if (!snapshot.exists()) {
+            if (!Object.prototype.hasOwnProperty.call(current, studentId)) return current;
+            const next = { ...current };
+            delete next[studentId];
+            return next;
+          }
+          return { ...current, [studentId]: snapshot.data() };
+        });
       },
-      (error) => console.error('Live class update failed:', error),
-    );
-  }, [user, teacherTab]);
+      (error) => {
+        // One stale/reassigned roster row should not take the rest of the live
+        // room down. The scoped roster refresh will remove it on the next load.
+        console.error(`Live class update failed for ${studentId}:`, error);
+      },
+    ));
+
+    return () => {
+      unsubs.forEach((unsubscribe) => unsubscribe());
+      setPresenceById({});
+    };
+  }, [user?.role, teacherTab, allStudents]);
 
   // DOL reminders are global to the student experience, not just the open
   // assignment. The persistent purple DOL card/banner is the primary notice;
