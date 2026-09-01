@@ -75,6 +75,7 @@ function StudentTile({
   roomMode = false,
   integritySignal = null,
   onSupportAction = null,
+  onAdjustPath = null,
 }) {
   const style = SEVERITY_STYLE[row.severity] || SEVERITY_STYLE[LIVE_SEVERITY.OK];
   const live = row.live;
@@ -188,6 +189,11 @@ function StudentTile({
           <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.WATCH_PRACTICE, SUPPORT_EVENT_STAGE.ACTION_TAKEN)} style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #9aa0a6', background: '#fff', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' }}>
             Watch Practice
           </button>
+          {onAdjustPath && (
+            <button type="button" onClick={onAdjustPath} style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #1a73e8', background: '#eef4ff', color: '#174ea6', fontWeight: 900, fontSize: 11.5, cursor: 'pointer' }}>
+              Adjust Path
+            </button>
+          )}
           <button type="button" onClick={() => onSupportAction(SUPPORT_EVENT_KIND.SMALL_GROUP, SUPPORT_EVENT_STAGE.TEACHER_CONFIRMED)} style={{ padding: '5px 8px', borderRadius: 7, border: '1px solid #9aa0a6', background: '#fff', fontWeight: 800, fontSize: 11.5, cursor: 'pointer' }}>
             Small-group candidate
           </button>
@@ -232,6 +238,7 @@ export default function LiveClassMonitor({
   classes = [],
   supportEvents = [],
   onRecordSupportEvent = null,
+  onOpenWeeklyPath = null,
 }) {
   // Opens on whichever period is in session; the teacher can widen it from
   // there. Deliberately not re-synced when the period changes mid-view, so a
@@ -415,6 +422,7 @@ export default function LiveClassMonitor({
               roomMode={roomMode}
               integritySignal={integrityByStudentId[row.id] || null}
               onSupportAction={(kind, stage, signal) => handleSupportAction(row, kind, stage, signal)}
+              onAdjustPath={onOpenWeeklyPath ? () => onOpenWeeklyPath(row.id) : null}
             />
           ))}
         </div>
