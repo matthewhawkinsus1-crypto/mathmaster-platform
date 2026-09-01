@@ -5,7 +5,7 @@ const { replaceDirectCcmrQuestionsWithAuditedBank } = require("./ccmrAssignmentB
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 const DEFAULT_ASSIGNMENT_MODEL = "gpt-5";
-const MAX_PROMPT_CHARS = 120000;
+const MAX_PROMPT_CHARS = 240000;
 const MAX_OUTPUT_TOKENS = 30000;
 
 class AssignmentAiError extends Error {
@@ -24,7 +24,7 @@ function cleanPrompt(value) {
   if (prompt.length > MAX_PROMPT_CHARS) {
     throw new AssignmentAiError(
       "invalid-argument",
-      `The assignment build request is too large (${prompt.length.toLocaleString()} characters). Shorten the teacher directions or split the lesson.`,
+      `The AI request is too large (${prompt.length.toLocaleString()} characters). MathMaster already uses compact repair packets; shorten unusually long teacher directions or split the lesson.`,
     );
   }
   return prompt;
