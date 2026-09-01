@@ -51,6 +51,35 @@ test('a heartbeat with no interaction reads as idle', () => {
   assert.match(row.headline, /^Idle \d+ min$/);
 });
 
+test('classwide quiet suppresses individual idle alarms during likely teacher talk or paper work', () => {
+  const roster = Array.from({ length: 6 }, (_, index) => student(`s${index}`, live({
+    questionStates: 'c.........',
+    lastInteractionAt: NOW - IDLE_AFTER_MS - 60000,
+    nowValue: NOW,
+  })));
+  const { rows, classStats } = summarizeLiveClass(roster, { nowValue: NOW, assignmentId: 'a1' });
+  assert.equal(classStats.idleShare, 1);
+  assert.ok(rows.every((entry) => !entry.flags.includes(LIVE_FLAGS.IDLE)));
+});
+
+test('one quiet student is still flagged when the rest of the room is working', () => {
+  const roster = [
+    student('idle', live({
+      questionStates: 'c.........',
+      lastInteractionAt: NOW - IDLE_AFTER_MS - 60000,
+      nowValue: NOW,
+    })),
+    ...['a', 'b', 'c', 'd', 'e'].map((id) => student(id, live({
+      questionStates: 'cccc......',
+      lastInteractionAt: NOW,
+      nowValue: NOW,
+    }))),
+  ];
+  const { rows, classStats } = summarizeLiveClass(roster, { nowValue: NOW, assignmentId: 'a1' });
+  assert.ok(classStats.idleShare < 0.67);
+  assert.ok(rows.find((entry) => entry.id === 'idle').flags.includes(LIVE_FLAGS.IDLE));
+});
+
 test('repeated attempts on one question flag as stuck', () => {
   const row = classifyLiveStudent(
     student('s1', live({ questionStates: 'cc........', currentAttempts: 3, questionIndex: 2 })),
