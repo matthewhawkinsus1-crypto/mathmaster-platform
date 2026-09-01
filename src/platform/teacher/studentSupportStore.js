@@ -72,6 +72,8 @@ export const recordStudentSupportEvent = async ({
     studentName: clean(event.studentName) || studentId,
     classId: clean(event.classId) || null,
     classPeriod: clean(event.classPeriod) || null,
+    originClassId: clean(event.classId) || null,
+    originTeacherEmail: email,
     assignmentId: clean(event.assignmentId) || null,
     assignmentTitle: clean(event.assignmentTitle).slice(0, 180) || null,
     sessionKey: clean(event.sessionKey) || null,
