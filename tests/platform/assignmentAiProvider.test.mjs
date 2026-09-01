@@ -113,6 +113,7 @@ test('native HTTPS transport posts directly to api.openai.com without depending 
   assert.equal(capturedOptions.hostname, 'api.openai.com');
   assert.equal(capturedOptions.path, '/v1/responses');
   assert.equal(capturedOptions.method, 'POST');
+  assert.equal(capturedOptions.family, 4);
   assert.equal(capturedOptions.headers.Authorization, 'Bearer server-test-key');
   assert.equal(capturedBody, '{"hello":"world"}');
   assert.equal(result.status, 200);
