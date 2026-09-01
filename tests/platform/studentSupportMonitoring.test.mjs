@@ -43,6 +43,15 @@ test('student profile preserves support-event history separately from objective 
   assert.match(drawer, /not behavior or integrity findings/i);
 });
 
+test('live class active time is session-only, not cumulative assignment time', () => {
+  const app = read('src/App.jsx');
+  assert.match(app, /liveSessionActiveSecondsRef/);
+  assert.match(app, /assignmentId: activeAssignmentId, seconds: 0/);
+  assert.match(app, /liveSessionActiveSecondsRef\.current\.seconds \+= 1/);
+  assert.match(app, /sessionActiveSeconds: Math\.max\(0, Number\(liveSessionActiveSecondsRef\.current\.seconds\)/);
+  assert.doesNotMatch(app, /sessionActiveSeconds:\s*accumulatedSeconds/);
+});
+
 test('student clients publish only coarse live integrity/productivity counters', () => {
   const app = read('src/App.jsx');
   const presence = read('src/livePresence.js');
