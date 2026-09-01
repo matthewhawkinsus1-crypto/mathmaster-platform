@@ -377,8 +377,8 @@ test('Watch Practice is short and prioritizes students with active classroom nee
     live: { assignmentId: 'a1', currentAttempts: index < 4 ? 3 : 1 },
   }));
   const watch = buildWatchPracticeList({ rows, maxStudents: 6 });
-  assert.equal(watch.length, 6);
-  assert.ok(watch.slice(0, 4).every((entry) => entry.reasons.includes('repeated attempts')));
+  assert.equal(watch.length, 4, 'the six-student cap is a maximum, not a quota; weak behind-pace-only signals do not pad the list');
+  assert.ok(watch.every((entry) => entry.reasons.includes('repeated attempts')));
 });
 
 
