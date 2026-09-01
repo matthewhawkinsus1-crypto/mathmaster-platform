@@ -3,6 +3,7 @@ import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 import StudentLearningProfileView from './StudentLearningProfileView.jsx';
 import { resolveAdaptiveRigorFromProfile } from '../../platform/rigor/courseRigor.js';
 import { courseLabel, courseLevelLabel } from '../../../functions/shared/classModel.mjs';
+import { SUPPORT_EVENT_LABEL } from '../../platform/teacher/studentSupportSignals.js';
 
 /*
  * ONE STUDENT, ONE ANSWER, FROM ANYWHERE.
@@ -57,6 +58,7 @@ export default function StudentProfileDrawer({
   plan = null,
   classRecord = null,
   courseContext = null,
+  supportEvents = [],
   onClose = null,
   onOpenFullRecord = null,
   onOpenGradebook = null,
@@ -125,6 +127,36 @@ export default function StudentProfileDrawer({
           </section>
 
           <StudentLearningProfileView studentName={studentName} profile={profile} plan={plan} />
+
+          <section style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid #eef0f2' }}>
+            <h3 style={{ margin: '0 0 5px', fontSize: 16 }}>Support & intervention history</h3>
+            <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: 12.5 }}>
+              System signals, teacher confirmations, dismissals and actions remain separate in this append-only history.
+            </p>
+            {supportEvents.length ? (
+              <div style={{ display: 'grid', gap: 7 }}>
+                {supportEvents.slice(0, 20).map((event) => {
+                  const date = new Date(event.createdAt || '');
+                  const when = Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
+                  return (
+                    <div key={event.id} style={{ padding: '9px 10px', borderRadius: 8, background: '#f8f9fa', border: '1px solid #eef0f2' }}>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                        <strong style={{ fontSize: 12.5 }}>{SUPPORT_EVENT_LABEL[event.kind] || event.kind}</strong>
+                        <span style={{ fontSize: 11, color: '#80868b' }}>{when}</span>
+                      </div>
+                      <div style={{ marginTop: 2, fontSize: 11.5, color: '#5f6368' }}>
+                        {event.stage}{event.source ? ` · ${event.source}` : ''}
+                      </div>
+                      {event.summary && <div style={{ marginTop: 4, fontSize: 12, color: '#3c4043', lineHeight: 1.4 }}>{event.summary}</div>}
+                      {event.note && <div style={{ marginTop: 4, fontSize: 12, color: '#3c4043', lineHeight: 1.4 }}><strong>Teacher note:</strong> {event.note}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ color: '#80868b', fontSize: 12.5 }}>No stored support/intervention events for this student yet.</div>
+            )}
+          </section>
         </div>
 
         <footer style={{ display: 'flex', gap: 9, padding: '13px 22px', borderTop: '1px solid #eef0f2', background: '#f8f9fa', flexWrap: 'wrap' }}>
