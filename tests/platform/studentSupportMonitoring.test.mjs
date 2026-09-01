@@ -70,7 +70,8 @@ test('crashed, reloaded, and abandoned presence sessions still reach the compact
   assert.match(functionsIndex, /beforeKey/);
   assert.match(functionsIndex, /beforeKey === afterKey/);
   assert.match(functionsIndex, /expireStaleStudentPresence/);
-  assert.match(functionsIndex, /onSchedule\("every 5 minutes"/);
+  assert.match(functionsIndex, /schedule:\s*"every 5 minutes"/);
+  assert.match(functionsIndex, /invoker:\s*"private"/);
   assert.match(functionsIndex, /PRESENCE_STALE_AFTER_MS/);
   assert.match(functionsIndex, /transaction\.delete\(candidate\.ref\)/);
 });
