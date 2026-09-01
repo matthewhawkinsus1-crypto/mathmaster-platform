@@ -117,6 +117,18 @@ test('rapid higher-demand work plus repeated focus loss produces review, not a c
   assert.ok(signal.reasons.some((reason) => /focus-loss/i.test(reason)));
 });
 
+test('a below-level label by itself does not corroborate an integrity review', () => {
+  const profile = establishedOnLevel({
+    instructionalBand: 'below',
+    dokProfile: {
+      1: { attempts: 10, accuracy: 0.6, confident: true },
+      2: { attempts: 6, accuracy: 0.7, confident: true },
+    },
+  });
+  const signal = buildIntegrityReviewSignal({ row: row(), profile });
+  assert.equal(signal, null);
+});
+
 test('rapid pattern may be corroborated by a large mismatch with established performance', () => {
   const profile = establishedOnLevel({
     instructionalBand: 'below',
