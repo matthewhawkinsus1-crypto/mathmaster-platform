@@ -223,7 +223,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
         nowValue={nowValue}
         onOpenStudent={onOpenStudent}
         learningProfilesByStudentId={learningProfilesByStudentId}
-        activeClassId={activeClassId}
+        activeClassId={classIdInSession}
         classes={classes}
         supportEvents={studentSupportEvents}
         onRecordSupportEvent={onRecordStudentSupportEvent}
