@@ -844,6 +844,10 @@ function App() {
   // tearing down the presence document (and therefore without creating an
   // archive-trigger invocation on every answer/question change).
   const livePresencePayloadRef = useRef(null);
+  // Session-only active time for the live monitor/archive. Assignment question
+  // timers are cumulative across resumes, and assignment-activity pending time
+  // is periodically flushed/reset, so neither is a valid class-session clock.
+  const liveSessionActiveSecondsRef = useRef({ assignmentId: null, seconds: 0 });
   const activeTimeRef = useRef(0);
   const pendingAssignmentSecondsRef = useRef(0);
   const lastDOLStatusRef = useRef({});
@@ -1612,6 +1616,9 @@ function App() {
     if (liveStartedAtRef.current.assignmentId !== activeAssignmentId) {
       liveStartedAtRef.current = { assignmentId: activeAssignmentId, at: Date.now() };
     }
+    if (liveSessionActiveSecondsRef.current.assignmentId !== activeAssignmentId) {
+      liveSessionActiveSecondsRef.current = { assignmentId: activeAssignmentId, seconds: 0 };
+    }
 
     const included = getIncludedQuestionIndices(activeAssignmentData);
     const question = activeQuestions[currentQuestionIndex];
@@ -1628,9 +1635,6 @@ function App() {
       tracker: liveTracker,
       includedIndices: included,
     });
-    const accumulatedSeconds = included.reduce((sum, index) => (
-      sum + (Number(normalizeQuestionRecord(liveTracker?.[index]).timeSpent) || 0)
-    ), 0);
     const sectionIndices = included.filter((index) => (
       resolveQuestionActivityRole({ question: activeQuestions[index], assignment: activeAssignmentData }) === activeQuestionRole
     ));
@@ -1665,7 +1669,7 @@ function App() {
         rapidCorrectCount: rapid.rapidCorrect,
         rapidDeepCorrectCount: rapid.rapidDeepCorrect,
         timedIndependentCorrectCount: rapid.timedIndependentCorrect,
-        sessionActiveSeconds: accumulatedSeconds,
+        sessionActiveSeconds: Math.max(0, Number(liveSessionActiveSecondsRef.current.seconds) || 0),
         lastInteractionAt: lastActivityRef.current,
         startedAt: liveStartedAtRef.current.at,
       }),
@@ -1953,6 +1957,9 @@ function App() {
       if (!isIdle) {
         activeTimeRef.current += 1;
         pendingAssignmentSecondsRef.current += 1;
+        if (liveSessionActiveSecondsRef.current.assignmentId === activeAssignmentId) {
+          liveSessionActiveSecondsRef.current.seconds += 1;
+        }
       }
     }, 1000);
 
@@ -1962,7 +1969,7 @@ function App() {
       window.removeEventListener('click', resetActivity);
       window.clearInterval(interval);
     };
-  }, [user, activeView, isIdle, activeSupportPresentation.disableIdleTimer]);
+  }, [user, activeView, activeAssignmentId, isIdle, activeSupportPresentation.disableIdleTimer]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || activeView !== 'assignment' || !activeAssignmentId) return undefined;
@@ -2240,6 +2247,7 @@ function App() {
     setAssignmentOverviewExpanded(false);
     lastActivityRef.current = Date.now();
     pendingAssignmentSecondsRef.current = 0;
+    liveSessionActiveSecondsRef.current = { assignmentId, seconds: 0 };
     liveFocusLossRef.current = { assignmentId, count: 0, hiddenAt: null };
     setIsIdle(false);
 
