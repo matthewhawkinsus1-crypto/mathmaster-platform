@@ -1,7 +1,9 @@
 import {
   addDoc,
   collection,
+  limit,
   onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
   where,
@@ -109,6 +111,8 @@ export const subscribeStudentSupportEvents = ({
   const q = query(
     collection(db, STUDENT_SUPPORT_COLLECTION),
     where('authorizedTeacherEmails', 'array-contains', email),
+    orderBy('createdAt', 'desc'),
+    limit(750),
   );
 
   return onSnapshot(
@@ -140,6 +144,8 @@ export const subscribeStudentSessionSummaries = ({
   const q = query(
     collection(db, STUDENT_SESSION_SUMMARY_COLLECTION),
     where('authorizedTeacherEmails', 'array-contains', email),
+    orderBy('endedAt', 'desc'),
+    limit(1000),
   );
 
   return onSnapshot(
