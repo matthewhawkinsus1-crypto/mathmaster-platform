@@ -96,3 +96,19 @@ test('Preflight blocks empty enabled notes and offers embedded plus external pub
   assert.match(modal, /Do not rewrite, reorder, add, remove, or reinterpret any assignment question/);
   assert.match(modal, /assignment questions were not changed/);
 });
+
+
+test('accepted notes repair updates both canonical working state and the review draft overlay', () => {
+  const modal = read('src/components/teacher/LessonPreflightModal.jsx');
+  assert.match(modal, /setWorkingAssignmentV5\(\(current\) =>/);
+  assert.match(modal, /setDraft\(\(currentDraft\) =>/);
+  assert.match(modal, /lessonNotesPdf: authoredNotes/);
+  assert.match(modal, /stale draft immediately overwrite a valid/);
+});
+
+test('notes repair remains available for any incomplete two-page package, not only zero sections', () => {
+  const modal = read('src/components/teacher/LessonPreflightModal.jsx');
+  assert.match(modal, /Number\(reviewedNotesPdf\.targetPages\) !== 2/);
+  assert.match(modal, /reviewedNotesPdf\.learningGoal/);
+  assert.match(modal, /reviewedNotesPdf\.sections\.length < 2/);
+});

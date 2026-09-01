@@ -247,7 +247,19 @@ async function callOpenAiAssignmentAuthor({
       throw new AssignmentAiError("failed-precondition", "MathMaster's AI service credential needs administrator attention.", { status: response.status });
     }
     if (response.status === 429) {
-      throw new AssignmentAiError("resource-exhausted", "The AI service is busy or the usage limit was reached. Try again shortly.", { status: response.status });
+      const providerCode = String(payload?.error?.code || payload?.error?.type || '').trim().toLowerCase();
+      if (providerCode === 'insufficient_quota') {
+        throw new AssignmentAiError(
+          "resource-exhausted",
+          "OpenAI rejected the request because this API project has no available quota or billing credit. MathMaster reached OpenAI successfully; the API project's billing/quota needs attention.",
+          { status: response.status, details: { providerCode } },
+        );
+      }
+      throw new AssignmentAiError(
+        "resource-exhausted",
+        "OpenAI rate-limited the assignment request. MathMaster reached OpenAI successfully; wait briefly and try again.",
+        { status: response.status, details: providerCode ? { providerCode } : null },
+      );
     }
     if (response.status >= 500) {
       throw new AssignmentAiError("unavailable", "The AI service is temporarily unavailable. Try again shortly.", { status: response.status });
