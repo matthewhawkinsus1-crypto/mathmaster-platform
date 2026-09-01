@@ -320,6 +320,20 @@ export const auditPathQuestionQuality = (question = {}) => {
     addIssue(issues, 'warning', 'form-heavy', 'This item has many independent response boxes and may feel like a form rather than a mathematical interaction.', 8);
   }
 
+  const authenticExamStyle = question?.assessmentContext?.examStyle === true
+    && ['digitalSAT', 'act', 'tsia2', 'asvab'].includes(text(question?.assessmentContext?.framework));
+  const choiceOnly = choices
+    && (!fields.length || fields.every((field) => text(field?.inputProfile).toLowerCase() === 'choice'));
+  if (choiceOnly && !authenticExamStyle) {
+    addIssue(
+      issues,
+      'warning',
+      'course-choice-preference',
+      'This ordinary My Math Path item is choice-only. Prefer a constructed, symbolic, graphing, modeling, table, mapping, or other interactive response when the standard supports one. Choice-only Path items are one attempt and should be used deliberately rather than as the default practice format.',
+      8,
+    );
+  }
+
   const solutionReview = question.solutionReview && typeof question.solutionReview === 'object' ? question.solutionReview : null;
   const reasoningLines = list(solutionReview?.reasoning).filter((line) => text(line)).length;
   if (!reasoningLines) {

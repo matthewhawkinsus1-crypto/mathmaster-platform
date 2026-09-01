@@ -6531,12 +6531,13 @@ exports.issueNextQuestion = onCall((request) => withPathCallableDiagnostics("iss
   // persistence rather than answer the question.
   const pathRole = session.diagnosing ? "diagnose" : (session.lastDecision?.action || "continue");
   const baseAttempts = session.sessionKind === "retentionProbe" || pathRole === "diagnose" ? 1 : 3;
-  // An authorized extra-attempts accommodation is ADDED to the pedagogical
-  // figure rather than replacing it, and deliberately does not extend a
-  // one-attempt diagnostic — that task is one attempt by design, because it is
-  // asking what the student can do unaided right now. Resolved on the server,
-  // so the browser cannot grant itself a fourth try.
-  const attemptsAllowed = await mathPath.attemptsFor(baseAttempts, entitlements);
+  // An authorized extra-attempts accommodation is normally ADDED to the
+  // pedagogical figure. Two interactions deliberately stay one attempt:
+  // diagnostics/retention probes, which measure what the student can do now,
+  // and pure finite-choice items, where extra guesses would become elimination
+  // rather than useful mathematical evidence. Resolved on the server so the
+  // browser cannot grant itself another try.
+  const attemptsAllowed = await mathPath.attemptsForQuestion(issued, baseAttempts, entitlements);
   const currentQuestion = {
     // The public half — the authentic tool, by allowlist — plus the private
     // grading definition, which lives only in this session document.

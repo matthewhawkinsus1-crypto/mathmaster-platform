@@ -39,7 +39,7 @@ import { buildMasteryBySkillForStudent } from '../path/masteryAdapter.js';
 import {
   PATH_ACTION, decideNextStep, explainStepForStudent, resolveDiagnostic,
 } from '../path/pathSessionRouting.js';
-import { recordQuestionAttempt } from '../../attemptPolicy.js';
+import { recordQuestionAttempt, resolveQuestionMaximumAttempts } from '../../attemptPolicy.js';
 import { toCanonicalKey, toDisplayCode } from '../../utils/teksUtils.js';
 
 const uid = (prefix) => `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
@@ -348,7 +348,11 @@ export const createTeacherPathRuntime = ({
       alignmentKey: toCanonicalKey(chosen.teksCode),
       activityRole: role === PATH_ACTION.DIAGNOSE ? 'checkpoint' : 'practice',
       pathRole: role,
-      attemptsAllowed: role === PATH_ACTION.DIAGNOSE ? 1 : 3,
+      attemptsAllowed: resolveQuestionMaximumAttempts({
+        question: issuedQuestion,
+        maximumAttempts: role === PATH_ACTION.DIAGNOSE ? 1 : 3,
+        activityPolicy: { attempts: role === PATH_ACTION.DIAGNOSE ? 1 : 3 },
+      }),
       attemptsUsed: 0,
       sourceAssignmentId: chosen.sourceAssignmentId,
       sourceQuestionIndex: chosen.sourceQuestionIndex,
@@ -405,6 +409,7 @@ export const createTeacherPathRuntime = ({
       isCorrect,
       questionDetails: String(instance.canonicalQuestion?.prompt || instance.tool?.prompt || '').slice(0, 160),
       supportUsage,
+      maximumAttempts: instance.attemptsAllowed,
     });
     assignmentGrades[index] = outcome.record;
     learner = {

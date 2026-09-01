@@ -47,8 +47,8 @@ import ReferenceInfoCard from './ReferenceInfoCard';
 import { resolveReferenceInfo } from './referenceInfo';
 import {
   getAttemptsRemaining,
-  MAX_ATTEMPTS_PER_QUESTION,
   normalizeQuestionRecord,
+  resolveQuestionMaximumAttempts,
 } from './attemptPolicy';
 import { stableStringify } from './utils/idUtils';
 import { ENTER_TO_CONTINUE_HINT, focusFirstAnswerControl, shouldAdvanceOnEnter, shouldSubmitAnswerOnEnter } from './platform/interaction/answerEntryUx.js';
@@ -146,7 +146,6 @@ export default function QuestionEngine({
   serverGrading = null,
 }) {
   const resolvedActivityPolicy = activityPolicy || getEffectiveActivityPolicy(activityRole);
-  const resolvedMaximumAttempts = Math.max(1, Number(maximumAttempts ?? resolvedActivityPolicy?.attempts ?? MAX_ATTEMPTS_PER_QUESTION) || MAX_ATTEMPTS_PER_QUESTION);
   const showOutcomeFeedback = resolvedActivityPolicy?.feedback === 'immediate' || feedbackReleased === true;
   const stableQuestion = useDeepStableValue(question);
   const stableStudentProfile = useDeepStableValue(studentProfile);
@@ -159,6 +158,11 @@ export default function QuestionEngine({
     () => normalizeContextualQuestion(generateQuestion(stableQuestion, generationKey, stableStudentProfile, stableAdaptation)),
     [stableQuestion, generationKey, stableStudentProfile, stableAdaptation],
   );
+  const resolvedMaximumAttempts = resolveQuestionMaximumAttempts({
+    question: processedQuestion,
+    maximumAttempts,
+    activityPolicy: resolvedActivityPolicy,
+  });
   // The primary standard this question is aligned to, for the badge beneath the
   // prompt. Read through the same normalizer the rest of the platform uses, so
   // a question aligned in any of the accepted shapes resolves the same way.

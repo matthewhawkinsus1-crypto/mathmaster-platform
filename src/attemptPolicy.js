@@ -1,6 +1,84 @@
 export const MAX_ATTEMPTS_PER_QUESTION = 3;
 const MAX_STORED_STEP_GRADES = 80;
 
+const SIMPLE_CHOICE_TYPES = new Set([
+  'multianswer',
+  'multiplechoice',
+  'multiple-choice',
+  'singlechoice',
+  'single-choice',
+  'choice',
+  'numberline',
+]);
+
+const choiceProfile = (field = {}) => String(
+  field?.inputProfile
+  ?? field?.inputMode
+  ?? field?.type
+  ?? '',
+).trim().toLowerCase();
+
+const isChoiceField = (field = {}) => (
+  ['choice', 'multiplechoice', 'multiple-choice', 'select'].includes(choiceProfile(field))
+);
+
+const isRenderedAssignmentChoiceField = (field = {}) => (
+  isChoiceField(field)
+  || (Array.isArray(field?.options) && field.options.length > 1)
+);
+
+/**
+ * A pure finite-choice question gets one submission, regardless of section.
+ *
+ * This is deliberately narrow: mixed tasks such as "choose a classification,
+ * then justify it" keep the section's normal instructional attempt policy.
+ * Construction tools that happen to contain internal choices are not treated
+ * as multiple-choice questions.
+ */
+export const isChoiceOnlyQuestion = (question = {}) => {
+  const type = String(question?.type || question?.toolId || '').trim().toLowerCase();
+  const pathQuestionType = String(question?.questionType || '').trim().toLowerCase();
+  const fields = [
+    ...(Array.isArray(question.answerFields) ? question.answerFields : []),
+    ...(Array.isArray(question.responseFields) ? question.responseFields : []),
+    ...(Array.isArray(question.responses) ? question.responses.filter((field) => field && typeof field === 'object' && !Array.isArray(field)) : []),
+  ];
+
+  // My Math Path's generic secure field payload is questionType:"response".
+  // Treat it as finite choice only when EVERY response is explicitly a choice.
+  if (pathQuestionType === 'response' && fields.length > 0) {
+    return fields.every(isChoiceField);
+  }
+
+  if (!SIMPLE_CHOICE_TYPES.has(type)) return false;
+  if (type === 'numberline') return Array.isArray(question?.choices) && question.choices.length > 1;
+  if (type !== 'multianswer') return true;
+  return fields.length > 0 && fields.every(isRenderedAssignmentChoiceField);
+};
+
+export const resolveQuestionMaximumAttempts = ({
+  question = {},
+  maximumAttempts = null,
+  activityPolicy = null,
+} = {}) => {
+  const requested = Math.max(
+    1,
+    Number(maximumAttempts ?? activityPolicy?.attempts ?? MAX_ATTEMPTS_PER_QUESTION)
+      || MAX_ATTEMPTS_PER_QUESTION,
+  );
+  return isChoiceOnlyQuestion(question) ? 1 : requested;
+};
+
+export const resolveQuestionReplacementAllowed = ({
+  question = {},
+  activityPolicy = null,
+  canGenerateFresh = false,
+} = {}) => {
+  if (activityPolicy?.allowReplacement !== true) return false;
+  if (!isChoiceOnlyQuestion(question)) return true;
+  return Boolean(canGenerateFresh);
+};
+
 export const emptyQuestionRecord = () => ({
   status: 'unattempted',
   attemptCount: 0,
@@ -379,7 +457,7 @@ export const getQuestionCardState = (record) => {
     return {
       background: percent >= 50 ? '#fbbc04' : '#c5221f',
       color: percent >= 50 ? '#3c2f00' : '#fff',
-      label: percent >= 50 ? `${percent}% · Almost` : 'Incorrect · Try again',
+      label: percent >= 50 ? `${percent}% · Almost` : 'Incorrect',
     };
   }
   if (normalized.status === 'attempted') {

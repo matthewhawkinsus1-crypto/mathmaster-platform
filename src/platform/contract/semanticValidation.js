@@ -294,10 +294,30 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
       if (field?.type === 'choice' && Array.isArray(field.options) && field.options.length === 2) {
         warnings.push(
           `${label} answerFields[${index}] ("${field.label || field.id || 'field'}") has only two answer choices. `
-          + 'Three-attempt assignments should not reduce to switch-after-one-miss guessing; author at least one additional meaningful distractor. MathMaster will strengthen and shuffle this field at runtime, but the source should be improved.',
+          + 'Pure finite-choice questions are one attempt at runtime, but a binary item can still be a weak recognition check. Author a meaningful rationale-based distractor when the mathematics supports one.',
         );
       }
     });
+
+    const choiceOnly = question.answerFields.length > 0
+      && question.answerFields.every((field) => field?.type === 'choice' || field?.inputProfile === 'choice');
+    const role = String(question.activityRole || question.role || '').trim().toLowerCase();
+    const authenticExamStyle = question?.assessmentContext?.examStyle === true
+      && ['digitalSAT', 'act', 'tsia2', 'asvab'].includes(String(question?.assessmentContext?.framework || ''));
+    if (choiceOnly && ['classwork', 'practice'].includes(role) && !authenticExamStyle) {
+      const hasFreshReplacement = Boolean(
+        question?.generator
+        || (Array.isArray(question?.variants) && question.variants.length >= 2)
+      );
+      warnings.push(
+        `${label} is a choice-only ${role} item. MathMaster will allow only one attempt, but ordinary Classwork/Practice should usually require students to produce mathematics through a constructed, symbolic, graphing, modeling, table, mapping, or other interactive response. Multiple choice is better reserved for concise checks or authentic assessment-format transfer.`,
+      );
+      if (!hasFreshReplacement) {
+        warnings.push(
+          `${label} is also a static one-attempt choice item, so MathMaster will not offer "Request New Question" because reopening the same choices would just permit elimination guessing. Add a generator/two or more real variants, or replace the item with a constructed-response interaction.`,
+        );
+      }
+    }
   }
 
   const interactionAudit = validateQuestionInteractionContracts(question, { label });

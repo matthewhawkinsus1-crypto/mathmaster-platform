@@ -117,6 +117,48 @@ async function attemptsFor(baseAttempts, entitlements) {
   return module.attemptsWithEntitlements(baseAttempts, entitlements);
 }
 
+const choiceProfile = (field = {}) => String(
+  field?.inputProfile
+  ?? field?.inputMode
+  ?? field?.type
+  ?? '',
+).trim().toLowerCase();
+
+const isChoiceResponseField = (field = {}) => (
+  ['choice', 'multiplechoice', 'multiple-choice', 'select'].includes(choiceProfile(field))
+);
+
+/**
+ * Path's one-attempt guessing guard.
+ *
+ * Only PURE finite-choice items qualify. A task that includes a written,
+ * numeric, symbolic, graphing, modeling, or justification response keeps the
+ * normal Path attempt policy even when one subpart is categorical.
+ */
+function isChoiceOnlyPathQuestion(question = {}) {
+  const fields = Array.isArray(question.responseFields) ? question.responseFields : [];
+  if (fields.length) return fields.every(isChoiceResponseField);
+
+  const type = String(question.questionType || question.type || question.toolId || '').trim().toLowerCase();
+  if (['choice', 'multiplechoice', 'multiple-choice', 'singlechoice', 'single-choice'].includes(type)) {
+    return true;
+  }
+
+  return Array.isArray(question.choices) && question.choices.length > 1;
+}
+
+/**
+ * Resolve attempts for an issued Path item.
+ *
+ * Pure multiple choice is always one attempt. Extra-attempt accommodations do
+ * not turn a four-option recognition item into repeated-guess evidence; after
+ * that one submission Path advances to a fresh item through normal routing.
+ */
+async function attemptsForQuestion(question, baseAttempts, entitlements) {
+  if (isChoiceOnlyPathQuestion(question)) return 1;
+  return attemptsFor(baseAttempts, entitlements);
+}
+
 /** Which authorized supports actually apply to this question. */
 async function applicableSupportsFor(entitlements, question, options) {
   const module = await supportEntitlements();
@@ -714,6 +756,8 @@ async function attemptSupport(args) {
 module.exports = {
   applicableSupportsFor,
   attemptsFor,
+  attemptsForQuestion,
+  isChoiceOnlyPathQuestion,
   reconcileSupports,
   resolveEntitlements,
   supportEntitlements,

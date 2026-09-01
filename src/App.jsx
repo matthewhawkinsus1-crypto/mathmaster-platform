@@ -28,15 +28,18 @@ import {
 import ClassroomManagerV2 from './ClassroomManagerV2';
 import AssignmentQuestionEditor from './AssignmentQuestionEditor';
 import QuestionEngine from './QuestionEngine';
-import { generateQuestion } from './problemGenerator';
+import { generateQuestion, isPersonalizedBlueprint } from './problemGenerator';
 import {
   emptyQuestionRecord,
   getQuestionCardState,
   getQuestionCredit,
+  isChoiceOnlyQuestion,
   normalizeQuestionRecord,
   recordQuestionAttempt,
   recordQuestionStep,
   requestReplacementQuestion,
+  resolveQuestionMaximumAttempts,
+  resolveQuestionReplacementAllowed,
 } from './attemptPolicy';
 import {
   parseAssignmentBlueprintText,
@@ -2188,7 +2191,11 @@ function App() {
         supportUsage,
         responseKey,
         partialCreditPercent: attemptMetadata.partialCreditPercent,
-        maximumAttempts: activeActivityPolicy.attempts,
+        maximumAttempts: resolveQuestionMaximumAttempts({
+          question: activeQuestions[currentQuestionIndex],
+          maximumAttempts: activeActivityPolicy.attempts,
+          activityPolicy: activeActivityPolicy,
+        }),
       });
 
     if (isTeacherPreview) {
@@ -2348,7 +2355,11 @@ function App() {
         countsAttempt,
         statePatch,
         supportUsage,
-        maximumAttempts: activeActivityPolicy.attempts,
+        maximumAttempts: resolveQuestionMaximumAttempts({
+          question: activeQuestions[currentQuestionIndex],
+          maximumAttempts: activeActivityPolicy.attempts,
+          activityPolicy: activeActivityPolicy,
+        }),
       });
 
     if (isTeacherPreview) {
@@ -2434,6 +2445,11 @@ function App() {
 
   const handleRequestNewQuestion = async (options = {}) => {
     if (!activeAssignmentId) return;
+
+    const replacementBlueprint = activeQuestions[currentQuestionIndex];
+    if (isChoiceOnlyQuestion(replacementBlueprint) && !isPersonalizedBlueprint(replacementBlueprint)) {
+      return;
+    }
 
     if (isTeacherPreview) {
       const replacement = requestReplacementQuestion(
@@ -4972,6 +4988,15 @@ function App() {
       || (activeActivityPolicy.feedback === 'afterAssignmentSubmit' && ['correct', 'expired'].includes(currentRecord.status));
     const runtimeActivityRole = !preview && lifecycle.isPracticeOnly ? 'practice' : activeQuestionRole;
     const runtimeActivityPolicy = getEffectiveActivityPolicy(runtimeActivityRole);
+    const currentQuestionBlueprint = questions[currentQuestionIndex];
+    const currentReplacementAllowed = resolveQuestionReplacementAllowed({
+      question: currentQuestionBlueprint,
+      activityPolicy: runtimeActivityPolicy,
+      canGenerateFresh: isPersonalizedBlueprint(currentQuestionBlueprint),
+    });
+    const runtimeQuestionActivityPolicy = currentReplacementAllowed === runtimeActivityPolicy.allowReplacement
+      ? runtimeActivityPolicy
+      : { ...runtimeActivityPolicy, allowReplacement: currentReplacementAllowed };
     const currentSectionVariantMode = getSectionVariantMode(assignment, activeQuestionRole);
     const generationStudentKey = currentSectionVariantMode === 'shared'
       ? `shared-version:${assignment.id}:${activeQuestionRole}`
@@ -5415,9 +5440,13 @@ function App() {
                           ? `Your teacher has closed the ${currentManualSectionState.role === 'practice' ? 'Practice' : 'Classwork'} section for this class. Saved work remains visible, but new submissions are locked until the section is reopened.`
                           : ''}
               dolMode={!preview && currentIsDOL && dolState.status === 'active'}
-              maximumAttempts={runtimeActivityPolicy.attempts}
+              maximumAttempts={resolveQuestionMaximumAttempts({
+                question: questions[currentQuestionIndex],
+                maximumAttempts: runtimeQuestionActivityPolicy.attempts,
+                activityPolicy: runtimeQuestionActivityPolicy,
+              })}
               activityRole={runtimeActivityRole}
-              activityPolicy={runtimeActivityPolicy}
+              activityPolicy={runtimeQuestionActivityPolicy}
               feedbackReleased={currentFeedbackReleased}
               replacementWarning={replacementWarning}
               draftKey={lifecycle.isPracticeOnly && !preview ? null : buildQuestionDraftKey({ studentId: preview ? 'teacher-preview' : user?.id || 'anonymous', assignmentId: activeAssignmentId, questionIndex: currentQuestionIndex, variantIndex: currentRecord.variantIndex, sessionMode: draftSessionMode })}
