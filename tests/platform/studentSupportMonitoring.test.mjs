@@ -47,6 +47,14 @@ test('student clients publish only coarse live integrity/productivity counters',
   assert.doesNotMatch(presence, /activeTabUrl|browserHistory|screenCapture/i);
 });
 
+test('live presence payload changes do not delete/recreate the session on every answer', () => {
+  const app = read('src/App.jsx');
+  assert.match(app, /livePresencePayloadRef/);
+  assert.match(app, /Archive live presence only at real assignment session boundaries|IMPORTANT LIFECYCLE BOUNDARY/i);
+  assert.match(app, /const publishLatest/);
+  assert.match(app, /activeAssignmentData\?\.id/);
+});
+
 test('presence deletion archives one compact session summary instead of heartbeat history', () => {
   const functionsIndex = read('functions/index.js');
   const summaryLib = read('functions/lib/studentSessionSummary.js');
