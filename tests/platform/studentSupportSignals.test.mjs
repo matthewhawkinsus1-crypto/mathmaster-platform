@@ -129,7 +129,7 @@ test('rapid pattern may be corroborated by a large mismatch with established per
   assert.equal(signal.evidence.profileMismatch, true);
 });
 
-test('an extreme repeated pattern can reach review without focus telemetry but still is not a verdict', () => {
+test('even an extreme repeated speed pattern stays quiet without independent corroboration', () => {
   const signal = buildIntegrityReviewSignal({
     row: row({
       counts: { answered: 8, accuracy: 100 },
@@ -144,8 +144,7 @@ test('an extreme repeated pattern can reach review without focus telemetry but s
     }),
     profile: establishedOnLevel(),
   });
-  assert.ok(signal);
-  assert.equal(signal.confidence, 'strong-review-signal');
+  assert.equal(signal, null);
 });
 
 test('archived sessions preserve only an extreme pattern for later Integrity Review', () => {
@@ -157,13 +156,22 @@ test('archived sessions preserve only an extreme pattern for later Integrity Rev
     timedIndependentCorrectCount: 6,
   }), null, 'ordinary fast work is too weak without live corroboration');
 
-  const signal = buildArchivedIntegrityReviewSignal({
+  assert.equal(buildArchivedIntegrityReviewSignal({
     answered: 8,
     accuracy: 100,
     rapidCorrectCount: 7,
     rapidDeepCorrectCount: 4,
     timedIndependentCorrectCount: 8,
     focusLossCount: 0,
+  }), null, 'archived speed alone is still insufficient');
+
+  const signal = buildArchivedIntegrityReviewSignal({
+    answered: 8,
+    accuracy: 100,
+    rapidCorrectCount: 7,
+    rapidDeepCorrectCount: 4,
+    timedIndependentCorrectCount: 8,
+    focusLossCount: 3,
   });
   assert.ok(signal);
   assert.equal(signal.confidence, 'strong-review-signal');
