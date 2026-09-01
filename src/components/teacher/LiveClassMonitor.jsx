@@ -149,12 +149,32 @@ function StudentTile({
         never contains mathematics; see the rule at the top of liveCoaching.js.
       */}
       {suggestion && (
-        <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.72)' }}>
+        <div
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+          style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,.72)' }}
+        >
           <div style={{ fontWeight: 800, fontSize: roomMode ? 15 : 12.5, color: '#202124', lineHeight: 1.35 }}>
             {suggestion.headline}
           </div>
           {!roomMode && (
-            <div style={{ marginTop: 3, fontSize: 11.5, color: '#5f6368', lineHeight: 1.45 }}>{suggestion.why}</div>
+            <>
+              <div style={{ marginTop: 3, fontSize: 11.5, color: '#5f6368', lineHeight: 1.45 }}>{suggestion.why}</div>
+              {onSupportAction && (
+                <button
+                  type="button"
+                  onClick={() => onSupportAction(
+                    SUPPORT_EVENT_KIND.TEACHER_INTERVENTION,
+                    SUPPORT_EVENT_STAGE.ACTION_TAKEN,
+                    null,
+                    { coachingSuggestion: suggestion },
+                  )}
+                  style={{ marginTop: 6, padding: '5px 8px', borderRadius: 7, border: '1px solid #188038', background: '#e6f4ea', color: '#137333', fontWeight: 900, fontSize: 11.5, cursor: 'pointer' }}
+                >
+                  Use this move
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
@@ -293,9 +313,10 @@ export default function LiveClassMonitor({
       .filter(([, signal]) => Boolean(signal)),
   ), [visibleRows, learningProfilesByStudentId, supportEvents]);
 
-  const handleSupportAction = (row, kind, stage, integritySignal = null) => {
+  const handleSupportAction = (row, kind, stage, integritySignal = null, extra = {}) => {
     if (!onRecordSupportEvent) return;
     const live = row.live || {};
+    const coachingSuggestion = extra?.coachingSuggestion || null;
     const evidence = {
       flags: row.flags,
       severity: row.severity,
@@ -308,9 +329,16 @@ export default function LiveClassMonitor({
       rapidDeepCorrectCount: live.rapidDeepCorrectCount,
       timedIndependentCorrectCount: live.timedIndependentCorrectCount,
       sessionActiveSeconds: live.sessionActiveSeconds,
+      ...(coachingSuggestion ? {
+        coachingMove: coachingSuggestion.move,
+        coachingHeadline: coachingSuggestion.headline,
+        coachingWhy: coachingSuggestion.why,
+      } : {}),
       ...(integritySignal?.evidence || {}),
     };
-    const summary = kind === SUPPORT_EVENT_KIND.SIGNAL_DISMISSED
+    const summary = coachingSuggestion
+      ? `Teacher used the live coaching move: ${coachingSuggestion.headline}`
+      : kind === SUPPORT_EVENT_KIND.SIGNAL_DISMISSED
       ? 'Teacher reviewed and dismissed the unusual-response signal.'
       : kind === SUPPORT_EVENT_KIND.INTEGRITY_REVIEW
         ? 'Teacher marked the unusual response pattern for integrity review. This is not a cheating finding.'
@@ -421,7 +449,7 @@ export default function LiveClassMonitor({
               suggestion={suggestions[row.id] || null}
               roomMode={roomMode}
               integritySignal={integrityByStudentId[row.id] || null}
-              onSupportAction={(kind, stage, signal) => handleSupportAction(row, kind, stage, signal)}
+              onSupportAction={(kind, stage, signal, extra) => handleSupportAction(row, kind, stage, signal, extra)}
               onAdjustPath={onOpenWeeklyPath ? () => onOpenWeeklyPath(row.id) : null}
             />
           ))}
