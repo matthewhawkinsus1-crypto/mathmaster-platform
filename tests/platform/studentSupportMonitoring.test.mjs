@@ -52,6 +52,17 @@ test('live class active time is session-only, not cumulative assignment time', (
   assert.doesNotMatch(app, /sessionActiveSeconds:\s*accumulatedSeconds/);
 });
 
+test('resumed assignment history is excluded from current-session integrity counters', () => {
+  const app = read('src/App.jsx');
+  assert.match(app, /liveSessionAttemptBaselineRef/);
+  assert.match(app, /current\.totalAttempts > baselineAttempts/);
+  assert.match(app, /sessionFinalizedIndices/);
+  assert.match(app, /includedIndices: sessionFinalizedIndices/);
+  assert.match(app, /answeredCount: rapid\.answered/);
+  assert.match(app, /correctCount: rapid\.correct/);
+  assert.match(app, /accuracy: rapid\.accuracy/);
+});
+
 test('student clients publish only coarse live integrity/productivity counters', () => {
   const app = read('src/App.jsx');
   const presence = read('src/livePresence.js');
