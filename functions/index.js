@@ -395,6 +395,18 @@ async function reauthorizeStudentRecords(db, studentId, classRecord) {
     counts[collectionName] = await apply(null, snapshot.docs);
   }
 
+  // A temporary personal Path recommendation belongs to the current teacher /
+  // class context. Clear it on a roster/teacher move instead of silently
+  // carrying the old teacher's live intervention into a new class.
+  const personalPathRef = db.collection("studentPathInterventions").doc(studentId);
+  const personalPathSnapshot = await personalPathRef.get();
+  if (personalPathSnapshot.exists) {
+    await personalPathRef.delete();
+    counts.studentPathInterventions = 1;
+  } else {
+    counts.studentPathInterventions = 0;
+  }
+
   // The derived per-student documents are single records, not collections.
   for (const collectionName of ["studentMasteryProfiles", "studentRetentionSchedules"]) {
     const ref = db.collection(collectionName).doc(studentId);
