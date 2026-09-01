@@ -45,8 +45,12 @@ service cloud.firestore {
     // teacher, who needs the history to teach them. See the policy note in
     // functions/shared/authorizationContext.mjs.
     function authorizedTeacher() {
+      // The app queries this collection with
+      // where('authorizedTeacherEmails', 'array-contains', signedInEmail).
+      // Keep the read rule expressed as that same membership constraint so
+      // Firestore can prove a list query is safe. A missing/non-list field
+      // simply evaluates false and remains unreadable.
       return teacher()
-        && resource.data.authorizedTeacherEmails is list
         && request.auth.token.email in resource.data.authorizedTeacherEmails;
     }
 
