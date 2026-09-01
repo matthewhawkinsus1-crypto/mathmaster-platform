@@ -3285,14 +3285,57 @@ async function assertMappedStudent(db, teacherUid, courseId, classId, studentId)
   return { mapping, classRecord: classSnap.data(), student: studentSnap.data() };
 }
 
+function classroomMappingResponse(doc) {
+  const data = doc.data() || {};
+  const updatedAt = data.updatedAt;
+  const updatedAtMillis = typeof updatedAt?.toMillis === "function"
+    ? updatedAt.toMillis()
+    : Number.isFinite(Number(updatedAt))
+      ? Number(updatedAt)
+      : null;
+
+  // Return the small public mapping contract only. Do not send arbitrary raw
+  // Firestore values through the callable encoder; older mapping documents may
+  // contain legacy fields or Firestore Timestamp/reference objects that the
+  // browser does not need.
+  return {
+    id: doc.id,
+    mappingId: String(data.mappingId || doc.id),
+    courseId: data.courseId == null ? null : String(data.courseId),
+    courseName: data.courseName == null ? null : String(data.courseName),
+    courseSection: data.courseSection == null ? "" : String(data.courseSection),
+    classId: data.classId == null ? null : String(data.classId),
+    className: data.className == null ? null : String(data.className),
+    classPeriod: data.classPeriod == null ? null : String(data.classPeriod),
+    updatedAtMillis,
+  };
+}
+
 exports.listClassroomCourseMappings = onCall(async (request) => {
   const teacherUid = await requireTeacher(request);
-  const snap = await getFirestore()
-    .collection("classroomCourseMappings")
-    .where("teacherUid", "==", teacherUid)
-    .limit(100)
-    .get();
-  return { mappings: snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })) };
+  try {
+    const snap = await getFirestore()
+      .collection("classroomCourseMappings")
+      .where("teacherUid", "==", teacherUid)
+      .limit(100)
+      .get();
+    return { mappings: snap.docs.map(classroomMappingResponse) };
+  } catch (error) {
+    logger.error("listClassroomCourseMappings failed", {
+      teacherUid,
+      code: error?.code || null,
+      name: error?.name || null,
+      message: error?.message || String(error),
+    });
+    throw new HttpsError(
+      "internal",
+      "MathMaster could not load your saved Google Classroom mappings.",
+      {
+        stage: "load-course-mappings",
+        errorCode: String(error?.code || error?.name || "unknown").slice(0, 80),
+      },
+    );
+  }
 });
 
 exports.saveClassroomCourseMapping = onCall(async (request) => {
