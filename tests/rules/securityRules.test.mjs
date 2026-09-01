@@ -164,6 +164,30 @@ test('moving a student to another class moves who can read them', async () => {
   });
 });
 
+test('teacher and student clients cannot rewrite roster authorization fields', async () => {
+  await assertFails(setDoc(doc(teacherA(), 'grades/STUDENT_A'), {
+    assignedTeacherEmail: TEACHER_B,
+  }, { merge: true }));
+  await assertFails(setDoc(doc(teacherA(), 'grades/STUDENT_A'), {
+    classId: 'class-b',
+    classPeriod: 'Period 2',
+  }, { merge: true }));
+  await assertFails(setDoc(doc(studentA(), 'grades/STUDENT_A'), {
+    assignedTeacherEmail: TEACHER_A,
+    classId: 'class-b',
+    classPeriod: 'Period 2',
+  }, { merge: true }));
+
+  // Ordinary work/profile fields are still writable by the identities that
+  // already own this roster row.
+  await assertSucceeds(setDoc(doc(teacherA(), 'grades/STUDENT_A'), {
+    teacherNoteMarker: 'allowed',
+  }, { merge: true }));
+  await assertSucceeds(setDoc(doc(studentA(), 'grades/STUDENT_A'), {
+    studentProgressMarker: 'allowed',
+  }, { merge: true }));
+});
+
 test('a stale denormalized teacher is what a partial move would leave behind', async () => {
   // Writing classId without assignedTeacherEmail — the bug this design exists
   // to make impossible. Asserted here so a future change that reintroduces it
