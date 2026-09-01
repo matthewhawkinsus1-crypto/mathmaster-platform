@@ -203,6 +203,56 @@ export const buildIntegrityReviewSignal = ({ row = null, profile = null } = {}) 
   };
 };
 
+/**
+ * After the student leaves the assignment, the rich live row is gone but the
+ * compact server-owned session summary remains. Only the most extreme
+ * response-timing pattern can surface from that summary by itself because the
+ * server archive does not carry the student's full academic profile.
+ *
+ * This is still only "review recommended". It is never a cheating finding.
+ */
+export const buildArchivedIntegrityReviewSignal = (summary = {}) => {
+  const answered = Math.max(0, num(summary.answered));
+  const accuracy = num(summary.accuracy, -1);
+  const rapidCorrect = Math.max(0, num(summary.rapidCorrectCount));
+  const rapidDeepCorrect = Math.max(0, num(summary.rapidDeepCorrectCount));
+  const timedIndependentCorrect = Math.max(0, num(summary.timedIndependentCorrectCount));
+  const rapidShare = timedIndependentCorrect > 0
+    ? rapidCorrect / timedIndependentCorrect
+    : 0;
+
+  if (
+    answered < 6
+    || accuracy < 80
+    || timedIndependentCorrect < 6
+    || rapidCorrect < 6
+    || rapidDeepCorrect < 3
+    || rapidShare < 0.75
+  ) return null;
+
+  return {
+    kind: SUPPORT_EVENT_KIND.INTEGRITY_REVIEW,
+    stage: SUPPORT_EVENT_STAGE.SYSTEM_SIGNAL,
+    label: 'Unusual response pattern — review',
+    confidence: 'strong-review-signal',
+    reasons: [
+      `${rapidCorrect} unusually fast independent correct responses`,
+      `${rapidDeepCorrect} were on higher-demand items`,
+      'the pattern remained extreme across the archived session',
+    ],
+    evidence: {
+      answered,
+      accuracy,
+      rapidCorrect,
+      rapidDeepCorrect,
+      timedIndependentCorrect,
+      rapidShare: Number(rapidShare.toFixed(3)),
+      focusLossCount: Math.max(0, num(summary.focusLossCount)),
+      archivedSession: true,
+    },
+  };
+};
+
 const hasFlag = (row, flag) => list(row?.flags).includes(flag);
 const recent = (event, nowValue, days = 7) => {
   const time = Date.parse(event?.createdAt || event?.recordedAt || '') || num(event?.createdAtMs);
