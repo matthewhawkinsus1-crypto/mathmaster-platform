@@ -962,11 +962,27 @@ function App() {
     });
   }, [user, weeklyGoalsByClass]);
 
-  const studentOverrides = useMemo(() => (
-    user?.role === 'student'
-      ? overridesForClassContext(skillOverrides, { classId: user.classId, classPeriod: user.classPeriod })
-      : []
-  ), [skillOverrides, user]);
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id) {
+      setStudentPathInterventionState(null);
+      return undefined;
+    }
+    return subscribeStudentPathIntervention({
+      studentId: user.id,
+      onChange: setStudentPathInterventionState,
+      onError: (error) => console.error('Personal Path recommendation failed to load:', error),
+    });
+  }, [user?.role, user?.id]);
+
+  const studentOverrides = useMemo(() => {
+    if (user?.role !== 'student') return [];
+    const classOverrides = overridesForClassContext(skillOverrides, {
+      classId: user.classId,
+      classPeriod: user.classPeriod,
+    });
+    const personal = interventionAsOverride(studentPathIntervention);
+    return personal ? [...classOverrides, personal] : classOverrides;
+  }, [skillOverrides, studentPathIntervention, user]);
 
   const studentPathAssignments = useMemo(() => (
     user?.role === 'student'
