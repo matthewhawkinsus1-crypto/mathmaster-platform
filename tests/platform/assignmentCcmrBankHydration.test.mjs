@@ -194,3 +194,40 @@ test('Honors CCMR credit requires audited-bank provenance, not merely exam-looki
   const bankReport = inspectHonorsRigor([core, banked]);
   assert.equal(bankReport.checks.ccmrEnrichment, true);
 });
+
+
+test('Honors CCMR transfer recognizes lesson TEKS stored in the supported standard field', () => {
+  const document = chooseAuditedBankDocument({
+    framework: 'digitalSAT',
+    domainId: 'advancedMath',
+    teksCodes: ['A2.2A'],
+    seed: 'algebra2-standard-field-transfer',
+  });
+  assert.ok(document, 'expected an audited Digital SAT A2.2A family');
+
+  const banked = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: { title: 'Algebra II Honors transfer', courseId: 'algebra2' },
+    sections: [{
+      role: 'practice',
+      title: 'Practice',
+      questions: [bankDocumentToV5Intent(document)],
+    }],
+  }).package.sections[0].questions[0];
+
+  const lessonQuestion = {
+    type: 'transformationsLab',
+    activityRole: 'classwork',
+    prompt: 'Analyze the absolute value parent function.',
+    standard: 'A2.2A',
+    dok: 3,
+    difficultyBand: 3,
+  };
+
+  const report = inspectHonorsRigor([lessonQuestion, banked]);
+  assert.equal(
+    report.checks.ccmrEnrichment,
+    true,
+    'bank-backed A2.2A Practice should transfer when the lesson TEKS is carried in question.standard',
+  );
+});
