@@ -75,6 +75,11 @@ export const buildLiveStatus = ({
   representation = 'text',
   questionStates = [],
   currentAttempts = 0,
+  focusLossCount = 0,
+  rapidCorrectCount = 0,
+  rapidDeepCorrectCount = 0,
+  timedIndependentCorrectCount = 0,
+  sessionActiveSeconds = 0,
   lastInteractionAt = null,
   startedAt = null,
   nowValue = Date.now(),
@@ -92,6 +97,14 @@ export const buildLiveStatus = ({
   // A whole assignment's progress bar in a handful of bytes.
   questionStates: String(questionStates || '').slice(0, 200),
   currentAttempts: clampInt(currentAttempts),
+  // Coarse session telemetry only. No URLs, response text, keystrokes, or
+  // screenshots are collected. These are corroborating signals for a teacher
+  // review, never proof of behavior or academic integrity.
+  focusLossCount: clampInt(focusLossCount),
+  rapidCorrectCount: clampInt(rapidCorrectCount),
+  rapidDeepCorrectCount: clampInt(rapidDeepCorrectCount),
+  timedIndependentCorrectCount: clampInt(timedIndependentCorrectCount),
+  sessionActiveSeconds: clampInt(sessionActiveSeconds),
   lastInteractionAt: toMillis(lastInteractionAt) ?? nowValue,
   startedAt: toMillis(startedAt) ?? nowValue,
   updatedAt: nowValue,
