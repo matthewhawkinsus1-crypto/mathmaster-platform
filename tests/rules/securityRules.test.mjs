@@ -80,6 +80,14 @@ before(async () => {
     });
     await setDoc(doc(db, 'presence/STUDENT_A'), { studentId: 'STUDENT_A', classId: 'class-a', assignmentId: 'A1' });
     await setDoc(doc(db, 'presence/STUDENT_B'), { studentId: 'STUDENT_B', classId: 'class-b', assignmentId: 'A2' });
+    await setDoc(doc(db, 'studentPathInterventions/STUDENT_A'), {
+      studentId: 'STUDENT_A',
+      classId: 'class-a',
+      skillId: 'teks:A.5A',
+      teksCode: 'A.5A',
+      action: 'recommend',
+      expiresAt: Date.now() + 86400000,
+    });
   });
 });
 
@@ -295,6 +303,20 @@ test('live presence is scoped to the teacher roster and owned by the student hea
   }, { merge: true }));
   await assertFails(setDoc(doc(teacherA(), 'presence/STUDENT_A'), {
     assignmentId: 'forged-by-teacher',
+  }, { merge: true }));
+});
+
+test('personal Path intervention is student-readable, roster-scoped, and server-write-only', async () => {
+  await assertSucceeds(getDoc(doc(studentA(), 'studentPathInterventions/STUDENT_A')));
+  await assertSucceeds(getDoc(doc(teacherA(), 'studentPathInterventions/STUDENT_A')));
+  await assertFails(getDoc(doc(teacherB(), 'studentPathInterventions/STUDENT_A')));
+  await assertSucceeds(getDoc(doc(admin(), 'studentPathInterventions/STUDENT_A')));
+
+  await assertFails(setDoc(doc(studentA(), 'studentPathInterventions/STUDENT_A'), {
+    skillId: 'teks:A.6A',
+  }, { merge: true }));
+  await assertFails(setDoc(doc(teacherA(), 'studentPathInterventions/STUDENT_A'), {
+    skillId: 'teks:A.6A',
   }, { merge: true }));
 });
 

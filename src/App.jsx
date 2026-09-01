@@ -80,6 +80,7 @@ import {
 } from './assignmentLifecycle';
 import { HEARTBEAT_INTERVAL_MS, buildLiveStatus, encodeQuestionStates } from './livePresence';
 import { getQuestionRepresentation } from './platform/contract/questionTypeCatalog';
+import { getQuestionPrimaryTeksCodes } from './questionMetadata.js';
 import {
   buildIEPReportHtml,
   buildSupportUsage,
@@ -162,8 +163,9 @@ import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdap
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
 import {
   ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions,
-  logRouteEvent, overridesForClassContext, saveClassPacing, saveSkillOverrides, saveWeeklyGoalSettings,
-  storedPacingForClassContext, storedWeeklyGoalForClassContext,
+  interventionAsOverride, logRouteEvent, overridesForClassContext, saveClassPacing, saveSkillOverrides, saveWeeklyGoalSettings,
+  setStudentPathIntervention, storedPacingForClassContext, storedWeeklyGoalForClassContext,
+  subscribeStudentPathIntervention,
 } from './platform/path/pathStore.js';
 import WeeklyPathControls from './components/teacher/WeeklyPathControls.jsx';
 import StudentPerformanceBadge from './components/common/StudentPerformanceBadge.jsx';
@@ -392,6 +394,8 @@ function App() {
   // and CCMR — a change here changes what a student is offered.
   const [pacingByClass, setPacingByClass] = useState({});
   const [skillOverrides, setSkillOverrides] = useState([]);
+  const [studentPathIntervention, setStudentPathInterventionState] = useState(null);
+  const [pathInterventionBusyStudentId, setPathInterventionBusyStudentId] = useState(null);
   const [pacingBusy, setPacingBusy] = useState(false);
   // Weekly Path goal settings, per class. Stored beside pacing and read the
   // same way — students read them, teachers write them, and a class with
@@ -958,11 +962,27 @@ function App() {
     });
   }, [user, weeklyGoalsByClass]);
 
-  const studentOverrides = useMemo(() => (
-    user?.role === 'student'
-      ? overridesForClassContext(skillOverrides, { classId: user.classId, classPeriod: user.classPeriod })
-      : []
-  ), [skillOverrides, user]);
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id) {
+      setStudentPathInterventionState(null);
+      return undefined;
+    }
+    return subscribeStudentPathIntervention({
+      studentId: user.id,
+      onChange: setStudentPathInterventionState,
+      onError: (error) => console.error('Personal Path recommendation failed to load:', error),
+    });
+  }, [user?.role, user?.id]);
+
+  const studentOverrides = useMemo(() => {
+    if (user?.role !== 'student') return [];
+    const classOverrides = overridesForClassContext(skillOverrides, {
+      classId: user.classId,
+      classPeriod: user.classPeriod,
+    });
+    const personal = interventionAsOverride(studentPathIntervention);
+    return personal ? [...classOverrides, personal] : classOverrides;
+  }, [skillOverrides, studentPathIntervention, user]);
 
   const studentPathAssignments = useMemo(() => (
     user?.role === 'student'
@@ -1062,6 +1082,81 @@ function App() {
       console.error(error);
     } finally {
       setPacingBusy(false);
+    }
+  };
+
+  const handlePersonalPathRecommendation = async ({
+    studentId,
+    studentName = null,
+    teksCode = null,
+    clear = false,
+    classId = null,
+    classPeriod = null,
+    assignmentId = null,
+    assignmentTitle = null,
+  } = {}) => {
+    const id = String(studentId || '').trim();
+    if (!id) return null;
+    setPathInterventionBusyStudentId(id);
+    try {
+      const result = await setStudentPathIntervention({
+        studentId: id,
+        teksCode,
+        durationHours: 48,
+        clear,
+      });
+
+      if (clear) {
+        toastSuccess(
+          'Personal Path recommendation cleared',
+          `${studentName || id} is back to the normal adaptive Path priorities.`,
+        );
+        return result;
+      }
+
+      // The intervention and the support history are different records on
+      // purpose. The student sees only "teacher recommended this skill"; the
+      // private teacher history preserves when/where the action happened.
+      if (user?.email) {
+        recordStudentSupportEvent({
+          db,
+          teacherEmail: user.email,
+          event: {
+            kind: SUPPORT_EVENT_KIND.TEACHER_INTERVENTION,
+            stage: SUPPORT_EVENT_STAGE.ACTION_TAKEN,
+            studentId: id,
+            studentName: studentName || id,
+            classId,
+            classPeriod,
+            assignmentId,
+            assignmentTitle,
+            source: 'liveMonitor',
+            summary: `Teacher recommended ${teksCode} as a temporary personal My Math Path priority for 48 hours.`,
+            evidence: {
+              teksCode,
+              durationHours: 48,
+              interventionType: 'personalPathRecommendation',
+            },
+          },
+        }).catch((error) => {
+          console.error('Path recommendation applied but support history did not save:', error);
+        });
+      }
+
+      toastSuccess(
+        'Path recommendation updated',
+        `${teksCode} is now a personal priority for ${studentName || id} for 48 hours. Normal prerequisite and content safeguards still apply.`,
+      );
+      return result;
+    } catch (error) {
+      console.error(error);
+      toastError(
+        clear ? 'Could not clear Path recommendation' : 'Could not update Path recommendation',
+        error.message,
+      );
+      return null;
+    } finally {
+      setPathInterventionBusyStudentId(null);
     }
   };
 
@@ -1666,11 +1761,13 @@ function App() {
       )
       : 0;
 
+    const currentTeksCode = getQuestionPrimaryTeksCodes(question || {})[0] || null;
     const payload = {
       studentId: user.id,
       name: user.name || user.id,
       classId: user.classId || null,
       classPeriod: user.classPeriod || '',
+      currentTeksCode,
       ...buildLiveStatus({
         assignmentId: activeAssignmentId,
         assignmentTitle: activeAssignmentData.title,
@@ -6397,6 +6494,8 @@ function App() {
                 studentSupportEvents={studentSupportEvents}
                 studentSessionSummaries={studentSessionSummaries}
                 onRecordStudentSupportEvent={handleRecordStudentSupportEvent}
+                onRecommendPersonalPath={handlePersonalPathRecommendation}
+                pathInterventionBusyStudentId={pathInterventionBusyStudentId}
                 onOpenWeeklyPath={() => setTeacherTab('weeklyPath')}
                 onOpenAdministration={() => setTeacherWorkspaceMode('administration')}
                 onUnlockDOL={handleUnlockDOLForClass}

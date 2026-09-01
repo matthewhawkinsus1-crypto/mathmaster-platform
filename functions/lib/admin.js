@@ -15,11 +15,13 @@ const STUDENT_QUERY_COLLECTIONS = Object.freeze([
   "examIntegrityEvents",
   "studentSupportEvents",
   "studentSessionSummaries",
+  "studentPathInterventionAudit",
 ]);
 
 const STUDENT_DIRECT_COLLECTIONS = Object.freeze([
   "studentMasteryProfiles",
   "studentRetentionSchedules",
+  "studentPathInterventions",
 ]);
 
 const PREPRODUCTION_RESET_CONFIRMATION = "RESET TEST DATA";
@@ -58,6 +60,8 @@ const PREPRODUCTION_RESET_COLLECTIONS = Object.freeze([
   "examIntegrityEvents",
   "studentSupportEvents",
   "studentSessionSummaries",
+  "studentPathInterventionAudit",
+  "studentPathInterventions",
   "studentMasteryProfiles",
   "studentRetentionSchedules",
 ]);

@@ -84,11 +84,13 @@ test('student erasure policy spans every server-owned Phase 5/6 student data fam
     'examIntegrityEvents',
     'studentSupportEvents',
     'studentSessionSummaries',
+    'studentPathInterventionAudit',
   ]) {
     assert.equal(queried.has(collectionName), true, `${collectionName} must be erased by studentId`);
   }
   assert.equal(direct.has('studentMasteryProfiles'), true);
   assert.equal(direct.has('studentRetentionSchedules'), true);
+  assert.equal(direct.has('studentPathInterventions'), true);
 });
 
 test('teacher grants and permanent student erasure are root-admin callables, not ordinary-teacher actions', () => {

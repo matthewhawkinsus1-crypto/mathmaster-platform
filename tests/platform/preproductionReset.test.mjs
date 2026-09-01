@@ -54,6 +54,8 @@ test('reset collection policy deletes test/runtime state but explicitly preserve
     'examIntegrityEvents',
     'studentSupportEvents',
     'studentSessionSummaries',
+    'studentPathInterventionAudit',
+    'studentPathInterventions',
     'studentMasteryProfiles',
     'studentRetentionSchedules',
   ]) {
