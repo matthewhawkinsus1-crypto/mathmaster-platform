@@ -279,6 +279,14 @@ test('student support history is teacher-authorized and append-only', async () =
     createdByEmail: TEACHER_B,
     authorizedTeacherEmails: [TEACHER_B],
   }));
+  await assertFails(setDoc(doc(teacherA(), 'studentSupportEvents/support-other-roster'), {
+    schemaVersion: 1,
+    kind: 'watchPractice',
+    stage: 'actionTaken',
+    studentId: 'STUDENT_B',
+    createdByEmail: TEACHER_A,
+    authorizedTeacherEmails: [TEACHER_A],
+  }), 'a teacher cannot create support history for another teacher\'s roster');
 
   // A signal is never rewritten into a fact. Confirmation/dismissal/resolution
   // must be a new append-only event.
