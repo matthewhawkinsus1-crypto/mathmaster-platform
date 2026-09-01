@@ -1,6 +1,60 @@
 export const MAX_ATTEMPTS_PER_QUESTION = 3;
 const MAX_STORED_STEP_GRADES = 80;
 
+const SIMPLE_CHOICE_TYPES = new Set([
+  'multianswer',
+  'multiplechoice',
+  'multiple-choice',
+  'singlechoice',
+  'single-choice',
+  'choice',
+]);
+
+const choiceProfile = (field = {}) => String(
+  field?.inputProfile
+  ?? field?.inputMode
+  ?? field?.type
+  ?? '',
+).trim().toLowerCase();
+
+const isChoiceField = (field = {}) => (
+  ['choice', 'multiplechoice', 'multiple-choice', 'select'].includes(choiceProfile(field))
+);
+
+/**
+ * A pure finite-choice question gets one submission, regardless of section.
+ *
+ * This is deliberately narrow: mixed tasks such as "choose a classification,
+ * then justify it" keep the section's normal instructional attempt policy.
+ * Construction tools that happen to contain internal choices are not treated
+ * as multiple-choice questions.
+ */
+export const isChoiceOnlyQuestion = (question = {}) => {
+  const type = String(question?.type || question?.toolId || '').trim().toLowerCase();
+  if (!SIMPLE_CHOICE_TYPES.has(type)) return false;
+  if (type !== 'multianswer') return true;
+
+  const fields = [
+    ...(Array.isArray(question.answerFields) ? question.answerFields : []),
+    ...(Array.isArray(question.responseFields) ? question.responseFields : []),
+    ...(Array.isArray(question.responses) ? question.responses.filter((field) => field && typeof field === 'object' && !Array.isArray(field)) : []),
+  ];
+  return fields.length > 0 && fields.every(isChoiceField);
+};
+
+export const resolveQuestionMaximumAttempts = ({
+  question = {},
+  maximumAttempts = null,
+  activityPolicy = null,
+} = {}) => {
+  const requested = Math.max(
+    1,
+    Number(maximumAttempts ?? activityPolicy?.attempts ?? MAX_ATTEMPTS_PER_QUESTION)
+      || MAX_ATTEMPTS_PER_QUESTION,
+  );
+  return isChoiceOnlyQuestion(question) ? 1 : requested;
+};
+
 export const emptyQuestionRecord = () => ({
   status: 'unattempted',
   attemptCount: 0,
