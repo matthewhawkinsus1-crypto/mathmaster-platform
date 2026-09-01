@@ -829,7 +829,7 @@ function App() {
   const liveStartedAtRef = useRef({ assignmentId: null, at: Date.now() });
   // Count only page-visibility losses during the current assignment. We never
   // record which tab/site was opened. This is corroborating telemetry only.
-  const liveFocusLossRef = useRef({ assignmentId: null, count: 0 });
+  const liveFocusLossRef = useRef({ assignmentId: null, count: 0, hiddenAt: null });
   const activeTimeRef = useRef(0);
   const pendingAssignmentSecondsRef = useRef(0);
   const lastDOLStatusRef = useRef({});
@@ -1549,12 +1549,25 @@ function App() {
   useEffect(() => {
     if (user?.role !== 'student' || !activeAssignmentId || activeView !== 'assignment') return undefined;
     if (liveFocusLossRef.current.assignmentId !== activeAssignmentId) {
-      liveFocusLossRef.current = { assignmentId: activeAssignmentId, count: 0 };
+      liveFocusLossRef.current = { assignmentId: activeAssignmentId, count: 0, hiddenAt: null };
     }
+
+    // Brief focus changes happen for notifications, accessibility tools,
+    // Classroom resources and accidental taps. They are too ambiguous to be
+    // useful. Count only a sustained hidden episode (8+ seconds), and still use
+    // it only as corroboration — never as proof of off-task behavior.
+    const MIN_FOCUS_LOSS_MS = 8000;
     const onVisibility = () => {
-      if (document.hidden && liveFocusLossRef.current.assignmentId === activeAssignmentId) {
+      if (liveFocusLossRef.current.assignmentId !== activeAssignmentId) return;
+      if (document.hidden) {
+        if (!liveFocusLossRef.current.hiddenAt) liveFocusLossRef.current.hiddenAt = Date.now();
+        return;
+      }
+      const hiddenAt = Number(liveFocusLossRef.current.hiddenAt) || 0;
+      if (hiddenAt && Date.now() - hiddenAt >= MIN_FOCUS_LOSS_MS) {
         liveFocusLossRef.current.count += 1;
       }
+      liveFocusLossRef.current.hiddenAt = null;
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
@@ -1621,7 +1634,13 @@ function App() {
         questionStates: encodeQuestionStates(activeWorkingTracker, included),
         currentAttempts: record.attemptCount,
         focusLossCount: liveFocusLossRef.current.assignmentId === activeAssignmentId
-          ? liveFocusLossRef.current.count
+          ? liveFocusLossRef.current.count + (
+            document.hidden
+            && Number(liveFocusLossRef.current.hiddenAt) > 0
+            && Date.now() - Number(liveFocusLossRef.current.hiddenAt) >= 8000
+              ? 1
+              : 0
+          )
           : 0,
         rapidCorrectCount: rapid.rapidCorrect,
         rapidDeepCorrectCount: rapid.rapidDeepCorrect,
@@ -2149,7 +2168,7 @@ function App() {
     setAssignmentOverviewExpanded(false);
     lastActivityRef.current = Date.now();
     pendingAssignmentSecondsRef.current = 0;
-    liveFocusLossRef.current = { assignmentId, count: 0 };
+    liveFocusLossRef.current = { assignmentId, count: 0, hiddenAt: null };
     setIsIdle(false);
 
     if (lifecycle.isPracticeOnly) {
