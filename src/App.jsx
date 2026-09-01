@@ -37,6 +37,7 @@ import {
   recordQuestionAttempt,
   recordQuestionStep,
   requestReplacementQuestion,
+  resolveQuestionMaximumAttempts,
 } from './attemptPolicy';
 import {
   parseAssignmentBlueprintText,
@@ -2188,7 +2189,11 @@ function App() {
         supportUsage,
         responseKey,
         partialCreditPercent: attemptMetadata.partialCreditPercent,
-        maximumAttempts: activeActivityPolicy.attempts,
+        maximumAttempts: resolveQuestionMaximumAttempts({
+          question: activeQuestions[currentQuestionIndex],
+          maximumAttempts: activeActivityPolicy.attempts,
+          activityPolicy: activeActivityPolicy,
+        }),
       });
 
     if (isTeacherPreview) {
@@ -2348,7 +2353,11 @@ function App() {
         countsAttempt,
         statePatch,
         supportUsage,
-        maximumAttempts: activeActivityPolicy.attempts,
+        maximumAttempts: resolveQuestionMaximumAttempts({
+          question: activeQuestions[currentQuestionIndex],
+          maximumAttempts: activeActivityPolicy.attempts,
+          activityPolicy: activeActivityPolicy,
+        }),
       });
 
     if (isTeacherPreview) {
@@ -5415,7 +5424,11 @@ function App() {
                           ? `Your teacher has closed the ${currentManualSectionState.role === 'practice' ? 'Practice' : 'Classwork'} section for this class. Saved work remains visible, but new submissions are locked until the section is reopened.`
                           : ''}
               dolMode={!preview && currentIsDOL && dolState.status === 'active'}
-              maximumAttempts={runtimeActivityPolicy.attempts}
+              maximumAttempts={resolveQuestionMaximumAttempts({
+                question: questions[currentQuestionIndex],
+                maximumAttempts: runtimeActivityPolicy.attempts,
+                activityPolicy: runtimeActivityPolicy,
+              })}
               activityRole={runtimeActivityRole}
               activityPolicy={runtimeActivityPolicy}
               feedbackReleased={currentFeedbackReleased}
