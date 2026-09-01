@@ -62,6 +62,19 @@ test('live presence payload changes do not delete/recreate the session on every 
   assert.match(app, /activeAssignmentData\?\.id/);
 });
 
+test('crashed, reloaded, and abandoned presence sessions still reach the compact archive', () => {
+  const functionsIndex = read('functions/index.js');
+
+  assert.match(functionsIndex, /archiveReplacedStudentPresenceSession/);
+  assert.match(functionsIndex, /onDocumentWritten\("presence\/\{studentId\}"/);
+  assert.match(functionsIndex, /beforeKey/);
+  assert.match(functionsIndex, /beforeKey === afterKey/);
+  assert.match(functionsIndex, /expireStaleStudentPresence/);
+  assert.match(functionsIndex, /onSchedule\("every 5 minutes"/);
+  assert.match(functionsIndex, /PRESENCE_STALE_AFTER_MS/);
+  assert.match(functionsIndex, /transaction\.delete\(candidate\.ref\)/);
+});
+
 test('presence deletion archives one compact session summary instead of heartbeat history', () => {
   const functionsIndex = read('functions/index.js');
   const summaryLib = read('functions/lib/studentSessionSummary.js');
