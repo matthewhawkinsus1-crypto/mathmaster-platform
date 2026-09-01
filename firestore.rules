@@ -146,6 +146,15 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // One temporary student-facing Path recommendation created only through
+    // the audited teacher callable. Students may read their own instructional
+    // recommendation; teachers may read only their current roster. Private
+    // concern/reason notes never live here.
+    match /studentPathInterventions/{studentId} {
+      allow read: if rootAdmin() || ownsStudent(studentId) || teachesPresenceStudent(studentId);
+      allow create, update, delete: if false;
+    }
+
     // Compact server-generated session summaries. Students never write or read
     // these directly. They contain only counts/durations already visible to the
     // teacher in Live Class — no answers, URLs, screenshots or keystrokes.
