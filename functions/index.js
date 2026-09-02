@@ -3973,9 +3973,20 @@ async function finishPublication(ref, attemptId, patch) {
   });
 }
 
-function courseWorkMatchesPublication(courseWork, publicationId) {
+function publicationInstanceMarker(forceRequestId, courseId) {
+  const fingerprint = crypto
+    .createHash("sha256")
+    .update(String(forceRequestId || "") + "|" + String(courseId || ""))
+    .digest("hex")
+    .slice(0, 24);
+  return `[MathMaster publication-instance:${fingerprint}]`;
+}
+
+function courseWorkMatchesPublication(courseWork, publicationId, requiredInstanceMarker = null) {
   if (!courseWork || !publicationId) return false;
-  return String(courseWork.description || "").includes(publicationMarker(publicationId));
+  const description = String(courseWork.description || "");
+  if (!description.includes(publicationMarker(publicationId))) return false;
+  return !requiredInstanceMarker || description.includes(String(requiredInstanceMarker));
 }
 
 async function publishOneCourse({
@@ -4037,6 +4048,7 @@ async function publishOneCourse({
 
   const attemptId = claim.attemptId;
   const marker = publicationMarker(publicationId);
+  const requiredInstanceMarker = String(claim.current.publicationInstanceMarker || "").trim() || null;
   const functionsBaseUrl = requirePublicEnv("FUNCTIONS_BASE_URL").replace(/\/$/, "");
   const launchToken = encryptLaunchPayload({
     assignmentId,
@@ -4057,7 +4069,7 @@ async function publishOneCourse({
           courseId,
           priorCourseworkId
         );
-        if (courseWorkMatchesPublication(candidate, publicationId)) {
+        if (courseWorkMatchesPublication(candidate, publicationId, requiredInstanceMarker)) {
           courseWork = candidate;
         } else {
           logger.warn(
@@ -4072,7 +4084,8 @@ async function publishOneCourse({
       courseWork = await classroomLib.findCourseWorkByPublicationMarker(
         classroom,
         courseId,
-        marker
+        marker,
+        requiredInstanceMarker ? [requiredInstanceMarker] : []
       );
     }
 
@@ -4086,7 +4099,11 @@ async function publishOneCourse({
       courseWork = await classroomLib.createCourseWork(classroom, {
         courseId,
         title: resolvedTitle,
-        description: `${String(instructions || defaultInstructions).trim()}\n\n${marker}`,
+        description: [
+          String(instructions || defaultInstructions).trim(),
+          marker,
+          requiredInstanceMarker,
+        ].filter(Boolean).join("\n\n"),
         dueDate: toDate(dueAtValue) || undefined,
         materials,
         launchUrl,
@@ -4647,7 +4664,11 @@ exports.repairClassroomAssignmentPublications = onCall(
             courseId,
             priorCourseworkId
           );
-          if (courseWorkMatchesPublication(existingCourseWork, publication.id)) {
+          if (courseWorkMatchesPublication(
+            existingCourseWork,
+            publication.id,
+            String(data.publicationInstanceMarker || "").trim() || null
+          )) {
             results.push({
               courseId,
               courseName: course.name || data.courseName || courseId,
@@ -4837,6 +4858,287 @@ exports.repairClassroomAssignmentPublications = onCall(
   }
 );
 
+// Explicit teacher override: create a NEW Google Classroom assignment post in
+// selected mapped courses even when MathMaster can still verify an older post.
+// This is deliberately separate from repair/publish so a duplicate can never be
+// created by accident. The MathMaster assignment and student work remain
+// unchanged; grade passback is repointed to the new CourseWork id.
+exports.forceRepublishAssignmentToClassrooms = onCall(
+  { secrets: GOOGLE_AND_LINK_SECRETS },
+  async (request) => {
+    const teacherUid = await requireTeacher(request);
+    const assignmentId = String(request.data?.assignmentId || "").trim();
+    const forceRequestId = String(request.data?.forceRequestId || crypto.randomUUID()).trim();
+    const rawCourseIds = Array.isArray(request.data?.courseIds) ? request.data.courseIds : [];
+    const courseIds = [...new Set(rawCourseIds.map((value) => String(value)).filter(Boolean))];
+
+    if (!assignmentId) {
+      throw new HttpsError("invalid-argument", "assignmentId is required.");
+    }
+    if (!courseIds.length) {
+      throw new HttpsError("invalid-argument", "Select at least one Google Classroom course.");
+    }
+    if (courseIds.length > MAX_CLASSROOM_COURSES_PER_BATCH) {
+      throw new HttpsError(
+        "invalid-argument",
+        `A maximum of ${MAX_CLASSROOM_COURSES_PER_BATCH} courses may be force-reposted at once.`
+      );
+    }
+
+    const db = getFirestore();
+    const assignmentSnap = await db.doc(`assignments/${assignmentId}`).get();
+    if (!assignmentSnap.exists) {
+      throw new HttpsError("not-found", "Assignment not found.");
+    }
+    const assignment = assignmentSnap.data() || {};
+    const audience = assignmentAudience(assignment);
+    if (!audience.classIds.length) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Assign this MathMaster assignment to a class before force-reposting it."
+      );
+    }
+
+    const classroom = await classroomLib.getClassroomClient(teacherUid);
+    const activeCourses = await classroomLib.listCourses(classroom);
+    const courseMap = new Map(activeCourses.map((course) => [String(course.id), course]));
+    const classroomPackage = assignment.classroomPackage || {};
+    const assignmentPost = classroomPackage.assignmentPost || {};
+    const requestedMaterials = preferDriveNotesMaterial(
+      cleanMaterials(request.data?.materials),
+      assignment
+    );
+    const requestedTopicName = String(
+      request.data?.topicName || classroomPackage?.topic?.name || ""
+    ).trim().slice(0, 200);
+    const requestedInstructions = String(
+      request.data?.instructions
+      || assignmentPost.instructions
+      || `Complete "${assignment.title || "MathMaster Assignment"}" in MathMaster.`
+    ).trim().slice(0, 20000);
+    const requestedTitle = String(
+      request.data?.classroomTitle || assignmentPost.title || assignment.title || "MathMaster Assignment"
+    ).trim().slice(0, 300);
+    const requestedMaxPoints = Number.isFinite(Number(request.data?.maxPoints))
+      ? Math.max(1, Math.min(1000, Number(request.data.maxPoints)))
+      : Number.isFinite(Number(assignmentPost.maxPoints))
+        ? Math.max(1, Math.min(1000, Number(assignmentPost.maxPoints)))
+        : 100;
+    const gradePassbackEnabled = request.data?.gradePassbackEnabled !== false
+      && classroomPackage?.gradePassback?.enabled !== false;
+    const dueAtValue = assignment.dueAt || assignment.dueDate || null;
+    const functionsBaseUrl = requirePublicEnv("FUNCTIONS_BASE_URL").replace(/\/$/, "");
+    const results = [];
+
+    for (const courseId of courseIds) {
+      const course = courseMap.get(courseId);
+      if (!course) {
+        results.push({
+          courseId,
+          courseName: courseId,
+          status: "failed",
+          error: "The connected teacher is not an active teacher in this Google Classroom course.",
+        });
+        continue;
+      }
+
+      // eslint-disable-next-line no-await-in-loop
+      const mapping = await getTeacherClassroomMapping(db, teacherUid, courseId);
+      const mappedClassId = String(mapping?.classId || "").trim();
+      if (!mapping || !mappedClassId) {
+        results.push({
+          courseId,
+          courseName: course.name || courseId,
+          status: "failed",
+          error: "Map this Google Classroom course to a MathMaster class first.",
+        });
+        continue;
+      }
+      if (!audience.classIds.includes(mappedClassId)) {
+        results.push({
+          courseId,
+          courseName: course.name || courseId,
+          status: "failed",
+          error: `This assignment is not assigned to ${mapping.className || mapping.classPeriod || "the mapped MathMaster class"}.`,
+        });
+        continue;
+      }
+
+      // eslint-disable-next-line no-await-in-loop
+      const { ref: publicationRef, snap: publicationSnap } = await resolvePublicationRef(
+        db,
+        assignmentId,
+        courseId
+      );
+      const publicationId = publicationRef.id;
+      const prior = publicationSnap.exists ? publicationSnap.data() || {} : {};
+      const priorCourseworkId = String(prior.courseworkId || "").trim() || null;
+
+      // A client retry of the SAME button click returns the already-created new
+      // post rather than creating another duplicate.
+      if (
+        prior.lastForceRequestId === forceRequestId
+        && prior.courseworkId
+        && prior.status === "published"
+      ) {
+        results.push({
+          courseId,
+          courseName: course.name || prior.courseName || courseId,
+          publicationId,
+          courseworkId: String(prior.courseworkId),
+          classroomUrl: prior.classroomUrl || null,
+          status: "already-forced",
+          queuedGrades: 0,
+        });
+        continue;
+      }
+
+      const baseMarker = publicationMarker(publicationId);
+      const instanceMarker = publicationInstanceMarker(forceRequestId, courseId);
+      const launchToken = encryptLaunchPayload({ assignmentId, courseId, publicationId });
+      const launchUrl = `${functionsBaseUrl}/resolveLaunchToken?token=${encodeURIComponent(launchToken)}`;
+
+      let materials = requestedMaterials;
+      if (!materials.length && Array.isArray(prior.materials)) {
+        materials = preferDriveNotesMaterial(cleanMaterials(prior.materials), assignment);
+      }
+
+      try {
+        // Idempotency across a transport retry where Google succeeded but the
+        // Firestore update did not: find the deterministic force-request marker
+        // before creating another CourseWork item.
+        // eslint-disable-next-line no-await-in-loop
+        let courseWork = await classroomLib.findCourseWorkByPublicationMarker(
+          classroom,
+          courseId,
+          baseMarker,
+          [instanceMarker]
+        );
+
+        // eslint-disable-next-line no-await-in-loop
+        const topic = requestedTopicName
+          ? await classroomLib.ensureTopic(classroom, courseId, requestedTopicName)
+          : null;
+
+        if (!courseWork) {
+          // eslint-disable-next-line no-await-in-loop
+          courseWork = await classroomLib.createCourseWork(classroom, {
+            courseId,
+            title: requestedTitle,
+            description: [requestedInstructions, baseMarker, instanceMarker].join("\n\n"),
+            dueDate: toDate(dueAtValue) || undefined,
+            materials,
+            launchUrl,
+            maxPoints: requestedMaxPoints,
+            topicId: topic?.topicId || null,
+          });
+        }
+
+        const update = {
+          schemaVersion: 4,
+          publicationId,
+          teacherUid,
+          assignmentId,
+          classId: mapping.classId,
+          classPeriod: mapping.classPeriod || null,
+          courseId,
+          courseName: course.name || courseId,
+          courseSection: course.section || "",
+          title: requestedTitle,
+          dueAt: serializableDate(dueAtValue),
+          maxPoints: requestedMaxPoints,
+          gradePassbackEnabled,
+          materials,
+          topicName: topic?.name || requestedTopicName || null,
+          topicId: topic?.topicId || null,
+          status: "published",
+          courseworkId: courseWork.id,
+          classroomUrl: courseWork.alternateLink || null,
+          launchUrl,
+          publicationInstanceMarker: instanceMarker,
+          lastForceRequestId: forceRequestId,
+          forcedRepostCount: FieldValue.increment(1),
+          forcedRepostedAt: FieldValue.serverTimestamp(),
+          forcedRepostedBy: teacherUid,
+          publishedAt: FieldValue.serverTimestamp(),
+          syncedDueAt: serializableDate(dueAtValue),
+          lastSyncedAt: FieldValue.serverTimestamp(),
+          syncStatus: "in-sync",
+          error: FieldValue.delete(),
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+        if (priorCourseworkId && priorCourseworkId !== String(courseWork.id)) {
+          update.supersededCourseworkIds = FieldValue.arrayUnion(priorCourseworkId);
+          update.forcedRepostedFromCourseworkId = priorCourseworkId;
+        }
+
+        // eslint-disable-next-line no-await-in-loop
+        await publicationRef.set(update, { merge: true });
+
+        let gradeQueue = { linkedStudents: 0, queuedStudents: 0 };
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          gradeQueue = await queueRepostedAssignmentGrades({
+            db,
+            teacherUid,
+            courseId,
+            assignmentId,
+          });
+        } catch (gradeError) {
+          logger.error(
+            `Forced Classroom repost for assignment ${assignmentId} course ${courseId} could not queue existing grades`,
+            gradeError
+          );
+          gradeQueue = {
+            linkedStudents: 0,
+            queuedStudents: 0,
+            error: String(gradeError.message || gradeError),
+          };
+        }
+
+        results.push({
+          courseId,
+          courseName: course.name || courseId,
+          publicationId,
+          oldCourseworkId: priorCourseworkId,
+          courseworkId: String(courseWork.id),
+          classroomUrl: courseWork.alternateLink || null,
+          status: "forced-reposted",
+          linkedStudents: gradeQueue.linkedStudents,
+          queuedGrades: gradeQueue.queuedStudents,
+          gradeQueueError: gradeQueue.error || null,
+        });
+      } catch (error) {
+        logger.error(
+          `Failed forced Classroom repost for assignment ${assignmentId} course ${courseId}`,
+          error
+        );
+        results.push({
+          courseId,
+          courseName: course.name || courseId,
+          publicationId,
+          oldCourseworkId: priorCourseworkId,
+          status: "failed",
+          error: String(error.message || error),
+        });
+      }
+    }
+
+    return {
+      assignmentId,
+      forceRequestId,
+      results,
+      summary: {
+        selected: results.length,
+        forcedReposted: results.filter((item) => item.status === "forced-reposted").length,
+        alreadyForced: results.filter((item) => item.status === "already-forced").length,
+        failed: results.filter((item) => item.status === "failed").length,
+        queuedGrades: results.reduce((total, item) => total + Number(item.queuedGrades || 0), 0),
+      },
+    };
+  }
+);
+
 // Read the live Google Classroom roster and the live coursework audience.
 // Setting repairAudience=true also resets MathMaster-created coursework to
 // ALL_STUDENTS through Classroom's modifyAssignees endpoint.
@@ -4877,7 +5179,11 @@ exports.inspectClassroomPublication = onCall(
           String(publication.courseworkId)
         );
 
-        if (!courseWorkMatchesPublication(courseWork, publication.id)) {
+        if (!courseWorkMatchesPublication(
+          courseWork,
+          publication.id,
+          String(publication.publicationInstanceMarker || "").trim() || null
+        )) {
           results.push({
             courseId,
             courseName: publication.courseName || courseId,
