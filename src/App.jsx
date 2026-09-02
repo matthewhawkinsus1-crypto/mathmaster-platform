@@ -55,6 +55,7 @@ import {
   buildQuestionDraftKey,
   clearResumeAction,
   readResumeAction,
+  removeAssignmentDrafts,
   saveResumeAction,
 } from './questionDraftStorage';
 import {
@@ -446,6 +447,7 @@ function App() {
   const [practiceScratchpads, setPracticeScratchpads] = useState({});
   const [previewTracker, setPreviewTracker] = useState({});
   const [previewScratchpads, setPreviewScratchpads] = useState({});
+  const [previewSessionId, setPreviewSessionId] = useState(0);
   const [teacherScratchpadDialog, setTeacherScratchpadDialog] = useState(null);
   const [teacherScratchpadLoading, setTeacherScratchpadLoading] = useState(false);
   const [teacherWorksheetDialog, setTeacherWorksheetDialog] = useState(null);
@@ -463,6 +465,7 @@ function App() {
   const [dolGradesByAssignment, setDolGradesByAssignment] = useState({});
   const [classworkGradesByAssignment, setClassworkGradesByAssignment] = useState({});
   const [supportUsageByAssignment, setSupportUsageByAssignment] = useState({});
+  const [classroomSyncStatusByAssignment, setClassroomSyncStatusByAssignment] = useState({});
   const [editingAssignmentId, setEditingAssignmentId] = useState(null);
   const [editingAssignmentDates, setEditingAssignmentDates] = useState({ dueAt: '', lateDueAt: '', assignedClassPeriods: [], assignedClassIds: [] });
   const [questionEditorAssignment, setQuestionEditorAssignment] = useState(null);
@@ -868,6 +871,7 @@ function App() {
   // visible on every student surface and repeated while unfinished work is
   // still inside the live Warm-Up window.
   const warmupOpenAnnouncedRef = useRef({});
+  const classroomSyncNoticeRef = useRef({});
 
   useEffect(() => {
     const clock = window.setInterval(() => setNow(Date.now()), 30000);
@@ -1543,6 +1547,8 @@ function App() {
           if (cancelled) return;
           await Promise.all([fetchStudents(), fetchClassSchedule(), fetchCourseProfiles(), fetchAssignmentFolders(), fetchPathSettings()]);
           if (cancelled) return;
+          setClassroomSyncStatusByAssignment({});
+          classroomSyncNoticeRef.current = {};
           setUser({
             id: session.uid,
             uid: session.uid,
@@ -1605,6 +1611,14 @@ function App() {
         setDolGradesByAssignment(studentData.dolGradesByAssignment || {});
         setClassworkGradesByAssignment(studentData.classworkGradesByAssignment || {});
         setSupportUsageByAssignment(studentData.supportUsageByAssignment || {});
+        const initialClassroomSync = studentData.classroomSyncStatusByAssignment || {};
+        setClassroomSyncStatusByAssignment(initialClassroomSync);
+        classroomSyncNoticeRef.current = Object.fromEntries(
+          Object.entries(initialClassroomSync).map(([assignmentId, status]) => [
+            assignmentId,
+            status?.notificationId || null,
+          ]),
+        );
         const savedResume = readResumeAction(studentId);
         setResumeAction(savedResume && fetchedAssignments.some((assignment) => assignment.id === savedResume.assignmentId) ? savedResume : null);
       } catch (error) {
@@ -1640,6 +1654,8 @@ function App() {
     setDolGradesByAssignment({});
     setClassworkGradesByAssignment({});
     setSupportUsageByAssignment({});
+    setClassroomSyncStatusByAssignment({});
+    classroomSyncNoticeRef.current = {};
     setGradebookFilter({ classId: '', classPeriod: '', assignmentId: null, student: null });
     setStudentDashboardMode('assignments');
     await auth.signOut();
@@ -2100,6 +2116,72 @@ function App() {
       setPresenceById({});
     };
   }, [user?.role, teacherTab, allStudents]);
+
+  // The server writes one compact receipt only after Google Classroom accepts
+  // a grade patch. Listening to that receipt gives students confirmation from
+  // the authoritative passback result rather than assuming a network request
+  // worked. We deliberately do NOT replace the local assignment tracker from
+  // this snapshot; student answers remain controlled by the normal save path.
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id) {
+      setClassroomSyncStatusByAssignment({});
+      classroomSyncNoticeRef.current = {};
+      return undefined;
+    }
+
+    return onSnapshot(
+      doc(db, 'grades', user.id),
+      (snapshot) => {
+        if (!snapshot.exists()) return;
+        const next = snapshot.data()?.classroomSyncStatusByAssignment || {};
+        setClassroomSyncStatusByAssignment(next);
+
+        Object.entries(next).forEach(([assignmentId, receipt]) => {
+          const notificationId = receipt?.notificationId;
+          if (!notificationId) return;
+          if (classroomSyncNoticeRef.current[assignmentId] === notificationId) return;
+          classroomSyncNoticeRef.current[assignmentId] = notificationId;
+
+          const assignment = assignments.find((item) => item.id === assignmentId);
+          const title = assignment?.title || 'Your assignment';
+          const grade = Number.isFinite(Number(receipt?.grade)) ? Number(receipt.grade) : null;
+          const gradeText = grade == null ? 'Your grade' : `${grade}%`;
+          const stage = String(receipt?.stage || '');
+          const final = receipt?.isFinal === true || stage.startsWith('final-');
+
+          if (final) {
+            toastSuccess(
+              'Final grade sent to Google Classroom',
+              `${title}: ${gradeText} was confirmed by Google Classroom as the final MathMaster grade.`,
+            );
+            return;
+          }
+
+          if (stage === 'due-checkpoint') {
+            toastSuccess(
+              'Due-date grade sent to Google Classroom',
+              `${title}: ${gradeText} is your current grade at the regular due date. Late work can still improve it before the final cutoff.`,
+            );
+            return;
+          }
+
+          if (stage === 'assessment-release') {
+            toastSuccess(
+              'Released grade sent to Google Classroom',
+              `${title}: ${gradeText} was sent after your teacher released the assessment grade.`,
+            );
+            return;
+          }
+
+          toastSuccess(
+            'Progress grade sent to Google Classroom',
+            `${title}: your current ${gradeText} was sent as a progress grade. It is not final—keep working to raise it.`,
+          );
+        });
+      },
+      (error) => console.error('Could not watch Google Classroom grade receipts:', error),
+    );
+  }, [user?.role, user?.id, assignments, toastSuccess]);
 
   // DOL reminders are global to the student experience, not just the open
   // assignment. The persistent purple DOL card/banner is the primary notice;
@@ -2596,8 +2678,14 @@ function App() {
     const assignmentQuestions = getStoredAssignmentQuestions(assignmentData);
     if (!assignmentQuestions.length) return;
 
+    // Preview trackers were already ephemeral, but question/tool drafts live in
+    // localStorage. Clear that preview-only draft family too so "View as
+    // Student" really begins at a blank first attempt every time.
+    removeAssignmentDrafts({ studentId: 'teacher-preview', assignmentId });
+    setPreviewSessionId((current) => current + 1);
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(getIncludedQuestionIndices(assignmentData)[0] ?? 0);
+    setAssignmentNavigationCollapsed(false);
     setAssignmentOverviewExpanded(false);
     setPreviewTracker(createEmptyAssignmentTracker(assignmentQuestions));
     setPreviewScratchpads({});
@@ -5759,6 +5847,13 @@ function App() {
         : recordedTracker;
     const recordedGrade = calculateGrade(recordedTracker, assignment);
     const gradeSplit = splitGrade({ tracker: recordedTracker, assignment });
+    const classroomReceipt = !preview ? classroomSyncStatusByAssignment?.[assignment.id] || null : null;
+    const classroomReceiptStage = String(classroomReceipt?.stage || '');
+    const classroomReceiptFinal = classroomReceipt?.isFinal === true || classroomReceiptStage.startsWith('final-');
+    const classroomReceiptGrade = Number.isFinite(Number(classroomReceipt?.grade))
+      ? Number(classroomReceipt.grade)
+      : null;
+    const classroomReceiptCurrent = classroomReceiptGrade != null && classroomReceiptGrade === recordedGrade;
     const progress = calculatePracticeProgress(workingTracker, assignment);
     const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
     const warmupState = getWarmupState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
@@ -5989,12 +6084,23 @@ function App() {
 
           <header className="mathmaster-assignment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '18px 24px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '22px', gap: '20px', flexWrap: 'wrap' }}>
             <div style={{ textAlign: 'left', flex: '1 1 390px' }}>
-              <button
-                onClick={leaveAssignment}
-                style={{ background: 'none', border: 'none', color: '#1a73e8', cursor: 'pointer', fontWeight: 'bold', padding: 0, marginBottom: '5px' }}
-              >
-                &larr; {preview ? 'Back to Instructor Dashboard' : 'Back to Dashboard'}
-              </button>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 5 }}>
+                <button
+                  onClick={leaveAssignment}
+                  style={{ background: 'none', border: 'none', color: '#1a73e8', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}
+                >
+                  &larr; {preview ? 'Back to Instructor Dashboard' : 'Back to Dashboard'}
+                </button>
+                {preview && (
+                  <button
+                    type="button"
+                    onClick={() => startTeacherPreview(assignment.id)}
+                    style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #1a73e8', background: '#fff', color: '#174ea6', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
+                  >
+                    ↻ Restart Preview Fresh
+                  </button>
+                )}
+              </div>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <h1 style={{ margin: 0, color: '#202124', fontSize: '23px' }}>{assignment.title}</h1>
                 <span style={{ padding: '4px 9px', borderRadius: '999px', background: lifecycleBadge.background, color: lifecycleBadge.color, fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>{lifecycleBadge.label}</span>
@@ -6007,9 +6113,25 @@ function App() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '22px' }}>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '12px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 900 }}>{preview ? 'Preview progress' : lifecycle.isPracticeOnly ? 'Frozen recorded grade' : lifecycle.isLate ? 'Current late grade' : 'Current grade'}</div>
-                <div style={{ fontSize: '22px', fontWeight: 900, color: assignmentFeedbackHeld ? '#174ea6' : recordedGrade >= 70 ? '#188038' : '#202124' }}>{preview ? `${progress.correct}/${progress.total}` : assignmentFeedbackHeld ? 'Awaiting teacher release' : `${recordedGrade}%`}</div>
+              <div style={{ textAlign: 'right', minWidth: 190 }}>
+                <div style={{ fontSize: '12px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 900 }}>
+                  {preview
+                    ? 'Preview progress'
+                    : lifecycle.isPracticeOnly
+                      ? 'Frozen recorded grade'
+                      : lifecycle.isLate
+                        ? 'Current late grade · if stopped now'
+                        : 'Current grade · if stopped now'}
+                </div>
+                <div style={{ fontSize: '22px', fontWeight: 900, color: assignmentFeedbackHeld ? '#174ea6' : recordedGrade >= 70 ? '#188038' : '#202124' }}>
+                  {preview ? `${progress.correct}/${progress.total}` : assignmentFeedbackHeld ? 'Awaiting teacher release' : `${recordedGrade}%`}
+                </div>
+                {!preview && !assignmentFeedbackHeld && classroomReceipt && classroomReceiptGrade != null && (
+                  <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: classroomReceiptFinal ? '#137333' : '#174ea6', fontWeight: 800 }}>
+                    Google Classroom has {classroomReceiptGrade}% · {classroomReceiptFinal ? 'FINAL' : classroomReceiptStage === 'due-checkpoint' ? 'DUE-DATE CHECKPOINT' : 'PROGRESS'}
+                    {!classroomReceiptFinal && !classroomReceiptCurrent ? <><br />Next checkpoint will send your newer MathMaster grade.</> : null}
+                  </div>
+                )}
               </div>
               {!preview && assignmentHasClasswork && (
                 <div style={{ textAlign: 'right' }}>
@@ -6245,7 +6367,7 @@ function App() {
           )}
           <main ref={assignmentQuestionStageRef} className="mathmaster-question-stage" style={{ background: '#fff', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             <QuestionEngine
-              key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? 'preview' : lifecycle.status}`}
+              key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}`}
               question={questions[currentQuestionIndex]}
               questionRecord={workingTracker?.[currentQuestionIndex]}
               generationKey={`${activeAssignmentId}|${generationStudentKey}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`}
@@ -7251,6 +7373,7 @@ function App() {
         dashboard={dashboard}
         student={{ id: user.id, displayName: user.displayName, classPeriod: user.classPeriod, inclusionStatus: user.profile?.inclusionStatus }}
         supportPresentation={supportPresentation}
+        classroomSyncStatusByAssignment={classroomSyncStatusByAssignment}
         onStartAssignment={startAssignment}
         onExportAssignmentPdf={exportAssignmentWorksheetPdf}
         onOpenMathPath={() => setStudentDashboardMode('mathPath')}

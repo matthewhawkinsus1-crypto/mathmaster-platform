@@ -140,6 +140,15 @@ export const buildStudentDashboardModel = ({
     .findIndex((question, index) => questionIsIncluded(question)
       && !['correct', 'expired'].includes(normalizeQuestionRecord(tracker[resumeAssignment?.id]?.[index]).status));
   const savedResumeIncluded = savedResume ? getIncludedQuestionIndices(savedResume) : [];
+  const resumeIncluded = resumeAssignment ? getIncludedQuestionIndices(resumeAssignment) : [];
+  const resumeTracker = resumeAssignment ? tracker?.[resumeAssignment.id] || {} : {};
+  const resumeQuestionsAttempted = resumeIncluded.filter((index) => {
+    const record = normalizeQuestionRecord(resumeTracker?.[index]);
+    return Number(record.totalAttempts || record.attemptCount || 0) > 0
+      || record.status !== 'unattempted';
+  }).length;
+  const resumeRecordedGrade = resumeAssignment ? calculateGrade(resumeTracker, resumeAssignment) : 0;
+  const resumeFeedbackHeld = resumeAssignment ? assignmentHasHeldTeacherFeedback(resumeAssignment) : false;
   const requestedResumeIndex = Number(resumeAction?.questionIndex) || 0;
   const resumeQuestionIndex = savedResume
     ? (savedResumeIncluded.includes(requestedResumeIndex) ? requestedResumeIndex : (savedResumeIncluded[0] ?? 0))
@@ -228,7 +237,14 @@ export const buildStudentDashboardModel = ({
       const questionsDone = assignmentTracker
         ? includedIndices.filter((index) => ['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status)).length
         : 0;
-      const started = questionsDone > 0 && questionsDone < questionsTotal;
+      const questionsAttempted = assignmentTracker
+        ? includedIndices.filter((index) => {
+          const record = normalizeQuestionRecord(assignmentTracker[index]);
+          return Number(record.totalAttempts || record.attemptCount || 0) > 0
+            || record.status !== 'unattempted';
+        }).length
+        : 0;
+      const started = questionsAttempted > 0 && questionsDone < questionsTotal;
 
       // Order matters and encodes the priority a student should read off the
       // screen. Finished first (nothing else applies to it), then practice-only
@@ -251,7 +267,7 @@ export const buildStudentDashboardModel = ({
       return {
         started,
         assignment, assignmentTracker, isAttempted, lifecycle, access, recordedGrade,
-        activity, classwork, dol, disabled, feedbackHeld, bucket, questionsTotal, questionsDone,
+        activity, classwork, dol, disabled, feedbackHeld, bucket, questionsTotal, questionsDone, questionsAttempted,
       };
     });
 
@@ -260,6 +276,9 @@ export const buildStudentDashboardModel = ({
     resumeAssignment,
     resumeQuestionIndex,
     resumeLifecycle: getAssignmentLifecycle(resumeAssignment, nowValue),
+    resumeRecordedGrade,
+    resumeQuestionsAttempted,
+    resumeFeedbackHeld,
     activeDols,
     activeWarmups,
     entries,

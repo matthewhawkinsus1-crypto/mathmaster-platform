@@ -12,7 +12,7 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 
 const classroomLib = require("./lib/classroom");
-const { runtimeQuestionCount } = require("./lib/assignmentRuntime");
+const { runtimeIncludedQuestionIndices } = require("./lib/assignmentRuntime");
 const driveResources = require("./lib/driveResources");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const {
@@ -190,21 +190,91 @@ function isQuestionTerminal(record) {
   return status === "correct" || status === "expired";
 }
 
-function calculateAssignmentGrade(assignmentTracker, questionCount) {
-  if (!questionCount) return 0;
-  let earnedCredit = 0;
-  for (let index = 0; index < questionCount; index += 1) {
-    earnedCredit += getQuestionCredit(assignmentTracker?.[index]);
-  }
-  return Math.round((earnedCredit / questionCount) * 100);
+function questionWasAttempted(record) {
+  if (!record || typeof record !== "object") return false;
+  if (Number(record.totalAttempts || record.attemptCount || 0) > 0) return true;
+  if (isQuestionTerminal(record)) return true;
+  return clampPercent(record.bestPartialCredit ?? record.partialCredit ?? 0) > 0;
 }
 
-function isAssignmentComplete(assignmentTracker, questionCount) {
-  if (!questionCount) return false;
-  for (let index = 0; index < questionCount; index += 1) {
-    if (!isQuestionTerminal(assignmentTracker?.[index])) return false;
+function calculateAssignmentGrade(assignmentTracker, questionIndices) {
+  const indices = Array.isArray(questionIndices) ? questionIndices : [];
+  if (!indices.length) return 0;
+  const earnedCredit = indices.reduce(
+    (total, index) => total + getQuestionCredit(assignmentTracker?.[index]),
+    0
+  );
+  return Math.round((earnedCredit / indices.length) * 100);
+}
+
+function assignmentGradeProgress(assignmentTracker, questionIndices) {
+  const indices = Array.isArray(questionIndices) ? questionIndices : [];
+  const attempted = indices.filter((index) => questionWasAttempted(assignmentTracker?.[index])).length;
+  const terminal = indices.filter((index) => isQuestionTerminal(assignmentTracker?.[index])).length;
+  const attemptedCredit = indices.reduce((total, index) => (
+    questionWasAttempted(assignmentTracker?.[index])
+      ? total + getQuestionCredit(assignmentTracker?.[index])
+      : total
+  ), 0);
+  const minimumProgressQuestions = indices.length
+    ? Math.max(1, Math.ceil(indices.length * 0.25))
+    : 0;
+  return {
+    total: indices.length,
+    attempted,
+    terminal,
+    grade: calculateAssignmentGrade(assignmentTracker, indices),
+    creditOnAttempted: attempted > 0 ? Math.round((attemptedCredit / attempted) * 100) : null,
+    complete: indices.length > 0 && terminal === indices.length,
+    meaningfulProgress: attempted >= minimumProgressQuestions,
+    minimumProgressQuestions,
+  };
+}
+
+function releaseSignalReason(signal) {
+  if (!signal) return null;
+  if (typeof signal === "string") return "manual-retry";
+  if (typeof signal === "object") return String(signal.reason || "manual-retry");
+  return "manual-retry";
+}
+
+function progressCheckpointStage(progress, { late = false } = {}) {
+  if (!progress?.meaningfulProgress || !progress.total) return null;
+  const percentAttempted = Math.round((progress.attempted / progress.total) * 100);
+  // Quarter checkpoints keep Classroom useful without turning every answer
+  // into an external grade write + student notification. A 100%-attempted
+  // checkpoint is still non-final when some questions remain retryable;
+  // terminal completion is handled separately as final-complete.
+  const checkpoint = Math.max(
+    25,
+    Math.min(100, Math.floor(percentAttempted / 25) * 25)
+  );
+  return `${late ? "late-progress" : "progress"}-${checkpoint}`;
+}
+
+function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now() }) {
+  const reason = releaseSignalReason(releaseSignal);
+  if (reason === "final-deadline") return "final-deadline";
+  if (reason === "due-checkpoint") return "due-checkpoint";
+  if (reason === "assessment-release") return progress.complete ? "final-complete" : "assessment-release";
+
+  const now = Number(nowValue) || Date.now();
+  const dueAt = toDate(assignment?.dueAt || assignment?.dueDate);
+  const lateDueAt = toDate(
+    assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate
+  );
+
+  if (progress.complete) return "final-complete";
+  if (lateDueAt && now >= lateDueAt.getTime()) return "final-deadline";
+  if (reason === "manual-retry") {
+    return progress.attempted > 0 || (dueAt && now >= dueAt.getTime())
+      ? "manual-retry"
+      : null;
   }
-  return true;
+  if (dueAt && now >= dueAt.getTime()) {
+    return progressCheckpointStage(progress, { late: true });
+  }
+  return progressCheckpointStage(progress);
 }
 
 // --- Authentication ---------------------------------------------------------
@@ -5492,7 +5562,10 @@ exports.retryClassroomGradeSync = onCall(async (request) => {
   }
   await gradeRef.update(
     new FieldPath("classroomReleaseSignals", String(assignmentId)),
-    new Date().toISOString()
+    {
+      requestedAt: new Date().toISOString(),
+      reason: "manual-retry",
+    }
   );
   return { queued: true };
 });
@@ -5506,8 +5579,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
     const after = event.data?.after;
     if (!after || !after.exists) return;
 
-    const afterData = after.data();
-    const beforeData = event.data?.before?.exists ? event.data.before.data() : {};
+    const afterData = after.data() || {};
+    const beforeData = event.data?.before?.exists ? event.data.before.data() || {} : {};
     const afterByAssignment = afterData.gradesByAssignment || {};
     const beforeByAssignment = beforeData.gradesByAssignment || {};
     const gradeChangedAssignmentIds = Object.keys(afterByAssignment).filter(
@@ -5522,6 +5595,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
         JSON.stringify(afterReleaseSignals[assignmentId]) !==
         JSON.stringify(beforeReleaseSignals[assignmentId])
     );
+    const releaseSignalSet = new Set(releaseSignaledAssignmentIds);
     const changedAssignmentIds = [...new Set([
       ...gradeChangedAssignmentIds,
       ...releaseSignaledAssignmentIds,
@@ -5532,16 +5606,33 @@ exports.syncGradeToClassroom = onDocumentWritten(
     const classroomByTeacher = new Map();
 
     for (const assignmentId of changedAssignmentIds) {
+      // eslint-disable-next-line no-await-in-loop
       const assignmentSnap = await db.doc(`assignments/${assignmentId}`).get();
-      const assignment = assignmentSnap.exists ? assignmentSnap.data() : {};
+      if (!assignmentSnap.exists) continue;
+      const assignment = assignmentSnap.data() || {};
       if (assignmentFeedbackIsHeld(assignment)) continue;
-      const questionCount = assignmentSnap.exists
-        ? runtimeQuestionCount(assignment)
-        : 0;
-      const assignmentTracker = afterByAssignment[assignmentId];
-      if (!isAssignmentComplete(assignmentTracker, questionCount)) continue;
 
-      const grade = calculateAssignmentGrade(assignmentTracker, questionCount);
+      const questionIndices = runtimeIncludedQuestionIndices(assignment);
+      if (!questionIndices.length) continue;
+
+      const assignmentTracker = afterByAssignment[assignmentId] || {};
+      const progress = assignmentGradeProgress(assignmentTracker, questionIndices);
+      const releaseSignal = releaseSignalSet.has(assignmentId)
+        ? afterReleaseSignals[assignmentId]
+        : null;
+      const stage = resolveClassroomGradeStage({
+        assignment,
+        progress,
+        releaseSignal,
+        nowValue: Date.now(),
+      });
+      if (!stage) continue;
+
+      const grade = progress.grade;
+      const isFinal = ["final-complete", "final-deadline"].includes(stage);
+      const forceRetry = releaseSignalReason(releaseSignal) === "manual-retry";
+
+      // eslint-disable-next-line no-await-in-loop
       const publicationsSnap = await db
         .collection("classroomLinks")
         .where("assignmentId", "==", assignmentId)
@@ -5551,11 +5642,33 @@ exports.syncGradeToClassroom = onDocumentWritten(
       );
       if (publications.length === 0) continue;
 
+      const successfulCourses = [];
+
       for (const publicationDoc of publications) {
-        const publication = publicationDoc.data();
+        const publication = publicationDoc.data() || {};
         if (publication.gradePassbackEnabled === false) continue;
         const courseId = String(publication.courseId || "");
         if (!courseId) continue;
+        const maxPoints = Number.isFinite(Number(publication.maxPoints))
+          ? Math.max(1, Number(publication.maxPoints))
+          : 100;
+        const classroomGrade = Math.round((grade / 100) * maxPoints * 100) / 100;
+
+        // Do not send the same grade/stage repeatedly just because a student
+        // spent more time on the same saved answer. Manual retry deliberately
+        // bypasses this so a teacher can repair an external Classroom issue.
+        const syncId = gradeSyncDocumentId(publicationDoc.id, event.params.studentId);
+        // eslint-disable-next-line no-await-in-loop
+        const priorAuditSnap = await db.doc(`classroomGradeSyncs/${syncId}`).get();
+        const priorAudit = priorAuditSnap.exists ? priorAuditSnap.data() || {} : {};
+        if (
+          !forceRetry
+          && priorAudit.status === "synced"
+          && String(priorAudit.stage || "") === stage
+          && Number(priorAudit.maxPoints || 100) === maxPoints
+        ) {
+          continue;
+        }
 
         const publicationTeacherUid = publication.teacherUid || null;
         const classroomKey = publicationTeacherUid || "__legacy__";
@@ -5566,15 +5679,20 @@ exports.syncGradeToClassroom = onDocumentWritten(
             classroom = await classroomLib.getClassroomClient(publicationTeacherUid);
             classroomByTeacher.set(classroomKey, classroom);
           } catch (err) {
-            // Keep an auth failure visible per publication instead of aborting
-            // the whole grade-trigger run for every other Classroom course.
             // eslint-disable-next-line no-await-in-loop
             await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
               assignmentId,
               courseId,
               courseworkId: publication.courseworkId,
               status: "auth-error",
+              stage,
               grade,
+              classroomGrade,
+              maxPoints,
+              attempted: progress.attempted,
+              total: progress.total,
+              creditOnAttempted: progress.creditOnAttempted,
+              isFinal,
               message: String(err.message || err),
             });
             continue;
@@ -5585,6 +5703,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           courseId,
           event.params.studentId
         );
+        // eslint-disable-next-line no-await-in-loop
         const rosterLinkSnap = await db
           .doc(`classroomRosterLinks/${rosterLinkId}`)
           .get();
@@ -5599,41 +5718,60 @@ exports.syncGradeToClassroom = onDocumentWritten(
             : null;
 
         if (!googleUserId) {
+          // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
             status: "skipped-unlinked",
+            stage,
             grade,
+            classroomGrade,
+            maxPoints,
+            attempted: progress.attempted,
+            total: progress.total,
+            creditOnAttempted: progress.creditOnAttempted,
+            isFinal,
             message: "Student is not linked to this Classroom course.",
           });
           continue;
         }
 
         try {
+          // eslint-disable-next-line no-await-in-loop
           const submission = await classroomLib.findSubmissionForStudent(classroom, {
             courseId,
             courseWorkId: publication.courseworkId,
             googleUserId,
           });
           if (!submission) {
+            // eslint-disable-next-line no-await-in-loop
             await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
               assignmentId,
               courseId,
               courseworkId: publication.courseworkId,
               status: "submission-not-found",
+              stage,
               grade,
+              classroomGrade,
+              maxPoints,
+              attempted: progress.attempted,
+              total: progress.total,
+              creditOnAttempted: progress.creditOnAttempted,
+              isFinal,
             });
             continue;
           }
 
+          // eslint-disable-next-line no-await-in-loop
           const patched = await classroomLib.patchGrade(classroom, {
             courseId,
             courseWorkId: publication.courseworkId,
             submissionId: submission.id,
-            grade,
+            grade: classroomGrade,
           });
 
+          // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
             assignmentId,
             courseId,
@@ -5641,26 +5779,66 @@ exports.syncGradeToClassroom = onDocumentWritten(
             submissionId: submission.id,
             submissionState: patched.state || submission.state || null,
             status: "synced",
+            stage,
             grade,
+            classroomGrade,
+            maxPoints,
+            attempted: progress.attempted,
+            total: progress.total,
+            creditOnAttempted: progress.creditOnAttempted,
+            isFinal,
             syncedAt: FieldValue.serverTimestamp(),
           });
+          successfulCourses.push(publication.courseName || courseId);
           logger.info(
-            `Synced grade ${grade} for student ${event.params.studentId} to course ${courseId}, courseWork ${publication.courseworkId}`
+            `Synced ${stage} grade ${grade} for student ${event.params.studentId} to course ${courseId}, courseWork ${publication.courseworkId}`
           );
         } catch (err) {
           logger.error(
             `Grade passback failed for student ${event.params.studentId}, assignment ${assignmentId}, course ${courseId}`,
             err
           );
+          // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
             status: "failed",
+            stage,
             grade,
+            classroomGrade,
+            maxPoints,
+            attempted: progress.attempted,
+            total: progress.total,
+            creditOnAttempted: progress.creditOnAttempted,
+            isFinal,
             error: String(err.message || err),
           });
         }
+      }
+
+      if (successfulCourses.length) {
+        const syncedAt = new Date().toISOString();
+        const status = {
+          assignmentId,
+          grade,
+          stage,
+          attempted: progress.attempted,
+          total: progress.total,
+          creditOnAttempted: progress.creditOnAttempted,
+          isFinal,
+          courseNames: [...new Set(successfulCourses)].slice(0, 5),
+          syncedAt,
+          notificationId: `${assignmentId}:${stage}:${grade}:${syncedAt}`,
+        };
+        // This small student-visible record is the receipt. Updating it causes
+        // this trigger to run once more, but no grade/release field changed, so
+        // that second invocation exits immediately.
+        // eslint-disable-next-line no-await-in-loop
+        await after.ref.update(
+          new FieldPath("classroomSyncStatusByAssignment", assignmentId),
+          status
+        );
       }
     }
   }
@@ -5693,7 +5871,10 @@ exports.queueReleasedAssessmentGrades = onDocumentWritten(
         batch.update(
           gradeDoc.ref,
           new FieldPath("classroomReleaseSignals", assignmentId),
-          FieldValue.serverTimestamp()
+          {
+            requestedAt: new Date().toISOString(),
+            reason: "assessment-release",
+          }
         );
       });
       await batch.commit();
@@ -5701,6 +5882,158 @@ exports.queueReleasedAssessmentGrades = onDocumentWritten(
     logger.info(`Queued released assessment grade passback for ${targets.length} student record(s) on assignment ${assignmentId}.`);
   }
 );
+
+const CLASSROOM_GRADE_CHECKPOINT_COLLECTION = "classroomGradeCheckpointState";
+const CLASSROOM_GRADE_CHECKPOINT_LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000;
+
+async function queueClassroomGradeSignalForAudience({
+  db,
+  assignmentId,
+  assignment,
+  reason,
+  requestedAt,
+}) {
+  const classIds = assignmentAudience(assignment).classIds;
+  if (!classIds.length) return 0;
+
+  const gradeDocsByPath = new Map();
+  for (const classId of classIds) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await db.collection("grades").where("classId", "==", classId).get();
+    snapshot.docs.forEach((gradeDoc) => gradeDocsByPath.set(gradeDoc.ref.path, gradeDoc));
+  }
+
+  const gradeDocs = [...gradeDocsByPath.values()];
+  for (let start = 0; start < gradeDocs.length; start += 400) {
+    const batch = db.batch();
+    gradeDocs.slice(start, start + 400).forEach((gradeDoc) => {
+      batch.update(
+        gradeDoc.ref,
+        new FieldPath("classroomReleaseSignals", assignmentId),
+        { requestedAt, reason }
+      );
+    });
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+  return gradeDocs.length;
+}
+
+// Classroom itself marks an unsubmitted item Missing at the due time and may
+// insert its own draft 0. MathMaster therefore writes an authoritative grade
+// checkpoint at the regular due time and again at the final late cutoff. This
+// scheduler does not grade anything: it only wakes the existing grade trigger,
+// which still checks assignment policy, roster links, and Classroom identity.
+exports.queueClassroomGradeCheckpoints = onSchedule({
+  schedule: "every 5 minutes",
+  invoker: "private",
+}, async () => {
+  const db = getFirestore();
+  const now = Date.now();
+  const requestedAt = new Date(now).toISOString();
+  const cutoff = now - CLASSROOM_GRADE_CHECKPOINT_LOOKBACK_MS;
+
+  const [assignmentsSnap, publicationsSnap] = await Promise.all([
+    db.collection("assignments").limit(500).get(),
+    db.collection("classroomLinks").where("status", "==", "published").limit(1000).get(),
+  ]);
+
+  const classroomAssignmentIds = new Set(
+    publicationsSnap.docs
+      .map((doc) => doc.data() || {})
+      .filter((publication) => (
+        publication.courseworkId
+        && publication.gradePassbackEnabled !== false
+      ))
+      .map((publication) => String(publication.assignmentId || "").trim())
+      .filter(Boolean)
+  );
+
+  let dueAssignments = 0;
+  let finalAssignments = 0;
+  let queuedStudents = 0;
+
+  for (const assignmentDoc of assignmentsSnap.docs) {
+    const assignmentId = assignmentDoc.id;
+    if (!classroomAssignmentIds.has(assignmentId)) continue;
+
+    const assignment = assignmentDoc.data() || {};
+    if (!assignmentAudience(assignment).classIds.length) continue;
+    const dueAt = toDate(assignment.dueAt || assignment.dueDate);
+    const lateDueAt = toDate(
+      assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate
+    );
+    if (!dueAt && !lateDueAt) continue;
+
+    const stateRef = db.collection(CLASSROOM_GRADE_CHECKPOINT_COLLECTION).doc(assignmentId);
+    // eslint-disable-next-line no-await-in-loop
+    const stateSnap = await stateRef.get();
+    const state = stateSnap.exists ? stateSnap.data() || {} : {};
+
+    // Final cutoff has precedence. On first deploy, do not emit both an old due
+    // checkpoint and a final checkpoint for the same assignment.
+    if (
+      lateDueAt
+      && lateDueAt.getTime() <= now
+      && lateDueAt.getTime() >= cutoff
+      && (!state.finalQueuedAt || state.finalDueAt !== lateDueAt.toISOString())
+    ) {
+      // eslint-disable-next-line no-await-in-loop
+      const count = await queueClassroomGradeSignalForAudience({
+        db,
+        assignmentId,
+        assignment,
+        reason: "final-deadline",
+        requestedAt,
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await stateRef.set({
+        assignmentId,
+        finalQueuedAt: requestedAt,
+        finalDueAt: lateDueAt.toISOString(),
+        finalQueuedStudents: count,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      finalAssignments += 1;
+      queuedStudents += count;
+      continue;
+    }
+
+    if (
+      dueAt
+      && dueAt.getTime() <= now
+      && dueAt.getTime() >= cutoff
+      && (!state.dueQueuedAt || state.dueAt !== dueAt.toISOString())
+    ) {
+      // eslint-disable-next-line no-await-in-loop
+      const count = await queueClassroomGradeSignalForAudience({
+        db,
+        assignmentId,
+        assignment,
+        reason: "due-checkpoint",
+        requestedAt,
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await stateRef.set({
+        assignmentId,
+        dueQueuedAt: requestedAt,
+        dueAt: dueAt.toISOString(),
+        dueQueuedStudents: count,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      dueAssignments += 1;
+      queuedStudents += count;
+    }
+  }
+
+  if (dueAssignments || finalAssignments) {
+    logger.info("Queued Classroom grade checkpoints", {
+      dueAssignments,
+      finalAssignments,
+      queuedStudents,
+    });
+  }
+});
 
 // ---------------------------------------------------------------------------
 // --- Live Challenge ----------------------------------------------------------

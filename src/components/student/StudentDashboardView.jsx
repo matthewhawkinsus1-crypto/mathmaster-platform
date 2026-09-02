@@ -52,11 +52,13 @@ export default function StudentDashboardView({
   liveChallengeInvite = null,
   onOpenLiveChallenge = null,
   onLogout = null,
+  classroomSyncStatusByAssignment = {},
   // Everything Recommended for You needs, passed through rather than rebuilt.
   recommended = {},
 }) {
   const {
     visibleAssignments, resumeAssignment, resumeQuestionIndex, resumeLifecycle,
+    resumeRecordedGrade, resumeQuestionsAttempted, resumeFeedbackHeld,
     activeDols, activeWarmups, doNowEntries, comingUpEntries, completedEntries, groups,
   } = dashboard;
 
@@ -78,7 +80,19 @@ export default function StudentDashboardView({
     practice: 'Past its due date, so it no longer changes your grade — but the practice still counts toward what you know.',
   };
 
-  const renderAssignmentCard = ({ assignment, isAttempted, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, feedbackHeld, questionsTotal, questionsDone }) => {
+  const renderAssignmentCard = ({ assignment, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, feedbackHeld, questionsTotal, questionsDone, questionsAttempted = 0 }) => {
+    const classroomReceipt = classroomSyncStatusByAssignment?.[assignment.id] || null;
+    const receiptStage = String(classroomReceipt?.stage || '');
+    const receiptFinal = classroomReceipt?.isFinal === true || receiptStage.startsWith('final-');
+    const receiptLabel = receiptFinal
+      ? 'FINAL'
+      : receiptStage === 'due-checkpoint'
+        ? 'DUE-DATE CHECKPOINT'
+        : receiptStage === 'assessment-release'
+          ? 'RELEASED'
+          : 'PROGRESS';
+    const classroomGrade = Number.isFinite(Number(classroomReceipt?.grade)) ? Number(classroomReceipt.grade) : null;
+    const classroomIsCurrent = classroomGrade != null && Number(recordedGrade) === classroomGrade;
     const statusStyle = lifecycle.isPracticeOnly ? { border: '#5f6368', bg: '#f1f3f4', color: '#3c4043', label: 'Practice only' } : lifecycle.isLate ? { border: '#f9ab00', bg: '#fff4ce', color: '#7a4f00', label: 'Late' } : lifecycle.isScheduled ? { border: '#9aa0a6', bg: '#f1f3f4', color: '#3c4043', label: 'Scheduled' } : { border: '#d8dde6', bg: '#e6f4ea', color: '#137333', label: 'On time' };
     return (
       <article key={assignment.id} style={{ background: '#fff', padding: '21px 26px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap', border: `2px solid ${statusStyle.border}` }}>
@@ -96,7 +110,31 @@ export default function StudentDashboardView({
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          {isAttempted && <div style={{ textAlign: 'right', marginRight: '6px' }}><div style={{ fontSize: '11px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 'bold' }}>{feedbackHeld && !lifecycle.isPracticeOnly ? 'Grade status' : lifecycle.isPracticeOnly ? 'Frozen grade' : 'Current grade'}</div><div style={{ fontSize: '19px', fontWeight: 900, color: feedbackHeld && !lifecycle.isPracticeOnly ? '#174ea6' : recordedGrade >= 70 ? '#188038' : '#202124' }}>{feedbackHeld && !lifecycle.isPracticeOnly ? 'Awaiting teacher release' : `${recordedGrade}%`}</div></div>}
+          {questionsAttempted > 0 && (
+            <div style={{ textAlign: 'right', marginRight: '6px', minWidth: 175 }}>
+              <div style={{ fontSize: '11px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                {feedbackHeld && !lifecycle.isPracticeOnly
+                  ? 'Grade status'
+                  : lifecycle.isPracticeOnly
+                    ? 'Frozen grade'
+                    : 'Current grade · if stopped now'}
+              </div>
+              <div style={{ fontSize: '19px', fontWeight: 900, color: feedbackHeld && !lifecycle.isPracticeOnly ? '#174ea6' : recordedGrade >= 70 ? '#188038' : '#202124' }}>
+                {feedbackHeld && !lifecycle.isPracticeOnly ? 'Awaiting teacher release' : `${recordedGrade}%`}
+              </div>
+              {!feedbackHeld && classroomReceipt && classroomGrade != null && (
+                <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: receiptFinal ? '#137333' : '#174ea6', fontWeight: 800 }}>
+                  Google Classroom: {classroomGrade}% · {receiptLabel}
+                  {!receiptFinal && !classroomIsCurrent ? <><br />Your MathMaster grade has changed; Classroom updates at the next checkpoint.</> : null}
+                </div>
+              )}
+              {!feedbackHeld && !classroomReceipt && !lifecycle.isPracticeOnly && (
+                <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: '#5f6368' }}>
+                  Classroom progress grades begin after meaningful work is underway.
+                </div>
+              )}
+            </div>
+          )}
           <button
             type="button"
             disabled={disabled || !onExportAssignmentPdf || exportingAssignmentId === assignment.id}
@@ -105,7 +143,7 @@ export default function StudentDashboardView({
           >
             {exportingAssignmentId === assignment.id ? 'Preparing PDF…' : 'Export PDF'}
           </button>
-          <button disabled={disabled} onClick={() => onStartAssignment(assignment.id)} style={{ padding: '10px 20px', background: disabled ? '#dadce0' : lifecycle.isPracticeOnly ? '#5f6368' : lifecycle.isLate ? '#8a5a00' : '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>{lifecycle.isPracticeOnly ? 'Practice — No Credit' : lifecycle.isLate ? 'Continue Late Work' : disabled ? 'Locked' : isAttempted ? 'Continue' : 'Start'}</button>
+          <button disabled={disabled} onClick={() => onStartAssignment(assignment.id)} style={{ padding: '10px 20px', background: disabled ? '#dadce0' : lifecycle.isPracticeOnly ? '#5f6368' : lifecycle.isLate ? '#8a5a00' : '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', cursor: disabled ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>{lifecycle.isPracticeOnly ? 'Practice — No Credit' : lifecycle.isLate ? 'Continue Late Work' : disabled ? 'Locked' : questionsAttempted > 0 ? 'Continue' : 'Start'}</button>
         </div>
       </article>
     );
@@ -173,7 +211,22 @@ export default function StudentDashboardView({
 
         {resumeAssignment && (
           <section aria-label="Resume assignment" style={{ marginBottom: '28px', padding: '28px 30px', borderRadius: '18px', background: 'linear-gradient(135deg, #174ea6 0%, #1a73e8 62%, #4f8fe8 100%)', color: '#fff', boxShadow: '0 16px 38px rgba(26,115,232,0.28)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '24px', flexWrap: 'wrap', textAlign: 'left' }}>
-            <div style={{ flex: '1 1 450px' }}><div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 0.82, marginBottom: '7px' }}>Resume Action</div><h2 style={{ margin: 0, fontSize: 'clamp(25px, 4vw, 38px)', lineHeight: 1.12 }}>Resume {resumeAssignment.title}</h2><p style={{ margin: '10px 0 0', fontSize: '17px', lineHeight: 1.5, opacity: 0.94 }}>Continue at Question {resumeQuestionIndex + 1}. Your typed responses, plotted points, graph sketch, endpoint symbols, multipart analysis, and algebra work are restored from this browser.</p><div style={{ marginTop: '12px', fontSize: '13px', fontWeight: 'bold', opacity: 0.88 }}>{resumeLifecycle.isClosed ? 'Permanently closed · review saved work' : resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until final close` : `Due ${formatDueDate(resumeAssignment)}`}</div></div>
+            <div style={{ flex: '1 1 450px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 0.82, marginBottom: '7px' }}>Resume Action</div>
+              <h2 style={{ margin: 0, fontSize: 'clamp(25px, 4vw, 38px)', lineHeight: 1.12 }}>Resume {resumeAssignment.title}</h2>
+              <p style={{ margin: '10px 0 0', fontSize: '17px', lineHeight: 1.5, opacity: 0.94 }}>Continue at Question {resumeQuestionIndex + 1}. Your typed responses, plotted points, graph sketch, endpoint symbols, multipart analysis, and algebra work are restored from this browser.</p>
+              {resumeQuestionsAttempted > 0 && (
+                <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 9, background: 'rgba(255,255,255,0.14)', fontSize: 13, fontWeight: 900 }}>
+                  {resumeFeedbackHeld && !resumeLifecycle.isClosed
+                    ? 'Grade status: awaiting teacher release'
+                    : `Current grade if stopped now: ${resumeRecordedGrade}%`}
+                  {classroomSyncStatusByAssignment?.[resumeAssignment.id]?.grade != null && (
+                    <span> · Google Classroom has {classroomSyncStatusByAssignment[resumeAssignment.id].grade}%</span>
+                  )}
+                </div>
+              )}
+              <div style={{ marginTop: '12px', fontSize: '13px', fontWeight: 'bold', opacity: 0.88 }}>{resumeLifecycle.isClosed ? 'Permanently closed · review saved work' : resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until final close` : `Due ${formatDueDate(resumeAssignment)}`}</div>
+            </div>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
               <button type="button" disabled={!onExportAssignmentPdf || exportingAssignmentId === resumeAssignment.id} onClick={() => exportPdf(resumeAssignment.id)} style={{ padding: '13px 18px', border: '2px solid rgba(255,255,255,0.76)', borderRadius: '12px', background: 'transparent', color: '#fff', fontSize: '15px', fontWeight: 900, cursor: 'pointer' }}>{exportingAssignmentId === resumeAssignment.id ? 'Preparing PDF…' : 'Export PDF'}</button>
               <button type="button" onClick={() => onStartAssignment(resumeAssignment.id, resumeQuestionIndex)} style={{ padding: '15px 24px', border: 'none', borderRadius: '12px', background: '#fff', color: '#174ea6', fontSize: '17px', fontWeight: 900, cursor: 'pointer', boxShadow: '0 6px 18px rgba(0,0,0,0.18)' }}>{resumeLifecycle.isClosed ? 'Review Question' : 'Resume Question'} {resumeQuestionIndex + 1} →</button>
