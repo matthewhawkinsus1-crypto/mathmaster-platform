@@ -5694,50 +5694,72 @@ function App() {
             </div>
           </header>
 
-          <nav className="mathmaster-assignment-unified-nav" aria-label="Assignment navigation">
+          <nav className={`mathmaster-assignment-unified-nav${assignmentNavigationCollapsed ? ' is-collapsed' : ''}`} aria-label="Assignment navigation">
             <div className="mathmaster-assignment-unified-top">
               <button type="button" className="mathmaster-unified-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : 'Back to dashboard'}>←</button>
-              <div className="mathmaster-section-tabs" role="list" aria-label="Assignment sections">
-                {navigationSections.map((section) => {
-                  const meta = activitySectionMeta[section.role] || { label: section.role, background: '#f1f3f4', color: '#3c4043', border: '#9aa0a6' };
-                  const completedQuestions = section.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length;
-                  const targetEntry = sectionNavigationTarget(section);
-                  const sectionAvailable = Boolean(targetEntry);
-                  const active = currentNavigationSection?.role === section.role;
-                  return (
-                    <button
-                      type="button"
-                      role="listitem"
-                      key={`section-tab-${section.role}-${section.entries[0]?.index}`}
-                      className={`mathmaster-section-tab${active ? ' is-active' : ''}${section.allCorrect ? ' is-complete' : ''}${sectionAvailable ? '' : ' is-locked'}`}
-                      style={{ '--section-color': meta.color, '--section-border': meta.border, '--section-bg': meta.background }}
-                      onClick={() => targetEntry && changeQuestion(targetEntry.index)}
-                      disabled={!sectionAvailable}
-                      aria-current={active ? 'page' : undefined}
-                      title={sectionAvailable
-                        ? `${compactSectionLabel(section)}: ${completedQuestions} of ${section.entries.length} complete. Open the next question that still needs a correct answer.`
-                        : `${compactSectionLabel(section)} is not available yet.`}
-                    >
-                      {section.allCorrect && <span className="mathmaster-section-complete-medallion" aria-hidden="true">✓</span>}
-                      <span className="mathmaster-section-tab-copy">
-                        <span className="mathmaster-section-tab-label">{compactSectionLabel(section)}</span>
-                        <small>{sectionAvailable ? (section.allCorrect ? 'Complete' : `${completedQuestions}/${section.entries.length}`) : '🔒 Locked'}</small>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              {!assignmentNavigationCollapsed ? (
+                <div className="mathmaster-section-tabs" role="list" aria-label="Assignment sections">
+                  {navigationSections.map((section) => {
+                    const meta = activitySectionMeta[section.role] || { label: section.role, background: '#f1f3f4', color: '#3c4043', border: '#9aa0a6' };
+                    const completedQuestions = section.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length;
+                    const targetEntry = sectionNavigationTarget(section);
+                    const sectionAvailable = Boolean(targetEntry);
+                    const active = currentNavigationSection?.role === section.role;
+                    return (
+                      <button
+                        type="button"
+                        role="listitem"
+                        key={`section-tab-${section.role}-${section.entries[0]?.index}`}
+                        className={`mathmaster-section-tab${active ? ' is-active' : ''}${section.allCorrect ? ' is-complete' : ''}${sectionAvailable ? '' : ' is-locked'}`}
+                        style={{ '--section-color': meta.color, '--section-border': meta.border, '--section-bg': meta.background }}
+                        onClick={() => targetEntry && changeQuestion(targetEntry.index)}
+                        disabled={!sectionAvailable}
+                        aria-current={active ? 'page' : undefined}
+                        title={sectionAvailable
+                          ? `${compactSectionLabel(section)}: ${completedQuestions} of ${section.entries.length} complete. Open the next question that still needs a correct answer.`
+                          : `${compactSectionLabel(section)} is not available yet.`}
+                      >
+                        {section.allCorrect && <span className="mathmaster-section-complete-medallion" aria-hidden="true">✓</span>}
+                        <span className="mathmaster-section-tab-copy">
+                          <span className="mathmaster-section-tab-label">{compactSectionLabel(section)}</span>
+                          <small>{sectionAvailable ? (section.allCorrect ? 'Complete' : `${completedQuestions}/${section.entries.length}`) : '🔒 Locked'}</small>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="mathmaster-collapsed-current-location" role="status">
+                  <strong>{currentSectionMeta.label}</strong>
+                  <span>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount}</span>
+                </div>
+              )}
+              {!assignmentNavigationCollapsed && (
+                <button
+                  type="button"
+                  className="mathmaster-overview-button"
+                  onClick={() => setAssignmentOverviewExpanded((current) => !current)}
+                  aria-expanded={assignmentOverviewExpanded}
+                >
+                  <span className="mathmaster-overview-button-label">Overview</span> {assignmentOverviewExpanded ? '▴' : '▾'}
+                </button>
+              )}
               <button
                 type="button"
-                className="mathmaster-overview-button"
-                onClick={() => setAssignmentOverviewExpanded((current) => !current)}
-                aria-expanded={assignmentOverviewExpanded}
+                className="mathmaster-focus-view-button"
+                onClick={() => {
+                  setAssignmentNavigationCollapsed((current) => !current);
+                  if (!assignmentNavigationCollapsed) setAssignmentOverviewExpanded(false);
+                }}
+                aria-expanded={!assignmentNavigationCollapsed}
+                title={assignmentNavigationCollapsed ? 'Show section progress and question numbers' : 'Hide extra navigation to make more room for the problem'}
               >
-                <span className="mathmaster-overview-button-label">Overview</span> {assignmentOverviewExpanded ? '▴' : '▾'}
+                {assignmentNavigationCollapsed ? 'Show progress' : 'Focus view'}
               </button>
             </div>
 
             <div className="mathmaster-assignment-unified-bottom">
+              {!assignmentNavigationCollapsed && (
               <div className={`mathmaster-current-section-inline${currentNavigationSection?.allCorrect ? ' is-complete' : ''}`}>
                 <div className="mathmaster-current-section-summary">
                   <strong>{currentSectionMeta.label}</strong>
@@ -5786,6 +5808,7 @@ function App() {
                   })}
                 </div>
               </div>
+              )}
 
               <div className="mathmaster-unified-question-controls">
                 <button type="button" onClick={() => previousQuestionEntry && changeQuestion(previousQuestionEntry.index)} disabled={!previousQuestionEntry} aria-label="Previous question">‹ <span>Previous</span></button>
