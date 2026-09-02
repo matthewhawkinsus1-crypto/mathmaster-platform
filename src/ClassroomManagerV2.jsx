@@ -966,7 +966,7 @@ The MathMaster assignment, student work, and MathMaster grades will remain.`
       <section style={card}>
         <strong>8. Grade passback monitor</strong>
         <p style={{ color: '#5f6368', fontSize: 13 }}>
-          Finalized MathMaster grades sync to linked Google Classroom submissions. Failures stay visible instead of disappearing silently.
+          MathMaster sends progress checkpoints while students work, a due-date checkpoint, and a final grade at completion or the final cutoff. Failures stay visible instead of disappearing silently.
         </p>
         {gradeSyncs.length === 0 ? (
           <div style={{ color: '#5f6368', fontSize: 13 }}>No grade-sync events yet.</div>
@@ -974,7 +974,7 @@ The MathMaster assignment, student work, and MathMaster grades will remain.`
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead><tr style={{ textAlign: 'left', color: '#5f6368' }}>
-                <th style={{ padding: 7 }}>Student</th><th style={{ padding: 7 }}>Assignment</th><th style={{ padding: 7 }}>Course</th><th style={{ padding: 7 }}>Grade</th><th style={{ padding: 7 }}>Status</th><th></th>
+                <th style={{ padding: 7 }}>Student</th><th style={{ padding: 7 }}>Assignment</th><th style={{ padding: 7 }}>Course</th><th style={{ padding: 7 }}>Grade / progress</th><th style={{ padding: 7 }}>Stage</th><th style={{ padding: 7 }}>Status</th><th></th>
               </tr></thead>
               <tbody>
                 {gradeSyncs.slice(0, 100).map((sync) => (
@@ -982,7 +982,17 @@ The MathMaster assignment, student work, and MathMaster grades will remain.`
                     <td style={{ padding: 7 }}>{sync.studentId}</td>
                     <td style={{ padding: 7 }}>{sync.assignmentId}</td>
                     <td style={{ padding: 7 }}>{sync.courseId}</td>
-                    <td style={{ padding: 7 }}>{sync.grade ?? '—'}</td>
+                    <td style={{ padding: 7 }}>
+                      <strong>{sync.grade ?? '—'}{sync.grade != null ? '%' : ''}</strong>
+                      {Number.isFinite(Number(sync.attempted)) && Number.isFinite(Number(sync.total)) && (
+                        <div style={{ marginTop: 3, color: '#5f6368' }}>{sync.attempted}/{sync.total} attempted{sync.creditOnAttempted != null ? ` · ${sync.creditOnAttempted}% on attempted` : ''}</div>
+                      )}
+                    </td>
+                    <td style={{ padding: 7 }}>
+                      <span style={sync.isFinal ? okPill : warnPill}>
+                        {sync.isFinal ? 'FINAL' : String(sync.stage || 'progress').replaceAll('-', ' ').toUpperCase()}
+                      </span>
+                    </td>
                     <td style={{ padding: 7 }}><span style={sync.status === 'synced' ? okPill : sync.status?.startsWith('skipped') ? warnPill : badPill}>{sync.status || 'unknown'}</span></td>
                     <td style={{ padding: 7 }}>
                       {sync.status !== 'synced' && sync.assignmentId && sync.studentId && (
