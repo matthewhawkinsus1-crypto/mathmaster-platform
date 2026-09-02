@@ -1367,11 +1367,20 @@ function App() {
       const healthy = Number(summary.healthy || 0);
       const failed = Number(summary.failed || 0);
       const queuedGrades = Number(summary.queuedGrades || 0);
+      const ignoredPriorDestinations = Number(summary.ignoredPriorDestinations || 0);
+      const repostedCourses = (response?.results || [])
+        .filter((item) => item.status === 'reposted')
+        .map((item) => item.courseName || item.courseId)
+        .filter(Boolean);
+      const healthyCourses = (response?.results || [])
+        .filter((item) => item.status === 'healthy')
+        .map((item) => item.courseName || item.courseId)
+        .filter(Boolean);
 
       if (!checked) {
         toastWarning(
-          'No Classroom publication found',
-          'MathMaster does not have a prior Google Classroom post to repair for this assignment. Open Google Classroom Manager to publish it to a mapped course.',
+          'No current Classroom destination found',
+          'MathMaster could not find a Google Classroom course mapped to the class currently assigned this work. Open Google Classroom Manager and verify the class-to-course mapping.',
         );
         return;
       }
@@ -1379,15 +1388,23 @@ function App() {
         toastSuccess(
           'Google Classroom assignment reposted',
           assignment.title + ': recreated ' + reposted + ' missing Classroom post' + (reposted === 1 ? '' : 's')
+            + (repostedCourses.length ? ' in ' + repostedCourses.join(', ') : '')
             + ' and queued ' + queuedGrades + ' linked student grade record' + (queuedGrades === 1 ? '' : 's')
-            + ' for passback review. Existing MathMaster work was preserved.',
+            + ' for passback review. Existing MathMaster work was preserved.'
+            + (ignoredPriorDestinations > 0
+              ? ' MathMaster ignored ' + ignoredPriorDestinations + ' older publication record' + (ignoredPriorDestinations === 1 ? '' : 's') + ' from other course mappings.'
+              : ''),
         );
       } else if (healthy > 0 && failed === 0) {
         toastInfo(
-          'Classroom post is healthy',
-          assignment.title + ': Google Classroom confirmed the existing assignment post'
-            + (healthy === 1 ? '' : 's') + ' ' + (healthy === 1 ? 'is' : 'are')
-            + ' still available. Nothing was duplicated.',
+          'Current Classroom post is healthy',
+          assignment.title + ': Google Classroom confirmed the current mapped assignment post'
+            + (healthy === 1 ? '' : 's')
+            + (healthyCourses.length ? ' in ' + healthyCourses.join(', ') : '')
+            + ' ' + (healthy === 1 ? 'is' : 'are') + ' still available. Nothing was duplicated.'
+            + (ignoredPriorDestinations > 0
+              ? ' MathMaster ignored ' + ignoredPriorDestinations + ' older publication record' + (ignoredPriorDestinations === 1 ? '' : 's') + ' from other course mappings.'
+              : ''),
         );
       }
       if (failed > 0) {
@@ -6625,7 +6642,7 @@ function App() {
                             { key: 'dates-classes', label: isLibraryAssignment(assignment) ? 'Assign to Class / Dates' : 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
                             ...(!isLibraryAssignment(assignment) ? [{
                               key: 'repair-classroom-post',
-                              label: 'Check / Repost Classroom',
+                              label: 'Repair / Repost Classroom',
                               onClick: () => handleRepairClassroomAssignmentPost(assignment),
                             }] : []),
                             ...(libraryRepair.source && libraryRepair.questionIds.length ? [{
