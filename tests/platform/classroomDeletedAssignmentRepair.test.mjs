@@ -39,12 +39,16 @@ test('repost queues linked grade records through the existing release-signal tri
   assert.match(src, /queueRepostedAssignmentGrades\(\{/);
 });
 
-test('browser exposes a teacher repair control for missing Classroom assignments', () => {
+test('browser exposes teacher repair controls for missing Classroom assignments', () => {
   const api = read('src/classroomApi.js');
   const manager = read('src/ClassroomManagerV2.jsx');
+  const app = read('src/App.jsx');
 
   assert.match(api, /repairClassroomAssignmentPublications = call\("repairClassroomAssignmentPublications"\)/);
   assert.match(manager, /repairClassroomAssignmentPublications/);
   assert.match(manager, /Check \/ repost missing assignment/);
   assert.match(manager, /without changing the MathMaster assignment or student work/);
+  assert.match(app, /handleRepairClassroomAssignmentPost/);
+  assert.match(app, /Check \/ Repost Classroom/);
+  assert.match(app, /Existing MathMaster work was preserved/);
 });
