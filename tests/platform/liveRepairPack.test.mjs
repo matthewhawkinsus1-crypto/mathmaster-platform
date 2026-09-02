@@ -145,3 +145,15 @@ test('repair packs do not invent a question weight when the live question has no
   });
   assert.equal(Object.prototype.hasOwnProperty.call(prepared.questions[0], 'questionWeight'), false);
 });
+
+
+test('an unsaved editor weight change survives a repair-pack import and can save in the same transaction', () => {
+  const current = { ...historical, questionWeight: 4 };
+  const prepared = prepareSafeLiveRepairPack({
+    pack,
+    historicalQuestions: [historical],
+    currentQuestions: [current],
+  });
+  assert.equal(prepared.questions[0].questionWeight, 4);
+  assert.equal(prepared.replacementCount, 1);
+});
