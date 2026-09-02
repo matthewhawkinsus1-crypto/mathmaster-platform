@@ -22,6 +22,8 @@ const {
   ASSIGNMENT_AI_SECRETS,
   readOpenAiApiKey,
   readPublicEnv,
+  readStudentAppBaseUrl,
+  CANONICAL_STUDENT_APP_BASE_URL,
   readGoogleClientId,
   readGoogleClientSecret,
   readLinkEncryptionKey,
@@ -3242,7 +3244,7 @@ exports.getGoogleAuthUrl = onCall({ secrets: GOOGLE_API_SECRETS }, async (reques
 
 exports.oauthCallback = onRequest({ secrets: GOOGLE_API_SECRETS }, async (req, res) => {
   const { code, state, error } = req.query;
-  const appBaseUrl = readPublicEnv("APP_BASE_URL", "/");
+  const appBaseUrl = readStudentAppBaseUrl();
 
   if (error) {
     res.redirect(302, `${appBaseUrl}?classroomError=${encodeURIComponent(String(error))}`);
@@ -3328,10 +3330,17 @@ exports.getGoogleClassroomDiagnostics = onCall(
       );
     }
 
-    checks.appBaseUrl = readPublicEnv("APP_BASE_URL");
-    if (!checks.appBaseUrl) {
+    checks.configuredAppBaseUrl = readPublicEnv("APP_BASE_URL");
+    checks.appBaseUrl = readStudentAppBaseUrl();
+    checks.canonicalAppBaseUrl = CANONICAL_STUDENT_APP_BASE_URL;
+    checks.appBaseUrlPinnedToFirebase = checks.appBaseUrl === CANONICAL_STUDENT_APP_BASE_URL;
+    if (!checks.configuredAppBaseUrl) {
       problems.push(
-        "APP_BASE_URL is not configured. Add it to functions/.env.mathmaster-aleks (see functions/.env.example) and redeploy."
+        "APP_BASE_URL is not configured. Production student launches are protected by the Firebase Hosting fallback, but functions/.env.mathmaster-aleks should still set APP_BASE_URL=https://mathmaster-aleks.web.app."
+      );
+    } else if (String(checks.configuredAppBaseUrl).replace(/\/$/, "") !== CANONICAL_STUDENT_APP_BASE_URL) {
+      problems.push(
+        `APP_BASE_URL is configured as ${checks.configuredAppBaseUrl}. Student launches are being forced to ${CANONICAL_STUDENT_APP_BASE_URL}; update functions/.env.mathmaster-aleks and redeploy so diagnostics are clean.`
       );
     }
 
@@ -5516,7 +5525,7 @@ exports.listPublishedAssignments = onCall(async (request) => {
 exports.resolveLaunchToken = onRequest(
   { secrets: [LINK_ENCRYPTION_KEY] },
   (req, res) => {
-    const appBaseUrl = readPublicEnv("APP_BASE_URL", "/");
+    const appBaseUrl = readStudentAppBaseUrl();
     try {
       const { assignmentId, courseId, publicationId } = decryptLaunchToken(
         req.query.token
