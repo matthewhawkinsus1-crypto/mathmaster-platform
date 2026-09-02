@@ -14,7 +14,7 @@ test('teacher may intentionally create a new Classroom post in selected mapped c
   assert.match(force, /courseIds/);
   assert.match(force, /getTeacherClassroomMapping/);
   assert.match(force, /audience\.classIds\.includes\(mappedClassId\)/);
-  assert.match(force, /classroomLib\.createCourseWork/);
+  assert.match(force, /classroomLib\(\)\.createCourseWork/);
   assert.match(force, /publicationInstanceMarker/);
   assert.match(force, /lastForceRequestId/);
   assert.match(force, /supersededCourseworkIds/);

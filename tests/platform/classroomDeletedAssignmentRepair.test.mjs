@@ -36,7 +36,7 @@ test('deleted Classroom assignment repair verifies before reposting', () => {
   assert.ok(start >= 0 && end > start, 'repair callable must exist before Classroom inspection');
   const repair = src.slice(start, end);
 
-  assert.match(repair, /classroomLib\.getCourseWork/);
+  assert.match(repair, /classroomLib\(\)\.getCourseWork/);
   assert.match(repair, /classroomDeleteAlreadyGone/);
   assert.match(repair, /status: "healthy"/);
   assert.match(repair, /publishOneCourse\(/);
