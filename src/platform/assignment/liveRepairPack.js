@@ -92,6 +92,18 @@ export const prepareSafeLiveRepairPack = ({
       throw new Error(`Question ${wrappedId} failed safe-live validation: ${analysis.reason}`);
     }
 
+    // Validation above compares the response repair with the historical live
+    // question. After it passes, restore the CURRENT editor weight so an
+    // unsaved teacher weight change can travel through this same transaction
+    // instead of being silently reset by the repair pack.
+    if (Object.prototype.hasOwnProperty.call(current.question || {}, 'questionWeight')) {
+      nextQuestion.questionWeight = current.question.questionWeight;
+    } else if (Object.prototype.hasOwnProperty.call(historical.question || {}, 'questionWeight')) {
+      nextQuestion.questionWeight = historical.question.questionWeight;
+    } else {
+      delete nextQuestion.questionWeight;
+    }
+
     nextQuestions[current.index] = nextQuestion;
     liveRepairs.push({
       questionId: wrappedId,
