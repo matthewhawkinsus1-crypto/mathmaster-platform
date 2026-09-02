@@ -291,6 +291,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
       <LiveClassMonitor
         students={monitoredStudents}
         assignments={assignments.filter((assignment) => getAssignmentLifecycle(assignment, nowValue).isOpen)}
+        timerAssignments={assignments}
         classPeriods={CLASS_PERIODS}
         initialClassPeriod={periodInSession}
         nowValue={nowValue}
