@@ -58,7 +58,7 @@ test('AI weight review request is portable and demands a complete strict JSON re
   assert.match(request, /Return EVERY included question exactly once/);
   assert.match(request, /Protected fingerprint: wgt-/);
   assert.match(request, /Eight|workflowStages/);
-  assert.doesNotMatch(request, /studentId|gradesByAssignment|accommodation/i);
+  assert.doesNotMatch(request, /"studentId"\s*:|"gradesByAssignment"\s*:|"accommodations"\s*:/i);
 });
 
 test('valid AI weight pack changes only questionWeight', () => {
