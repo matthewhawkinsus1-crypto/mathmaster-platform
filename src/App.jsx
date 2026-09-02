@@ -404,6 +404,7 @@ function App() {
   const [weeklyGoalBusy, setWeeklyGoalBusy] = useState(false);
   const [weeklyPathCompletionsByStudent, setWeeklyPathCompletionsByStudent] = useState({});
   const [weeklyPathGoalSnapshotsByStudent, setWeeklyPathGoalSnapshotsByStudent] = useState({});
+  const [studentWeeklyPathProgress, setStudentWeeklyPathProgress] = useState(null);
   // Set when the server could not read the whole week. The Weekly Path table
   // shows grades, so an incomplete read has to be visible rather than assumed.
   // The student whose profile drawer is open, from ANY teacher surface.
