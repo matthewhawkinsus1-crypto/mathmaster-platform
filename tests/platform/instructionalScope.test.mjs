@@ -24,6 +24,27 @@ test('Algebra I blocks formal increasing/decreasing interval notation', () => {
   assert.ok(result.errors.some((e) => e.includes('Algebra I instructional ceiling')));
 });
 
+test('Algebra I blocks interval notation on solved inequalities too', () => {
+  const result = validateInstructionalScopeV5(base([3,4], [{
+    prompt: 'Solve x + 7 ≤ 12, graph the solution, and write interval notation.',
+    studentActions: ['solveStepByStep','constructInterval','writeInterval'],
+    equation: 'x + 7 ≤ 12',
+    ask: ['graph','interval'],
+  }]));
+  assert.ok(result.errors.some((e) => e.includes('formal interval notation')));
+});
+
+test('Algebra I still allows graph-only open and closed endpoint practice', () => {
+  const result = validateInstructionalScopeV5(base([3,4], [{
+    prompt: 'Graph x ≥ -2 on the number line.',
+    studentActions: ['constructInterval'],
+    inequalityText: 'x ≥ -2',
+    intervals: [{ min: -2, max: null, minClosed: true, maxClosed: false }],
+    ask: ['graph'],
+  }]));
+  assert.equal(result.errors.length, 0);
+});
+
 test('Lessons 3-4 allow recognizing an absolute extremum characteristic from displayed graphs', () => {
   const result = validateInstructionalScopeV5(base([3,4], [{
     prompt: 'Which graph has an absolute maximum?',
