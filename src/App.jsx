@@ -10,6 +10,7 @@ import {
   getDocs,
   onSnapshot,
   query,
+  runTransaction,
   setDoc,
   updateDoc,
   where,
@@ -129,6 +130,10 @@ import {
   storedAssignmentToV5,
 } from './platform/contract/storedAssignmentV5.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
+import {
+  questionFingerprint,
+  repairAssignmentTrackerForLiveCorrections,
+} from './platform/assignment/liveQuestionCorrection.js';
 import { normalizeLessonPublishingIntentV5 } from './platform/authoring/lessonPublishingIntent.js';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
@@ -3902,7 +3907,7 @@ function App() {
     setQuestionEditorAssignment(assignment);
   };
 
-  const saveQuestionEditor = async ({ title, questions }) => {
+  const saveQuestionEditor = async ({ title, questions, liveRepairs = [] }) => {
     if (!questionEditorAssignment?.id) return;
     const normalizedQuestions = normalizeAssignmentQuestions(questions);
     const included = normalizedQuestions.filter(questionIsIncluded);
@@ -3922,11 +3927,114 @@ function App() {
       ...questionEditorAssignment,
       questions: persistedQuestions,
     });
-    await updateDoc(doc(db, 'assignments', questionEditorAssignment.id), {
+    const correctedAt = new Date().toISOString();
+    const assignmentPatch = {
       ...persistence,
       'dol.questionIndex': dolIndex >= 0 ? dolIndex : null,
-      updatedAt: new Date().toISOString(),
-    });
+      updatedAt: correctedAt,
+    };
+
+    if (Array.isArray(liveRepairs) && liveRepairs.length > 0) {
+      const assignmentId = questionEditorAssignment.id;
+      const assignmentRef = doc(db, 'assignments', assignmentId);
+      const audienceStudents = allStudents.filter((student) => assignmentIsForStudent(
+        questionEditorAssignment,
+        {
+          classId: student.classId || null,
+          classPeriod: student.classPeriod,
+        },
+      ));
+
+      if (audienceStudents.length > 450) {
+        throw new Error(
+          'This assignment has too many student records for a browser-side live correction. Use the server migration path so every student is updated atomically.',
+        );
+      }
+
+      await runTransaction(db, async (transaction) => {
+        const liveAssignmentSnapshot = await transaction.get(assignmentRef);
+        if (!liveAssignmentSnapshot.exists()) {
+          throw new Error('This assignment no longer exists. Nothing was changed.');
+        }
+
+        const liveAssignment = {
+          id: liveAssignmentSnapshot.id,
+          ...liveAssignmentSnapshot.data(),
+        };
+        if (
+          questionEditorAssignment.updatedAt
+          && liveAssignment.updatedAt
+          && String(questionEditorAssignment.updatedAt) !== String(liveAssignment.updatedAt)
+        ) {
+          throw new Error(
+            'This assignment changed after you opened the editor. Close and reopen it before applying the live repair so newer student-facing content is not overwritten.',
+          );
+        }
+
+        const liveQuestions = getStoredAssignmentQuestions(liveAssignment);
+        liveRepairs.forEach((repair) => {
+          const index = Number(repair?.questionIndex);
+          const liveQuestion = liveQuestions[index];
+          const repairedQuestion = persistedQuestions[index];
+          if (!Number.isInteger(index) || index < 0 || !liveQuestion || !repairedQuestion) {
+            throw new Error('MathMaster could not match a live repair to its original question index.');
+          }
+          if (
+            String(liveQuestion.questionId || '') !== String(repair.questionId || '')
+            || String(repairedQuestion.questionId || '') !== String(repair.questionId || '')
+          ) {
+            throw new Error(
+              'A question ID or position changed while the assignment was live. The repair was cancelled to protect student progress.',
+            );
+          }
+          if (
+            repair.beforeFingerprint
+            && questionFingerprint(liveQuestion) !== repair.beforeFingerprint
+          ) {
+            throw new Error(
+              'The live question changed after this repair was prepared. Reopen the editor and prepare the correction again.',
+            );
+          }
+        });
+
+        const gradeEntries = await Promise.all(audienceStudents.map(async (student) => {
+          const studentRef = doc(db, 'grades', student.id);
+          const snapshot = await transaction.get(studentRef);
+          return { student, studentRef, snapshot };
+        }));
+
+        gradeEntries.forEach(({ studentRef, snapshot }) => {
+          if (!snapshot.exists()) return;
+          const studentData = snapshot.data() || {};
+          const gradesByAssignment = studentData.gradesByAssignment || {};
+          const assignmentTracker = gradesByAssignment[assignmentId];
+          if (assignmentTracker === undefined) return;
+
+          const repairedTracker = repairAssignmentTrackerForLiveCorrections({
+            assignmentTracker,
+            questions: persistedQuestions,
+            repairs: liveRepairs,
+            correctedAt,
+          });
+          transaction.update(studentRef, {
+            gradesByAssignment: {
+              ...gradesByAssignment,
+              [assignmentId]: repairedTracker,
+            },
+          });
+        });
+
+        transaction.update(assignmentRef, assignmentPatch);
+      });
+
+      toastSuccess(
+        'Safe live repair saved',
+        'The corrected response controls are live. Existing student attempts were preserved, affected rejected responses were protected from score loss, and exhausted students received a repair retry only when they still had another incorrect part.',
+      );
+    } else {
+      await updateDoc(doc(db, 'assignments', questionEditorAssignment.id), assignmentPatch);
+    }
+
     setQuestionEditorAssignment(null);
     await fetchAssignments();
   };
