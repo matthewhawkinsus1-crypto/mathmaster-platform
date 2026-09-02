@@ -18,30 +18,11 @@ const hashText = (text) => {
   return (hash >>> 0).toString(16).padStart(8, '0');
 };
 
-const reviewIdentityQuestion = (question = {}, index = 0) => ({
-  questionId: clean(question.questionId),
-  index,
-  type: clean(question.type),
-  activityRole: clean(question.activityRole),
-  sectionId: clean(question.sectionId),
-  prompt: clean(question.prompt),
-  scenario: clean(question.scenario),
-  workflow: Array.isArray(question.workflow)
-    ? question.workflow.map((stage) => ({
-        id: clean(stage?.id),
-        kind: clean(stage?.kind),
-        prompt: clean(stage?.prompt),
-      }))
-    : [],
-  answerFields: Array.isArray(question.answerFields)
-    ? question.answerFields.map((field) => ({
-        id: clean(field?.id),
-        type: clean(field?.type || field?.inputProfile),
-        label: clean(field?.label),
-      }))
-    : [],
-  teacherExcluded: question.teacherExcluded === true,
-});
+const reviewIdentityQuestion = (question = {}, index = 0) => {
+  const content = clone(question || {});
+  delete content.questionWeight;
+  return { index, content };
+};
 
 export const assignmentWeightReviewFingerprint = ({
   assignment = {},
@@ -90,6 +71,22 @@ const compactQuestionForReview = (question = {}, index = 0) => ({
   studentActions: Array.isArray(question.studentActions)
     ? question.studentActions.map((item) => clean(item)).filter(Boolean)
     : [],
+  workloadSignals: {
+    workflowStages: Array.isArray(question.workflow) ? question.workflow.length : 0,
+    answerFields: Array.isArray(question.answerFields) ? question.answerFields.length : 0,
+    recipeRequests: Array.isArray(question?.recipe?.ask)
+      ? question.recipe.ask.length
+      : (Array.isArray(question?.ask) ? question.ask.length : 0),
+    tableRows: Array.isArray(question?.table?.rows)
+      ? question.table.rows.length
+      : (Array.isArray(question?.rows) ? question.rows.length : 0),
+    tableColumns: Array.isArray(question?.table?.columns)
+      ? question.table.columns.length
+      : (Array.isArray(question?.columns) ? question.columns.length : 0),
+    choiceCount: Array.isArray(question?.choices) ? question.choices.length : 0,
+    quantityCount: Array.isArray(question?.quantities) ? question.quantities.length : 0,
+    hasGraph: Boolean(question?.graph || question?.functionSpec || question?.graphConfig),
+  },
 });
 
 export const buildAssignmentWeightReviewRequest = ({
