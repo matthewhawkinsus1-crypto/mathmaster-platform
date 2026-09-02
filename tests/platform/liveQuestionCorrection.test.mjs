@@ -292,3 +292,55 @@ test('grader correction can restore an exhausted student without erasing attempt
   assert.equal(repaired.partGrades[1].isCorrect, true);
   assert.equal(repaired.graderCorrectionHistory.at(-1).grantedRepairRetry, true);
 });
+
+
+test('safe live repair permits relationship-model wording stages to become controlled choices', () => {
+  const before = {
+    questionId: 'q-workflow',
+    type: 'relationshipModel',
+    prompt: 'State domain and range.',
+    recipe: { name: 'functionModeling', ask: ['quantities', 'domainWords', 'rangeWords'] },
+    quantities: [{ id: 'x', label: 'Time' }, { id: 'y', label: 'Speed' }],
+    correctIndependentId: 'x',
+    correctDependentId: 'y',
+    correctDomainWords: ['time from 0 through 3 minutes', 'all times from 0 to 3 minutes'],
+    correctRangeWords: ['speed from 0 through 75 miles per hour', 'all speeds from 0 to 75 miles per hour'],
+  };
+  const after = {
+    ...before,
+    domainWordsChoices: [
+      'time from 0 through 3 minutes',
+      'only the whole-number times 0, 1, 2, and 3 minutes',
+      'all times less than or equal to 3 minutes',
+    ],
+    rangeWordsChoices: [
+      'speed from 0 through 75 miles per hour',
+      'only the whole-number speeds from 0 to 75 miles per hour',
+      'all speeds greater than or equal to 0 miles per hour',
+    ],
+  };
+  const result = analyzeResponseEntryRepair(before, after);
+  assert.equal(result.safe, true);
+  assert.deepEqual(result.affectedFieldIds, ['domainWords', 'rangeWords']);
+});
+
+test('workflow wording repair rejects multiple previously-correct choices', () => {
+  const before = {
+    questionId: 'q-workflow',
+    type: 'relationshipModel',
+    prompt: 'State the domain.',
+    recipe: { name: 'functionModeling', ask: ['domainWords'] },
+    correctDomainWords: ['time from 0 through 3 minutes', 'all times from 0 to 3 minutes'],
+  };
+  const after = {
+    ...before,
+    domainWordsChoices: [
+      'time from 0 through 3 minutes',
+      'all times from 0 to 3 minutes',
+      'time is greater than or equal to 0 minutes',
+    ],
+  };
+  const result = analyzeResponseEntryRepair(before, after);
+  assert.equal(result.safe, false);
+  assert.match(result.reason, /exactly one previously accepted correct wording/i);
+});
