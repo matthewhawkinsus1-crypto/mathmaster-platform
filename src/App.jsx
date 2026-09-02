@@ -868,21 +868,34 @@ function App() {
     return () => window.clearInterval(clock);
   }, []);
 
-  // The general dashboard clock can stay inexpensive at 30 seconds, while DOL
-  // and pack-up transitions need to happen at the actual bell-derived second.
-  // Schedule one precise wake-up for the next class start, DOL transition, or
-  // five-minute technology-return window.
+  // The general dashboard clock can stay inexpensive at 30 seconds, while
+  // DOL, Warm-Up auto-close, and pack-up transitions need to happen at the
+  // actual bell/timer-derived second. Schedule one precise wake-up for the
+  // next transition rather than letting a teacher-set Warm-Up timer drift by
+  // as much as the dashboard clock interval.
   useEffect(() => {
     if (user?.role !== 'student' || !user.classPeriod) return undefined;
     const realNow = Date.now();
-    const targets = assignments
-      .filter((assignment) => assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod }))
-      .map((assignment) => getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: realNow }))
+    const studentContext = { classId: user.classId || null, classPeriod: user.classPeriod };
+    const relevantAssignments = assignments
+      .filter((assignment) => assignmentIsForStudent(assignment, studentContext));
+    const targets = relevantAssignments
+      .map((assignment) => getDOLState({ assignment, schedule: classSchedule, ...studentContext, nowValue: realNow }))
       .map((state) => state.status === 'beforeClass' ? state.window?.start?.getTime()
         : state.status === 'waiting' ? state.opensAt?.getTime()
           : state.status === 'active' ? state.endsAt?.getTime() + 100
             : null)
       .filter((target) => Number.isFinite(target) && target > realNow);
+
+    relevantAssignments
+      .map((assignment) => getWarmupState({ assignment, schedule: classSchedule, ...studentContext, nowValue: realNow }))
+      .map((state) => state.status === 'waiting'
+        ? state.opensAt?.getTime()
+        : state.status === 'active'
+          ? (state.autoCloseScheduled ? state.autoCloseAt?.getTime() : state.endsAt?.getTime()) + 100
+          : null)
+      .filter((target) => Number.isFinite(target) && target > realNow)
+      .forEach((target) => targets.push(target));
 
     const packUp = getClassPackUpState({
       schedule: classSchedule,
