@@ -307,6 +307,14 @@ export const fetchTeacherWeeklyPathCompletions = async ({ classId, weekKey } = {
   };
 };
 
+/** Read the signed-in student's frozen weekly commitment, if one exists. */
+export const fetchStudentWeeklyPathGoalSnapshot = async ({ weekKey } = {}) => {
+  if (!weekKey) return null;
+  const call = httpsCallable(functions, 'getStudentWeeklyPathGoalSnapshot');
+  const result = await call({ weekKey });
+  return result?.data?.goal || null;
+};
+
 /** Freeze or retrieve this student's server-owned weekly commitment. */
 export const resolveWeeklyPathGoalSnapshot = async (goal) => {
   if (!goal?.weekKey) return null;
