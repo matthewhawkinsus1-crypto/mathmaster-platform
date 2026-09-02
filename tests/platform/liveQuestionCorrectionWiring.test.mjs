@@ -52,3 +52,12 @@ test('automatic grader repair is monotonic and does not require another student 
   assert.match(repairSource, /preservedTotalAttempts/);
   assert.match(repairSource, /Math\.max\(current\.bestPartialCredit, recomputedPartPercent\)/);
 });
+
+test('question editor exposes one-action Safe Live Repair Pack import and immediate transactional save', () => {
+  const editor = fs.readFileSync('src/AssignmentQuestionEditor.jsx', 'utf8');
+  assert.match(editor, /Import Safe Repair Pack/);
+  assert.match(editor, /accept=".json,application\/json"/);
+  assert.match(editor, /prepareSafeLiveRepairPack/);
+  assert.match(editor, /await onSave\(\{/);
+  assert.match(editor, /liveRepairs: prepared\.liveRepairs/);
+});
