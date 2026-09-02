@@ -35,3 +35,20 @@ test('assigned assignments always enable live question protection even before gr
   assert.match(app, /!isLibraryAssignment\(questionEditorAssignment\)/);
   assert.match(app, /gradesByAssignment\?\.\[questionEditorAssignment\.id\]/);
 });
+
+
+test('current grader corrections are applied automatically for teachers and students', () => {
+  assert.match(app, /repairAssignmentTrackerForCurrentGrader/);
+  assert.match(app, /persistCurrentGraderCreditRepairs/);
+  assert.match(app, /await persistCurrentGraderCreditRepairs\(loadedStudents, fetchedAssignments\)/);
+  assert.match(app, /repairedStudentGrades\.changed/);
+  assert.match(app, /gradesByAssignment: repairedStudentGrades\.gradesByAssignment/);
+});
+
+test('automatic grader repair is monotonic and does not require another student attempt', () => {
+  const repairSource = fs.readFileSync('src/platform/assignment/liveQuestionCorrection.js', 'utf8');
+  assert.match(repairSource, /if \(part\?\.isCorrect/);
+  assert.match(repairSource, /graderCorrectionCredit: true/);
+  assert.match(repairSource, /preservedTotalAttempts/);
+  assert.match(repairSource, /Math\.max\(current\.bestPartialCredit, recomputedPartPercent\)/);
+});
