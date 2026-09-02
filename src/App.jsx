@@ -2130,6 +2130,59 @@ function App() {
     });
   }, [now, user, assignments, classSchedule, tracker, toastWarning]);
 
+  // Warm-Up reminders are student-wide, just like DOL reminders. The amber
+  // countdown stays visible everywhere; this toast announces the opening and
+  // repeats every two minutes while Warm-Up questions still need work.
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.classPeriod) return;
+    const activeKeys = new Set();
+    const classContext = { classId: user.classId || null, classPeriod: user.classPeriod };
+
+    assignments.forEach((assignment) => {
+      if (!assignmentIsForStudent(assignment, classContext)) return;
+      const warmupState = getWarmupState({
+        assignment,
+        schedule: classSchedule,
+        ...classContext,
+        nowValue: now,
+      });
+      if (warmupState.status !== 'active') return;
+
+      const questions = getStoredAssignmentQuestions(assignment);
+      const warmupIndices = questions.reduce((indices, question, index) => {
+        if (
+          questionIsIncluded(question)
+          && resolveQuestionActivityRole({ question, assignment }) === 'warmup'
+        ) indices.push(index);
+        return indices;
+      }, []);
+      if (!warmupIndices.length) return;
+
+      const records = warmupIndices.map((index) => normalizeQuestionRecord(tracker?.[assignment.id]?.[index]));
+      if (records.every((record) => ['correct', 'expired'].includes(record.status))) return;
+
+      const key = `${assignment.id}:${user.classId || user.classPeriod}:${warmupState.instructionDateKey || localDateKey(now)}`;
+      activeKeys.add(key);
+      const lastReminderAt = Number(warmupOpenAnnouncedRef.current[key] || 0);
+      if (lastReminderAt && now - lastReminderAt < 120000) return;
+
+      const firstReminder = lastReminderAt === 0;
+      warmupOpenAnnouncedRef.current[key] = now;
+      toastWarning(
+        firstReminder ? 'Warm-Up is active — start now' : 'Warm-Up reminder — timer is running',
+        `${assignment.title}: the Warm-Up is open now and ${formatRemainingTime(warmupState.millisecondsRemaining)} remains.`,
+      );
+    });
+
+    Object.keys(warmupOpenAnnouncedRef.current).forEach((key) => {
+      if (
+        !activeKeys.has(key)
+        && now - Number(warmupOpenAnnouncedRef.current[key] || 0) > 15 * 60000
+      ) delete warmupOpenAnnouncedRef.current[key];
+    });
+  }, [now, user, assignments, classSchedule, tracker, toastWarning]);
+
+
   useEffect(() => {
     if (user?.role !== 'student' || !user.classPeriod) return;
     const date = new Date(now);
