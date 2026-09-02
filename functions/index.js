@@ -12,11 +12,7 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 
 const classroomLib = require("./lib/classroom");
-const {
-  runtimeQuestionCount,
-  runtimeQuestionsFromAssignment,
-  runtimeIncludedQuestionIndices,
-} = require("./lib/assignmentRuntime");
+const { runtimeIncludedQuestionIndices } = require("./lib/assignmentRuntime");
 const driveResources = require("./lib/driveResources");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const {
@@ -5853,6 +5849,158 @@ exports.queueReleasedAssessmentGrades = onDocumentWritten(
     logger.info(`Queued released assessment grade passback for ${targets.length} student record(s) on assignment ${assignmentId}.`);
   }
 );
+
+const CLASSROOM_GRADE_CHECKPOINT_COLLECTION = "classroomGradeCheckpointState";
+const CLASSROOM_GRADE_CHECKPOINT_LOOKBACK_MS = 14 * 24 * 60 * 60 * 1000;
+
+async function queueClassroomGradeSignalForAudience({
+  db,
+  assignmentId,
+  assignment,
+  reason,
+  requestedAt,
+}) {
+  const classIds = assignmentAudience(assignment).classIds;
+  if (!classIds.length) return 0;
+
+  const gradeDocsByPath = new Map();
+  for (const classId of classIds) {
+    // eslint-disable-next-line no-await-in-loop
+    const snapshot = await db.collection("grades").where("classId", "==", classId).get();
+    snapshot.docs.forEach((gradeDoc) => gradeDocsByPath.set(gradeDoc.ref.path, gradeDoc));
+  }
+
+  const gradeDocs = [...gradeDocsByPath.values()];
+  for (let start = 0; start < gradeDocs.length; start += 400) {
+    const batch = db.batch();
+    gradeDocs.slice(start, start + 400).forEach((gradeDoc) => {
+      batch.update(
+        gradeDoc.ref,
+        new FieldPath("classroomReleaseSignals", assignmentId),
+        { requestedAt, reason }
+      );
+    });
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+  return gradeDocs.length;
+}
+
+// Classroom itself marks an unsubmitted item Missing at the due time and may
+// insert its own draft 0. MathMaster therefore writes an authoritative grade
+// checkpoint at the regular due time and again at the final late cutoff. This
+// scheduler does not grade anything: it only wakes the existing grade trigger,
+// which still checks assignment policy, roster links, and Classroom identity.
+exports.queueClassroomGradeCheckpoints = onSchedule({
+  schedule: "every 5 minutes",
+  invoker: "private",
+}, async () => {
+  const db = getFirestore();
+  const now = Date.now();
+  const requestedAt = new Date(now).toISOString();
+  const cutoff = now - CLASSROOM_GRADE_CHECKPOINT_LOOKBACK_MS;
+
+  const [assignmentsSnap, publicationsSnap] = await Promise.all([
+    db.collection("assignments").limit(500).get(),
+    db.collection("classroomLinks").where("status", "==", "published").limit(1000).get(),
+  ]);
+
+  const classroomAssignmentIds = new Set(
+    publicationsSnap.docs
+      .map((doc) => doc.data() || {})
+      .filter((publication) => (
+        publication.courseworkId
+        && publication.gradePassbackEnabled !== false
+      ))
+      .map((publication) => String(publication.assignmentId || "").trim())
+      .filter(Boolean)
+  );
+
+  let dueAssignments = 0;
+  let finalAssignments = 0;
+  let queuedStudents = 0;
+
+  for (const assignmentDoc of assignmentsSnap.docs) {
+    const assignmentId = assignmentDoc.id;
+    if (!classroomAssignmentIds.has(assignmentId)) continue;
+
+    const assignment = assignmentDoc.data() || {};
+    if (!assignmentAudience(assignment).classIds.length) continue;
+    const dueAt = toDate(assignment.dueAt || assignment.dueDate);
+    const lateDueAt = toDate(
+      assignment.lateDueAt || assignment.lateDueDate || assignment.dueAt || assignment.dueDate
+    );
+    if (!dueAt && !lateDueAt) continue;
+
+    const stateRef = db.collection(CLASSROOM_GRADE_CHECKPOINT_COLLECTION).doc(assignmentId);
+    // eslint-disable-next-line no-await-in-loop
+    const stateSnap = await stateRef.get();
+    const state = stateSnap.exists ? stateSnap.data() || {} : {};
+
+    // Final cutoff has precedence. On first deploy, do not emit both an old due
+    // checkpoint and a final checkpoint for the same assignment.
+    if (
+      lateDueAt
+      && lateDueAt.getTime() <= now
+      && lateDueAt.getTime() >= cutoff
+      && !state.finalQueuedAt
+    ) {
+      // eslint-disable-next-line no-await-in-loop
+      const count = await queueClassroomGradeSignalForAudience({
+        db,
+        assignmentId,
+        assignment,
+        reason: "final-deadline",
+        requestedAt,
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await stateRef.set({
+        assignmentId,
+        finalQueuedAt: requestedAt,
+        finalDueAt: lateDueAt.toISOString(),
+        finalQueuedStudents: count,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      finalAssignments += 1;
+      queuedStudents += count;
+      continue;
+    }
+
+    if (
+      dueAt
+      && dueAt.getTime() <= now
+      && dueAt.getTime() >= cutoff
+      && !state.dueQueuedAt
+    ) {
+      // eslint-disable-next-line no-await-in-loop
+      const count = await queueClassroomGradeSignalForAudience({
+        db,
+        assignmentId,
+        assignment,
+        reason: "due-checkpoint",
+        requestedAt,
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await stateRef.set({
+        assignmentId,
+        dueQueuedAt: requestedAt,
+        dueAt: dueAt.toISOString(),
+        dueQueuedStudents: count,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      dueAssignments += 1;
+      queuedStudents += count;
+    }
+  }
+
+  if (dueAssignments || finalAssignments) {
+    logger.info("Queued Classroom grade checkpoints", {
+      dueAssignments,
+      finalAssignments,
+      queuedStudents,
+    });
+  }
+});
 
 // ---------------------------------------------------------------------------
 // --- Live Challenge ----------------------------------------------------------
