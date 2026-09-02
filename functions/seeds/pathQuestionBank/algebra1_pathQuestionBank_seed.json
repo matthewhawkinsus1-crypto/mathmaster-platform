@@ -532,16 +532,16 @@
           "difficultyBand": 4,
           "taskType": "errorAnalysis",
           "representation": "multipleRepresentation",
-          "prompt": "The table and coordinate graph show ONLY the four displayed points of a discrete linear function. A student writes the domain and range as continuous intervals from the smallest value to the largest value. Diagnose why that adds inputs and outputs that are not in the function, then give the correct domain and range as finite sets.",
+          "prompt": "The table and coordinate graph show ONLY the four displayed points of a discrete linear function. A student writes the domain and range as continuous inequalities from the smallest value to the largest value. Diagnose why that adds inputs and outputs that are not in the function, then give the correct domain and range as finite sets.",
           "responseFields": [
             {
               "id": "diagnosis",
-              "label": "Why are intervals incorrect here?",
+              "label": "Why is a continuous description incorrect here?",
               "inputProfile": "choice",
               "choices": [
                 {
                   "id": "discrete-only",
-                  "label": "The function is defined only at the displayed discrete points; an interval would add unlisted inputs and outputs."
+                  "label": "The function is defined only at the displayed discrete points; a continuous inequality would add unlisted inputs and outputs."
                 },
                 {
                   "id": "linear-always-continuous",
@@ -588,12 +588,12 @@
             "reasoning": [
               "The displayed inputs are exactly {{x0}}, {{x1}}, {{x2}}, and {{x3}}.",
               "Only their corresponding outputs belong to the range.",
-              "Writing intervals would invent unlisted points between the displayed coordinates."
+              "Writing a continuous inequality would invent unlisted points between the displayed coordinates."
             ],
-            "answerSummary": "Use finite domain and range sets, not intervals."
+            "answerSummary": "Use finite domain and range sets, not continuous inequalities."
           },
           "attemptFeedback": [
-            "Decide whether the relation is defined between the displayed x-values before choosing interval notation."
+            "Decide whether the relation is defined between the displayed x-values before choosing a continuous inequality description."
           ],
           "supportHints": [
             "A straight-line pattern among points does not by itself make a discrete relation continuous."
@@ -13939,20 +13939,20 @@
           "id": "domain",
           "label": "Domain",
           "kind": "domain",
-          "notation": "interval",
+          "notation": "inequality",
           "responseMode": "text",
           "expected": [
-            "(-inf,inf)"
+            "all real numbers"
           ]
         },
         {
           "id": "range",
           "label": "Range",
           "kind": "range",
-          "notation": "interval",
+          "notation": "inequality",
           "responseMode": "text",
           "expected": [
-            "[{{k}},inf)"
+            "y>={{k}}"
           ]
         }
       ],
@@ -13960,7 +13960,7 @@
         "headline": "An upward-opening quadratic extends forever left and right but has a lowest output.",
         "reasoning": [
           "There is no restriction on x, so the domain is all real numbers.",
-          "The vertex $({{h}},{{k}})$ is the minimum, so the range is $[{{k}},\\infty)$."
+          "The vertex $({{h}},{{k}})$ is the minimum, so the range is $y\\ge {{k}}$."
         ]
       },
       "attemptFeedback": [
@@ -18704,28 +18704,28 @@
           "id": "domain",
           "label": "Domain",
           "kind": "domain",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "(-∞,∞)"
+            "all real numbers"
           ]
         },
         {
           "id": "range",
           "label": "Range",
           "kind": "range",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "({{k}},∞)"
+            "y>{{k}}"
           ]
         }
       ],
       "solutionReview": {
         "headline": "Growth still has all real inputs; the asymptote controls the range.",
         "reasoning": [
-          "An exponential with positive multiplier is defined for every real $x$, so its domain is $(-\\infty,\\infty)$.",
-          "Because the graph stays above and approaches $y={{k}}$ without reaching it, the range is $({{k}},\\infty)$."
+          "An exponential with positive multiplier is defined for every real x, so its domain is all real numbers.",
+          "Because the graph stays above and approaches $y={{k}}$ without reaching it, the range is $y>{{k}}$."
         ],
-        "answerSummary": "Domain $(-\\infty,\\infty)$; range $({{k}},\\infty)$."
+        "answerSummary": "Domain: all real numbers; range: y>{{k}}."
       },
       "attemptFeedback": [
         "Use the horizontal asymptote to decide the open endpoint of the range; the base does not restrict the domain."
@@ -18825,28 +18825,28 @@
           "id": "domain",
           "label": "Domain",
           "kind": "domain",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "(-∞,∞)"
+            "all real numbers"
           ]
         },
         {
           "id": "range",
           "label": "Range",
           "kind": "range",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "({{k}},∞)"
+            "y>{{k}}"
           ]
         }
       ],
       "solutionReview": {
         "headline": "A base between 0 and 1 changes direction of change, not domain or the side of the asymptote.",
         "reasoning": [
-          "Since $0<{{base}}<1$, the graph decreases as $x$ increases, but the exponential expression is still defined for every real input.",
-          "The positive multiplier keeps the graph above $y={{k}}$, so the range remains $({{k}},\\infty)$."
+          "Since $0<{{base}}<1$, the graph decreases as x increases, but the exponential expression is still defined for every real input.",
+          "The positive multiplier keeps the graph above $y={{k}}$, so the range is $y>{{k}}$."
         ],
-        "answerSummary": "Domain $(-\\infty,\\infty)$; range $({{k}},\\infty)$."
+        "answerSummary": "Domain: all real numbers; range: y>{{k}}."
       },
       "attemptFeedback": [
         "Decay means the outputs move toward the asymptote as x increases; it does not mean the domain stops."
@@ -19107,18 +19107,18 @@
           "id": "domain",
           "label": "Domain",
           "kind": "domain",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "(-∞,∞)"
+            "all real numbers"
           ]
         },
         {
           "id": "range",
           "label": "Range",
           "kind": "range",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "(-∞,{{k}})"
+            "y<{{k}}"
           ]
         }
       ],
@@ -19126,9 +19126,9 @@
         "headline": "A negative multiplier reflects the exponential across the x-axis before the vertical shift.",
         "reasoning": [
           "The reflected exponential is still defined for every real input.",
-          "Its outputs stay below the horizontal asymptote $y={{k}}$, so the range is $(-\\infty,{{k}})$."
+          "Its outputs stay below the horizontal asymptote $y={{k}}$, so the range is $y<{{k}}$."
         ],
-        "answerSummary": "Domain $(-\\infty,\\infty)$; range $(-\\infty,{{k}})$."
+        "answerSummary": "Domain: all real numbers; range: y<{{k}}."
       },
       "attemptFeedback": [
         "The sign of the leading multiplier decides whether the graph lies above or below its asymptote."
@@ -19231,18 +19231,18 @@
               "id": "domain",
               "label": "Domain",
               "kind": "domain",
-              "notation": "interval",
+              "notation": "inequality",
               "expected": [
-                "(-∞,∞)"
+                "all real numbers"
               ]
             },
             {
               "id": "range",
               "label": "Range",
               "kind": "range",
-              "notation": "interval",
+              "notation": "inequality",
               "expected": [
-                "(-∞,{{k}})"
+                "y<{{k}}"
               ]
             }
           ],
@@ -19251,9 +19251,9 @@
             "reasoning": [
               "The base {{base}} is between 0 and 1, so the exponential part decays as x increases.",
               "The negative multiplier reflects the outputs below the horizontal asymptote y={{k}}.",
-              "Negative inputs are valid, so the domain remains all real numbers and the range is $(-\\infty,{{k}})$."
+              "Negative inputs are valid, so the domain remains all real numbers and the range is $y<{{k}}$."
             ],
-            "answerSummary": "Domain $(-\\infty,\\infty)$; range $(-\\infty,{{k}})$."
+            "answerSummary": "Domain: all real numbers; range: y<{{k}}."
           },
           "attemptFeedback": [
             "Track the decay base, reflection, and vertical shift separately before deciding the range."
@@ -19351,18 +19351,18 @@
           "id": "domain",
           "label": "True domain",
           "kind": "domain",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "(-∞,∞)"
+            "all real numbers"
           ]
         },
         {
           "id": "range",
           "label": "Range",
           "kind": "range",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "({{k}},∞)"
+            "y>{{k}}"
           ]
         }
       ],
@@ -19370,9 +19370,9 @@
         "headline": "Decay describes behavior, not an algebraic input restriction.",
         "reasoning": [
           "The point at $x=-1$ is valid, demonstrating directly that negative inputs belong to the algebraic domain.",
-          "The function has domain $(-\\infty,\\infty)$ and, with positive multiplier, range $({{k}},\\infty)$."
+          "The function has all real numbers as its domain and, with positive multiplier, has range $y>{{k}}$."
         ],
-        "answerSummary": "Domain $(-\\infty,\\infty)$; range $({{k}},\\infty)$."
+        "answerSummary": "Domain: all real numbers; range: y>{{k}}."
       },
       "attemptFeedback": [
         "Test the student's claimed boundary by substituting a negative x-value."
