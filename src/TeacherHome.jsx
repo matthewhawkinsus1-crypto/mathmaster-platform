@@ -220,7 +220,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
                         ? `Open for ${timerMinutes} min`
                         : closed
                           ? `Reopen for ${timerMinutes} min`
-                          : state.autoCloseScheduled
+                          : state.teacherTimerScheduled
                             ? `Reset to ${timerMinutes} min`
                             : `Close in ${timerMinutes} min`}
                     </button>
