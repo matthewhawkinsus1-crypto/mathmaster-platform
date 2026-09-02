@@ -383,54 +383,99 @@ export const getWarmupState = ({ assignment, schedule, classId = null, classPeri
   const todayKey = localDateKey(now);
   const instructionDateKey = getWarmupInstructionDateKey(assignment, classPeriod, classId);
   const minutesBeforeStart = Math.max(0, Number(assignment?.warmup?.minutesBeforeStart ?? 7));
+  // Warm-Ups are short bell-ringers. By default they close ten minutes after
+  // class starts even if the containing assignment remains open all day/week.
+  // A teacher can still reopen the section or set a different live timer for
+  // one class through autoCloseByClassId.
+  const closeMinutesAfterStart = Math.max(1, Number(assignment?.warmup?.closeMinutesAfterStart ?? 10));
 
   if (!enabled) {
-    return { enabled: false, status: 'unavailable', window: null, instructionDateKey, opensAt: null, endsAt: null, millisecondsRemaining: null, minutesBeforeStart };
+    return {
+      enabled: false,
+      status: 'unavailable',
+      window: null,
+      instructionDateKey,
+      opensAt: null,
+      endsAt: null,
+      defaultCloseAt: null,
+      millisecondsRemaining: null,
+      minutesBeforeStart,
+      closeMinutesAfterStart,
+    };
   }
 
-  // Resolve today's bell window before checking the authored instructional
-  // date. The teacher live hub needs the current class window even when an old
-  // or reused assignment says the Warm-Up belongs to another date; otherwise
-  // the manual "Open Warm-Up Today" control disappears exactly when it is
-  // needed. When no bell window is configured we still preserve notToday /
-  // unscheduled as the diagnostic state instead of changing its meaning.
   const window = getPeriodWindow(schedule, classPeriod, now);
   const opensAt = window ? new Date(window.start.getTime() - minutesBeforeStart * 60000) : null;
-  const endsAt = window?.end || null;
+  const defaultCloseAt = window
+    ? new Date(Math.min(window.end.getTime(), window.start.getTime() + closeMinutesAfterStart * 60000))
+    : null;
 
   if (!instructionDateKey) {
-    return { enabled: true, status: 'unscheduled', window, instructionDateKey: null, opensAt, endsAt, millisecondsRemaining: null, minutesBeforeStart };
+    return {
+      enabled: true,
+      status: 'unscheduled',
+      window,
+      instructionDateKey: null,
+      opensAt,
+      endsAt: defaultCloseAt,
+      defaultCloseAt,
+      millisecondsRemaining: null,
+      minutesBeforeStart,
+      closeMinutesAfterStart,
+    };
   }
   if (todayKey !== instructionDateKey) {
-    return { enabled: true, status: 'notToday', window, instructionDateKey, opensAt, endsAt, millisecondsRemaining: null, minutesBeforeStart };
+    return {
+      enabled: true,
+      status: 'notToday',
+      window,
+      instructionDateKey,
+      opensAt,
+      endsAt: defaultCloseAt,
+      defaultCloseAt,
+      millisecondsRemaining: null,
+      minutesBeforeStart,
+      closeMinutesAfterStart,
+    };
   }
   if (!window) {
-    return { enabled: true, status: 'unavailable', window: null, instructionDateKey, opensAt: null, endsAt: null, millisecondsRemaining: null, minutesBeforeStart };
+    return {
+      enabled: true,
+      status: 'unavailable',
+      window: null,
+      instructionDateKey,
+      opensAt: null,
+      endsAt: null,
+      defaultCloseAt: null,
+      millisecondsRemaining: null,
+      minutesBeforeStart,
+      closeMinutesAfterStart,
+    };
   }
+
   const closedRecord = scopedOverride({ byClassId: assignment?.warmup?.closedByClassId, classId });
   const closedAtValue = typeof closedRecord === 'object' ? closedRecord?.closedAt : closedRecord;
   const closedDateKey = typeof closedRecord === 'object' ? closedRecord?.dateKey : null;
   const closedAt = closedAtValue ? parseLocalDateTime(closedAtValue, false) : null;
   const closedToday = Boolean(closedAt && (!closedDateKey || closedDateKey === todayKey));
 
-  // A timed teacher reopen is stored separately from a hard close. That keeps
-  // the intent explicit: deleting the hard-close record reopens the section,
-  // while this timestamp says when it should become read-only again. The
-  // record is class-specific and date-scoped so one period can never close
-  // another period's Warm-Up or leak into the next instructional day.
+  // A teacher timer/reopen is the explicit live override. It may end before OR
+  // after the normal ten-minute cutoff, but never after the class period.
   const autoCloseRecord = scopedOverride({ byClassId: assignment?.warmup?.autoCloseByClassId, classId });
   const autoCloseAtValue = typeof autoCloseRecord === 'object' ? autoCloseRecord?.closesAt : autoCloseRecord;
   const autoCloseDateKey = typeof autoCloseRecord === 'object' ? autoCloseRecord?.dateKey : null;
   const autoCloseAt = autoCloseAtValue ? parseLocalDateTime(autoCloseAtValue, false) : null;
   const autoCloseToday = Boolean(autoCloseAt && (!autoCloseDateKey || autoCloseDateKey === todayKey));
-  const autoCloseReached = Boolean(autoCloseToday && now >= autoCloseAt);
-  const effectiveEndsAt = autoCloseToday && autoCloseAt < endsAt ? autoCloseAt : endsAt;
+  const effectiveCloseAt = autoCloseToday
+    ? new Date(Math.min(window.end.getTime(), autoCloseAt.getTime()))
+    : defaultCloseAt;
+  const closeReached = Boolean(effectiveCloseAt && now >= effectiveCloseAt);
 
   let status;
-  if (now < opensAt) status = 'waiting';
-  else if (closedToday || autoCloseReached) status = 'closed';
-  else if (now <= endsAt) status = 'active';
-  else status = 'ended';
+  if (now > window.end) status = 'ended';
+  else if (now < opensAt) status = 'waiting';
+  else if (closedToday || closeReached) status = 'closed';
+  else status = 'active';
 
   return {
     enabled: true,
@@ -438,15 +483,18 @@ export const getWarmupState = ({ assignment, schedule, classId = null, classPeri
     window,
     instructionDateKey,
     opensAt,
-    endsAt,
-    closedAt: closedToday ? closedAt : autoCloseReached ? autoCloseAt : null,
-    autoCloseAt: autoCloseToday ? autoCloseAt : null,
-    autoCloseScheduled: Boolean(autoCloseToday && now < autoCloseAt && autoCloseAt <= endsAt),
+    endsAt: effectiveCloseAt,
+    defaultCloseAt,
+    closedAt: closedToday ? closedAt : closeReached ? effectiveCloseAt : null,
+    autoCloseAt: autoCloseToday ? effectiveCloseAt : defaultCloseAt,
+    autoCloseScheduled: Boolean(status === 'active' && effectiveCloseAt),
+    teacherTimerScheduled: Boolean(autoCloseToday),
     minutesBeforeStart,
+    closeMinutesAfterStart,
     millisecondsRemaining: status === 'waiting'
       ? Math.max(0, opensAt.getTime() - now.getTime())
       : status === 'active'
-        ? Math.max(0, effectiveEndsAt.getTime() - now.getTime())
+        ? Math.max(0, effectiveCloseAt.getTime() - now.getTime())
         : 0,
   };
 };
