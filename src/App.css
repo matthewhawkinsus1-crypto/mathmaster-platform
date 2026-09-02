@@ -658,11 +658,33 @@
 }
 
 .mathmaster-desktop-question-anchor.is-collapsed {
-  padding-bottom: 2px;
+  height: 0;
+  min-height: 0;
+  margin: 0 auto;
+  padding: 0;
+  background: transparent;
+  pointer-events: none;
 }
 
 .mathmaster-desktop-question-anchor.is-collapsed .mathmaster-desktop-task-toggle-row {
-  margin-bottom: 0;
+  height: 0;
+  margin: 0 auto;
+  padding: 0 4px;
+  justify-content: flex-end;
+  overflow: visible;
+}
+
+.mathmaster-desktop-question-anchor.is-collapsed .mathmaster-desktop-task-toggle-row span {
+  display: none;
+}
+
+.mathmaster-desktop-question-anchor.is-collapsed .mathmaster-desktop-task-toggle-row button {
+  position: relative;
+  top: 3px;
+  min-height: 28px;
+  padding: 3px 9px;
+  pointer-events: auto;
+  box-shadow: 0 2px 8px rgba(32, 33, 36, 0.12);
 }
 
 /* --- Student assignment navigation --------------------------------------
@@ -949,20 +971,54 @@
 }
 
 .mathmaster-assignment-unified-nav.is-collapsed {
-  gap: 4px;
-  padding: 6px 8px;
+  gap: 0;
+  margin-bottom: 8px;
+  padding: 4px 6px;
 }
 
-.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-assignment-unified-bottom {
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-end;
-  padding-top: 4px;
+.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-assignment-unified-top {
+  gap: 6px;
+  flex-wrap: nowrap;
 }
 
-.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-unified-question-controls {
-  width: min(100%, 430px);
+.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-unified-nav-back,
+.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-view-button,
+.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls button,
+.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls select {
+  min-height: 32px;
+}
+
+.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-unified-nav-back {
+  width: 34px;
+  flex-basis: 34px;
+  font-size: 17px;
+}
+
+.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-collapsed-current-location {
+  flex: 1 1 145px;
+  justify-content: flex-start;
+  gap: 6px;
+  padding-left: 2px;
+}
+
+.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls {
+  width: min(46vw, 420px);
+  min-width: 300px;
   margin-left: auto;
+  grid-template-columns: auto minmax(105px, 1fr) auto;
+  gap: 4px;
+}
+
+.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls button {
+  padding: 4px 8px;
+}
+
+.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls select {
+  padding: 4px 6px;
+}
+
+.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-view-button {
+  padding: 4px 8px;
 }
 
 .mathmaster-section-tabs {
@@ -1227,6 +1283,34 @@
 
   .mathmaster-assignment-screen .mathmaster-collapsed-current-location span {
     font-size: 9px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed {
+    padding: max(3px, env(safe-area-inset-top)) 4px 3px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-collapsed-current-location {
+    flex: 0 1 72px;
+    min-width: 48px;
+    padding-left: 0;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-collapsed-current-location span {
+    display: none;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    grid-template-columns: 32px minmax(68px, 1fr) 32px;
+    gap: 3px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls button,
+  .mathmaster-assignment-screen .mathmaster-assignment-unified-nav.is-collapsed .mathmaster-focus-inline-controls select {
+    min-height: 30px;
+    padding: 3px 5px;
   }
 
   .mathmaster-assignment-screen .mathmaster-unified-nav-back {
