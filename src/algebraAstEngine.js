@@ -467,6 +467,12 @@ const LATEX_TO_EXPRESSION = [
   [/\\dfrac|\\tfrac/g, '\\frac'],
   [/\\cdot|\\times/g, '*'],
   [/\\div/g, '/'],
+  // MathLive legitimately emits compact atomic fractions such as \\frac12,
+  // \\frac1{2}, and \\frac{1}2. Accept all of them before the ordinary
+  // braced form so a student's keypad choice never turns into a parser crash.
+  [/\\frac\s*([A-Za-z0-9])\s*\{([^{}]*)\}/g, '(($1)/($2))'],
+  [/\\frac\{([^{}]*)\}\s*([A-Za-z0-9])/g, '(($1)/($2))'],
+  [/\\frac\s*([A-Za-z0-9])\s*([A-Za-z0-9])/g, '(($1)/($2))'],
   [/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '(($1)/($2))'],
   [/\\sqrt\{([^{}]*)\}/g, 'sqrt($1)'],
   [/\\pi/g, 'pi'],
@@ -486,7 +492,10 @@ export const latexToExpression = (rawValue) => {
 };
 
 export const parseOperationOperand = (rawValue) => {
-  const text = latexToExpression(rawValue);
+  // Adjacent groups are ordinary multiplication in written algebra:
+  // (1/2)(b+c). MathJS is deliberately stricter at this boundary, so make only
+  // that unambiguous adjacency explicit rather than globally rewriting names.
+  const text = latexToExpression(rawValue).replace(/\)\s*\(/g, ')*(');
   if (!text) throw new Error('Enter a number, variable term, or expression for the operation.');
   if (/[=;\[\]{}]/.test(text)) throw new Error('Enter only the expression being applied, without an equals sign.');
   const node = parse(text);
