@@ -2,6 +2,7 @@ import {
   getStoredAssignmentQuestions,
   getStoredAssignmentTypeProjection,
 } from './platform/contract/storedAssignmentV5.js';
+import { resolveQuestionActivityRole } from './platform/policies/activityPolicies.js';
 
 // What a student's assignment dashboard actually contains, computed once.
 //
@@ -108,6 +109,7 @@ export const buildStudentDashboardModel = ({
     prerequisiteAccess,
     calculateGrade,
     getDOLState,
+    getWarmupState,
     getIncludedQuestionIndices,
     normalizeQuestionRecord,
     questionIsIncluded,
@@ -159,6 +161,35 @@ export const buildStudentDashboardModel = ({
     .filter(({ state, lifecycle, records }) => lifecycle.isOpen && state.status === 'active' && records.some((record) => record.totalAttempts === 0));
   const activeDolIds = new Set(activeDols.map(({ assignment }) => assignment.id));
 
+  const activeWarmups = typeof getWarmupState === 'function'
+    ? visible
+      .map((assignment) => {
+        const state = getWarmupState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue });
+        const questions = getStoredAssignmentQuestions(assignment);
+        const questionIndices = questions.reduce((indices, question, index) => {
+          if (
+            questionIsIncluded(question)
+            && resolveQuestionActivityRole({ question, assignment }) === 'warmup'
+          ) indices.push(index);
+          return indices;
+        }, []);
+        const records = questionIndices.map((index) => normalizeQuestionRecord(tracker?.[assignment.id]?.[index]));
+        return {
+          assignment,
+          lifecycle: getAssignmentLifecycle(assignment, nowValue),
+          state,
+          questionIndices,
+          records,
+        };
+      })
+      .filter(({ state, lifecycle, records }) => (
+        lifecycle.isOpen
+        && state.status === 'active'
+        && records.some((record) => !['correct', 'expired'].includes(record.status))
+      ))
+    : [];
+  const activeWarmupIds = new Set(activeWarmups.map(({ assignment }) => assignment.id));
+
   const isDone = (assignment, assignmentTracker, lifecycle) => {
     if (getStoredAssignmentTypeProjection(assignment) === 'notesClasswork') {
       return classworkGradesByAssignment[assignment.id]?.score === 100 || lifecycle.isClosed;
@@ -170,7 +201,11 @@ export const buildStudentDashboardModel = ({
   };
 
   const entries = visible
-    .filter((assignment) => assignment.id !== resumeAssignment?.id && !activeDolIds.has(assignment.id))
+    .filter((assignment) => (
+      assignment.id !== resumeAssignment?.id
+      && !activeDolIds.has(assignment.id)
+      && !activeWarmupIds.has(assignment.id)
+    ))
     .map((assignment) => {
       const assignmentTracker = tracker[assignment.id];
       const isAttempted = Boolean(assignmentTracker);
@@ -226,6 +261,7 @@ export const buildStudentDashboardModel = ({
     resumeQuestionIndex,
     resumeLifecycle: getAssignmentLifecycle(resumeAssignment, nowValue),
     activeDols,
+    activeWarmups,
     entries,
     doNowEntries: entries.filter((entry) => entry.bucket === BUCKET.DO_NOW),
     comingUpEntries: entries.filter((entry) => entry.bucket === BUCKET.COMING_UP),
@@ -261,6 +297,19 @@ export const buildStudentDashboardModel = ({
  */
 export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => {
   const first = (bucket) => (dashboard?.groups?.[bucket] || [])[0] || null;
+
+  const activeWarmup = (dashboard?.activeWarmups || [])[0];
+  if (activeWarmup) {
+    return {
+      kind: 'warmup',
+      assignment: activeWarmup.assignment,
+      questionIndex: activeWarmup.questionIndices?.[0] ?? 0,
+      headline: 'Warm-Up is open now',
+      detail: 'Start with the Warm-Up while its class timer is running.',
+      actionLabel: 'Start Warm-Up',
+      urgency: 'now',
+    };
+  }
 
   const activeDol = (dashboard?.activeDols || [])[0];
   if (activeDol) {
