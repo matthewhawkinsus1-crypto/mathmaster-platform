@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import QuestionStandardsEditor from './QuestionStandardsEditor';
 import { getQuestionMetadataSummary } from './questionMetadata.js';
 import { useToast } from './ui/Toast';
@@ -6,6 +6,7 @@ import { buildQuestionRepairRequest, parseQuestionRepairResponse } from './platf
 import { getStoredAssignmentQuestions, storedAssignmentToV5 } from './platform/contract/storedAssignmentV5.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { analyzeResponseEntryRepair } from './platform/assignment/liveQuestionCorrection.js';
+import { parseSafeLiveRepairPack, prepareSafeLiveRepairPack } from './platform/assignment/liveRepairPack.js';
 
 const newQuestionId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -39,6 +40,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   const [metadataEditingIndex, setMetadataEditingIndex] = useState(null);
   const [repairInstruction, setRepairInstruction] = useState('');
   const [repairBusy, setRepairBusy] = useState(false);
+  const repairPackInputRef = useRef(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const includedCount = useMemo(() => questions.filter((question) => question.teacherExcluded !== true).length, [questions]);
@@ -198,6 +200,52 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
     }
   };
 
+  const importSafeRepairPack = async (event) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = '';
+    if (!file) return;
+
+    setRepairBusy(true);
+    setError('');
+    try {
+      const pack = parseSafeLiveRepairPack(await file.text());
+      const prepared = prepareSafeLiveRepairPack({
+        pack,
+        currentQuestions: questions,
+        historicalQuestions: originalQuestions,
+      });
+      const candidateV5 = storedAssignmentToV5(assignment, {
+        titleOverride: title.trim() || assignment.title,
+        questions: prepared.questions,
+      });
+      const model = buildAssignmentV5PreflightModel(candidateV5);
+      if (!model.isValid) {
+        throw new Error(`MathMaster rejected this repair pack:\n${model.errors.join('\n')}`);
+      }
+
+      const proceed = await confirmAction({
+        title: `Apply ${prepared.replacementCount} safe live repair${prepared.replacementCount === 1 ? '' : 's'}?`,
+        message: `MathMaster matched every replacement by protected question ID, verified that only eligible response-entry controls change, and passed the whole assignment preflight. This will save all ${prepared.replacementCount} repairs together now. Existing student attempts and grade history will be protected by the live-correction transaction.`,
+        confirmLabel: `Apply ${prepared.replacementCount} Repair${prepared.replacementCount === 1 ? '' : 's'}`,
+      });
+      if (!proceed) return;
+
+      setQuestions(prepared.questions);
+      setLiveRepairs(prepared.liveRepairs);
+      setSaving(true);
+      await onSave({
+        title: title.trim(),
+        questions: prepared.questions,
+        liveRepairs: prepared.liveRepairs,
+      });
+    } catch (packError) {
+      setError(packError.message || 'MathMaster could not import this Safe Live Repair Pack.');
+    } finally {
+      setRepairBusy(false);
+      setSaving(false);
+    }
+  };
+
   const applyMetadataEdit = async (index, nextQuestion) => {
     if (hasLiveProtection) {
       const proceed = await confirmAction({
@@ -243,7 +291,32 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
           <label style={{ display: 'block', fontWeight: 800, marginBottom: '18px' }}>Assignment title
             <input value={title} onChange={(event) => setTitle(event.target.value)} style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: '11px', marginTop: '7px', border: '1px solid #bdc7d6', borderRadius: '8px', fontSize: '17px' }} />
           </label>
-          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}><strong>{includedCount} included · {questions.length - includedCount} excluded · {questions.length} stored</strong><span style={{ color: '#5f6368', fontSize: '13px' }}>Duplicated questions are added safely. Reordering is disabled after student activity begins.</span></div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px', alignItems: 'center' }}>
+            <strong>{includedCount} included · {questions.length - includedCount} excluded · {questions.length} stored</strong>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {hasLiveProtection && (
+                <>
+                  <input
+                    ref={repairPackInputRef}
+                    type="file"
+                    accept=".json,application/json"
+                    onChange={importSafeRepairPack}
+                    style={{ display: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => repairPackInputRef.current?.click()}
+                    disabled={repairBusy || saving}
+                    style={{ padding: '8px 12px', border: 0, borderRadius: 8, background: '#188038', color: '#fff', fontWeight: 900 }}
+                    title="Import a MathMaster Safe Live Repair Pack, validate every protected question, and save all approved repairs together."
+                  >
+                    {repairBusy ? 'Checking Repair Pack…' : 'Import Safe Repair Pack'}
+                  </button>
+                </>
+              )}
+              <span style={{ color: '#5f6368', fontSize: '13px' }}>Duplicated questions are added safely. Reordering is disabled after student activity begins.</span>
+            </div>
+          </div>
           <div style={{ display: 'grid', gap: '12px' }}>
             {questions.map((question, index) => {
               const excluded = question.teacherExcluded === true;
