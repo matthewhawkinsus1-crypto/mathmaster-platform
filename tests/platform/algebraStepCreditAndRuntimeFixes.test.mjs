@@ -7,12 +7,14 @@ import {
   latexToExpression,
   parseEquationInput,
   parseOperationOperand,
+  splitAdditiveTerms,
 } from '../../src/algebraAstEngine.js';
 import {
   applyBalancedOperationToBranches,
   buildAbsoluteValueSplit,
   parseRelationSource,
   relationExpressionsEquivalent,
+  relationExpressionToLatex,
 } from '../../src/algebraRelationFoundation.js';
 import {
   calculateStepPartialCredit,
@@ -81,6 +83,20 @@ test('subtracting p from both absolute-value branches preserves the negative bra
     false,
     'the -2p term must never turn positive during placement',
   );
+
+  const renderedTerms = splitAdditiveTerms(branchBRight);
+  assert.ok(renderedTerms?.length >= 2);
+  assert.match(renderedTerms[0].text, /^-/);
+  assert.match(renderedTerms[0].latex, /^-/);
+  assert.match(relationExpressionToLatex(branchBRight), /^-/);
+});
+
+test('multi-relation renderer uses the signed term LaTeX directly instead of reparsing it', () => {
+  const source = read('src/MultiRelationAlgebra.jsx');
+  assert.match(source, /const rawTermLatex = String\(term\.latex \|\| ''\)\.trim\(\)/);
+  assert.match(source, /const visibleTermLatex =/);
+  assert.match(source, /<MathDisplay value=\{visibleTermLatex\}/);
+  assert.doesNotMatch(source, /expressionToLatex\(visibleTerm\)/);
 });
 
 test('step credit uses one planned denominator so a longer valid route never loses earned credit', () => {
