@@ -135,6 +135,7 @@ import {
   repairAssignmentTrackerForCurrentGrader,
   repairAssignmentTrackerForLiveCorrections,
 } from './platform/assignment/liveQuestionCorrection.js';
+import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 import { normalizeLessonPublishingIntentV5 } from './platform/authoring/lessonPublishingIntent.js';
 import { normalizeLabDefinition } from './platform/labs/labDefinitionSchema.js';
 import { normalizeContextualQuestion } from './platform/context/wordProblemLayer';
@@ -4004,6 +4005,16 @@ function App() {
     }
     const persistence = canonicalV5PersistencePatch(model.assignmentV5);
     const persistedQuestions = flattenV5Sections(model.assignmentV5);
+    const originalEditorQuestions = getStoredAssignmentQuestions(questionEditorAssignment);
+    const weightChanges = persistedQuestions.flatMap((question, index) => {
+      const before = originalEditorQuestions[index];
+      if (!before || String(before.questionId || '') !== String(question.questionId || '')) return [];
+      const beforeWeight = normalizeQuestionWeight(before);
+      const afterWeight = normalizeQuestionWeight(question);
+      return Math.abs(beforeWeight - afterWeight) > 1e-9
+        ? [{ questionId: question.questionId, questionIndex: index, beforeWeight, afterWeight }]
+        : [];
+    });
     const dolIndex = resolveDOLQuestionIndex({
       ...questionEditorAssignment,
       questions: persistedQuestions,
@@ -4015,7 +4026,10 @@ function App() {
       updatedAt: correctedAt,
     };
 
-    if (Array.isArray(liveRepairs) && liveRepairs.length > 0) {
+    const needsLiveGradeTransaction = !isLibraryAssignment(questionEditorAssignment)
+      && ((Array.isArray(liveRepairs) && liveRepairs.length > 0) || weightChanges.length > 0);
+
+    if (needsLiveGradeTransaction) {
       const assignmentId = questionEditorAssignment.id;
       const assignmentRef = doc(db, 'assignments', assignmentId);
       const audienceStudents = allStudents.filter((student) => assignmentIsForStudent(
@@ -4078,6 +4092,22 @@ function App() {
           }
         });
 
+        weightChanges.forEach((change) => {
+          const liveQuestion = liveQuestions[change.questionIndex];
+          const weightedQuestion = persistedQuestions[change.questionIndex];
+          if (
+            !liveQuestion
+            || !weightedQuestion
+            || String(liveQuestion.questionId || '') !== String(change.questionId || '')
+            || String(weightedQuestion.questionId || '') !== String(change.questionId || '')
+          ) {
+            throw new Error('A weighted question moved or changed identity. Reopen the editor before changing live grade weights.');
+          }
+          if (Math.abs(normalizeQuestionWeight(liveQuestion) - change.beforeWeight) > 1e-9) {
+            throw new Error('A question weight changed after you opened the editor. Reopen it before recalculating live grades.');
+          }
+        });
+
         const gradeEntries = await Promise.all(audienceStudents.map(async (student) => {
           const studentRef = doc(db, 'grades', student.id);
           const snapshot = await transaction.get(studentRef);
@@ -4091,27 +4121,51 @@ function App() {
           const assignmentTracker = gradesByAssignment[assignmentId];
           if (assignmentTracker === undefined) return;
 
-          const repairedTracker = repairAssignmentTrackerForLiveCorrections({
-            assignmentTracker,
-            questions: persistedQuestions,
-            repairs: liveRepairs,
-            correctedAt,
-          });
-          transaction.update(studentRef, {
-            gradesByAssignment: {
+          const studentPatch = {};
+          if (Array.isArray(liveRepairs) && liveRepairs.length > 0) {
+            const repairedTracker = repairAssignmentTrackerForLiveCorrections({
+              assignmentTracker,
+              questions: persistedQuestions,
+              repairs: liveRepairs,
+              correctedAt,
+            });
+            studentPatch.gradesByAssignment = {
               ...gradesByAssignment,
               [assignmentId]: repairedTracker,
-            },
-          });
+            };
+          }
+          if (weightChanges.length > 0) {
+            studentPatch.classroomReleaseSignals = {
+              ...(studentData.classroomReleaseSignals || {}),
+              [assignmentId]: {
+                reason: 'manual-retry',
+                requestedAt: correctedAt,
+                source: 'question-weight-change',
+              },
+            };
+          }
+          if (Object.keys(studentPatch).length > 0) transaction.update(studentRef, studentPatch);
         });
 
         transaction.update(assignmentRef, assignmentPatch);
       });
 
-      toastSuccess(
-        'Safe live repair saved',
-        'The corrected response controls are live. Existing student attempts were preserved, affected rejected responses were protected from score loss, and exhausted students received a repair retry only when they still had another incorrect part.',
-      );
+      if (weightChanges.length > 0 && Array.isArray(liveRepairs) && liveRepairs.length > 0) {
+        toastSuccess(
+          'Live repairs and grade weights saved',
+          'Student responses and attempt history were preserved. MathMaster recalculated weighted grades and queued Google Classroom to reconcile the updated score.',
+        );
+      } else if (weightChanges.length > 0) {
+        toastSuccess(
+          'Grade weights saved',
+          'Existing responses and attempts were not changed. MathMaster recalculated the assignment using the new question weights and queued Google Classroom to reconcile the updated score.',
+        );
+      } else {
+        toastSuccess(
+          'Safe live repair saved',
+          'The corrected response controls are live. Existing student attempts were preserved, affected rejected responses were protected from score loss, and exhausted students received a repair retry only when they still had another incorrect part.',
+        );
+      }
     } else {
       await updateDoc(doc(db, 'assignments', questionEditorAssignment.id), assignmentPatch);
     }
