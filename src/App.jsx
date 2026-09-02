@@ -965,6 +965,55 @@ function App() {
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {
+      setStudentWeeklyPathProgress(null);
+      return undefined;
+    }
+    if (studentDashboardMode !== 'assignments') return undefined;
+
+    const honors = String(user?.profile?.courseLevel || '').toLowerCase() === 'honors';
+    const settings = normalizeWeeklyGoalConfig(studentWeeklyGoalConfig || {}, { honors });
+    const currentWeekKey = weekKeyFor(now, settings.weekStartsOn || 1);
+    let active = true;
+    setStudentWeeklyPathProgress(null);
+
+    Promise.all([
+      fetchStudentWeeklyPathGoalSnapshot({ weekKey: currentWeekKey }),
+      fetchStudentEvidenceEvents(user.id),
+    ]).then(([goal, evidenceEvents]) => {
+      if (!active) return;
+      if (!goal) {
+        const required = Number(settings.sessions) || 0;
+        setStudentWeeklyPathProgress({
+          required,
+          completed: 0,
+          remaining: required,
+          complete: required === 0,
+          overdue: now > dueAtFor(now, settings) && required > 0,
+        });
+        return;
+      }
+
+      const completions = deriveCompletionsFromEvidence({
+        evidenceEvents,
+        weekKey: goal.weekKey,
+        weekStartsOn: goal?.settings?.weekStartsOn || settings.weekStartsOn || 1,
+        now,
+      });
+      setStudentWeeklyPathProgress(evaluateWeeklyGoalProgress({ goal, completions, now }));
+    }).catch((error) => {
+      if (!active) return;
+      console.error('Could not confirm the student Weekly Path status:', error);
+      setStudentWeeklyPathProgress(null);
+    });
+
+    return () => { active = false; };
+  }, [
+    user?.role, user?.id, user?.profile?.courseLevel, studentWeeklyGoalConfig,
+    studentDashboardMode, Math.floor(now / 3_600_000),
+  ]);
+
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id) {
       setStudentPathInterventionState(null);
       return undefined;
     }
