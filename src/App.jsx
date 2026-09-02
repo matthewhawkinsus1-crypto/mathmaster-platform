@@ -2148,11 +2148,12 @@ function App() {
           const gradeText = grade == null ? 'Your grade' : `${grade}%`;
           const stage = String(receipt?.stage || '');
           const final = receipt?.isFinal === true || stage.startsWith('final-');
+          const studentVisible = receipt?.studentVisible === true;
 
           if (final) {
             toastSuccess(
               'Final grade sent to Google Classroom',
-              `${title}: ${gradeText} was confirmed by Google Classroom as the final MathMaster grade.`,
+              `${title}: ${gradeText} was released to you in Google Classroom as the final MathMaster grade.`,
             );
             return;
           }
@@ -2160,7 +2161,7 @@ function App() {
           if (stage === 'due-checkpoint') {
             toastSuccess(
               'Due-date grade sent to Google Classroom',
-              `${title}: ${gradeText} is your current grade at the regular due date. Late work can still improve it before the final cutoff.`,
+              `${title}: ${gradeText} was released to you in Google Classroom at the regular due date. Late work can still improve it before the final cutoff.`,
             );
             return;
           }
@@ -2168,14 +2169,22 @@ function App() {
           if (stage === 'assessment-release') {
             toastSuccess(
               'Released grade sent to Google Classroom',
-              `${title}: ${gradeText} was sent after your teacher released the assessment grade.`,
+              `${title}: ${gradeText} was released to you in Google Classroom after your teacher released the assessment grade.`,
+            );
+            return;
+          }
+
+          if (studentVisible) {
+            toastSuccess(
+              'Updated grade released to Google Classroom',
+              `${title}: your current ${gradeText} is visible in Google Classroom. It is not final—late work can still improve it.`,
             );
             return;
           }
 
           toastSuccess(
-            'Progress grade sent to Google Classroom',
-            `${title}: your current ${gradeText} was sent as a progress grade. It is not final—keep working to raise it.`,
+            'Progress checkpoint saved to Google Classroom',
+            `${title}: your current ${gradeText} was saved as a teacher draft in Classroom. Your live grade is visible here in MathMaster and is not final—keep working to raise it.`,
           );
         });
       },
@@ -5850,6 +5859,7 @@ function App() {
     const classroomReceipt = !preview ? classroomSyncStatusByAssignment?.[assignment.id] || null : null;
     const classroomReceiptStage = String(classroomReceipt?.stage || '');
     const classroomReceiptFinal = classroomReceipt?.isFinal === true || classroomReceiptStage.startsWith('final-');
+    const classroomReceiptStudentVisible = classroomReceipt?.studentVisible === true;
     const classroomReceiptGrade = Number.isFinite(Number(classroomReceipt?.grade))
       ? Number(classroomReceipt.grade)
       : null;
@@ -6128,8 +6138,9 @@ function App() {
                 </div>
                 {!preview && !assignmentFeedbackHeld && classroomReceipt && classroomReceiptGrade != null && (
                   <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: classroomReceiptFinal ? '#137333' : '#174ea6', fontWeight: 800 }}>
-                    Google Classroom has {classroomReceiptGrade}% · {classroomReceiptFinal ? 'FINAL' : classroomReceiptStage === 'due-checkpoint' ? 'DUE-DATE CHECKPOINT' : 'PROGRESS'}
+                    {classroomReceiptStudentVisible ? 'Google Classroom shows' : 'Classroom teacher draft'} {classroomReceiptGrade}% · {classroomReceiptFinal ? 'FINAL' : classroomReceiptStage === 'due-checkpoint' ? 'DUE-DATE CHECKPOINT' : classroomReceiptStudentVisible ? 'RELEASED UPDATE' : 'PROGRESS'}
                     {!classroomReceiptFinal && !classroomReceiptCurrent ? <><br />Next checkpoint will send your newer MathMaster grade.</> : null}
+                    {!classroomReceiptStudentVisible ? <><br />Your live grade is shown here; this Classroom checkpoint is not released to students yet.</> : null}
                   </div>
                 )}
               </div>
