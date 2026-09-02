@@ -863,6 +863,10 @@ function App() {
   // The active DOL card/banner stays visible; this adds a repeated nudge for a
   // student who is deep in another question or sitting on the dashboard.
   const dolOpenAnnouncedRef = useRef({});
+  // Warm-Up notices follow the same student-wide pattern as DOL notices:
+  // visible on every student surface and repeated while unfinished work is
+  // still inside the live Warm-Up window.
+  const warmupOpenAnnouncedRef = useRef({});
 
   useEffect(() => {
     const clock = window.setInterval(() => setNow(Date.now()), 30000);
@@ -3316,6 +3320,7 @@ function App() {
         warmup: {
           enabled: warmupEnabled,
           minutesBeforeStart: warmupMinutesBeforeStart,
+          closeMinutesAfterStart: 10,
           instructionDate: warmupInstructionDate,
           instructionDatesByClassPeriod: warmupInstructionDatesByClassPeriod,
           closedByClassId: {},
@@ -4212,6 +4217,7 @@ function App() {
         ...(assignment.warmup || {}),
         enabled: true,
         minutesBeforeStart: Math.max(0, Number(assignment?.warmup?.minutesBeforeStart ?? 7)),
+        closeMinutesAfterStart: Math.max(1, Number(assignment?.warmup?.closeMinutesAfterStart ?? 10)),
       };
       const closedByClassId = { ...(assignment.warmup?.closedByClassId || {}) };
       const autoCloseByClassId = { ...(assignment.warmup?.autoCloseByClassId || {}) };
@@ -4223,10 +4229,18 @@ function App() {
       } else if (action === 'reopen') {
         // Reopening is an explicit live-teacher decision. Pin today's date to
         // this real class id so a reused assignment or sibling period cannot
-        // make the control disappear again.
+        // make the control disappear again. A manual reopen overrides the
+        // normal ten-minute Warm-Up cutoff and stays open until this class ends
+        // unless the teacher chooses a shorter timer.
         instructionDatesByClassId[classId] = dateKey;
         delete closedByClassId[classId];
-        delete autoCloseByClassId[classId];
+        autoCloseByClassId[classId] = {
+          dateKey,
+          closesAt: state.window.end.toISOString(),
+          setAt: changedAt,
+          setBy: teacherIdentity,
+          reason: 'manual-reopen-until-class-end',
+        };
       } else {
         instructionDatesByClassId[classId] = dateKey;
         delete closedByClassId[classId];
