@@ -79,7 +79,7 @@ export default function StudentDashboardView({
     practice: 'Past its due date, so it no longer changes your grade — but the practice still counts toward what you know.',
   };
 
-  const renderAssignmentCard = ({ assignment, isAttempted, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, feedbackHeld, questionsTotal, questionsDone, questionsAttempted = 0 }) => {
+  const renderAssignmentCard = ({ assignment, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, feedbackHeld, questionsTotal, questionsDone, questionsAttempted = 0 }) => {
     const classroomReceipt = classroomSyncStatusByAssignment?.[assignment.id] || null;
     const receiptStage = String(classroomReceipt?.stage || '');
     const receiptFinal = classroomReceipt?.isFinal === true || receiptStage.startsWith('final-');
