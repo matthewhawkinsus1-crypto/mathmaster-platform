@@ -4037,7 +4037,7 @@ function App() {
     }
   };
 
-  const handleToggleWarmupForClass = async (assignment, classContext) => {
+  const handleToggleWarmupForClass = async (assignment, classContext, control = {}) => {
     const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
     if (!assignment?.id || !classId || !classPeriod || !classKey) return;
     const state = getWarmupState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue: Date.now() });
@@ -4062,13 +4062,51 @@ function App() {
       return;
     }
 
-    const closing = state.status === 'active';
+    const requestedAction = String(control?.action || '').trim();
+    const action = ['close', 'reopen', 'timer'].includes(requestedAction)
+      ? requestedAction
+      : state.status === 'active'
+        ? 'close'
+        : 'reopen';
+    const requestedTimerMinutes = Number(control?.autoCloseMinutes);
+    const timerMinutes = Number.isFinite(requestedTimerMinutes)
+      ? Math.max(1, Math.min(60, Math.round(requestedTimerMinutes)))
+      : 5;
+    const nowMs = Date.now();
+    const timerClosesAt = action === 'timer'
+      ? new Date(Math.min(state.window.end.getTime(), nowMs + timerMinutes * 60000))
+      : null;
+
+    if (action === 'timer' && timerClosesAt.getTime() <= nowMs) {
+      toastWarning('Warm-Up timer unavailable', 'This class period is ending, so there is no time left to reopen the Warm-Up.');
+      return;
+    }
+    if (action === 'reopen' && state.status === 'active') {
+      toastInfo('Warm-Up is already open', `${assignment.title} is already available to ${classLabel}.`);
+      return;
+    }
+    if (action === 'close' && state.status === 'closed') {
+      toastInfo('Warm-Up is already closed', `${assignment.title} is already read-only for ${classLabel}.`);
+      return;
+    }
+
+    const closesAtLabel = timerClosesAt?.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
     const proceed = await confirmAction({
-      title: `${closing ? 'Close' : 'Reopen'} the Warm-Up for ${classLabel}?`,
-      message: closing
+      title: action === 'timer'
+        ? `${state.status === 'closed' ? 'Reopen' : 'Keep'} the Warm-Up open with a timer for ${classLabel}?`
+        : `${action === 'close' ? 'Close' : 'Reopen'} the Warm-Up for ${classLabel}?`,
+      message: action === 'close'
         ? 'Students in this class will keep their saved work for review, but they will not be able to make new Warm-Up submissions. Other classes are unaffected.'
-        : 'Students in this class will be able to continue the Warm-Up until you close it again or the class period ends.',
-      confirmLabel: closing ? 'Close Warm-Up' : 'Reopen Warm-Up',
+        : action === 'reopen'
+          ? 'Students in this class will be able to continue the Warm-Up until you close it again or the class period ends.'
+          : `Students in this class will be able to work until ${closesAtLabel}. The Warm-Up will then close automatically and saved work will remain available for review. Other classes are unaffected.`,
+      confirmLabel: action === 'close'
+        ? 'Close Warm-Up'
+        : action === 'reopen'
+          ? 'Reopen Warm-Up'
+          : state.status === 'closed'
+            ? `Reopen for ${timerMinutes} min`
+            : `Set ${timerMinutes}-min timer`,
     });
     if (!proceed) return;
 
@@ -4076,20 +4114,50 @@ function App() {
     setWarmupControlBusyKey(busyKey);
     try {
       const changedAt = new Date().toISOString();
+      const dateKey = localDateKey(Date.now());
+      const teacherIdentity = user?.email || user?.id || 'teacher';
       const warmup = {
         ...(assignment.warmup || {}),
         enabled: true,
         minutesBeforeStart: Math.max(0, Number(assignment?.warmup?.minutesBeforeStart ?? 7)),
       };
       const closedByClassId = { ...(assignment.warmup?.closedByClassId || {}) };
-      if (closing) closedByClassId[classId] = { dateKey: localDateKey(Date.now()), closedAt: changedAt, closedBy: user?.email || user?.id || 'teacher' };
-      else delete closedByClassId[classId];
+      const autoCloseByClassId = { ...(assignment.warmup?.autoCloseByClassId || {}) };
+
+      if (action === 'close') {
+        closedByClassId[classId] = { dateKey, closedAt: changedAt, closedBy: teacherIdentity };
+        delete autoCloseByClassId[classId];
+      } else if (action === 'reopen') {
+        delete closedByClassId[classId];
+        delete autoCloseByClassId[classId];
+      } else {
+        delete closedByClassId[classId];
+        autoCloseByClassId[classId] = {
+          dateKey,
+          closesAt: timerClosesAt.toISOString(),
+          setAt: changedAt,
+          setBy: teacherIdentity,
+        };
+      }
+
       warmup.closedByClassId = closedByClassId;
+      warmup.autoCloseByClassId = autoCloseByClassId;
       await updateDoc(doc(db, 'assignments', assignment.id), { warmup, updatedAt: changedAt });
-      toastSuccess(closing ? 'Warm-Up closed' : 'Warm-Up reopened', `${assignment.title} · ${classLabel}`);
+
+      if (action === 'timer') {
+        toastSuccess(
+          state.status === 'closed' ? 'Warm-Up reopened with timer' : 'Warm-Up timer set',
+          `${assignment.title} · ${classLabel} · closes automatically at ${closesAtLabel}`,
+        );
+      } else {
+        toastSuccess(action === 'close' ? 'Warm-Up closed' : 'Warm-Up reopened', `${assignment.title} · ${classLabel}`);
+      }
     } catch (error) {
       console.error(error);
-      toastError(`Could not ${closing ? 'close' : 'reopen'} Warm-Up`, error.message);
+      toastError(
+        action === 'timer' ? 'Could not set Warm-Up timer' : `Could not ${action} Warm-Up`,
+        error.message,
+      );
     } finally {
       setWarmupControlBusyKey(null);
     }
