@@ -18,22 +18,22 @@ const payload = {
       questions: [
         {
           standard: 'A.2A',
-          prompt: 'Convert the bounded inequality -3 ≤ x < 5 into interval notation and select the corresponding graph on the number line.',
-          studentActions: ['writeInterval', 'chooseNumberLine'],
+          prompt: 'Graph the bounded inequality -3 ≤ x < 5 on the number line using the correct open and closed endpoints.',
+          studentActions: ['constructInterval'],
           inequality: '-3 ≤ x < 5',
           intervals: [{ min: -3, max: 5, minClosed: true, maxClosed: false }],
-          responses: [{ id: 'interval', label: 'Interval Notation', answer: '[-3, 5)' }],
+          ask: ['graph'],
         },
         {
           standard: 'A.2A',
-          prompt: 'Write the unbounded compound inequality x ≤ -4 or x > 2 in interval notation.',
-          studentActions: ['writeInterval'],
+          prompt: 'Graph the unbounded compound inequality x ≤ -4 or x > 2 on the number line.',
+          studentActions: ['constructInterval'],
           inequality: 'x ≤ -4 or x > 2',
           intervals: [
             { min: null, max: -4, minClosed: false, maxClosed: true },
             { min: 2, max: null, minClosed: false, maxClosed: false },
           ],
-          responses: [{ id: 'interval', label: 'Interval Notation', answer: '(-∞, -4] ∪ (2, ∞)' }],
+          ask: ['graph'],
         },
       ],
     },
@@ -43,7 +43,8 @@ const payload = {
       questions: [
         {
           standard: 'A.2A',
-          prompt: 'Analyze the given graph to determine its domain and range in interval notation.',
+          prompt: 'Analyze the given graph to determine its domain and range using inequalities.',
+          notation: 'inequality',
           studentActions: ['readGraph', 'analyzeDomain', 'analyzeRange'],
           function: { family: 'quadratic', a: -0.5, h: 1.5, k: 6 },
           // Common V5 authoring shape: the restriction is mathematical intent,
@@ -89,7 +90,8 @@ const payload = {
           // A repair AI adding an internal renderer type must not bypass V5 compilation.
           type: 'graphing',
           standard: 'A.2A',
-          prompt: 'Graph the function f(x) = 0.5x + 1 for the domain x ≥ -3. Complete the table, graph the continuous ray, state the range in interval notation, and classify the function continuity.',
+          prompt: 'Graph the function f(x) = 0.5x + 1 for the domain x ≥ -3. Complete the table, graph the continuous ray, state the range using an inequality, and classify the function continuity.',
+          notation: 'inequality',
           studentActions: ['completeTable', 'constructGraph', 'stateRange', 'classifyContinuity'],
           function: { family: 'linear', m: 0.5, b: 1, domain: { min: -3 } },
           table: {
@@ -97,7 +99,7 @@ const payload = {
             rows: [[-3, null], [-1, null], [1, null], [3, null]],
             // Deliberately omitted: MathMaster can derive this key from the function.
           },
-          answerModel: { range: '[-0.5, ∞)', continuity: 'continuous' },
+          answerModel: { range: 'y ≥ -0.5', continuity: 'continuous' },
         },
       ],
     },
@@ -216,8 +218,8 @@ const axisPayload = {
       },
       answerModel: {
         equation: 'f(x)=12x',
-        domain: '[0,4]',
-        range: '[0,48]',
+        domain: '0 ≤ x ≤ 4',
+        range: '0 ≤ y ≤ 48',
         continuity: 'continuous',
       },
     }],
