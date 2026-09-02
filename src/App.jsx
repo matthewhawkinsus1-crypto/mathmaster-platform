@@ -6716,7 +6716,10 @@ function App() {
         {questionEditorAssignment && (
           <AssignmentQuestionEditor
             assignment={questionEditorAssignment}
-            hasStudentData={allStudents.some((student) => student.gradesByAssignment?.[questionEditorAssignment.id] !== undefined)}
+            hasLiveProtection={
+              !isLibraryAssignment(questionEditorAssignment)
+              || allStudents.some((student) => student.gradesByAssignment?.[questionEditorAssignment.id] !== undefined)
+            }
             onSave={saveQuestionEditor}
             onClose={() => setQuestionEditorAssignment(null)}
           />
