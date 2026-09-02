@@ -260,7 +260,7 @@ export const MobileViewportContainer = ({
     >
       <div className={`mathmaster-desktop-question-anchor${isPromptCollapsed ? ' is-collapsed' : ''}`}>
         <div className="mathmaster-desktop-task-toggle-row">
-          <span>{isPromptCollapsed ? 'Task hidden for more workspace' : 'Your task'}</span>
+          {!isPromptCollapsed && <span>Your task</span>}
           <button
             type="button"
             onClick={() => setIsPromptCollapsed((current) => !current)}
