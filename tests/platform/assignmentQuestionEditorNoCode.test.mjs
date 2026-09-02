@@ -33,7 +33,7 @@ test('question id and exclusion state are preserved across an AI repair', () => 
   assert.match(editor, /teacherExcluded: existing\.teacherExcluded === true/);
 });
 
-test('live student data permits only guarded response-entry repair', () => {
+test('live or student-data protected assignments permit only guarded response-entry repair', () => {
   assert.match(editor, /analyzeResponseEntryRepair/);
   assert.match(editor, /Safe Live Repair/);
   assert.match(editor, /response-entry mechanics may change/);
@@ -43,7 +43,7 @@ test('live student data permits only guarded response-entry repair', () => {
 
 test('unsafe live rewrites are still rejected before save', () => {
   assert.match(editor, /MathMaster blocked this live rewrite/);
-  assert.match(editor, /if \(hasStudentData && historicalQuestion\)/);
+  assert.match(editor, /if \(hasLiveProtection && historicalQuestion\)/);
   assert.match(editor, /onSave\(\{ title: title\.trim\(\), questions, liveRepairs \}\)/);
 });
 
