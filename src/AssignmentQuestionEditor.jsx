@@ -3,6 +3,12 @@ import QuestionStandardsEditor from './QuestionStandardsEditor';
 import { getQuestionMetadataSummary } from './questionMetadata.js';
 import { useToast } from './ui/Toast';
 import { buildQuestionRepairRequest, parseQuestionRepairResponse } from './platform/contract/questionRepairRequest.js';
+import {
+  assignmentAiDiagnostics,
+  assignmentAiFailureMessage,
+  assignmentAiFallbackRecommended,
+  repairQuestionWithAI,
+} from './services/assignmentAiService.js';
 import { getStoredAssignmentQuestions, storedAssignmentToV5 } from './platform/contract/storedAssignmentV5.js';
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { analyzeResponseEntryRepair } from './platform/assignment/liveQuestionCorrection.js';
@@ -232,6 +238,83 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
     }
   };
 
+  // Both repair routes — MathMaster's own AI and an outside AI via the clipboard
+  // — land here, so the live-student protections below apply identically to
+  // whichever one produced the replacement.
+  const acceptRepairReplacement = async (replacement) => {
+    const existing = questions[repairIndex];
+    const nextQuestion = {
+      ...replacement,
+      questionId: existing.questionId || replacement.questionId || newQuestionId(),
+      teacherExcluded: existing.teacherExcluded === true,
+    };
+    const historicalQuestion = originalQuestionById.get(existing.questionId);
+    let liveRepair = null;
+    if (hasLiveProtection && historicalQuestion) {
+      liveRepair = analyzeResponseEntryRepair(historicalQuestion, nextQuestion);
+      if (!liveRepair.safe) {
+        throw new Error(`MathMaster blocked this live rewrite: ${liveRepair.reason}`);
+      }
+    }
+
+    const candidateQuestions = questions.map((question, index) => (
+      index === repairIndex ? nextQuestion : question
+    ));
+    const candidateV5 = storedAssignmentToV5(assignment, {
+      titleOverride: title.trim() || assignment.title,
+      questions: candidateQuestions,
+    });
+    const model = buildAssignmentV5PreflightModel(candidateV5);
+    if (!model.isValid) {
+      throw new Error(`MathMaster rejected the AI replacement:\n${model.errors.join('\n')}`);
+    }
+    setQuestions(candidateQuestions);
+    if (liveRepair?.safe) {
+      setLiveRepairs((current) => [
+        ...current.filter((item) => item.questionId !== liveRepair.questionId),
+        {
+          questionId: liveRepair.questionId,
+          questionIndex: repairIndex,
+          affectedFieldIds: liveRepair.affectedFieldIds,
+          beforeFingerprint: liveRepair.beforeFingerprint,
+        },
+      ]);
+    }
+    setRepairIndex(null);
+    setRepairInstruction('');
+    toastSuccess?.(
+      liveRepair?.safe ? 'Safe live repair accepted' : 'Question replacement accepted',
+      liveRepair?.safe
+        ? 'MathMaster verified that only response-entry mechanics changed. Existing student credit and attempts will be protected when you save.'
+        : 'MathMaster checked the repaired question. Save Assignment Questions when you are ready.',
+    );
+  };
+
+  const repairWithMathMasterAi = async () => {
+    if (repairIndex == null) return;
+    setRepairBusy(true);
+    setError('');
+    try {
+      const request = buildQuestionRepairRequest({
+        assignment,
+        question: questions[repairIndex],
+        instruction: repairInstruction,
+        questionNumber: repairIndex + 1,
+      });
+      const built = await repairQuestionWithAI(request);
+      await acceptRepairReplacement(built.question);
+    } catch (repairError) {
+      if (assignmentAiFallbackRecommended(repairError)) {
+        const diagnostics = assignmentAiDiagnostics(repairError);
+        setError(`${assignmentAiFailureMessage(repairError)}${diagnostics ? ` (${diagnostics})` : ''} Nothing was changed. You can still copy the repair request to an outside AI and paste the result back.`);
+      } else {
+        setError(repairError.message);
+      }
+    } finally {
+      setRepairBusy(false);
+    }
+  };
+
   const pasteAiReplacement = async () => {
     if (repairIndex == null) return;
     setRepairBusy(true);
@@ -241,53 +324,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
         throw new Error('This browser cannot read the clipboard automatically. Allow clipboard access, then try again.');
       }
       const text = await navigator.clipboard.readText();
-      const replacement = parseQuestionRepairResponse(text);
-      const existing = questions[repairIndex];
-      const nextQuestion = {
-        ...replacement,
-        questionId: existing.questionId || replacement.questionId || newQuestionId(),
-        teacherExcluded: existing.teacherExcluded === true,
-      };
-      const historicalQuestion = originalQuestionById.get(existing.questionId);
-      let liveRepair = null;
-      if (hasLiveProtection && historicalQuestion) {
-        liveRepair = analyzeResponseEntryRepair(historicalQuestion, nextQuestion);
-        if (!liveRepair.safe) {
-          throw new Error(`MathMaster blocked this live rewrite: ${liveRepair.reason}`);
-        }
-      }
-
-      const candidateQuestions = questions.map((question, index) => (
-        index === repairIndex ? nextQuestion : question
-      ));
-      const candidateV5 = storedAssignmentToV5(assignment, {
-        titleOverride: title.trim() || assignment.title,
-        questions: candidateQuestions,
-      });
-      const model = buildAssignmentV5PreflightModel(candidateV5);
-      if (!model.isValid) {
-        throw new Error(`MathMaster rejected the AI replacement:\n${model.errors.join('\n')}`);
-      }
-      setQuestions(candidateQuestions);
-      if (liveRepair?.safe) {
-        setLiveRepairs((current) => [
-          ...current.filter((item) => item.questionId !== liveRepair.questionId),
-          {
-            questionId: liveRepair.questionId,
-            questionIndex: repairIndex,
-            affectedFieldIds: liveRepair.affectedFieldIds,
-            beforeFingerprint: liveRepair.beforeFingerprint,
-          },
-        ]);
-      }
-      setRepairIndex(null);
-      setRepairInstruction('');
-      toastSuccess?.(
-        liveRepair?.safe ? 'Safe live repair accepted' : 'Question replacement accepted',
-        liveRepair?.safe
-          ? 'MathMaster verified that only response-entry mechanics changed. Existing student credit and attempts will be protected when you save.'
-          : 'MathMaster checked the repaired question. Save Assignment Questions when you are ready.',
-      );
+      await acceptRepairReplacement(parseQuestionRepairResponse(text));
     } catch (repairError) {
       setError(repairError.message);
     } finally {
@@ -531,6 +568,9 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                           />
                         </label>
                         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                          <button type="button" onClick={repairWithMathMasterAi} disabled={repairBusy} style={{ padding: '9px 13px', border: 0, borderRadius: 7, background: '#6f2da8', color: '#fff', fontWeight: 800 }}>
+                            {repairBusy ? 'Repairing…' : '✨ Repair with MathMaster AI'}
+                          </button>
                           <button type="button" onClick={copyRepairRequest} disabled={repairBusy} style={{ padding: '9px 13px', border: 0, borderRadius: 7, background: '#1a73e8', color: '#fff', fontWeight: 800 }}>
                             Copy AI Repair Request
                           </button>

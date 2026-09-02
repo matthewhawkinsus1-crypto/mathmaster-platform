@@ -104,6 +104,7 @@ export const ADMIN_ONLY_OPERATIONS = Object.freeze([
   'lockPreproductionResetForProduction',
   'diagnosePathSkill',
   'listAdminAuditLog',
+  'assignmentAiSelfTest',
 ]);
 
 export const requiresRootAdmin = (operation) => ADMIN_ONLY_OPERATIONS.includes(operation);

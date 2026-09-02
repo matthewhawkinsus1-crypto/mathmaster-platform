@@ -56,7 +56,7 @@ npm run test:assignment-v5-followup
 echo
 echo "5/6 Deploying only the surfaces changed by this upgrade..."
 echo "Firebase will run the normal Hosting and Functions predeploy hooks."
-firebase deploy --only hosting,functions:authorAssignmentWithAI,functions:hydrateAssignmentCcmr --project "$PROJECT"
+firebase deploy --only hosting,functions:authorAssignmentWithAI,functions:repairAssignmentQuestionWithAI,functions:assignmentAiSelfTest,functions:hydrateAssignmentCcmr --project "$PROJECT"
 
 echo
 echo "6/6 Verifying live Hosting and callable registration..."

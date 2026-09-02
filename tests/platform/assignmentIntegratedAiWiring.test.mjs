@@ -19,25 +19,68 @@ test('OpenAI credential is defined and read only in server Functions code', () =
 });
 
 test('integrated authoring callable requires teacher auth and usage reservation before provider call', () => {
-  const start = functionsIndex.indexOf('exports.authorAssignmentWithAI');
-  const block = functionsIndex.slice(start, start + 3500);
+  // Every integrated AI surface now shares one runner, so the auth and quota
+  // guarantees are asserted once, where they are actually enforced.
+  const start = functionsIndex.indexOf('async function runAssignmentAiRequest');
+  const block = functionsIndex.slice(start, functionsIndex.indexOf('exports.authorAssignmentWithAI'));
   assert.ok(start >= 0);
   assert.match(block, /requireTeacher\(request\)/);
   assert.match(block, /reserveAssignmentAiUsage/);
   assert.match(block, /callOpenAiAssignmentAuthor/);
   assert.match(functionsIndex, /ASSIGNMENT_AI_MIN_INTERVAL_MS/);
   assert.match(functionsIndex, /ASSIGNMENT_AI_DAILY_LIMIT/);
+  for (const callable of ['authorAssignmentWithAI', 'repairAssignmentQuestionWithAI']) {
+    const site = functionsIndex.indexOf(`exports.${callable}`);
+    assert.ok(site >= 0, `${callable} must exist`);
+    assert.match(functionsIndex.slice(site, site + 600), /runAssignmentAiRequest\(request/);
+  }
+});
+
+test('every AI failure is logged and audited, and infrastructure failures refund the daily allowance', () => {
+  // The previous implementation returned early for AssignmentAiError and never
+  // reached its own logger call, so no provider failure was recorded anywhere.
+  const start = functionsIndex.indexOf('function translateAssignmentAiError');
+  const block = functionsIndex.slice(start, start + 1400);
+  const classified = block.indexOf('classified: true');
+  const returned = block.indexOf('return new HttpsError');
+  assert.ok(classified >= 0 && returned > classified, 'classified failures must be logged before returning');
+  assert.match(functionsIndex, /ASSIGNMENT_AI_REFUNDABLE_CODES/);
+  assert.match(functionsIndex, /async function refundAssignmentAiUsage/);
+  assert.match(functionsIndex, /async function recordAssignmentAiFailure/);
+  assert.match(functionsIndex, /outcome: "failure"/);
+});
+
+test('administrator self-test reports the provider cause without teacher or student content', () => {
+  const start = functionsIndex.indexOf('exports.assignmentAiSelfTest');
+  assert.ok(start >= 0);
+  const block = functionsIndex.slice(start, start + 2600);
+  assert.match(block, /requireRootAdmin\(request\)/);
+  assert.match(block, /probeAssignmentAiProvider/);
+  assert.match(block, /stage: "secret"/);
+  assert.match(block, /diagnostics/);
+  assert.doesNotMatch(block, /prompt/);
+  assert.match(provider, /async function probeAssignmentAiProvider/);
+  assert.match(service, /runAssignmentAiSelfTest/);
 });
 
 test('server records provider usage without storing the authored prompt or API key', () => {
-  const start = functionsIndex.indexOf('collection("assignmentAiAudit")');
-  const block = functionsIndex.slice(start, start + 1300);
-  assert.ok(start >= 0);
+  // Scope this to the audit record itself. Widening the window pulls in the
+  // provider call, whose apiKey argument is correct and must not fail the test.
+  const success = functionsIndex.indexOf('outcome: "success"');
+  assert.ok(success >= 0, 'a success audit record must exist');
+  const start = functionsIndex.lastIndexOf('.add({', success);
+  const block = functionsIndex.slice(start, functionsIndex.indexOf('});', success));
   assert.match(block, /teacherUid/);
   assert.match(block, /model:/);
   assert.match(block, /usage:/);
   assert.match(block, /promptCharacters:/);
   assert.doesNotMatch(block, /prompt:\s*prompt|apiKey/);
+
+  // The failure record carries diagnostics only. Prompts contain full lesson
+  // content and must never be persisted, on success or on failure.
+  const failureStart = functionsIndex.indexOf('async function recordAssignmentAiFailure');
+  const failureBlock = functionsIndex.slice(failureStart, failureStart + 700);
+  assert.doesNotMatch(failureBlock, /prompt:\s*prompt|apiKey/);
 });
 
 test('creator makes integrated build primary while preserving outside-AI fallback', () => {
@@ -46,7 +89,11 @@ test('creator makes integrated build primary while preserving outside-AI fallbac
   assert.match(intake, /buildAssignmentWithAI\(request\)/);
   assert.match(intake, /acceptJson\(built\.assignmentJson, 'Built in MathMaster'\)/);
   assert.match(intake, /Copy Complete AI Build Request/);
-  assert.match(intake, /Built-in AI is unavailable right now/);
+  assert.match(intake, /Built-in AI could not finish/);
+  // The real provider reason must reach the teacher; the old build discarded it
+  // and showed one generic sentence for every possible failure.
+  assert.match(intake, /assignmentAiFailureMessage\(error\)/);
+  assert.match(intake, /assignmentAiDiagnostics\(error\)/);
 });
 
 test('integrated and external AI results share the same MathMaster accept/validation path', () => {
