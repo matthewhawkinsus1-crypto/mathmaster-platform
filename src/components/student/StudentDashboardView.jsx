@@ -58,6 +58,7 @@ export default function StudentDashboardView({
 }) {
   const {
     visibleAssignments, resumeAssignment, resumeQuestionIndex, resumeLifecycle,
+    resumeRecordedGrade, resumeQuestionsAttempted, resumeFeedbackHeld,
     activeDols, activeWarmups, doNowEntries, comingUpEntries, completedEntries, groups,
   } = dashboard;
 
@@ -210,7 +211,22 @@ export default function StudentDashboardView({
 
         {resumeAssignment && (
           <section aria-label="Resume assignment" style={{ marginBottom: '28px', padding: '28px 30px', borderRadius: '18px', background: 'linear-gradient(135deg, #174ea6 0%, #1a73e8 62%, #4f8fe8 100%)', color: '#fff', boxShadow: '0 16px 38px rgba(26,115,232,0.28)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '24px', flexWrap: 'wrap', textAlign: 'left' }}>
-            <div style={{ flex: '1 1 450px' }}><div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 0.82, marginBottom: '7px' }}>Resume Action</div><h2 style={{ margin: 0, fontSize: 'clamp(25px, 4vw, 38px)', lineHeight: 1.12 }}>Resume {resumeAssignment.title}</h2><p style={{ margin: '10px 0 0', fontSize: '17px', lineHeight: 1.5, opacity: 0.94 }}>Continue at Question {resumeQuestionIndex + 1}. Your typed responses, plotted points, graph sketch, endpoint symbols, multipart analysis, and algebra work are restored from this browser.</p><div style={{ marginTop: '12px', fontSize: '13px', fontWeight: 'bold', opacity: 0.88 }}>{resumeLifecycle.isClosed ? 'Permanently closed · review saved work' : resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until final close` : `Due ${formatDueDate(resumeAssignment)}`}</div></div>
+            <div style={{ flex: '1 1 450px' }}>
+              <div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.12em', opacity: 0.82, marginBottom: '7px' }}>Resume Action</div>
+              <h2 style={{ margin: 0, fontSize: 'clamp(25px, 4vw, 38px)', lineHeight: 1.12 }}>Resume {resumeAssignment.title}</h2>
+              <p style={{ margin: '10px 0 0', fontSize: '17px', lineHeight: 1.5, opacity: 0.94 }}>Continue at Question {resumeQuestionIndex + 1}. Your typed responses, plotted points, graph sketch, endpoint symbols, multipart analysis, and algebra work are restored from this browser.</p>
+              {resumeQuestionsAttempted > 0 && (
+                <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 9, background: 'rgba(255,255,255,0.14)', fontSize: 13, fontWeight: 900 }}>
+                  {resumeFeedbackHeld && !resumeLifecycle.isClosed
+                    ? 'Grade status: awaiting teacher release'
+                    : `Current grade if stopped now: ${resumeRecordedGrade}%`}
+                  {classroomSyncStatusByAssignment?.[resumeAssignment.id]?.grade != null && (
+                    <span> · Google Classroom has {classroomSyncStatusByAssignment[resumeAssignment.id].grade}%</span>
+                  )}
+                </div>
+              )}
+              <div style={{ marginTop: '12px', fontSize: '13px', fontWeight: 'bold', opacity: 0.88 }}>{resumeLifecycle.isClosed ? 'Permanently closed · review saved work' : resumeLifecycle.isLate ? `Late · ${formatRemainingTime(resumeLifecycle.millisecondsRemaining)} until final close` : `Due ${formatDueDate(resumeAssignment)}`}</div>
+            </div>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
               <button type="button" disabled={!onExportAssignmentPdf || exportingAssignmentId === resumeAssignment.id} onClick={() => exportPdf(resumeAssignment.id)} style={{ padding: '13px 18px', border: '2px solid rgba(255,255,255,0.76)', borderRadius: '12px', background: 'transparent', color: '#fff', fontSize: '15px', fontWeight: 900, cursor: 'pointer' }}>{exportingAssignmentId === resumeAssignment.id ? 'Preparing PDF…' : 'Export PDF'}</button>
               <button type="button" onClick={() => onStartAssignment(resumeAssignment.id, resumeQuestionIndex)} style={{ padding: '15px 24px', border: 'none', borderRadius: '12px', background: '#fff', color: '#174ea6', fontSize: '17px', fontWeight: 900, cursor: 'pointer', boxShadow: '0 6px 18px rgba(0,0,0,0.18)' }}>{resumeLifecycle.isClosed ? 'Review Question' : 'Resume Question'} {resumeQuestionIndex + 1} →</button>
