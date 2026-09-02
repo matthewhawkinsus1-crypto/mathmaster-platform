@@ -248,11 +248,18 @@ function AdditiveExpressionRegion({
         const underActive = placement?.kind === 'under' && placement.termIndex === termIndex;
 
         const rawTerm = String(term.text || '').trim();
+        const rawTermLatex = String(term.latex || '').trim();
         const termNeedsLeadingPlus = beforeActive
           && termIndex === 0
           && !rawTerm.startsWith('-')
           && !rawTerm.startsWith('+');
-        const visibleTerm = termNeedsLeadingPlus ? `+ ${rawTerm}` : rawTerm;
+        // splitAdditiveTerms already knows the term's sign. Render that LaTeX
+        // directly instead of parsing the signed term a second time. This
+        // prevents a leading minus on an absolute-value branch (for example
+        // -2p + 3) from disappearing while a new operation is staged.
+        const visibleTermLatex = termNeedsLeadingPlus
+          ? `+ ${rawTermLatex}`
+          : rawTermLatex;
 
         return (
           <div
@@ -330,7 +337,7 @@ function AdditiveExpressionRegion({
                 }}
               >
                 <span style={{ fontSize: 30 }}>
-                  <MathDisplay value={expressionToLatex(visibleTerm)} format="latex" inline />
+                  <MathDisplay value={visibleTermLatex} format="latex" inline />
                 </span>
               </button>
 
