@@ -1199,6 +1199,9 @@ export default function StepByStepAlgebra({
   };
   const suggestedMove = getSuggestedMove(equation);
   const attemptsRemaining = getAttemptsRemaining(normalizedRecord, maximumAttempts);
+  const stepCreditPercent = normalizedRecord.status === 'correct'
+    ? 100
+    : Math.round(Number(normalizedRecord.bestPartialCredit || 0));
   const solved = isSolvedEquation(equation);
   const objectiveLabel = equation.objective?.kind === 'slopeIntercept'
     ? 'Target: y = mx + b'
@@ -1381,6 +1384,14 @@ export default function StepByStepAlgebra({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '999px', background: supportPolicy.level >= 4 ? '#e8f0fe' : '#f3e8fd', color: supportPolicy.level >= 4 ? '#174ea6' : '#681da8', fontWeight: 'bold' }}>{`Support ${supportPolicy.level} · ${supportPolicy.label}`}</div>
         <div style={{ padding: '8px 12px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontWeight: 'bold' }}>{objectiveLabel}</div>
+        {stepCreditPercent > 0 && (
+          <div
+            title="Credit earned from valid algebra steps so far. Finishing the problem correctly earns full credit."
+            style={{ padding: '8px 12px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontWeight: 900 }}
+          >
+            Step credit {stepCreditPercent}%
+          </div>
+        )}
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <button
             type="button"
