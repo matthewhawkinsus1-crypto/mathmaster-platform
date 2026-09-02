@@ -457,6 +457,61 @@ export default function ClassroomManagerV2({
     setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
   });
 
+
+  const handleForceRepublish = () => run(async () => {
+    assertPublishable(selectedAssignment);
+    if (!selectedCourseIds.length) throw new Error('Select at least one mapped Google Classroom course.');
+
+    const selectedNames = courses
+      .filter((course) => selectedCourseIds.includes(String(course.id)))
+      .map((course) => courseLabel(course));
+    const confirmed = window.confirm(
+      'FORCE A NEW GOOGLE CLASSROOM POST?\n\n'
+      + 'MathMaster will create a brand-new assignment post even if an older post still exists.\n\n'
+      + 'Selected: ' + (selectedNames.join(', ') || selectedCourseIds.join(', ')) + '\n\n'
+      + 'Student MathMaster progress will NOT be reset. Grade passback will move to the newly created post. '
+      + 'If Google is already showing the old post, students may see both.'
+    );
+    if (!confirmed) return;
+
+    const classroom = selectedAssignment?.classroomPackage || {};
+    const response = await forceRepublishAssignmentToClassrooms({
+      assignmentId: selectedAssignment.id,
+      courseIds: selectedCourseIds,
+      forceRequestId: typeof crypto?.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : 'force-' + Date.now() + '-' + Math.random().toString(36).slice(2),
+      classroomTitle: classroom?.assignmentPost?.title || selectedAssignment.title,
+      maxPoints: Number(classroom?.assignmentPost?.maxPoints) || 100,
+      gradePassbackEnabled: classroom?.gradePassback?.enabled !== false,
+      topicName,
+      instructions,
+      materials: cleanMaterials(),
+    });
+    const summary = response?.summary || {};
+    const created = Number(summary.forcedReposted || 0) + Number(summary.alreadyForced || 0);
+    const failed = Number(summary.failed || 0);
+    const queuedGrades = Number(summary.queuedGrades || 0);
+
+    if (!created && failed) {
+      const details = (response?.results || [])
+        .filter((item) => item.status === 'failed')
+        .map((item) => (item.courseName || item.courseId) + ': ' + (item.error || 'failed'))
+        .join(' | ');
+      throw new Error(details || 'Google Classroom did not create the forced repost.');
+    }
+
+    setStatus(
+      'Forced ' + created + ' new Classroom assignment post' + (created === 1 ? '' : 's')
+      + ' and made the new post the grade-passback destination. Queued '
+      + queuedGrades + ' linked student grade record' + (queuedGrades === 1 ? '' : 's')
+      + ' for passback review.'
+      + (failed ? ' ' + failed + ' selected destination' + (failed === 1 ? '' : 's') + ' failed.' : '')
+    );
+    setLinks((await listPublishedAssignments()).links || []);
+    setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
+  });
+
   const handlePublishMaterial = () => run(async () => {
     const resourceLinks = cleanMaterials();
     if (!selectedCourseIds.length) throw new Error('Select at least one Classroom destination.');
@@ -779,6 +834,19 @@ export default function ClassroomManagerV2({
             <button style={secondary} onClick={() => setMaterials((current) => [...current, { title: '', url: '' }])}>+ Add resource link</button>
           </div>
           <button style={{ ...primary, marginTop: 12 }} disabled={busy || !selectedAssignment} onClick={handlePublishAssignment}>Publish assignment package</button>
+          <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 10, background: '#fff4ce', border: '2px solid #f9ab00', color: '#5f4400' }}>
+            <strong>Post missing but MathMaster says it exists?</strong>
+            <div style={{ marginTop: 5, fontSize: 12, lineHeight: 1.5 }}>
+              Select the exact Google Classroom course(s) above, then force a new post. This intentionally bypasses duplicate protection. Your MathMaster assignment and student progress stay intact; the newly created post becomes the grade-passback destination.
+            </div>
+            <button
+              style={{ ...danger, marginTop: 10, background: '#fff', borderColor: '#b06000', color: '#8a4b00' }}
+              disabled={busy || !selectedAssignment || !selectedCourseIds.length}
+              onClick={handleForceRepublish}
+            >
+              Force NEW post to selected Classroom{selectedCourseIds.length === 1 ? '' : 's'}
+            </button>
+          </div>
         </section>
       )}
 
