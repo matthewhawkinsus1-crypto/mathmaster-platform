@@ -5612,6 +5612,12 @@ exports.retryClassroomGradeSync = onCall(async (request) => {
       "That Classroom publication belongs to another teacher."
     );
   }
+  if (String(publication.data().assignmentId || "") !== String(assignmentId)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "That Classroom publication does not belong to the requested assignment."
+    );
+  }
 
   const gradeRef = db.doc(`grades/${String(studentId)}`);
   const gradeSnap = await gradeRef.get();
