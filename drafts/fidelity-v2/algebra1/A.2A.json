@@ -531,16 +531,16 @@
           "difficultyBand": 4,
           "taskType": "errorAnalysis",
           "representation": "multipleRepresentation",
-          "prompt": "The table and coordinate graph show ONLY the four displayed points of a discrete linear function. A student writes the domain and range as continuous intervals from the smallest value to the largest value. Diagnose why that adds inputs and outputs that are not in the function, then give the correct domain and range as finite sets.",
+          "prompt": "The table and coordinate graph show ONLY the four displayed points of a discrete linear function. A student writes the domain and range as continuous inequalities from the smallest value to the largest value. Diagnose why that adds inputs and outputs that are not in the function, then give the correct domain and range as finite sets.",
           "responseFields": [
             {
               "id": "diagnosis",
-              "label": "Why are intervals incorrect here?",
+              "label": "Why is a continuous description incorrect here?",
               "inputProfile": "choice",
               "choices": [
                 {
                   "id": "discrete-only",
-                  "label": "The function is defined only at the displayed discrete points; an interval would add unlisted inputs and outputs."
+                  "label": "The function is defined only at the displayed discrete points; a continuous inequality would add unlisted inputs and outputs."
                 },
                 {
                   "id": "linear-always-continuous",
@@ -587,12 +587,12 @@
             "reasoning": [
               "The displayed inputs are exactly {{x0}}, {{x1}}, {{x2}}, and {{x3}}.",
               "Only their corresponding outputs belong to the range.",
-              "Writing intervals would invent unlisted points between the displayed coordinates."
+              "Writing a continuous inequality would invent unlisted points between the displayed coordinates."
             ],
-            "answerSummary": "Use finite domain and range sets, not intervals."
+            "answerSummary": "Use finite domain and range sets, not continuous inequalities."
           },
           "attemptFeedback": [
-            "Decide whether the relation is defined between the displayed x-values before choosing interval notation."
+            "Decide whether the relation is defined between the displayed x-values before choosing a continuous inequality description."
           ],
           "supportHints": [
             "A straight-line pattern among points does not by itself make a discrete relation continuous."
