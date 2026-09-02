@@ -478,8 +478,8 @@ export default function ClassroomManagerV2({
     const response = await forceRepublishAssignmentToClassrooms({
       assignmentId: selectedAssignment.id,
       courseIds: selectedCourseIds,
-      forceRequestId: typeof crypto?.randomUUID === 'function'
-        ? crypto.randomUUID()
+      forceRequestId: typeof globalThis.crypto?.randomUUID === 'function'
+        ? globalThis.crypto.randomUUID()
         : 'force-' + Date.now() + '-' + Math.random().toString(36).slice(2),
       classroomTitle: classroom?.assignmentPost?.title || selectedAssignment.title,
       maxPoints: Number(classroom?.assignmentPost?.maxPoints) || 100,
