@@ -11,6 +11,7 @@ import {
 import LiveClassMonitor from './components/teacher/LiveClassMonitor';
 import NeedsAttentionQueue from './components/teacher/NeedsAttentionQueue';
 import StudentSupportDashboard from './components/teacher/StudentSupportDashboard';
+import DOLCountdown from './components/student/DOLCountdown.jsx';
 import { studentsInClass } from '../functions/shared/classModel.mjs';
 
 const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
@@ -163,14 +164,19 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
                   ? `Waiting for the normal opening window · ${state.minutesBeforeStart} min before class`
                   : closed
                     ? 'Closed for new responses · saved work remains visible'
-                    : state.autoCloseScheduled
-                      ? `Open now · closes automatically in ${Math.max(1, Math.ceil(state.millisecondsRemaining / 60000))} min`
-                      : 'Open now · students can begin immediately';
+                    : 'Open now · closes automatically when the timer reaches zero';
               return (
                 <div key={assignment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: '#fff' }}>
                   <div>
                     <strong>{assignment.title}</strong>
-                    <div style={{ marginTop: 3, fontSize: 12 }}>{statusText}</div>
+                    <div style={{ marginTop: 3, fontSize: 12 }}>
+                      {statusText}
+                      {state.status === 'active' && (
+                        <div style={{ marginTop: 5, fontSize: 18, fontWeight: 1000 }}>
+                          <DOLCountdown endsAt={state.endsAt} /> remaining
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <button
