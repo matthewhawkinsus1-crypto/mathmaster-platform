@@ -274,6 +274,7 @@ function StudentTile({
 export default function LiveClassMonitor({
   students = [],
   assignments = [],
+  timerAssignments = null,
   classPeriods = [],
   initialClassPeriod = 'all',
   nowValue = Date.now(),
@@ -335,7 +336,8 @@ export default function LiveClassMonitor({
 
   const activeSectionTimers = useMemo(() => {
     if (!timerContext || !classSchedule) return [];
-    return assignments
+    const sourceAssignments = Array.isArray(timerAssignments) ? timerAssignments : assignments;
+    return sourceAssignments
       .filter((assignment) => assignmentIsForStudent(assignment, timerContext))
       .flatMap((assignment) => {
         const warmup = getWarmupState({
@@ -360,7 +362,7 @@ export default function LiveClassMonitor({
         return timers;
       })
       .sort((left, right) => Number(left.remaining || 0) - Number(right.remaining || 0));
-  }, [assignments, classSchedule, timerContext, nowValue]);
+  }, [assignments, timerAssignments, classSchedule, timerContext, nowValue]);
 
   const suggestions = useMemo(
     () => suggestMovesForClass({ rows: visibleRows, profilesByStudentId: learningProfilesByStudentId }),
