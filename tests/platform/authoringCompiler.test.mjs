@@ -56,6 +56,49 @@ assert.equal(Object.prototype.hasOwnProperty.call(parsed, 'assignment'), false);
 assert.equal(validateAssignmentQuestions(parsed.questions).length, 1);
 assert.ok(parsed.repairs.some((repair) => /canonical V5/.test(repair)));
 
+const restrictedDomainInvestigation = parseAssignmentBlueprintText(JSON.stringify({
+  schemaVersion: 5,
+  assignment: {
+    title: 'Restricted-domain graph investigation',
+    courseId: 'algebra1',
+    instructionalPurpose: 'lesson',
+    gradingPurpose: 'classwork',
+  },
+  sections: [{
+    role: 'classwork',
+    title: 'Classwork',
+    questions: [{
+      standard: 'A.2A',
+      prompt: 'Use the graph to determine the domain and range.',
+      studentActions: ['readGraph', 'investigateFunction', 'analyzeDomain', 'analyzeRange'],
+      function: {
+        family: 'linear',
+        m: 1,
+        b: 2,
+        domain: { min: -4, max: 3, minInclusive: true, maxInclusive: false },
+      },
+      notation: 'inequality',
+      dok: 2,
+      difficultyBand: 2,
+    }],
+  }],
+}));
+assert.equal(
+  restrictedDomainInvestigation.questions[0].type,
+  'graphAnalysis',
+  'a restricted-domain investigation uses the full graph-analysis workspace',
+);
+assert.deepEqual(
+  restrictedDomainInvestigation.questions[0].functionSpec.domain,
+  { min: -4, max: 3, minInclusive: true, maxInclusive: false },
+  'restricted-domain bounds and endpoint inclusion survive V5 compilation',
+);
+assert.deepEqual(
+  restrictedDomainInvestigation.questions[0].analysisRequests.map((request) => request.kind),
+  ['domain', 'range'],
+  'domain/range analysis requests survive restricted-domain routing',
+);
+
 assert.throws(
   () => parseAssignmentBlueprintText(JSON.stringify([{ prompt: 'old array' }])),
   /does not accept raw question arrays/,
