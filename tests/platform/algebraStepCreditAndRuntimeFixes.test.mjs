@@ -152,3 +152,12 @@ test('teacher Live Class receives the class schedule and renders active Warm-Up 
   assert.match(live, /<DOLCountdown endsAt=\{endsAt\}/);
   assert.match(home, /<LiveClassMonitor[\s\S]*classSchedule=\{classSchedule\}/);
 });
+
+
+test('server passback re-derives algebra step credit and versioned reconciliation reaches recent closed assignments', () => {
+  const source = read('functions/index.js');
+  assert.match(source, /function storedAlgebraStepPartialCredit\(record\)/);
+  assert.match(source, /Math\.max\(stored, derived\) \/ 100/);
+  assert.match(source, /const RECONCILE_VERSION = 2/);
+  assert.match(source, /reason: "initial-reconcile"/);
+});
