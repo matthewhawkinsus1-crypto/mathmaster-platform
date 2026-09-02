@@ -188,3 +188,22 @@ test('both algebra workspaces surface cumulative step credit to the student', ()
   assert.match(multi, /questionRecord = null/);
   assert.match(multi, /normalizeQuestionRecord\(questionRecord\)/);
 });
+
+
+test('closed Classroom regrade includes saved assignment students even when no prior sync row exists', () => {
+  const manager = read('src/ClassroomManagerV2.jsx');
+  assert.match(manager, /const fallbackPublication = links\.find/);
+  assert.match(manager, /student\?\.gradesByAssignment\?\.\[selectedAssignment\.id\]/);
+  assert.match(manager, /status: 'not-yet-synced'/);
+  assert.match(manager, /assignedClassIds/);
+  assert.match(manager, /assignedClassPeriods/);
+});
+
+test('manual Classroom retry cannot use an unrelated publication as an authorization anchor', () => {
+  const source = read('functions/index.js');
+  const start = source.indexOf('exports.retryClassroomGradeSync = onCall');
+  const end = source.indexOf('exports.syncGradeToClassroom = onDocumentWritten', start);
+  const retry = source.slice(start, end);
+  assert.match(retry, /publication\.data\(\)\.assignmentId/);
+  assert.match(retry, /does not belong to the requested assignment/);
+});
