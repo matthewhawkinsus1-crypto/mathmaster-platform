@@ -6,6 +6,7 @@ import {
   isChoiceOnlyQuestion,
   resolveQuestionMaximumAttempts,
   resolveQuestionReplacementAllowed,
+  recordQuestionAttempt,
 } from '../../src/attemptPolicy.js';
 
 const require = createRequire(import.meta.url);
@@ -204,4 +205,20 @@ test('My Math Path mixed response is not misclassified as pure multiple choice',
   };
 
   assert.equal(mathPath.isChoiceOnlyPathQuestion(question), false);
+});
+
+
+test('multipart attempt stores weighted fractional part credit', () => {
+  const { record } = recordQuestionAttempt({
+    record: null,
+    isCorrect: false,
+    parts: [
+      { id: 'major', isComplete: true, isCorrect: false, credit: 0.75, weight: 3, response: 'partial' },
+      { id: 'minor', isComplete: true, isCorrect: true, credit: 1, weight: 1, response: 'done' },
+    ],
+    maximumAttempts: 3,
+  });
+  assert.equal(record.partialCredit, 81, '((.75×3)+1)/4 = 81.25%, rounded');
+  assert.equal(record.partGrades[0].credit, 0.75);
+  assert.equal(record.partGrades[0].weight, 3);
 });
