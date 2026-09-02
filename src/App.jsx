@@ -162,7 +162,7 @@ import { resolveDeliveredQuestionMetadata } from './platform/assignments/assignm
 import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdapter.js';
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
 import {
-  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions,
+  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions, fetchStudentWeeklyPathGoalSnapshot,
   interventionAsOverride, logRouteEvent, overridesForClassContext, saveClassPacing, saveSkillOverrides, saveWeeklyGoalSettings,
   setStudentPathIntervention, storedPacingForClassContext, storedWeeklyGoalForClassContext,
   subscribeStudentPathIntervention,
@@ -170,7 +170,7 @@ import {
 import WeeklyPathControls from './components/teacher/WeeklyPathControls.jsx';
 import StudentPerformanceBadge from './components/common/StudentPerformanceBadge.jsx';
 import { buildWeeklyPathPlan } from './platform/path/weeklyPathPlan.js';
-import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, weekKeyFor } from './platform/path/weeklyPathGoal.js';
+import { buildTeacherWeeklyView, buildWeeklyGoal, deriveCompletionsFromEvidence, dueAtFor, evaluateWeeklyGoalProgress, normalizeWeeklyGoalConfig, weekKeyFor } from './platform/path/weeklyPathGoal.js';
 import SignInAccess from './SignInAccess.jsx';
 import ClassesAdmin from './components/admin/ClassesAdmin.jsx';
 import PreproductionReset from './components/admin/PreproductionReset.jsx';
@@ -404,6 +404,7 @@ function App() {
   const [weeklyGoalBusy, setWeeklyGoalBusy] = useState(false);
   const [weeklyPathCompletionsByStudent, setWeeklyPathCompletionsByStudent] = useState({});
   const [weeklyPathGoalSnapshotsByStudent, setWeeklyPathGoalSnapshotsByStudent] = useState({});
+  const [studentWeeklyPathProgress, setStudentWeeklyPathProgress] = useState(null);
   // Set when the server could not read the whole week. The Weekly Path table
   // shows grades, so an incomplete read has to be visible rather than assumed.
   // The student whose profile drawer is open, from ANY teacher surface.
@@ -448,6 +449,7 @@ function App() {
   const [teacherWorksheetDialog, setTeacherWorksheetDialog] = useState(null);
   const [teacherWorksheetBusy, setTeacherWorksheetBusy] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [assignmentNavigationCollapsed, setAssignmentNavigationCollapsed] = useState(false);
   const [assignmentOverviewExpanded, setAssignmentOverviewExpanded] = useState(false);
   const assignmentQuestionStageRef = useRef(null);
   const [resumeAction, setResumeAction] = useState(null);
@@ -866,21 +868,34 @@ function App() {
     return () => window.clearInterval(clock);
   }, []);
 
-  // The general dashboard clock can stay inexpensive at 30 seconds, while DOL
-  // and pack-up transitions need to happen at the actual bell-derived second.
-  // Schedule one precise wake-up for the next class start, DOL transition, or
-  // five-minute technology-return window.
+  // The general dashboard clock can stay inexpensive at 30 seconds, while
+  // DOL, Warm-Up auto-close, and pack-up transitions need to happen at the
+  // actual bell/timer-derived second. Schedule one precise wake-up for the
+  // next transition rather than letting a teacher-set Warm-Up timer drift by
+  // as much as the dashboard clock interval.
   useEffect(() => {
     if (user?.role !== 'student' || !user.classPeriod) return undefined;
     const realNow = Date.now();
-    const targets = assignments
-      .filter((assignment) => assignmentIsForStudent(assignment, { classId: user.classId || null, classPeriod: user.classPeriod }))
-      .map((assignment) => getDOLState({ assignment, schedule: classSchedule, classId: user.classId || null, classPeriod: user.classPeriod, nowValue: realNow }))
+    const studentContext = { classId: user.classId || null, classPeriod: user.classPeriod };
+    const relevantAssignments = assignments
+      .filter((assignment) => assignmentIsForStudent(assignment, studentContext));
+    const targets = relevantAssignments
+      .map((assignment) => getDOLState({ assignment, schedule: classSchedule, ...studentContext, nowValue: realNow }))
       .map((state) => state.status === 'beforeClass' ? state.window?.start?.getTime()
         : state.status === 'waiting' ? state.opensAt?.getTime()
           : state.status === 'active' ? state.endsAt?.getTime() + 100
             : null)
       .filter((target) => Number.isFinite(target) && target > realNow);
+
+    relevantAssignments
+      .map((assignment) => getWarmupState({ assignment, schedule: classSchedule, ...studentContext, nowValue: realNow }))
+      .map((state) => state.status === 'waiting'
+        ? state.opensAt?.getTime()
+        : state.status === 'active'
+          ? (state.autoCloseScheduled ? state.autoCloseAt?.getTime() : state.endsAt?.getTime()) + 100
+          : null)
+      .filter((target) => Number.isFinite(target) && target > realNow)
+      .forEach((target) => targets.push(target));
 
     const packUp = getClassPackUpState({
       schedule: classSchedule,
@@ -961,6 +976,55 @@ function App() {
       classPeriod: user.classPeriod,
     });
   }, [user, weeklyGoalsByClass]);
+
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id) {
+      setStudentWeeklyPathProgress(null);
+      return undefined;
+    }
+    if (studentDashboardMode !== 'assignments') return undefined;
+
+    const honors = String(user?.profile?.courseLevel || '').toLowerCase() === 'honors';
+    const settings = normalizeWeeklyGoalConfig(studentWeeklyGoalConfig || {}, { honors });
+    const currentWeekKey = weekKeyFor(now, settings.weekStartsOn || 1);
+    let active = true;
+    setStudentWeeklyPathProgress(null);
+
+    Promise.all([
+      fetchStudentWeeklyPathGoalSnapshot({ weekKey: currentWeekKey }),
+      fetchStudentEvidenceEvents(user.id),
+    ]).then(([goal, evidenceEvents]) => {
+      if (!active) return;
+      if (!goal) {
+        const required = Number(settings.sessions) || 0;
+        setStudentWeeklyPathProgress({
+          required,
+          completed: 0,
+          remaining: required,
+          complete: required === 0,
+          overdue: now > dueAtFor(now, settings) && required > 0,
+        });
+        return;
+      }
+
+      const completions = deriveCompletionsFromEvidence({
+        evidenceEvents,
+        weekKey: goal.weekKey,
+        weekStartsOn: goal?.settings?.weekStartsOn || settings.weekStartsOn || 1,
+        now,
+      });
+      setStudentWeeklyPathProgress(evaluateWeeklyGoalProgress({ goal, completions, now }));
+    }).catch((error) => {
+      if (!active) return;
+      console.error('Could not confirm the student Weekly Path status:', error);
+      setStudentWeeklyPathProgress(null);
+    });
+
+    return () => { active = false; };
+  }, [
+    user?.role, user?.id, user?.profile?.courseLevel, studentWeeklyGoalConfig,
+    studentDashboardMode, Math.floor(now / 3_600_000),
+  ]);
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.id) {
@@ -2362,6 +2426,7 @@ function App() {
       : includedQuestionIndices[0];
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(safeQuestionIndex);
+    setAssignmentNavigationCollapsed(false);
     setAssignmentOverviewExpanded(false);
     lastActivityRef.current = Date.now();
     pendingAssignmentSecondsRef.current = 0;
@@ -3985,7 +4050,7 @@ function App() {
     }
   };
 
-  const handleToggleWarmupForClass = async (assignment, classContext) => {
+  const handleToggleWarmupForClass = async (assignment, classContext, control = {}) => {
     const { classId, classPeriod, label: classLabel, key: classKey } = resolveTeacherClassContext(classContext);
     if (!assignment?.id || !classId || !classPeriod || !classKey) return;
     const state = getWarmupState({ assignment, schedule: classSchedule, classId, classPeriod, nowValue: Date.now() });
@@ -4010,13 +4075,51 @@ function App() {
       return;
     }
 
-    const closing = state.status === 'active';
+    const requestedAction = String(control?.action || '').trim();
+    const action = ['close', 'reopen', 'timer'].includes(requestedAction)
+      ? requestedAction
+      : state.status === 'active'
+        ? 'close'
+        : 'reopen';
+    const requestedTimerMinutes = Number(control?.autoCloseMinutes);
+    const timerMinutes = Number.isFinite(requestedTimerMinutes)
+      ? Math.max(1, Math.min(60, Math.round(requestedTimerMinutes)))
+      : 5;
+    const nowMs = Date.now();
+    const timerClosesAt = action === 'timer'
+      ? new Date(Math.min(state.window.end.getTime(), nowMs + timerMinutes * 60000))
+      : null;
+
+    if (action === 'timer' && timerClosesAt.getTime() <= nowMs) {
+      toastWarning('Warm-Up timer unavailable', 'This class period is ending, so there is no time left to reopen the Warm-Up.');
+      return;
+    }
+    if (action === 'reopen' && state.status === 'active') {
+      toastInfo('Warm-Up is already open', `${assignment.title} is already available to ${classLabel}.`);
+      return;
+    }
+    if (action === 'close' && state.status === 'closed') {
+      toastInfo('Warm-Up is already closed', `${assignment.title} is already read-only for ${classLabel}.`);
+      return;
+    }
+
+    const closesAtLabel = timerClosesAt?.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
     const proceed = await confirmAction({
-      title: `${closing ? 'Close' : 'Reopen'} the Warm-Up for ${classLabel}?`,
-      message: closing
+      title: action === 'timer'
+        ? `${state.status === 'closed' ? 'Reopen' : 'Keep'} the Warm-Up open with a timer for ${classLabel}?`
+        : `${action === 'close' ? 'Close' : 'Reopen'} the Warm-Up for ${classLabel}?`,
+      message: action === 'close'
         ? 'Students in this class will keep their saved work for review, but they will not be able to make new Warm-Up submissions. Other classes are unaffected.'
-        : 'Students in this class will be able to continue the Warm-Up until you close it again or the class period ends.',
-      confirmLabel: closing ? 'Close Warm-Up' : 'Reopen Warm-Up',
+        : action === 'reopen'
+          ? 'Students in this class will be able to continue the Warm-Up until you close it again or the class period ends.'
+          : `Students in this class will be able to work until ${closesAtLabel}. The Warm-Up will then close automatically and saved work will remain available for review. Other classes are unaffected.`,
+      confirmLabel: action === 'close'
+        ? 'Close Warm-Up'
+        : action === 'reopen'
+          ? 'Reopen Warm-Up'
+          : state.status === 'closed'
+            ? `Reopen for ${timerMinutes} min`
+            : `Set ${timerMinutes}-min timer`,
     });
     if (!proceed) return;
 
@@ -4024,20 +4127,50 @@ function App() {
     setWarmupControlBusyKey(busyKey);
     try {
       const changedAt = new Date().toISOString();
+      const dateKey = localDateKey(Date.now());
+      const teacherIdentity = user?.email || user?.id || 'teacher';
       const warmup = {
         ...(assignment.warmup || {}),
         enabled: true,
         minutesBeforeStart: Math.max(0, Number(assignment?.warmup?.minutesBeforeStart ?? 7)),
       };
       const closedByClassId = { ...(assignment.warmup?.closedByClassId || {}) };
-      if (closing) closedByClassId[classId] = { dateKey: localDateKey(Date.now()), closedAt: changedAt, closedBy: user?.email || user?.id || 'teacher' };
-      else delete closedByClassId[classId];
+      const autoCloseByClassId = { ...(assignment.warmup?.autoCloseByClassId || {}) };
+
+      if (action === 'close') {
+        closedByClassId[classId] = { dateKey, closedAt: changedAt, closedBy: teacherIdentity };
+        delete autoCloseByClassId[classId];
+      } else if (action === 'reopen') {
+        delete closedByClassId[classId];
+        delete autoCloseByClassId[classId];
+      } else {
+        delete closedByClassId[classId];
+        autoCloseByClassId[classId] = {
+          dateKey,
+          closesAt: timerClosesAt.toISOString(),
+          setAt: changedAt,
+          setBy: teacherIdentity,
+        };
+      }
+
       warmup.closedByClassId = closedByClassId;
+      warmup.autoCloseByClassId = autoCloseByClassId;
       await updateDoc(doc(db, 'assignments', assignment.id), { warmup, updatedAt: changedAt });
-      toastSuccess(closing ? 'Warm-Up closed' : 'Warm-Up reopened', `${assignment.title} · ${classLabel}`);
+
+      if (action === 'timer') {
+        toastSuccess(
+          state.status === 'closed' ? 'Warm-Up reopened with timer' : 'Warm-Up timer set',
+          `${assignment.title} · ${classLabel} · closes automatically at ${closesAtLabel}`,
+        );
+      } else {
+        toastSuccess(action === 'close' ? 'Warm-Up closed' : 'Warm-Up reopened', `${assignment.title} · ${classLabel}`);
+      }
     } catch (error) {
       console.error(error);
-      toastError(`Could not ${closing ? 'close' : 'reopen'} Warm-Up`, error.message);
+      toastError(
+        action === 'timer' ? 'Could not set Warm-Up timer' : `Could not ${action} Warm-Up`,
+        error.message,
+      );
     } finally {
       setWarmupControlBusyKey(null);
     }
@@ -5643,50 +5776,72 @@ function App() {
             </div>
           </header>
 
-          <nav className="mathmaster-assignment-unified-nav" aria-label="Assignment navigation">
+          <nav className={`mathmaster-assignment-unified-nav${assignmentNavigationCollapsed ? ' is-collapsed' : ''}`} aria-label="Assignment navigation">
             <div className="mathmaster-assignment-unified-top">
               <button type="button" className="mathmaster-unified-nav-back" onClick={leaveAssignment} aria-label={preview ? 'Back to instructor dashboard' : 'Back to dashboard'}>←</button>
-              <div className="mathmaster-section-tabs" role="list" aria-label="Assignment sections">
-                {navigationSections.map((section) => {
-                  const meta = activitySectionMeta[section.role] || { label: section.role, background: '#f1f3f4', color: '#3c4043', border: '#9aa0a6' };
-                  const completedQuestions = section.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length;
-                  const targetEntry = sectionNavigationTarget(section);
-                  const sectionAvailable = Boolean(targetEntry);
-                  const active = currentNavigationSection?.role === section.role;
-                  return (
-                    <button
-                      type="button"
-                      role="listitem"
-                      key={`section-tab-${section.role}-${section.entries[0]?.index}`}
-                      className={`mathmaster-section-tab${active ? ' is-active' : ''}${section.allCorrect ? ' is-complete' : ''}${sectionAvailable ? '' : ' is-locked'}`}
-                      style={{ '--section-color': meta.color, '--section-border': meta.border, '--section-bg': meta.background }}
-                      onClick={() => targetEntry && changeQuestion(targetEntry.index)}
-                      disabled={!sectionAvailable}
-                      aria-current={active ? 'page' : undefined}
-                      title={sectionAvailable
-                        ? `${compactSectionLabel(section)}: ${completedQuestions} of ${section.entries.length} complete. Open the next question that still needs a correct answer.`
-                        : `${compactSectionLabel(section)} is not available yet.`}
-                    >
-                      {section.allCorrect && <span className="mathmaster-section-complete-medallion" aria-hidden="true">✓</span>}
-                      <span className="mathmaster-section-tab-copy">
-                        <span className="mathmaster-section-tab-label">{compactSectionLabel(section)}</span>
-                        <small>{sectionAvailable ? (section.allCorrect ? 'Complete' : `${completedQuestions}/${section.entries.length}`) : '🔒 Locked'}</small>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+              {!assignmentNavigationCollapsed ? (
+                <div className="mathmaster-section-tabs" role="list" aria-label="Assignment sections">
+                  {navigationSections.map((section) => {
+                    const meta = activitySectionMeta[section.role] || { label: section.role, background: '#f1f3f4', color: '#3c4043', border: '#9aa0a6' };
+                    const completedQuestions = section.entries.filter((entry) => sectionQuestionIsComplete(entry.index)).length;
+                    const targetEntry = sectionNavigationTarget(section);
+                    const sectionAvailable = Boolean(targetEntry);
+                    const active = currentNavigationSection?.role === section.role;
+                    return (
+                      <button
+                        type="button"
+                        role="listitem"
+                        key={`section-tab-${section.role}-${section.entries[0]?.index}`}
+                        className={`mathmaster-section-tab${active ? ' is-active' : ''}${section.allCorrect ? ' is-complete' : ''}${sectionAvailable ? '' : ' is-locked'}`}
+                        style={{ '--section-color': meta.color, '--section-border': meta.border, '--section-bg': meta.background }}
+                        onClick={() => targetEntry && changeQuestion(targetEntry.index)}
+                        disabled={!sectionAvailable}
+                        aria-current={active ? 'page' : undefined}
+                        title={sectionAvailable
+                          ? `${compactSectionLabel(section)}: ${completedQuestions} of ${section.entries.length} complete. Open the next question that still needs a correct answer.`
+                          : `${compactSectionLabel(section)} is not available yet.`}
+                      >
+                        {section.allCorrect && <span className="mathmaster-section-complete-medallion" aria-hidden="true">✓</span>}
+                        <span className="mathmaster-section-tab-copy">
+                          <span className="mathmaster-section-tab-label">{compactSectionLabel(section)}</span>
+                          <small>{sectionAvailable ? (section.allCorrect ? 'Complete' : `${completedQuestions}/${section.entries.length}`) : '🔒 Locked'}</small>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="mathmaster-collapsed-current-location" role="status">
+                  <strong>{currentSectionMeta.label}</strong>
+                  <span>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount}</span>
+                </div>
+              )}
+              {!assignmentNavigationCollapsed && (
+                <button
+                  type="button"
+                  className="mathmaster-overview-button"
+                  onClick={() => setAssignmentOverviewExpanded((current) => !current)}
+                  aria-expanded={assignmentOverviewExpanded}
+                >
+                  <span className="mathmaster-overview-button-label">Overview</span> {assignmentOverviewExpanded ? '▴' : '▾'}
+                </button>
+              )}
               <button
                 type="button"
-                className="mathmaster-overview-button"
-                onClick={() => setAssignmentOverviewExpanded((current) => !current)}
-                aria-expanded={assignmentOverviewExpanded}
+                className="mathmaster-focus-view-button"
+                onClick={() => {
+                  setAssignmentNavigationCollapsed((current) => !current);
+                  if (!assignmentNavigationCollapsed) setAssignmentOverviewExpanded(false);
+                }}
+                aria-expanded={!assignmentNavigationCollapsed}
+                title={assignmentNavigationCollapsed ? 'Show section progress and question numbers' : 'Hide extra navigation to make more room for the problem'}
               >
-                <span className="mathmaster-overview-button-label">Overview</span> {assignmentOverviewExpanded ? '▴' : '▾'}
+                {assignmentNavigationCollapsed ? 'Show progress' : 'Focus view'}
               </button>
             </div>
 
             <div className="mathmaster-assignment-unified-bottom">
+              {!assignmentNavigationCollapsed && (
               <div className={`mathmaster-current-section-inline${currentNavigationSection?.allCorrect ? ' is-complete' : ''}`}>
                 <div className="mathmaster-current-section-summary">
                   <strong>{currentSectionMeta.label}</strong>
@@ -5735,6 +5890,7 @@ function App() {
                   })}
                 </div>
               </div>
+              )}
 
               <div className="mathmaster-unified-question-controls">
                 <button type="button" onClick={() => previousQuestionEntry && changeQuestion(previousQuestionEntry.index)} disabled={!previousQuestionEntry} aria-label="Previous question">‹ <span>Previous</span></button>
@@ -6798,10 +6954,12 @@ function App() {
         matchesSmartView,
       },
     });
-    // Home decides ONE thing for the student. The weekly-Path fallback is
-    // omitted deliberately: this screen does not fetch Path evidence, and a
-    // "your week is done" claim nobody checked is worse than not mentioning it.
-    const studentNextAction = resolveNextAction({ dashboard });
+    // "Caught up" is only valid after class assignments and the frozen
+    // Weekly Path commitment have both been checked.
+    const studentNextAction = resolveNextAction({
+      dashboard,
+      weeklyProgress: studentWeeklyPathProgress,
+    });
     return (
       <>
         {renderStudentPackUpBanner()}

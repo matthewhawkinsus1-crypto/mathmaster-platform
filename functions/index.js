@@ -5854,6 +5854,23 @@ exports.resolveWeeklyPathGoalSnapshot = onCall(async (request) => {
 });
 
 /**
+ * Read this student's already-frozen weekly commitment without creating or
+ * changing it. Home uses this to decide whether "caught up" is actually true.
+ * Returning only the caller's own snapshot keeps the same student isolation as
+ * the session runtime and exposes no answer payloads.
+ */
+exports.getStudentWeeklyPathGoalSnapshot = onCall(async (request) => {
+  const { studentId } = requireStudent(request);
+  const weekKey = String(request.data?.weekKey || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekKey) || !Number.isFinite(Date.parse(`${weekKey}T00:00:00Z`))) {
+    throw new HttpsError("invalid-argument", "A valid weekly Path weekKey is required.");
+  }
+  const db = getFirestore();
+  const snapshot = await db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${weekKey}`).get();
+  return { success: true, goal: snapshot.exists ? snapshot.data() : null };
+});
+
+/**
  * Teacher-only weekly Path progress for one real class.
  *
  * `pathSessions` is intentionally server-only. The teacher UI needs completion

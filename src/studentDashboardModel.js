@@ -57,7 +57,7 @@ export const BUCKET_LABEL = Object.freeze({
   [BUCKET.IN_PROGRESS]: 'Keep going',
   [BUCKET.PAST_DUE]: 'Past due',
   [BUCKET.DO_NOW]: 'Due today',
-  [BUCKET.COMING_UP]: 'Coming up',
+  [BUCKET.COMING_UP]: 'Assigned — due later',
   [BUCKET.PRACTICE]: 'Practice available',
   [BUCKET.COMPLETED]: 'Finished',
 });
@@ -66,14 +66,15 @@ export const BUCKET_LABEL = Object.freeze({
  * Which groups open by default.
  *
  * Progressive disclosure, and the rule is what a student needs to ACT on.
- * Finished work and things not due yet are collapsed — they are reassurance and
- * planning, not today's job.
+ * Finished work and optional practice stay collapsed. Teacher-assigned work
+ * stays visible even when its due date is later, because "assigned" is the
+ * classroom contract and students should not have to discover it in a drawer.
  */
 export const BUCKET_OPEN_BY_DEFAULT = Object.freeze({
   [BUCKET.IN_PROGRESS]: true,
   [BUCKET.PAST_DUE]: true,
   [BUCKET.DO_NOW]: true,
-  [BUCKET.COMING_UP]: false,
+  [BUCKET.COMING_UP]: true,
   [BUCKET.PRACTICE]: false,
   [BUCKET.COMPLETED]: false,
 });
@@ -322,6 +323,22 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     };
   }
 
+  // Work that is assigned now does not become invisible just because its due
+  // date is tomorrow (or next week). If it is open, it is a legitimate next
+  // action and belongs ahead of independent Path work.
+  const assignedLater = (dashboard?.groups?.[BUCKET.COMING_UP] || [])
+    .find((entry) => !entry.disabled) || null;
+  if (assignedLater) {
+    return {
+      kind: 'assignedLater',
+      assignment: assignedLater.assignment,
+      headline: 'Assigned work is ready',
+      detail: assignedLater.assignment.title,
+      actionLabel: assignedLater.isAttempted ? 'Continue' : 'Start assignment',
+      urgency: 'thisWeek',
+    };
+  }
+
   if (weeklyProgress && weeklyProgress.remaining > 0) {
     return {
       kind: 'weeklyPath',
@@ -332,16 +349,36 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
     };
   }
 
-  // NOTHING ASSIGNED IS PRESSING. What is said next depends on whether the
-  // caller actually knows about the weekly Path — Home does not always, and
-  // claiming "this week's Path is done" when nobody checked would be a
-  // confident lie a student could act on.
+  // A scheduled/locked assignment is still pending work even though the
+  // student cannot start it yet. Never put a "caught up" celebration above it.
+  const scheduledAssignment = first(BUCKET.COMING_UP);
+  if (scheduledAssignment) {
+    return {
+      kind: 'assignedSoon',
+      headline: 'You have assigned work coming up',
+      detail: `${scheduledAssignment.assignment.title} is already assigned. Its due date and availability are shown below.`,
+      actionLabel: null,
+      urgency: 'thisWeek',
+    };
+  }
+
+  // Unknown Path status is not the same thing as a completed Path goal. Home
+  // must fail safe: until it can confirm the weekly commitment is complete, it
+  // invites the student into Path instead of issuing a false congratulations.
+  if (!weeklyProgress) {
+    return {
+      kind: 'weeklyPathStatus',
+      headline: 'Check your Math Path',
+      detail: 'Your weekly Path goal has not been confirmed complete yet.',
+      actionLabel: 'Open My Math Path',
+      urgency: 'thisWeek',
+    };
+  }
+
   return {
     kind: 'clear',
     headline: 'You are caught up',
-    detail: weeklyProgress
-      ? 'Nothing is due, and this week\'s Path is done. Practice is open whenever you want it.'
-      : 'Nothing is due right now. My Math Path is open whenever you want to keep going.',
+    detail: 'All assigned class work is complete, and this week\'s Math Path goal is complete.',
     actionLabel: 'Open My Math Path',
     urgency: 'none',
   };

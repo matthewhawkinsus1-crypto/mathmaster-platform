@@ -627,6 +627,44 @@
   }
 }
 
+.mathmaster-desktop-task-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  max-width: 860px;
+  margin: 0 auto 5px;
+  padding: 0 4px;
+  color: #5f6368;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mathmaster-desktop-task-toggle-row button {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid #bdc7d6;
+  border-radius: 999px;
+  background: #fff;
+  color: #174ea6;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.mathmaster-desktop-question-anchor.is-collapsed {
+  padding-bottom: 2px;
+}
+
+.mathmaster-desktop-question-anchor.is-collapsed .mathmaster-desktop-task-toggle-row {
+  margin-bottom: 0;
+}
+
 /* --- Student assignment navigation --------------------------------------
    The large activity cards are useful as an assignment overview, but they
    should never be the only way to change questions. This compact rail stays
@@ -852,6 +890,7 @@
 
 .mathmaster-unified-nav-back,
 .mathmaster-overview-button,
+.mathmaster-focus-view-button,
 .mathmaster-unified-question-controls button,
 .mathmaster-unified-question-controls select {
   min-height: 38px;
@@ -865,6 +904,7 @@
 
 .mathmaster-unified-nav-back,
 .mathmaster-overview-button,
+.mathmaster-focus-view-button,
 .mathmaster-unified-question-controls button {
   cursor: pointer;
 }
@@ -879,6 +919,50 @@
 .mathmaster-overview-button {
   flex: 0 0 auto;
   padding: 6px 10px;
+}
+
+.mathmaster-focus-view-button {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.mathmaster-collapsed-current-location {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  color: #3c4043;
+  text-align: center;
+}
+
+.mathmaster-collapsed-current-location strong {
+  font-size: 13px;
+}
+
+.mathmaster-collapsed-current-location span {
+  font-size: 11px;
+  font-weight: 800;
+  color: #6f7782;
+}
+
+.mathmaster-assignment-unified-nav.is-collapsed {
+  gap: 4px;
+  padding: 6px 8px;
+}
+
+.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-assignment-unified-bottom {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.mathmaster-assignment-unified-nav.is-collapsed .mathmaster-unified-question-controls {
+  width: min(100%, 430px);
+  margin-left: auto;
 }
 
 .mathmaster-section-tabs {
@@ -1124,6 +1208,25 @@
 
   .mathmaster-assignment-screen .mathmaster-overview-button {
     display: none;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-focus-view-button {
+    min-height: 34px;
+    padding: 4px 7px;
+    font-size: 9px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-collapsed-current-location {
+    justify-content: flex-start;
+    gap: 5px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-collapsed-current-location strong {
+    font-size: 10px;
+  }
+
+  .mathmaster-assignment-screen .mathmaster-collapsed-current-location span {
+    font-size: 9px;
   }
 
   .mathmaster-assignment-screen .mathmaster-unified-nav-back {

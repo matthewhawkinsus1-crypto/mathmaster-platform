@@ -248,13 +248,16 @@ test('every entry lands in exactly one group', () => {
   assert.equal(grouped, result.entries.length, 'an entry was double-counted or lost');
 });
 
-test('the groups a student must act on open by default; the rest are collapsed', async () => {
+test('teacher-assigned work stays open by default; optional/history groups stay collapsed', async () => {
   const { BUCKET_OPEN_BY_DEFAULT } = await import('../../src/studentDashboardModel.js');
   assert.equal(BUCKET_OPEN_BY_DEFAULT[BUCKET.PAST_DUE], true);
   assert.equal(BUCKET_OPEN_BY_DEFAULT[BUCKET.DO_NOW], true);
+  assert.equal(BUCKET_OPEN_BY_DEFAULT[BUCKET.COMING_UP], true,
+    'future-due teacher assignments must not be hidden in a collapsed drawer');
+  assert.equal(BUCKET_OPEN_BY_DEFAULT[BUCKET.PRACTICE], false,
+    'optional practice may stay collapsed');
   assert.equal(BUCKET_OPEN_BY_DEFAULT[BUCKET.COMPLETED], false,
     'finished work is reassurance, not today\'s job');
-  assert.equal(BUCKET_OPEN_BY_DEFAULT[BUCKET.COMING_UP], false);
 });
 
 // --- Phase 9: one answer to "what should I do now?" ----------------------------------
@@ -334,17 +337,17 @@ test('there is always exactly one next action, whatever the state', async () => 
   });
 });
 
-test('Home does not claim the weekly Path is done when it never checked', async () => {
-  // Home does not fetch Path evidence. A confident "this week's Path is done"
-  // that nobody verified is a lie a student would act on.
+test('Home does not claim caught up until weekly Path completion is verified', async () => {
   const { resolveNextAction } = await import('../../src/studentDashboardModel.js');
   const uninformed = resolveNextAction({ dashboard: { activeDols: [], resumeAssignment: null, groups: {} } });
   const informed = resolveNextAction({
     dashboard: { activeDols: [], resumeAssignment: null, groups: {} },
     weeklyProgress: { required: 4, completed: 4, remaining: 0, overdue: false },
   });
-  assert.equal(uninformed.kind, 'clear');
-  assert.ok(!/Path is done/i.test(uninformed.detail),
-    'a screen without the data must not assert the result');
-  assert.match(informed.detail, /Path is done/i, 'a screen with the data may say so');
+  assert.equal(uninformed.kind, 'weeklyPathStatus');
+  assert.doesNotMatch(uninformed.headline, /caught up/i,
+    'unknown Path status must not become a success claim');
+  assert.equal(informed.kind, 'clear');
+  assert.match(informed.detail, /Math Path goal is complete/i,
+    'verified completion may unlock the caught-up state');
 });

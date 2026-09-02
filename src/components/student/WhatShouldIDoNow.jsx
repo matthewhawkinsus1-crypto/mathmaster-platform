@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDateTime } from '../../assignmentLifecycle';
 
 // The answer to the only question a student opens the app with.
 //
@@ -73,20 +74,28 @@ export default function WhatShouldIDoNow({
         {nextAction.detail}
       </p>
 
-      <button
-        type="button"
-        onClick={act}
-        style={{
-          appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
-          marginTop: 16, padding: '13px 22px', borderRadius: 11, border: 0,
-          background: tone.accent, color: '#fff', fontSize: 15.5, fontWeight: 900,
-          cursor: 'pointer',
-          // Chromebook and phone: a target a thumb can hit without aiming.
-          minHeight: 48, width: '100%', maxWidth: 340,
-        }}
-      >
-        {nextAction.actionLabel}
-      </button>
+      {nextAction.assignment && (nextAction.assignment.dueAt || nextAction.assignment.dueDate) && (
+        <div style={{ marginTop: 6, color: '#5f6368', fontSize: 13, fontWeight: 800 }}>
+          Due {formatDateTime(nextAction.assignment.dueAt || nextAction.assignment.dueDate)}
+        </div>
+      )}
+
+      {nextAction.actionLabel && (
+        <button
+          type="button"
+          onClick={act}
+          style={{
+            appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+            marginTop: 16, padding: '13px 22px', borderRadius: 11, border: 0,
+            background: tone.accent, color: '#fff', fontSize: 15.5, fontWeight: 900,
+            cursor: 'pointer',
+            // Chromebook and phone: a target a thumb can hit without aiming.
+            minHeight: 48, width: '100%', maxWidth: 340,
+          }}
+        >
+          {nextAction.actionLabel}
+        </button>
+      )}
     </section>
   );
 }

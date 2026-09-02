@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import MathInput from '../../MathInput';
+import useLocalDraftState from '../../useLocalDraftState';
 import MathDisplay from '../../MathDisplay';
 import QuestionPrompt from '../../QuestionPrompt';
 import TableGrader from '../../TableGrader';
@@ -734,8 +735,14 @@ export default function WorkflowRunner({
   showPrompt = true,
 }) {
   const { content, workflow, grading } = useMemo(() => readComposedQuestion(question), [question]);
-  const [responses, setResponses] = useState({});
-  const [activeStageIndex, setActiveStageIndex] = useState(0);
+  const [responses, setResponses] = useLocalDraftState(
+    draftKey ? `${draftKey}:workflow-responses` : null,
+    {},
+  );
+  const [activeStageIndex, setActiveStageIndex] = useLocalDraftState(
+    draftKey ? `${draftKey}:workflow-stage` : null,
+    0,
+  );
   const focusMode = shouldUseWorkflowFocusMode(workflow);
   const onStateChangeRef = useRef(onStateChange);
   const onProgressChangeRef = useRef(onProgressChange);
@@ -763,7 +770,7 @@ export default function WorkflowRunner({
         return sameValue ? current : { ...current, [stageId]: value };
       });
     });
-  }, []);
+  }, [setResponses]);
 
   // Reporting upward is an effect, not part of the updater. State updaters must
   // be pure — React may run one twice — so a side effect inside one fires twice
