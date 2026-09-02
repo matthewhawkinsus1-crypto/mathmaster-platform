@@ -133,6 +133,7 @@ import { buildAssignmentV5PreflightModel } from './platform/preflight/assignment
 import {
   questionFingerprint,
   repairAssignmentTrackerForCurrentGrader,
+  repairAssignmentTrackerForGranularWorkflowCredit,
   repairAssignmentTrackerForLiveCorrections,
 } from './platform/assignment/liveQuestionCorrection.js';
 import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
@@ -4123,16 +4124,27 @@ function App() {
           if (assignmentTracker === undefined) return;
 
           const studentPatch = {};
+          let nextTracker = assignmentTracker;
           if (Array.isArray(liveRepairs) && liveRepairs.length > 0) {
-            const repairedTracker = repairAssignmentTrackerForLiveCorrections({
-              assignmentTracker,
+            nextTracker = repairAssignmentTrackerForLiveCorrections({
+              assignmentTracker: nextTracker,
               questions: persistedQuestions,
               repairs: liveRepairs,
               correctedAt,
             });
+          }
+          if (weightChanges.length > 0) {
+            nextTracker = repairAssignmentTrackerForGranularWorkflowCredit({
+              assignmentTracker: nextTracker,
+              questions: persistedQuestions,
+              questionIndices: weightChanges.map((change) => change.questionIndex),
+              correctedAt,
+            });
+          }
+          if (nextTracker !== assignmentTracker || (Array.isArray(liveRepairs) && liveRepairs.length > 0)) {
             studentPatch.gradesByAssignment = {
               ...gradesByAssignment,
-              [assignmentId]: repairedTracker,
+              [assignmentId]: nextTracker,
             };
           }
           if (weightChanges.length > 0) {
