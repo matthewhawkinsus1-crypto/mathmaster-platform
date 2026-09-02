@@ -21,13 +21,13 @@
       "assessedConstruct": "A.2A",
       "taskType": "procedural",
       "representation": "symbolic",
-      "prompt": "For $f(x)={{m}}x{{b|signed}}$ on the domain $[{{lo}},{{hi}}]$, write the range in interval notation.",
+      "prompt": "For $f(x)={{m}}x{{b|signed}}$ on the domain ${{lo}}\\le x\\le {{hi}}$, write the range as a compound inequality in $y$.",
       "responseFields": [
         {
           "id": "answer",
-          "label": "Range",
-          "inputProfile": "interval",
-          "expected": "[{{ylo}},{{yhi}}]"
+          "label": "Range inequality",
+          "inputProfile": "inequality",
+          "expected": "{{ylo}}<=y and y<={{yhi}}"
         }
       ],
       "solutionReview": {
@@ -36,10 +36,10 @@
           "Evaluate the function at both domain endpoints.",
           "Because $m={{m}}>0$, the smaller input gives the smaller output, so the range runs from {{ylo}} to {{yhi}}."
         ],
-        "answerSummary": "$[{{ylo}},{{yhi}}]$"
+        "answerSummary": "${{ylo}}\\le y\\le {{yhi}}$"
       },
       "attemptFeedback": [
-        "Evaluate both ends of the stated domain before writing the output interval."
+        "Evaluate both ends of the stated domain before writing the output range inequality."
       ],
       "supportHints": [
         "For an increasing line, the minimum and maximum outputs occur at the left and right domain endpoints."
@@ -91,30 +91,30 @@
       "assessedConstruct": "A.2A",
       "taskType": "application",
       "representation": "context",
-      "prompt": "A service charges ${{fee}} dollars plus ${{rate}} dollars per hour and can be booked from 0 through {{maxh}} hours. Write BOTH the reasonable domain of $h$ and the corresponding range of the cost $C$ in interval notation.",
+      "prompt": "A service charges ${{fee}} dollars plus ${{rate}} dollars per hour and can be booked from 0 through {{maxh}} hours. Write BOTH the reasonable domain of $h$ and the corresponding range of the cost $C$ as inequalities.",
       "responseFields": [
         {
           "id": "domain",
           "label": "Reasonable domain of h",
-          "inputProfile": "interval",
-          "expected": "[0,{{maxh}}]"
+          "inputProfile": "inequality",
+          "expected": "0<=h and h<={{maxh}}"
         },
         {
           "id": "range",
           "label": "Corresponding range of C",
-          "inputProfile": "interval",
-          "expected": "[{{fee}},{{maxcost}}]"
+          "inputProfile": "inequality",
+          "expected": "{{fee}}<=C and C<={{maxcost}}"
         }
       ],
       "solutionReview": {
         "headline": "The context restricts the inputs, and the linear model carries those restrictions to the outputs.",
         "reasoning": [
-          "Hours can range from 0 through {{maxh}}, so the reasonable domain is $[0,{{maxh}}]$.",
-          "The cost starts at the fixed fee {{fee}} and reaches {{maxcost}} at {{maxh}} hours, giving range $[{{fee}},{{maxcost}}]$."
+          "Hours can range from 0 through {{maxh}}, so $0\\le h\\le {{maxh}}$.",
+          "The cost starts at {{fee}} and reaches {{maxcost}}, so ${{fee}}\\le C\\le {{maxcost}}$."
         ]
       },
       "attemptFeedback": [
-        "Do not stop after finding the input interval; use the endpoints to find the output interval too."
+        "Find the allowed input values first, then use the endpoint costs to write the output range inequality."
       ],
       "supportHints": [
         "The fixed fee is the cost when $h=0$."
@@ -151,13 +151,13 @@
           "coverageKey": "adaptive-d2b2-bounded-service-domain-range",
           "dok": 2,
           "difficultyBand": 2,
-          "prompt": "A service charges {{fee}} dollars plus {{rate}} dollars per hour and may be booked from 0 through {{maxh}} hours. Write the reasonable domain of h and the corresponding range of C in interval notation. Use the two endpoint costs to determine the range.",
+          "prompt": "A service charges {{fee}} dollars plus {{rate}} dollars per hour and may be booked from 0 through {{maxh}} hours. Write the reasonable domain of h and the corresponding range of C as inequalities. Use the two endpoint costs to determine the range.",
           "responseFields": [
             {
               "id": "domain",
               "label": "Reasonable domain of h",
-              "inputProfile": "expression",
-              "expected": "[0,{{maxh}}]"
+              "inputProfile": "inequality",
+              "expected": "0<=h and h<={{maxh}}"
             },
             {
               "id": "min-cost",
@@ -174,8 +174,8 @@
             {
               "id": "range",
               "label": "Range of C",
-              "inputProfile": "expression",
-              "expected": "[{{fee}},{{maxCost}}]"
+              "inputProfile": "inequality",
+              "expected": "{{fee}}<=C and C<={{maxCost}}"
             }
           ],
           "generator": {
@@ -205,11 +205,11 @@
           "solutionReview": {
             "headline": "Use the allowed input interval and evaluate both endpoints.",
             "reasoning": [
-              "The booking time can vary from 0 through {{maxh}}, so the domain is [0,{{maxh}}].",
+              "The booking time can vary from 0 through {{maxh}}, so $0\\le h\\le {{maxh}}$.",
               "At h=0 the cost is {{fee}}; at h={{maxh}} the cost is {{maxCost}}.",
-              "Because the rate is positive, the cost range is [{{fee}},{{maxCost}}]."
+              "Because the rate is positive, ${{fee}}\\le C\\le {{maxCost}}$."
             ],
-            "answerSummary": "Domain [0,{{maxh}}]; range [{{fee}},{{maxCost}}]."
+            "answerSummary": "Domain: 0≤h≤{{maxh}}; range: {{fee}}≤C≤{{maxCost}}."
           },
           "attemptFeedback": [
             "Use the allowed h-values first, then evaluate the linear cost at both endpoints."
@@ -222,7 +222,7 @@
           "coverageKey": "adaptive-d2b4-two-representations-decreasing-bounded-range",
           "dok": 2,
           "difficultyBand": 4,
-          "prompt": "For the decreasing linear function $f(x)=-{{mag}}x{{b|signed}}$ restricted to $[{{lo}},{{hi}}]$, determine the range and then write the same range both in interval notation and as a compound inequality in y.",
+          "prompt": "For the decreasing linear function $f(x)=-{{mag}}x{{b|signed}}$ restricted to ${{lo}}\\le x\\le {{hi}}$, evaluate both endpoint outputs, identify which endpoint gives the minimum output, and write the range as a compound inequality in $y$.",
           "responseFields": [
             {
               "id": "left-output",
@@ -237,15 +237,25 @@
               "expected": "{{yright}}"
             },
             {
-              "id": "interval",
-              "label": "Range in interval notation",
-              "inputProfile": "expression",
-              "expected": "[{{yright}},{{yleft}}]"
+              "id": "minimum-source",
+              "label": "Which endpoint gives the minimum output?",
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "right",
+                  "label": "x={{hi}}, where f(x)={{yright}}"
+                },
+                {
+                  "id": "left",
+                  "label": "x={{lo}}, where f(x)={{yleft}}"
+                }
+              ],
+              "expected": "right"
             },
             {
               "id": "inequality",
-              "label": "Equivalent range inequality",
-              "inputProfile": "expression",
+              "label": "Range inequality",
+              "inputProfile": "inequality",
               "expected": "{{yright}}<=y and y<={{yleft}}"
             }
           ],
@@ -283,9 +293,9 @@
             "reasoning": [
               "Evaluate both domain endpoints: f({{lo}})={{yleft}} and f({{hi}})={{yright}}.",
               "Because the slope is negative, {{yright}} is the smaller output and {{yleft}} is the larger output.",
-              "The same range is [{{yright}},{{yleft}}] and {{yright}}≤y≤{{yleft}}."
+              "Therefore the range is ${{yright}}\\le y\\le {{yleft}}$."
             ],
-            "answerSummary": "Range [{{yright}},{{yleft}}], equivalently {{yright}}≤y≤{{yleft}}."
+            "answerSummary": "Range: {{yright}}≤y≤{{yleft}}."
           },
           "attemptFeedback": [
             "Order the range by output size, not by the left-to-right order of the input endpoints."
@@ -295,7 +305,7 @@
           ],
           "context": {
             "title": "Bounded decreasing linear function",
-            "note": "Represent the same range in two mathematically equivalent forms."
+            "note": "Use the endpoint outputs to justify the compound range inequality."
           }
         }
       ]
@@ -608,27 +618,27 @@
       "assessedConstruct": "A.2A",
       "taskType": "errorAnalysis",
       "representation": "verbal",
-      "prompt": "For $p(x)=-{{mag}}x{{b|signed}}$ on $[{{lo}},{{hi}}]$, a student writes the range as $[{{yleft}},{{yright}}]$ in that same left-to-right order. Correct the range in interval notation.",
+      "prompt": "For $p(x)=-{{mag}}x{{b|signed}}$ on ${{lo}}\\le x\\le {{hi}}$, a student writes ${{yleft}}\\le y\\le {{yright}}$ by keeping the endpoint outputs in left-to-right input order. Correct the range inequality.",
       "responseFields": [
         {
           "id": "answer",
-          "label": "Correct range",
-          "inputProfile": "interval",
-          "expected": "[{{rlo}},{{rhi}}]"
+          "label": "Correct range inequality",
+          "inputProfile": "inequality",
+          "expected": "{{rlo}}<=y and y<={{rhi}}"
         }
       ],
       "solutionReview": {
         "headline": "A decreasing function reverses which endpoint produces the minimum and maximum output.",
         "reasoning": [
           "Evaluate both endpoints: $p({{lo}})={{yleft}}$ and $p({{hi}})={{yright}}$.",
-          "Interval notation must list the smaller output first, so the range is $[{{rlo}},{{rhi}}]$."
+          "A compound range inequality uses the smaller output as the lower bound and the larger output as the upper bound, so ${{rlo}}\\le y\\le {{rhi}}$."
         ]
       },
       "attemptFeedback": [
         "The domain order does not automatically become the range order for a decreasing function."
       ],
       "supportHints": [
-        "Compare the two endpoint outputs numerically before writing the interval."
+        "Compare the two endpoint outputs numerically before writing the range inequality."
       ],
       "generator": {
         "parameters": {
@@ -671,7 +681,7 @@
           "coverageKey": "adaptive-d3b3-endpoint-reasoning-range-audit",
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "For $p(x)=-{{mag}}x{{b|signed}}$ on $[{{lo}},{{hi}}]$, Student A says the range is $[{{yleft}},{{yright}}]$ because those outputs came from the left and right endpoints in that order. Student B says the smaller output must be written first. Decide which reasoning is valid, use the endpoint outputs to justify it, and give the correct range.",
+          "prompt": "For $p(x)=-{{mag}}x{{b|signed}}$ on ${{lo}}\\le x\\le {{hi}}$, Student A says the range is ${{yleft}}\\le y\\le {{yright}}$ because those outputs came from the left and right endpoints in that order. Student B says the smaller output must be the lower bound. Decide which reasoning is valid, use the endpoint outputs to justify it, and give the correct range inequality.",
           "responseFields": [
             {
               "id": "left-output",
@@ -692,20 +702,20 @@
               "choices": [
                 {
                   "id": "student-b",
-                  "label": "Student B; interval notation is ordered from the smaller output to the larger output."
+                  "label": "Student B; the smaller output is the lower bound and the larger output is the upper bound."
                 },
                 {
                   "id": "student-a",
-                  "label": "Student A; range endpoints must stay in left-to-right input order."
+                  "label": "Student A; range bounds must stay in left-to-right input order."
                 }
               ],
               "expected": "student-b"
             },
             {
               "id": "range",
-              "label": "Correct range",
-              "inputProfile": "expression",
-              "expected": "[{{yright}},{{yleft}}]"
+              "label": "Correct range inequality",
+              "inputProfile": "inequality",
+              "expected": "{{yright}}<=y and y<={{yleft}}"
             }
           ]
         }
@@ -12968,15 +12978,14 @@
       "assessedConstruct": "A.5B",
       "taskType": "representationTranslation",
       "representation": "graph",
-      "prompt": "Solve $-{{g}}x{{b|signed}} \\ge {{rhs}}$, then graph the solution on the number line and enter the matching interval notation.",
+      "prompt": "Solve $-{{g}}x{{b|signed}} \\ge {{rhs}}$, then graph the solution on the number line using the correct endpoint and shading direction.",
       "type": "intervalNumberLine",
       "min": -12,
       "max": 12,
       "step": 1,
       "variable": "x",
       "ask": [
-        "graph",
-        "interval"
+        "graph"
       ],
       "expectedIntervals": [
         {
@@ -12986,14 +12995,13 @@
           "maxClosed": true
         }
       ],
-      "expectedNotation": "(-inf,{{bound}}]",
       "solutionReview": {
         "headline": "Dividing by a negative reverses the inequality.",
         "reasoning": [
           "Subtract {{b}} to get $-{{g}}x\\ge {{right}}$.",
           "Dividing by $-{{g}}$ reverses the comparison, so $x\\le {{bound}}$. The graph is a closed point at {{bound}} shaded left."
         ],
-        "answerSummary": "$x\\le {{bound}}$, or $(-\\infty,{{bound}}]$."
+        "answerSummary": "$x\\le {{bound}}$; graph a closed point at {{bound}} and shade left."
       },
       "attemptFeedback": [
         "Watch the inequality direction when the final coefficient of x is negative."
@@ -13998,19 +14006,19 @@
       "assessedConstruct": "A.6A",
       "taskType": "application",
       "representation": "context",
-      "prompt": "A projectile is modeled by $h(t)=-{{a}}(t-{{v}})^2+{{maxh}}$ only from launch until it returns to the ground. Write the reasonable domain of time and the corresponding range of height in interval notation.",
+      "prompt": "A projectile is modeled by $h(t)=-{{a}}(t-{{v}})^2+{{maxh}}$ only from launch until it returns to the ground. Write the reasonable domain of time and the corresponding range of height as inequalities.",
       "responseFields": [
         {
           "id": "domain",
           "label": "Reasonable time domain",
-          "inputProfile": "interval",
-          "expected": "[0,{{end}}]"
+          "inputProfile": "inequality",
+          "expected": "0<=t and t<={{end}}"
         },
         {
           "id": "range",
           "label": "Height range",
-          "inputProfile": "interval",
-          "expected": "[0,{{maxh}}]"
+          "inputProfile": "inequality",
+          "expected": "0<=h and h<={{maxh}}"
         }
       ],
       "solutionReview": {
@@ -14021,7 +14029,7 @@
         ]
       },
       "attemptFeedback": [
-        "Use the physical interval of flight, not the unrestricted algebraic domain of the formula."
+        "Use the physical time restriction in the situation, not the unrestricted algebraic domain of the formula."
       ],
       "supportHints": [
         "The vertex occurs halfway between the two ground times."
@@ -14062,26 +14070,26 @@
       "assessedConstruct": "A.6A",
       "taskType": "application",
       "representation": "symbolic",
-      "prompt": "For $q(x)={{a}}(x-{{h}})^2{{k|signed}}$ restricted to ${{h}}\\le x\\le {{hi}}$, write BOTH the domain and range in interval notation.",
+      "prompt": "For $q(x)={{a}}(x-{{h}})^2{{k|signed}}$ restricted to ${{h}}\\le x\\le {{hi}}$, write BOTH the domain and range as compound inequalities.",
       "responseFields": [
         {
           "id": "domain",
-          "label": "Domain",
-          "inputProfile": "interval",
-          "expected": "[{{h}},{{hi}}]"
+          "label": "Domain inequality",
+          "inputProfile": "inequality",
+          "expected": "{{h}}<=x and x<={{hi}}"
         },
         {
           "id": "range",
-          "label": "Range",
-          "inputProfile": "interval",
-          "expected": "[{{k}},{{top}}]"
+          "label": "Range inequality",
+          "inputProfile": "inequality",
+          "expected": "{{k}}<=y and y<={{top}}"
         }
       ],
       "solutionReview": {
         "headline": "A restricted domain changes the range because only part of the parabola is allowed.",
         "reasoning": [
-          "The domain starts at the vertex x={{h}} and ends at {{hi}}.",
-          "On this right-hand branch the function increases from {{k}} to {{top}}, so the range is $[{{k}},{{top}}]$."
+          "The domain starts at the vertex x={{h}} and ends at {{hi}}, so ${{h}}\\le x\\le {{hi}}$.",
+          "On this right-hand branch the function increases from {{k}} to {{top}}, so ${{k}}\\le y\\le {{top}}$."
         ]
       },
       "attemptFeedback": [
@@ -14128,13 +14136,13 @@
           "coverageKey": "adaptive-d2b4-domain-crosses-vertex-range",
           "dok": 2,
           "difficultyBand": 4,
-          "prompt": "For $q(x)={{a}}(x-{{h}})^2{{k|signed}}$ restricted to ${{lo}}\\le x\\le {{hi}}$, determine the domain and range. The interval crosses the vertex, so evaluate the vertex and BOTH restricted endpoints before deciding the maximum output.",
+          "prompt": "For $q(x)={{a}}(x-{{h}})^2{{k|signed}}$ restricted to ${{lo}}\\le x\\le {{hi}}$, determine the domain and range as inequalities. The restricted domain crosses the vertex, so evaluate the vertex and BOTH endpoints before deciding the maximum output.",
           "responseFields": [
             {
               "id": "domain",
-              "label": "Domain",
-              "inputProfile": "interval",
-              "expected": "[{{lo}},{{hi}}]"
+              "label": "Domain inequality",
+              "inputProfile": "inequality",
+              "expected": "{{lo}}<=x and x<={{hi}}"
             },
             {
               "id": "left-output",
@@ -14156,19 +14164,19 @@
             },
             {
               "id": "range",
-              "label": "Range",
-              "inputProfile": "interval",
-              "expected": "[{{k}},{{yleft}}]"
+              "label": "Range inequality",
+              "inputProfile": "inequality",
+              "expected": "{{k}}<=y and y<={{yleft}}"
             }
           ],
           "solutionReview": {
             "headline": "When a restricted interval crosses the vertex, compare the vertex with both endpoint outputs.",
             "reasoning": [
-              "The vertex x={{h}} lies inside [{{lo}},{{hi}}], so the minimum output is {{k}}.",
+              "The vertex x={{h}} lies inside the restricted domain ${{lo}}\\le x\\le {{hi}}$, so the minimum output is {{k}}.",
               "The left endpoint is farther from the vertex than the right endpoint, giving q({{lo}})={{yleft}} and q({{hi}})={{yright}}.",
-              "Because the parabola opens upward, the restricted range is [{{k}},{{yleft}}]."
+              "Because the parabola opens upward, the restricted range is ${{k}}\\le y\\le {{yleft}}$."
             ],
-            "answerSummary": "Domain [{{lo}},{{hi}}]; range [{{k}},{{yleft}}]."
+            "answerSummary": "Domain: {{lo}}≤x≤{{hi}}; range: {{k}}≤y≤{{yleft}}."
           },
           "attemptFeedback": [
             "Do not assume the right endpoint gives the largest output; compare distances from the vertex."
@@ -14231,20 +14239,20 @@
       "assessedConstruct": "A.6A",
       "taskType": "errorAnalysis",
       "representation": "verbal",
-      "prompt": "For $g(x)=-{{a}}(x-{{h}})^2{{k|signed}}$, a student writes the range as $[{{k}},\\infty)$ because the vertex y-value is {{k}}. Correct the range in interval notation.",
+      "prompt": "For $g(x)=-{{a}}(x-{{h}})^2{{k|signed}}$, a student writes $y\\ge {{k}}$ because the vertex y-value is {{k}}. Correct the range inequality.",
       "responseFields": [
         {
           "id": "answer",
-          "label": "Correct range",
-          "inputProfile": "interval",
-          "expected": "(-inf,{{k}}]"
+          "label": "Correct range inequality",
+          "inputProfile": "inequality",
+          "expected": "y<={{k}}"
         }
       ],
       "solutionReview": {
         "headline": "The vertex is a maximum when the parabola opens downward.",
         "reasoning": [
           "The negative leading coefficient makes every other output less than or equal to {{k}}.",
-          "Therefore the range extends downward without bound and includes {{k}}: $(-\\infty,{{k}}]$."
+          "Therefore the range extends downward without bound and includes {{k}}: $y\\le {{k}}$."
         ]
       },
       "attemptFeedback": [
@@ -14290,30 +14298,57 @@
       "assessedConstruct": "A.6A",
       "taskType": "transfer",
       "representation": "multipleRepresentation",
-      "prompt": "A quadratic has domain all real numbers, opens upward, and has vertex $({{h}},{{k}})$. Write its range in interval notation and give the inequality statement that describes the same y-values.",
+      "prompt": "A quadratic has domain all real numbers, opens upward, and has vertex $({{h}},{{k}})$. Student A says the range is $y\\ge {{k}}$ while Student B says $y>{{k}}$. Decide who is correct, write the range inequality, and identify why the boundary value is included.",
       "responseFields": [
         {
-          "id": "interval",
-          "label": "Range in interval notation",
-          "inputProfile": "interval",
-          "expected": "[{{k}},inf)"
+          "id": "verdict",
+          "label": "Which student is correct?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "student-a",
+              "label": "Student A: y ≥ {{k}}"
+            },
+            {
+              "id": "student-b",
+              "label": "Student B: y > {{k}}"
+            }
+          ],
+          "expected": "student-a"
         },
         {
           "id": "inequality",
-          "label": "Equivalent range inequality",
+          "label": "Range inequality",
           "inputProfile": "inequality",
           "expected": "y>={{k}}"
+        },
+        {
+          "id": "vertex-role",
+          "label": "Why is y={{k}} included?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "attained",
+              "label": "The vertex is on the graph, so y={{k}} is actually attained."
+            },
+            {
+              "id": "approached",
+              "label": "The graph only approaches y={{k}} but never reaches it."
+            }
+          ],
+          "expected": "attained"
         }
       ],
       "solutionReview": {
-        "headline": "The same range can be represented as an interval or as an inequality.",
+        "headline": "The minimum output is included because the vertex is on the graph.",
         "reasoning": [
           "Opening upward makes {{k}} the minimum output.",
-          "The vertex is included, so the range is $[{{k}},\\infty)$, equivalently $y\\ge {{k}}$."
+          "The vertex is part of the graph, so y={{k}} is attained.",
+          "Therefore the range is $y\\ge {{k}}$."
         ]
       },
       "attemptFeedback": [
-        "Both representations must say that y is greater than or equal to the vertex output."
+        "Decide whether the vertex output is actually reached before choosing ≥ or >."
       ],
       "supportHints": [
         "Upward-opening quadratics have a minimum at the vertex."
@@ -14342,67 +14377,61 @@
           "coverageKey": "adaptive-d3b3-range-representation-consistency",
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "An upward-opening quadratic has vertex $({{h}},{{k}})$. Student A writes the range as $[{{k}},\\infty)$. Student B writes $y\\ge{{k}}$. Decide whether the two statements represent the SAME set of outputs, explain the role of the included vertex, and give both representations.",
+          "prompt": "An upward-opening quadratic has vertex $({{h}},{{k}})$. Student A writes $y\\ge{{k}}$. Student B writes $y>{{k}}$. Decide which statement matches the graph, explain the role of the included vertex, and give the correct range inequality.",
           "responseFields": [
             {
               "id": "verdict",
-              "label": "Are the two range statements equivalent?",
+              "label": "Which range statement is correct?",
               "inputProfile": "choice",
               "choices": [
                 {
-                  "id": "yes",
-                  "label": "Yes; both include {{k}} and all larger y-values."
+                  "id": "student-a",
+                  "label": "Student A: y ≥ {{k}}"
                 },
                 {
-                  "id": "no",
-                  "label": "No; interval notation and inequality notation describe different sets."
+                  "id": "student-b",
+                  "label": "Student B: y > {{k}}"
                 }
               ],
-              "expected": "yes"
-            },
-            {
-              "id": "interval",
-              "label": "Range in interval notation",
-              "inputProfile": "interval",
-              "expected": "[{{k}},inf)"
+              "expected": "student-a"
             },
             {
               "id": "inequality",
-              "label": "Range as an inequality",
+              "label": "Range inequality",
               "inputProfile": "inequality",
               "expected": "y>={{k}}"
             },
             {
               "id": "vertex-role",
-              "label": "Why is the endpoint included?",
+              "label": "Why is the boundary included?",
               "inputProfile": "choice",
               "choices": [
                 {
                   "id": "attained",
-                  "label": "The vertex is on the graph, so y={{k}} is actually attained."
+                  "label": "The vertex is on the graph, so y={{k}} is attained."
                 },
                 {
                   "id": "approached",
-                  "label": "The graph only approaches y={{k}} but never reaches it."
+                  "label": "The graph approaches y={{k}} but never reaches it."
                 }
               ],
               "expected": "attained"
             }
           ],
           "solutionReview": {
-            "headline": "Equivalent representations should describe exactly the same attainable outputs.",
+            "headline": "The vertex determines an included minimum.",
             "reasoning": [
               "The upward-opening quadratic has minimum output {{k}} at its vertex.",
               "Because the vertex is part of the graph, {{k}} is included.",
-              "Thus [{{k}},∞) and y≥{{k}} describe the same range."
+              "Thus the range is $y\\ge{{k}}$."
             ],
-            "answerSummary": "The representations are equivalent."
+            "answerSummary": "Student A is correct: y≥{{k}}."
           },
           "attemptFeedback": [
-            "Compare which y-values each notation includes rather than comparing the symbols visually."
+            "Focus on whether the minimum y-value is attained."
           ],
           "supportHints": [
-            "A bracket at {{k}} corresponds to ≥ because the minimum is attained."
+            "The vertex is a point on the parabola."
           ],
           "generator": {
             "parameters": {
@@ -18872,25 +18901,25 @@
       "dok": 2,
       "taskType": "application",
       "representation": "context",
-      "prompt": "A quantity is modeled by $Q(t)={{a}}({{base}})^t$ only during the first {{years}} years after measurement begins. Write the CONTEXTUAL domain of $t$ in interval notation.",
+      "prompt": "A quantity is modeled by $Q(t)={{a}}({{base}})^t$ only during the first {{years}} years after measurement begins. Write the CONTEXTUAL domain of $t$ as a compound inequality.",
       "responseFields": [
         {
           "id": "answer",
-          "label": "Contextual domain",
-          "inputProfile": "interval",
-          "expected": "[0,{{years}}]"
+          "label": "Contextual domain inequality",
+          "inputProfile": "inequality",
+          "expected": "0<=t and t<={{years}}"
         }
       ],
       "solutionReview": {
         "headline": "The algebraic domain and the contextual domain are different questions.",
         "reasoning": [
           "The exponential rule itself accepts every real input, but elapsed time in this situation begins at $t=0$.",
-          "The model is stated to apply only through year {{years}}, so the contextual domain is $[0,{{years}}]$."
+          "The model is stated to apply only through year {{years}}, so $0\\le t\\le {{years}}$."
         ],
-        "answerSummary": "$[0,{{years}}]$"
+        "answerSummary": "$0\\le t\\le {{years}}$"
       },
       "attemptFeedback": [
-        "Use the time interval in the situation rather than the unrestricted algebraic domain."
+        "Use the time restriction in the situation rather than the unrestricted algebraic domain."
       ],
       "supportHints": [
         "Elapsed time cannot be negative in this model, and the stated observation window has an endpoint."
@@ -18935,14 +18964,24 @@
             {
               "id": "algebraic",
               "label": "Algebraic domain",
-              "inputProfile": "interval",
-              "expected": "(-inf,inf)"
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "all-real",
+                  "label": "All real numbers"
+                },
+                {
+                  "id": "nonnegative",
+                  "label": "t ≥ 0"
+                }
+              ],
+              "expected": "all-real"
             },
             {
               "id": "contextual",
-              "label": "Contextual domain",
-              "inputProfile": "interval",
-              "expected": "[0,{{years}}]"
+              "label": "Contextual domain inequality",
+              "inputProfile": "inequality",
+              "expected": "0<=t and t<={{years}}"
             },
             {
               "id": "judgment",
@@ -18951,7 +18990,7 @@
               "choices": [
                 {
                   "id": "context",
-                  "label": "Use [0, years] because the situation restricts the model to the observed time window."
+                  "label": "Use 0 ≤ t ≤ years because the situation restricts the model to the observed time window."
                 },
                 {
                   "id": "algebraic",
@@ -18966,9 +19005,9 @@
             "reasoning": [
               "The exponential expression is defined for every real t.",
               "Elapsed study time begins at 0 and the model is stated to apply only through year {{years}}.",
-              "Therefore $(-\\infty,\\infty)$ is the algebraic domain, while $[0,{{years}}]$ is the domain that answers the contextual question."
+              "Therefore the algebraic domain is all real numbers, while $0\\le t\\le {{years}}$ answers the contextual question."
             ],
-            "answerSummary": "Algebraic: all real t; contextual: $[0,{{years}}]$."
+            "answerSummary": "Algebraic: all real t; contextual: 0≤t≤{{years}}."
           },
           "attemptFeedback": [
             "State both domains before deciding which one belongs to the real-world interpretation."
