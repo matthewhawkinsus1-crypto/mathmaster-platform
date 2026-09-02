@@ -52,6 +52,7 @@ import {
 } from './attemptPolicy';
 import { stableStringify } from './utils/idUtils';
 import { ENTER_TO_CONTINUE_HINT, focusFirstAnswerControl, shouldAdvanceOnEnter, shouldSubmitAnswerOnEnter } from './platform/interaction/answerEntryUx.js';
+import { normalizeQuestionWeight } from './platform/grading/questionWeights.js';
 
 const EMPTY_ANSWER_STATE = {
   isComplete: false,
@@ -174,6 +175,7 @@ export default function QuestionEngine({
     () => questionAssessmentFramework(processedQuestion, assessmentContext),
     [processedQuestion, assessmentContext],
   );
+  const questionGradeWeight = normalizeQuestionWeight(processedQuestion);
   const referenceInfo = useMemo(() => resolveReferenceInfo(processedQuestion), [processedQuestion]);
   const presentationQuestion = useMemo(
     () => (referenceInfo ? { ...processedQuestion, suppressScenarioDisplay: true } : processedQuestion),
@@ -759,6 +761,11 @@ export default function QuestionEngine({
       )}
 
       {dolMode && <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '10px 14px', borderRadius: '10px', background: '#f3e8fd', color: '#681da8', fontWeight: 900 }}>DOL question · this question records the daily DOL grade during the active class window.</div>}
+      {questionGradeWeight !== 1 && (
+        <div style={{ margin: '0 auto 12px', maxWidth: '860px', padding: '9px 13px', borderRadius: '10px', background: '#e8f0fe', color: '#174ea6', fontWeight: 900 }}>
+          Grade weight ×{questionGradeWeight} · this question contributes {questionGradeWeight} times a standard-weight question to the assignment grade.
+        </div>
+      )}
 
       <div aria-label="Question tools" style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', margin: '0 auto 20px' }}>
         <button type="button" onClick={() => undoController?.onUndo?.()} disabled={!undoController?.canUndo || locked} title={undoController?.label || 'Undo the most recent response change'} style={{ padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', opacity: undoController?.canUndo && !locked ? 1 : 0.45 }}>

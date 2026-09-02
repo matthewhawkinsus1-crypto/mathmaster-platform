@@ -371,18 +371,35 @@ export const recordQuestionAttempt = ({
   }
 
   const compactParts = Array.isArray(parts)
-    ? parts.slice(0, 40).map((part, index) => ({
-        id: String(part?.id ?? `part-${index + 1}`),
-        label: String(part?.label || `Part ${index + 1}`),
-        isComplete: Boolean(part?.isComplete),
-        isCorrect: Boolean(part?.isCorrect),
-        response: String(part?.response ?? '').slice(0, 240),
-      }))
+    ? parts.slice(0, 40).map((part, index) => {
+        const weight = Number.isFinite(Number(part?.weight ?? part?.scoreWeight))
+          && Number(part?.weight ?? part?.scoreWeight) > 0
+          ? Math.min(20, Number(part?.weight ?? part?.scoreWeight))
+          : 1;
+        const suppliedCredit = Number(part?.credit);
+        const credit = Number.isFinite(suppliedCredit)
+          ? Math.max(0, Math.min(1, suppliedCredit))
+          : (part?.isCorrect ? 1 : 0);
+        return {
+          id: String(part?.id ?? `part-${index + 1}`),
+          label: String(part?.label || `Part ${index + 1}`),
+          isComplete: Boolean(part?.isComplete),
+          isCorrect: Boolean(part?.isCorrect),
+          graded: part?.graded !== false,
+          weight,
+          credit,
+          response: String(part?.response ?? '').slice(0, 240),
+        };
+      })
     : [];
-  const completedParts = compactParts.filter((part) => part.isComplete);
-  const correctParts = completedParts.filter((part) => part.isCorrect);
-  const earnedPartPercent = compactParts.length
-    ? Math.min(90, Math.round((correctParts.length / compactParts.length) * 100))
+  const scorableParts = compactParts.filter((part) => part.graded !== false);
+  const totalPartWeight = scorableParts.reduce((total, part) => total + part.weight, 0);
+  const earnedPartWeight = scorableParts.reduce(
+    (total, part) => total + (part.isComplete ? part.credit * part.weight : 0),
+    0,
+  );
+  const earnedPartPercent = totalPartWeight > 0
+    ? Math.min(90, Math.round((earnedPartWeight / totalPartWeight) * 100))
     : 0;
   const suppliedPartialPercent = partialCreditPercent === null || partialCreditPercent === undefined
     ? 0

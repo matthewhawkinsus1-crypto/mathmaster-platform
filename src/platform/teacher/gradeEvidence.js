@@ -1,5 +1,6 @@
 import { normalizeQuestionRecord, getQuestionCredit } from '../../attemptPolicy.js';
 import { getIncludedQuestionIndices } from '../../assignmentLifecycle.js';
+import { weightedQuestionTotals } from '../grading/questionWeights.js';
 
 /*
  * TWO NUMBERS BEHIND EVERY GRADE, AND A THIRD ABOUT THE QUESTION ITSELF.
@@ -58,32 +59,29 @@ export const splitGrade = ({ tracker = null, assignment = null } = {}) => {
   }
 
   let attempted = 0;
-  let creditFromAttempted = 0;
-  let creditTotal = 0;
-
   included.forEach((index) => {
     const record = normalizeQuestionRecord(tracker?.[index]);
-    const credit = getQuestionCredit(record);
-    creditTotal += credit;
-    // "Unattempted" is the one status that means MISSING evidence rather than
-    // wrong evidence. Everything else — attempted, expired, correct — is the
-    // student having engaged with the question.
-    if (record.status !== 'unattempted') {
-      attempted += 1;
-      creditFromAttempted += credit;
-    }
+    if (record.status !== 'unattempted') attempted += 1;
+  });
+
+  const questions = assignment?.schemaVersion === 5
+    ? (assignment.sections || []).flatMap((section) => section?.questions || [])
+    : [];
+  const weighted = weightedQuestionTotals({
+    tracker,
+    questions,
+    indices: included,
+    creditForRecord: (record) => getQuestionCredit(normalizeQuestionRecord(record)),
+    attemptedForRecord: (record) => normalizeQuestionRecord(record).status !== 'unattempted',
   });
 
   const unanswered = included.length - attempted;
   return {
-    // Unchanged. The grade is the grade.
-    score: Math.round((creditTotal / included.length) * 100),
+    score: weighted.score,
     attempted,
     total: included.length,
     unanswered,
-    // Null rather than zero when nothing was attempted: 0% accuracy on no
-    // questions is not a fact about the student, it is the absence of one.
-    creditOnAttempted: attempted ? Math.round((creditFromAttempted / attempted) * 100) : null,
+    creditOnAttempted: weighted.creditOnAttempted,
     shape: attempted === 0
       ? GRADE_SHAPE.NOT_STARTED
       : unanswered > 0 ? GRADE_SHAPE.INCOMPLETE : GRADE_SHAPE.COMPLETE,

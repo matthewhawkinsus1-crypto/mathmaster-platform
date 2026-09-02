@@ -203,3 +203,28 @@ test('adapted delivery reports the reason, deduplicated', () => {
   assert.deepEqual(described.reasons, ['Holding above the course band.']);
   assert.match(described.summary, /assigned standard was preserved/);
 });
+
+
+test('assignment grade honors explicit question weights while unweighted questions remain weight 1', () => {
+  const weighted = assignment(3);
+  weighted.sections[0].questions[0].questionWeight = 4;
+  const split = splitGrade({
+    assignment: weighted,
+    tracker: tracker(['correct', 'expired', 'expired']),
+  });
+  assert.equal(split.score, 67, '4 earned weight units out of 6 should round to 67%');
+  assert.equal(split.creditOnAttempted, 67);
+});
+
+test('question weights do not change completion counts', () => {
+  const weighted = assignment(3);
+  weighted.sections[0].questions[0].questionWeight = 4;
+  const split = splitGrade({
+    assignment: weighted,
+    tracker: tracker(['correct', null, null]),
+  });
+  assert.equal(split.attempted, 1);
+  assert.equal(split.unanswered, 2);
+  assert.equal(split.score, 67, 'missing questions still count as zero at their own weights');
+  assert.equal(split.creditOnAttempted, 100);
+});

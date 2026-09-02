@@ -7,6 +7,7 @@ import { getStoredAssignmentQuestions, storedAssignmentToV5 } from './platform/c
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import { analyzeResponseEntryRepair } from './platform/assignment/liveQuestionCorrection.js';
 import { parseSafeLiveRepairPack, prepareSafeLiveRepairPack } from './platform/assignment/liveRepairPack.js';
+import { normalizeQuestionWeight, suggestedQuestionWeight } from './platform/grading/questionWeights.js';
 
 const newQuestionId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -44,6 +45,21 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const includedCount = useMemo(() => questions.filter((question) => question.teacherExcluded !== true).length, [questions]);
+  const totalGradeWeight = useMemo(
+    () => questions
+      .filter((question) => question.teacherExcluded !== true)
+      .reduce((total, question) => total + normalizeQuestionWeight(question), 0),
+    [questions],
+  );
+
+  const setQuestionWeight = (index, value) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+    const nextWeight = Math.max(0.25, Math.min(20, parsed));
+    setQuestions((current) => current.map((question, questionIndex) => (
+      questionIndex === index ? { ...question, questionWeight: nextWeight } : question
+    )));
+  };
 
   const toggleExcluded = (index) => {
     setQuestions((current) => current.map((question, questionIndex) => questionIndex === index ? { ...question, teacherExcluded: question.teacherExcluded !== true } : question));
@@ -269,6 +285,20 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
       setError('At least one included question is required.');
       return;
     }
+
+    const changedWeights = questions.filter((question) => {
+      const historical = originalQuestionById.get(question.questionId);
+      return historical && Math.abs(normalizeQuestionWeight(historical) - normalizeQuestionWeight(question)) > 1e-9;
+    });
+    if (hasLiveProtection && changedWeights.length > 0) {
+      const proceed = await confirmAction({
+        title: `Recalculate live grades using ${changedWeights.length} new question weight${changedWeights.length === 1 ? '' : 's'}?`,
+        message: 'Student answers, attempts, and partial-credit history will stay exactly as recorded. Their current assignment percentages will be recalculated from those same records using the new weights, and MathMaster will queue Google Classroom to reconcile its grade.',
+        confirmLabel: 'Recalculate Grades',
+      });
+      if (!proceed) return;
+    }
+
     setSaving(true);
     setError('');
     try {
@@ -292,7 +322,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
             <input value={title} onChange={(event) => setTitle(event.target.value)} style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: '11px', marginTop: '7px', border: '1px solid #bdc7d6', borderRadius: '8px', fontSize: '17px' }} />
           </label>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px', alignItems: 'center' }}>
-            <strong>{includedCount} included · {questions.length - includedCount} excluded · {questions.length} stored</strong>
+            <strong>{includedCount} included · {questions.length - includedCount} excluded · {questions.length} stored · {Number(totalGradeWeight.toFixed(2))} total grade-weight units</strong>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               {hasLiveProtection && (
                 <>
@@ -331,10 +361,37 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                         {metadataSummary.primary.map((code) => <span key={code} style={{ padding: '3px 7px', borderRadius: '999px', background: '#e6f4ea', color: '#137333', fontSize: '10px', fontWeight: 900 }}>TEKS {code}</span>)}
                         {metadataSummary.dok && <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#fff3e0', color: '#8a4f00', fontSize: '10px', fontWeight: 900 }}>DOK {metadataSummary.dok}</span>}
                         <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#f3e8fd', color: '#7b1fa2', fontSize: '10px', fontWeight: 900 }}>{metadataSummary.difficultyLabel}</span>
+                        <span style={{ padding: '3px 7px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontSize: '10px', fontWeight: 900 }}>
+                          GRADE ×{normalizeQuestionWeight(question)}
+                          {excluded || totalGradeWeight <= 0 ? '' : ` · ${((normalizeQuestionWeight(question) / totalGradeWeight) * 100).toFixed(1)}%`}
+                        </span>
                         {metadataSummary.issues.length > 0 && <span title={metadataSummary.issues.join(' · ')} style={{ padding: '3px 7px', borderRadius: '999px', background: '#fce8e6', color: '#a50e0e', fontSize: '10px', fontWeight: 900 }}>Metadata incomplete</span>}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 7px', border: '1px solid #cbd1da', borderRadius: 7, background: '#fff', fontSize: 11, fontWeight: 900, color: '#3c4043' }}>
+                        Grade weight
+                        <input
+                          aria-label={`Grade weight for Question ${index + 1}`}
+                          type="number"
+                          min="0.25"
+                          max="20"
+                          step="0.25"
+                          value={normalizeQuestionWeight(question)}
+                          onChange={(event) => setQuestionWeight(index, event.target.value)}
+                          style={{ width: 58, padding: '4px 5px', border: '1px solid #bdc7d6', borderRadius: 5 }}
+                        />
+                      </label>
+                      {suggestedQuestionWeight(question) !== normalizeQuestionWeight(question) && (
+                        <button
+                          type="button"
+                          onClick={() => setQuestionWeight(index, suggestedQuestionWeight(question))}
+                          title="Use MathMaster's workload-based suggestion. You can still change it."
+                          style={{ color: '#174ea6' }}
+                        >
+                          Suggest ×{suggestedQuestionWeight(question)}
+                        </button>
+                      )}
                       <button type="button" onClick={() => moveQuestion(index, -1)} disabled={hasLiveProtection || index === 0} title={hasLiveProtection ? 'Reordering is disabled because student data exists.' : 'Move up'}>↑</button>
                       <button type="button" onClick={() => moveQuestion(index, 1)} disabled={hasLiveProtection || index === questions.length - 1} title={hasLiveProtection ? 'Reordering is disabled because student data exists.' : 'Move down'}>↓</button>
                       <button type="button" onClick={() => duplicateQuestion(index)}>Duplicate</button>

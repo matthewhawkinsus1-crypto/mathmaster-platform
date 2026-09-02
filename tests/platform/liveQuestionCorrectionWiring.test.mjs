@@ -8,7 +8,8 @@ test('live question repair uses a Firestore transaction for assignment and stude
   assert.match(app, /runTransaction\(db, async \(transaction\) =>/);
   assert.match(app, /repairAssignmentTrackerForLiveCorrections/);
   assert.match(app, /questionFingerprint\(liveQuestion\)/);
-  assert.match(app, /gradesByAssignment:\s*\{/);
+  assert.match(app, /studentPatch\.gradesByAssignment\s*=\s*\{/);
+  assert.match(app, /transaction\.update\(studentRef, studentPatch\)/);
 });
 
 test('live correction keeps question identity and index stable before touching grades', () => {

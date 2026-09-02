@@ -136,6 +136,7 @@ const gradeRoles = (response, rule) => {
   return {
     graded: true,
     isCorrect: wrong.length === 0,
+    credit: keys.length ? (keys.length - wrong.length) / keys.length : 0,
     detail: wrong.length === 0 ? 'Both roles identified.' : `Check the ${wrong.join(' and ')} quantity.`,
   };
 };
@@ -158,9 +159,12 @@ const gradeSet = (response, expected) => {
   const studentSet = new Set(student);
   const keySet = new Set(key);
   const isCorrect = studentSet.size === keySet.size && [...keySet].every((entry) => studentSet.has(entry));
+  const intersection = [...keySet].filter((entry) => studentSet.has(entry)).length;
+  const denominator = Math.max(studentSet.size, keySet.size, 1);
   return {
     graded: true,
     isCorrect,
+    credit: intersection / denominator,
     detail: isCorrect
       ? 'Every value is listed once.'
       : 'That is not the set of values in this relation — list each one once.',
@@ -176,9 +180,12 @@ const gradePairs = (response, expected) => {
   const student = new Set(list(response).map(key));
   const wanted = new Set(list(expected).map(key));
   const isCorrect = student.size === wanted.size && [...wanted].every((pair) => student.has(pair));
+  const intersection = [...wanted].filter((pair) => student.has(pair)).length;
+  const denominator = Math.max(student.size, wanted.size, 1);
   return {
     graded: true,
     isCorrect,
+    credit: intersection / denominator,
     detail: isCorrect
       ? 'Every value is joined to the one it maps to.'
       : 'The arrows do not match the relation — check which value each one is joined to.',
@@ -234,6 +241,7 @@ const gradeAxes = (response, rule = {}) => {
   return {
     graded: true,
     isCorrect: wrong.length === 0,
+    credit: checks.length ? (checks.length - wrong.length) / checks.length : 0,
     detail: wrong.length
       ? `Check the ${wrong.join(', ')}.`
       : 'The graph axes, units, and scale are labeled correctly.',
@@ -247,6 +255,7 @@ const gradeTableValues = (response, values) => {
   return {
     graded: true,
     isCorrect: keys.length > 0 && wrong.length === 0,
+    credit: keys.length ? (keys.length - wrong.length) / keys.length : 0,
     detail: wrong.length === 0 ? 'Every value matches.' : `${wrong.length} of ${keys.length} values do not match.`,
   };
 };
@@ -258,16 +267,19 @@ const gradeTableValues = (response, values) => {
 export const gradeStage = ({ stage, rule, responses = {} }) => {
   const response = responses[stage.id];
   const answered = hasStageResponse(response);
-  const base = { id: stage.id, label: stage.prompt || stage.kind, isComplete: answered };
+  const weight = Number.isFinite(Number(stage?.scoreWeight)) && Number(stage.scoreWeight) > 0
+    ? Math.min(20, Number(stage.scoreWeight))
+    : 1;
+  const base = { id: stage.id, label: stage.prompt || stage.kind, isComplete: answered, weight };
 
   if (rule === undefined || rule === null) {
-    return { ...base, graded: false, isCorrect: false, detail: 'Reviewed by your teacher.' };
+    return { ...base, graded: false, isCorrect: false, credit: 0, detail: 'Reviewed by your teacher.' };
   }
   if (isObject(rule) && (rule.manual === true || rule.rubric)) {
     return { ...base, graded: false, isCorrect: false, detail: 'Reviewed by your teacher.' };
   }
   if (!answered) {
-    return { ...base, graded: true, isCorrect: false, detail: 'Not answered.' };
+    return { ...base, graded: true, isCorrect: false, credit: 0, detail: 'Not answered.' };
   }
 
   if (isObject(rule) && rule.consistentWith) {
@@ -275,10 +287,14 @@ export const gradeStage = ({ stage, rule, responses = {} }) => {
     // graph workspace against the STUDENT-DERIVED function and points. Preserve
     // that verdict instead of comparing it with the authored answer key.
     if (rule.useStageVerdict && isWorkflowArtifact(response, 'graph')) {
+      const graphCredit = Number.isFinite(Number(response.partialCreditPercent))
+        ? Math.max(0, Math.min(1, Number(response.partialCreditPercent) / 100))
+        : (response.isCorrect === true ? 1 : 0);
       return {
         ...base,
         graded: true,
         isCorrect: response.isCorrect === true,
+        credit: graphCredit,
         detail: response.isCorrect
           ? 'Your graph matches the model and table you built.'
           : 'Revise the graph so it matches the model and table you built.',
@@ -297,10 +313,13 @@ export const gradeStage = ({ stage, rule, responses = {} }) => {
       // Nothing could be checked — an unevaluable model, or no numeric entries.
       return { ...base, graded: false, isCorrect: false, detail: 'Could not be checked against your function.' };
     }
+    const matchingRows = check.rows.filter((row) => row.matches === true).length;
+    const checkedRows = check.rows.filter((row) => row.matches !== null).length;
     return {
       ...base,
       graded: true,
       isCorrect: check.consistent,
+      credit: checkedRows ? matchingRows / checkedRows : 0,
       detail: check.consistent
         ? 'Every value follows the function you wrote.'
         : `${check.mismatches.length} value(s) do not follow the function you wrote.`,
@@ -318,7 +337,7 @@ export const gradeStage = ({ stage, rule, responses = {} }) => {
     return { ...base, graded: false, isCorrect: false, detail: 'Reviewed by your teacher.' };
   }
   const isCorrect = matchesAnswer(stage, response, expected);
-  return { ...base, graded: true, isCorrect, detail: isCorrect ? 'Correct.' : 'Not correct yet.' };
+  return { ...base, graded: true, isCorrect, credit: isCorrect ? 1 : 0, detail: isCorrect ? 'Correct.' : 'Not correct yet.' };
 };
 
 /**
@@ -335,14 +354,21 @@ export const gradeWorkflow = ({ stages = [], responses = {}, grading = null } = 
   const graded = parts.filter((part) => part.graded);
   const correct = graded.filter((part) => part.isCorrect);
   const isComplete = parts.length > 0 && parts.every((part) => part.isComplete);
+  const isCorrect = isComplete && graded.length > 0 && correct.length === graded.length;
+  const totalWeight = graded.reduce((total, part) => total + (Number(part.weight) || 1), 0);
+  const earnedWeight = graded.reduce(
+    (total, part) => total + (Math.max(0, Math.min(1, Number(part.credit) || 0)) * (Number(part.weight) || 1)),
+    0,
+  );
+  const weightedPartial = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : null;
 
   return {
     parts,
     isComplete,
-    // A question whose every stage is teacher-reviewed cannot be auto-marked
-    // correct, and says so rather than reporting a false verdict.
-    isCorrect: isComplete && graded.length > 0 && correct.length === graded.length,
-    partialCreditPercent: graded.length ? Math.round((correct.length / graded.length) * 100) : null,
+    // Full correctness still requires every graded stage. Partial work may
+    // earn substantial credit, but never impersonates a complete correct task.
+    isCorrect,
+    partialCreditPercent: isCorrect ? 100 : (weightedPartial === null ? null : Math.min(90, weightedPartial)),
     gradedCount: graded.length,
     responseKey: JSON.stringify(responses),
     questionDetails: stages

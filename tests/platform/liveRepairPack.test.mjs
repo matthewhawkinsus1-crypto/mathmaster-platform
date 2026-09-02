@@ -123,3 +123,37 @@ test('repair pack preserves absence of legacy teacherExcluded property exactly',
   });
   assert.equal(Object.prototype.hasOwnProperty.call(prepared.questions[0], 'teacherExcluded'), false);
 });
+
+
+test('repair packs preserve teacher-owned live question weight', () => {
+  const weightedHistorical = { ...historical, questionWeight: 4 };
+  const prepared = prepareSafeLiveRepairPack({
+    pack,
+    historicalQuestions: [weightedHistorical],
+    currentQuestions: [structuredClone(weightedHistorical)],
+  });
+  assert.equal(prepared.questions[0].questionWeight, 4);
+});
+
+test('repair packs do not invent a question weight when the live question has none', () => {
+  const weightedPack = structuredClone(pack);
+  weightedPack.replacementQuestions[0].question.questionWeight = 4;
+  const prepared = prepareSafeLiveRepairPack({
+    pack: weightedPack,
+    historicalQuestions: [historical],
+    currentQuestions: [structuredClone(historical)],
+  });
+  assert.equal(Object.prototype.hasOwnProperty.call(prepared.questions[0], 'questionWeight'), false);
+});
+
+
+test('an unsaved editor weight change survives a repair-pack import and can save in the same transaction', () => {
+  const current = { ...historical, questionWeight: 4 };
+  const prepared = prepareSafeLiveRepairPack({
+    pack,
+    historicalQuestions: [historical],
+    currentQuestions: [current],
+  });
+  assert.equal(prepared.questions[0].questionWeight, 4);
+  assert.equal(prepared.replacementCount, 1);
+});
