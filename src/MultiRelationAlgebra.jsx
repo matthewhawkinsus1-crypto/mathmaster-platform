@@ -916,12 +916,22 @@ export default function MultiRelationAlgebra({
     }
   };
 
+  const cancelBasicOperation = () => {
+    setOperation(null);
+    setOperand('');
+    setPlacementByKey({});
+    setOperationFocusSignal((value) => value + 1);
+  };
+
   const openRewrite = () => {
     if (disabled || relationState.special) return;
     if (pendingRelationFlip) {
       setMessage({ tone: 'growth', text: 'Finish the relation symbols from the last operation first.' });
       return;
     }
+    // Rewrite/Simplify is a different action. Never leave a stale operation
+    // composer or staged placement hanging open underneath it.
+    cancelBasicOperation();
     setRewriteOpen((value) => !value);
     setRewriteValue('');
     setRewriteFocusSignal((value) => value + 1);
@@ -1441,6 +1451,21 @@ export default function MultiRelationAlgebra({
               >
                 Commit step
               </button>
+              <button
+                type="button"
+                onClick={cancelBasicOperation}
+                disabled={disabled}
+                aria-label="Cancel current algebra operation"
+                style={{
+                  ...buttonStyle(false),
+                  minHeight: 34,
+                  padding: '5px 9px',
+                  color: '#5f6368',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Cancel
+              </button>
             </>
           )}
         </div>
@@ -1503,6 +1528,7 @@ export default function MultiRelationAlgebra({
           <button
             type="button"
             onClick={() => {
+              cancelBasicOperation();
               setOtherOpen((value) => !value);
               setRewriteOpen(false);
               setCompleteSquareOpen(false);
