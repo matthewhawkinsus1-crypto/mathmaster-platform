@@ -120,6 +120,8 @@ export const buildAssignmentWeightReviewRequest = ({
   return [
     '# MathMaster Assignment Weight Review',
     '',
+    'This request is portable: paste it into ChatGPT, Claude, Gemini, or another capable AI.',
+    '',
     `Assignment: ${title}`,
     `Course: ${courseId}`,
     `Assignment ID: ${assignmentId || '(none)'}`,
