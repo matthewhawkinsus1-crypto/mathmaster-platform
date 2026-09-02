@@ -311,6 +311,36 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
       : [];
     return requested.length ? requested : ['graph', 'interval'];
   }, [questionData.ask]);
+  const asksInterval = ask.includes('interval');
+  const asksInequality = ask.includes('inequality');
+  const asksNotation = asksInterval || asksInequality;
+  const toolTitle = asksInterval
+    ? 'Number Line and Intervals'
+    : asksInequality
+      ? 'Number Line and Inequalities'
+      : 'Graph an Inequality';
+  const toolSubtitle = asksInterval
+    ? 'Move between an inequality, its interval notation and the picture on a number line.'
+    : asksInequality
+      ? 'Connect the number-line graph to its inequality notation.'
+      : 'Graph the solution using the correct endpoint and direction.';
+  const toolBadge = asksInterval
+    ? 'Inequalities and intervals'
+    : asksInequality
+      ? 'Inequality representation'
+      : 'Open and closed endpoints';
+  const responsePanelTitle = asksNotation ? 'Write it in notation' : 'Check your graph';
+  const hints = [
+    'A closed circle (●) means the endpoint is part of the solution. An open circle (○) means it is not.',
+    'For awkward endpoints, type the exact value instead of trying to hit a tiny tick mark.',
+    ...(asksInterval ? [
+      'Interval notation accepts exact fractions such as [-13/8, 13/8).',
+      'Infinity is never reached, so it always takes a round bracket.',
+    ] : []),
+    ...(asksInequality ? [
+      'Read the shaded number line from left to right to write the matching inequality.',
+    ] : []),
+  ];
 
   const [pending, setPending] = useState(null);
   const [built, setBuilt] = useState([]);
@@ -527,9 +557,9 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
     const checks = {};
 
     if (ask.includes('graph')) checks.graph = sameIntervals(built, expected);
-    if (ask.includes('interval')) checks.interval = notationMatchesFlexible(notation, expected);
+    if (asksInterval) checks.interval = notationMatchesFlexible(notation, expected);
 
-    if (ask.includes('inequality')) {
+    if (asksInequality) {
       const tidy = (text) => String(text || '')
         .replace(/\s+/g, '')
         .replace(/[−–—]/g, '-')
@@ -549,7 +579,10 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
   };
 
   const message = () => {
-    if (feedback.isCorrect) return 'Correct — the graph and the notation agree.';
+    if (feedback.isCorrect) {
+      if (!asksNotation) return 'Correct — your graph matches the inequality.';
+      return 'Correct — the graph and the notation agree.';
+    }
 
     const checks = feedback.metadata?.checks || {};
     if (checks.graph === false && built.length === 0) {
@@ -572,13 +605,13 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
 
   return (
     <ToolShell
-      title="Number Line and Intervals"
-      subtitle="Move between an inequality, its interval notation and the picture on a number line."
-      badge="Inequalities and intervals"
+      title={toolTitle}
+      subtitle={toolSubtitle}
+      badge={toolBadge}
     >
       <TaskCard
         question={questionData}
-        task={questionData.prompt || `Graph the solution on the number line${ask.includes('interval') ? ' and write it in interval notation' : ''}.`}
+        task={questionData.prompt || `Graph the solution on the number line${asksInterval ? ' and write it in interval notation' : asksInequality ? ' and write the matching inequality' : ''}.`}
         steps={[
           'Place an endpoint by clicking the line or typing its exact value. Fractions such as -13/8 are accepted.',
           'For a bounded interval, place a second endpoint. For a ray, choose shade left or shade right.',
@@ -919,15 +952,15 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
             {pending != null
               ? `${pending.closed ? 'Closed' : 'Open'} endpoint at ${rationalLabel(pending.value)}. Place a second endpoint or choose a ray.`
               : drawn.length
-                ? ask.includes('interval')
+                ? asksInterval
                   ? `${drawn.length} graph ${drawn.length === 1 ? 'piece' : 'pieces'} placed. Write the interval notation yourself.`
                   : `Your graph: ${intervalsToNotation(drawn)}`
                 : 'Click the line for a quick placement, or type an exact endpoint above.'}
           </p>
         </Panel>
 
-        <Panel title="Write it in notation">
-          {ask.includes('interval') && (
+        <Panel title={responsePanelTitle}>
+          {asksInterval && (
             <div style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3c4756', marginBottom: 12 }}>
               <div style={{ marginBottom: 6 }}>Interval notation</div>
               <MathInput
@@ -944,7 +977,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
             </div>
           )}
 
-          {ask.includes('inequality') && (
+          {asksInequality && (
             <div style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#3c4756', marginBottom: 12 }}>
               <div style={{ marginBottom: 6 }}>Inequality</div>
               <MathInput
@@ -977,12 +1010,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
           ) : null}
 
           <HintPanel
-            hints={[
-              'A closed circle (●) means the endpoint is part of the solution. An open circle (○) means it is not.',
-              'For awkward endpoints, type the exact value instead of trying to hit a tiny tick mark.',
-              'Interval notation accepts exact fractions such as [-13/8, 13/8).',
-              'Infinity is never reached, so it always takes a round bracket.',
-            ]}
+            hints={hints}
             onHintUsed={() => onAction?.('HINT_USED')}
           />
         </Panel>

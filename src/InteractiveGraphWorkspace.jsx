@@ -964,13 +964,41 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                 const grade = feedback?.partGrades?.find((item) => item.id === part.id);
                 const selected = analysis.selections[part.id] || [];
                 const noneSelected = Boolean(analysis.noneSelections[part.id]);
+                const offersAllRealNumbers = ['domain', 'range'].includes(part.kind)
+                  && String(part.notation || '').toLowerCase() === 'inequality';
                 return <div key={part.id} style={{ marginTop: '9px', padding: '10px', borderRadius: '9px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : activeAnalysisPartId === part.id ? '#1a73e8' : '#d9e2f1'}`, background: grade && !grade.isCorrect ? '#fff8f7' : '#fff' }}>
                   <button type="button" onClick={() => setActiveAnalysisPartId(part.id)} style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'left', fontWeight: 'bold', color: '#202124' }}><MathText>{part.label}</MathText></button>
                   {['point', 'inversePoint'].includes(part.kind) ? <>
                     {part.responseMode !== 'input' && <div style={{ marginTop: '5px', fontSize: '12px', color: '#5f6368' }}>{noneSelected ? 'Marked: does not exist' : `${selected.length}/${part.expected.length || 1} selected`}</div>}
                     {part.allowNone && part.responseMode !== 'input' && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, noneSelections: { ...current.noneSelections, [part.id]: !current.noneSelections[part.id] }, selections: { ...current.selections, [part.id]: [] } }))} style={{ marginTop: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: noneSelected ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}
                     {part.responseMode !== 'click' && <div style={{ marginTop: '8px' }}><MathInput value={analysis.typedPoints[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, typedPoints: { ...current.typedPoints, [part.id]: value } }))} placeholder={part.expected.length > 1 ? '(x₁, y₁), (x₂, y₂)' : '(x, y) or DNE'} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
-                  </> : <div style={{ marginTop: '8px' }}>{part.allowsEmptyAnswer && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: 'does not exist' } }))} style={{ marginBottom: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: String(analysis.answers[part.id] || '').toLowerCase().includes('exist') ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}<MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} answerFormat={analysisAnswerFormatFor(part)} showToolsInitially placeholder={analysisPlaceholderFor(part)} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} /></div>}
+                  </> : <div style={{ marginTop: '8px' }}>
+                    <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', marginBottom: (part.allowsEmptyAnswer || offersAllRealNumbers) ? '7px' : 0 }}>
+                      {part.allowsEmptyAnswer && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: 'does not exist' } }))} style={{ padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: String(analysis.answers[part.id] || '').toLowerCase().includes('exist') ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}
+                      {offersAllRealNumbers && <button
+                        type="button"
+                        onClick={() => {
+                          setActiveAnalysisPartId(part.id);
+                          analysisHistory.setValue((current) => ({
+                            ...current,
+                            answers: { ...current.answers, [part.id]: '\\text{All Real Numbers}' },
+                          }));
+                        }}
+                        aria-pressed={/all\s*real/i.test(String(analysis.answers[part.id] || ''))}
+                        style={{
+                          padding: '6px 9px',
+                          borderRadius: '7px',
+                          border: '1px solid #9bb8e8',
+                          background: /all\s*real/i.test(String(analysis.answers[part.id] || '')) ? '#e8f0fe' : '#fff',
+                          color: '#174ea6',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        All Real Numbers
+                      </button>}
+                    </div>
+                    <MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} answerFormat={analysisAnswerFormatFor(part)} showToolsInitially placeholder={analysisPlaceholderFor(part)} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+                  </div>}
                 </div>;
               })}
               {inverseReflectionEnabled && !analysis.inversePointsValidated && (

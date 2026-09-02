@@ -69,6 +69,11 @@ const VISUAL_PROMISES = [
     satisfied: (question, composed) => isObject(question.graph) || isObject(question.visual)
       || has(get(question, 'functionSpec.type')) || nonEmptyArray(question.graphs)
       || nonEmptyArray(get(question, 'graph.functions'))
+      // FunctionInvestigation2 renders its coordinate plane directly from
+      // question.function rather than functionSpec. Count that as a real graph
+      // so prompts such as "use the graph" do not trip a false missing-visual
+      // compiler defect.
+      || (String(question.type) === 'functionInvestigation2' && has(get(question, 'function.type')))
       || transformationsLabHasGraph(question)
       || composedHasStage(composed, ['functionGraph', 'coordinatePlot']),
     remedy: 'Add a `graph` object or a `functionSpec` so the graph is actually drawn, or reword the prompt so it does not refer to one.',

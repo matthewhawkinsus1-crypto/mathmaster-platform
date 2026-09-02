@@ -44,20 +44,20 @@
           "id": "domain",
           "label": "Domain",
           "kind": "domain",
-          "notation": "interval",
+          "notation": "inequality",
           "responseMode": "text",
           "expected": [
-            "(-inf,inf)"
+            "all real numbers"
           ]
         },
         {
           "id": "range",
           "label": "Range",
           "kind": "range",
-          "notation": "interval",
+          "notation": "inequality",
           "responseMode": "text",
           "expected": [
-            "[{{k}},inf)"
+            "y>={{k}}"
           ]
         }
       ],
@@ -65,7 +65,7 @@
         "headline": "An upward-opening quadratic extends forever left and right but has a lowest output.",
         "reasoning": [
           "There is no restriction on x, so the domain is all real numbers.",
-          "The vertex $({{h}},{{k}})$ is the minimum, so the range is $[{{k}},\\infty)$."
+          "The vertex $({{h}},{{k}})$ is the minimum, so the range is $y\\ge {{k}}$."
         ]
       },
       "attemptFeedback": [
@@ -111,19 +111,19 @@
       "assessedConstruct": "A.6A",
       "taskType": "application",
       "representation": "context",
-      "prompt": "A projectile is modeled by $h(t)=-{{a}}(t-{{v}})^2+{{maxh}}$ only from launch until it returns to the ground. Write the reasonable domain of time and the corresponding range of height in interval notation.",
+      "prompt": "A projectile is modeled by $h(t)=-{{a}}(t-{{v}})^2+{{maxh}}$ only from launch until it returns to the ground. Write the reasonable domain of time and the corresponding range of height as inequalities.",
       "responseFields": [
         {
           "id": "domain",
           "label": "Reasonable time domain",
-          "inputProfile": "interval",
-          "expected": "[0,{{end}}]"
+          "inputProfile": "inequality",
+          "expected": "0<=t and t<={{end}}"
         },
         {
           "id": "range",
           "label": "Height range",
-          "inputProfile": "interval",
-          "expected": "[0,{{maxh}}]"
+          "inputProfile": "inequality",
+          "expected": "0<=h and h<={{maxh}}"
         }
       ],
       "solutionReview": {
@@ -134,7 +134,7 @@
         ]
       },
       "attemptFeedback": [
-        "Use the physical interval of flight, not the unrestricted algebraic domain of the formula."
+        "Use the physical time restriction in the situation, not the unrestricted algebraic domain of the formula."
       ],
       "supportHints": [
         "The vertex occurs halfway between the two ground times."
@@ -175,26 +175,26 @@
       "assessedConstruct": "A.6A",
       "taskType": "application",
       "representation": "symbolic",
-      "prompt": "For $q(x)={{a}}(x-{{h}})^2{{k|signed}}$ restricted to ${{h}}\\le x\\le {{hi}}$, write BOTH the domain and range in interval notation.",
+      "prompt": "For $q(x)={{a}}(x-{{h}})^2{{k|signed}}$ restricted to ${{h}}\\le x\\le {{hi}}$, write BOTH the domain and range as compound inequalities.",
       "responseFields": [
         {
           "id": "domain",
-          "label": "Domain",
-          "inputProfile": "interval",
-          "expected": "[{{h}},{{hi}}]"
+          "label": "Domain inequality",
+          "inputProfile": "inequality",
+          "expected": "{{h}}<=x and x<={{hi}}"
         },
         {
           "id": "range",
-          "label": "Range",
-          "inputProfile": "interval",
-          "expected": "[{{k}},{{top}}]"
+          "label": "Range inequality",
+          "inputProfile": "inequality",
+          "expected": "{{k}}<=y and y<={{top}}"
         }
       ],
       "solutionReview": {
         "headline": "A restricted domain changes the range because only part of the parabola is allowed.",
         "reasoning": [
-          "The domain starts at the vertex x={{h}} and ends at {{hi}}.",
-          "On this right-hand branch the function increases from {{k}} to {{top}}, so the range is $[{{k}},{{top}}]$."
+          "The domain starts at the vertex x={{h}} and ends at {{hi}}, so ${{h}}\\le x\\le {{hi}}$.",
+          "On this right-hand branch the function increases from {{k}} to {{top}}, so ${{k}}\\le y\\le {{top}}$."
         ]
       },
       "attemptFeedback": [
@@ -241,13 +241,13 @@
           "coverageKey": "adaptive-d2b4-domain-crosses-vertex-range",
           "dok": 2,
           "difficultyBand": 4,
-          "prompt": "For $q(x)={{a}}(x-{{h}})^2{{k|signed}}$ restricted to ${{lo}}\\le x\\le {{hi}}$, determine the domain and range. The interval crosses the vertex, so evaluate the vertex and BOTH restricted endpoints before deciding the maximum output.",
+          "prompt": "For $q(x)={{a}}(x-{{h}})^2{{k|signed}}$ restricted to ${{lo}}\\le x\\le {{hi}}$, determine the domain and range as inequalities. The restricted domain crosses the vertex, so evaluate the vertex and BOTH endpoints before deciding the maximum output.",
           "responseFields": [
             {
               "id": "domain",
-              "label": "Domain",
-              "inputProfile": "interval",
-              "expected": "[{{lo}},{{hi}}]"
+              "label": "Domain inequality",
+              "inputProfile": "inequality",
+              "expected": "{{lo}}<=x and x<={{hi}}"
             },
             {
               "id": "left-output",
@@ -269,19 +269,19 @@
             },
             {
               "id": "range",
-              "label": "Range",
-              "inputProfile": "interval",
-              "expected": "[{{k}},{{yleft}}]"
+              "label": "Range inequality",
+              "inputProfile": "inequality",
+              "expected": "{{k}}<=y and y<={{yleft}}"
             }
           ],
           "solutionReview": {
             "headline": "When a restricted interval crosses the vertex, compare the vertex with both endpoint outputs.",
             "reasoning": [
-              "The vertex x={{h}} lies inside [{{lo}},{{hi}}], so the minimum output is {{k}}.",
+              "The vertex x={{h}} lies inside the restricted domain ${{lo}}\\le x\\le {{hi}}$, so the minimum output is {{k}}.",
               "The left endpoint is farther from the vertex than the right endpoint, giving q({{lo}})={{yleft}} and q({{hi}})={{yright}}.",
-              "Because the parabola opens upward, the restricted range is [{{k}},{{yleft}}]."
+              "Because the parabola opens upward, the restricted range is ${{k}}\\le y\\le {{yleft}}$."
             ],
-            "answerSummary": "Domain [{{lo}},{{hi}}]; range [{{k}},{{yleft}}]."
+            "answerSummary": "Domain: {{lo}}≤x≤{{hi}}; range: {{k}}≤y≤{{yleft}}."
           },
           "attemptFeedback": [
             "Do not assume the right endpoint gives the largest output; compare distances from the vertex."
@@ -344,20 +344,20 @@
       "assessedConstruct": "A.6A",
       "taskType": "errorAnalysis",
       "representation": "verbal",
-      "prompt": "For $g(x)=-{{a}}(x-{{h}})^2{{k|signed}}$, a student writes the range as $[{{k}},\\infty)$ because the vertex y-value is {{k}}. Correct the range in interval notation.",
+      "prompt": "For $g(x)=-{{a}}(x-{{h}})^2{{k|signed}}$, a student writes $y\\ge {{k}}$ because the vertex y-value is {{k}}. Correct the range inequality.",
       "responseFields": [
         {
           "id": "answer",
-          "label": "Correct range",
-          "inputProfile": "interval",
-          "expected": "(-inf,{{k}}]"
+          "label": "Correct range inequality",
+          "inputProfile": "inequality",
+          "expected": "y<={{k}}"
         }
       ],
       "solutionReview": {
         "headline": "The vertex is a maximum when the parabola opens downward.",
         "reasoning": [
           "The negative leading coefficient makes every other output less than or equal to {{k}}.",
-          "Therefore the range extends downward without bound and includes {{k}}: $(-\\infty,{{k}}]$."
+          "Therefore the range extends downward without bound and includes {{k}}: $y\\le {{k}}$."
         ]
       },
       "attemptFeedback": [
@@ -403,30 +403,57 @@
       "assessedConstruct": "A.6A",
       "taskType": "transfer",
       "representation": "multipleRepresentation",
-      "prompt": "A quadratic has domain all real numbers, opens upward, and has vertex $({{h}},{{k}})$. Write its range in interval notation and give the inequality statement that describes the same y-values.",
+      "prompt": "A quadratic has domain all real numbers, opens upward, and has vertex $({{h}},{{k}})$. Student A says the range is $y\\ge {{k}}$ while Student B says $y>{{k}}$. Decide who is correct, write the range inequality, and identify why the boundary value is included.",
       "responseFields": [
         {
-          "id": "interval",
-          "label": "Range in interval notation",
-          "inputProfile": "interval",
-          "expected": "[{{k}},inf)"
+          "id": "verdict",
+          "label": "Which student is correct?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "student-a",
+              "label": "Student A: y ≥ {{k}}"
+            },
+            {
+              "id": "student-b",
+              "label": "Student B: y > {{k}}"
+            }
+          ],
+          "expected": "student-a"
         },
         {
           "id": "inequality",
-          "label": "Equivalent range inequality",
+          "label": "Range inequality",
           "inputProfile": "inequality",
           "expected": "y>={{k}}"
+        },
+        {
+          "id": "vertex-role",
+          "label": "Why is y={{k}} included?",
+          "inputProfile": "choice",
+          "choices": [
+            {
+              "id": "attained",
+              "label": "The vertex is on the graph, so y={{k}} is actually attained."
+            },
+            {
+              "id": "approached",
+              "label": "The graph only approaches y={{k}} but never reaches it."
+            }
+          ],
+          "expected": "attained"
         }
       ],
       "solutionReview": {
-        "headline": "The same range can be represented as an interval or as an inequality.",
+        "headline": "The minimum output is included because the vertex is on the graph.",
         "reasoning": [
           "Opening upward makes {{k}} the minimum output.",
-          "The vertex is included, so the range is $[{{k}},\\infty)$, equivalently $y\\ge {{k}}$."
+          "The vertex is part of the graph, so y={{k}} is attained.",
+          "Therefore the range is $y\\ge {{k}}$."
         ]
       },
       "attemptFeedback": [
-        "Both representations must say that y is greater than or equal to the vertex output."
+        "Decide whether the vertex output is actually reached before choosing ≥ or >."
       ],
       "supportHints": [
         "Upward-opening quadratics have a minimum at the vertex."
@@ -455,67 +482,61 @@
           "coverageKey": "adaptive-d3b3-range-representation-consistency",
           "dok": 3,
           "difficultyBand": 3,
-          "prompt": "An upward-opening quadratic has vertex $({{h}},{{k}})$. Student A writes the range as $[{{k}},\\infty)$. Student B writes $y\\ge{{k}}$. Decide whether the two statements represent the SAME set of outputs, explain the role of the included vertex, and give both representations.",
+          "prompt": "An upward-opening quadratic has vertex $({{h}},{{k}})$. Student A writes $y\\ge{{k}}$. Student B writes $y>{{k}}$. Decide which statement matches the graph, explain the role of the included vertex, and give the correct range inequality.",
           "responseFields": [
             {
               "id": "verdict",
-              "label": "Are the two range statements equivalent?",
+              "label": "Which range statement is correct?",
               "inputProfile": "choice",
               "choices": [
                 {
-                  "id": "yes",
-                  "label": "Yes; both include {{k}} and all larger y-values."
+                  "id": "student-a",
+                  "label": "Student A: y ≥ {{k}}"
                 },
                 {
-                  "id": "no",
-                  "label": "No; interval notation and inequality notation describe different sets."
+                  "id": "student-b",
+                  "label": "Student B: y > {{k}}"
                 }
               ],
-              "expected": "yes"
-            },
-            {
-              "id": "interval",
-              "label": "Range in interval notation",
-              "inputProfile": "interval",
-              "expected": "[{{k}},inf)"
+              "expected": "student-a"
             },
             {
               "id": "inequality",
-              "label": "Range as an inequality",
+              "label": "Range inequality",
               "inputProfile": "inequality",
               "expected": "y>={{k}}"
             },
             {
               "id": "vertex-role",
-              "label": "Why is the endpoint included?",
+              "label": "Why is the boundary included?",
               "inputProfile": "choice",
               "choices": [
                 {
                   "id": "attained",
-                  "label": "The vertex is on the graph, so y={{k}} is actually attained."
+                  "label": "The vertex is on the graph, so y={{k}} is attained."
                 },
                 {
                   "id": "approached",
-                  "label": "The graph only approaches y={{k}} but never reaches it."
+                  "label": "The graph approaches y={{k}} but never reaches it."
                 }
               ],
               "expected": "attained"
             }
           ],
           "solutionReview": {
-            "headline": "Equivalent representations should describe exactly the same attainable outputs.",
+            "headline": "The vertex determines an included minimum.",
             "reasoning": [
               "The upward-opening quadratic has minimum output {{k}} at its vertex.",
               "Because the vertex is part of the graph, {{k}} is included.",
-              "Thus [{{k}},∞) and y≥{{k}} describe the same range."
+              "Thus the range is $y\\ge{{k}}$."
             ],
-            "answerSummary": "The representations are equivalent."
+            "answerSummary": "Student A is correct: y≥{{k}}."
           },
           "attemptFeedback": [
-            "Compare which y-values each notation includes rather than comparing the symbols visually."
+            "Focus on whether the minimum y-value is attained."
           ],
           "supportHints": [
-            "A bracket at {{k}} corresponds to ≥ because the minimum is attained."
+            "The vertex is a point on the parabola."
           ],
           "generator": {
             "parameters": {

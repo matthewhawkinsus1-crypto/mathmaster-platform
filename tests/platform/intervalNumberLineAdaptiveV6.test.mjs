@@ -48,3 +48,13 @@ test('viewport is chosen for readability rather than exposing every snap tick', 
   assert.match(src, /autoViewport === false/);
   assert.match(src, /niceTickStep/);
 });
+
+
+test('graph-only number-line mode does not advertise interval notation', () => {
+  assert.match(src, /const asksInterval = ask\.includes\('interval'\)/);
+  assert.match(src, /const asksNotation = asksInterval \|\| asksInequality/);
+  assert.match(src, /: 'Graph an Inequality'/);
+  assert.match(src, /const responsePanelTitle = asksNotation \? 'Write it in notation' : 'Check your graph'/);
+  assert.match(src, /\.\.\.\(asksInterval \? \[/);
+  assert.match(src, /hints=\{hints\}/);
+});

@@ -42,6 +42,7 @@ import {
   asNumber,
   normalizeAnswer,
   sameNumber,
+  sameSimpleInequality,
   sameText,
   sameValue,
 } from './answerEquivalence.mjs';
@@ -67,7 +68,14 @@ import {
   validateGraphingResponse,
 } from './pathGraphingGrading.mjs';
 
-export { asNumber, normalizeAnswer, sameNumber, sameText, sameValue } from './answerEquivalence.mjs';
+export {
+  asNumber,
+  normalizeAnswer,
+  sameNumber,
+  sameSimpleInequality,
+  sameText,
+  sameValue,
+} from './answerEquivalence.mjs';
 
 const UNICODE_MINUS = /[−–—]/g;
 
@@ -244,6 +252,7 @@ const normalizeAllRealText = (value) => String(value ?? '')
   .toLowerCase()
   .replace(UNICODE_MINUS, '-')
   .replace(/\\left|\\right/g, '')
+  .replace(/\\(?:text|mathrm|mathbf|operatorname)\{([^{}]*)\}/g, '$1')
   .replace(/\\mathbb\s*\{?r\}?/g, 'r')
   .replace(/ℝ/g, 'r')
   .replace(/[\s_{}]/g, '')
@@ -261,6 +270,19 @@ const isAllRealText = (value) => {
     'xinr',
   ].includes(text);
 };
+
+// Older graph-analysis questions sometimes represented "all real numbers" as
+// -∞ < x < ∞ even when the requested response mode was inequality notation.
+// Keep those historical answers equivalent for grading/repair, but the Algebra I
+// UI now teaches the course-appropriate wording instead of asking students to
+// type infinity into an inequality.
+const isLegacyAllRealInequality = (value) => (
+  /^-inf<[a-z](?:\([a-z]\))?<inf$/.test(normalizeAnswer(value))
+);
+
+const isAnyAllRealAnswer = (value) => (
+  isAllRealText(value) || isLegacyAllRealInequality(value)
+);
 
 const intervalTextToPathIntervals = (value) => {
   if (isAllRealText(value)) {
@@ -291,6 +313,24 @@ export const pathAnalysisTextMatches = (
       }
       // "does not exist", "none", and other explicitly authored textual
       // interval answers still need a safe fallback.
+      return sameValue(studentText, candidate, tolerance);
+    });
+  }
+
+  if (resolvedNotation === 'inequality') {
+    return list(candidates).some((candidate) => {
+      // "All Real Numbers" is the Algebra I response for an unrestricted
+      // domain/range. It remains equivalent to legacy -∞<x<∞ keys so already
+      // issued questions can be repaired without asking students to retry.
+      if (isAnyAllRealAnswer(studentText) || isAnyAllRealAnswer(candidate)) {
+        return isAnyAllRealAnswer(studentText) && isAnyAllRealAnswer(candidate);
+      }
+
+      // Compare the SET described by a simple inequality, not the direction in
+      // which the student happened to write it. Thus 1≤y, y≥1, -2≤x and x≥-2
+      // receive identical verdicts.
+      if (sameSimpleInequality(studentText, candidate, tolerance)) return true;
+
       return sameValue(studentText, candidate, tolerance);
     });
   }

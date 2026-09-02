@@ -81,7 +81,7 @@ const normalizeActions = (question = {}) => {
 };
 
 const copyCommon = (source, target = {}) => {
-  ['prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','supportHints','guidedNotes','guidedSteps','referenceInfo'].forEach((key) => {
+  ['prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','supportHints','guidedNotes','guidedSteps','referenceInfo','representSolution','solutionRepresentations','representationAsk'].forEach((key) => {
     if (source[key] != null) target[key] = source[key];
   });
   // Canonical V5 questions keep the normalized mathematical intent that chose
@@ -779,7 +779,24 @@ const resolveIntentType = (q, actions) => {
   if (actions.includes('constructInterval') || actions.includes('writeInterval') || q.intervals) return 'intervalNumberLine';
   if (actions.includes('chooseNumberLine') || q.numberLineChoices) return 'numberLine';
   if (actions.includes('constructGraph')) return 'functionGraph';
-  if (actions.includes('investigateFunction')) return 'functionInvestigation2';
+  if (actions.includes('investigateFunction')) {
+    // FunctionInvestigation2 is intentionally a compact family-investigation
+    // tool. It normalizes a function down to its family parameters and does
+    // not preserve an explicitly restricted domain. A bounded segment/ray
+    // therefore needs the full graphAnalysis workspace so open/closed
+    // endpoints, domain restrictions, and inequality grading survive.
+    const functionIntent = q.function || q.functionSpec || {};
+    const explicitDomain = isObject(functionIntent.domain) ? functionIntent.domain : (isObject(q.domain) ? q.domain : null);
+    const hasFiniteDomainBoundary = isObject(explicitDomain)
+      && ['min', 'max'].some((key) => explicitDomain[key] != null
+        && explicitDomain[key] !== ''
+        && Number.isFinite(Number(explicitDomain[key])));
+    const analyzesDomainOrRange = actions.some((action) => (
+      ['analyzeDomain', 'stateDomain', 'analyzeRange', 'stateRange'].includes(action)
+    ));
+    if (hasFiniteDomainBoundary && analyzesDomainOrRange) return 'graphAnalysis';
+    return 'functionInvestigation2';
+  }
   // When a displayed graph has authored response parts, preserve those exact
   // questions instead of sending the item to the old line-only slope/intercept
   // renderer. MultiAnswerGrader can show the graph and ask the authored

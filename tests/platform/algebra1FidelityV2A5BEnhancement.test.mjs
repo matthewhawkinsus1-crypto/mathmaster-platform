@@ -32,7 +32,9 @@ test('A.5B preserves a secure number-line interaction for a negative-coefficient
   const graph = entry.documents.find((doc) => doc.type === 'intervalNumberLine');
   assert.ok(graph);
   assert.equal(graph.representation, 'graph');
-  assert.deepEqual(graph.ask, ['graph', 'interval']);
+  assert.deepEqual(graph.ask, ['graph']);
+  assert.equal(Object.prototype.hasOwnProperty.call(graph, 'expectedNotation'), false);
+  assert.doesNotMatch(graph.prompt, /interval notation/i);
   assert.equal(graph.expectedIntervals?.length, 1);
   assert.equal(graph.expectedIntervals[0].min, null);
   assert.equal(graph.expectedIntervals[0].maxClosed, true);

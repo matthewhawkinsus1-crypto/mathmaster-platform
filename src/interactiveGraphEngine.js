@@ -296,6 +296,21 @@ const intervalString = (min, max, minInclusive, maxInclusive) => (
   `${minInclusive && Number.isFinite(min) ? '[' : '('}${intervalEndpoint(min)},${intervalEndpoint(max)}${maxInclusive && Number.isFinite(max) ? ']' : ')'}`
 );
 
+const rangeAnswersFromBounds = (minimum, maximum, minInclusive, maxInclusive, variable, notation) => {
+  const min = Number.isFinite(minimum) ? round(minimum, 5) : minimum;
+  const max = Number.isFinite(maximum) ? round(maximum, 5) : maximum;
+  if (notation === 'interval') return [intervalString(min, max, minInclusive, maxInclusive)];
+  if (Number.isFinite(min) && Number.isFinite(max) && Math.abs(min - max) < 1e-8) {
+    return [`${variable}=${formatNumber(min)}`];
+  }
+  if (Number.isFinite(min) && Number.isFinite(max)) {
+    return [`${formatNumber(min)}${minInclusive ? '<=' : '<'}${variable}${maxInclusive ? '<=' : '<'}${formatNumber(max)}`];
+  }
+  if (Number.isFinite(min)) return [`${variable}${minInclusive ? '>=' : '>'}${formatNumber(min)}`];
+  if (Number.isFinite(max)) return [`${variable}${maxInclusive ? '<=' : '<'}${formatNumber(max)}`];
+  return ['-inf<' + variable + '<inf', 'allrealnumbers'];
+};
+
 const domainIntervals = (spec) => {
   const domain = getEffectiveDomain(spec);
   const h = Number(spec.h ?? 0);
@@ -327,45 +342,126 @@ export const getDomainRangeAcceptedAnswers = (spec, kind, notation = 'interval')
   const h = Number(spec.h ?? 0); const k = Number(spec.k ?? 0); const a = Number(spec.a ?? 1);
   const domain = getEffectiveDomain(spec);
   const explicitDomain = spec.domain || spec.restrictedDomain || {};
-  const hasExplicitFiniteRestriction = Number.isFinite(Number(explicitDomain.min)) || Number.isFinite(Number(explicitDomain.max));
+  const hasFiniteAuthoredBound = (value) => value != null && value !== '' && Number.isFinite(Number(value));
+  const hasExplicitFiniteRestriction = hasFiniteAuthoredBound(explicitDomain.min) || hasFiniteAuthoredBound(explicitDomain.max);
   const unrestrictedValue = (x) => {
     const unrestricted = { ...spec };
     delete unrestricted.domain;
     delete unrestricted.restrictedDomain;
     return evaluateGraphFunction(unrestricted, x);
   };
-  if (hasExplicitFiniteRestriction && Number.isFinite(domain.min) && Number.isFinite(domain.max)) {
-    if (spec.type === 'rational' && domain.min < h && domain.max > h) {
-      const leftValue = round(unrestrictedValue(domain.min), 5);
-      const rightValue = round(unrestrictedValue(domain.max), 5);
-      let intervals;
-      if (a > 0) {
-        intervals = [
-          `(-inf,${formatNumber(leftValue)}${domain.minInclusive ? ']' : ')'}`,
-          `${domain.maxInclusive ? '[' : '('}${formatNumber(rightValue)},inf)`,
-        ];
-      } else {
-        intervals = [
-          `(-inf,${formatNumber(rightValue)}${domain.maxInclusive ? ']' : ')'}`,
-          `${domain.minInclusive ? '[' : '('}${formatNumber(leftValue)},inf)`,
-        ];
-      }
-      if (notation === 'interval') return [intervals.join('u')];
-      return [intervals.join('u')];
+  if (hasExplicitFiniteRestriction && Number.isFinite(domain.min) && Number.isFinite(domain.max) && spec.type === 'rational' && domain.min < h && domain.max > h) {
+    const leftValue = round(unrestrictedValue(domain.min), 5);
+    const rightValue = round(unrestrictedValue(domain.max), 5);
+    let intervals;
+    if (a > 0) {
+      intervals = [
+        `(-inf,${formatNumber(leftValue)}${domain.minInclusive ? ']' : ')'}`,
+        `${domain.maxInclusive ? '[' : '('}${formatNumber(rightValue)},inf)`,
+      ];
+    } else {
+      intervals = [
+        `(-inf,${formatNumber(rightValue)}${domain.maxInclusive ? ']' : ')'}`,
+        `${domain.minInclusive ? '[' : '('}${formatNumber(leftValue)},inf)`,
+      ];
+    }
+    if (notation === 'interval') return [intervals.join('u')];
+    return [intervals.join('u')];
+  }
+
+  // Restricted graph-analysis questions need the range of the ACTUAL visible
+  // segment/ray, not the parent family. The old code only handled two finite
+  // endpoints; a ray such as f(x)=-x+2 for x>=-2 silently fell through to
+  // "all real numbers". Compute the finite endpoint values, critical point,
+  // and end behavior so one-sided restrictions grade correctly too.
+  if (hasExplicitFiniteRestriction && spec.type !== 'rational') {
+    const candidates = [];
+    const base = Number(spec.base ?? spec.b ?? 2);
+    const slope = Number(spec.m ?? spec.a ?? 1);
+    const constantLinear = (spec.type === 'linear' || spec.type === 'line') && Math.abs(slope) < 1e-12;
+    const constantExponential = spec.type === 'exponential' && Math.abs(a) < 1e-12;
+    if (constantLinear || constantExponential) {
+      const probe = Number.isFinite(domain.min)
+        ? domain.min + (domain.minInclusive ? 0 : Math.max(1e-6, Math.abs(domain.min) * 1e-8))
+        : Number.isFinite(domain.max)
+          ? domain.max - (domain.maxInclusive ? 0 : Math.max(1e-6, Math.abs(domain.max) * 1e-8))
+          : 0;
+      const value = unrestrictedValue(probe);
+      if (Number.isFinite(value)) return rangeAnswersFromBounds(value, value, true, true, variable, notation);
     }
 
-    const candidates = [
-      { x: domain.min, y: unrestrictedValue(domain.min), included: domain.minInclusive },
-      { x: domain.max, y: unrestrictedValue(domain.max), included: domain.maxInclusive },
-    ].filter((candidate) => Number.isFinite(candidate.y));
-    if (['absolute', 'quadratic'].includes(spec.type) && h > domain.min && h < domain.max) candidates.push({ x: h, y: unrestrictedValue(h), included: true });
+    const endLimit = (direction) => {
+      const right = direction > 0;
+      if (spec.type === 'linear' || spec.type === 'line') {
+        if (Math.abs(slope) < 1e-12) return unrestrictedValue(0);
+        return (right ? slope : -slope) > 0 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+      }
+      if (spec.type === 'quadratic' || spec.type === 'absolute') {
+        return a >= 0 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+      }
+      if (spec.type === 'cubic' || spec.type === 'cubeRoot') {
+        return (right ? a : -a) >= 0 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+      }
+      if (spec.type === 'squareRoot') {
+        return a >= 0 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+      }
+      if (spec.type === 'exponential') {
+        if (!(base > 0) || Math.abs(base - 1) < 1e-12) return Number.NaN;
+        const growsRight = base > 1;
+        const diverges = right ? growsRight : !growsRight;
+        if (!diverges) return k;
+        return a >= 0 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+      }
+      if (spec.type === 'logarithmic') {
+        if (!(base > 0) || Math.abs(base - 1) < 1e-12) return Number.NaN;
+        if (!right) return Number.NaN;
+        const directionSign = base > 1 ? 1 : -1;
+        return a * directionSign >= 0 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+      }
+      return Number.NaN;
+    };
+
+    const finiteBoundaryLimit = (x, side) => {
+      const value = unrestrictedValue(x);
+      if (Number.isFinite(value)) return value;
+      if (spec.type === 'logarithmic' && Math.abs(x - h) < 1e-8 && side === 'right') {
+        if (!(base > 0) || Math.abs(base - 1) < 1e-12) return Number.NaN;
+        const raw = base > 1 ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
+        return a >= 0 ? raw : -raw;
+      }
+      return Number.NaN;
+    };
+
+    if (Number.isFinite(domain.min)) {
+      const y = finiteBoundaryLimit(domain.min, 'right');
+      if (!Number.isNaN(y)) candidates.push({ y, included: Number.isFinite(y) && domain.minInclusive });
+    } else {
+      const y = endLimit(-1);
+      if (!Number.isNaN(y)) candidates.push({ y, included: false });
+    }
+
+    if (Number.isFinite(domain.max)) {
+      const y = finiteBoundaryLimit(domain.max, 'left');
+      if (!Number.isNaN(y)) candidates.push({ y, included: Number.isFinite(y) && domain.maxInclusive });
+    } else {
+      const y = endLimit(1);
+      if (!Number.isNaN(y)) candidates.push({ y, included: false });
+    }
+
+    const hInsideDomain = h > domain.min && h < domain.max
+      || (h === domain.min && domain.minInclusive)
+      || (h === domain.max && domain.maxInclusive);
+    if (['absolute', 'quadratic'].includes(spec.type) && hInsideDomain) {
+      const y = unrestrictedValue(h);
+      if (Number.isFinite(y)) candidates.push({ y, included: true });
+    }
+
     if (candidates.length) {
-      const minimum = round(Math.min(...candidates.map((candidate) => candidate.y)), 5);
-      const maximum = round(Math.max(...candidates.map((candidate) => candidate.y)), 5);
-      const minIncluded = candidates.some((candidate) => candidate.included && Math.abs(candidate.y - minimum) < 1e-6);
-      const maxIncluded = candidates.some((candidate) => candidate.included && Math.abs(candidate.y - maximum) < 1e-6);
-      if (notation === 'interval') return [intervalString(minimum, maximum, minIncluded, maxIncluded)];
-      return [`${formatNumber(minimum)}${minIncluded ? '<=' : '<'}${variable}${maxIncluded ? '<=' : '<'}${formatNumber(maximum)}`];
+      const minimum = Math.min(...candidates.map((candidate) => candidate.y));
+      const maximum = Math.max(...candidates.map((candidate) => candidate.y));
+      const minIncluded = Number.isFinite(minimum) && candidates.some((candidate) => candidate.included && Number.isFinite(candidate.y) && Math.abs(candidate.y - minimum) < 1e-6);
+      const maxIncluded = Number.isFinite(maximum) && candidates.some((candidate) => candidate.included && Number.isFinite(candidate.y) && Math.abs(candidate.y - maximum) < 1e-6);
+      return rangeAnswersFromBounds(minimum, maximum, minIncluded, maxIncluded, variable, notation);
     }
   }
 

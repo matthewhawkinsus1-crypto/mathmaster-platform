@@ -146,6 +146,15 @@ const demandsForQuestion = (question = {}) => {
     out.push({ concept: 'intervalNotationDomainRange', depth: INSTRUCTIONAL_DEPTH.analyze, reason: 'requires interval notation for domain/range' });
   }
 
+  const requestedRepresentations = asArray(question.ask || question.solutionRepresentations || question.representationAsk).map(token);
+  if (
+    actions.has('writeinterval')
+    || requestedRepresentations.includes('interval')
+    || /\binterval\s+notation\b/.test(prompt)
+  ) {
+    out.push({ concept: 'formalIntervalNotation', depth: INSTRUCTIONAL_DEPTH.analyze, reason: 'requires formal interval notation' });
+  }
+
   if (actions.has('findmaximum') || actions.has('findminimum')) {
     out.push({ concept: 'absoluteExtremum', depth: INSTRUCTIONAL_DEPTH.analyze, reason: 'requires finding an exact maximum/minimum rather than recognizing the characteristic' });
   }
@@ -201,6 +210,9 @@ export const validateInstructionalScopeV5 = (input = {}) => {
         }
         if (demand.concept === 'intervalNotationDomainRange') {
           errors.push(`${label} exceeds the Algebra I instructional ceiling: ${demand.reason}. Use the representation taught by the lesson (typically inequalities, finite sets, or verbal all-real-number language).`);
+        }
+        if (demand.concept === 'formalIntervalNotation') {
+          errors.push(`${label} exceeds the Algebra I instructional ceiling: ${demand.reason}. Use inequality notation and/or a number-line graph instead.`);
         }
       });
     }

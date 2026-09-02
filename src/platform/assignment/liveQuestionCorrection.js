@@ -3,6 +3,8 @@ import {
   resolveQuestionMaximumAttempts,
 } from '../../attemptPolicy.js';
 import { stableStringify } from '../../utils/idUtils.js';
+import { getDomainRangeAcceptedAnswers } from '../../interactiveGraphEngine.js';
+import { pathAnalysisTextMatches } from '../../../functions/shared/pathToolContracts.mjs';
 
 const CHOICE_PROFILES = new Set(['choice', 'multiplechoice', 'multiple-choice', 'select']);
 
@@ -247,4 +249,161 @@ export const repairAssignmentTrackerForLiveCorrections = ({
     });
   });
   return next;
+};
+
+
+const currentGraderAnalysisRequests = (question = {}) => (
+  Array.isArray(question.analysisRequests) ? question.analysisRequests : []
+);
+
+const acceptedAnswersForCurrentGrader = (question = {}, request = {}) => {
+  const authored = [
+    ...(Array.isArray(request.acceptedAnswers) ? request.acceptedAnswers : []),
+    ...(Array.isArray(request.expected) ? request.expected : request.expected != null ? [request.expected] : []),
+  ].filter((value) => value !== undefined && value !== null && String(value).trim() !== '');
+  if (authored.length) return authored;
+
+  if (!['domain', 'range'].includes(String(request.kind || ''))) return [];
+  if (!question.functionSpec || typeof question.functionSpec !== 'object') return [];
+  return getDomainRangeAcceptedAnswers(
+    question.functionSpec,
+    request.kind,
+    request.notation || 'interval',
+  );
+};
+
+/**
+ * Repair a stored graph-analysis record after MathMaster's grader becomes more
+ * mathematically permissive/correct.
+ *
+ * This is deliberately monotonic:
+ * - a previously-correct part is never changed;
+ * - a stored response is upgraded only if the CURRENT shared grader proves it
+ *   correct against the CURRENT question;
+ * - credit can increase but never decrease;
+ * - total attempt history is preserved;
+ * - if another part is still wrong after the repair, an exhausted student gets
+ *   one usable retry instead of paying for the platform defect.
+ *
+ * Generated/variant questions are intentionally excluded because their old
+ * instantiated function may differ from today's base authoring envelope.
+ */
+export const repairQuestionRecordForCurrentGrader = ({
+  record,
+  question,
+  correctedAt = new Date().toISOString(),
+} = {}) => {
+  if (!record || !question || String(question.type || '') !== 'graphAnalysis') return record;
+  if (question.generator || (Array.isArray(question.variants) && question.variants.length)) return record;
+
+  const current = normalizeQuestionRecord(record);
+  if (current.status === 'correct' || !Array.isArray(current.partGrades) || !current.partGrades.length) {
+    return record;
+  }
+
+  const requestsById = new Map(
+    currentGraderAnalysisRequests(question).map((request) => [String(request?.id || ''), request]),
+  );
+  const upgradedPartIds = [];
+
+  const partGrades = current.partGrades.map((part) => {
+    if (part?.isCorrect || !part?.isComplete || !String(part?.response || '').trim()) return part;
+    const request = requestsById.get(String(part?.id || ''));
+    if (!request || !['domain', 'range'].includes(String(request.kind || ''))) return part;
+
+    const acceptedAnswers = acceptedAnswersForCurrentGrader(question, request);
+    if (!acceptedAnswers.length) return part;
+
+    const nowCorrect = pathAnalysisTextMatches(
+      part.response,
+      acceptedAnswers,
+      {
+        kind: request.kind,
+        notation: request.notation || 'interval',
+        tolerance: 1e-6,
+      },
+    );
+    if (!nowCorrect) return part;
+
+    upgradedPartIds.push(String(part.id));
+    return {
+      ...part,
+      isCorrect: true,
+      graderCorrectionCredit: true,
+    };
+  });
+
+  if (!upgradedPartIds.length) return record;
+
+  const allPartsComplete = partGrades.length > 0 && partGrades.every((part) => part.isComplete);
+  const allPartsCorrect = allPartsComplete && partGrades.every((part) => part.isCorrect);
+  const recomputedPartPercent = partGrades.length
+    ? Math.min(
+        90,
+        Math.round(
+          (partGrades.filter((part) => part.isComplete && part.isCorrect).length / partGrades.length) * 100,
+        ),
+      )
+    : 0;
+
+  const maximumAttempts = resolveQuestionMaximumAttempts({ question });
+  const needsRepairRetry = current.status === 'expired' || current.attemptCount >= maximumAttempts;
+  const attemptCount = allPartsCorrect
+    ? current.attemptCount
+    : needsRepairRetry
+      ? Math.max(0, maximumAttempts - 1)
+      : current.attemptCount;
+  const status = allPartsCorrect
+    ? 'correct'
+    : current.status === 'expired'
+      ? 'attempted'
+      : current.status;
+  const partialCredit = allPartsCorrect
+    ? 100
+    : Math.max(current.partialCredit, recomputedPartPercent);
+  const bestPartialCredit = allPartsCorrect
+    ? 100
+    : Math.max(current.bestPartialCredit, recomputedPartPercent);
+
+  return {
+    ...current,
+    status,
+    attemptCount,
+    partialCredit,
+    bestPartialCredit,
+    partGrades,
+    graderCorrectionHistory: compactRepairHistory(current.graderCorrectionHistory, {
+      kind: 'semantic-inequality-equivalence-v1',
+      questionId: question.questionId || null,
+      upgradedPartIds,
+      correctedAt,
+      preservedTotalAttempts: current.totalAttempts,
+      grantedRepairRetry: !allPartsCorrect && needsRepairRetry,
+    }),
+  };
+};
+
+export const repairAssignmentTrackerForCurrentGrader = ({
+  assignmentTracker = {},
+  questions = [],
+  correctedAt = new Date().toISOString(),
+} = {}) => {
+  let changed = false;
+  const next = { ...(assignmentTracker || {}) };
+
+  questions.forEach((question, index) => {
+    const record = next[index];
+    if (!record) return;
+    const repaired = repairQuestionRecordForCurrentGrader({
+      record,
+      question,
+      correctedAt,
+    });
+    if (repaired !== record) {
+      next[index] = repaired;
+      changed = true;
+    }
+  });
+
+  return changed ? next : assignmentTracker;
 };

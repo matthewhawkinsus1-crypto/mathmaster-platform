@@ -4,6 +4,7 @@ import MathDisplay from './MathDisplay';
 import MathInput from './MathInput';
 import QuestionPrompt from './QuestionPrompt';
 import IntervalNumberLine from './tools/intervalNumberLine/IntervalNumberLine';
+import { inequalitySolutionRepresentationStages } from './platform/curriculum/inequalityRepresentationPolicy.js';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 import { normalizeQuestionRecord } from './attemptPolicy';
 import {
@@ -654,7 +655,12 @@ export default function MultiRelationAlgebra({
     () => resolveRelationNumberLineConfig(summary.intervals || [], question),
     [summary.intervals, question],
   );
-  const requireRepresentations = summary.kind === 'intervals' && question.representSolution !== false;
+  const solutionRepresentationAsk = useMemo(
+    () => inequalitySolutionRepresentationStages(question),
+    [question],
+  );
+  const requireRepresentations = summary.kind === 'intervals' && solutionRepresentationAsk.length > 0;
+  const requiresIntervalNotation = solutionRepresentationAsk.includes('interval');
   const fullyComplete = !pendingRelationFlip
     && summary.solved
     && candidateVerificationComplete
@@ -687,7 +693,7 @@ export default function MultiRelationAlgebra({
         }] : []),
         ...(requireRepresentations ? [{
           id: 'solution-representations',
-          label: 'Graph and interval notation',
+          label: requiresIntervalNotation ? 'Graph and interval notation' : 'Graph the solution',
           isComplete: representationCorrect !== null,
           isCorrect: representationCorrect === true,
           response: representationCorrect === true ? 'correct' : '',
@@ -706,6 +712,7 @@ export default function MultiRelationAlgebra({
     representationCorrect,
     requireCandidateVerification,
     requireRepresentations,
+    requiresIntervalNotation,
     summary,
   ]);
 
@@ -2370,13 +2377,15 @@ export default function MultiRelationAlgebra({
         </svg>
       )}
 
-      {!pendingRelationFlip && summary.solved && summary.kind === 'intervals' && (
+      {!pendingRelationFlip && summary.solved && summary.kind === 'intervals' && requireRepresentations && (
         <div style={{ marginTop: 16 }}>
           <IntervalNumberLine
             questionData={{
-              prompt: 'Graph your solved inequality and write the same solution in interval notation.',
+              prompt: requiresIntervalNotation
+                ? 'Graph your solved inequality and write the same solution in interval notation.'
+                : 'Graph your solved inequality on the number line. Use an open or closed endpoint as appropriate.',
               intervals: summary.intervals,
-              ask: ['graph', 'interval'],
+              ask: solutionRepresentationAsk,
               variable: relationState.variable,
               min: numberLineConfig.min,
               max: numberLineConfig.max,

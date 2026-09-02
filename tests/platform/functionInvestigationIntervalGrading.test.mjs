@@ -130,3 +130,54 @@ test('shared client/server matcher treats interval notation and all-real wording
     true,
   );
 });
+
+
+test('inequality graph analysis accepts reversed equivalent one-sided inequalities', () => {
+  const cases = [
+    ['y ≤ 4', ['y<=4']],
+    ['4 ≥ y', ['y<=4']],
+    ['1 ≤ y', ['y>=1']],
+    ['y ≥ 1', ['1<=y']],
+    ['-2 ≤ x', ['x>=-2']],
+    ['x ≥ -2', ['-2<=x']],
+  ];
+
+  cases.forEach(([student, accepted]) => {
+    assert.equal(
+      pathAnalysisTextMatches(student, accepted, { kind: 'range', notation: 'inequality' }),
+      true,
+      `${student} should match ${accepted[0]}`,
+    );
+  });
+});
+
+test('Algebra I all-real wording matches legacy unrestricted inequality keys', () => {
+  for (const response of [
+    'All Real Numbers',
+    '\\text{All Real Numbers}',
+    'all real numbers',
+    'ℝ',
+    '\\mathbb{R}',
+  ]) {
+    assert.equal(
+      pathAnalysisTextMatches(
+        response,
+        ['-inf<x<inf'],
+        { kind: 'domain', notation: 'inequality' },
+      ),
+      true,
+      `${response} should be accepted as an unrestricted real domain`,
+    );
+  }
+});
+
+test('inequality semantic matching still rejects a genuinely different set', () => {
+  assert.equal(
+    pathAnalysisTextMatches(
+      'y > 1',
+      ['y>=1'],
+      { kind: 'range', notation: 'inequality' },
+    ),
+    false,
+  );
+});
