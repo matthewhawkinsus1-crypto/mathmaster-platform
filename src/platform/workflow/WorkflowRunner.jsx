@@ -770,7 +770,7 @@ export default function WorkflowRunner({
         return sameValue ? current : { ...current, [stageId]: value };
       });
     });
-  }, []);
+  }, [setResponses]);
 
   // Reporting upward is an effect, not part of the updater. State updaters must
   // be pure — React may run one twice — so a side effect inside one fires twice
