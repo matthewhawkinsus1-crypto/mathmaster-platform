@@ -64,19 +64,37 @@ const WORKFLOW_WORD_CHOICE_REPAIRS = Object.freeze([
   { choiceKey: 'rangeWordsChoices', correctKey: 'correctRangeWords', stageId: 'rangeWords', askKey: 'rangeWords' },
 ]);
 
-const workflowAsk = (question = {}) => (
-  Array.isArray(question?.recipe?.ask) ? question.recipe.ask.map(String) : []
-);
+const workflowAsk = (question = {}) => {
+  const recipeAsk = Array.isArray(question?.recipe?.ask) ? question.recipe.ask : [];
+  const topLevelAsk = Array.isArray(question?.ask) ? question.ask : [];
+  return (recipeAsk.length ? recipeAsk : topLevelAsk).map(String);
+};
+
+const isFunctionModelingQuestion = (question = {}) => {
+  const type = String(question?.type || '').trim();
+  const recipeName = typeof question?.recipe === 'string'
+    ? question.recipe
+    : String(question?.recipe?.name || question?.recipe?.recipe || '').trim();
+  return type === 'relationshipModel' || recipeName === 'functionModeling';
+};
 
 const analyzeWorkflowWordChoiceRepair = (before = {}, after = {}) => {
-  if (String(before?.type || '') !== 'relationshipModel' || String(after?.type || '') !== 'relationshipModel') {
-    return null;
-  }
-
+  // Detect the workflow repair by the response-control keys first. This makes
+  // the validator robust to legacy/live records where the public type or recipe
+  // was normalized differently during persistence, while still requiring both
+  // sides to resolve to the function-modeling family before any repair is allowed.
   const changed = WORKFLOW_WORD_CHOICE_REPAIRS.filter(({ choiceKey }) => (
     stableStringify(before?.[choiceKey] ?? null) !== stableStringify(after?.[choiceKey] ?? null)
   ));
   if (!changed.length) return null;
+
+  if (!isFunctionModelingQuestion(before) || !isFunctionModelingQuestion(after)) {
+    return {
+      safe: false,
+      affectedFieldIds: [],
+      reason: 'This repair changes workflow domain/range wording choices, but the live question is not a function-modeling relationship question.',
+    };
+  }
 
   const stripChoiceKeys = (question) => {
     const copy = { ...question };
