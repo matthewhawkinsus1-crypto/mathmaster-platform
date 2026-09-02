@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { BUCKET, buildStudentDashboardModel } from '../../src/studentDashboardModel.js';
 import {
-  assignmentIsForStudent, getAssignmentLifecycle, getDOLState, getIncludedQuestionIndices,
+  assignmentIsForStudent, getAssignmentLifecycle, getDOLState, getWarmupState, getIncludedQuestionIndices,
   prerequisiteAccess, questionIsIncluded,
 } from '../../src/assignmentLifecycle.js';
 import { normalizeQuestionRecord } from '../../src/attemptPolicy.js';
@@ -17,6 +17,7 @@ const PROVIDERS = {
   prerequisiteAccess,
   calculateGrade: () => 0,
   getDOLState,
+  getWarmupState,
   getIncludedQuestionIndices,
   normalizeQuestionRecord,
   questionIsIncluded,
@@ -59,6 +60,38 @@ test('only this student\'s class sees an assignment', () => {
     assignments: [practice('mine'), practice('theirs', { assignedClassIds: ['class-6'] })],
   });
   assert.deepEqual(result.visibleAssignments.map((assignment) => assignment.id), ['mine']);
+});
+
+test('an active Warm-Up is surfaced as the highest-priority live action', async () => {
+  const warmup = {
+    ...practice('warmup-live', { dueAt: inHours(4), lateDueAt: inHours(24 * 7) }),
+    warmup: {
+      enabled: true,
+      minutesBeforeStart: 7,
+      closeMinutesAfterStart: 10,
+      instructionDate: '2026-10-26',
+    },
+    sections: [{
+      id: 'warmup',
+      role: 'warmup',
+      questions: [{ type: 'algebra', prompt: 'Warm up', equationLatex: 'x=1', activityRole: 'warmup' }],
+    }],
+  };
+  const classSchedule = {
+    version: 2,
+    dayTypeOverrides: { '2026-10-26': 'A' },
+    daySchedules: {
+      A: { periods: { 'Period 1': { enabled: true, start: '14:55', end: '16:00' } } },
+      B: { periods: {} },
+    },
+  };
+  const result = model({ assignments: [warmup], classSchedule });
+  assert.equal(result.activeWarmups.length, 1);
+  assert.equal(result.activeWarmups[0].state.status, 'active');
+  const { resolveNextAction } = await import('../../src/studentDashboardModel.js');
+  const action = resolveNextAction({ dashboard: result });
+  assert.equal(action.kind, 'warmup');
+  assert.equal(action.assignment.id, 'warmup-live');
 });
 
 test('work due today is Do Now; work due later is Coming Up', () => {

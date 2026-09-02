@@ -24,3 +24,25 @@ test('manual Warm-Up open is scoped to the real class and today', () => {
   assert.match(app, /needsOpenToday/);
   assert.match(app, /Open Warm-Up Today/);
 });
+
+test('Warm-Up countdown is visible across teacher and student surfaces', () => {
+  const home = read('src/TeacherHome.jsx');
+  const workspace = read('src/ClassesWorkspace.jsx');
+  const dashboard = read('src/components/student/StudentDashboardView.jsx');
+  const app = read('src/App.jsx');
+
+  assert.match(home, /DOLCountdown endsAt=\{state\.endsAt\}/);
+  assert.match(workspace, /DOLCountdown endsAt=\{warmup\.endsAt\}/);
+  assert.match(dashboard, /Warm-Up active now/);
+  assert.match(dashboard, /DOLCountdown endsAt=\{state\.endsAt\}/);
+  assert.match(app, /renderStudentWarmupBanner/);
+  assert.match(app, /WARM-UP ACTIVE/);
+  assert.match(app, /Warm-Up is active — start now/);
+  assert.match(app, /Warm-Up reminder — timer is running/);
+});
+
+test('new assignments persist the ten-minute Warm-Up close default', () => {
+  const app = read('src/App.jsx');
+  assert.match(app, /closeMinutesAfterStart: 10/);
+  assert.match(app, /manual-reopen-until-class-end/);
+});

@@ -6,8 +6,9 @@ const read = (path) => fs.readFileSync(path, 'utf8');
 
 test('stored Classroom ids must match the MathMaster publication marker', () => {
   const src = read('functions/index.js');
-  assert.match(src, /function courseWorkMatchesPublication\(courseWork, publicationId\)/);
-  assert.match(src, /String\(courseWork\.description \|\| ""\)\.includes\(publicationMarker\(publicationId\)\)/);
+  assert.match(src, /function courseWorkMatchesPublication\(courseWork, publicationId, requiredInstanceMarker = null\)/);
+  assert.match(src, /description\.includes\(publicationMarker\(publicationId\)\)/);
+  assert.match(src, /!requiredInstanceMarker \|\| description\.includes\(String\(requiredInstanceMarker\)\)/);
 
   const publishStart = src.indexOf('async function publishOneCourse');
   const repairStart = src.indexOf('exports.repairClassroomAssignmentPublications = onCall');
@@ -17,12 +18,12 @@ test('stored Classroom ids must match the MathMaster publication marker', () => 
   const repair = src.slice(repairStart, inspectStart);
   const inspect = src.slice(inspectStart, removeStart);
 
-  assert.match(publish, /courseWorkMatchesPublication\(candidate, publicationId\)/);
-  assert.match(repair, /courseWorkMatchesPublication\(existingCourseWork, publication\.id\)/);
-  assert.match(inspect, /courseWorkMatchesPublication\(courseWork, publication\.id\)/);
+  assert.match(publish, /courseWorkMatchesPublication\(candidate, publicationId, requiredInstanceMarker\)/);
+  assert.match(repair, /courseWorkMatchesPublication\([\s\S]*existingCourseWork,[\s\S]*publication\.id,[\s\S]*publicationInstanceMarker/);
+  assert.match(inspect, /courseWorkMatchesPublication\([\s\S]*courseWork,[\s\S]*publication\.id,[\s\S]*publicationInstanceMarker/);
   assert.match(inspect, /status: "mismatched"/);
   assert.ok(
-    inspect.indexOf('courseWorkMatchesPublication(courseWork, publication.id)')
+    inspect.indexOf('courseWorkMatchesPublication(')
       < inspect.indexOf('modifyCourseWorkAssignees'),
     'audience repair must never run before publication identity is verified',
   );

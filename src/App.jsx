@@ -425,6 +425,7 @@ function App() {
   // in state rather than sending it is the whole point: nothing reaches
   // Classroom without a person having looked at it.
   const [classroomSyncProposal, setClassroomSyncProposal] = useState(null);
+  const [classroomManagerAssignmentId, setClassroomManagerAssignmentId] = useState('');
   const [quickSearchOpen, setQuickSearchOpen] = useState(false);
   // Delivered-question evidence for one class, loaded only when a teacher asks
   // for it. One Firestore read per student is not a price to pay for rendering
@@ -863,6 +864,10 @@ function App() {
   // The active DOL card/banner stays visible; this adds a repeated nudge for a
   // student who is deep in another question or sitting on the dashboard.
   const dolOpenAnnouncedRef = useRef({});
+  // Warm-Up notices follow the same student-wide pattern as DOL notices:
+  // visible on every student surface and repeated while unfinished work is
+  // still inside the live Warm-Up window.
+  const warmupOpenAnnouncedRef = useRef({});
 
   useEffect(() => {
     const clock = window.setInterval(() => setNow(Date.now()), 30000);
@@ -1401,7 +1406,7 @@ function App() {
           assignment.title + ': Google Classroom confirmed the current mapped assignment post'
             + (healthy === 1 ? '' : 's')
             + (healthyCourses.length ? ' in ' + healthyCourses.join(', ') : '')
-            + ' ' + (healthy === 1 ? 'is' : 'are') + ' still available. Nothing was duplicated.'
+            + ' ' + (healthy === 1 ? 'is' : 'are') + ' still available. Nothing was duplicated. If you still cannot see the post, choose Force New Classroom Post from this assignment menu and select the exact Google Classroom.'
             + (ignoredPriorDestinations > 0
               ? ' MathMaster ignored ' + ignoredPriorDestinations + ' older publication record' + (ignoredPriorDestinations === 1 ? '' : 's') + ' from other course mappings.'
               : ''),
@@ -2125,6 +2130,59 @@ function App() {
       if (!activeKeys.has(key) && now - Number(dolOpenAnnouncedRef.current[key] || 0) > 15 * 60000) delete dolOpenAnnouncedRef.current[key];
     });
   }, [now, user, assignments, classSchedule, tracker, toastWarning]);
+
+  // Warm-Up reminders are student-wide, just like DOL reminders. The amber
+  // countdown stays visible everywhere; this toast announces the opening and
+  // repeats every two minutes while Warm-Up questions still need work.
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.classPeriod) return;
+    const activeKeys = new Set();
+    const classContext = { classId: user.classId || null, classPeriod: user.classPeriod };
+
+    assignments.forEach((assignment) => {
+      if (!assignmentIsForStudent(assignment, classContext)) return;
+      const warmupState = getWarmupState({
+        assignment,
+        schedule: classSchedule,
+        ...classContext,
+        nowValue: now,
+      });
+      if (warmupState.status !== 'active') return;
+
+      const questions = getStoredAssignmentQuestions(assignment);
+      const warmupIndices = questions.reduce((indices, question, index) => {
+        if (
+          questionIsIncluded(question)
+          && resolveQuestionActivityRole({ question, assignment }) === 'warmup'
+        ) indices.push(index);
+        return indices;
+      }, []);
+      if (!warmupIndices.length) return;
+
+      const records = warmupIndices.map((index) => normalizeQuestionRecord(tracker?.[assignment.id]?.[index]));
+      if (records.every((record) => ['correct', 'expired'].includes(record.status))) return;
+
+      const key = `${assignment.id}:${user.classId || user.classPeriod}:${warmupState.instructionDateKey || localDateKey(now)}`;
+      activeKeys.add(key);
+      const lastReminderAt = Number(warmupOpenAnnouncedRef.current[key] || 0);
+      if (lastReminderAt && now - lastReminderAt < 120000) return;
+
+      const firstReminder = lastReminderAt === 0;
+      warmupOpenAnnouncedRef.current[key] = now;
+      toastWarning(
+        firstReminder ? 'Warm-Up is active — start now' : 'Warm-Up reminder — timer is running',
+        `${assignment.title}: the Warm-Up is open now and ${formatRemainingTime(warmupState.millisecondsRemaining)} remains.`,
+      );
+    });
+
+    Object.keys(warmupOpenAnnouncedRef.current).forEach((key) => {
+      if (
+        !activeKeys.has(key)
+        && now - Number(warmupOpenAnnouncedRef.current[key] || 0) > 15 * 60000
+      ) delete warmupOpenAnnouncedRef.current[key];
+    });
+  }, [now, user, assignments, classSchedule, tracker, toastWarning]);
+
 
   useEffect(() => {
     if (user?.role !== 'student' || !user.classPeriod) return;
@@ -3316,6 +3374,7 @@ function App() {
         warmup: {
           enabled: warmupEnabled,
           minutesBeforeStart: warmupMinutesBeforeStart,
+          closeMinutesAfterStart: 10,
           instructionDate: warmupInstructionDate,
           instructionDatesByClassPeriod: warmupInstructionDatesByClassPeriod,
           closedByClassId: {},
@@ -4212,6 +4271,7 @@ function App() {
         ...(assignment.warmup || {}),
         enabled: true,
         minutesBeforeStart: Math.max(0, Number(assignment?.warmup?.minutesBeforeStart ?? 7)),
+        closeMinutesAfterStart: Math.max(1, Number(assignment?.warmup?.closeMinutesAfterStart ?? 10)),
       };
       const closedByClassId = { ...(assignment.warmup?.closedByClassId || {}) };
       const autoCloseByClassId = { ...(assignment.warmup?.autoCloseByClassId || {}) };
@@ -4223,10 +4283,18 @@ function App() {
       } else if (action === 'reopen') {
         // Reopening is an explicit live-teacher decision. Pin today's date to
         // this real class id so a reused assignment or sibling period cannot
-        // make the control disappear again.
+        // make the control disappear again. A manual reopen overrides the
+        // normal ten-minute Warm-Up cutoff and stays open until this class ends
+        // unless the teacher chooses a shorter timer.
         instructionDatesByClassId[classId] = dateKey;
         delete closedByClassId[classId];
-        delete autoCloseByClassId[classId];
+        autoCloseByClassId[classId] = {
+          dateKey,
+          closesAt: state.window.end.toISOString(),
+          setAt: changedAt,
+          setBy: teacherIdentity,
+          reason: 'manual-reopen-until-class-end',
+        };
       } else {
         instructionDatesByClassId[classId] = dateKey;
         delete closedByClassId[classId];
@@ -5074,6 +5142,92 @@ function App() {
     );
   };
 
+  const renderStudentWarmupBanner = () => {
+    if (user?.role !== 'student' || !user.classPeriod) return null;
+    const classContext = { classId: user.classId || null, classPeriod: user.classPeriod };
+    const active = assignments
+      .filter((assignment) => assignmentIsForStudent(assignment, classContext))
+      .map((assignment) => {
+        const state = getWarmupState({
+          assignment,
+          schedule: classSchedule,
+          ...classContext,
+          nowValue: now,
+        });
+        if (state.status !== 'active') return null;
+        const questions = getStoredAssignmentQuestions(assignment);
+        const questionIndices = questions.reduce((indices, question, index) => {
+          if (
+            questionIsIncluded(question)
+            && resolveQuestionActivityRole({ question, assignment }) === 'warmup'
+          ) indices.push(index);
+          return indices;
+        }, []);
+        return questionIndices.length ? { assignment, state, questionIndices } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => Number(a.state.endsAt?.getTime?.() || 0) - Number(b.state.endsAt?.getTime?.() || 0));
+
+    if (!active.length) return null;
+    const { assignment, state, questionIndices } = active[0];
+    const support = getStudentSupportPresentation(user.profile);
+    const alreadyInThisWarmup = activeView === 'assignment'
+      && activeAssignmentId === assignment.id
+      && questionIndices.includes(currentQuestionIndex);
+
+    return (
+      <aside
+        role="alert"
+        aria-live="polite"
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 19000,
+          background: '#fff4ce',
+          color: '#5f4400',
+          borderBottom: '3px solid #f9ab00',
+          boxShadow: '0 5px 18px rgba(0,0,0,0.16)',
+          padding: '10px 16px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 14,
+          flexWrap: 'wrap',
+          textAlign: 'center',
+        }}
+      >
+        <strong>🔥 WARM-UP ACTIVE</strong>
+        <span>{assignment.title}</span>
+        {!support.hideCountdowns && (
+          <strong style={{ fontSize: 20 }}>
+            <DOLCountdown endsAt={state.endsAt} /> remaining
+          </strong>
+        )}
+        {!alreadyInThisWarmup && (
+          <button
+            type="button"
+            onClick={() => {
+              setStudentDashboardMode('assignments');
+              startAssignment(assignment.id, questionIndices[0]);
+            }}
+            style={{
+              padding: '8px 13px',
+              borderRadius: 8,
+              border: 0,
+              background: '#b06000',
+              color: '#fff',
+              fontWeight: 900,
+              cursor: 'pointer',
+            }}
+          >
+            Go to Warm-Up
+          </button>
+        )}
+      </aside>
+    );
+  };
+
+
   const renderIdleOverlay = () => {
     if (!isIdle) return null;
     return (
@@ -5799,6 +5953,7 @@ function App() {
         }}
       >
         {!preview && renderStudentPackUpBanner()}
+        {!preview && renderStudentWarmupBanner()}
         {!preview && !supportPresentation.disableIdleTimer && renderIdleOverlay()}
         <div className="mathmaster-assignment-shell" style={{ maxWidth: '1120px', margin: '0 auto' }}>
           {!preview && liveChallengeInvite?.status === 'running' && (
@@ -6664,6 +6819,13 @@ function App() {
                               key: 'repair-classroom-post',
                               label: 'Repair / Repost Classroom',
                               onClick: () => handleRepairClassroomAssignmentPost(assignment),
+                            }, {
+                              key: 'force-classroom-post',
+                              label: 'Force New Classroom Post…',
+                              onClick: () => {
+                                setClassroomManagerAssignmentId(assignment.id);
+                                setTeacherTab('classroom');
+                              },
                             }] : []),
                             ...(libraryRepair.source && libraryRepair.questionIds.length ? [{
                               key: 'repair-library-content',
@@ -6980,7 +7142,15 @@ function App() {
               </div>
             )}
 
-            {teacherTab === 'classroom' && <ClassroomManagerV2 assignments={assignments} classes={classes} students={allStudents} teacherEmail={user.email} />}
+            {teacherTab === 'classroom' && (
+              <ClassroomManagerV2
+                assignments={assignments}
+                classes={classes}
+                students={allStudents}
+                teacherEmail={user.email}
+                initialAssignmentId={classroomManagerAssignmentId}
+              />
+            )}
 
             {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} mode="teacher" />}
           </div>
@@ -6995,6 +7165,7 @@ function App() {
       return (
         <>
           {renderStudentPackUpBanner()}
+          {renderStudentWarmupBanner()}
           <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading Live Challenge…</div>}>
           <LiveChallengeStudent
             invite={liveChallengeInvite}
@@ -7009,6 +7180,7 @@ function App() {
       return (
         <>
           {renderStudentPackUpBanner()}
+          {renderStudentWarmupBanner()}
           <MyMathPathApp
           studentId={user.id}
           studentName={user.displayName || user.id}
@@ -7028,6 +7200,7 @@ function App() {
       return (
         <>
           {renderStudentPackUpBanner()}
+          {renderStudentWarmupBanner()}
           <StudentSecureExamDashboard
           studentProfile={user.profile}
           onExit={() => setStudentDashboardMode('assignments')}
@@ -7073,6 +7246,7 @@ function App() {
     return (
       <>
         {renderStudentPackUpBanner()}
+        {renderStudentWarmupBanner()}
         <StudentDashboardView
         dashboard={dashboard}
         student={{ id: user.id, displayName: user.displayName, classPeriod: user.classPeriod, inclusionStatus: user.profile?.inclusionStatus }}

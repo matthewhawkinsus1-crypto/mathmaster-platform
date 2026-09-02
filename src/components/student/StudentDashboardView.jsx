@@ -57,7 +57,7 @@ export default function StudentDashboardView({
 }) {
   const {
     visibleAssignments, resumeAssignment, resumeQuestionIndex, resumeLifecycle,
-    activeDols, doNowEntries, comingUpEntries, completedEntries, groups,
+    activeDols, activeWarmups, doNowEntries, comingUpEntries, completedEntries, groups,
   } = dashboard;
 
   const [exportingAssignmentId, setExportingAssignmentId] = useState(null);
@@ -138,6 +138,28 @@ export default function StudentDashboardView({
             onOpenMathPath={onOpenMathPath}
           />
         )}
+
+        {(activeWarmups || []).map(({ assignment, state, questionIndices = [] }) => (
+          <section key={`warmup-${assignment.id}`} style={{ marginBottom: '18px', padding: '22px 25px', borderRadius: '16px', background: '#fff8df', border: '3px solid #f9ab00', color: '#5f4400', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase' }}>🔥 Warm-Up active now</div>
+              <h2 style={{ margin: '4px 0' }}>{assignment.title} · Warm-Up</h2>
+              <p style={{ margin: 0 }}>Start with the Warm-Up. It closes automatically when the class Warm-Up timer reaches zero.</p>
+              {!supportPresentation.hideCountdowns && (
+                <div style={{ marginTop: '8px', fontSize: '22px', fontWeight: 1000 }}>
+                  <DOLCountdown endsAt={state.endsAt} /> remaining
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => onStartAssignment(assignment.id, questionIndices[0] ?? 0)}
+              style={{ padding: '13px 20px', border: 0, borderRadius: '10px', background: '#b06000', color: '#fff', fontWeight: 900, fontSize: '16px' }}
+            >
+              Start Warm-Up Now
+            </button>
+          </section>
+        ))}
 
         {activeDols.map(({ assignment, state }) => (
           <section key={assignment.id} style={{ marginBottom: '18px', padding: '22px 25px', borderRadius: '16px', background: '#f3e8fd', border: '3px solid #9334e6', color: '#4a126b', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>

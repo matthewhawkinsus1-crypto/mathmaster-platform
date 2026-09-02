@@ -30,6 +30,16 @@ state = getWarmupState({ assignment, schedule, classPeriod: 'Period 3', nowValue
 assert.equal(state.status, 'active');
 assert.equal(state.opensAt.getHours(), 8);
 assert.equal(state.opensAt.getMinutes(), 53);
+assert.equal(state.endsAt.getHours(), 9);
+assert.equal(state.endsAt.getMinutes(), 10);
+assert.equal(state.closeMinutesAfterStart, 10);
+
+state = getWarmupState({ assignment, schedule, classPeriod: 'Period 3', nowValue: at('09:09') });
+assert.equal(state.status, 'active');
+assert.equal(state.millisecondsRemaining, 60 * 1000);
+state = getWarmupState({ assignment, schedule, classPeriod: 'Period 3', nowValue: at('09:10') });
+assert.equal(state.status, 'closed');
+assert.equal(state.millisecondsRemaining, 0);
 
 const closed = {
   ...assignment,
@@ -66,7 +76,7 @@ assert.equal(state.autoCloseScheduled, false);
 // The timer belongs to one real class, not every class that happens to share
 // the same bell period.
 state = getWarmupState({ assignment: timedReopen, schedule, classId: 'class-other', classPeriod: 'Period 3', nowValue: at('09:16') });
-assert.equal(state.status, 'active');
+assert.equal(state.status, 'closed');
 state = getWarmupState({ assignment, schedule, classPeriod: 'Period 3', nowValue: at('10:31') });
 assert.equal(state.status, 'ended');
 state = getWarmupState({ assignment, schedule, classPeriod: 'Period 3', nowValue: new Date('2026-08-18T09:00:00') });
@@ -95,8 +105,10 @@ const classSpecificOpen = {
     },
   },
 };
-state = getWarmupState({ assignment: classSpecificOpen, schedule, classId: 'class-3', classPeriod: 'Period 3', nowValue: at('09:10') });
+state = getWarmupState({ assignment: classSpecificOpen, schedule, classId: 'class-3', classPeriod: 'Period 3', nowValue: at('09:09') });
 assert.equal(state.status, 'active');
+state = getWarmupState({ assignment: classSpecificOpen, schedule, classId: 'class-3', classPeriod: 'Period 3', nowValue: at('09:10') });
+assert.equal(state.status, 'closed');
 state = getWarmupState({ assignment: classSpecificOpen, schedule, classId: 'class-other', classPeriod: 'Period 3', nowValue: at('09:10') });
 assert.equal(state.status, 'notToday');
 console.log('warmupLifecycle.test.mjs: all assertions passed');

@@ -14,6 +14,7 @@ import { OFFLINE_AFTER_MS } from './livePresence';
 import { compareStudentsByName, formatStudentName } from './platform/studentName';
 import { studentsInClass } from '../functions/shared/classModel.mjs';
 import ClassOverviewPanel from './components/teacher/ClassOverviewPanel.jsx';
+import DOLCountdown from './components/student/DOLCountdown.jsx';
 
 const formatClock = (date) => date instanceof Date ? date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '';
 
@@ -214,9 +215,7 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                     <strong>{assignment.title}</strong>
                     <div style={{ marginTop: 4, fontSize: 12, color: '#5f6368' }}>
                       {warmup.status === 'active'
-                        ? warmup.autoCloseScheduled
-                          ? `Open now · closes automatically in ${formatRemainingTime(warmup.millisecondsRemaining)}`
-                          : 'Open now'
+                        ? 'Open now · closes automatically when the timer reaches zero'
                         : warmup.status === 'closed'
                           ? 'Closed by teacher or timer · review only'
                           : warmup.status === 'notToday'
@@ -226,6 +225,11 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                               : warmup.status === 'waiting'
                                 ? `Locked · opens ${warmup.minutesBeforeStart} minutes before class`
                                 : 'Class window ended'}
+                      {warmup.status === 'active' && (
+                        <div style={{ marginTop: 5, fontSize: 18, fontWeight: 1000, color: '#8a4b00' }}>
+                          <DOLCountdown endsAt={warmup.endsAt} /> remaining
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -273,7 +277,7 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                             ? `Open for ${timerMinutes} min`
                             : warmup.status === 'closed'
                               ? `Reopen for ${timerMinutes} min`
-                              : warmup.autoCloseScheduled
+                              : warmup.teacherTimerScheduled
                                 ? `Reset to ${timerMinutes} min`
                                 : `Close in ${timerMinutes} min`}
                         </button>

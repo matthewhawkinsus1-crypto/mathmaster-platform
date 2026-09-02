@@ -13,6 +13,7 @@ import {
   listPublishedAssignments,
   inspectClassroomPublication,
   repairClassroomAssignmentPublications,
+  forceRepublishAssignmentToClassrooms,
   removeAssignmentClassroomPackage,
   publishAssignmentToClassrooms,
   publishClassroomMaterial,
@@ -75,6 +76,7 @@ export default function ClassroomManagerV2({
   classes = [],
   students = [],
   teacherEmail = '',
+  initialAssignmentId = '',
 }) {
   const [connection, setConnection] = useState({ connected: false, needsReconnect: false, missingScopes: [] });
   const [diagnostics, setDiagnostics] = useState(null);
@@ -90,7 +92,7 @@ export default function ClassroomManagerV2({
   const [identityText, setIdentityText] = useState('');
   const [identityRows, setIdentityRows] = useState([]);
   const [identityRejected, setIdentityRejected] = useState([]);
-  const [assignmentId, setAssignmentId] = useState('');
+  const [assignmentId, setAssignmentId] = useState(() => String(initialAssignmentId || ''));
   const [topicName, setTopicName] = useState('');
   const [instructions, setInstructions] = useState('');
   const [resourceMode, setResourceMode] = useState('separate');
@@ -187,6 +189,52 @@ export default function ClassroomManagerV2({
     if (params.get('classroomError')) setError(`Google Classroom connection failed: ${params.get('classroomError')}`);
     refreshManagerData().catch((err) => setError(err.message));
   }, []);
+
+  useEffect(() => {
+    if (!initialAssignmentId) return;
+    setAssignmentId(String(initialAssignmentId));
+  }, [initialAssignmentId]);
+
+  // Opening Classroom Manager from an assignment card should be ready to act,
+  // not require a second "Load Active Courses" click.
+  useEffect(() => {
+    if (!connection.connected || connection.needsReconnect || courses.length) return;
+    let cancelled = false;
+    listGoogleCourses()
+      .then((response) => {
+        if (cancelled) return;
+        const loaded = response?.courses || [];
+        setCourses(loaded);
+        if (!rosterCourseId && loaded[0]) setRosterCourseId(String(loaded[0].id));
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err?.message || String(err));
+      });
+    return () => { cancelled = true; };
+  }, [connection.connected, connection.needsReconnect]);
+
+  // One authoritative assignment-selection effect serves both the dropdown and
+  // the assignment-card shortcut. As mappings arrive, the correct destination
+  // courses become selected automatically.
+  useEffect(() => {
+    if (!selectedAssignment) return;
+    const classroom = selectedAssignment?.classroomPackage || {};
+    const notes = selectedAssignment?.lessonResources?.notesPdf || null;
+    setTopicName(classroom?.topic?.name || suggestClassroomTopic(selectedAssignment));
+    setInstructions(classroom?.assignmentPost?.instructions
+      || `Complete "${selectedAssignment.title}" in MathMaster. Use the Open in MathMaster link below.`);
+    const postingMode = classroom?.resourcesPost?.postingMode;
+    setResourceMode(postingMode === 'attachToAssignment' ? 'attach' : postingMode === 'none' ? 'none' : 'separate');
+    setMaterialTitle(classroom?.resourcesPost?.title || `${selectedAssignment.title} — Notes & Resources`);
+    setMaterialDescription(classroom?.resourcesPost?.description || `Reference materials for ${selectedAssignment.title}.`);
+    const authoredLinks = Array.isArray(classroom?.additionalLinks) ? classroom.additionalLinks : [];
+    setMaterials(authoredLinks.length ? authoredLinks.map((item) => ({ title: item.title || '', url: item.url || '' })) : [{ title: '', url: '' }]);
+    setSelectedCourseIds(matchingCoursesForAssignment(selectedAssignment, mappings, classes));
+    if (notes?.enabled) {
+      setStatus(`AI prepared ${notes.title || 'student notes'} (${Number(notes.targetPages) === 1 ? 1 : 2} page target) and Classroom publishing information.`);
+    }
+  }, [selectedAssignment?.id, mappings, classes]);
+
 
   const run = async (work) => {
     setBusy(true);
@@ -342,23 +390,6 @@ export default function ClassroomManagerV2({
 
   const handleAssignmentChange = (value) => {
     setAssignmentId(value);
-    const assignment = assignments.find((item) => String(item.id) === String(value));
-    const classroom = assignment?.classroomPackage || {};
-    const notes = assignment?.lessonResources?.notesPdf || null;
-    setTopicName(classroom?.topic?.name || (assignment ? suggestClassroomTopic(assignment) : ''));
-    setInstructions(classroom?.assignmentPost?.instructions
-      || (assignment ? `Complete "${assignment.title}" in MathMaster. Use the Open in MathMaster link below.` : ''));
-    const postingMode = classroom?.resourcesPost?.postingMode;
-    setResourceMode(postingMode === 'attachToAssignment' ? 'attach' : postingMode === 'none' ? 'none' : 'separate');
-    setMaterialTitle(classroom?.resourcesPost?.title || (assignment ? `${assignment.title} — Notes & Resources` : 'Lesson Notes & Resources'));
-    setMaterialDescription(classroom?.resourcesPost?.description || (assignment ? `Reference materials for ${assignment.title}.` : ''));
-    const authoredLinks = Array.isArray(classroom?.additionalLinks) ? classroom.additionalLinks : [];
-    setMaterials(authoredLinks.length ? authoredLinks.map((item) => ({ title: item.title || '', url: item.url || '' })) : [{ title: '', url: '' }]);
-    const suggested = assignment ? matchingCoursesForAssignment(assignment, mappings, classes) : [];
-    setSelectedCourseIds(suggested);
-    if (notes?.enabled) {
-      setStatus(`AI prepared ${notes.title || 'student notes'} (${Number(notes.targetPages) === 1 ? 1 : 2} page target) and Classroom publishing information.`);
-    }
   };
 
   const cleanMaterials = () => materials
@@ -422,6 +453,61 @@ export default function ClassroomManagerV2({
     });
     const summary = response.summary || {};
     setStatus(`Published/connected ${Number(summary.published || 0) + Number(summary.alreadyPublished || 0)} Classroom assignment post(s)${dedupedLinks.length ? ' with the AI-prepared resources package' : ''}.`);
+    setLinks((await listPublishedAssignments()).links || []);
+    setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
+  });
+
+
+  const handleForceRepublish = () => run(async () => {
+    assertPublishable(selectedAssignment);
+    if (!selectedCourseIds.length) throw new Error('Select at least one mapped Google Classroom course.');
+
+    const selectedNames = courses
+      .filter((course) => selectedCourseIds.includes(String(course.id)))
+      .map((course) => courseLabel(course));
+    const confirmed = window.confirm(
+      'FORCE A NEW GOOGLE CLASSROOM POST?\n\n'
+      + 'MathMaster will create a brand-new assignment post even if an older post still exists.\n\n'
+      + 'Selected: ' + (selectedNames.join(', ') || selectedCourseIds.join(', ')) + '\n\n'
+      + 'Student MathMaster progress will NOT be reset. Grade passback will move to the newly created post. '
+      + 'If Google is already showing the old post, students may see both.'
+    );
+    if (!confirmed) return;
+
+    const classroom = selectedAssignment?.classroomPackage || {};
+    const response = await forceRepublishAssignmentToClassrooms({
+      assignmentId: selectedAssignment.id,
+      courseIds: selectedCourseIds,
+      forceRequestId: typeof globalThis.crypto?.randomUUID === 'function'
+        ? globalThis.crypto.randomUUID()
+        : 'force-' + Date.now() + '-' + Math.random().toString(36).slice(2),
+      classroomTitle: classroom?.assignmentPost?.title || selectedAssignment.title,
+      maxPoints: Number(classroom?.assignmentPost?.maxPoints) || 100,
+      gradePassbackEnabled: classroom?.gradePassback?.enabled !== false,
+      topicName,
+      instructions,
+      materials: cleanMaterials(),
+    });
+    const summary = response?.summary || {};
+    const created = Number(summary.forcedReposted || 0) + Number(summary.alreadyForced || 0);
+    const failed = Number(summary.failed || 0);
+    const queuedGrades = Number(summary.queuedGrades || 0);
+
+    if (!created && failed) {
+      const details = (response?.results || [])
+        .filter((item) => item.status === 'failed')
+        .map((item) => (item.courseName || item.courseId) + ': ' + (item.error || 'failed'))
+        .join(' | ');
+      throw new Error(details || 'Google Classroom did not create the forced repost.');
+    }
+
+    setStatus(
+      'Forced ' + created + ' new Classroom assignment post' + (created === 1 ? '' : 's')
+      + ' and made the new post the grade-passback destination. Queued '
+      + queuedGrades + ' linked student grade record' + (queuedGrades === 1 ? '' : 's')
+      + ' for passback review.'
+      + (failed ? ' ' + failed + ' selected destination' + (failed === 1 ? '' : 's') + ' failed.' : '')
+    );
     setLinks((await listPublishedAssignments()).links || []);
     setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
   });
@@ -748,6 +834,19 @@ export default function ClassroomManagerV2({
             <button style={secondary} onClick={() => setMaterials((current) => [...current, { title: '', url: '' }])}>+ Add resource link</button>
           </div>
           <button style={{ ...primary, marginTop: 12 }} disabled={busy || !selectedAssignment} onClick={handlePublishAssignment}>Publish assignment package</button>
+          <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 10, background: '#fff4ce', border: '2px solid #f9ab00', color: '#5f4400' }}>
+            <strong>Post missing but MathMaster says it exists?</strong>
+            <div style={{ marginTop: 5, fontSize: 12, lineHeight: 1.5 }}>
+              Select the exact Google Classroom course(s) above, then force a new post. This intentionally bypasses duplicate protection. Your MathMaster assignment and student progress stay intact; the newly created post becomes the grade-passback destination.
+            </div>
+            <button
+              style={{ ...danger, marginTop: 10, background: '#fff', borderColor: '#b06000', color: '#8a4b00' }}
+              disabled={busy || !selectedAssignment || !selectedCourseIds.length}
+              onClick={handleForceRepublish}
+            >
+              Force NEW post to selected Classroom{selectedCourseIds.length === 1 ? '' : 's'}
+            </button>
+          </div>
         </section>
       )}
 
