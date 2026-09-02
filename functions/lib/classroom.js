@@ -432,7 +432,15 @@ async function getCourseWork(classroom, courseId, courseWorkId) {
 // a unique MathMaster marker to the description and look for it before every
 // retry. This recovers safely if Google created the work but Firestore failed
 // to record the response.
-async function findCourseWorkByPublicationMarker(classroom, courseId, marker) {
+async function findCourseWorkByPublicationMarker(
+  classroom,
+  courseId,
+  marker,
+  requiredMarkers = []
+) {
+  const markers = [marker, ...(Array.isArray(requiredMarkers) ? requiredMarkers : [requiredMarkers])]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
   let pageToken;
   do {
     const res = await classroom.courses.courseWork.list({
@@ -443,9 +451,10 @@ async function findCourseWorkByPublicationMarker(classroom, courseId, marker) {
       pageToken,
     });
 
-    const found = (res.data.courseWork || []).find((item) =>
-      String(item.description || "").includes(marker)
-    );
+    const found = (res.data.courseWork || []).find((item) => {
+      const description = String(item.description || "");
+      return markers.every((required) => description.includes(required));
+    });
     if (found) return found;
     pageToken = res.data.nextPageToken;
   } while (pageToken);
