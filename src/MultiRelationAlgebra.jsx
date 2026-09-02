@@ -2377,7 +2377,7 @@ export default function MultiRelationAlgebra({
         </svg>
       )}
 
-      {!pendingRelationFlip && summary.solved && summary.kind === 'intervals' && (
+      {!pendingRelationFlip && summary.solved && summary.kind === 'intervals' && requireRepresentations && (
         <div style={{ marginTop: 16 }}>
           <IntervalNumberLine
             questionData={{
