@@ -12,6 +12,7 @@ import {
   listClassroomStudents,
   listPublishedAssignments,
   inspectClassroomPublication,
+  repairClassroomAssignmentPublications,
   removeAssignmentClassroomPackage,
   publishAssignmentToClassrooms,
   publishClassroomMaterial,
@@ -770,6 +771,40 @@ export default function ClassroomManagerV2({
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                   <span><strong>{assignment.title}</strong><div style={{ color: '#5f6368', fontSize: 12 }}>{sync.message}</div></span>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <button style={secondary} disabled={busy} onClick={() => run(async () => {
+                      const response = await repairClassroomAssignmentPublications({
+                        assignmentId: assignment.id,
+                      });
+                      const summary = response?.summary || {};
+                      const reposted = Number(summary.reposted || 0);
+                      const healthy = Number(summary.healthy || 0);
+                      const failed = Number(summary.failed || 0);
+                      const queuedGrades = Number(summary.queuedGrades || 0);
+                      setLinks((await listPublishedAssignments()).links || []);
+                      setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
+
+                      if (reposted > 0) {
+                        setStatus(
+                          `Reposted ${reposted} missing Google Classroom assignment post${reposted === 1 ? '' : 's'} without changing the MathMaster assignment or student work. Queued ${queuedGrades} linked student grade record${queuedGrades === 1 ? '' : 's'} for passback review.`
+                        );
+                      } else if (healthy > 0 && failed === 0) {
+                        setStatus(
+                          `Google Classroom confirmed ${healthy} assignment post${healthy === 1 ? '' : 's'} still exist. Nothing needed reposting.`
+                        );
+                      }
+
+                      if (failed > 0) {
+                        const failures = (response?.results || [])
+                          .filter((item) => ['failed', 'changed'].includes(item.status))
+                          .map((item) => `${item.courseName || item.courseId}: ${item.error || 'repair failed'}`)
+                          .join(' | ');
+                        setError(
+                          `Classroom repost check had ${failed} destination failure${failed === 1 ? '' : 's'}.`
+                          + (failures ? ` ${failures}` : '')
+                        );
+                      }
+                    })}>Check / repost missing assignment</button>
+
                     <button style={secondary} disabled={busy} onClick={() => run(async () => {
                       const inspection = await inspectClassroomPublication({
                         assignmentId: assignment.id,

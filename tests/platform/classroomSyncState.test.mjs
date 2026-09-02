@@ -101,6 +101,19 @@ test('a failed publish is not a stale publish', () => {
   assert.equal(state.status, SYNC_STATUS.FAILED);
   assert.equal(state.needsUpdate, false, 'a failed publish needs publishing, not updating');
   assert.equal(state.error, 'boom');
+  assert.equal(
+    summarizeAssignmentSync(assignment, [{ ...published(), status: 'failed', error: 'boom' }]).message,
+    '1 Classroom post needs attention.',
+  );
+});
+
+test('a missing Classroom post is never reported as up to date', () => {
+  const missing = { ...published(), status: 'missing' };
+  const state = describePublicationSync(assignment, missing);
+  assert.equal(state.status, SYNC_STATUS.MISSING);
+  assert.equal(state.label, 'Classroom post missing');
+  assert.equal(state.needsUpdate, false);
+  assert.equal(summarizeAssignmentSync(assignment, [missing]).message, '1 Classroom post needs attention.');
 });
 
 test('a publication still in flight is not stale', () => {

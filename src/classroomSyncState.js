@@ -20,6 +20,7 @@ export const SYNC_STATUS = Object.freeze({
   IN_SYNC: 'in_sync',
   DUE_DATE_CHANGED: 'due_date_changed',
   FAILED: 'failed',
+  MISSING: 'missing',
   PUBLISHING: 'publishing',
 });
 
@@ -40,6 +41,14 @@ const toTime = (value) => {
  * The state of one course's publication against the assignment as it stands.
  */
 export const describePublicationSync = (assignment, publication) => {
+  if (publication?.status === 'missing') {
+    return {
+      status: SYNC_STATUS.MISSING,
+      label: 'Classroom post missing',
+      needsUpdate: false,
+      error: publication?.error || 'The remembered Google Classroom assignment could not be found.',
+    };
+  }
   if (!publication || !publication.courseworkId || publication.status === 'failed') {
     return {
       status: publication?.status === 'failed' ? SYNC_STATUS.FAILED : SYNC_STATUS.NOT_PUBLISHED,
@@ -89,7 +98,7 @@ export const summarizeAssignmentSync = (assignment, publications = []) => {
     }));
 
   const stale = list.filter((entry) => entry.needsUpdate);
-  const failed = list.filter((entry) => entry.status === SYNC_STATUS.FAILED);
+  const failed = list.filter((entry) => [SYNC_STATUS.FAILED, SYNC_STATUS.MISSING].includes(entry.status));
 
   return {
     courses: list,
@@ -99,11 +108,13 @@ export const summarizeAssignmentSync = (assignment, publications = []) => {
     failedCount: failed.length,
     // The sentence the teacher reads. Generated here so the wording cannot
     // disagree with the count that produced it.
-    message: stale.length
-      ? `${stale.length} Classroom post${stale.length === 1 ? '' : 's'} need${stale.length === 1 ? 's' : ''} updating.`
-      : list.length
-        ? 'Google Classroom is up to date.'
-        : 'Not published to Google Classroom.',
+    message: failed.length
+      ? `${failed.length} Classroom post${failed.length === 1 ? '' : 's'} need${failed.length === 1 ? 's' : ''} attention.`
+      : stale.length
+        ? `${stale.length} Classroom post${stale.length === 1 ? '' : 's'} need${stale.length === 1 ? 's' : ''} updating.`
+        : list.length
+          ? 'Google Classroom is up to date.'
+          : 'Not published to Google Classroom.',
     needsUpdate: stale.length > 0,
   };
 };

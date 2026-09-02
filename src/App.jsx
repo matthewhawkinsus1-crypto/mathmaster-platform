@@ -22,6 +22,7 @@ import {
   listClassroomCourseMappings,
   publishAssignmentToClassrooms,
   publishClassroomMaterial,
+  repairClassroomAssignmentPublications,
   storeLessonNotesPdf,
   updateAssignmentClassroomPublications,
 } from './classroomApi';
@@ -1354,6 +1355,57 @@ function App() {
    * Path inspection) inherits it rather than each re-deriving it and
    * disagreeing. The root administrator sees everyone.
    */
+  const handleRepairClassroomAssignmentPost = async (assignment) => {
+    if (!assignment?.id) return;
+    try {
+      const response = await repairClassroomAssignmentPublications({
+        assignmentId: assignment.id,
+      });
+      const summary = response?.summary || {};
+      const checked = Number(summary.checked || 0);
+      const reposted = Number(summary.reposted || 0);
+      const healthy = Number(summary.healthy || 0);
+      const failed = Number(summary.failed || 0);
+      const queuedGrades = Number(summary.queuedGrades || 0);
+
+      if (!checked) {
+        toastWarning(
+          'No Classroom publication found',
+          'MathMaster does not have a prior Google Classroom post to repair for this assignment. Open Google Classroom Manager to publish it to a mapped course.',
+        );
+        return;
+      }
+      if (reposted > 0) {
+        toastSuccess(
+          'Google Classroom assignment reposted',
+          assignment.title + ': recreated ' + reposted + ' missing Classroom post' + (reposted === 1 ? '' : 's')
+            + ' and queued ' + queuedGrades + ' linked student grade record' + (queuedGrades === 1 ? '' : 's')
+            + ' for passback review. Existing MathMaster work was preserved.',
+        );
+      } else if (healthy > 0 && failed === 0) {
+        toastInfo(
+          'Classroom post is healthy',
+          assignment.title + ': Google Classroom confirmed the existing assignment post'
+            + (healthy === 1 ? '' : 's') + ' ' + (healthy === 1 ? 'is' : 'are')
+            + ' still available. Nothing was duplicated.',
+        );
+      }
+      if (failed > 0) {
+        const details = (response?.results || [])
+          .filter((item) => ['failed', 'changed'].includes(item.status))
+          .map((item) => (item.courseName || item.courseId) + ': ' + (item.error || 'repair failed'))
+          .join(' | ');
+        toastError(
+          'Classroom repost needs attention',
+          details || (failed + ' Classroom destination' + (failed === 1 ? '' : 's') + ' could not be repaired.'),
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      toastError('Could not check/repost Classroom assignment', error.message);
+    }
+  };
+
   const fetchStudents = async () => {
     const viewer = viewerRef.current;
     const readAll = viewer.isRootAdmin || !viewer.email;
@@ -6555,6 +6607,11 @@ function App() {
                             { key: 'export-pdf', label: 'Print / Answer Key', onClick: () => beginTeacherWorksheetExport(assignment) },
                             { key: 'export-json', label: 'Export Assignment', onClick: () => { setExportJsonAssignment(assignment); setExportJsonCopied(false); } },
                             { key: 'dates-classes', label: isLibraryAssignment(assignment) ? 'Assign to Class / Dates' : 'Dates & Classes', onClick: () => beginEditAssignmentDates(assignment) },
+                            ...(!isLibraryAssignment(assignment) ? [{
+                              key: 'repair-classroom-post',
+                              label: 'Check / Repost Classroom',
+                              onClick: () => handleRepairClassroomAssignmentPost(assignment),
+                            }] : []),
                             ...(libraryRepair.source && libraryRepair.questionIds.length ? [{
                               key: 'repair-library-content',
                               label: `Repair Corrupted Question${libraryRepair.questionIds.length === 1 ? '' : 's'} from Original`,
