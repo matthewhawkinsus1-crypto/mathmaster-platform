@@ -31,3 +31,9 @@ test('students are told when a question counts more than standard weight', () =>
   assert.match(engine, /Grade weight ×\{questionGradeWeight\}/);
   assert.match(engine, /times a standard-weight question/);
 });
+
+
+test('live weight recalculation opportunistically upgrades old coarse workflow partial credit', () => {
+  assert.match(app, /repairAssignmentTrackerForGranularWorkflowCredit/);
+  assert.match(app, /questionIndices: weightChanges\.map/);
+});
