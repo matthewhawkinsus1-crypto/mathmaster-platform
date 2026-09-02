@@ -3973,6 +3973,11 @@ async function finishPublication(ref, attemptId, patch) {
   });
 }
 
+function courseWorkMatchesPublication(courseWork, publicationId) {
+  if (!courseWork || !publicationId) return false;
+  return String(courseWork.description || "").includes(publicationMarker(publicationId));
+}
+
 async function publishOneCourse({
   classroom,
   teacherUid,
@@ -4047,11 +4052,18 @@ async function publishOneCourse({
     const priorCourseworkId = claim.current.courseworkId;
     if (priorCourseworkId) {
       try {
-        courseWork = await classroomLib.getCourseWork(
+        const candidate = await classroomLib.getCourseWork(
           classroom,
           courseId,
           priorCourseworkId
         );
+        if (courseWorkMatchesPublication(candidate, publicationId)) {
+          courseWork = candidate;
+        } else {
+          logger.warn(
+            `Ignoring stale Classroom coursework id ${priorCourseworkId} for publication ${publicationId}; marker does not match.`
+          );
+        }
       } catch {
         courseWork = null;
       }
@@ -4541,24 +4553,31 @@ exports.repairClassroomAssignmentPublications = onCall(
         continue;
       }
 
+      let existingCourseWork = null;
       try {
-        // A healthy post must never be duplicated. This check is the guard that
-        // makes the teacher's repair button safe to press even when unsure.
+        // A healthy post must be THIS MathMaster publication, not merely any
+        // live Classroom item at the remembered coursework id. The unique
+        // marker is the publication identity.
         // eslint-disable-next-line no-await-in-loop
-        const courseWork = await classroomLib.getCourseWork(
+        existingCourseWork = await classroomLib.getCourseWork(
           classroom,
           courseId,
           priorCourseworkId
         );
-        results.push({
-          courseId,
-          courseName: data.courseName || courseId,
-          publicationId: publication.id,
-          courseworkId: priorCourseworkId,
-          classroomUrl: courseWork.alternateLink || data.classroomUrl || null,
-          status: "healthy",
-        });
-        continue;
+        if (courseWorkMatchesPublication(existingCourseWork, publication.id)) {
+          results.push({
+            courseId,
+            courseName: data.courseName || courseId,
+            publicationId: publication.id,
+            courseworkId: priorCourseworkId,
+            classroomUrl: existingCourseWork.alternateLink || data.classroomUrl || null,
+            status: "healthy",
+          });
+          continue;
+        }
+        logger.warn(
+          `Classroom coursework id ${priorCourseworkId} exists but does not match publication ${publication.id}; repairing the stale link.`
+        );
       } catch (error) {
         if (!classroomDeleteAlreadyGone(error)) {
           results.push({
@@ -4620,6 +4639,9 @@ exports.repairClassroomAssignmentPublications = onCall(
           {
             status: "missing",
             missingCourseworkId: priorCourseworkId,
+            missingReason: existingCourseWork
+              ? "stored-coursework-id-does-not-match-publication"
+              : "stored-coursework-id-not-found",
             missingDetectedAt: FieldValue.serverTimestamp(),
             error: FieldValue.delete(),
             updatedAt: FieldValue.serverTimestamp(),
@@ -4682,6 +4704,7 @@ exports.repairClassroomAssignmentPublications = onCall(
           repostedBy: teacherUid,
           repostedFromCourseworkId: priorCourseworkId,
           missingCourseworkId: FieldValue.delete(),
+          missingReason: FieldValue.delete(),
           missingDetectedAt: FieldValue.delete(),
         },
         { merge: true }
@@ -4776,6 +4799,17 @@ exports.inspectClassroomPublication = onCall(
           String(publication.courseworkId)
         );
 
+        if (!courseWorkMatchesPublication(courseWork, publication.id)) {
+          results.push({
+            courseId,
+            courseName: publication.courseName || courseId,
+            courseworkId: String(publication.courseworkId),
+            status: "mismatched",
+            error: "The stored Google Classroom coursework id points to a different Classroom item. Use Check / Repost Classroom to repair the publication link.",
+          });
+          continue;
+        }
+
         if (repairAudience && courseWork.assigneeMode !== "ALL_STUDENTS") {
           courseWork = await classroomLib.modifyCourseWorkAssignees(classroom, {
             courseId,
@@ -4817,7 +4851,8 @@ exports.inspectClassroomPublication = onCall(
         rosterStudents: results
           .filter((item) => item.status === "ok")
           .reduce((sum, item) => sum + Number(item.rosterStudentCount || 0), 0),
-        failed: results.filter((item) => item.status === "failed").length,
+        mismatched: results.filter((item) => item.status === "mismatched").length,
+        failed: results.filter((item) => ["failed", "mismatched"].includes(item.status)).length,
       },
     };
   }

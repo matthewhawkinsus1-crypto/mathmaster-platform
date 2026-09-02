@@ -5863,10 +5863,26 @@ function App() {
                   })}
                 </div>
               ) : (
-                <div className="mathmaster-collapsed-current-location" role="status">
-                  <strong>{currentSectionMeta.label}</strong>
-                  <span>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount}</span>
-                </div>
+                <>
+                  <div className="mathmaster-collapsed-current-location" role="status">
+                    <strong>{currentSectionMeta.label}</strong>
+                    <span>Question {currentSectionQuestionNumber} of {currentSectionQuestionCount}</span>
+                  </div>
+                  <div className="mathmaster-unified-question-controls mathmaster-focus-inline-controls">
+                    <button type="button" onClick={() => previousQuestionEntry && changeQuestion(previousQuestionEntry.index)} disabled={!previousQuestionEntry} aria-label="Previous question">‹ <span>Previous</span></button>
+                    <select
+                      aria-label="Choose a question"
+                      value={currentQuestionIndex}
+                      onChange={(event) => changeQuestion(Number(event.target.value))}
+                    >
+                      {visibleQuestionEntries.map((entry) => {
+                        const meta = activitySectionMeta[entry.role] || { label: entry.role };
+                        return <option key={entry.index} value={entry.index} disabled={!entryIsAvailable(entry)}>{meta.label} Q{entry.sectionPosition + 1}{entryIsAvailable(entry) ? '' : ' · locked'}</option>;
+                      })}
+                    </select>
+                    <button type="button" className="mathmaster-unified-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
+                  </div>
+                </>
               )}
               {!assignmentNavigationCollapsed && (
                 <button
@@ -5892,8 +5908,8 @@ function App() {
               </button>
             </div>
 
+            {!assignmentNavigationCollapsed && (
             <div className="mathmaster-assignment-unified-bottom">
-              {!assignmentNavigationCollapsed && (
               <div className={`mathmaster-current-section-inline${currentNavigationSection?.allCorrect ? ' is-complete' : ''}`}>
                 <div className="mathmaster-current-section-summary">
                   <strong>{currentSectionMeta.label}</strong>
@@ -5942,7 +5958,6 @@ function App() {
                   })}
                 </div>
               </div>
-              )}
 
               <div className="mathmaster-unified-question-controls">
                 <button type="button" onClick={() => previousQuestionEntry && changeQuestion(previousQuestionEntry.index)} disabled={!previousQuestionEntry} aria-label="Previous question">‹ <span>Previous</span></button>
@@ -5959,6 +5974,7 @@ function App() {
                 <button type="button" className="mathmaster-unified-next" onClick={() => nextQuestionEntry && changeQuestion(nextQuestionEntry.index)} disabled={!nextQuestionEntry} aria-label="Next question"><span>Next</span> ›</button>
               </div>
             </div>
+            )}
             {!preview && dolState.status === 'active' && (
               <div className="mathmaster-unified-nav-alert">DOL open{supportPresentation.hideCountdowns ? '' : ` · ${formatRemainingTime(dolState.millisecondsRemaining)}`}</div>
             )}
