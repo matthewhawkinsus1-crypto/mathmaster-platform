@@ -79,6 +79,14 @@ export const prepareSafeLiveRepairPack = ({
     } else {
       delete nextQuestion.teacherExcluded;
     }
+    // Grade weighting is teacher-owned live metadata, not part of a response
+    // repair pack. Preserve it exactly so importing a later repair cannot erase
+    // or rewrite the teacher's scoring decision.
+    if (Object.prototype.hasOwnProperty.call(historical.question || {}, 'questionWeight')) {
+      nextQuestion.questionWeight = historical.question.questionWeight;
+    } else {
+      delete nextQuestion.questionWeight;
+    }
     const analysis = analyzeResponseEntryRepair(historical.question, nextQuestion);
     if (!analysis.safe) {
       throw new Error(`Question ${wrappedId} failed safe-live validation: ${analysis.reason}`);
