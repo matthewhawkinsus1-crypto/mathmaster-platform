@@ -89,6 +89,16 @@ const warningsFor = (question) => validateQuestionSemantics(question).warnings;
   );
   assert.deepEqual(
     errorsFor({
+      type: 'functionInvestigation2',
+      prompt: 'Use the graph below to determine the domain and range.',
+      mode: 'domainRange',
+      function: { type: 'quadratic', a: 1, h: 0, k: -2 },
+    }).filter((error) => /refers to a graph in its prompt, but the question contains none/.test(error)),
+    [],
+    'FunctionInvestigation2 counts its rendered question.function curve as a real graph',
+  );
+  assert.deepEqual(
+    errorsFor({
       type: 'table',
       prompt: 'Complete the table shown.',
       table: {
