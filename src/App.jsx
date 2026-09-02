@@ -55,6 +55,7 @@ import {
   buildQuestionDraftKey,
   clearResumeAction,
   readResumeAction,
+  removeAssignmentDrafts,
   saveResumeAction,
 } from './questionDraftStorage';
 import {
@@ -463,6 +464,7 @@ function App() {
   const [dolGradesByAssignment, setDolGradesByAssignment] = useState({});
   const [classworkGradesByAssignment, setClassworkGradesByAssignment] = useState({});
   const [supportUsageByAssignment, setSupportUsageByAssignment] = useState({});
+  const [classroomSyncStatusByAssignment, setClassroomSyncStatusByAssignment] = useState({});
   const [editingAssignmentId, setEditingAssignmentId] = useState(null);
   const [editingAssignmentDates, setEditingAssignmentDates] = useState({ dueAt: '', lateDueAt: '', assignedClassPeriods: [], assignedClassIds: [] });
   const [questionEditorAssignment, setQuestionEditorAssignment] = useState(null);
@@ -868,6 +870,7 @@ function App() {
   // visible on every student surface and repeated while unfinished work is
   // still inside the live Warm-Up window.
   const warmupOpenAnnouncedRef = useRef({});
+  const classroomSyncNoticeRef = useRef({});
 
   useEffect(() => {
     const clock = window.setInterval(() => setNow(Date.now()), 30000);
@@ -1543,6 +1546,8 @@ function App() {
           if (cancelled) return;
           await Promise.all([fetchStudents(), fetchClassSchedule(), fetchCourseProfiles(), fetchAssignmentFolders(), fetchPathSettings()]);
           if (cancelled) return;
+          setClassroomSyncStatusByAssignment({});
+          classroomSyncNoticeRef.current = {};
           setUser({
             id: session.uid,
             uid: session.uid,
@@ -1605,6 +1610,14 @@ function App() {
         setDolGradesByAssignment(studentData.dolGradesByAssignment || {});
         setClassworkGradesByAssignment(studentData.classworkGradesByAssignment || {});
         setSupportUsageByAssignment(studentData.supportUsageByAssignment || {});
+        const initialClassroomSync = studentData.classroomSyncStatusByAssignment || {};
+        setClassroomSyncStatusByAssignment(initialClassroomSync);
+        classroomSyncNoticeRef.current = Object.fromEntries(
+          Object.entries(initialClassroomSync).map(([assignmentId, status]) => [
+            assignmentId,
+            status?.notificationId || null,
+          ]),
+        );
         const savedResume = readResumeAction(studentId);
         setResumeAction(savedResume && fetchedAssignments.some((assignment) => assignment.id === savedResume.assignmentId) ? savedResume : null);
       } catch (error) {
@@ -1640,6 +1653,8 @@ function App() {
     setDolGradesByAssignment({});
     setClassworkGradesByAssignment({});
     setSupportUsageByAssignment({});
+    setClassroomSyncStatusByAssignment({});
+    classroomSyncNoticeRef.current = {};
     setGradebookFilter({ classId: '', classPeriod: '', assignmentId: null, student: null });
     setStudentDashboardMode('assignments');
     await auth.signOut();
@@ -2596,8 +2611,13 @@ function App() {
     const assignmentQuestions = getStoredAssignmentQuestions(assignmentData);
     if (!assignmentQuestions.length) return;
 
+    // Preview trackers were already ephemeral, but question/tool drafts live in
+    // localStorage. Clear that preview-only draft family too so "View as
+    // Student" really begins at a blank first attempt every time.
+    removeAssignmentDrafts({ studentId: 'teacher-preview', assignmentId });
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(getIncludedQuestionIndices(assignmentData)[0] ?? 0);
+    setAssignmentNavigationCollapsed(false);
     setAssignmentOverviewExpanded(false);
     setPreviewTracker(createEmptyAssignmentTracker(assignmentQuestions));
     setPreviewScratchpads({});
