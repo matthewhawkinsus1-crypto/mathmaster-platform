@@ -178,3 +178,13 @@ test('already-synced Classroom grades can be recalculated and resent without reo
   assert.match(manager, /sync\.status === 'synced' \? 'Recalculate & resend' : 'Retry'/);
   assert.match(manager, /await retryClassroomGradeSync\(/);
 });
+
+
+test('both algebra workspaces surface cumulative step credit to the student', () => {
+  const step = read('src/StepByStepAlgebra.jsx');
+  const multi = read('src/MultiRelationAlgebra.jsx');
+  assert.match(step, /Step credit \{stepCreditPercent\}%/);
+  assert.match(multi, /Step credit \{stepCreditPercent\}%/);
+  assert.match(multi, /questionRecord = null/);
+  assert.match(multi, /normalizeQuestionRecord\(questionRecord\)/);
+});
