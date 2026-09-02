@@ -5648,6 +5648,10 @@ exports.syncGradeToClassroom = onDocumentWritten(
         if (publication.gradePassbackEnabled === false) continue;
         const courseId = String(publication.courseId || "");
         if (!courseId) continue;
+        const maxPoints = Number.isFinite(Number(publication.maxPoints))
+          ? Math.max(1, Number(publication.maxPoints))
+          : 100;
+        const classroomGrade = Math.round((grade / 100) * maxPoints * 100) / 100;
 
         // Do not send the same grade/stage repeatedly just because a student
         // spent more time on the same saved answer. Manual retry deliberately
@@ -5681,6 +5685,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
               status: "auth-error",
               stage,
               grade,
+              classroomGrade,
+              maxPoints,
               attempted: progress.attempted,
               total: progress.total,
               creditOnAttempted: progress.creditOnAttempted,
@@ -5743,6 +5749,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
               status: "submission-not-found",
               stage,
               grade,
+              classroomGrade,
+              maxPoints,
               attempted: progress.attempted,
               total: progress.total,
               creditOnAttempted: progress.creditOnAttempted,
@@ -5756,7 +5764,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
             courseId,
             courseWorkId: publication.courseworkId,
             submissionId: submission.id,
-            grade,
+            grade: classroomGrade,
           });
 
           // eslint-disable-next-line no-await-in-loop
