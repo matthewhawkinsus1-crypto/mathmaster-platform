@@ -28,3 +28,10 @@ test('large live migrations fail closed instead of partially repairing students'
   assert.match(app, /audienceStudents\.length > 450/);
   assert.match(app, /server migration path/);
 });
+
+
+test('assigned assignments always enable live question protection even before grade history hydrates', () => {
+  assert.match(app, /hasLiveProtection=\{/);
+  assert.match(app, /!isLibraryAssignment\(questionEditorAssignment\)/);
+  assert.match(app, /gradesByAssignment\?\.\[questionEditorAssignment\.id\]/);
+});
