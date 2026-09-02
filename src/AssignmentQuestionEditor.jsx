@@ -8,6 +8,11 @@ import { buildAssignmentV5PreflightModel } from './platform/preflight/assignment
 import { analyzeResponseEntryRepair } from './platform/assignment/liveQuestionCorrection.js';
 import { parseSafeLiveRepairPack, prepareSafeLiveRepairPack } from './platform/assignment/liveRepairPack.js';
 import { normalizeQuestionWeight, suggestedQuestionWeight } from './platform/grading/questionWeights.js';
+import {
+  buildAssignmentWeightReviewRequest,
+  parseAssignmentWeightReviewPack,
+  prepareAssignmentWeightReviewPack,
+} from './platform/grading/weightReviewPack.js';
 
 const newQuestionId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -41,6 +46,8 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
   const [metadataEditingIndex, setMetadataEditingIndex] = useState(null);
   const [repairInstruction, setRepairInstruction] = useState('');
   const [repairBusy, setRepairBusy] = useState(false);
+  const [weightReviewBusy, setWeightReviewBusy] = useState(false);
+  const [weightReviewReasons, setWeightReviewReasons] = useState({});
   const repairPackInputRef = useRef(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -51,6 +58,78 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
       .reduce((total, question) => total + normalizeQuestionWeight(question), 0),
     [questions],
   );
+
+  const copyAiWeightReview = async () => {
+    setWeightReviewBusy(true);
+    setError('');
+    try {
+      const request = buildAssignmentWeightReviewRequest({
+        assignment,
+        questions,
+      });
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('This browser cannot copy the AI Weight Review automatically. Use a browser with clipboard permission.');
+      }
+      await navigator.clipboard.writeText(request);
+      toastSuccess?.(
+        'AI Weight Review copied',
+        'Paste it into ChatGPT, Claude, Gemini, or another AI. Copy only the JSON it returns, then come back and choose Paste AI Weight Review.',
+      );
+    } catch (reviewError) {
+      setError(reviewError.message || 'MathMaster could not build the AI Weight Review.');
+    } finally {
+      setWeightReviewBusy(false);
+    }
+  };
+
+  const pasteAiWeightReview = async () => {
+    setWeightReviewBusy(true);
+    setError('');
+    try {
+      if (!navigator.clipboard?.readText) {
+        throw new Error('This browser cannot read the clipboard automatically. Allow clipboard access, then try again.');
+      }
+      const raw = await navigator.clipboard.readText();
+      const pack = parseAssignmentWeightReviewPack(raw);
+      const prepared = prepareAssignmentWeightReviewPack({
+        pack,
+        assignment,
+        questions,
+      });
+      if (prepared.changedCount === 0) {
+        toastSuccess?.(
+          'AI Weight Review checked',
+          `The AI reviewed all ${prepared.reviewedCount} included questions and recommended the weights already shown.`,
+        );
+        return;
+      }
+
+      const biggest = [...prepared.changes]
+        .sort((left, right) => Math.abs(right.afterWeight - right.beforeWeight) - Math.abs(left.afterWeight - left.beforeWeight))
+        .slice(0, 4)
+        .map((change) => `${change.questionId}: ×${change.beforeWeight} → ×${change.afterWeight}`)
+        .join(' · ');
+      const proceed = await confirmAction({
+        title: `Load ${prepared.changedCount} AI weight recommendation${prepared.changedCount === 1 ? '' : 's'}?`,
+        message: `MathMaster verified this JSON belongs to this exact assignment and contains every included question exactly once. Only grade weights will change in the editor; nothing is saved yet. ${biggest}${prepared.changedCount > 4 ? ' · …' : ''}`,
+        confirmLabel: 'Load AI Weights',
+      });
+      if (!proceed) return;
+
+      setQuestions(prepared.questions);
+      setWeightReviewReasons(Object.fromEntries(
+        prepared.changes.map((change) => [String(change.questionId), change.reason]),
+      ));
+      toastSuccess?.(
+        'AI weights loaded for review',
+        `${prepared.changedCount} weight${prepared.changedCount === 1 ? '' : 's'} changed across ${prepared.reviewedCount} questions. Review the percentages, adjust anything you want, then save once.`,
+      );
+    } catch (reviewError) {
+      setError(reviewError.message || 'MathMaster could not import the AI Weight Review.');
+    } finally {
+      setWeightReviewBusy(false);
+    }
+  };
 
   const setQuestionWeight = (index, value) => {
     const parsed = Number(value);
@@ -324,6 +403,24 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px', alignItems: 'center' }}>
             <strong>{includedCount} included · {questions.length - includedCount} excluded · {questions.length} stored · {Number(totalGradeWeight.toFixed(2))} total grade-weight units</strong>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={copyAiWeightReview}
+                disabled={weightReviewBusy || saving}
+                style={{ padding: '8px 12px', border: '1px solid #8ab4f8', borderRadius: 8, background: '#fff', color: '#174ea6', fontWeight: 900 }}
+                title="Copy a protected whole-assignment review prompt for ChatGPT, Claude, Gemini, or another AI."
+              >
+                Copy AI Weight Review
+              </button>
+              <button
+                type="button"
+                onClick={pasteAiWeightReview}
+                disabled={weightReviewBusy || saving}
+                style={{ padding: '8px 12px', border: 0, borderRadius: 8, background: '#1a73e8', color: '#fff', fontWeight: 900 }}
+                title="Paste the MathMaster Weight Review JSON returned by an AI. Only question weights can be imported."
+              >
+                {weightReviewBusy ? 'Checking AI Weights…' : 'Paste AI Weight Review'}
+              </button>
               {hasLiveProtection && (
                 <>
                   <input
@@ -365,6 +462,14 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
                           GRADE ×{normalizeQuestionWeight(question)}
                           {excluded || totalGradeWeight <= 0 ? '' : ` · ${((normalizeQuestionWeight(question) / totalGradeWeight) * 100).toFixed(1)}%`}
                         </span>
+                        {weightReviewReasons[String(question.questionId)] && (
+                          <span
+                            title={weightReviewReasons[String(question.questionId)]}
+                            style={{ padding: '3px 7px', borderRadius: '999px', background: '#fef7e0', color: '#7a4f00', fontSize: '10px', fontWeight: 900 }}
+                          >
+                            AI rationale
+                          </span>
+                        )}
                         {metadataSummary.issues.length > 0 && <span title={metadataSummary.issues.join(' · ')} style={{ padding: '3px 7px', borderRadius: '999px', background: '#fce8e6', color: '#a50e0e', fontSize: '10px', fontWeight: 900 }}>Metadata incomplete</span>}
                       </div>
                     </div>
