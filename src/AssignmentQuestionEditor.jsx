@@ -308,7 +308,7 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
             <input value={title} onChange={(event) => setTitle(event.target.value)} style={{ display: 'block', width: '100%', boxSizing: 'border-box', padding: '11px', marginTop: '7px', border: '1px solid #bdc7d6', borderRadius: '8px', fontSize: '17px' }} />
           </label>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px', alignItems: 'center' }}>
-            <strong>{includedCount} included · ${questions.length - includedCount} excluded · ${questions.length} stored · ${Number(totalGradeWeight.toFixed(2))} total grade-weight units</strong>
+            <strong>{includedCount} included · {questions.length - includedCount} excluded · {questions.length} stored · {Number(totalGradeWeight.toFixed(2))} total grade-weight units</strong>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               {hasLiveProtection && (
                 <>
