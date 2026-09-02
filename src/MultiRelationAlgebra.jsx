@@ -5,6 +5,7 @@ import MathInput from './MathInput';
 import QuestionPrompt from './QuestionPrompt';
 import IntervalNumberLine from './tools/intervalNumberLine/IntervalNumberLine';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
+import { normalizeQuestionRecord } from './attemptPolicy';
 import {
   expressionToLatex,
   expressionsEquivalent,
@@ -508,6 +509,7 @@ export default function MultiRelationAlgebra({
   onStateChange,
   onStepGrade,
   onUndoStateChange,
+  questionRecord = null,
   disabled = false,
   draftKey = null,
 }) {
@@ -559,6 +561,11 @@ export default function MultiRelationAlgebra({
   const [dragStroke, setDragStroke] = useState(null);
   const dragStrokeRef = useRef(null);
   const suppressCancellationClickUntil = useRef(0);
+
+  const normalizedQuestionRecord = normalizeQuestionRecord(questionRecord);
+  const stepCreditPercent = normalizedQuestionRecord.status === 'correct'
+    ? 100
+    : Math.round(Number(normalizedQuestionRecord.bestPartialCredit || 0));
 
   const [pendingRelationFlip, setPendingRelationFlip] = useState(() => initialPendingRelationFlipFor(draftKey));
   const [relationPicker, setRelationPicker] = useState(null);
@@ -1572,9 +1579,19 @@ export default function MultiRelationAlgebra({
           </label>
         </div>
 
-        <button type="button" onClick={reset} disabled={disabled} style={buttonStyle(false)}>
-          Reset work
-        </button>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+          {stepCreditPercent > 0 && (
+            <span
+              title="Credit earned from valid algebra steps so far. Finishing the problem correctly earns full credit."
+              style={{ minHeight: 36, display: 'inline-flex', alignItems: 'center', padding: '5px 10px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6', fontSize: 12, fontWeight: 900 }}
+            >
+              Step credit {stepCreditPercent}%
+            </span>
+          )}
+          <button type="button" onClick={reset} disabled={disabled} style={buttonStyle(false)}>
+            Reset work
+          </button>
+        </div>
       </div>
 
       {otherOpen && (
