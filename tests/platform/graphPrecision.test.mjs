@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  gradePointPlacements, resolveTaskExpected, sampleVisibleFunctionPaths,
+  getDomainRangeAcceptedAnswers,
+  gradePointPlacements,
+  resolveTaskExpected,
+  sampleVisibleFunctionPaths,
 } from '../../src/interactiveGraphEngine.js';
 
 // Two rules the graphing workspace has to keep at the same time:
@@ -111,4 +114,62 @@ test('refinement never goes below what a hand can hit', () => {
   // An unreachable-at-any-sane-step point must not produce a 0.0001 grid.
   const step = resolveReachableSnapStep(1, [{ id: 'p', expected: [0.0007, 0.0003] }]);
   assert.ok(step >= MIN_USABLE_SNAP, `refined to ${step}, which no student could hit`);
+});
+
+
+// --- Restricted-domain graph analysis -----------------------------------------
+// These are the domain/range shapes used by the open/closed-circle mini lesson.
+// A finite endpoint plus an arrow must change BOTH the displayed graph and the
+// accepted range; it cannot fall back to the unrestricted parent-function range.
+
+test('a closed linear ray derives its restricted range', () => {
+  const spec = {
+    type: 'linear', m: -1, b: 2,
+    domain: { min: -2, minInclusive: true },
+  };
+  assert.deepEqual(getDomainRangeAcceptedAnswers(spec, 'domain', 'inequality'), ['x>=-2']);
+  assert.deepEqual(getDomainRangeAcceptedAnswers(spec, 'range', 'inequality'), ['y<=4']);
+});
+
+test('an open linear ray keeps the endpoint excluded in the range', () => {
+  const spec = {
+    type: 'linear', m: -1, b: 2,
+    domain: { min: -2, minInclusive: false },
+  };
+  assert.deepEqual(getDomainRangeAcceptedAnswers(spec, 'domain', 'inequality'), ['x>-2']);
+  assert.deepEqual(getDomainRangeAcceptedAnswers(spec, 'range', 'inequality'), ['y<4']);
+});
+
+test('a restricted exponential ray uses its finite starting value as the range boundary', () => {
+  const closed = {
+    type: 'exponential', a: 1, base: 2, h: 0, k: 0,
+    domain: { min: 0, minInclusive: true },
+  };
+  const open = {
+    ...closed,
+    domain: { min: 0, minInclusive: false },
+  };
+  assert.deepEqual(getDomainRangeAcceptedAnswers(closed, 'range', 'inequality'), ['y>=1']);
+  assert.deepEqual(getDomainRangeAcceptedAnswers(open, 'range', 'inequality'), ['y>1']);
+});
+
+test('an upper-bounded exponential keeps the horizontal asymptote open', () => {
+  const spec = {
+    type: 'exponential', a: 1, base: 2, h: 0, k: 0,
+    domain: { max: 0, maxInclusive: true },
+  };
+  assert.deepEqual(getDomainRangeAcceptedAnswers(spec, 'range', 'inequality'), ['0<y<=1']);
+});
+
+test('bounded segments preserve mixed open and closed endpoint range notation', () => {
+  const line = {
+    type: 'linear', m: 1, b: 2,
+    domain: { min: -4, max: 3, minInclusive: true, maxInclusive: false },
+  };
+  const quadratic = {
+    type: 'quadratic', a: 1, h: 1, k: -4,
+    domain: { min: -2, max: 3, minInclusive: false, maxInclusive: true },
+  };
+  assert.deepEqual(getDomainRangeAcceptedAnswers(line, 'range', 'inequality'), ['-2<=y<5']);
+  assert.deepEqual(getDomainRangeAcceptedAnswers(quadratic, 'range', 'inequality'), ['-4<=y<5']);
 });
