@@ -43,6 +43,22 @@ test('deleted Classroom assignment repair verifies before reposting', () => {
   assert.match(repair, /oldCourseworkId: priorCourseworkId/);
 });
 
+test('repair reconciles current mapped destinations instead of trusting sibling-period publications', () => {
+  const src = read('functions/index.js');
+  const start = src.indexOf('exports.repairClassroomAssignmentPublications = onCall');
+  const end = src.indexOf('// Read the live Google Classroom roster', start);
+  const repair = src.slice(start, end);
+
+  assert.match(repair, /classroomCourseMappings/);
+  assert.match(repair, /targetMappings/);
+  assert.match(repair, /targetCourseIds/);
+  assert.match(repair, /ignoredPriorDestinations/);
+  assert.match(repair, /publicationByCourseId\.get\(courseId\) \|\| null/);
+  assert.match(repair, /missing-publication-record/);
+  assert.match(repair, /for \(const mapping of targetMappings\)/);
+  assert.doesNotMatch(repair, /for \(const publication of publications\)/);
+});
+
 test('repost repair reuses the publication record and preserves MathMaster work', () => {
   const src = read('functions/index.js');
   const start = src.indexOf('exports.repairClassroomAssignmentPublications = onCall');
@@ -73,6 +89,6 @@ test('browser exposes teacher repair controls for missing Classroom assignments'
   assert.match(manager, /Check \/ repost missing assignment/);
   assert.match(manager, /without changing the MathMaster assignment or student work/);
   assert.match(app, /handleRepairClassroomAssignmentPost/);
-  assert.match(app, /Check \/ Repost Classroom/);
+  assert.match(app, /Repair \/ Repost Classroom/);
   assert.match(app, /Existing MathMaster work was preserved/);
 });
