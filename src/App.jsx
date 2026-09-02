@@ -5845,6 +5845,13 @@ function App() {
         : recordedTracker;
     const recordedGrade = calculateGrade(recordedTracker, assignment);
     const gradeSplit = splitGrade({ tracker: recordedTracker, assignment });
+    const classroomReceipt = !preview ? classroomSyncStatusByAssignment?.[assignment.id] || null : null;
+    const classroomReceiptStage = String(classroomReceipt?.stage || '');
+    const classroomReceiptFinal = classroomReceipt?.isFinal === true || classroomReceiptStage.startsWith('final-');
+    const classroomReceiptGrade = Number.isFinite(Number(classroomReceipt?.grade))
+      ? Number(classroomReceipt.grade)
+      : null;
+    const classroomReceiptCurrent = classroomReceiptGrade != null && classroomReceiptGrade === recordedGrade;
     const progress = calculatePracticeProgress(workingTracker, assignment);
     const dolState = getDOLState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
     const warmupState = getWarmupState({ assignment, schedule: classSchedule, classId: user?.classId || null, classPeriod: user?.classPeriod, nowValue: now });
@@ -6075,12 +6082,23 @@ function App() {
 
           <header className="mathmaster-assignment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', padding: '18px 24px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', marginBottom: '22px', gap: '20px', flexWrap: 'wrap' }}>
             <div style={{ textAlign: 'left', flex: '1 1 390px' }}>
-              <button
-                onClick={leaveAssignment}
-                style={{ background: 'none', border: 'none', color: '#1a73e8', cursor: 'pointer', fontWeight: 'bold', padding: 0, marginBottom: '5px' }}
-              >
-                &larr; {preview ? 'Back to Instructor Dashboard' : 'Back to Dashboard'}
-              </button>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 5 }}>
+                <button
+                  onClick={leaveAssignment}
+                  style={{ background: 'none', border: 'none', color: '#1a73e8', cursor: 'pointer', fontWeight: 'bold', padding: 0 }}
+                >
+                  &larr; {preview ? 'Back to Instructor Dashboard' : 'Back to Dashboard'}
+                </button>
+                {preview && (
+                  <button
+                    type="button"
+                    onClick={() => startTeacherPreview(assignment.id)}
+                    style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #1a73e8', background: '#fff', color: '#174ea6', fontWeight: 900, cursor: 'pointer', fontSize: 12 }}
+                  >
+                    ↻ Restart Preview Fresh
+                  </button>
+                )}
+              </div>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <h1 style={{ margin: 0, color: '#202124', fontSize: '23px' }}>{assignment.title}</h1>
                 <span style={{ padding: '4px 9px', borderRadius: '999px', background: lifecycleBadge.background, color: lifecycleBadge.color, fontSize: '11px', fontWeight: 900, textTransform: 'uppercase' }}>{lifecycleBadge.label}</span>
@@ -6093,9 +6111,25 @@ function App() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '22px' }}>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '12px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 900 }}>{preview ? 'Preview progress' : lifecycle.isPracticeOnly ? 'Frozen recorded grade' : lifecycle.isLate ? 'Current late grade' : 'Current grade'}</div>
-                <div style={{ fontSize: '22px', fontWeight: 900, color: assignmentFeedbackHeld ? '#174ea6' : recordedGrade >= 70 ? '#188038' : '#202124' }}>{preview ? `${progress.correct}/${progress.total}` : assignmentFeedbackHeld ? 'Awaiting teacher release' : `${recordedGrade}%`}</div>
+              <div style={{ textAlign: 'right', minWidth: 190 }}>
+                <div style={{ fontSize: '12px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 900 }}>
+                  {preview
+                    ? 'Preview progress'
+                    : lifecycle.isPracticeOnly
+                      ? 'Frozen recorded grade'
+                      : lifecycle.isLate
+                        ? 'Current late grade · if stopped now'
+                        : 'Current grade · if stopped now'}
+                </div>
+                <div style={{ fontSize: '22px', fontWeight: 900, color: assignmentFeedbackHeld ? '#174ea6' : recordedGrade >= 70 ? '#188038' : '#202124' }}>
+                  {preview ? `${progress.correct}/${progress.total}` : assignmentFeedbackHeld ? 'Awaiting teacher release' : `${recordedGrade}%`}
+                </div>
+                {!preview && !assignmentFeedbackHeld && classroomReceipt && classroomReceiptGrade != null && (
+                  <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: classroomReceiptFinal ? '#137333' : '#174ea6', fontWeight: 800 }}>
+                    Google Classroom has {classroomReceiptGrade}% · {classroomReceiptFinal ? 'FINAL' : classroomReceiptStage === 'due-checkpoint' ? 'DUE-DATE CHECKPOINT' : 'PROGRESS'}
+                    {!classroomReceiptFinal && !classroomReceiptCurrent ? <><br />Next checkpoint will send your newer MathMaster grade.</> : null}
+                  </div>
+                )}
               </div>
               {!preview && assignmentHasClasswork && (
                 <div style={{ textAlign: 'right' }}>
@@ -7337,6 +7371,7 @@ function App() {
         dashboard={dashboard}
         student={{ id: user.id, displayName: user.displayName, classPeriod: user.classPeriod, inclusionStatus: user.profile?.inclusionStatus }}
         supportPresentation={supportPresentation}
+        classroomSyncStatusByAssignment={classroomSyncStatusByAssignment}
         onStartAssignment={startAssignment}
         onExportAssignmentPdf={exportAssignmentWorksheetPdf}
         onOpenMathPath={() => setStudentDashboardMode('mathPath')}
