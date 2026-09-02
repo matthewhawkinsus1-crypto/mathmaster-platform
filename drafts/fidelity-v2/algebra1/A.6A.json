@@ -44,20 +44,20 @@
           "id": "domain",
           "label": "Domain",
           "kind": "domain",
-          "notation": "interval",
+          "notation": "inequality",
           "responseMode": "text",
           "expected": [
-            "(-inf,inf)"
+            "all real numbers"
           ]
         },
         {
           "id": "range",
           "label": "Range",
           "kind": "range",
-          "notation": "interval",
+          "notation": "inequality",
           "responseMode": "text",
           "expected": [
-            "[{{k}},inf)"
+            "y>={{k}}"
           ]
         }
       ],
@@ -65,7 +65,7 @@
         "headline": "An upward-opening quadratic extends forever left and right but has a lowest output.",
         "reasoning": [
           "There is no restriction on x, so the domain is all real numbers.",
-          "The vertex $({{h}},{{k}})$ is the minimum, so the range is $[{{k}},\\infty)$."
+          "The vertex $({{h}},{{k}})$ is the minimum, so the range is $y\\ge {{k}}$."
         ]
       },
       "attemptFeedback": [
