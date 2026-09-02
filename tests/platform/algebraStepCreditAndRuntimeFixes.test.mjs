@@ -162,3 +162,19 @@ test('server passback re-derives algebra step credit and versioned reconciliatio
   assert.match(source, /const RECONCILE_VERSION = 2/);
   assert.match(source, /reason: "initial-reconcile"/);
 });
+
+
+test('closed DOL gradebook display recalculates from saved question records instead of freezing an old snapshot', () => {
+  const app = read('src/App.jsx');
+  assert.match(app, /const latestDolScore = latestDol \? calculateDOLSectionScore\(grades \|\| \{\}, latestDol\.questionIndices/);
+  assert.match(app, /DOL: \{latestDolScore !== null \? `\$\{latestDolScore\}%` : '—'\}/);
+});
+
+test('already-synced Classroom grades can be recalculated and resent without reopening student work', () => {
+  const manager = read('src/ClassroomManagerV2.jsx');
+  assert.match(manager, /Regrade an assignment that is already closed/);
+  assert.match(manager, /Recalculate & resend selected assignment grades/);
+  assert.match(manager, /Students do not need to reopen or redo the assignment/);
+  assert.match(manager, /sync\.status === 'synced' \? 'Recalculate & resend' : 'Retry'/);
+  assert.match(manager, /await retryClassroomGradeSync\(/);
+});
