@@ -6026,7 +6026,11 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
   const now = Date.now();
   const requestedAt = new Date(now).toISOString();
   const cutoff = now - CLASSROOM_GRADE_CHECKPOINT_LOOKBACK_MS;
-  const RECONCILE_VERSION = 1;
+  // Version 2 deliberately requeues recent published assignments after the
+  // algebra step-credit correction. The server derives credit from stored
+  // stepGrades, so already-closed student work can receive the fairer score
+  // without asking the student to reopen or change an answer.
+  const RECONCILE_VERSION = 2;
 
   const publicationsSnap = await db
     .collection("classroomLinks")
