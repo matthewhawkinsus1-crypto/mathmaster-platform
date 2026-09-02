@@ -162,7 +162,7 @@ import { resolveDeliveredQuestionMetadata } from './platform/assignments/assignm
 import { adaptLegacyMasteryToPhase5 } from './platform/profile/legacyMasteryAdapter.js';
 import StudentDashboardView from './components/student/StudentDashboardView.jsx';
 import {
-  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions,
+  ROUTE_EVENTS, buildRouteEvent, fetchClassPacing, fetchSkillOverrides, fetchWeeklyGoalSettings, fetchTeacherWeeklyPathCompletions, fetchStudentWeeklyPathGoalSnapshot,
   interventionAsOverride, logRouteEvent, overridesForClassContext, saveClassPacing, saveSkillOverrides, saveWeeklyGoalSettings,
   setStudentPathIntervention, storedPacingForClassContext, storedWeeklyGoalForClassContext,
   subscribeStudentPathIntervention,
@@ -170,7 +170,7 @@ import {
 import WeeklyPathControls from './components/teacher/WeeklyPathControls.jsx';
 import StudentPerformanceBadge from './components/common/StudentPerformanceBadge.jsx';
 import { buildWeeklyPathPlan } from './platform/path/weeklyPathPlan.js';
-import { buildTeacherWeeklyView, buildWeeklyGoal, dueAtFor, weekKeyFor } from './platform/path/weeklyPathGoal.js';
+import { buildTeacherWeeklyView, buildWeeklyGoal, deriveCompletionsFromEvidence, dueAtFor, evaluateWeeklyGoalProgress, normalizeWeeklyGoalConfig, weekKeyFor } from './platform/path/weeklyPathGoal.js';
 import SignInAccess from './SignInAccess.jsx';
 import ClassesAdmin from './components/admin/ClassesAdmin.jsx';
 import PreproductionReset from './components/admin/PreproductionReset.jsx';
