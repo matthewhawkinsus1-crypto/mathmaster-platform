@@ -45,7 +45,9 @@ export default function useUndoHistory(
       if (options.record !== false) {
         historyRef.current = [...historyRef.current, cloneValue(current)].slice(-maximumEntries);
       }
-      return cloneValue(resolved);
+      const saved = cloneValue(resolved);
+      writeQuestionDraft(persistenceKey, saved);
+      return saved;
     });
   }, [maximumEntries]);
 
@@ -54,13 +56,17 @@ export default function useUndoHistory(
     if (!history.length) return false;
     const previous = history[history.length - 1];
     historyRef.current = history.slice(0, -1);
-    setValueState(cloneValue(previous));
+    const saved = cloneValue(previous);
+    writeQuestionDraft(persistenceKey, saved);
+    setValueState(saved);
     return true;
   }, []);
 
   const reset = useCallback((nextValue = initialValueRef.current) => {
     historyRef.current = [];
-    setValueState(cloneValue(nextValue));
+    const saved = cloneValue(nextValue);
+    writeQuestionDraft(persistenceKey, saved);
+    setValueState(saved);
   }, []);
 
   const clearHistory = useCallback(() => {
