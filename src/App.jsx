@@ -6848,10 +6848,12 @@ function App() {
         matchesSmartView,
       },
     });
-    // Home decides ONE thing for the student. The weekly-Path fallback is
-    // omitted deliberately: this screen does not fetch Path evidence, and a
-    // "your week is done" claim nobody checked is worse than not mentioning it.
-    const studentNextAction = resolveNextAction({ dashboard });
+    // "Caught up" is only valid after class assignments and the frozen
+    // Weekly Path commitment have both been checked.
+    const studentNextAction = resolveNextAction({
+      dashboard,
+      weeklyProgress: studentWeeklyPathProgress,
+    });
     return (
       <>
         {renderStudentPackUpBanner()}
