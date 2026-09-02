@@ -13,6 +13,7 @@ import {
   listPublishedAssignments,
   inspectClassroomPublication,
   repairClassroomAssignmentPublications,
+  forceRepublishAssignmentToClassrooms,
   removeAssignmentClassroomPackage,
   publishAssignmentToClassrooms,
   publishClassroomMaterial,
@@ -75,6 +76,7 @@ export default function ClassroomManagerV2({
   classes = [],
   students = [],
   teacherEmail = '',
+  initialAssignmentId = '',
 }) {
   const [connection, setConnection] = useState({ connected: false, needsReconnect: false, missingScopes: [] });
   const [diagnostics, setDiagnostics] = useState(null);
@@ -90,7 +92,7 @@ export default function ClassroomManagerV2({
   const [identityText, setIdentityText] = useState('');
   const [identityRows, setIdentityRows] = useState([]);
   const [identityRejected, setIdentityRejected] = useState([]);
-  const [assignmentId, setAssignmentId] = useState('');
+  const [assignmentId, setAssignmentId] = useState(() => String(initialAssignmentId || ''));
   const [topicName, setTopicName] = useState('');
   const [instructions, setInstructions] = useState('');
   const [resourceMode, setResourceMode] = useState('separate');
@@ -187,6 +189,52 @@ export default function ClassroomManagerV2({
     if (params.get('classroomError')) setError(`Google Classroom connection failed: ${params.get('classroomError')}`);
     refreshManagerData().catch((err) => setError(err.message));
   }, []);
+
+  useEffect(() => {
+    if (!initialAssignmentId) return;
+    setAssignmentId(String(initialAssignmentId));
+  }, [initialAssignmentId]);
+
+  // Opening Classroom Manager from an assignment card should be ready to act,
+  // not require a second "Load Active Courses" click.
+  useEffect(() => {
+    if (!connection.connected || connection.needsReconnect || courses.length) return;
+    let cancelled = false;
+    listGoogleCourses()
+      .then((response) => {
+        if (cancelled) return;
+        const loaded = response?.courses || [];
+        setCourses(loaded);
+        if (!rosterCourseId && loaded[0]) setRosterCourseId(String(loaded[0].id));
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err?.message || String(err));
+      });
+    return () => { cancelled = true; };
+  }, [connection.connected, connection.needsReconnect]);
+
+  // One authoritative assignment-selection effect serves both the dropdown and
+  // the assignment-card shortcut. As mappings arrive, the correct destination
+  // courses become selected automatically.
+  useEffect(() => {
+    if (!selectedAssignment) return;
+    const classroom = selectedAssignment?.classroomPackage || {};
+    const notes = selectedAssignment?.lessonResources?.notesPdf || null;
+    setTopicName(classroom?.topic?.name || suggestClassroomTopic(selectedAssignment));
+    setInstructions(classroom?.assignmentPost?.instructions
+      || `Complete "${selectedAssignment.title}" in MathMaster. Use the Open in MathMaster link below.`);
+    const postingMode = classroom?.resourcesPost?.postingMode;
+    setResourceMode(postingMode === 'attachToAssignment' ? 'attach' : postingMode === 'none' ? 'none' : 'separate');
+    setMaterialTitle(classroom?.resourcesPost?.title || `${selectedAssignment.title} — Notes & Resources`);
+    setMaterialDescription(classroom?.resourcesPost?.description || `Reference materials for ${selectedAssignment.title}.`);
+    const authoredLinks = Array.isArray(classroom?.additionalLinks) ? classroom.additionalLinks : [];
+    setMaterials(authoredLinks.length ? authoredLinks.map((item) => ({ title: item.title || '', url: item.url || '' })) : [{ title: '', url: '' }]);
+    setSelectedCourseIds(matchingCoursesForAssignment(selectedAssignment, mappings, classes));
+    if (notes?.enabled) {
+      setStatus(`AI prepared ${notes.title || 'student notes'} (${Number(notes.targetPages) === 1 ? 1 : 2} page target) and Classroom publishing information.`);
+    }
+  }, [selectedAssignment?.id, mappings, classes]);
+
 
   const run = async (work) => {
     setBusy(true);
@@ -342,23 +390,6 @@ export default function ClassroomManagerV2({
 
   const handleAssignmentChange = (value) => {
     setAssignmentId(value);
-    const assignment = assignments.find((item) => String(item.id) === String(value));
-    const classroom = assignment?.classroomPackage || {};
-    const notes = assignment?.lessonResources?.notesPdf || null;
-    setTopicName(classroom?.topic?.name || (assignment ? suggestClassroomTopic(assignment) : ''));
-    setInstructions(classroom?.assignmentPost?.instructions
-      || (assignment ? `Complete "${assignment.title}" in MathMaster. Use the Open in MathMaster link below.` : ''));
-    const postingMode = classroom?.resourcesPost?.postingMode;
-    setResourceMode(postingMode === 'attachToAssignment' ? 'attach' : postingMode === 'none' ? 'none' : 'separate');
-    setMaterialTitle(classroom?.resourcesPost?.title || (assignment ? `${assignment.title} — Notes & Resources` : 'Lesson Notes & Resources'));
-    setMaterialDescription(classroom?.resourcesPost?.description || (assignment ? `Reference materials for ${assignment.title}.` : ''));
-    const authoredLinks = Array.isArray(classroom?.additionalLinks) ? classroom.additionalLinks : [];
-    setMaterials(authoredLinks.length ? authoredLinks.map((item) => ({ title: item.title || '', url: item.url || '' })) : [{ title: '', url: '' }]);
-    const suggested = assignment ? matchingCoursesForAssignment(assignment, mappings, classes) : [];
-    setSelectedCourseIds(suggested);
-    if (notes?.enabled) {
-      setStatus(`AI prepared ${notes.title || 'student notes'} (${Number(notes.targetPages) === 1 ? 1 : 2} page target) and Classroom publishing information.`);
-    }
   };
 
   const cleanMaterials = () => materials
