@@ -249,7 +249,8 @@ test('advanced workspace always exposes Other operations and reuses IntervalNumb
   assert.match(src, /Other operations/);
   assert.match(src, /OTHER_ALGEBRA_OPERATIONS\.map/);
   assert.match(src, /IntervalNumberLine/);
-  assert.match(src, /ask: \['graph', 'interval'\]/);
+  assert.match(src, /inequalitySolutionRepresentationStages\(question\)/);
+  assert.match(src, /ask: solutionRepresentationAsk/);
 });
 
 test('advanced solver opens Other operations by default on load and reset', () => {
