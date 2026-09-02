@@ -285,6 +285,20 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
       setError('At least one included question is required.');
       return;
     }
+
+    const changedWeights = questions.filter((question) => {
+      const historical = originalQuestionById.get(question.questionId);
+      return historical && Math.abs(normalizeQuestionWeight(historical) - normalizeQuestionWeight(question)) > 1e-9;
+    });
+    if (hasLiveProtection && changedWeights.length > 0) {
+      const proceed = await confirmAction({
+        title: `Recalculate live grades using ${changedWeights.length} new question weight${changedWeights.length === 1 ? '' : 's'}?`,
+        message: 'Student answers, attempts, and partial-credit history will stay exactly as recorded. Their current assignment percentages will be recalculated from those same records using the new weights, and MathMaster will queue Google Classroom to reconcile its grade.',
+        confirmLabel: 'Recalculate Grades',
+      });
+      if (!proceed) return;
+    }
+
     setSaving(true);
     setError('');
     try {
