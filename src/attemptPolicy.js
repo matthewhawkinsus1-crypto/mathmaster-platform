@@ -111,6 +111,48 @@ export const emptyQuestionRecord = () => ({
 const clampPercent = (value) =>
   Math.max(0, Math.min(100, Number.isFinite(Number(value)) ? Number(value) : 0));
 
+const compactStepStateKey = (value) => String(value || '')
+  .replace(/\\s+/g, '')
+  .replace(/[−–—]/g, '-');
+
+export const calculateStepPartialCredit = (stepGrades = [], variantIndex = 0) => {
+  const currentSteps = (Array.isArray(stepGrades) ? stepGrades : []).filter(
+    (step) => Number(step?.variantIndex) === Number(variantIndex),
+  );
+  if (!currentSteps.length) return 0;
+
+  // A step rubric has one planned denominator. Taking a longer but valid route
+  // must not make already-earned credit shrink, so extra steps do not keep
+  // inflating the denominator. Also prevent cycling through the same equation
+  // states from farming partial credit.
+  const expectedTotal = currentSteps.reduce(
+    (maximum, step) => Math.max(maximum, Math.max(0, Number(step?.expectedTotalPoints) || 0)),
+    0,
+  );
+  const visitedStates = new Set();
+  const firstBefore = compactStepStateKey(currentSteps[0]?.equationBefore);
+  if (firstBefore) visitedStates.add(firstBefore);
+
+  let earned = 0;
+  let fallbackPossible = 0;
+  currentSteps.forEach((step) => {
+    const afterKey = compactStepStateKey(step?.equationAfter);
+    const acceptedProductive = step?.accepted !== false && step?.productive !== false;
+    const newState = !afterKey || !visitedStates.has(afterKey);
+    if (acceptedProductive && newState) {
+      earned += Math.max(0, Number(step?.earned) || 0);
+      fallbackPossible += Math.max(0, Number(step?.possible) || 0);
+    }
+    if (afterKey) visitedStates.add(afterKey);
+  });
+
+  const possible = expectedTotal > 0 ? expectedTotal : fallbackPossible;
+  const rawPercent = possible > 0 ? Math.round((earned / possible) * 100) : 0;
+  // Full correctness still requires finishing the problem. Partial work can
+  // earn substantial credit, but never impersonates a correct final solution.
+  return Math.min(90, clampPercent(rawPercent));
+};
+
 export const normalizeQuestionRecord = (record) => {
   if (!record) return emptyQuestionRecord();
   if (typeof record === 'string') {
@@ -150,10 +192,15 @@ export const normalizeQuestionRecord = (record) => {
       : 0,
     lastAttemptAt: record.lastAttemptAt || record.recordedAt || null,
     stepGrades,
-    partialCredit: clampPercent(record.partialCredit),
-    bestPartialCredit: clampPercent(
-      record.bestPartialCredit ?? record.partialCredit,
+    partialCredit: Math.max(
+      clampPercent(record.partialCredit),
+      calculateStepPartialCredit(stepGrades, record.variantIndex ?? 0),
     ),
+    bestPartialCredit: Math.max(
+      clampPercent(record.bestPartialCredit ?? record.partialCredit),
+      calculateStepPartialCredit(stepGrades, record.variantIndex ?? 0),
+    ),
+    stepCreditVersion: Math.max(0, Number(record.stepCreditVersion) || 0),
     algebraState: record.algebraState || null,
     partGrades: Array.isArray(record.partGrades) ? record.partGrades.slice(0, 40) : [],
     supportUsage: {
@@ -183,28 +230,6 @@ export const getAttemptsRemaining = (
 ) => {
   const normalized = normalizeQuestionRecord(record);
   return Math.max(0, maximumAttempts - normalized.attemptCount);
-};
-
-const calculateVariantPartialCredit = (stepGrades, variantIndex) => {
-  const currentSteps = stepGrades.filter(
-    (step) => Number(step.variantIndex) === Number(variantIndex),
-  );
-  const earned = currentSteps.reduce(
-    (total, step) => total + Math.max(0, Number(step.earned) || 0),
-    0,
-  );
-  const recordedPossible = currentSteps.reduce(
-    (total, step) => total + Math.max(0, Number(step.possible) || 0),
-    0,
-  );
-  const expectedTotal = currentSteps.reduce(
-    (maximum, step) =>
-      Math.max(maximum, Math.max(0, Number(step.expectedTotalPoints) || 0)),
-    0,
-  );
-  const possible = Math.max(recordedPossible, expectedTotal);
-  const rawPercent = possible > 0 ? Math.round((earned / possible) * 100) : 0;
-  return Math.min(90, rawPercent);
 };
 
 export const recordQuestionStep = ({
@@ -258,7 +283,7 @@ export const recordQuestionStep = ({
     current.attemptCount + (countsAttempt ? 1 : 0),
   );
   const expired = countsAttempt && attemptCount >= maximumAttempts;
-  const partialCredit = calculateVariantPartialCredit(
+  const partialCredit = calculateStepPartialCredit(
     stepGrades,
     current.variantIndex,
   );
@@ -271,6 +296,7 @@ export const recordQuestionStep = ({
     stepGrades,
     partialCredit,
     bestPartialCredit: Math.max(current.bestPartialCredit, partialCredit),
+    stepCreditVersion: 2,
     supportUsage: supportUsage ? {
       modified: Boolean(supportUsage.modified),
       accommodations: Array.isArray(supportUsage.accommodations) ? supportUsage.accommodations.slice(0, 20) : [],
