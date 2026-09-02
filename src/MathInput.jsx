@@ -108,10 +108,13 @@ const INEQUALITY_KEYS = [
   { label: '>', command: '>', ariaLabel: 'Insert greater than' },
   { label: '≥', command: '≥', ariaLabel: 'Insert greater than or equal to' },
   { label: '≠', command: '≠', ariaLabel: 'Insert not equal to' },
-  { label: '−∞', command: '-\\infty', ariaLabel: 'Insert negative infinity' },
-  { label: '∞', command: '\\infty', ariaLabel: 'Insert positive infinity' },
-  { label: '∪', command: '\\cup', ariaLabel: 'Insert union' },
 ];
+
+// Infinity and union belong to interval/set notation, not inequality notation.
+// Keeping them off this keypad prevents Algebra I students from being nudged
+// toward -∞<x<∞ when the correct course-language response is "All Real Numbers."
+// INTERVAL_KEYS still provides ±∞ and ∪ wherever interval notation is actually
+// in scope.
 
 // THE WAY OUT.
 //
