@@ -154,9 +154,7 @@ test('AI imported weights are bounded and must use quarter-point increments', ()
 });
 
 test('parser accepts a fenced JSON response but rejects arbitrary JSON', () => {
-  const raw = ```json
-${JSON.stringify(packFor())}
-```;
+  const raw = '```json\n' + JSON.stringify(packFor()) + '\n```';
   assert.equal(parseAssignmentWeightReviewPack(raw).kind, 'mathmasterWeightReviewPack');
   assert.throws(
     () => parseAssignmentWeightReviewPack('{"hello":"world"}'),
