@@ -7,7 +7,7 @@ const intents = [
   q('Solve x + 2 = 5.', ['solveEquation'], { equation: 'x+2=5', answer: 3 }),
   q('Give the fraction.', ['fractionAnswer'], { answer: '3/4' }),
   q('Choose the number line.', ['chooseNumberLine'], { numberLineChoices: [{ id: 'a', points: [-2] }, { id: 'b', points: [2] }], answer: 'a' }),
-  q('Graph x ≥ 2.', ['constructInterval','writeInterval'], { inequality: 'x >= 2', intervals: [{ min: 2, max: null, minClosed: true, maxClosed: false }] }),
+  q('Graph x ≥ 2.', ['constructInterval'], { inequality: 'x >= 2', intervals: [{ min: 2, max: null, minClosed: true, maxClosed: false }] }),
   q('Read the graph.', ['readGraph'], { function: { family: 'linear', m: 2, b: 1 }, answer: 1 }),
   q('Graph the function.', ['constructGraph'], { function: { family: 'linear', m: 2, b: 1 } }),
   q('Investigate the function.', ['investigateFunction','analyzeDomain','analyzeRange'], { function: { family: 'quadratic', a: 1, h: 0, k: -4 } }),
