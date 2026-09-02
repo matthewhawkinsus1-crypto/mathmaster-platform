@@ -84,6 +84,17 @@ test('successful Google writes create a student-visible receipt and audit the st
   assert.match(sync, /successfulCourses/);
 });
 
+test('Classroom point values are scaled from MathMaster percent when max points is not 100', () => {
+  const src = read('functions/index.js');
+  const start = src.indexOf('exports.syncGradeToClassroom = onDocumentWritten');
+  const end = src.indexOf('// Quiz/Test grade writes happen', start);
+  const sync = src.slice(start, end);
+  assert.match(sync, /const maxPoints =/);
+  assert.match(sync, /const classroomGrade = Math\.round\(\(grade \/ 100\) \* maxPoints \* 100\) \/ 100/);
+  assert.match(sync, /grade: classroomGrade/);
+  assert.match(sync, /classroomGrade/);
+});
+
 test('Google patch carries both draft and student-visible assigned grade', () => {
   const src = read('functions/lib/classroom.js');
   const start = src.indexOf('async function patchGrade(');
