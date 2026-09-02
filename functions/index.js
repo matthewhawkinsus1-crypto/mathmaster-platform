@@ -4851,7 +4851,8 @@ exports.inspectClassroomPublication = onCall(
         rosterStudents: results
           .filter((item) => item.status === "ok")
           .reduce((sum, item) => sum + Number(item.rosterStudentCount || 0), 0),
-        failed: results.filter((item) => item.status === "failed").length,
+        mismatched: results.filter((item) => item.status === "mismatched").length,
+        failed: results.filter((item) => ["failed", "mismatched"].includes(item.status)).length,
       },
     };
   }
