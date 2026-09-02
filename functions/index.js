@@ -5664,6 +5664,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           !forceRetry
           && priorAudit.status === "synced"
           && String(priorAudit.stage || "") === stage
+          && Number(priorAudit.maxPoints || 100) === maxPoints
         ) {
           continue;
         }
@@ -5724,6 +5725,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
             status: "skipped-unlinked",
             stage,
             grade,
+            classroomGrade,
+            maxPoints,
             attempted: progress.attempted,
             total: progress.total,
             creditOnAttempted: progress.creditOnAttempted,
@@ -5777,6 +5780,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
             status: "synced",
             stage,
             grade,
+            classroomGrade,
+            maxPoints,
             attempted: progress.attempted,
             total: progress.total,
             creditOnAttempted: progress.creditOnAttempted,
@@ -5800,6 +5805,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
             status: "failed",
             stage,
             grade,
+            classroomGrade,
+            maxPoints,
             attempted: progress.attempted,
             total: progress.total,
             creditOnAttempted: progress.creditOnAttempted,
