@@ -277,7 +277,7 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                             ? `Open for ${timerMinutes} min`
                             : warmup.status === 'closed'
                               ? `Reopen for ${timerMinutes} min`
-                              : warmup.autoCloseScheduled
+                              : warmup.teacherTimerScheduled
                                 ? `Reset to ${timerMinutes} min`
                                 : `Close in ${timerMinutes} min`}
                         </button>
