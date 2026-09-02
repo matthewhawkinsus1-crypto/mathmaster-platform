@@ -266,25 +266,25 @@
       "dok": 2,
       "taskType": "application",
       "representation": "context",
-      "prompt": "A quantity is modeled by $Q(t)={{a}}({{base}})^t$ only during the first {{years}} years after measurement begins. Write the CONTEXTUAL domain of $t$ in interval notation.",
+      "prompt": "A quantity is modeled by $Q(t)={{a}}({{base}})^t$ only during the first {{years}} years after measurement begins. Write the CONTEXTUAL domain of $t$ as a compound inequality.",
       "responseFields": [
         {
           "id": "answer",
-          "label": "Contextual domain",
-          "inputProfile": "interval",
-          "expected": "[0,{{years}}]"
+          "label": "Contextual domain inequality",
+          "inputProfile": "inequality",
+          "expected": "0<=t and t<={{years}}"
         }
       ],
       "solutionReview": {
         "headline": "The algebraic domain and the contextual domain are different questions.",
         "reasoning": [
           "The exponential rule itself accepts every real input, but elapsed time in this situation begins at $t=0$.",
-          "The model is stated to apply only through year {{years}}, so the contextual domain is $[0,{{years}}]$."
+          "The model is stated to apply only through year {{years}}, so $0\\le t\\le {{years}}$."
         ],
-        "answerSummary": "$[0,{{years}}]$"
+        "answerSummary": "$0\\le t\\le {{years}}$"
       },
       "attemptFeedback": [
-        "Use the time interval in the situation rather than the unrestricted algebraic domain."
+        "Use the time restriction in the situation rather than the unrestricted algebraic domain."
       ],
       "supportHints": [
         "Elapsed time cannot be negative in this model, and the stated observation window has an endpoint."
@@ -329,14 +329,24 @@
             {
               "id": "algebraic",
               "label": "Algebraic domain",
-              "inputProfile": "interval",
-              "expected": "(-inf,inf)"
+              "inputProfile": "choice",
+              "choices": [
+                {
+                  "id": "all-real",
+                  "label": "All real numbers"
+                },
+                {
+                  "id": "nonnegative",
+                  "label": "t ≥ 0"
+                }
+              ],
+              "expected": "all-real"
             },
             {
               "id": "contextual",
-              "label": "Contextual domain",
-              "inputProfile": "interval",
-              "expected": "[0,{{years}}]"
+              "label": "Contextual domain inequality",
+              "inputProfile": "inequality",
+              "expected": "0<=t and t<={{years}}"
             },
             {
               "id": "judgment",
@@ -345,7 +355,7 @@
               "choices": [
                 {
                   "id": "context",
-                  "label": "Use [0, years] because the situation restricts the model to the observed time window."
+                  "label": "Use 0 ≤ t ≤ years because the situation restricts the model to the observed time window."
                 },
                 {
                   "id": "algebraic",
@@ -360,9 +370,9 @@
             "reasoning": [
               "The exponential expression is defined for every real t.",
               "Elapsed study time begins at 0 and the model is stated to apply only through year {{years}}.",
-              "Therefore $(-\\infty,\\infty)$ is the algebraic domain, while $[0,{{years}}]$ is the domain that answers the contextual question."
+              "Therefore the algebraic domain is all real numbers, while $0\\le t\\le {{years}}$ answers the contextual question."
             ],
-            "answerSummary": "Algebraic: all real t; contextual: $[0,{{years}}]$."
+            "answerSummary": "Algebraic: all real t; contextual: 0≤t≤{{years}}."
           },
           "attemptFeedback": [
             "State both domains before deciding which one belongs to the real-world interpretation."
