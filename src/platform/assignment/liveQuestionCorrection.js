@@ -5,6 +5,8 @@ import {
 import { stableStringify } from '../../utils/idUtils.js';
 import { getDomainRangeAcceptedAnswers } from '../../interactiveGraphEngine.js';
 import { pathAnalysisTextMatches } from '../../../functions/shared/pathToolContracts.mjs';
+import { readComposedQuestion } from '../workflow/questionWorkflow.js';
+import { gradeWorkflow } from '../workflow/workflowGrading.js';
 
 const CHOICE_PROFILES = new Set(['choice', 'multiplechoice', 'multiple-choice', 'select']);
 
@@ -369,6 +371,106 @@ export const repairAssignmentTrackerForLiveCorrections = ({
   return next;
 };
 
+
+
+const parseStoredWorkflowResponses = (record = {}) => {
+  const raw = String(record?.lastResponseKey || '').trim();
+  if (!raw || (!raw.startsWith('{') && !raw.startsWith('['))) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Re-evaluate the LAST stored workflow response with the current fractional
+ * rubric. This is intentionally monotonic: deploying a more granular rubric
+ * can recognize work the old coarse rubric missed, but it can never take away
+ * credit a student already earned.
+ */
+export const repairQuestionRecordForGranularWorkflowCredit = ({
+  record,
+  question,
+  correctedAt = new Date().toISOString(),
+} = {}) => {
+  if (!record || !question) return record;
+  const current = normalizeQuestionRecord(record);
+  if (current.status === 'unattempted') return record;
+
+  const composed = readComposedQuestion(question);
+  if (!composed.composed || !composed.workflow.length) return record;
+  const responses = parseStoredWorkflowResponses(current);
+  if (!responses) return record;
+
+  const evaluation = gradeWorkflow({
+    stages: composed.workflow,
+    responses,
+    grading: composed.grading,
+  });
+  const evaluatedPartial = evaluation.isCorrect
+    ? 100
+    : Math.max(0, Math.min(90, Number(evaluation.partialCreditPercent) || 0));
+  if (evaluatedPartial <= Number(current.bestPartialCredit || 0)) return record;
+
+  const oldParts = new Map((current.partGrades || []).map((part) => [String(part.id), part]));
+  const partGrades = (evaluation.parts || []).slice(0, 40).map((part, index) => ({
+    id: String(part?.id ?? `part-${index + 1}`),
+    label: String(part?.label || `Part ${index + 1}`),
+    isComplete: Boolean(part?.isComplete),
+    isCorrect: Boolean(part?.isCorrect),
+    graded: part?.graded !== false,
+    weight: Number.isFinite(Number(part?.weight)) && Number(part.weight) > 0 ? Number(part.weight) : 1,
+    credit: Number.isFinite(Number(part?.credit))
+      ? Math.max(0, Math.min(1, Number(part.credit)))
+      : (part?.isCorrect ? 1 : 0),
+    response: String(oldParts.get(String(part?.id))?.response ?? '').slice(0, 240),
+    granularCreditRegraded: true,
+  }));
+
+  return {
+    ...current,
+    status: evaluation.isCorrect ? 'correct' : current.status,
+    partialCredit: Math.max(Number(current.partialCredit || 0), evaluatedPartial),
+    bestPartialCredit: Math.max(Number(current.bestPartialCredit || 0), evaluatedPartial),
+    partGrades,
+    partialCreditRegradeHistory: compactRepairHistory(current.partialCreditRegradeHistory, {
+      kind: 'granular-workflow-credit-v1',
+      questionId: question.questionId || null,
+      previousBestPartialCredit: Number(current.bestPartialCredit || 0),
+      newBestPartialCredit: Math.max(Number(current.bestPartialCredit || 0), evaluatedPartial),
+      correctedAt,
+      preservedTotalAttempts: current.totalAttempts,
+    }),
+  };
+};
+
+export const repairAssignmentTrackerForGranularWorkflowCredit = ({
+  assignmentTracker = {},
+  questions = [],
+  questionIndices = [],
+  correctedAt = new Date().toISOString(),
+} = {}) => {
+  let changed = false;
+  const next = { ...(assignmentTracker || {}) };
+  (Array.isArray(questionIndices) ? questionIndices : []).forEach((rawIndex) => {
+    const index = Number(rawIndex);
+    if (!Number.isInteger(index) || index < 0 || index >= questions.length) return;
+    const record = next[index];
+    if (!record) return;
+    const repaired = repairQuestionRecordForGranularWorkflowCredit({
+      record,
+      question: questions[index],
+      correctedAt,
+    });
+    if (repaired !== record) {
+      next[index] = repaired;
+      changed = true;
+    }
+  });
+  return changed ? next : assignmentTracker;
+};
 
 const currentGraderAnalysisRequests = (question = {}) => (
   Array.isArray(question.analysisRequests) ? question.analysisRequests : []
