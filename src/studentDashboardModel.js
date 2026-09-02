@@ -66,8 +66,9 @@ export const BUCKET_LABEL = Object.freeze({
  * Which groups open by default.
  *
  * Progressive disclosure, and the rule is what a student needs to ACT on.
- * Finished work and things not due yet are collapsed — they are reassurance and
- * planning, not today's job.
+ * Finished work and optional practice stay collapsed. Teacher-assigned work
+ * stays visible even when its due date is later, because "assigned" is the
+ * classroom contract and students should not have to discover it in a drawer.
  */
 export const BUCKET_OPEN_BY_DEFAULT = Object.freeze({
   [BUCKET.IN_PROGRESS]: true,
