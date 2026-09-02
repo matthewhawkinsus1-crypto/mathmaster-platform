@@ -22,7 +22,7 @@ const promptSummary = (question) => String(
   question.prompt || question.scenario || question.title || question.mathDisplay?.value || 'No prompt supplied',
 ).replace(/\s+/g, ' ').trim();
 
-export default function AssignmentQuestionEditor({ assignment, hasStudentData, onSave, onClose }) {
+export default function AssignmentQuestionEditor({ assignment, hasLiveProtection, onSave, onClose }) {
   const { confirm: confirmAction, toastSuccess } = useToast();
   const [title, setTitle] = useState(assignment.title || '');
   const originalQuestions = useMemo(
@@ -49,7 +49,7 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
 
   const removeQuestion = async (index) => {
     const question = questions[index];
-    if (hasStudentData) {
+    if (hasLiveProtection) {
       const proceed = await confirmAction({
         title: 'Throw this question out safely?',
         message: 'Student records already exist, so the question stays at its original index and is only hidden from students and excluded from grading. That keeps existing responses lined up with the right questions.',
@@ -76,13 +76,13 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
       teacherExcluded: false,
     };
     setQuestions((current) => {
-      if (hasStudentData) return [...current, duplicate];
+      if (hasLiveProtection) return [...current, duplicate];
       return [...current.slice(0, index + 1), duplicate, ...current.slice(index + 1)];
     });
   };
 
   const moveQuestion = (index, direction) => {
-    if (hasStudentData) return;
+    if (hasLiveProtection) return;
     const target = index + direction;
     if (target < 0 || target >= questions.length) return;
     setQuestions((current) => {
@@ -95,7 +95,7 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
   const beginRepair = async (index) => {
     const question = questions[index];
     const historicalQuestion = originalQuestionById.get(question?.questionId);
-    if (hasStudentData && historicalQuestion) {
+    if (hasLiveProtection && historicalQuestion) {
       const proceed = await confirmAction({
         title: 'Start a safe live repair?',
         message: 'Students have already worked on this assignment. MathMaster will allow only a response-entry repair that keeps this exact question, ID, prompt, mathematics, graph/table, standards, and answer-field IDs unchanged. Converting a flawed written-response field to finite choices is allowed; a real rewrite will be rejected. Existing attempts and credit will be protected when you save.',
@@ -106,7 +106,7 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
     setMetadataEditingIndex(null);
     setRepairIndex(index);
     setRepairInstruction(
-      hasStudentData && historicalQuestion
+      hasLiveProtection && historicalQuestion
         ? 'Convert only the flawed plain-language free-response field(s) to finite choice selections. Keep the question ID, prompt, mathematical task, graph/table, standards, field IDs, and correct meaning exactly the same. Use exactly one previously accepted correct wording as the keyed choice.'
         : '',
     );
@@ -153,7 +153,7 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
       };
       const historicalQuestion = originalQuestionById.get(existing.questionId);
       let liveRepair = null;
-      if (hasStudentData && historicalQuestion) {
+      if (hasLiveProtection && historicalQuestion) {
         liveRepair = analyzeResponseEntryRepair(historicalQuestion, nextQuestion);
         if (!liveRepair.safe) {
           throw new Error(`MathMaster blocked this live rewrite: ${liveRepair.reason}`);
@@ -199,7 +199,7 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
   };
 
   const applyMetadataEdit = async (index, nextQuestion) => {
-    if (hasStudentData) {
+    if (hasLiveProtection) {
       const proceed = await confirmAction({
         title: 'Recalculate existing mastery reports?',
         message: 'Student records already exist. Changing TEKS, DOK, difficulty, purpose, or evidence weight will recalculate standards and mastery reports for responses students have already submitted.',
@@ -236,7 +236,7 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
     <div role="presentation" style={{ position: 'fixed', inset: 0, zIndex: 15000, background: 'rgba(32,33,36,.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '18px' }}>
       <section role="dialog" aria-modal="true" aria-label="Edit assignment questions" style={{ width: 'min(1080px, 97vw)', maxHeight: '94vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: '16px', boxShadow: '0 28px 80px rgba(0,0,0,.4)' }}>
         <header style={{ padding: '20px 24px', borderBottom: '1px solid #e1e5ea', display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center' }}>
-          <div><h2 style={{ margin: 0 }}>Assignment Question Editor</h2><p style={{ margin: '5px 0 0', color: '#5f6368' }}>{hasStudentData ? 'Student records exist. Existing question IDs and indexes are protected. Safe live response-entry repairs are allowed; real rewrites are still blocked.' : 'No student records exist. Questions may be removed and reordered permanently.'}</p></div>
+          <div><h2 style={{ margin: 0 }}>Assignment Question Editor</h2><p style={{ margin: '5px 0 0', color: '#5f6368' }}>{hasLiveProtection ? 'This assignment is live or has student history. Existing question IDs and indexes are protected. Safe live response-entry repairs are allowed; real rewrites are still blocked.' : 'No student records exist. Questions may be removed and reordered permanently.'}</p></div>
           <button type="button" onClick={onClose} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid #cbd1da', background: '#fff', fontWeight: 800 }}>Close</button>
         </header>
         <div style={{ padding: '20px 24px', overflowY: 'auto' }}>
@@ -262,27 +262,27 @@ export default function AssignmentQuestionEditor({ assignment, hasStudentData, o
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                      <button type="button" onClick={() => moveQuestion(index, -1)} disabled={hasStudentData || index === 0} title={hasStudentData ? 'Reordering is disabled because student data exists.' : 'Move up'}>↑</button>
-                      <button type="button" onClick={() => moveQuestion(index, 1)} disabled={hasStudentData || index === questions.length - 1} title={hasStudentData ? 'Reordering is disabled because student data exists.' : 'Move down'}>↓</button>
+                      <button type="button" onClick={() => moveQuestion(index, -1)} disabled={hasLiveProtection || index === 0} title={hasLiveProtection ? 'Reordering is disabled because student data exists.' : 'Move up'}>↑</button>
+                      <button type="button" onClick={() => moveQuestion(index, 1)} disabled={hasLiveProtection || index === questions.length - 1} title={hasLiveProtection ? 'Reordering is disabled because student data exists.' : 'Move down'}>↓</button>
                       <button type="button" onClick={() => duplicateQuestion(index)}>Duplicate</button>
                       <button
                         type="button"
                         onClick={() => beginRepair(index)}
-                        title={hasStudentData && originalQuestionById.has(question.questionId)
+                        title={hasLiveProtection && originalQuestionById.has(question.questionId)
                           ? 'Safe live repair: only response-entry mechanics may change; prior student credit and attempts are protected.'
                           : 'Describe the problem in plain English and use AI to return a checked replacement.'}
-                      >{hasStudentData && originalQuestionById.has(question.questionId) ? 'Safe Live Repair' : 'Repair / Rewrite with AI'}</button>
+                      >{hasLiveProtection && originalQuestionById.has(question.questionId) ? 'Safe Live Repair' : 'Repair / Rewrite with AI'}</button>
                       <button type="button" onClick={() => { setRepairIndex(null); setMetadataEditingIndex(metadataEditingIndex === index ? null : index); setError(''); }} style={{ color: '#174ea6' }}>Standards & Difficulty</button>
                       <button type="button" onClick={() => toggleExcluded(index)} style={{ color: excluded ? '#137333' : '#8a5a00' }}>{excluded ? 'Include' : 'Exclude'}</button>
-                      <button type="button" onClick={() => removeQuestion(index)} style={{ color: '#d93025' }}>{hasStudentData ? 'Throw Out Safely' : 'Remove'}</button>
+                      <button type="button" onClick={() => removeQuestion(index)} style={{ color: '#d93025' }}>{hasLiveProtection ? 'Throw Out Safely' : 'Remove'}</button>
                     </div>
                   </div>
                   {repairIndex === index && (
                     <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid #d9dfe7' }}>
                       <div style={{ padding: '12px 13px', borderRadius: '9px', background: '#f8fbff', border: '1px solid #c6d8f1' }}>
-                        <strong style={{ color: '#174ea6' }}>{hasStudentData && originalQuestionById.has(question.questionId) ? 'Safe live response-entry repair' : 'Repair or rewrite this question with AI'}</strong>
+                        <strong style={{ color: '#174ea6' }}>{hasLiveProtection && originalQuestionById.has(question.questionId) ? 'Safe live response-entry repair' : 'Repair or rewrite this question with AI'}</strong>
                         <p style={{ margin: '6px 0 10px', color: '#5f6368', fontSize: '13px', lineHeight: 1.5 }}>
-                          {hasStudentData && originalQuestionById.has(question.questionId)
+                          {hasLiveProtection && originalQuestionById.has(question.questionId)
                             ? 'Students already have history on this question. MathMaster will accept only a conversion of flawed plain-language response fields to finite choices while keeping the exact task and IDs unchanged. On save, previously submitted affected fields are credited and an exhausted student gets one repair retry if another part is still wrong.'
                             : 'Describe the issue in normal language. MathMaster copies the full question and repair rules for the AI, then checks the replacement before accepting it here.'}
                         </p>
