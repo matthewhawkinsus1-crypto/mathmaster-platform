@@ -52,6 +52,7 @@ export default function StudentDashboardView({
   liveChallengeInvite = null,
   onOpenLiveChallenge = null,
   onLogout = null,
+  classroomSyncStatusByAssignment = {},
   // Everything Recommended for You needs, passed through rather than rebuilt.
   recommended = {},
 }) {
@@ -78,7 +79,19 @@ export default function StudentDashboardView({
     practice: 'Past its due date, so it no longer changes your grade — but the practice still counts toward what you know.',
   };
 
-  const renderAssignmentCard = ({ assignment, isAttempted, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, feedbackHeld, questionsTotal, questionsDone }) => {
+  const renderAssignmentCard = ({ assignment, isAttempted, lifecycle, access, recordedGrade, activity, classwork, dol, disabled, feedbackHeld, questionsTotal, questionsDone, questionsAttempted = 0 }) => {
+    const classroomReceipt = classroomSyncStatusByAssignment?.[assignment.id] || null;
+    const receiptStage = String(classroomReceipt?.stage || '');
+    const receiptFinal = classroomReceipt?.isFinal === true || receiptStage.startsWith('final-');
+    const receiptLabel = receiptFinal
+      ? 'FINAL'
+      : receiptStage === 'due-checkpoint'
+        ? 'DUE-DATE CHECKPOINT'
+        : receiptStage === 'assessment-release'
+          ? 'RELEASED'
+          : 'PROGRESS';
+    const classroomGrade = Number.isFinite(Number(classroomReceipt?.grade)) ? Number(classroomReceipt.grade) : null;
+    const classroomIsCurrent = classroomGrade != null && Number(recordedGrade) === classroomGrade;
     const statusStyle = lifecycle.isPracticeOnly ? { border: '#5f6368', bg: '#f1f3f4', color: '#3c4043', label: 'Practice only' } : lifecycle.isLate ? { border: '#f9ab00', bg: '#fff4ce', color: '#7a4f00', label: 'Late' } : lifecycle.isScheduled ? { border: '#9aa0a6', bg: '#f1f3f4', color: '#3c4043', label: 'Scheduled' } : { border: '#d8dde6', bg: '#e6f4ea', color: '#137333', label: 'On time' };
     return (
       <article key={assignment.id} style={{ background: '#fff', padding: '21px 26px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap', border: `2px solid ${statusStyle.border}` }}>
@@ -96,7 +109,31 @@ export default function StudentDashboardView({
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-          {isAttempted && <div style={{ textAlign: 'right', marginRight: '6px' }}><div style={{ fontSize: '11px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 'bold' }}>{feedbackHeld && !lifecycle.isPracticeOnly ? 'Grade status' : lifecycle.isPracticeOnly ? 'Frozen grade' : 'Current grade'}</div><div style={{ fontSize: '19px', fontWeight: 900, color: feedbackHeld && !lifecycle.isPracticeOnly ? '#174ea6' : recordedGrade >= 70 ? '#188038' : '#202124' }}>{feedbackHeld && !lifecycle.isPracticeOnly ? 'Awaiting teacher release' : `${recordedGrade}%`}</div></div>}
+          {questionsAttempted > 0 && (
+            <div style={{ textAlign: 'right', marginRight: '6px', minWidth: 175 }}>
+              <div style={{ fontSize: '11px', color: '#5f6368', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                {feedbackHeld && !lifecycle.isPracticeOnly
+                  ? 'Grade status'
+                  : lifecycle.isPracticeOnly
+                    ? 'Frozen grade'
+                    : 'Current grade · if stopped now'}
+              </div>
+              <div style={{ fontSize: '19px', fontWeight: 900, color: feedbackHeld && !lifecycle.isPracticeOnly ? '#174ea6' : recordedGrade >= 70 ? '#188038' : '#202124' }}>
+                {feedbackHeld && !lifecycle.isPracticeOnly ? 'Awaiting teacher release' : `${recordedGrade}%`}
+              </div>
+              {!feedbackHeld && classroomReceipt && classroomGrade != null && (
+                <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: receiptFinal ? '#137333' : '#174ea6', fontWeight: 800 }}>
+                  Google Classroom: {classroomGrade}% · {receiptLabel}
+                  {!receiptFinal && !classroomIsCurrent ? <><br />Your MathMaster grade has changed; Classroom updates at the next checkpoint.</> : null}
+                </div>
+              )}
+              {!feedbackHeld && !classroomReceipt && !lifecycle.isPracticeOnly && (
+                <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: '#5f6368' }}>
+                  Classroom progress grades begin after meaningful work is underway.
+                </div>
+              )}
+            </div>
+          )}
           <button
             type="button"
             disabled={disabled || !onExportAssignmentPdf || exportingAssignmentId === assignment.id}
