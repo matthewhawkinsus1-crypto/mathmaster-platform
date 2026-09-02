@@ -187,6 +187,13 @@ export const validateAssignmentV5 = (input = {}, { requireQuestions = true } = {
         errors.push(`Section ${index + 1} is missing a questions array.`);
       } else {
         questionCount += section.questions.length;
+        section.questions.forEach((question, questionIndex) => {
+          if (question?.questionWeight === undefined || question?.questionWeight === null || question?.questionWeight === '') return;
+          const weight = Number(question.questionWeight);
+          if (!Number.isFinite(weight) || weight < 0.25 || weight > 20) {
+            errors.push(`Section ${index + 1} Question ${questionIndex + 1} questionWeight must be between 0.25 and 20.`);
+          }
+        });
       }
     });
     if (requireQuestions && questionCount === 0) errors.push('V5 contains no questions.');
