@@ -2413,6 +2413,7 @@ function App() {
       : includedQuestionIndices[0];
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(safeQuestionIndex);
+    setAssignmentNavigationCollapsed(false);
     setAssignmentOverviewExpanded(false);
     lastActivityRef.current = Date.now();
     pendingAssignmentSecondsRef.current = 0;
