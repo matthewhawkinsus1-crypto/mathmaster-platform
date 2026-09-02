@@ -2381,7 +2381,7 @@ function App() {
         ...(dolGradesByAssignment?.[assignment.id] || {}),
         [dateKey]: {
           finalized: true,
-          score: calculateDOLSectionScore(tracker?.[assignment.id] || {}, questionIndices),
+          score: calculateDOLSectionScore(tracker?.[assignment.id] || {}, questionIndices, assignment),
           questionIndex: questionIndices[0] ?? dolState.questionIndex,
           questionIndices,
           recordedAt: new Date().toISOString(),
@@ -3025,7 +3025,7 @@ function App() {
           ...(dolGradesByAssignment?.[activeAssignmentId] || {}),
           [dateKey]: {
             finalized: false,
-            score: calculateDOLSectionScore(updatedTracker[activeAssignmentId] || {}, dolState.questionIndices || [dolState.questionIndex]),
+            score: calculateDOLSectionScore(updatedTracker[activeAssignmentId] || {}, dolState.questionIndices || [dolState.questionIndex], assignment),
             questionIndex: (dolState.questionIndices || [dolState.questionIndex])[0] ?? currentQuestionIndex,
             questionIndices: dolState.questionIndices || [dolState.questionIndex],
             recordedAt: new Date().toISOString(),
