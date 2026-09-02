@@ -4428,6 +4428,314 @@ function classroomDeleteAlreadyGone(error) {
     || /already deleted|already been deleted|not found|failed[_ -]?precondition/i.test(message);
 }
 
+async function queueRepostedAssignmentGrades({
+  db,
+  teacherUid,
+  courseId,
+  assignmentId,
+}) {
+  // Reposting a deleted Classroom item gives the assignment a new courseWork
+  // id. Existing MathMaster grades do not naturally change at that moment, so
+  // the grade trigger would otherwise have nothing to react to. Re-use the
+  // same release-signal field the explicit Retry action uses. Only students
+  // already linked to this exact Classroom course are queued, and the existing
+  // grade trigger still checks assignment completion / feedback-release policy.
+  const rosterSnapshot = await db
+    .collection("classroomRosterLinks")
+    .where("teacherUid", "==", teacherUid)
+    .limit(1000)
+    .get();
+  const studentIds = [...new Set(
+    rosterSnapshot.docs
+      .map((doc) => doc.data() || {})
+      .filter((entry) => String(entry.courseId || "") === String(courseId))
+      .map((entry) => String(entry.studentId || "").trim())
+      .filter(Boolean)
+  )];
+  if (!studentIds.length) {
+    return { linkedStudents: 0, queuedStudents: 0 };
+  }
+
+  const gradeRefs = studentIds.map((studentId) => db.doc(`grades/${studentId}`));
+  const gradeSnapshots = await db.getAll(...gradeRefs);
+  const existingGrades = gradeSnapshots.filter((snapshot) => snapshot.exists);
+  const queuedAt = new Date().toISOString();
+
+  for (let start = 0; start < existingGrades.length; start += 400) {
+    const batch = db.batch();
+    existingGrades.slice(start, start + 400).forEach((snapshot) => {
+      batch.update(
+        snapshot.ref,
+        new FieldPath("classroomReleaseSignals", String(assignmentId)),
+        queuedAt
+      );
+    });
+    // eslint-disable-next-line no-await-in-loop
+    await batch.commit();
+  }
+
+  return {
+    linkedStudents: studentIds.length,
+    queuedStudents: existingGrades.length,
+  };
+}
+
+// Repair only the downstream Google Classroom copy. The MathMaster assignment,
+// student trackers, grades, and publication identity remain authoritative and
+// unchanged. If the remembered courseWork still exists this callable is a
+// no-op; if Google reports it was deleted, the same publication record is
+// repointed to a freshly created courseWork item and existing completed grades
+// are queued for passback to the new submissions.
+exports.repairClassroomAssignmentPublications = onCall(
+  { secrets: GOOGLE_AND_LINK_SECRETS },
+  async (request) => {
+    const teacherUid = await requireTeacher(request);
+    const assignmentId = String(request.data?.assignmentId || "").trim();
+    const requestedCourseIds = Array.isArray(request.data?.courseIds)
+      ? new Set(request.data.courseIds.map((value) => String(value)).filter(Boolean))
+      : null;
+    if (!assignmentId) {
+      throw new HttpsError("invalid-argument", "assignmentId is required.");
+    }
+
+    const db = getFirestore();
+    const assignmentSnap = await db.doc(`assignments/${assignmentId}`).get();
+    if (!assignmentSnap.exists) {
+      throw new HttpsError("not-found", "Assignment not found.");
+    }
+    const assignment = assignmentSnap.data();
+    const audience = assignmentAudience(assignment);
+    const publicationSnapshot = await db
+      .collection("classroomLinks")
+      .where("assignmentId", "==", assignmentId)
+      .get();
+    const publications = publicationSnapshot.docs
+      .map((doc) => ({ ref: doc.ref, id: doc.id, data: doc.data() || {} }))
+      .filter(({ data }) => !data.teacherUid || data.teacherUid === teacherUid)
+      .filter(({ data }) => data.courseId)
+      .filter(({ data }) => !requestedCourseIds || requestedCourseIds.has(String(data.courseId)));
+
+    if (!publications.length) {
+      return {
+        assignmentId,
+        results: [],
+        summary: { checked: 0, healthy: 0, reposted: 0, failed: 0, queuedGrades: 0 },
+      };
+    }
+
+    const classroom = await classroomLib.getClassroomClient(teacherUid);
+    const results = [];
+
+    for (const publication of publications) {
+      const data = publication.data;
+      const courseId = String(data.courseId || "");
+      const priorCourseworkId = String(data.courseworkId || "").trim();
+      if (!priorCourseworkId) {
+        results.push({
+          courseId,
+          courseName: data.courseName || courseId,
+          publicationId: publication.id,
+          status: "not-published",
+          error: "This publication has no Google Classroom coursework id to repair.",
+        });
+        continue;
+      }
+
+      try {
+        // A healthy post must never be duplicated. This check is the guard that
+        // makes the teacher's repair button safe to press even when unsure.
+        // eslint-disable-next-line no-await-in-loop
+        const courseWork = await classroomLib.getCourseWork(
+          classroom,
+          courseId,
+          priorCourseworkId
+        );
+        results.push({
+          courseId,
+          courseName: data.courseName || courseId,
+          publicationId: publication.id,
+          courseworkId: priorCourseworkId,
+          classroomUrl: courseWork.alternateLink || data.classroomUrl || null,
+          status: "healthy",
+        });
+        continue;
+      } catch (error) {
+        if (!classroomDeleteAlreadyGone(error)) {
+          results.push({
+            courseId,
+            courseName: data.courseName || courseId,
+            publicationId: publication.id,
+            courseworkId: priorCourseworkId,
+            status: "failed",
+            error: `Could not verify the existing Classroom assignment: ${String(error.message || error)}`,
+          });
+          continue;
+        }
+      }
+
+      // Re-validate the live course mapping before creating anything outward
+      // facing. A stale publication may not be used to post into a course that
+      // is now mapped to a different MathMaster class.
+      // eslint-disable-next-line no-await-in-loop
+      const mapping = await getTeacherClassroomMapping(db, teacherUid, courseId);
+      const mappedClassId = String(mapping?.classId || "").trim();
+      if (!mapping || !mappedClassId) {
+        results.push({
+          courseId,
+          courseName: data.courseName || courseId,
+          publicationId: publication.id,
+          courseworkId: priorCourseworkId,
+          status: "failed",
+          error: "Map this Google Classroom course to a MathMaster class before reposting.",
+        });
+        continue;
+      }
+      if (!audience.classIds.includes(mappedClassId)) {
+        results.push({
+          courseId,
+          courseName: data.courseName || courseId,
+          publicationId: publication.id,
+          courseworkId: priorCourseworkId,
+          status: "failed",
+          error: "This Google Classroom course is no longer mapped to a class assigned this MathMaster assignment.",
+        });
+        continue;
+      }
+
+      // Change only the publication state needed to let publishOneCourse claim a
+      // repair lease. Keep the missing id on the record until the replacement
+      // succeeds so failures remain diagnosable and retryable.
+      // eslint-disable-next-line no-await-in-loop
+      const claimedForRepair = await db.runTransaction(async (transaction) => {
+        const currentSnap = await transaction.get(publication.ref);
+        if (!currentSnap.exists) return false;
+        const current = currentSnap.data() || {};
+        if (
+          current.teacherUid
+          && current.teacherUid !== teacherUid
+        ) return false;
+        if (String(current.courseworkId || "") !== priorCourseworkId) return false;
+        transaction.set(
+          publication.ref,
+          {
+            status: "missing",
+            missingCourseworkId: priorCourseworkId,
+            missingDetectedAt: FieldValue.serverTimestamp(),
+            error: FieldValue.delete(),
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+        return true;
+      });
+      if (!claimedForRepair) {
+        results.push({
+          courseId,
+          courseName: data.courseName || courseId,
+          publicationId: publication.id,
+          courseworkId: priorCourseworkId,
+          status: "changed",
+          error: "The Classroom publication changed while MathMaster was checking it. Refresh and try again.",
+        });
+        continue;
+      }
+
+      const classroomPackage = assignment.classroomPackage || {};
+      const assignmentPost = classroomPackage.assignmentPost || {};
+      // eslint-disable-next-line no-await-in-loop
+      const republished = await publishOneCourse({
+        classroom,
+        teacherUid,
+        assignmentId,
+        assignment,
+        course: {
+          id: courseId,
+          name: data.courseName || courseId,
+          section: data.courseSection || "",
+        },
+        mapping,
+        materials: Array.isArray(data.materials) ? data.materials : [],
+        topicName: data.topicName || classroomPackage?.topic?.name || "",
+        instructions: assignmentPost.instructions
+          || `Complete "${assignment.title || data.title || "MathMaster Assignment"}" in MathMaster.`,
+        classroomTitle: assignmentPost.title || data.title || assignment.title,
+        maxPoints: Number(data.maxPoints || assignmentPost.maxPoints) || 100,
+        gradePassbackEnabled: data.gradePassbackEnabled !== false,
+      });
+
+      if (!["published", "already-published"].includes(republished.status)) {
+        results.push({
+          courseId,
+          courseName: data.courseName || courseId,
+          publicationId: publication.id,
+          courseworkId: priorCourseworkId,
+          status: "failed",
+          error: republished.error || "Google Classroom could not recreate the assignment.",
+        });
+        continue;
+      }
+
+      // eslint-disable-next-line no-await-in-loop
+      await publication.ref.set(
+        {
+          repostedAt: FieldValue.serverTimestamp(),
+          repostedBy: teacherUid,
+          repostedFromCourseworkId: priorCourseworkId,
+          missingCourseworkId: FieldValue.delete(),
+          missingDetectedAt: FieldValue.delete(),
+        },
+        { merge: true }
+      );
+
+      let gradeQueue = { linkedStudents: 0, queuedStudents: 0 };
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        gradeQueue = await queueRepostedAssignmentGrades({
+          db,
+          teacherUid,
+          courseId,
+          assignmentId,
+        });
+      } catch (error) {
+        logger.error(
+          `Reposted Classroom assignment ${assignmentId} to course ${courseId}, but could not queue existing grades`,
+          error
+        );
+        gradeQueue = {
+          linkedStudents: 0,
+          queuedStudents: 0,
+          error: String(error.message || error),
+        };
+      }
+
+      results.push({
+        courseId,
+        courseName: data.courseName || courseId,
+        publicationId: publication.id,
+        status: "reposted",
+        oldCourseworkId: priorCourseworkId,
+        courseworkId: republished.courseworkId,
+        classroomUrl: republished.classroomUrl || null,
+        linkedStudents: gradeQueue.linkedStudents,
+        queuedGrades: gradeQueue.queuedStudents,
+        gradeQueueError: gradeQueue.error || null,
+      });
+    }
+
+    return {
+      assignmentId,
+      results,
+      summary: {
+        checked: results.length,
+        healthy: results.filter((item) => item.status === "healthy").length,
+        reposted: results.filter((item) => item.status === "reposted").length,
+        failed: results.filter((item) => ["failed", "changed"].includes(item.status)).length,
+        queuedGrades: results.reduce((total, item) => total + Number(item.queuedGrades || 0), 0),
+      },
+    };
+  }
+);
+
 // Read the live Google Classroom roster and the live coursework audience.
 // Setting repairAudience=true also resets MathMaster-created coursework to
 // ALL_STUDENTS through Classroom's modifyAssignees endpoint.
