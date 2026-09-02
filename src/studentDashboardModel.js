@@ -298,6 +298,18 @@ export const buildStudentDashboardModel = ({
 export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => {
   const first = (bucket) => (dashboard?.groups?.[bucket] || [])[0] || null;
 
+  const activeDol = (dashboard?.activeDols || [])[0];
+  if (activeDol) {
+    return {
+      kind: 'dol',
+      assignment: activeDol.assignment,
+      headline: 'Your exit ticket is open',
+      detail: 'It is timed, so do this one first.',
+      actionLabel: 'Start the exit ticket',
+      urgency: 'now',
+    };
+  }
+
   const activeWarmup = (dashboard?.activeWarmups || [])[0];
   if (activeWarmup) {
     return {
@@ -307,18 +319,6 @@ export const resolveNextAction = ({ dashboard, weeklyProgress = null } = {}) => 
       headline: 'Warm-Up is open now',
       detail: 'Start with the Warm-Up while its class timer is running.',
       actionLabel: 'Start Warm-Up',
-      urgency: 'now',
-    };
-  }
-
-  const activeDol = (dashboard?.activeDols || [])[0];
-  if (activeDol) {
-    return {
-      kind: 'dol',
-      assignment: activeDol.assignment,
-      headline: 'Your exit ticket is open',
-      detail: 'It is timed, so do this one first.',
-      actionLabel: 'Start the exit ticket',
       urgency: 'now',
     };
   }
