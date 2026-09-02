@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
+import { storedAssignmentToV5 } from '../../src/platform/contract/storedAssignmentV5.js';
 import { gradeWorkflow } from '../../src/platform/workflow/workflowGrading.js';
 
 const rollerCoaster = {
@@ -156,4 +157,34 @@ test('thermos recipe renders and grades its inequality-only task without any rew
   });
   assert.equal(result.isCorrect, true);
   assert.equal(result.partialCreditPercent, 100);
+});
+
+
+test('V5 persistence preserves controlled wording choices on a live relationship-model question', () => {
+  const repaired = {
+    ...rollerCoaster,
+    domainWordsChoices: [
+      'time from 0 through 3 minutes',
+      'only the whole-number times 0, 1, 2, and 3 minutes',
+      'all times less than or equal to 3 minutes',
+      'all times greater than or equal to 0 minutes',
+    ],
+    rangeWordsChoices: [
+      'speed from 0 through 75 miles per hour',
+      'only the whole-number speeds from 0 through 75 miles per hour',
+      'all speeds less than or equal to 75 miles per hour',
+      'all speeds greater than or equal to 0 miles per hour',
+    ],
+  };
+  const v5 = storedAssignmentToV5({
+    id: 'live-assignment',
+    title: 'Module 1 Topic 1 Review — Quantities and Relationships',
+    courseId: 'algebra1',
+    sections: [
+      { id: 'section-3', role: 'practice', title: 'Practice', questions: [repaired] },
+    ],
+  });
+  const saved = v5.sections[0].questions[0];
+  assert.deepEqual(saved.domainWordsChoices, repaired.domainWordsChoices);
+  assert.deepEqual(saved.rangeWordsChoices, repaired.rangeWordsChoices);
 });
