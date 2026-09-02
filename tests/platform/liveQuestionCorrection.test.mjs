@@ -5,6 +5,7 @@ import {
   analyzeResponseEntryRepair,
   repairQuestionRecordForCurrentGrader,
   repairQuestionRecordForLiveCorrection,
+  repairQuestionRecordForGranularWorkflowCredit,
 } from '../../src/platform/assignment/liveQuestionCorrection.js';
 
 const baseQuestion = {
@@ -343,4 +344,83 @@ test('workflow wording repair rejects multiple previously-correct choices', () =
   const result = analyzeResponseEntryRepair(before, after);
   assert.equal(result.safe, false);
   assert.match(result.reason, /exactly one previously accepted correct wording/i);
+});
+
+
+test('saved workflow work can gain granular partial credit without another student attempt', () => {
+  const question = {
+    questionId: 'q-granular',
+    type: 'functionGraph',
+    workflow: [
+      { id: 'axes', kind: 'axisSetup' },
+      { id: 'continuity', kind: 'classification', choices: ['discrete', 'continuous'] },
+    ],
+    grading: {
+      axes: {
+        xLabel: ['Time'],
+        yLabel: ['Volume'],
+        xUnit: ['minutes'],
+        yUnit: ['gallons'],
+        xStep: ['1'],
+        yStep: ['12'],
+        requireUnits: true,
+        requireScale: true,
+      },
+      continuity: 'continuous',
+    },
+  };
+  const responses = {
+    axes: {
+      __mathmasterWorkflowArtifact: 'axes',
+      isComplete: true,
+      xLabel: 'Time',
+      yLabel: 'Volume',
+      xUnit: 'minutes',
+      yUnit: 'gallons',
+      xStep: '1',
+      yStep: '10',
+    },
+    continuity: 'continuous',
+  };
+  const record = {
+    status: 'attempted',
+    attemptCount: 1,
+    totalAttempts: 1,
+    partialCredit: 50,
+    bestPartialCredit: 50,
+    lastResponseKey: JSON.stringify(responses),
+    partGrades: [
+      { id: 'axes', isComplete: true, isCorrect: false, response: '' },
+      { id: 'continuity', isComplete: true, isCorrect: true, response: 'continuous' },
+    ],
+  };
+
+  const repaired = repairQuestionRecordForGranularWorkflowCredit({
+    record,
+    question,
+    correctedAt: '2026-09-02T17:30:00.000Z',
+  });
+
+  assert.equal(repaired.bestPartialCredit, 90, '5/6 axes plus correct continuity rounds above 90 but remains capped while incomplete');
+  assert.equal(repaired.totalAttempts, 1, 'the regrade must not manufacture an attempt');
+  assert.equal(repaired.partGrades[0].credit, 5 / 6);
+  assert.equal(repaired.partialCreditRegradeHistory.at(-1).previousBestPartialCredit, 50);
+});
+
+test('granular workflow regrade is monotonic and never lowers existing best credit', () => {
+  const question = {
+    questionId: 'q-granular',
+    workflow: [{ id: 'answer', kind: 'classification', choices: ['A', 'B'] }],
+    grading: { answer: 'A' },
+  };
+  const record = {
+    status: 'expired',
+    attemptCount: 3,
+    totalAttempts: 3,
+    partialCredit: 90,
+    bestPartialCredit: 90,
+    lastResponseKey: JSON.stringify({ answer: 'B' }),
+  };
+  const repaired = repairQuestionRecordForGranularWorkflowCredit({ record, question });
+  assert.equal(repaired, record);
 });
