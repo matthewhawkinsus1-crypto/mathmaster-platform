@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   CLASS_PERIODS,
   assignmentIsForStudent,
@@ -26,6 +27,7 @@ const greetingFor = (date) => {
 // class-period dropdown on Grades or scrolling the full Classes grid.
 export default function TeacherHome({ allStudents = [], assignments = [], classSchedule, nowValue = Date.now(), presenceById = {}, onSelectPeriod, onOpenStudent, onUnlockDOL = null, dolUnlockBusyKey = null, onToggleWarmup = null, warmupControlBusyKey = null, onToggleSectionAccess = null, sectionAccessBusyKey = null, needsAttention = [], needsAttentionCompletionCoverage = true, onOpenWeeklyPath = null, onOpenAdministration = null, learningProfilesByStudentId = {}, activeClassId = null, classes = [], studentSupportEvents = [], studentSessionSummaries = [], onRecordStudentSupportEvent = null, onRecommendPersonalPath = null, pathInterventionBusyStudentId = null }) {
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
+  const [warmupTimerMinutesByKey, setWarmupTimerMinutesByKey] = useState({});
 
   const classOptions = classes.length
     ? classes.filter((entry) => entry?.status !== 'archived')
@@ -143,15 +145,42 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
             {liveWarmupControls.map(({ assignment, state }) => {
               const busyKey = `${assignment.id}:${classIdInSession || periodInSession}`;
               const closed = state.status === 'closed';
+              const timerMinutes = Number(warmupTimerMinutesByKey[busyKey] || 5);
+              const statusText = closed
+                ? 'Closed for new responses · saved work remains visible'
+                : state.autoCloseScheduled
+                  ? `Open now · closes automatically in ${Math.max(1, Math.ceil(state.millisecondsRemaining / 60000))} min`
+                  : 'Open now · students can begin immediately';
               return (
                 <div key={assignment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: '#fff' }}>
                   <div>
                     <strong>{assignment.title}</strong>
-                    <div style={{ marginTop: 3, fontSize: 12 }}>{closed ? 'Closed for new responses · saved work remains visible' : 'Open now · students can begin immediately'}</div>
+                    <div style={{ marginTop: 3, fontSize: 12 }}>{statusText}</div>
                   </div>
-                  <button type="button" disabled={warmupControlBusyKey === busyKey} onClick={() => onToggleWarmup?.(assignment, classContextInSession)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: closed ? '#188038' : '#b06000', color: '#fff', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}>
-                    {warmupControlBusyKey === busyKey ? 'Saving…' : closed ? 'Reopen Warm-Up' : 'Close Warm-Up'}
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <button type="button" disabled={warmupControlBusyKey === busyKey} onClick={() => onToggleWarmup?.(assignment, classContextInSession)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: closed ? '#188038' : '#b06000', color: '#fff', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}>
+                      {warmupControlBusyKey === busyKey ? 'Saving…' : closed ? 'Reopen Warm-Up' : 'Close Warm-Up'}
+                    </button>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800 }}>
+                      Timer
+                      <select
+                        value={timerMinutes}
+                        disabled={warmupControlBusyKey === busyKey}
+                        onChange={(event) => setWarmupTimerMinutesByKey((current) => ({ ...current, [busyKey]: Number(event.target.value) }))}
+                        style={{ minHeight: 40, borderRadius: 8, border: '1px solid #d3a21a', background: '#fff', padding: '0 8px', fontWeight: 800 }}
+                      >
+                        {[3, 5, 7, 10, 15, 20].map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={warmupControlBusyKey === busyKey}
+                      onClick={() => onToggleWarmup?.(assignment, classContextInSession, { action: 'timer', autoCloseMinutes: timerMinutes })}
+                      style={{ minHeight: 40, padding: '8px 13px', border: '1px solid #188038', borderRadius: 8, background: '#fff', color: '#137333', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}
+                    >
+                      {closed ? `Reopen for ${timerMinutes} min` : state.autoCloseScheduled ? `Reset to ${timerMinutes} min` : `Close in ${timerMinutes} min`}
+                    </button>
+                  </div>
                 </div>
               );
             })}
