@@ -238,6 +238,18 @@ function releaseSignalReason(signal) {
   return "manual-retry";
 }
 
+function progressCheckpointStage(progress, { late = false } = {}) {
+  if (!progress?.meaningfulProgress || !progress.total) return null;
+  const percentAttempted = Math.round((progress.attempted / progress.total) * 100);
+  // Four checkpoints are enough to keep Classroom useful without turning every
+  // answer into an external grade write + student notification.
+  const checkpoint = Math.max(
+    20,
+    Math.min(80, Math.floor(percentAttempted / 20) * 20)
+  );
+  return `${late ? "late-progress" : "progress"}-${checkpoint}`;
+}
+
 function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now() }) {
   const reason = releaseSignalReason(releaseSignal);
   if (reason === "final-deadline") return "final-deadline";
@@ -252,10 +264,15 @@ function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowVa
 
   if (progress.complete) return "final-complete";
   if (lateDueAt && now >= lateDueAt.getTime()) return "final-deadline";
-  if (dueAt && now >= dueAt.getTime()) return "late-progress";
-  if (reason === "manual-retry") return progress.attempted > 0 ? "progress" : null;
-  if (progress.meaningfulProgress) return "progress";
-  return null;
+  if (reason === "manual-retry") {
+    return progress.attempted > 0 || (dueAt && now >= dueAt.getTime())
+      ? "manual-retry"
+      : null;
+  }
+  if (dueAt && now >= dueAt.getTime()) {
+    return progressCheckpointStage(progress, { late: true });
+  }
+  return progressCheckpointStage(progress);
 }
 
 // --- Authentication ---------------------------------------------------------
@@ -5641,7 +5658,6 @@ exports.syncGradeToClassroom = onDocumentWritten(
         if (
           !forceRetry
           && priorAudit.status === "synced"
-          && Number(priorAudit.grade) === Number(grade)
           && String(priorAudit.stage || "") === stage
         ) {
           continue;
