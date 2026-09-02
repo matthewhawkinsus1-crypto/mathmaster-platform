@@ -132,6 +132,7 @@ import {
 import { buildAssignmentV5PreflightModel } from './platform/preflight/assignmentV5PreflightModel.js';
 import {
   questionFingerprint,
+  repairAssignmentTrackerForCurrentGrader,
   repairAssignmentTrackerForLiveCorrections,
 } from './platform/assignment/liveQuestionCorrection.js';
 import { normalizeLessonPublishingIntentV5 } from './platform/authoring/lessonPublishingIntent.js';
@@ -1437,6 +1438,75 @@ function App() {
     }
   };
 
+  const repairGradesByAssignmentWithCurrentGrader = ({
+    gradesByAssignment = {},
+    assignmentList = [],
+    correctedAt = new Date().toISOString(),
+  } = {}) => {
+    let changed = false;
+    const next = { ...(gradesByAssignment || {}) };
+
+    (Array.isArray(assignmentList) ? assignmentList : []).forEach((assignment) => {
+      if (!assignment?.id || gradesByAssignment?.[assignment.id] === undefined) return;
+      const questions = getStoredAssignmentQuestions(assignment);
+      if (!questions.length) return;
+      const repairedTracker = repairAssignmentTrackerForCurrentGrader({
+        assignmentTracker: gradesByAssignment[assignment.id],
+        questions,
+        correctedAt,
+      });
+      if (repairedTracker !== gradesByAssignment[assignment.id]) {
+        next[assignment.id] = repairedTracker;
+        changed = true;
+      }
+    });
+
+    return {
+      changed,
+      gradesByAssignment: changed ? next : gradesByAssignment,
+    };
+  };
+
+  // Grader corrections are allowed to be MONOTONIC only. When a corrected
+  // equivalence rule proves that a stored response was mathematically correct,
+  // repair the saved score without consuming another attempt. Teacher login
+  // repairs every student already in that teacher's authorized roster, so a
+  // child does not have to reopen the assignment to receive credit.
+  const persistCurrentGraderCreditRepairs = async (students = [], assignmentList = []) => {
+    const correctedAt = new Date().toISOString();
+    const repairs = (Array.isArray(students) ? students : []).map((student) => {
+      const result = repairGradesByAssignmentWithCurrentGrader({
+        gradesByAssignment: student?.gradesByAssignment || {},
+        assignmentList,
+        correctedAt,
+      });
+      return result.changed
+        ? { student, gradesByAssignment: result.gradesByAssignment }
+        : null;
+    }).filter(Boolean);
+
+    if (!repairs.length) return 0;
+
+    for (let start = 0; start < repairs.length; start += 400) {
+      const batch = writeBatch(db);
+      repairs.slice(start, start + 400).forEach(({ student, gradesByAssignment }) => {
+        batch.update(doc(db, 'grades', student.id), { gradesByAssignment });
+      });
+      await batch.commit();
+    }
+
+    const repairedById = new Map(repairs.map(({ student, gradesByAssignment }) => [
+      student.id,
+      gradesByAssignment,
+    ]));
+    setAllStudents((current) => current.map((student) => (
+      repairedById.has(student.id)
+        ? { ...student, gradesByAssignment: repairedById.get(student.id) }
+        : student
+    )));
+    return repairs.length;
+  };
+
   const fetchStudents = async () => {
     const viewer = viewerRef.current;
     const readAll = viewer.isRootAdmin || !viewer.email;
@@ -1550,7 +1620,9 @@ function App() {
           viewerRef.current = { email: session.email || null, isRootAdmin: session.isRootAdmin === true };
           classesRef.current = await fetchClasses();
           if (cancelled) return;
-          await Promise.all([fetchStudents(), fetchClassSchedule(), fetchCourseProfiles(), fetchAssignmentFolders(), fetchPathSettings()]);
+          const [loadedStudents] = await Promise.all([fetchStudents(), fetchClassSchedule(), fetchCourseProfiles(), fetchAssignmentFolders(), fetchPathSettings()]);
+          if (cancelled) return;
+          await persistCurrentGraderCreditRepairs(loadedStudents, fetchedAssignments);
           if (cancelled) return;
           setClassroomSyncStatusByAssignment({});
           classroomSyncNoticeRef.current = {};
@@ -1611,7 +1683,16 @@ function App() {
             courseLevel: courseContext.courseLevel,
           },
         });
-        setTracker(studentData.gradesByAssignment || {});
+        const repairedStudentGrades = repairGradesByAssignmentWithCurrentGrader({
+          gradesByAssignment: studentData.gradesByAssignment || {},
+          assignmentList: fetchedAssignments,
+        });
+        if (repairedStudentGrades.changed) {
+          await updateDoc(doc(db, 'grades', studentId), {
+            gradesByAssignment: repairedStudentGrades.gradesByAssignment,
+          });
+        }
+        setTracker(repairedStudentGrades.gradesByAssignment || {});
         setAssignmentActivity(studentData.assignmentActivity || {});
         setDolGradesByAssignment(studentData.dolGradesByAssignment || {});
         setClassworkGradesByAssignment(studentData.classworkGradesByAssignment || {});
