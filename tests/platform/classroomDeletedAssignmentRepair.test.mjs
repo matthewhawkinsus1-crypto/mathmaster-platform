@@ -4,6 +4,30 @@ import fs from 'node:fs';
 
 const read = (path) => fs.readFileSync(path, 'utf8');
 
+test('stored Classroom ids must match the MathMaster publication marker', () => {
+  const src = read('functions/index.js');
+  assert.match(src, /function courseWorkMatchesPublication\(courseWork, publicationId\)/);
+  assert.match(src, /String\(courseWork\.description \|\| ""\)\.includes\(publicationMarker\(publicationId\)\)/);
+
+  const publishStart = src.indexOf('async function publishOneCourse');
+  const repairStart = src.indexOf('exports.repairClassroomAssignmentPublications = onCall');
+  const inspectStart = src.indexOf('exports.inspectClassroomPublication = onCall');
+  const removeStart = src.indexOf('exports.removeAssignmentClassroomPackage = onCall');
+  const publish = src.slice(publishStart, repairStart);
+  const repair = src.slice(repairStart, inspectStart);
+  const inspect = src.slice(inspectStart, removeStart);
+
+  assert.match(publish, /courseWorkMatchesPublication\(candidate, publicationId\)/);
+  assert.match(repair, /courseWorkMatchesPublication\(existingCourseWork, publication\.id\)/);
+  assert.match(inspect, /courseWorkMatchesPublication\(courseWork, publication\.id\)/);
+  assert.match(inspect, /status: "mismatched"/);
+  assert.ok(
+    inspect.indexOf('courseWorkMatchesPublication(courseWork, publication.id)')
+      < inspect.indexOf('modifyCourseWorkAssignees'),
+    'audience repair must never run before publication identity is verified',
+  );
+});
+
 test('deleted Classroom assignment repair verifies before reposting', () => {
   const src = read('functions/index.js');
   const start = src.indexOf('exports.repairClassroomAssignmentPublications = onCall');
