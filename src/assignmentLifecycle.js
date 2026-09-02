@@ -402,9 +402,22 @@ export const getWarmupState = ({ assignment, schedule, classId = null, classPeri
   const closedAt = closedAtValue ? parseLocalDateTime(closedAtValue, false) : null;
   const closedToday = Boolean(closedAt && (!closedDateKey || closedDateKey === todayKey));
 
+  // A timed teacher reopen is stored separately from a hard close. That keeps
+  // the intent explicit: deleting the hard-close record reopens the section,
+  // while this timestamp says when it should become read-only again. The
+  // record is class-specific and date-scoped so one period can never close
+  // another period's Warm-Up or leak into the next instructional day.
+  const autoCloseRecord = scopedOverride({ byClassId: assignment?.warmup?.autoCloseByClassId, classId });
+  const autoCloseAtValue = typeof autoCloseRecord === 'object' ? autoCloseRecord?.closesAt : autoCloseRecord;
+  const autoCloseDateKey = typeof autoCloseRecord === 'object' ? autoCloseRecord?.dateKey : null;
+  const autoCloseAt = autoCloseAtValue ? parseLocalDateTime(autoCloseAtValue, false) : null;
+  const autoCloseToday = Boolean(autoCloseAt && (!autoCloseDateKey || autoCloseDateKey === todayKey));
+  const autoCloseReached = Boolean(autoCloseToday && now >= autoCloseAt);
+  const effectiveEndsAt = autoCloseToday && autoCloseAt < endsAt ? autoCloseAt : endsAt;
+
   let status;
   if (now < opensAt) status = 'waiting';
-  else if (closedToday) status = 'closed';
+  else if (closedToday || autoCloseReached) status = 'closed';
   else if (now <= endsAt) status = 'active';
   else status = 'ended';
 
@@ -415,12 +428,14 @@ export const getWarmupState = ({ assignment, schedule, classId = null, classPeri
     instructionDateKey,
     opensAt,
     endsAt,
-    closedAt: closedToday ? closedAt : null,
+    closedAt: closedToday ? closedAt : autoCloseReached ? autoCloseAt : null,
+    autoCloseAt: autoCloseToday ? autoCloseAt : null,
+    autoCloseScheduled: Boolean(autoCloseToday && now < autoCloseAt && autoCloseAt <= endsAt),
     minutesBeforeStart,
     millisecondsRemaining: status === 'waiting'
       ? Math.max(0, opensAt.getTime() - now.getTime())
       : status === 'active'
-        ? Math.max(0, endsAt.getTime() - now.getTime())
+        ? Math.max(0, effectiveEndsAt.getTime() - now.getTime())
         : 0,
   };
 };
