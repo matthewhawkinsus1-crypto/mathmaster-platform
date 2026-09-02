@@ -98,6 +98,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
   const answers = history.value;
   const parts = safeFields.map((field) => {
     const response = String(answers[field.id] ?? '');
+    const isCorrect = response.trim() !== '' && matchesFieldAnswer(response, field);
     return {
       id: field.id,
       label: field.label || field.id,
@@ -105,7 +106,11 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
       // Expression equivalence is deliberately opt-in at the field level.
       // That fixes MathLive serialization differences without making
       // form-sensitive tasks (factoring, vertex form, etc.) overly permissive.
-      isCorrect: response.trim() !== '' && matchesFieldAnswer(response, field),
+      isCorrect,
+      credit: isCorrect ? 1 : 0,
+      weight: Number.isFinite(Number(field.scoreWeight)) && Number(field.scoreWeight) > 0
+        ? Math.min(20, Number(field.scoreWeight))
+        : 1,
       response,
     };
   });
