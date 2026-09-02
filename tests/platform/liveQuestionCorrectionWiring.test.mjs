@@ -35,3 +35,13 @@ test('assigned assignments always enable live question protection even before gr
   assert.match(app, /!isLibraryAssignment\(questionEditorAssignment\)/);
   assert.match(app, /gradesByAssignment\?\.\[questionEditorAssignment\.id\]/);
 });
+
+
+test('question editor exposes one-action Safe Live Repair Pack import and immediate transactional save', () => {
+  const editor = fs.readFileSync('src/AssignmentQuestionEditor.jsx', 'utf8');
+  assert.match(editor, /Import Safe Repair Pack/);
+  assert.match(editor, /accept=".json,application\/json"/);
+  assert.match(editor, /prepareSafeLiveRepairPack/);
+  assert.match(editor, /await onSave\(\{/);
+  assert.match(editor, /liveRepairs: prepared\.liveRepairs/);
+});
