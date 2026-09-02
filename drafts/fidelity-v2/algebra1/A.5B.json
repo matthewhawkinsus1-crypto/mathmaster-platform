@@ -233,15 +233,14 @@
       "assessedConstruct": "A.5B",
       "taskType": "representationTranslation",
       "representation": "graph",
-      "prompt": "Solve $-{{g}}x{{b|signed}} \\ge {{rhs}}$, then graph the solution on the number line and enter the matching interval notation.",
+      "prompt": "Solve $-{{g}}x{{b|signed}} \\ge {{rhs}}$, then graph the solution on the number line using the correct endpoint and shading direction.",
       "type": "intervalNumberLine",
       "min": -12,
       "max": 12,
       "step": 1,
       "variable": "x",
       "ask": [
-        "graph",
-        "interval"
+        "graph"
       ],
       "expectedIntervals": [
         {
@@ -251,14 +250,13 @@
           "maxClosed": true
         }
       ],
-      "expectedNotation": "(-inf,{{bound}}]",
       "solutionReview": {
         "headline": "Dividing by a negative reverses the inequality.",
         "reasoning": [
           "Subtract {{b}} to get $-{{g}}x\\ge {{right}}$.",
           "Dividing by $-{{g}}$ reverses the comparison, so $x\\le {{bound}}$. The graph is a closed point at {{bound}} shaded left."
         ],
-        "answerSummary": "$x\\le {{bound}}$, or $(-\\infty,{{bound}}]$."
+        "answerSummary": "$x\\le {{bound}}$; graph a closed point at {{bound}} and shade left."
       },
       "attemptFeedback": [
         "Watch the inequality direction when the final coefficient of x is negative."
