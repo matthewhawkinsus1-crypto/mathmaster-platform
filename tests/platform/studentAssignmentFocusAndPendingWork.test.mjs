@@ -92,10 +92,17 @@ test('assignment workspace exposes focus view and a collapsible task without rem
   assert.match(app, /Focus view/);
   assert.match(app, /Show progress/);
   assert.match(app, /mathmaster-collapsed-current-location/);
+  assert.match(app, /mathmaster-focus-inline-controls/);
+  assert.match(app, /!assignmentNavigationCollapsed && \(\s*<div className="mathmaster-assignment-unified-bottom">/);
   assert.match(viewport, /Hide task/);
   assert.match(viewport, /Show task/);
+  assert.doesNotMatch(viewport, /Task hidden for more workspace/);
   assert.match(css, /mathmaster-assignment-unified-nav\.is-collapsed/);
-  assert.match(css, /mathmaster-desktop-question-anchor\.is-collapsed/);
+  assert.match(css, /mathmaster-focus-inline-controls/);
+  assert.match(css, /mathmaster-desktop-question-anchor\.is-collapsed[\s\S]*height:\s*0/);
+  assert.match(css, /mathmaster-desktop-question-anchor\.is-collapsed[\s\S]*background:\s*transparent/);
+  assert.match(css, /mathmaster-desktop-question-anchor\.is-collapsed[\s\S]*pointer-events:\s*none/);
+  assert.match(css, /mathmaster-desktop-question-anchor\.is-collapsed[\s\S]*mathmaster-desktop-task-toggle-row button[\s\S]*pointer-events:\s*auto/);
 });
 
 test('multipart draft state is written during the response change, and composed workflows persist their response map', async () => {
