@@ -311,8 +311,8 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
       : [];
     return requested.length ? requested : ['graph', 'interval'];
   }, [questionData.ask]);
-  const asksInterval = asksInterval;
-  const asksInequality = asksInequality;
+  const asksInterval = ask.includes('interval');
+  const asksInequality = ask.includes('inequality');
   const asksNotation = asksInterval || asksInequality;
   const toolTitle = asksInterval
     ? 'Number Line and Intervals'
