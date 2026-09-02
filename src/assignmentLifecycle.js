@@ -392,20 +392,20 @@ export const getWarmupState = ({ assignment, schedule, classId = null, classPeri
   // date. The teacher live hub needs the current class window even when an old
   // or reused assignment says the Warm-Up belongs to another date; otherwise
   // the manual "Open Warm-Up Today" control disappears exactly when it is
-  // needed.
+  // needed. When no bell window is configured we still preserve notToday /
+  // unscheduled as the diagnostic state instead of changing its meaning.
   const window = getPeriodWindow(schedule, classPeriod, now);
-  if (!window) {
-    return { enabled: true, status: 'unavailable', window: null, instructionDateKey, opensAt: null, endsAt: null, millisecondsRemaining: null, minutesBeforeStart };
-  }
-
-  const opensAt = new Date(window.start.getTime() - minutesBeforeStart * 60000);
-  const endsAt = window.end;
+  const opensAt = window ? new Date(window.start.getTime() - minutesBeforeStart * 60000) : null;
+  const endsAt = window?.end || null;
 
   if (!instructionDateKey) {
     return { enabled: true, status: 'unscheduled', window, instructionDateKey: null, opensAt, endsAt, millisecondsRemaining: null, minutesBeforeStart };
   }
   if (todayKey !== instructionDateKey) {
     return { enabled: true, status: 'notToday', window, instructionDateKey, opensAt, endsAt, millisecondsRemaining: null, minutesBeforeStart };
+  }
+  if (!window) {
+    return { enabled: true, status: 'unavailable', window: null, instructionDateKey, opensAt: null, endsAt: null, millisecondsRemaining: null, minutesBeforeStart };
   }
   const closedRecord = scopedOverride({ byClassId: assignment?.warmup?.closedByClassId, classId });
   const closedAtValue = typeof closedRecord === 'object' ? closedRecord?.closedAt : closedRecord;
