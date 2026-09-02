@@ -11,10 +11,20 @@ const { onDocumentCreated, onDocumentDeleted, onDocumentWritten } = require("fir
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 
-const classroomLib = require("./lib/classroom");
+let classroomLibModule = null;
+function classroomLib() {
+  if (!classroomLibModule) classroomLibModule = require("./lib/classroom");
+  return classroomLibModule;
+}
+
+let driveResourcesModule = null;
+function driveResources() {
+  if (!driveResourcesModule) driveResourcesModule = require("./lib/driveResources");
+  return driveResourcesModule;
+}
+
 const { runtimeIncludedQuestionIndices, runtimeQuestionsFromAssignment } = require("./lib/assignmentRuntime");
 const { weightedQuestionTotals } = require("./lib/questionWeights");
-const driveResources = require("./lib/driveResources");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const {
   GOOGLE_API_SECRETS,
@@ -3244,7 +3254,7 @@ exports.getGoogleAuthUrl = onCall({ secrets: GOOGLE_API_SECRETS }, async (reques
     expiresAt: Date.now() + 10 * 60 * 1000,
     createdBy: teacherUid,
   });
-  return { url: classroomLib.buildAuthUrl(state) };
+  return { url: classroomLib().buildAuthUrl(state) };
 });
 
 exports.oauthCallback = onRequest({ secrets: GOOGLE_API_SECRETS }, async (req, res) => {
@@ -3271,8 +3281,8 @@ exports.oauthCallback = onRequest({ secrets: GOOGLE_API_SECRETS }, async (req, r
   await stateRef.delete();
 
   try {
-    const tokens = await classroomLib.exchangeCodeForTokens(String(code));
-    await classroomLib.saveTeacherTokens(tokens, stateData.createdBy);
+    const tokens = await classroomLib().exchangeCodeForTokens(String(code));
+    await classroomLib().saveTeacherTokens(tokens, stateData.createdBy);
     res.redirect(302, `${appBaseUrl}?classroomConnected=1`);
   } catch (err) {
     logger.error("OAuth token exchange failed", err);
@@ -3284,7 +3294,7 @@ exports.getClassroomConnectionStatus = onCall(
   { secrets: GOOGLE_API_SECRETS },
   async (request) => {
     const teacherUid = await requireTeacher(request);
-    return classroomLib.getConnectionHealth(teacherUid);
+    return classroomLib().getConnectionHealth(teacherUid);
   }
 );
 
@@ -3360,7 +3370,7 @@ exports.getGoogleClassroomDiagnostics = onCall(
     checks.authUrlBuilds = false;
     if (checks.clientIdConfigured && checks.clientSecretConfigured && checks.redirectUri) {
       try {
-        classroomLib.buildAuthUrl("diagnostics");
+        classroomLib().buildAuthUrl("diagnostics");
         checks.authUrlBuilds = true;
       } catch (err) {
         problems.push(`OAuth URL generation failed: ${err.message}`);
@@ -3375,16 +3385,16 @@ exports.getGoogleClassroomDiagnostics = onCall(
 
 exports.listGoogleCourses = onCall({ secrets: GOOGLE_API_SECRETS }, async (request) => {
   const teacherUid = await requireTeacher(request);
-  const classroom = await classroomLib.getClassroomClient(teacherUid);
-  return { courses: await classroomLib.listCourses(classroom) };
+  const classroom = await classroomLib().getClassroomClient(teacherUid);
+  return { courses: await classroomLib().listCourses(classroom) };
 });
 
 exports.listClassroomStudents = onCall({ secrets: GOOGLE_API_SECRETS }, async (request) => {
   const teacherUid = await requireTeacher(request);
   const { courseId } = request.data || {};
   if (!courseId) throw new HttpsError("invalid-argument", "courseId is required.");
-  const classroom = await classroomLib.getClassroomClient(teacherUid);
-  return { students: await classroomLib.listStudents(classroom, String(courseId)) };
+  const classroom = await classroomLib().getClassroomClient(teacherUid);
+  return { students: await classroomLib().listStudents(classroom, String(courseId)) };
 });
 
 function classroomMappingDocumentId(teacherUid, courseId) {
@@ -3781,7 +3791,7 @@ exports.ensureClassroomTopics = onCall(
     }
 
     const db = getFirestore();
-    const classroom = await classroomLib.getClassroomClient(teacherUid);
+    const classroom = await classroomLib().getClassroomClient(teacherUid);
     const results = [];
     for (const courseId of courseIds) {
       // eslint-disable-next-line no-await-in-loop
@@ -3798,7 +3808,7 @@ exports.ensureClassroomTopics = onCall(
       for (const topicName of topicNames) {
         try {
           // eslint-disable-next-line no-await-in-loop
-          const topic = await classroomLib.ensureTopic(classroom, courseId, topicName);
+          const topic = await classroomLib().ensureTopic(classroom, courseId, topicName);
           results.push({
             courseId,
             topicName,
@@ -3890,10 +3900,10 @@ exports.storeLessonNotesPdf = onCall({ secrets: GOOGLE_API_SECRETS }, async (req
   };
 
   try {
-    const health = await classroomLib.getConnectionHealth(teacherUid);
+    const health = await classroomLib().getConnectionHealth(teacherUid);
     if (health.connected && !(health.missingScopes || []).includes(driveScope)) {
-      const drive = await classroomLib.getDriveClient(teacherUid);
-      driveAsset = await driveResources.upsertLessonNotesPdf({
+      const drive = await classroomLib().getDriveClient(teacherUid);
+      driveAsset = await driveResources().upsertLessonNotesPdf({
         drive,
         bytes,
         assignmentId: cleanAssignmentId,
@@ -3958,7 +3968,7 @@ exports.publishClassroomMaterial = onCall(
     }
 
     const db = getFirestore();
-    const classroom = await classroomLib.getClassroomClient(teacherUid);
+    const classroom = await classroomLib().getClassroomClient(teacherUid);
     const results = [];
     const stableKey = String(materialKey || title);
     const assignmentResourceMatch = stableKey.match(/^assignment:(.+):resources$/);
@@ -3996,10 +4006,10 @@ exports.publishClassroomMaterial = onCall(
       try {
         // eslint-disable-next-line no-await-in-loop
         const topic = topicName
-          ? await classroomLib.ensureTopic(classroom, courseId, topicName)
+          ? await classroomLib().ensureTopic(classroom, courseId, topicName)
           : null;
         // eslint-disable-next-line no-await-in-loop
-        const item = await classroomLib.createCourseWorkMaterial(classroom, {
+        const item = await classroomLib().createCourseWorkMaterial(classroom, {
           courseId,
           title: String(title).trim(),
           description: String(description || "").trim(),
@@ -4206,7 +4216,7 @@ async function publishOneCourse({
     const priorCourseworkId = claim.current.courseworkId;
     if (priorCourseworkId) {
       try {
-        const candidate = await classroomLib.getCourseWork(
+        const candidate = await classroomLib().getCourseWork(
           classroom,
           courseId,
           priorCourseworkId
@@ -4223,7 +4233,7 @@ async function publishOneCourse({
       }
     }
     if (!courseWork) {
-      courseWork = await classroomLib.findCourseWorkByPublicationMarker(
+      courseWork = await classroomLib().findCourseWorkByPublicationMarker(
         classroom,
         courseId,
         marker,
@@ -4232,13 +4242,13 @@ async function publishOneCourse({
     }
 
     const topic = topicName
-      ? await classroomLib.ensureTopic(classroom, courseId, topicName)
+      ? await classroomLib().ensureTopic(classroom, courseId, topicName)
       : null;
 
     if (!courseWork) {
       const resolvedTitle = String(classroomTitle || assignment.title || 'MathMaster Assignment').trim();
       const defaultInstructions = `Complete "${resolvedTitle}" in MathMaster.`;
-      courseWork = await classroomLib.createCourseWork(classroom, {
+      courseWork = await classroomLib().createCourseWork(classroom, {
         courseId,
         title: resolvedTitle,
         description: [
@@ -4343,8 +4353,8 @@ async function publishAssignmentBatch(request) {
     );
   }
 
-  const classroom = await classroomLib.getClassroomClient(teacherUid);
-  const activeCourses = await classroomLib.listCourses(classroom);
+  const classroom = await classroomLib().getClassroomClient(teacherUid);
+  const activeCourses = await classroomLib().listCourses(classroom);
   const courseMap = new Map(activeCourses.map((course) => [String(course.id), course]));
   const safeMaterials = preferDriveNotesMaterial(cleanMaterials(materials), assignment);
   const cleanTopic = String(topicName || "").trim().slice(0, 200);
@@ -4483,7 +4493,7 @@ async function updateAssignmentClassroomPublications(request) {
     return { assignmentId: String(assignmentId), results: [], summary: { updated: 0, failed: 0, skipped: 0 } };
   }
 
-  const classroom = await classroomLib.getClassroomClient(teacherUid);
+  const classroom = await classroomLib().getClassroomClient(teacherUid);
   const results = [];
 
   for (const { ref, data } of publications) {
@@ -4494,7 +4504,7 @@ async function updateAssignmentClassroomPublications(request) {
       // by omission.
       let existing = null;
       try {
-        existing = await classroomLib.getCourseWork(classroom, courseId, data.courseworkId);
+        existing = await classroomLib().getCourseWork(classroom, courseId, data.courseworkId);
       } catch {
         existing = null;
       }
@@ -4504,7 +4514,7 @@ async function updateAssignmentClassroomPublications(request) {
         );
       }
 
-      const updated = await classroomLib.patchCourseWork(classroom, {
+      const updated = await classroomLib().patchCourseWork(classroom, {
         courseId,
         courseWorkId: data.courseworkId,
         dueDate,
@@ -4763,8 +4773,8 @@ exports.repairClassroomAssignmentPublications = onCall(
       };
     }
 
-    const classroom = await classroomLib.getClassroomClient(teacherUid);
-    const activeCourses = await classroomLib.listCourses(classroom);
+    const classroom = await classroomLib().getClassroomClient(teacherUid);
+    const activeCourses = await classroomLib().listCourses(classroom);
     const courseMap = new Map(activeCourses.map((course) => [String(course.id), course]));
 
     // A sibling publication is a safe template for the same MathMaster
@@ -4801,7 +4811,7 @@ exports.repairClassroomAssignmentPublications = onCall(
           // A healthy post must be THIS MathMaster publication in THIS current
           // Google Classroom course. Posts for sibling periods are ignored.
           // eslint-disable-next-line no-await-in-loop
-          existingCourseWork = await classroomLib.getCourseWork(
+          existingCourseWork = await classroomLib().getCourseWork(
             classroom,
             courseId,
             priorCourseworkId
@@ -5041,8 +5051,8 @@ exports.forceRepublishAssignmentToClassrooms = onCall(
       );
     }
 
-    const classroom = await classroomLib.getClassroomClient(teacherUid);
-    const activeCourses = await classroomLib.listCourses(classroom);
+    const classroom = await classroomLib().getClassroomClient(teacherUid);
+    const activeCourses = await classroomLib().listCourses(classroom);
     const courseMap = new Map(activeCourses.map((course) => [String(course.id), course]));
     const classroomPackage = assignment.classroomPackage || {};
     const assignmentPost = classroomPackage.assignmentPost || {};
@@ -5150,7 +5160,7 @@ exports.forceRepublishAssignmentToClassrooms = onCall(
         // Firestore update did not: find the deterministic force-request marker
         // before creating another CourseWork item.
         // eslint-disable-next-line no-await-in-loop
-        let courseWork = await classroomLib.findCourseWorkByPublicationMarker(
+        let courseWork = await classroomLib().findCourseWorkByPublicationMarker(
           classroom,
           courseId,
           baseMarker,
@@ -5159,12 +5169,12 @@ exports.forceRepublishAssignmentToClassrooms = onCall(
 
         // eslint-disable-next-line no-await-in-loop
         const topic = requestedTopicName
-          ? await classroomLib.ensureTopic(classroom, courseId, requestedTopicName)
+          ? await classroomLib().ensureTopic(classroom, courseId, requestedTopicName)
           : null;
 
         if (!courseWork) {
           // eslint-disable-next-line no-await-in-loop
-          courseWork = await classroomLib.createCourseWork(classroom, {
+          courseWork = await classroomLib().createCourseWork(classroom, {
             courseId,
             title: requestedTitle,
             description: [requestedInstructions, baseMarker, instanceMarker].join("\n\n"),
@@ -5309,13 +5319,13 @@ exports.inspectClassroomPublication = onCall(
       return { assignmentId, results: [], summary: { courses: 0, rosterStudents: 0, failed: 0 } };
     }
 
-    const classroom = await classroomLib.getClassroomClient(teacherUid);
+    const classroom = await classroomLib().getClassroomClient(teacherUid);
     const results = [];
 
     for (const publication of publications) {
       const courseId = String(publication.courseId);
       try {
-        let courseWork = await classroomLib.getCourseWork(
+        let courseWork = await classroomLib().getCourseWork(
           classroom,
           courseId,
           String(publication.courseworkId)
@@ -5337,14 +5347,14 @@ exports.inspectClassroomPublication = onCall(
         }
 
         if (repairAudience && courseWork.assigneeMode !== "ALL_STUDENTS") {
-          courseWork = await classroomLib.modifyCourseWorkAssignees(classroom, {
+          courseWork = await classroomLib().modifyCourseWorkAssignees(classroom, {
             courseId,
             courseWorkId: String(publication.courseworkId),
             assigneeMode: "ALL_STUDENTS",
           });
         }
 
-        const students = await classroomLib.listStudents(classroom, courseId);
+        const students = await classroomLib().listStudents(classroom, courseId);
 
         results.push({
           courseId,
@@ -5394,7 +5404,7 @@ exports.removeAssignmentClassroomPackage = onCall(
     }
 
     const db = getFirestore();
-    const classroom = await classroomLib.getClassroomClient(teacherUid);
+    const classroom = await classroomLib().getClassroomClient(teacherUid);
     const snap = await db
       .collection("classroomLinks")
       .where("assignmentId", "==", assignmentId)
@@ -5418,7 +5428,7 @@ exports.removeAssignmentClassroomPackage = onCall(
 
       if (data.courseworkId) {
         try {
-          await classroomLib.deleteCourseWork(
+          await classroomLib().deleteCourseWork(
             classroom,
             courseId,
             String(data.courseworkId)
@@ -5445,7 +5455,7 @@ exports.removeAssignmentClassroomPackage = onCall(
         && materialSnap.data().googleMaterialId
       ) {
         try {
-          await classroomLib.deleteCourseWorkMaterial(
+          await classroomLib().deleteCourseWorkMaterial(
             classroom,
             courseId,
             String(materialSnap.data().googleMaterialId)
@@ -5764,7 +5774,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
         if (!classroom) {
           try {
             // eslint-disable-next-line no-await-in-loop
-            classroom = await classroomLib.getClassroomClient(publicationTeacherUid);
+            classroom = await classroomLib().getClassroomClient(publicationTeacherUid);
             classroomByTeacher.set(classroomKey, classroom);
           } catch (err) {
             // eslint-disable-next-line no-await-in-loop
@@ -5829,7 +5839,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
 
         try {
           // eslint-disable-next-line no-await-in-loop
-          const submission = await classroomLib.findSubmissionForStudent(classroom, {
+          const submission = await classroomLib().findSubmissionForStudent(classroom, {
             courseId,
             courseWorkId: publication.courseworkId,
             googleUserId,
@@ -5856,7 +5866,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           }
 
           // eslint-disable-next-line no-await-in-loop
-          const patched = await classroomLib.patchGrade(classroom, {
+          const patched = await classroomLib().patchGrade(classroom, {
             courseId,
             courseWorkId: publication.courseworkId,
             submissionId: submission.id,
@@ -5871,7 +5881,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
             // teacher-only Draft. Returning the submission is the explicit
             // Google action that releases the assigned grade to the student.
             // eslint-disable-next-line no-await-in-loop
-            await classroomLib.returnSubmission(classroom, {
+            await classroomLib().returnSubmission(classroom, {
               courseId,
               courseWorkId: publication.courseworkId,
               submissionId: submission.id,
