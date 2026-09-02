@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   analyzeResponseEntryRepair,
+  repairQuestionRecordForCurrentGrader,
   repairQuestionRecordForLiveCorrection,
 } from '../../src/platform/assignment/liveQuestionCorrection.js';
 
@@ -164,4 +165,130 @@ test('choice-only repaired question resets the counted attempt slot but preserve
   assert.equal(repaired.status, 'attempted');
   assert.equal(repaired.attemptCount, 0);
   assert.equal(repaired.totalAttempts, 1);
+});
+
+
+const linearRayGraphQuestion = {
+  questionId: 'q-linear-ray',
+  type: 'graphAnalysis',
+  functionSpec: {
+    type: 'linear',
+    m: -1,
+    b: 2,
+    domain: { min: -2, minInclusive: true },
+  },
+  analysisRequests: [
+    { id: 'domain', kind: 'domain', notation: 'inequality' },
+    { id: 'range', kind: 'range', notation: 'inequality' },
+  ],
+};
+
+test('grader correction upgrades a mathematically correct reversed inequality to full credit', () => {
+  const record = {
+    status: 'attempted',
+    attemptCount: 1,
+    totalAttempts: 1,
+    partialCredit: 50,
+    bestPartialCredit: 50,
+    partGrades: [
+      { id: 'domain', label: 'Domain', isComplete: true, isCorrect: true, response: '-2≤x' },
+      { id: 'range', label: 'Range', isComplete: true, isCorrect: false, response: '4≥y' },
+    ],
+  };
+
+  const repaired = repairQuestionRecordForCurrentGrader({
+    record,
+    question: linearRayGraphQuestion,
+    correctedAt: '2026-09-02T15:45:00.000Z',
+  });
+
+  assert.equal(repaired.status, 'correct');
+  assert.equal(repaired.partialCredit, 100);
+  assert.equal(repaired.bestPartialCredit, 100);
+  assert.equal(repaired.attemptCount, 1);
+  assert.equal(repaired.totalAttempts, 1);
+  assert.equal(repaired.partGrades[1].isCorrect, true);
+  assert.equal(repaired.partGrades[1].graderCorrectionCredit, true);
+  assert.deepEqual(repaired.graderCorrectionHistory.at(-1).upgradedPartIds, ['range']);
+});
+
+test('grader correction fixes the exponential 1≤y versus y≥1 case from the live lesson', () => {
+  const question = {
+    questionId: 'q-exp-ray',
+    type: 'graphAnalysis',
+    functionSpec: {
+      type: 'exponential',
+      a: 1,
+      base: 2,
+      h: 0,
+      k: 0,
+      domain: { min: 0, minInclusive: true },
+    },
+    analysisRequests: [
+      { id: 'domain', kind: 'domain', notation: 'inequality' },
+      { id: 'range', kind: 'range', notation: 'inequality' },
+    ],
+  };
+  const record = {
+    status: 'attempted',
+    attemptCount: 1,
+    totalAttempts: 1,
+    partialCredit: 50,
+    bestPartialCredit: 50,
+    partGrades: [
+      { id: 'domain', isComplete: true, isCorrect: true, response: '0≤x' },
+      { id: 'range', isComplete: true, isCorrect: false, response: '1≤y' },
+    ],
+  };
+
+  const repaired = repairQuestionRecordForCurrentGrader({ record, question });
+  assert.equal(repaired.status, 'correct');
+  assert.equal(repaired.bestPartialCredit, 100);
+});
+
+test('grader correction never grants credit to a genuinely wrong inequality', () => {
+  const record = {
+    status: 'attempted',
+    attemptCount: 1,
+    totalAttempts: 1,
+    partialCredit: 50,
+    bestPartialCredit: 50,
+    partGrades: [
+      { id: 'domain', isComplete: true, isCorrect: true, response: '-2≤x' },
+      { id: 'range', isComplete: true, isCorrect: false, response: 'y≥4' },
+    ],
+  };
+
+  const repaired = repairQuestionRecordForCurrentGrader({
+    record,
+    question: linearRayGraphQuestion,
+  });
+
+  assert.strictEqual(repaired, record);
+  assert.equal(repaired.bestPartialCredit, 50);
+});
+
+test('grader correction can restore an exhausted student without erasing attempt history', () => {
+  const record = {
+    status: 'expired',
+    attemptCount: 3,
+    totalAttempts: 3,
+    partialCredit: 0,
+    bestPartialCredit: 0,
+    partGrades: [
+      { id: 'domain', isComplete: true, isCorrect: false, response: 'x>-2' },
+      { id: 'range', isComplete: true, isCorrect: false, response: '4≥y' },
+    ],
+  };
+
+  const repaired = repairQuestionRecordForCurrentGrader({
+    record,
+    question: linearRayGraphQuestion,
+  });
+
+  assert.equal(repaired.status, 'attempted');
+  assert.equal(repaired.attemptCount, 2);
+  assert.equal(repaired.totalAttempts, 3);
+  assert.equal(repaired.partGrades[1].isCorrect, true);
+  assert.equal(repaired.graderCorrectionHistory.at(-1).grantedRepairRetry, true);
 });
