@@ -145,12 +145,13 @@ test('teacher Live Class receives the class schedule and renders active Warm-Up 
   const live = read('src/components/teacher/LiveClassMonitor.jsx');
   const home = read('src/TeacherHome.jsx');
   assert.match(live, /classSchedule = null/);
+  assert.match(live, /timerAssignments = null/);
   assert.match(live, /activeSectionTimers/);
   assert.match(live, /getWarmupState/);
   assert.match(live, /getDOLState/);
   assert.match(live, /ACTIVE TIMERS/);
   assert.match(live, /<DOLCountdown endsAt=\{endsAt\}/);
-  assert.match(home, /<LiveClassMonitor[\s\S]*classSchedule=\{classSchedule\}/);
+  assert.match(home, /<LiveClassMonitor[\s\S]*timerAssignments=\{assignments\}[\s\S]*classSchedule=\{classSchedule\}/);
 });
 
 
