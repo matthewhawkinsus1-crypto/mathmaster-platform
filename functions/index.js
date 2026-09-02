@@ -12,7 +12,8 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 
 const classroomLib = require("./lib/classroom");
-const { runtimeIncludedQuestionIndices } = require("./lib/assignmentRuntime");
+const { runtimeIncludedQuestionIndices, runtimeQuestionsFromAssignment } = require("./lib/assignmentRuntime");
+const { weightedQuestionTotals } = require("./lib/questionWeights");
 const driveResources = require("./lib/driveResources");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const {
@@ -233,25 +234,29 @@ function questionWasAttempted(record) {
   return clampPercent(record.bestPartialCredit ?? record.partialCredit ?? 0) > 0;
 }
 
-function calculateAssignmentGrade(assignmentTracker, questionIndices) {
+function calculateAssignmentGrade(assignmentTracker, questionIndices, questions = []) {
   const indices = Array.isArray(questionIndices) ? questionIndices : [];
   if (!indices.length) return 0;
-  const earnedCredit = indices.reduce(
-    (total, index) => total + getQuestionCredit(assignmentTracker?.[index]),
-    0
-  );
-  return Math.round((earnedCredit / indices.length) * 100);
+  const weighted = weightedQuestionTotals({
+    tracker: assignmentTracker,
+    questions,
+    indices,
+    creditForRecord: getQuestionCredit,
+  });
+  return weighted.score ?? 0;
 }
 
-function assignmentGradeProgress(assignmentTracker, questionIndices) {
+function assignmentGradeProgress(assignmentTracker, questionIndices, questions = []) {
   const indices = Array.isArray(questionIndices) ? questionIndices : [];
   const attempted = indices.filter((index) => questionWasAttempted(assignmentTracker?.[index])).length;
   const terminal = indices.filter((index) => isQuestionTerminal(assignmentTracker?.[index])).length;
-  const attemptedCredit = indices.reduce((total, index) => (
-    questionWasAttempted(assignmentTracker?.[index])
-      ? total + getQuestionCredit(assignmentTracker?.[index])
-      : total
-  ), 0);
+  const weighted = weightedQuestionTotals({
+    tracker: assignmentTracker,
+    questions,
+    indices,
+    creditForRecord: getQuestionCredit,
+    attemptedForRecord: questionWasAttempted,
+  });
   const minimumProgressQuestions = indices.length
     ? Math.max(1, Math.ceil(indices.length * 0.25))
     : 0;
@@ -259,8 +264,8 @@ function assignmentGradeProgress(assignmentTracker, questionIndices) {
     total: indices.length,
     attempted,
     terminal,
-    grade: calculateAssignmentGrade(assignmentTracker, indices),
-    creditOnAttempted: attempted > 0 ? Math.round((attemptedCredit / attempted) * 100) : null,
+    grade: weighted.score ?? 0,
+    creditOnAttempted: weighted.creditOnAttempted,
     complete: indices.length > 0 && terminal === indices.length,
     meaningfulProgress: attempted >= minimumProgressQuestions,
     minimumProgressQuestions,
@@ -5689,7 +5694,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
       if (!questionIndices.length) continue;
 
       const assignmentTracker = afterByAssignment[assignmentId] || {};
-      const progress = assignmentGradeProgress(assignmentTracker, questionIndices);
+      const questions = runtimeQuestionsFromAssignment(assignment);
+      const progress = assignmentGradeProgress(assignmentTracker, questionIndices, questions);
       const releaseSignal = releaseSignalSet.has(assignmentId)
         ? afterReleaseSignals[assignmentId]
         : null;
