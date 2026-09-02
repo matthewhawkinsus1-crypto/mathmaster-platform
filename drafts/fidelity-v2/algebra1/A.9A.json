@@ -69,28 +69,28 @@
           "id": "domain",
           "label": "Domain",
           "kind": "domain",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "(-∞,∞)"
+            "all real numbers"
           ]
         },
         {
           "id": "range",
           "label": "Range",
           "kind": "range",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "({{k}},∞)"
+            "y>{{k}}"
           ]
         }
       ],
       "solutionReview": {
         "headline": "Growth still has all real inputs; the asymptote controls the range.",
         "reasoning": [
-          "An exponential with positive multiplier is defined for every real $x$, so its domain is $(-\\infty,\\infty)$.",
-          "Because the graph stays above and approaches $y={{k}}$ without reaching it, the range is $({{k}},\\infty)$."
+          "An exponential with positive multiplier is defined for every real x, so its domain is all real numbers.",
+          "Because the graph stays above and approaches $y={{k}}$ without reaching it, the range is $y>{{k}}$."
         ],
-        "answerSummary": "Domain $(-\\infty,\\infty)$; range $({{k}},\\infty)$."
+        "answerSummary": "Domain: all real numbers; range: y>{{k}}."
       },
       "attemptFeedback": [
         "Use the horizontal asymptote to decide the open endpoint of the range; the base does not restrict the domain."
@@ -190,28 +190,28 @@
           "id": "domain",
           "label": "Domain",
           "kind": "domain",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "(-∞,∞)"
+            "all real numbers"
           ]
         },
         {
           "id": "range",
           "label": "Range",
           "kind": "range",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "({{k}},∞)"
+            "y>{{k}}"
           ]
         }
       ],
       "solutionReview": {
         "headline": "A base between 0 and 1 changes direction of change, not domain or the side of the asymptote.",
         "reasoning": [
-          "Since $0<{{base}}<1$, the graph decreases as $x$ increases, but the exponential expression is still defined for every real input.",
-          "The positive multiplier keeps the graph above $y={{k}}$, so the range remains $({{k}},\\infty)$."
+          "Since $0<{{base}}<1$, the graph decreases as x increases, but the exponential expression is still defined for every real input.",
+          "The positive multiplier keeps the graph above $y={{k}}$, so the range is $y>{{k}}$."
         ],
-        "answerSummary": "Domain $(-\\infty,\\infty)$; range $({{k}},\\infty)$."
+        "answerSummary": "Domain: all real numbers; range: y>{{k}}."
       },
       "attemptFeedback": [
         "Decay means the outputs move toward the asymptote as x increases; it does not mean the domain stops."
@@ -472,18 +472,18 @@
           "id": "domain",
           "label": "Domain",
           "kind": "domain",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "(-∞,∞)"
+            "all real numbers"
           ]
         },
         {
           "id": "range",
           "label": "Range",
           "kind": "range",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "(-∞,{{k}})"
+            "y<{{k}}"
           ]
         }
       ],
@@ -491,9 +491,9 @@
         "headline": "A negative multiplier reflects the exponential across the x-axis before the vertical shift.",
         "reasoning": [
           "The reflected exponential is still defined for every real input.",
-          "Its outputs stay below the horizontal asymptote $y={{k}}$, so the range is $(-\\infty,{{k}})$."
+          "Its outputs stay below the horizontal asymptote $y={{k}}$, so the range is $y<{{k}}$."
         ],
-        "answerSummary": "Domain $(-\\infty,\\infty)$; range $(-\\infty,{{k}})$."
+        "answerSummary": "Domain: all real numbers; range: y<{{k}}."
       },
       "attemptFeedback": [
         "The sign of the leading multiplier decides whether the graph lies above or below its asymptote."
@@ -596,18 +596,18 @@
               "id": "domain",
               "label": "Domain",
               "kind": "domain",
-              "notation": "interval",
+              "notation": "inequality",
               "expected": [
-                "(-∞,∞)"
+                "all real numbers"
               ]
             },
             {
               "id": "range",
               "label": "Range",
               "kind": "range",
-              "notation": "interval",
+              "notation": "inequality",
               "expected": [
-                "(-∞,{{k}})"
+                "y<{{k}}"
               ]
             }
           ],
@@ -616,9 +616,9 @@
             "reasoning": [
               "The base {{base}} is between 0 and 1, so the exponential part decays as x increases.",
               "The negative multiplier reflects the outputs below the horizontal asymptote y={{k}}.",
-              "Negative inputs are valid, so the domain remains all real numbers and the range is $(-\\infty,{{k}})$."
+              "Negative inputs are valid, so the domain remains all real numbers and the range is $y<{{k}}$."
             ],
-            "answerSummary": "Domain $(-\\infty,\\infty)$; range $(-\\infty,{{k}})$."
+            "answerSummary": "Domain: all real numbers; range: y<{{k}}."
           },
           "attemptFeedback": [
             "Track the decay base, reflection, and vertical shift separately before deciding the range."
@@ -716,18 +716,18 @@
           "id": "domain",
           "label": "True domain",
           "kind": "domain",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "(-∞,∞)"
+            "all real numbers"
           ]
         },
         {
           "id": "range",
           "label": "Range",
           "kind": "range",
-          "notation": "interval",
+          "notation": "inequality",
           "expected": [
-            "({{k}},∞)"
+            "y>{{k}}"
           ]
         }
       ],
@@ -735,9 +735,9 @@
         "headline": "Decay describes behavior, not an algebraic input restriction.",
         "reasoning": [
           "The point at $x=-1$ is valid, demonstrating directly that negative inputs belong to the algebraic domain.",
-          "The function has domain $(-\\infty,\\infty)$ and, with positive multiplier, range $({{k}},\\infty)$."
+          "The function has all real numbers as its domain and, with positive multiplier, has range $y>{{k}}$."
         ],
-        "answerSummary": "Domain $(-\\infty,\\infty)$; range $({{k}},\\infty)$."
+        "answerSummary": "Domain: all real numbers; range: y>{{k}}."
       },
       "attemptFeedback": [
         "Test the student's claimed boundary by substituting a negative x-value."
