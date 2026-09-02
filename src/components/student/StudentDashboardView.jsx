@@ -84,13 +84,16 @@ export default function StudentDashboardView({
     const classroomReceipt = classroomSyncStatusByAssignment?.[assignment.id] || null;
     const receiptStage = String(classroomReceipt?.stage || '');
     const receiptFinal = classroomReceipt?.isFinal === true || receiptStage.startsWith('final-');
+    const receiptStudentVisible = classroomReceipt?.studentVisible === true;
     const receiptLabel = receiptFinal
       ? 'FINAL'
       : receiptStage === 'due-checkpoint'
         ? 'DUE-DATE CHECKPOINT'
         : receiptStage === 'assessment-release'
           ? 'RELEASED'
-          : 'PROGRESS';
+          : receiptStudentVisible
+            ? 'RELEASED UPDATE'
+            : 'TEACHER DRAFT';
     const classroomGrade = Number.isFinite(Number(classroomReceipt?.grade)) ? Number(classroomReceipt.grade) : null;
     const classroomIsCurrent = classroomGrade != null && Number(recordedGrade) === classroomGrade;
     const statusStyle = lifecycle.isPracticeOnly ? { border: '#5f6368', bg: '#f1f3f4', color: '#3c4043', label: 'Practice only' } : lifecycle.isLate ? { border: '#f9ab00', bg: '#fff4ce', color: '#7a4f00', label: 'Late' } : lifecycle.isScheduled ? { border: '#9aa0a6', bg: '#f1f3f4', color: '#3c4043', label: 'Scheduled' } : { border: '#d8dde6', bg: '#e6f4ea', color: '#137333', label: 'On time' };
@@ -124,8 +127,9 @@ export default function StudentDashboardView({
               </div>
               {!feedbackHeld && classroomReceipt && classroomGrade != null && (
                 <div style={{ marginTop: 5, fontSize: 11, lineHeight: 1.35, color: receiptFinal ? '#137333' : '#174ea6', fontWeight: 800 }}>
-                  Google Classroom: {classroomGrade}% · {receiptLabel}
+                  {receiptStudentVisible ? 'Google Classroom shows' : 'Classroom teacher draft'}: {classroomGrade}% · {receiptLabel}
                   {!receiptFinal && !classroomIsCurrent ? <><br />Your MathMaster grade has changed; Classroom updates at the next checkpoint.</> : null}
+                  {!receiptStudentVisible ? <><br />This checkpoint is visible to your teacher; your live grade is the MathMaster grade above.</> : null}
                 </div>
               )}
               {!feedbackHeld && !classroomReceipt && !lifecycle.isPracticeOnly && (

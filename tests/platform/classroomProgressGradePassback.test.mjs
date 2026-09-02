@@ -65,6 +65,10 @@ test('scheduled due/final checkpoints wake only published Classroom assignments 
   assert.match(scheduler, /gradePassbackEnabled !== false/);
   assert.match(scheduler, /reason: "due-checkpoint"/);
   assert.match(scheduler, /reason: "final-deadline"/);
+  assert.match(scheduler, /reason: "initial-reconcile"/);
+  assert.match(scheduler, /reconcileVersion/);
+  assert.match(scheduler, /db\.getAll/);
+  assert.doesNotMatch(scheduler, /collection\("assignments"\)\.limit\(500\)/);
   assert.match(scheduler, /CLASSROOM_GRADE_CHECKPOINT_LOOKBACK_MS/);
   assert.match(scheduler, /state\.dueAt !== dueAt\.toISOString\(\)/);
   assert.match(scheduler, /state\.finalDueAt !== lateDueAt\.toISOString\(\)/);
@@ -81,6 +85,8 @@ test('successful Google writes create a student-visible receipt and audit the st
   assert.match(sync, /attempted: progress\.attempted/);
   assert.match(sync, /creditOnAttempted: progress\.creditOnAttempted/);
   assert.match(sync, /isFinal/);
+  assert.match(sync, /studentVisible/);
+  assert.match(sync, /returnedToStudent/);
   assert.match(sync, /successfulCourses/);
 });
 
@@ -95,14 +101,29 @@ test('Classroom point values are scaled from MathMaster percent when max points 
   assert.match(sync, /classroomGrade/);
 });
 
-test('Google patch carries both draft and student-visible assigned grade', () => {
+test('Google progress checkpoints stay draft-only until MathMaster intentionally releases the grade', () => {
   const src = read('functions/lib/classroom.js');
   const start = src.indexOf('async function patchGrade(');
   const end = src.indexOf('async function listTopics', start);
   const patch = src.slice(start, end);
-  assert.match(patch, /updateMask: "assignedGrade,draftGrade"/);
-  assert.match(patch, /assignedGrade: grade/);
+  assert.match(patch, /assignToStudent = true/);
+  assert.match(patch, /updateMask: assignToStudent \? "assignedGrade,draftGrade" : "draftGrade"/);
+  assert.match(patch, /if \(assignToStudent\) requestBody\.assignedGrade = grade/);
   assert.match(patch, /draftGrade: grade/);
+  assert.match(patch, /async function returnSubmission/);
+  assert.match(patch, /studentSubmissions\.return/);
+});
+
+test('due, completed, final, assessment-release and late grades are returned to the student', () => {
+  const src = read('functions/index.js');
+  assert.match(src, /function classroomGradeReleasePolicy/);
+  assert.match(src, /"due-checkpoint"/);
+  assert.match(src, /"final-complete"/);
+  assert.match(src, /"final-deadline"/);
+  assert.match(src, /"assessment-release"/);
+  assert.match(src, /startsWith\("late-progress"\)/);
+  assert.match(src, /returnSubmission/);
+  assert.match(src, /submissionState = "RETURNED"/);
 });
 
 test('student UI watches confirmed Classroom receipts and labels progress versus final', () => {
@@ -110,12 +131,15 @@ test('student UI watches confirmed Classroom receipts and labels progress versus
   const dashboard = read('src/components/student/StudentDashboardView.jsx');
 
   assert.match(app, /classroomSyncStatusByAssignment/);
-  assert.match(app, /Progress grade sent to Google Classroom/);
+  assert.match(app, /Progress checkpoint saved to Google Classroom/);
+  assert.match(app, /Updated grade released to Google Classroom/);
   assert.match(app, /Final grade sent to Google Classroom/);
   assert.match(app, /Due-date grade sent to Google Classroom/);
-  assert.match(app, /Google Classroom has/);
+  assert.match(app, /Google Classroom shows/);
+  assert.match(app, /Classroom teacher draft/);
   assert.match(dashboard, /Current grade · if stopped now/);
-  assert.match(dashboard, /Google Classroom:/);
+  assert.match(dashboard, /Classroom teacher draft/);
+  assert.match(dashboard, /Google Classroom shows/);
   assert.match(dashboard, /next checkpoint/i);
 });
 

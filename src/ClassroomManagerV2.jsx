@@ -992,6 +992,9 @@ The MathMaster assignment, student work, and MathMaster grades will remain.`
                       <span style={sync.isFinal ? okPill : warnPill}>
                         {sync.isFinal ? 'FINAL' : String(sync.stage || 'progress').replaceAll('-', ' ').toUpperCase()}
                       </span>
+                      <div style={{ marginTop: 4, color: sync.studentVisible ? '#137333' : '#5f6368', fontSize: 10.5, fontWeight: 900 }}>
+                        {sync.studentVisible ? 'RELEASED TO STUDENT' : 'TEACHER DRAFT'}
+                      </div>
                     </td>
                     <td style={{ padding: 7 }}><span style={sync.status === 'synced' ? okPill : sync.status?.startsWith('skipped') ? warnPill : badPill}>{sync.status || 'unknown'}</span></td>
                     <td style={{ padding: 7 }}>

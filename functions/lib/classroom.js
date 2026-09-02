@@ -476,24 +476,36 @@ async function findSubmissionForStudent(
   return submission || null;
 }
 
-// Teachers may patch draftGrade and assignedGrade. We intentionally do not
-// call turnIn: Google's turnIn endpoint may only be called by the student who
-// owns the submission.
+// Progress checkpoints stay teacher-draft-only. A due/final/released grade
+// writes assignedGrade as well, and the caller can then return the submission
+// so the student actually sees the assigned grade in Classroom.
 async function patchGrade(
   classroom,
-  { courseId, courseWorkId, submissionId, grade }
+  { courseId, courseWorkId, submissionId, grade, assignToStudent = true }
 ) {
+  const requestBody = { draftGrade: grade };
+  if (assignToStudent) requestBody.assignedGrade = grade;
   const res = await classroom.courses.courseWork.studentSubmissions.patch({
     courseId,
     courseWorkId,
     id: submissionId,
-    updateMask: "assignedGrade,draftGrade",
-    requestBody: {
-      assignedGrade: grade,
-      draftGrade: grade,
-    },
+    updateMask: assignToStudent ? "assignedGrade,draftGrade" : "draftGrade",
+    requestBody,
   });
   return res.data;
+}
+
+async function returnSubmission(
+  classroom,
+  { courseId, courseWorkId, submissionId }
+) {
+  await classroom.courses.courseWork.studentSubmissions.return({
+    courseId,
+    courseWorkId,
+    id: submissionId,
+    requestBody: {},
+  });
+  return { state: "RETURNED" };
 }
 
 
@@ -569,6 +581,7 @@ module.exports = {
   findCourseWorkByPublicationMarker,
   findSubmissionForStudent,
   patchGrade,
+  returnSubmission,
   listTopics,
   ensureTopic,
   createCourseWorkMaterial,
