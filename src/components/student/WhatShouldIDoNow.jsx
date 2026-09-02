@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDateTime } from '../../assignmentLifecycle';
 
 // The answer to the only question a student opens the app with.
 //
@@ -72,6 +73,12 @@ export default function WhatShouldIDoNow({
       <p style={{ margin: '7px 0 0', color: '#3c4043', fontSize: 15, lineHeight: 1.6 }}>
         {nextAction.detail}
       </p>
+
+      {nextAction.assignment && (nextAction.assignment.dueAt || nextAction.assignment.dueDate) && (
+        <div style={{ marginTop: 6, color: '#5f6368', fontSize: 13, fontWeight: 800 }}>
+          Due {formatDateTime(nextAction.assignment.dueAt || nextAction.assignment.dueDate)}
+        </div>
+      )}
 
       {nextAction.actionLabel && (
         <button
