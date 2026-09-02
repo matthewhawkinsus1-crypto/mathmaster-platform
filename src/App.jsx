@@ -5141,6 +5141,92 @@ function App() {
     );
   };
 
+  const renderStudentWarmupBanner = () => {
+    if (user?.role !== 'student' || !user.classPeriod) return null;
+    const classContext = { classId: user.classId || null, classPeriod: user.classPeriod };
+    const active = assignments
+      .filter((assignment) => assignmentIsForStudent(assignment, classContext))
+      .map((assignment) => {
+        const state = getWarmupState({
+          assignment,
+          schedule: classSchedule,
+          ...classContext,
+          nowValue: now,
+        });
+        if (state.status !== 'active') return null;
+        const questions = getStoredAssignmentQuestions(assignment);
+        const questionIndices = questions.reduce((indices, question, index) => {
+          if (
+            questionIsIncluded(question)
+            && resolveQuestionActivityRole({ question, assignment }) === 'warmup'
+          ) indices.push(index);
+          return indices;
+        }, []);
+        return questionIndices.length ? { assignment, state, questionIndices } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => Number(a.state.endsAt?.getTime?.() || 0) - Number(b.state.endsAt?.getTime?.() || 0));
+
+    if (!active.length) return null;
+    const { assignment, state, questionIndices } = active[0];
+    const support = getStudentSupportPresentation(user.profile);
+    const alreadyInThisWarmup = activeView === 'assignment'
+      && activeAssignmentId === assignment.id
+      && questionIndices.includes(currentQuestionIndex);
+
+    return (
+      <aside
+        role="alert"
+        aria-live="polite"
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 19000,
+          background: '#fff4ce',
+          color: '#5f4400',
+          borderBottom: '3px solid #f9ab00',
+          boxShadow: '0 5px 18px rgba(0,0,0,0.16)',
+          padding: '10px 16px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 14,
+          flexWrap: 'wrap',
+          textAlign: 'center',
+        }}
+      >
+        <strong>🔥 WARM-UP ACTIVE</strong>
+        <span>{assignment.title}</span>
+        {!support.hideCountdowns && (
+          <strong style={{ fontSize: 20 }}>
+            <DOLCountdown endsAt={state.endsAt} /> remaining
+          </strong>
+        )}
+        {!alreadyInThisWarmup && (
+          <button
+            type="button"
+            onClick={() => {
+              setStudentDashboardMode('assignments');
+              startAssignment(assignment.id, questionIndices[0]);
+            }}
+            style={{
+              padding: '8px 13px',
+              borderRadius: 8,
+              border: 0,
+              background: '#b06000',
+              color: '#fff',
+              fontWeight: 900,
+              cursor: 'pointer',
+            }}
+          >
+            Go to Warm-Up
+          </button>
+        )}
+      </aside>
+    );
+  };
+
+
   const renderIdleOverlay = () => {
     if (!isIdle) return null;
     return (
@@ -5866,6 +5952,7 @@ function App() {
         }}
       >
         {!preview && renderStudentPackUpBanner()}
+        {!preview && renderStudentWarmupBanner()}
         {!preview && !supportPresentation.disableIdleTimer && renderIdleOverlay()}
         <div className="mathmaster-assignment-shell" style={{ maxWidth: '1120px', margin: '0 auto' }}>
           {!preview && liveChallengeInvite?.status === 'running' && (
@@ -7062,6 +7149,7 @@ function App() {
       return (
         <>
           {renderStudentPackUpBanner()}
+          {renderStudentWarmupBanner()}
           <Suspense fallback={<div style={{ padding: 40, textAlign: 'center' }}>Loading Live Challenge…</div>}>
           <LiveChallengeStudent
             invite={liveChallengeInvite}
@@ -7076,6 +7164,7 @@ function App() {
       return (
         <>
           {renderStudentPackUpBanner()}
+          {renderStudentWarmupBanner()}
           <MyMathPathApp
           studentId={user.id}
           studentName={user.displayName || user.id}
@@ -7095,6 +7184,7 @@ function App() {
       return (
         <>
           {renderStudentPackUpBanner()}
+          {renderStudentWarmupBanner()}
           <StudentSecureExamDashboard
           studentProfile={user.profile}
           onExit={() => setStudentDashboardMode('assignments')}
@@ -7140,6 +7230,7 @@ function App() {
     return (
       <>
         {renderStudentPackUpBanner()}
+        {renderStudentWarmupBanner()}
         <StudentDashboardView
         dashboard={dashboard}
         student={{ id: user.id, displayName: user.displayName, classPeriod: user.classPeriod, inclusionStatus: user.profile?.inclusionStatus }}
