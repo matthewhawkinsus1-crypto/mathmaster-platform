@@ -48,6 +48,7 @@ export const publishAssignmentToClassrooms = call("publishAssignmentToClassrooms
 export const updateAssignmentClassroomPublications = call("updateAssignmentClassroomPublications");
 export const publishAssignmentToClassroom = call("publishAssignmentToClassroom");
 export const inspectClassroomPublication = call("inspectClassroomPublication");
+export const repairClassroomAssignmentPublications = call("repairClassroomAssignmentPublications");
 export const removeAssignmentClassroomPackage = call("removeAssignmentClassroomPackage");
 export const listPublishedAssignments = call("listPublishedAssignments");
 export const listClassroomGradeSyncs = call("listClassroomGradeSyncs");
