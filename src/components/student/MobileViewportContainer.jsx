@@ -258,9 +258,23 @@ export const MobileViewportContainer = ({
       onKeyDownCapture={handleKeyDownCapture}
       onBlurCapture={handleBlurCapture}
     >
-      <div className="mathmaster-desktop-question-anchor">
-        <QuestionPrompt variant="task">{promptText || 'Complete the math task.'}</QuestionPrompt>
-        {taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}
+      <div className={`mathmaster-desktop-question-anchor${isPromptCollapsed ? ' is-collapsed' : ''}`}>
+        <div className="mathmaster-desktop-task-toggle-row">
+          <span>{isPromptCollapsed ? 'Task hidden for more workspace' : 'Your task'}</span>
+          <button
+            type="button"
+            onClick={() => setIsPromptCollapsed((current) => !current)}
+            aria-expanded={!isPromptCollapsed}
+          >
+            {isPromptCollapsed ? 'Show task' : 'Hide task'}
+          </button>
+        </div>
+        {!isPromptCollapsed && (
+          <>
+            <QuestionPrompt variant="task">{promptText || 'Complete the math task.'}</QuestionPrompt>
+            {taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}
+          </>
+        )}
       </div>
       {contextPanel}{responseFields}{toolWorkspace}{actionButtons}
     </div>;
