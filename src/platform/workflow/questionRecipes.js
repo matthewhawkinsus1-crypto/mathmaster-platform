@@ -97,8 +97,13 @@ const FUNCTION_MODELING = {
     }),
     domainWords: (question, asked) => ({
       id: 'domainWords',
-      kind: 'shortResponse',
+      kind: Array.isArray(question.domainWordsChoices) && question.domainWordsChoices.length
+        ? 'multipleChoice'
+        : 'shortResponse',
       prompt: question.domainWordsPrompt || 'State the domain in words.',
+      ...(Array.isArray(question.domainWordsChoices) && question.domainWordsChoices.length
+        ? { choices: question.domainWordsChoices }
+        : {}),
       ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
     }),
     domainInequality: (question, asked) => ({
@@ -118,8 +123,13 @@ const FUNCTION_MODELING = {
     }),
     rangeWords: (question, asked) => ({
       id: 'rangeWords',
-      kind: 'shortResponse',
+      kind: Array.isArray(question.rangeWordsChoices) && question.rangeWordsChoices.length
+        ? 'multipleChoice'
+        : 'shortResponse',
       prompt: question.rangeWordsPrompt || 'State the range in words.',
+      ...(Array.isArray(question.rangeWordsChoices) && question.rangeWordsChoices.length
+        ? { choices: question.rangeWordsChoices }
+        : {}),
       ...(latestModelSource(asked) ? { source: { fromStage: latestModelSource(asked) } } : {}),
     }),
     rangeInequality: (question, asked) => ({
