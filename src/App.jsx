@@ -425,6 +425,7 @@ function App() {
   // in state rather than sending it is the whole point: nothing reaches
   // Classroom without a person having looked at it.
   const [classroomSyncProposal, setClassroomSyncProposal] = useState(null);
+  const [classroomManagerAssignmentId, setClassroomManagerAssignmentId] = useState('');
   const [quickSearchOpen, setQuickSearchOpen] = useState(false);
   // Delivered-question evidence for one class, loaded only when a teacher asks
   // for it. One Firestore read per student is not a price to pay for rendering
@@ -1405,7 +1406,7 @@ function App() {
           assignment.title + ': Google Classroom confirmed the current mapped assignment post'
             + (healthy === 1 ? '' : 's')
             + (healthyCourses.length ? ' in ' + healthyCourses.join(', ') : '')
-            + ' ' + (healthy === 1 ? 'is' : 'are') + ' still available. Nothing was duplicated.'
+            + ' ' + (healthy === 1 ? 'is' : 'are') + ' still available. Nothing was duplicated. If you still cannot see the post, choose Force New Classroom Post from this assignment menu and select the exact Google Classroom.'
             + (ignoredPriorDestinations > 0
               ? ' MathMaster ignored ' + ignoredPriorDestinations + ' older publication record' + (ignoredPriorDestinations === 1 ? '' : 's') + ' from other course mappings.'
               : ''),
@@ -6818,6 +6819,13 @@ function App() {
                               key: 'repair-classroom-post',
                               label: 'Repair / Repost Classroom',
                               onClick: () => handleRepairClassroomAssignmentPost(assignment),
+                            }, {
+                              key: 'force-classroom-post',
+                              label: 'Force New Classroom Post…',
+                              onClick: () => {
+                                setClassroomManagerAssignmentId(assignment.id);
+                                setTeacherTab('classroom');
+                              },
                             }] : []),
                             ...(libraryRepair.source && libraryRepair.questionIds.length ? [{
                               key: 'repair-library-content',
@@ -7134,7 +7142,15 @@ function App() {
               </div>
             )}
 
-            {teacherTab === 'classroom' && <ClassroomManagerV2 assignments={assignments} classes={classes} students={allStudents} teacherEmail={user.email} />}
+            {teacherTab === 'classroom' && (
+              <ClassroomManagerV2
+                assignments={assignments}
+                classes={classes}
+                students={allStudents}
+                teacherEmail={user.email}
+                initialAssignmentId={classroomManagerAssignmentId}
+              />
+            )}
 
             {teacherTab === 'access' && <SignInAccess signedInEmail={user.email} mode="teacher" />}
           </div>
