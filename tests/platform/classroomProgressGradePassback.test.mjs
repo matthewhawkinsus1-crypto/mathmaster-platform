@@ -135,7 +135,8 @@ test('student UI watches confirmed Classroom receipts and labels progress versus
   assert.match(app, /Updated grade released to Google Classroom/);
   assert.match(app, /Final grade sent to Google Classroom/);
   assert.match(app, /Due-date grade sent to Google Classroom/);
-  assert.match(app, /Google Classroom has/);
+  assert.match(app, /Google Classroom shows/);
+  assert.match(app, /Classroom teacher draft/);
   assert.match(dashboard, /Current grade · if stopped now/);
   assert.match(dashboard, /Classroom teacher draft/);
   assert.match(dashboard, /Google Classroom shows/);
