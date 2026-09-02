@@ -5992,13 +5992,15 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
   const now = Date.now();
   const requestedAt = new Date(now).toISOString();
   const cutoff = now - CLASSROOM_GRADE_CHECKPOINT_LOOKBACK_MS;
+  const RECONCILE_VERSION = 1;
 
-  const [assignmentsSnap, publicationsSnap] = await Promise.all([
-    db.collection("assignments").limit(500).get(),
-    db.collection("classroomLinks").where("status", "==", "published").limit(1000).get(),
-  ]);
+  const publicationsSnap = await db
+    .collection("classroomLinks")
+    .where("status", "==", "published")
+    .limit(1000)
+    .get();
 
-  const classroomAssignmentIds = new Set(
+  const classroomAssignmentIds = [...new Set(
     publicationsSnap.docs
       .map((doc) => doc.data() || {})
       .filter((publication) => (
@@ -6007,16 +6009,23 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
       ))
       .map((publication) => String(publication.assignmentId || "").trim())
       .filter(Boolean)
-  );
+  )];
+
+  // Read only assignments that actually have a current Classroom publication.
+  // This avoids an arbitrary 500-assignment collection cap silently skipping a
+  // live course when the library grows.
+  const assignmentSnapshots = classroomAssignmentIds.length
+    ? await db.getAll(...classroomAssignmentIds.map((assignmentId) => db.doc(`assignments/${assignmentId}`)))
+    : [];
 
   let dueAssignments = 0;
   let finalAssignments = 0;
+  let reconcileAssignments = 0;
   let queuedStudents = 0;
 
-  for (const assignmentDoc of assignmentsSnap.docs) {
+  for (const assignmentDoc of assignmentSnapshots) {
+    if (!assignmentDoc.exists) continue;
     const assignmentId = assignmentDoc.id;
-    if (!classroomAssignmentIds.has(assignmentId)) continue;
-
     const assignment = assignmentDoc.data() || {};
     if (!assignmentAudience(assignment).classIds.length) continue;
     const dueAt = toDate(assignment.dueAt || assignment.dueDate);
@@ -6049,6 +6058,7 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
       // eslint-disable-next-line no-await-in-loop
       await stateRef.set({
         assignmentId,
+        reconcileVersion: RECONCILE_VERSION,
         finalQueuedAt: requestedAt,
         finalDueAt: lateDueAt.toISOString(),
         finalQueuedStudents: count,
@@ -6076,6 +6086,7 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
       // eslint-disable-next-line no-await-in-loop
       await stateRef.set({
         assignmentId,
+        reconcileVersion: RECONCILE_VERSION,
         dueQueuedAt: requestedAt,
         dueAt: dueAt.toISOString(),
         dueQueuedStudents: count,
@@ -6083,13 +6094,42 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
       }, { merge: true });
       dueAssignments += 1;
       queuedStudents += count;
+      continue;
+    }
+
+    // First rollout reconciliation: wake each still-relevant published
+    // assignment exactly once. Students with no meaningful work before the due
+    // date are ignored by the grade-stage resolver, while students who already
+    // worked/completed receive the accurate MathMaster checkpoint immediately
+    // instead of waiting for another answer to change.
+    const stillRelevant = !lateDueAt || lateDueAt.getTime() >= cutoff;
+    if (stillRelevant && Number(state.reconcileVersion || 0) < RECONCILE_VERSION) {
+      // eslint-disable-next-line no-await-in-loop
+      const count = await queueClassroomGradeSignalForAudience({
+        db,
+        assignmentId,
+        assignment,
+        reason: "initial-reconcile",
+        requestedAt,
+      });
+      // eslint-disable-next-line no-await-in-loop
+      await stateRef.set({
+        assignmentId,
+        reconcileVersion: RECONCILE_VERSION,
+        reconciledAt: requestedAt,
+        reconciledStudents: count,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      reconcileAssignments += 1;
+      queuedStudents += count;
     }
   }
 
-  if (dueAssignments || finalAssignments) {
+  if (dueAssignments || finalAssignments || reconcileAssignments) {
     logger.info("Queued Classroom grade checkpoints", {
       dueAssignments,
       finalAssignments,
+      reconcileAssignments,
       queuedStudents,
     });
   }
