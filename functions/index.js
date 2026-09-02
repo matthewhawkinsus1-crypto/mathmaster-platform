@@ -266,6 +266,10 @@ function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowVa
 
   if (progress.complete) return "final-complete";
   if (lateDueAt && now >= lateDueAt.getTime()) return "final-deadline";
+  if (reason === "initial-reconcile") {
+    if (dueAt && now >= dueAt.getTime()) return "due-checkpoint";
+    return progressCheckpointStage(progress);
+  }
   if (reason === "manual-retry") {
     return progress.attempted > 0 || (dueAt && now >= dueAt.getTime())
       ? "manual-retry"
@@ -275,6 +279,26 @@ function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowVa
     return progressCheckpointStage(progress, { late: true });
   }
   return progressCheckpointStage(progress);
+}
+
+function classroomGradeReleasePolicy({ stage, assignment, nowValue = Date.now() }) {
+  const now = Number(nowValue) || Date.now();
+  const dueAt = toDate(assignment?.dueAt || assignment?.dueDate);
+  const explicitlyStudentVisible = [
+    "due-checkpoint",
+    "final-complete",
+    "final-deadline",
+    "assessment-release",
+  ].includes(stage);
+  const studentVisible = explicitlyStudentVisible
+    || String(stage || "").startsWith("late-progress")
+    || (stage === "manual-retry" && Boolean(dueAt && now >= dueAt.getTime()));
+
+  return {
+    studentVisible,
+    assignToStudent: studentVisible,
+    shouldReturn: studentVisible,
+  };
 }
 
 // --- Authentication ---------------------------------------------------------
@@ -5630,6 +5654,11 @@ exports.syncGradeToClassroom = onDocumentWritten(
 
       const grade = progress.grade;
       const isFinal = ["final-complete", "final-deadline"].includes(stage);
+      const releasePolicy = classroomGradeReleasePolicy({
+        stage,
+        assignment,
+        nowValue: Date.now(),
+      });
       const forceRetry = releaseSignalReason(releaseSignal) === "manual-retry";
 
       // eslint-disable-next-line no-await-in-loop
@@ -5661,11 +5690,15 @@ exports.syncGradeToClassroom = onDocumentWritten(
         // eslint-disable-next-line no-await-in-loop
         const priorAuditSnap = await db.doc(`classroomGradeSyncs/${syncId}`).get();
         const priorAudit = priorAuditSnap.exists ? priorAuditSnap.data() || {} : {};
+        const priorReturnConfirmed = priorAudit.returnedToStudent === true
+          || String(priorAudit.submissionState || "").toUpperCase() === "RETURNED";
         if (
           !forceRetry
           && priorAudit.status === "synced"
           && String(priorAudit.stage || "") === stage
           && Number(priorAudit.maxPoints || 100) === maxPoints
+          && Boolean(priorAudit.studentVisible) === releasePolicy.studentVisible
+          && (!releasePolicy.shouldReturn || priorReturnConfirmed)
         ) {
           continue;
         }
@@ -5693,6 +5726,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
               total: progress.total,
               creditOnAttempted: progress.creditOnAttempted,
               isFinal,
+              studentVisible: releasePolicy.studentVisible,
+              returnedToStudent: false,
               message: String(err.message || err),
             });
             continue;
@@ -5759,6 +5794,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
               total: progress.total,
               creditOnAttempted: progress.creditOnAttempted,
               isFinal,
+              studentVisible: releasePolicy.studentVisible,
+              returnedToStudent: false,
             });
             continue;
           }
@@ -5769,7 +5806,24 @@ exports.syncGradeToClassroom = onDocumentWritten(
             courseWorkId: publication.courseworkId,
             submissionId: submission.id,
             grade: classroomGrade,
+            assignToStudent: releasePolicy.assignToStudent,
           });
+
+          let submissionState = patched.state || submission.state || null;
+          let returnedToStudent = String(submissionState || "").toUpperCase() === "RETURNED";
+          if (releasePolicy.shouldReturn && !returnedToStudent) {
+            // Patching assignedGrade alone can still leave Classroom showing a
+            // teacher-only Draft. Returning the submission is the explicit
+            // Google action that releases the assigned grade to the student.
+            // eslint-disable-next-line no-await-in-loop
+            await classroomLib.returnSubmission(classroom, {
+              courseId,
+              courseWorkId: publication.courseworkId,
+              submissionId: submission.id,
+            });
+            submissionState = "RETURNED";
+            returnedToStudent = true;
+          }
 
           // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
@@ -5777,7 +5831,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
             courseId,
             courseworkId: publication.courseworkId,
             submissionId: submission.id,
-            submissionState: patched.state || submission.state || null,
+            submissionState,
             status: "synced",
             stage,
             grade,
@@ -5787,6 +5841,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
             total: progress.total,
             creditOnAttempted: progress.creditOnAttempted,
             isFinal,
+            studentVisible: releasePolicy.studentVisible,
+            returnedToStudent,
             syncedAt: FieldValue.serverTimestamp(),
           });
           successfulCourses.push(publication.courseName || courseId);
@@ -5812,6 +5868,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
             total: progress.total,
             creditOnAttempted: progress.creditOnAttempted,
             isFinal,
+            studentVisible: releasePolicy.studentVisible,
+            returnedToStudent: false,
             error: String(err.message || err),
           });
         }
@@ -5827,6 +5885,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
           total: progress.total,
           creditOnAttempted: progress.creditOnAttempted,
           isFinal,
+          studentVisible: releasePolicy.studentVisible,
+          returnedToStudent: releasePolicy.shouldReturn,
           courseNames: [...new Set(successfulCourses)].slice(0, 5),
           syncedAt,
           notificationId: `${assignmentId}:${stage}:${grade}:${syncedAt}`,
