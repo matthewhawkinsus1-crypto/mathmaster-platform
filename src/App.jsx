@@ -449,6 +449,7 @@ function App() {
   const [teacherWorksheetDialog, setTeacherWorksheetDialog] = useState(null);
   const [teacherWorksheetBusy, setTeacherWorksheetBusy] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [assignmentNavigationCollapsed, setAssignmentNavigationCollapsed] = useState(false);
   const [assignmentOverviewExpanded, setAssignmentOverviewExpanded] = useState(false);
   const assignmentQuestionStageRef = useRef(null);
   const [resumeAction, setResumeAction] = useState(null);
