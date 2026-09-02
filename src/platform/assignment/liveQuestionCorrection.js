@@ -59,6 +59,102 @@ const sameOutsideAnswerFields = (before = {}, after = {}) => {
   return stableStringify(strip(before)) === stableStringify(strip(after));
 };
 
+const WORKFLOW_WORD_CHOICE_REPAIRS = Object.freeze([
+  { choiceKey: 'domainWordsChoices', correctKey: 'correctDomainWords', stageId: 'domainWords', askKey: 'domainWords' },
+  { choiceKey: 'rangeWordsChoices', correctKey: 'correctRangeWords', stageId: 'rangeWords', askKey: 'rangeWords' },
+]);
+
+const workflowAsk = (question = {}) => (
+  Array.isArray(question?.recipe?.ask) ? question.recipe.ask.map(String) : []
+);
+
+const analyzeWorkflowWordChoiceRepair = (before = {}, after = {}) => {
+  if (String(before?.type || '') !== 'relationshipModel' || String(after?.type || '') !== 'relationshipModel') {
+    return null;
+  }
+
+  const changed = WORKFLOW_WORD_CHOICE_REPAIRS.filter(({ choiceKey }) => (
+    stableStringify(before?.[choiceKey] ?? null) !== stableStringify(after?.[choiceKey] ?? null)
+  ));
+  if (!changed.length) return null;
+
+  const stripChoiceKeys = (question) => {
+    const copy = { ...question };
+    WORKFLOW_WORD_CHOICE_REPAIRS.forEach(({ choiceKey }) => { delete copy[choiceKey]; });
+    return copy;
+  };
+  if (stableStringify(stripChoiceKeys(before)) !== stableStringify(stripChoiceKeys(after))) {
+    return {
+      safe: false,
+      affectedFieldIds: [],
+      reason: 'A workflow live repair may only add controlled choices to existing domain/range wording stages. The mathematical task and all other fields must stay unchanged.',
+    };
+  }
+
+  const ask = new Set(workflowAsk(before));
+  const affectedFieldIds = [];
+  for (const config of changed) {
+    if (!ask.has(config.askKey)) {
+      return {
+        safe: false,
+        affectedFieldIds: [],
+        reason: `Workflow stage “${config.stageId}” is not part of this live question, so choices cannot be added for it.`,
+      };
+    }
+
+    const beforeChoices = Array.isArray(before?.[config.choiceKey])
+      ? before[config.choiceKey].map((value) => String(value ?? '').trim()).filter(Boolean)
+      : [];
+    if (beforeChoices.length) {
+      return {
+        safe: false,
+        affectedFieldIds: [],
+        reason: `Workflow stage “${config.stageId}” already had finite choices; a live repair cannot rewrite those choices after student activity begins.`,
+      };
+    }
+
+    const oldCandidates = Array.isArray(before?.[config.correctKey])
+      ? before[config.correctKey].map((value) => String(value ?? '').trim()).filter(Boolean)
+      : [];
+    if (!oldCandidates.length || !oldCandidates.every(looksLikePlainLanguage)) {
+      return {
+        safe: false,
+        affectedFieldIds: [],
+        reason: `Workflow stage “${config.stageId}” is not a keyed plain-language response, so MathMaster will not convert it live.`,
+      };
+    }
+
+    const options = Array.isArray(after?.[config.choiceKey])
+      ? after[config.choiceKey].map((value) => String(value ?? '').trim()).filter(Boolean)
+      : [];
+    if (options.length < 2) {
+      return {
+        safe: false,
+        affectedFieldIds: [],
+        reason: `Workflow stage “${config.stageId}” needs at least two finite choices.`,
+      };
+    }
+
+    const oldNormalized = new Set(oldCandidates.map(normalizeText));
+    const oldCorrectOptions = options.filter((option) => oldNormalized.has(normalizeText(option)));
+    if (oldCorrectOptions.length !== 1) {
+      return {
+        safe: false,
+        affectedFieldIds: [],
+        reason: `Workflow stage “${config.stageId}” must contain exactly one previously accepted correct wording among its choices.`,
+      };
+    }
+    affectedFieldIds.push(config.stageId);
+  }
+
+  return {
+    safe: true,
+    affectedFieldIds,
+    questionId: before.questionId,
+    beforeFingerprint: questionFingerprint(before),
+  };
+};
+
 const safeFieldConversion = (before = {}, after = {}) => {
   if (String(before.id || '') !== String(after.id || '')) {
     return { safe: false, reason: 'Answer-field IDs cannot change after students begin work.' };
@@ -116,6 +212,10 @@ export const analyzeResponseEntryRepair = (beforeQuestion = {}, afterQuestion = 
   if (!beforeQuestion?.questionId || beforeQuestion.questionId !== afterQuestion?.questionId) {
     return { safe: false, affectedFieldIds: [], reason: 'The question ID must stay exactly the same.' };
   }
+
+  const workflowRepair = analyzeWorkflowWordChoiceRepair(beforeQuestion, afterQuestion);
+  if (workflowRepair) return workflowRepair;
+
   if (!sameOutsideAnswerFields(beforeQuestion, afterQuestion)) {
     return {
       safe: false,
