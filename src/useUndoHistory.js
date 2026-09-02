@@ -49,7 +49,7 @@ export default function useUndoHistory(
       writeQuestionDraft(persistenceKey, saved);
       return saved;
     });
-  }, [maximumEntries]);
+  }, [maximumEntries, persistenceKey]);
 
   const undo = useCallback(() => {
     const history = historyRef.current;
@@ -60,14 +60,14 @@ export default function useUndoHistory(
     writeQuestionDraft(persistenceKey, saved);
     setValueState(saved);
     return true;
-  }, []);
+  }, [persistenceKey]);
 
   const reset = useCallback((nextValue = initialValueRef.current) => {
     historyRef.current = [];
     const saved = cloneValue(nextValue);
     writeQuestionDraft(persistenceKey, saved);
     setValueState(saved);
-  }, []);
+  }, [persistenceKey]);
 
   const clearHistory = useCallback(() => {
     historyRef.current = [];
