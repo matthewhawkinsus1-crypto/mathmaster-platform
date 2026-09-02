@@ -5,6 +5,7 @@ import MathInput from './MathInput';
 import QuestionPrompt from './QuestionPrompt';
 import IntervalNumberLine from './tools/intervalNumberLine/IntervalNumberLine';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
+import { normalizeQuestionRecord } from './attemptPolicy';
 import {
   expressionToLatex,
   expressionsEquivalent,
@@ -248,11 +249,18 @@ function AdditiveExpressionRegion({
         const underActive = placement?.kind === 'under' && placement.termIndex === termIndex;
 
         const rawTerm = String(term.text || '').trim();
+        const rawTermLatex = String(term.latex || '').trim();
         const termNeedsLeadingPlus = beforeActive
           && termIndex === 0
           && !rawTerm.startsWith('-')
           && !rawTerm.startsWith('+');
-        const visibleTerm = termNeedsLeadingPlus ? `+ ${rawTerm}` : rawTerm;
+        // splitAdditiveTerms already knows the term's sign. Render that LaTeX
+        // directly instead of parsing the signed term a second time. This
+        // prevents a leading minus on an absolute-value branch (for example
+        // -2p + 3) from disappearing while a new operation is staged.
+        const visibleTermLatex = termNeedsLeadingPlus
+          ? `+ ${rawTermLatex}`
+          : rawTermLatex;
 
         return (
           <div
@@ -330,7 +338,7 @@ function AdditiveExpressionRegion({
                 }}
               >
                 <span style={{ fontSize: 30 }}>
-                  <MathDisplay value={expressionToLatex(visibleTerm)} format="latex" inline />
+                  <MathDisplay value={visibleTermLatex} format="latex" inline />
                 </span>
               </button>
 
@@ -501,6 +509,7 @@ export default function MultiRelationAlgebra({
   onStateChange,
   onStepGrade,
   onUndoStateChange,
+  questionRecord = null,
   disabled = false,
   draftKey = null,
 }) {
@@ -552,6 +561,11 @@ export default function MultiRelationAlgebra({
   const [dragStroke, setDragStroke] = useState(null);
   const dragStrokeRef = useRef(null);
   const suppressCancellationClickUntil = useRef(0);
+
+  const normalizedQuestionRecord = normalizeQuestionRecord(questionRecord);
+  const stepCreditPercent = normalizedQuestionRecord.status === 'correct'
+    ? 100
+    : Math.round(Number(normalizedQuestionRecord.bestPartialCredit || 0));
 
   const [pendingRelationFlip, setPendingRelationFlip] = useState(() => initialPendingRelationFlipFor(draftKey));
   const [relationPicker, setRelationPicker] = useState(null);
@@ -916,12 +930,22 @@ export default function MultiRelationAlgebra({
     }
   };
 
+  const cancelBasicOperation = () => {
+    setOperation(null);
+    setOperand('');
+    setPlacementByKey({});
+    setOperationFocusSignal((value) => value + 1);
+  };
+
   const openRewrite = () => {
     if (disabled || relationState.special) return;
     if (pendingRelationFlip) {
       setMessage({ tone: 'growth', text: 'Finish the relation symbols from the last operation first.' });
       return;
     }
+    // Rewrite/Simplify is a different action. Never leave a stale operation
+    // composer or staged placement hanging open underneath it.
+    cancelBasicOperation();
     setRewriteOpen((value) => !value);
     setRewriteValue('');
     setRewriteFocusSignal((value) => value + 1);
@@ -1441,6 +1465,21 @@ export default function MultiRelationAlgebra({
               >
                 Commit step
               </button>
+              <button
+                type="button"
+                onClick={cancelBasicOperation}
+                disabled={disabled}
+                aria-label="Cancel current algebra operation"
+                style={{
+                  ...buttonStyle(false),
+                  minHeight: 34,
+                  padding: '5px 9px',
+                  color: '#5f6368',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Cancel
+              </button>
             </>
           )}
         </div>
@@ -1503,6 +1542,7 @@ export default function MultiRelationAlgebra({
           <button
             type="button"
             onClick={() => {
+              cancelBasicOperation();
               setOtherOpen((value) => !value);
               setRewriteOpen(false);
               setCompleteSquareOpen(false);
@@ -1539,9 +1579,19 @@ export default function MultiRelationAlgebra({
           </label>
         </div>
 
-        <button type="button" onClick={reset} disabled={disabled} style={buttonStyle(false)}>
-          Reset work
-        </button>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+          {stepCreditPercent > 0 && (
+            <span
+              title="Credit earned from valid algebra steps so far. Finishing the problem correctly earns full credit."
+              style={{ minHeight: 36, display: 'inline-flex', alignItems: 'center', padding: '5px 10px', borderRadius: 999, background: '#e8f0fe', color: '#174ea6', fontSize: 12, fontWeight: 900 }}
+            >
+              Step credit {stepCreditPercent}%
+            </span>
+          )}
+          <button type="button" onClick={reset} disabled={disabled} style={buttonStyle(false)}>
+            Reset work
+          </button>
+        </div>
       </div>
 
       {otherOpen && (

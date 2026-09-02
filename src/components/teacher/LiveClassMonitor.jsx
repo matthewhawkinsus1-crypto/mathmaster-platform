@@ -3,6 +3,12 @@ import {
   LIVE_FLAGS, LIVE_SEVERITY, QUESTION_STATE_CHARS, summarizeLiveClass,
 } from '../../livePresence';
 import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
+import DOLCountdown from '../student/DOLCountdown.jsx';
+import {
+  assignmentIsForStudent,
+  getDOLState,
+  getWarmupState,
+} from '../../assignmentLifecycle.js';
 import { studentsInClass } from '../../../functions/shared/classModel.mjs';
 import { suggestMovesForClass } from '../../platform/teacher/liveCoaching.js';
 import {
@@ -268,6 +274,7 @@ function StudentTile({
 export default function LiveClassMonitor({
   students = [],
   assignments = [],
+  timerAssignments = null,
   classPeriods = [],
   initialClassPeriod = 'all',
   nowValue = Date.now(),
@@ -280,6 +287,7 @@ export default function LiveClassMonitor({
   // that happen to share a period label into one live grid.
   activeClassId = null,
   classes = [],
+  classSchedule = null,
   supportEvents = [],
   onRecordSupportEvent = null,
   onRecommendPersonalPath = null,
@@ -315,6 +323,46 @@ export default function LiveClassMonitor({
   }), [roster, nowValue, assignmentId]);
 
   const visibleRows = onlyFlagged ? rows.filter((row) => row.severity === LIVE_SEVERITY.ALERT) : rows;
+
+  const timerContext = useMemo(() => {
+    if (activeClassId) {
+      const classRecord = classes.find((entry) => String(entry?.classId || '') === String(activeClassId)) || null;
+      return classRecord?.period
+        ? { classId: activeClassId, classPeriod: classRecord.period }
+        : null;
+    }
+    return classPeriod !== 'all' ? { classId: null, classPeriod } : null;
+  }, [activeClassId, classes, classPeriod]);
+
+  const activeSectionTimers = useMemo(() => {
+    if (!timerContext || !classSchedule) return [];
+    const sourceAssignments = Array.isArray(timerAssignments) ? timerAssignments : assignments;
+    return sourceAssignments
+      .filter((assignment) => assignmentIsForStudent(assignment, timerContext))
+      .flatMap((assignment) => {
+        const warmup = getWarmupState({
+          assignment,
+          schedule: classSchedule,
+          ...timerContext,
+          nowValue,
+        });
+        const dol = getDOLState({
+          assignment,
+          schedule: classSchedule,
+          ...timerContext,
+          nowValue,
+        });
+        const timers = [];
+        if (warmup.status === 'active' && warmup.endsAt) {
+          timers.push({ kind: 'Warm-Up', assignment, endsAt: warmup.endsAt, remaining: warmup.millisecondsRemaining });
+        }
+        if (dol.status === 'active' && dol.endsAt) {
+          timers.push({ kind: 'DOL', assignment, endsAt: dol.endsAt, remaining: dol.millisecondsRemaining });
+        }
+        return timers;
+      })
+      .sort((left, right) => Number(left.remaining || 0) - Number(right.remaining || 0));
+  }, [assignments, timerAssignments, classSchedule, timerContext, nowValue]);
 
   const suggestions = useMemo(
     () => suggestMovesForClass({ rows: visibleRows, profilesByStudentId: learningProfilesByStudentId }),
@@ -459,6 +507,48 @@ export default function LiveClassMonitor({
           </button>
         </div>
       </div>
+
+      {activeSectionTimers.length > 0 && (
+        <div
+          aria-label="Active class timers"
+          style={{
+            margin: '-2px 0 14px',
+            padding: '10px 12px',
+            borderRadius: 10,
+            border: '1px solid #d8dde6',
+            background: '#f8faff',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
+          <strong style={{ fontSize: 12, color: '#3c4043', marginRight: 2 }}>ACTIVE TIMERS</strong>
+          {activeSectionTimers.map(({ kind, assignment, endsAt }) => {
+            const isDol = kind === 'DOL';
+            return (
+              <span
+                key={`${assignment.id}:${kind}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 9px',
+                  borderRadius: 999,
+                  background: isDol ? '#f3e8fd' : '#fff4ce',
+                  color: isDol ? '#681da8' : '#7a4f00',
+                  fontSize: 12,
+                  fontWeight: 900,
+                  border: `1px solid ${isDol ? '#caa8f2' : '#f9c74f'}`,
+                }}
+                title={assignment.title || kind}
+              >
+                {kind} · <DOLCountdown endsAt={endsAt} />
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {visibleRows.length === 0 ? (
         <div style={{ padding: '20px', border: '1px dashed #dadce0', borderRadius: '12px', color: '#5f6368', fontSize: '14px' }}>
