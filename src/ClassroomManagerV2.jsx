@@ -141,6 +141,22 @@ export default function ClassroomManagerV2({
       .filter((entry) => entry.sync.publishedCount > 0),
     [assignments, links],
   );
+  // One release signal causes the server to recalculate this student's grade
+  // from the saved MathMaster question history, then update every published
+  // Classroom destination for the assignment. Dedupe the monitor rows by
+  // student so a teacher can repair an already-closed assignment in one click
+  // instead of clicking every course/publication row separately.
+  const selectedAssignmentGradeSyncs = useMemo(() => {
+    if (!selectedAssignment?.id) return [];
+    const byStudent = new Map();
+    gradeSyncs.forEach((sync) => {
+      if (String(sync?.assignmentId || '') !== String(selectedAssignment.id)) return;
+      if (!sync?.publicationId || !sync?.studentId) return;
+      const key = String(sync.studentId);
+      if (!byStudent.has(key)) byStudent.set(key, sync);
+    });
+    return [...byStudent.values()];
+  }, [gradeSyncs, selectedAssignment?.id]);
 
   const refreshManagerData = async () => {
     // The Classroom manager is a dashboard, not one giant transaction. One
@@ -968,6 +984,43 @@ The MathMaster assignment, student work, and MathMaster grades will remain.`
         <p style={{ color: '#5f6368', fontSize: 13 }}>
           MathMaster sends progress checkpoints while students work, a due-date checkpoint, and a final grade at completion or the final cutoff. Failures stay visible instead of disappearing silently.
         </p>
+        {selectedAssignmentGradeSyncs.length > 0 && (
+          <div style={{ margin: '0 0 12px', padding: '10px 12px', borderRadius: 9, background: '#eef4ff', border: '1px solid #c7d7f4' }}>
+            <div style={{ color: '#174ea6', fontSize: 12, fontWeight: 900 }}>
+              Regrade an assignment that is already closed
+            </div>
+            <div style={{ marginTop: 4, color: '#5f6368', fontSize: 12, lineHeight: 1.45 }}>
+              This recalculates saved MathMaster work using the current grading rules and resends the resulting grade to Google Classroom. Students do not need to reopen or redo the assignment.
+            </div>
+            <button
+              type="button"
+              style={{ ...secondary, marginTop: 8, borderColor: '#1a73e8', color: '#174ea6', background: '#fff' }}
+              disabled={busy}
+              onClick={() => {
+                const confirmed = window.confirm(
+                  `Recalculate and resend grades for "${selectedAssignment?.title || 'this assignment'}" for ${selectedAssignmentGradeSyncs.length} student${selectedAssignmentGradeSyncs.length === 1 ? '' : 's'}?\n\nThis will update Google Classroom using each student's saved MathMaster work. No student work will be deleted or reopened.`
+                );
+                if (!confirmed) return;
+                run(async () => {
+                  for (const sync of selectedAssignmentGradeSyncs) {
+                    // One signal per student is enough; the server updates every
+                    // Classroom publication for this assignment.
+                    // eslint-disable-next-line no-await-in-loop
+                    await retryClassroomGradeSync({
+                      publicationId: sync.publicationId,
+                      studentId: sync.studentId,
+                      assignmentId: sync.assignmentId,
+                    });
+                  }
+                  setGradeSyncs((await listClassroomGradeSyncs()).syncs || []);
+                  setStatus(`Queued recalculation and Classroom resend for ${selectedAssignmentGradeSyncs.length} student${selectedAssignmentGradeSyncs.length === 1 ? '' : 's'}. Their saved MathMaster work remains unchanged.`);
+                });
+              }}
+            >
+              Recalculate & resend selected assignment grades
+            </button>
+          </div>
+        )}
         {gradeSyncs.length === 0 ? (
           <div style={{ color: '#5f6368', fontSize: 13 }}>No grade-sync events yet.</div>
         ) : (
@@ -998,15 +1051,17 @@ The MathMaster assignment, student work, and MathMaster grades will remain.`
                     </td>
                     <td style={{ padding: 7 }}><span style={sync.status === 'synced' ? okPill : sync.status?.startsWith('skipped') ? warnPill : badPill}>{sync.status || 'unknown'}</span></td>
                     <td style={{ padding: 7 }}>
-                      {sync.status !== 'synced' && sync.assignmentId && sync.studentId && (
+                      {sync.publicationId && sync.assignmentId && sync.studentId && (
                         <button style={secondary} disabled={busy} onClick={() => run(async () => {
                           await retryClassroomGradeSync({
                             publicationId: sync.publicationId,
                             studentId: sync.studentId,
                             assignmentId: sync.assignmentId,
                           });
-                          setStatus('Grade retry queued. The passback trigger will run again.');
-                        })}>Retry</button>
+                          setStatus(sync.status === 'synced'
+                            ? 'Grade recalculation and resend queued from the student\'s saved MathMaster work.'
+                            : 'Grade retry queued. The passback trigger will run again.');
+                        })}>{sync.status === 'synced' ? 'Recalculate & resend' : 'Retry'}</button>
                       )}
                     </td>
                   </tr>
