@@ -814,7 +814,14 @@ export default function ClassroomManagerV2({
                       const failed = Number(summary.failed || 0);
                       const rosterStudents = Number(summary.rosterStudents || 0);
                       if (failed) {
-                        throw new Error(`Classroom audience check had ${failed} failure${failed === 1 ? '' : 's'}.`);
+                        const details = (inspection?.results || [])
+                          .filter((item) => item.status !== 'ok')
+                          .map((item) => `${item.courseName || item.courseId}: ${item.error || item.status || 'check failed'}`)
+                          .join(' | ');
+                        throw new Error(
+                          `Classroom publication check had ${failed} failure${failed === 1 ? '' : 's'}.`
+                          + (details ? ` ${details}` : '')
+                        );
                       }
                       setStatus(
                         rosterStudents > 0
