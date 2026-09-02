@@ -179,10 +179,44 @@ async function assertTeacherMayManageAssignment(request, assignmentSnap) {
 const clampPercent = (value) =>
   Math.max(0, Math.min(100, Number.isFinite(Number(value)) ? Number(value) : 0));
 
+function storedAlgebraStepPartialCredit(record) {
+  const steps = Array.isArray(record?.stepGrades) ? record.stepGrades : [];
+  const variantIndex = Number(record?.variantIndex || 0);
+  const currentSteps = steps.filter((step) => Number(step?.variantIndex) === variantIndex);
+  if (!currentSteps.length) return 0;
+
+  const stateKey = (value) => String(value || "").replace(/\s+/g, "").replace(/[−–—]/g, "-");
+  const expectedTotal = currentSteps.reduce(
+    (maximum, step) => Math.max(maximum, Math.max(0, Number(step?.expectedTotalPoints) || 0)),
+    0
+  );
+  const visitedStates = new Set();
+  const firstBefore = stateKey(currentSteps[0]?.equationBefore);
+  if (firstBefore) visitedStates.add(firstBefore);
+
+  let earned = 0;
+  let fallbackPossible = 0;
+  currentSteps.forEach((step) => {
+    const afterKey = stateKey(step?.equationAfter);
+    const acceptedProductive = step?.accepted !== false && step?.productive !== false;
+    const newState = !afterKey || !visitedStates.has(afterKey);
+    if (acceptedProductive && newState) {
+      earned += Math.max(0, Number(step?.earned) || 0);
+      fallbackPossible += Math.max(0, Number(step?.possible) || 0);
+    }
+    if (afterKey) visitedStates.add(afterKey);
+  });
+
+  const possible = expectedTotal > 0 ? expectedTotal : fallbackPossible;
+  return possible > 0 ? Math.min(90, clampPercent(Math.round((earned / possible) * 100))) : 0;
+}
+
 function getQuestionCredit(record) {
   if (!record) return 0;
   if (record.status === "correct") return 1;
-  return clampPercent(record.bestPartialCredit ?? record.partialCredit ?? 0) / 100;
+  const stored = clampPercent(record.bestPartialCredit ?? record.partialCredit ?? 0);
+  const derived = storedAlgebraStepPartialCredit(record);
+  return Math.max(stored, derived) / 100;
 }
 
 function isQuestionTerminal(record) {
