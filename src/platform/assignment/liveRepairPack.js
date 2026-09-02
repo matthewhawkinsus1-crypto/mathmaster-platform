@@ -73,8 +73,12 @@ export const prepareSafeLiveRepairPack = ({
     const nextQuestion = {
       ...clone(replacement),
       questionId: wrappedId,
-      teacherExcluded: current.question?.teacherExcluded === true,
     };
+    if (Object.prototype.hasOwnProperty.call(historical.question || {}, 'teacherExcluded')) {
+      nextQuestion.teacherExcluded = historical.question.teacherExcluded;
+    } else {
+      delete nextQuestion.teacherExcluded;
+    }
     const analysis = analyzeResponseEntryRepair(historical.question, nextQuestion);
     if (!analysis.safe) {
       throw new Error(`Question ${wrappedId} failed safe-live validation: ${analysis.reason}`);
