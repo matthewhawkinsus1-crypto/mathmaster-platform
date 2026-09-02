@@ -33,10 +33,18 @@ test('question id and exclusion state are preserved across an AI repair', () => 
   assert.match(editor, /teacherExcluded: existing\.teacherExcluded === true/);
 });
 
-test('question rewriting is blocked once student records exist', () => {
-  assert.match(editor, /disabled=\{hasStudentData\}/);
-  assert.match(editor, /Duplicate the assignment before rewriting question content/);
-  assert.match(editor, /historical responses stay attached to the question students actually saw/);
+test('live student data permits only guarded response-entry repair', () => {
+  assert.match(editor, /analyzeResponseEntryRepair/);
+  assert.match(editor, /Safe Live Repair/);
+  assert.match(editor, /response-entry mechanics may change/);
+  assert.match(editor, /liveRepairs/);
+  assert.match(editor, /question ID, prompt, mathematical task, graph\/table, standards, field IDs/);
+});
+
+test('unsafe live rewrites are still rejected before save', () => {
+  assert.match(editor, /MathMaster blocked this live rewrite/);
+  assert.match(editor, /if \(hasStudentData && historicalQuestion\)/);
+  assert.match(editor, /onSave\(\{ title: title\.trim\(\), questions, liveRepairs \}\)/);
 });
 
 console.log('assignmentQuestionEditorNoCode.test.mjs: all assertions passed');
