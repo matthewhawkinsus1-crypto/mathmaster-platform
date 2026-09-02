@@ -204,7 +204,8 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
           <div style={{ display: 'grid', gap: '10px', marginBottom: '22px' }}>
             {warmupsToday.map(({ assignment, warmup }) => {
               const busyKey = `${assignment.id}:${selectedClass.classId || selectedPeriod}`;
-              const canToggle = ['active', 'closed'].includes(warmup.status);
+              const needsOpenToday = ['notToday', 'unscheduled'].includes(warmup.status);
+              const canToggle = ['active', 'closed', 'notToday', 'unscheduled'].includes(warmup.status);
               const timerMinutes = Number(warmupTimerMinutesByKey[busyKey] || 5);
               const classContext = { classId: selectedClass.classId || null, classPeriod: selectedPeriod };
               return (
@@ -218,19 +219,38 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                           : 'Open now'
                         : warmup.status === 'closed'
                           ? 'Closed by teacher or timer · review only'
-                          : warmup.status === 'waiting'
-                            ? `Locked · opens ${warmup.minutesBeforeStart} minutes before class`
-                            : 'Class window ended'}
+                          : warmup.status === 'notToday'
+                            ? `Scheduled for ${warmup.instructionDateKey || 'another date'} · teacher can open it for this class today`
+                            : warmup.status === 'unscheduled'
+                              ? 'No instructional date saved · teacher can open it for this class today'
+                              : warmup.status === 'waiting'
+                                ? `Locked · opens ${warmup.minutesBeforeStart} minutes before class`
+                                : 'Class window ended'}
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '12px', fontWeight: 900, padding: '4px 8px', borderRadius: '999px', background: warmup.status === 'active' ? '#e6f4ea' : '#f1f3f4', color: warmup.status === 'active' ? '#137333' : '#5f6368' }}>
-                      {warmup.status === 'active' ? 'OPEN' : warmup.status === 'closed' ? 'CLOSED' : 'LOCKED'}
+                      {warmup.status === 'active' ? 'OPEN' : warmup.status === 'closed' ? 'CLOSED' : needsOpenToday ? 'NOT OPEN TODAY' : 'LOCKED'}
                     </span>
                     {canToggle && (
                       <>
-                        <button type="button" disabled={warmupControlBusyKey === busyKey} onClick={() => onToggleWarmup?.(assignment, classContext)} style={{ padding: '8px 12px', border: 0, borderRadius: 7, background: warmup.status === 'closed' ? '#188038' : '#b06000', color: '#fff', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}>
-                          {warmupControlBusyKey === busyKey ? 'Saving…' : warmup.status === 'closed' ? 'Reopen Warm-Up' : 'Close Warm-Up'}
+                        <button
+                          type="button"
+                          disabled={warmupControlBusyKey === busyKey}
+                          onClick={() => onToggleWarmup?.(
+                            assignment,
+                            classContext,
+                            needsOpenToday || warmup.status === 'closed' ? { action: 'reopen' } : { action: 'close' },
+                          )}
+                          style={{ padding: '8px 12px', border: 0, borderRadius: 7, background: needsOpenToday || warmup.status === 'closed' ? '#188038' : '#b06000', color: '#fff', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}
+                        >
+                          {warmupControlBusyKey === busyKey
+                            ? 'Saving…'
+                            : needsOpenToday
+                              ? 'Open Warm-Up Today'
+                              : warmup.status === 'closed'
+                                ? 'Reopen Warm-Up'
+                                : 'Close Warm-Up'}
                         </button>
                         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800 }}>
                           Timer
@@ -249,7 +269,13 @@ export default function ClassesWorkspace({ classes = [], allStudents = [], assig
                           onClick={() => onToggleWarmup?.(assignment, classContext, { action: 'timer', autoCloseMinutes: timerMinutes })}
                           style={{ padding: '8px 12px', border: '1px solid #188038', borderRadius: 7, background: '#fff', color: '#137333', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}
                         >
-                          {warmup.status === 'closed' ? `Reopen for ${timerMinutes} min` : warmup.autoCloseScheduled ? `Reset to ${timerMinutes} min` : `Close in ${timerMinutes} min`}
+                          {needsOpenToday
+                            ? `Open for ${timerMinutes} min`
+                            : warmup.status === 'closed'
+                              ? `Reopen for ${timerMinutes} min`
+                              : warmup.autoCloseScheduled
+                                ? `Reset to ${timerMinutes} min`
+                                : `Close in ${timerMinutes} min`}
                         </button>
                       </>
                     )}

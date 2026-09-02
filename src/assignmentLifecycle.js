@@ -263,9 +263,14 @@ export const getDOLInstructionDateKey = (assignment, classPeriod = null) => {
 // bell-ringer should only appear around the start of the class that is actually
 // receiving it. A teacher may set a different instructional date by period for
 // A/B day classes. Older assignments fall back to the assignment release date.
-export const getWarmupInstructionDateKey = (assignment, classPeriod = null) => {
-  const classSpecific = classPeriod ? assignment?.warmup?.instructionDatesByClassPeriod?.[classPeriod] : null;
-  const explicit = classSpecific || assignment?.warmup?.instructionDate || assignment?.warmup?.date || assignment?.assignmentDate || null;
+export const getWarmupInstructionDateKey = (assignment, classPeriod = null, classId = null) => {
+  // A real class id is more specific than a bell-period label. This matters
+  // when two MathMaster classes share the same period: a teacher manually
+  // opening today's Warm-Up for one class must not silently reschedule the
+  // sibling class.
+  const classSpecific = classId ? assignment?.warmup?.instructionDatesByClassId?.[classId] : null;
+  const periodSpecific = classPeriod ? assignment?.warmup?.instructionDatesByClassPeriod?.[classPeriod] : null;
+  const explicit = classSpecific || periodSpecific || assignment?.warmup?.instructionDate || assignment?.warmup?.date || assignment?.assignmentDate || null;
   if (explicit) {
     const text = String(explicit);
     if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
@@ -376,26 +381,32 @@ export const getWarmupState = ({ assignment, schedule, classId = null, classPeri
   ));
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
   const todayKey = localDateKey(now);
-  const instructionDateKey = getWarmupInstructionDateKey(assignment, classPeriod);
+  const instructionDateKey = getWarmupInstructionDateKey(assignment, classPeriod, classId);
   const minutesBeforeStart = Math.max(0, Number(assignment?.warmup?.minutesBeforeStart ?? 7));
 
   if (!enabled) {
     return { enabled: false, status: 'unavailable', window: null, instructionDateKey, opensAt: null, endsAt: null, millisecondsRemaining: null, minutesBeforeStart };
   }
+
+  // Resolve today's bell window before checking the authored instructional
+  // date. The teacher live hub needs the current class window even when an old
+  // or reused assignment says the Warm-Up belongs to another date; otherwise
+  // the manual "Open Warm-Up Today" control disappears exactly when it is
+  // needed. When no bell window is configured we still preserve notToday /
+  // unscheduled as the diagnostic state instead of changing its meaning.
+  const window = getPeriodWindow(schedule, classPeriod, now);
+  const opensAt = window ? new Date(window.start.getTime() - minutesBeforeStart * 60000) : null;
+  const endsAt = window?.end || null;
+
   if (!instructionDateKey) {
-    return { enabled: true, status: 'unavailable', window: null, instructionDateKey: null, opensAt: null, endsAt: null, millisecondsRemaining: null, minutesBeforeStart };
+    return { enabled: true, status: 'unscheduled', window, instructionDateKey: null, opensAt, endsAt, millisecondsRemaining: null, minutesBeforeStart };
   }
   if (todayKey !== instructionDateKey) {
-    return { enabled: true, status: 'notToday', window: null, instructionDateKey, opensAt: null, endsAt: null, millisecondsRemaining: null, minutesBeforeStart };
+    return { enabled: true, status: 'notToday', window, instructionDateKey, opensAt, endsAt, millisecondsRemaining: null, minutesBeforeStart };
   }
-
-  const window = getPeriodWindow(schedule, classPeriod, now);
   if (!window) {
     return { enabled: true, status: 'unavailable', window: null, instructionDateKey, opensAt: null, endsAt: null, millisecondsRemaining: null, minutesBeforeStart };
   }
-
-  const opensAt = new Date(window.start.getTime() - minutesBeforeStart * 60000);
-  const endsAt = window.end;
   const closedRecord = scopedOverride({ byClassId: assignment?.warmup?.closedByClassId, classId });
   const closedAtValue = typeof closedRecord === 'object' ? closedRecord?.closedAt : closedRecord;
   const closedDateKey = typeof closedRecord === 'object' ? closedRecord?.dateKey : null;

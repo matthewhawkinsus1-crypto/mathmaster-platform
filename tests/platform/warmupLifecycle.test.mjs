@@ -71,6 +71,34 @@ state = getWarmupState({ assignment, schedule, classPeriod: 'Period 3', nowValue
 assert.equal(state.status, 'ended');
 state = getWarmupState({ assignment, schedule, classPeriod: 'Period 3', nowValue: new Date('2026-08-18T09:00:00') });
 assert.equal(state.status, 'notToday');
+
+// A stale instructional date on a day with a live bell window still returns
+// that window so the teacher live hub can offer "Open Warm-Up Today" instead
+// of hiding the control.
+const staleDateAssignment = {
+  ...assignment,
+  warmup: { ...assignment.warmup, instructionDate: '2026-08-16' },
+};
+state = getWarmupState({ assignment: staleDateAssignment, schedule, classId: 'class-3', classPeriod: 'Period 3', nowValue: at('09:10') });
+assert.equal(state.status, 'notToday');
+assert.ok(state.window);
+
+// A teacher-opened instructional date is scoped to the real class id. A class
+// sharing the same bell period does not inherit the override.
+const classSpecificOpen = {
+  ...assignment,
+  warmup: {
+    ...assignment.warmup,
+    instructionDate: '2026-08-16',
+    instructionDatesByClassId: {
+      'class-3': dateKey,
+    },
+  },
+};
+state = getWarmupState({ assignment: classSpecificOpen, schedule, classId: 'class-3', classPeriod: 'Period 3', nowValue: at('09:10') });
+assert.equal(state.status, 'active');
+state = getWarmupState({ assignment: classSpecificOpen, schedule, classId: 'class-other', classPeriod: 'Period 3', nowValue: at('09:10') });
+assert.equal(state.status, 'notToday');
 console.log('warmupLifecycle.test.mjs: all assertions passed');
 
 // Bundled DOLs are one timed section: every authored DOL question is gated.
