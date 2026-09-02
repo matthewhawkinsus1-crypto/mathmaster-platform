@@ -140,6 +140,15 @@ export const buildStudentDashboardModel = ({
     .findIndex((question, index) => questionIsIncluded(question)
       && !['correct', 'expired'].includes(normalizeQuestionRecord(tracker[resumeAssignment?.id]?.[index]).status));
   const savedResumeIncluded = savedResume ? getIncludedQuestionIndices(savedResume) : [];
+  const resumeIncluded = resumeAssignment ? getIncludedQuestionIndices(resumeAssignment) : [];
+  const resumeTracker = resumeAssignment ? tracker?.[resumeAssignment.id] || {} : {};
+  const resumeQuestionsAttempted = resumeIncluded.filter((index) => {
+    const record = normalizeQuestionRecord(resumeTracker?.[index]);
+    return Number(record.totalAttempts || record.attemptCount || 0) > 0
+      || record.status !== 'unattempted';
+  }).length;
+  const resumeRecordedGrade = resumeAssignment ? calculateGrade(resumeTracker, resumeAssignment) : 0;
+  const resumeFeedbackHeld = resumeAssignment ? assignmentHasHeldTeacherFeedback(resumeAssignment) : false;
   const requestedResumeIndex = Number(resumeAction?.questionIndex) || 0;
   const resumeQuestionIndex = savedResume
     ? (savedResumeIncluded.includes(requestedResumeIndex) ? requestedResumeIndex : (savedResumeIncluded[0] ?? 0))
@@ -267,6 +276,9 @@ export const buildStudentDashboardModel = ({
     resumeAssignment,
     resumeQuestionIndex,
     resumeLifecycle: getAssignmentLifecycle(resumeAssignment, nowValue),
+    resumeRecordedGrade,
+    resumeQuestionsAttempted,
+    resumeFeedbackHeld,
     activeDols,
     activeWarmups,
     entries,
