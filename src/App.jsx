@@ -447,6 +447,7 @@ function App() {
   const [practiceScratchpads, setPracticeScratchpads] = useState({});
   const [previewTracker, setPreviewTracker] = useState({});
   const [previewScratchpads, setPreviewScratchpads] = useState({});
+  const [previewSessionId, setPreviewSessionId] = useState(0);
   const [teacherScratchpadDialog, setTeacherScratchpadDialog] = useState(null);
   const [teacherScratchpadLoading, setTeacherScratchpadLoading] = useState(false);
   const [teacherWorksheetDialog, setTeacherWorksheetDialog] = useState(null);
@@ -2681,6 +2682,7 @@ function App() {
     // localStorage. Clear that preview-only draft family too so "View as
     // Student" really begins at a blank first attempt every time.
     removeAssignmentDrafts({ studentId: 'teacher-preview', assignmentId });
+    setPreviewSessionId((current) => current + 1);
     setActiveAssignmentId(assignmentId);
     setCurrentQuestionIndex(getIncludedQuestionIndices(assignmentData)[0] ?? 0);
     setAssignmentNavigationCollapsed(false);
@@ -6365,7 +6367,7 @@ function App() {
           )}
           <main ref={assignmentQuestionStageRef} className="mathmaster-question-stage" style={{ background: '#fff', borderRadius: '12px', padding: '10px', minHeight: '500px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             <QuestionEngine
-              key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? 'preview' : lifecycle.status}`}
+              key={`${activeAssignmentId}-${currentQuestionIndex}-${currentRecord.variantIndex}-${preview ? `preview-${previewSessionId}` : lifecycle.status}`}
               question={questions[currentQuestionIndex]}
               questionRecord={workingTracker?.[currentQuestionIndex]}
               generationKey={`${activeAssignmentId}|${generationStudentKey}|${currentQuestionIndex}|variant:${currentRecord.variantIndex}`}
