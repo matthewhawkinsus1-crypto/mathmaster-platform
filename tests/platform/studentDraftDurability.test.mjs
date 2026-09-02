@@ -21,15 +21,19 @@ test('composed workflow questions restore both responses and active stage', asyn
 });
 
 test('student assignment chrome has a focus view while preserving current-question orientation', async () => {
-  const [app, viewport] = await Promise.all([
+  const [app, viewport, css] = await Promise.all([
     read('src/App.jsx'),
     read('src/components/student/MobileViewportContainer.jsx'),
+    read('src/App.css'),
   ]);
   assert.match(app, /assignmentNavigationCollapsed/);
   assert.match(app, /Focus view/);
   assert.match(app, /Question \{currentSectionQuestionNumber\} of \{currentSectionQuestionCount\}/);
-  assert.match(viewport, /Task hidden for more workspace/);
+  assert.match(app, /mathmaster-focus-inline-controls/);
   assert.match(viewport, /Show task/);
+  assert.doesNotMatch(viewport, /Task hidden for more workspace/);
+  assert.match(css, /mathmaster-desktop-question-anchor\.is-collapsed[\s\S]*height:\s*0/);
+  assert.match(css, /mathmaster-desktop-question-anchor\.is-collapsed[\s\S]*background:\s*transparent/);
 });
 
 test('student home reads the caller-only weekly goal snapshot before declaring all clear', async () => {
