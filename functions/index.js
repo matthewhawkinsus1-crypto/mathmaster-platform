@@ -12,7 +12,11 @@ const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 
 const classroomLib = require("./lib/classroom");
-const { runtimeQuestionCount } = require("./lib/assignmentRuntime");
+const {
+  runtimeQuestionCount,
+  runtimeQuestionsFromAssignment,
+  runtimeIncludedQuestionIndices,
+} = require("./lib/assignmentRuntime");
 const driveResources = require("./lib/driveResources");
 const { encryptLaunchPayload, decryptLaunchToken } = require("./lib/linkToken");
 const {
@@ -190,21 +194,72 @@ function isQuestionTerminal(record) {
   return status === "correct" || status === "expired";
 }
 
-function calculateAssignmentGrade(assignmentTracker, questionCount) {
-  if (!questionCount) return 0;
-  let earnedCredit = 0;
-  for (let index = 0; index < questionCount; index += 1) {
-    earnedCredit += getQuestionCredit(assignmentTracker?.[index]);
-  }
-  return Math.round((earnedCredit / questionCount) * 100);
+function questionWasAttempted(record) {
+  if (!record || typeof record !== "object") return false;
+  if (Number(record.totalAttempts || record.attemptCount || 0) > 0) return true;
+  if (isQuestionTerminal(record)) return true;
+  return clampPercent(record.bestPartialCredit ?? record.partialCredit ?? 0) > 0;
 }
 
-function isAssignmentComplete(assignmentTracker, questionCount) {
-  if (!questionCount) return false;
-  for (let index = 0; index < questionCount; index += 1) {
-    if (!isQuestionTerminal(assignmentTracker?.[index])) return false;
-  }
-  return true;
+function calculateAssignmentGrade(assignmentTracker, questionIndices) {
+  const indices = Array.isArray(questionIndices) ? questionIndices : [];
+  if (!indices.length) return 0;
+  const earnedCredit = indices.reduce(
+    (total, index) => total + getQuestionCredit(assignmentTracker?.[index]),
+    0
+  );
+  return Math.round((earnedCredit / indices.length) * 100);
+}
+
+function assignmentGradeProgress(assignmentTracker, questionIndices) {
+  const indices = Array.isArray(questionIndices) ? questionIndices : [];
+  const attempted = indices.filter((index) => questionWasAttempted(assignmentTracker?.[index])).length;
+  const terminal = indices.filter((index) => isQuestionTerminal(assignmentTracker?.[index])).length;
+  const attemptedCredit = indices.reduce((total, index) => (
+    questionWasAttempted(assignmentTracker?.[index])
+      ? total + getQuestionCredit(assignmentTracker?.[index])
+      : total
+  ), 0);
+  const minimumProgressQuestions = indices.length
+    ? Math.max(1, Math.ceil(indices.length * 0.2))
+    : 0;
+  return {
+    total: indices.length,
+    attempted,
+    terminal,
+    grade: calculateAssignmentGrade(assignmentTracker, indices),
+    creditOnAttempted: attempted > 0 ? Math.round((attemptedCredit / attempted) * 100) : null,
+    complete: indices.length > 0 && terminal === indices.length,
+    meaningfulProgress: attempted >= minimumProgressQuestions,
+    minimumProgressQuestions,
+  };
+}
+
+function releaseSignalReason(signal) {
+  if (!signal) return null;
+  if (typeof signal === "string") return "manual-retry";
+  if (typeof signal === "object") return String(signal.reason || "manual-retry");
+  return "manual-retry";
+}
+
+function resolveClassroomGradeStage({ assignment, progress, releaseSignal, nowValue = Date.now() }) {
+  const reason = releaseSignalReason(releaseSignal);
+  if (reason === "final-deadline") return "final-deadline";
+  if (reason === "due-checkpoint") return "due-checkpoint";
+  if (reason === "assessment-release") return progress.complete ? "final-complete" : "assessment-release";
+
+  const now = Number(nowValue) || Date.now();
+  const dueAt = toDate(assignment?.dueAt || assignment?.dueDate);
+  const lateDueAt = toDate(
+    assignment?.lateDueAt || assignment?.lateDueDate || assignment?.dueAt || assignment?.dueDate
+  );
+
+  if (progress.complete) return "final-complete";
+  if (lateDueAt && now >= lateDueAt.getTime()) return "final-deadline";
+  if (dueAt && now >= dueAt.getTime()) return "late-progress";
+  if (reason === "manual-retry") return progress.attempted > 0 ? "progress" : null;
+  if (progress.meaningfulProgress) return "progress";
+  return null;
 }
 
 // --- Authentication ---------------------------------------------------------
