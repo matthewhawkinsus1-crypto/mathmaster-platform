@@ -155,8 +155,40 @@ export default function ClassroomManagerV2({
       const key = String(sync.studentId);
       if (!byStudent.has(key)) byStudent.set(key, sync);
     });
+
+    // A student does not need a previous sync row to be regraded. For older
+    // closed work, build missing targets from the saved assignment audience
+    // and the teacher's current student records, then use one owned publication
+    // only as the authorization anchor for retryClassroomGradeSync.
+    const fallbackPublication = links.find((link) => (
+      String(link?.assignmentId || '') === String(selectedAssignment.id)
+      && link?.status === 'published'
+      && link?.courseworkId
+    ));
+    if (fallbackPublication?.id) {
+      const assignedClassIds = new Set((selectedAssignment.assignedClassIds || []).map(clean).filter(Boolean));
+      const assignedPeriods = new Set((selectedAssignment.assignedClassPeriods || []).map(clean).filter(Boolean));
+      students.forEach((student) => {
+        const studentId = clean(student?.id);
+        if (!studentId || byStudent.has(studentId)) return;
+        if (!student?.gradesByAssignment?.[selectedAssignment.id]) return;
+        const inAudience = assignedClassIds.size
+          ? assignedClassIds.has(clean(student?.classId))
+          : assignedPeriods.size
+            ? assignedPeriods.has(clean(student?.classPeriod))
+            : false;
+        if (!inAudience) return;
+        byStudent.set(studentId, {
+          publicationId: fallbackPublication.id,
+          studentId,
+          assignmentId: selectedAssignment.id,
+          status: 'not-yet-synced',
+        });
+      });
+    }
+
     return [...byStudent.values()];
-  }, [gradeSyncs, selectedAssignment?.id]);
+  }, [gradeSyncs, links, selectedAssignment, students]);
 
   const refreshManagerData = async () => {
     // The Classroom manager is a dashboard, not one giant transaction. One
