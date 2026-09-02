@@ -298,6 +298,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
         learningProfilesByStudentId={learningProfilesByStudentId}
         activeClassId={classIdInSession}
         classes={classes}
+        classSchedule={classSchedule}
         supportEvents={studentSupportEvents}
         onRecordSupportEvent={onRecordStudentSupportEvent}
         onRecommendPersonalPath={onRecommendPersonalPath}
