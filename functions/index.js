@@ -4511,175 +4511,231 @@ exports.repairClassroomAssignmentPublications = onCall(
     }
 
     const db = getFirestore();
-    const assignmentSnap = await db.doc(`assignments/${assignmentId}`).get();
+    const assignmentSnap = await db.doc("assignments/" + assignmentId).get();
     if (!assignmentSnap.exists) {
       throw new HttpsError("not-found", "Assignment not found.");
     }
     const assignment = assignmentSnap.data();
     const audience = assignmentAudience(assignment);
-    const publicationSnapshot = await db
-      .collection("classroomLinks")
-      .where("assignmentId", "==", assignmentId)
-      .get();
-    const publications = publicationSnapshot.docs
+    if (!audience.classIds.length) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This MathMaster assignment is not currently assigned to a class."
+      );
+    }
+
+    // Reconcile against the assignment's CURRENT destinations, not every
+    // historic publication that happens to share the assignment id. This is
+    // critical when one lesson is reused across periods: a healthy post in
+    // Period 2 must never make a missing Period 6 post look healthy.
+    const [publicationSnapshot, mappingSnapshot] = await Promise.all([
+      db.collection("classroomLinks")
+        .where("assignmentId", "==", assignmentId)
+        .get(),
+      db.collection("classroomCourseMappings")
+        .where("teacherUid", "==", teacherUid)
+        .limit(100)
+        .get(),
+    ]);
+
+    const existingPublications = publicationSnapshot.docs
       .map((doc) => ({ ref: doc.ref, id: doc.id, data: doc.data() || {} }))
       .filter(({ data }) => !data.teacherUid || data.teacherUid === teacherUid)
-      .filter(({ data }) => data.courseId)
-      .filter(({ data }) => !requestedCourseIds || requestedCourseIds.has(String(data.courseId)));
+      .filter(({ data }) => data.courseId);
 
-    if (!publications.length) {
+    const publicationByCourseId = new Map();
+    for (const publication of existingPublications) {
+      const courseId = String(publication.data.courseId || "");
+      const modernId = publicationDocumentId(assignmentId, courseId);
+      const current = publicationByCourseId.get(courseId);
+      if (!current || publication.id === modernId) {
+        publicationByCourseId.set(courseId, publication);
+      }
+    }
+
+    const mappings = mappingSnapshot.docs
+      .map((doc) => ({ id: doc.id, ...(doc.data() || {}) }))
+      .filter((mapping) => mapping.courseId && mapping.classId);
+
+    const targetMappings = mappings
+      .filter((mapping) => audience.classIds.includes(String(mapping.classId)))
+      .filter((mapping) => !requestedCourseIds || requestedCourseIds.has(String(mapping.courseId)));
+
+    const targetCourseIds = new Set(targetMappings.map((mapping) => String(mapping.courseId)));
+    const mappedClassIds = new Set(targetMappings.map((mapping) => String(mapping.classId)));
+    const ignoredPriorDestinations = existingPublications.filter(
+      (publication) => !targetCourseIds.has(String(publication.data.courseId || ""))
+    ).length;
+
+    const results = [];
+
+    // If the teacher asked MathMaster to check all currently assigned classes,
+    // surface missing Google Classroom mappings as failures instead of
+    // returning a misleading "healthy" result from another period.
+    if (!requestedCourseIds) {
+      const unmappedClassIds = audience.classIds.filter((classId) => !mappedClassIds.has(String(classId)));
+      for (const classId of unmappedClassIds) {
+        // eslint-disable-next-line no-await-in-loop
+        const classSnap = await db.doc("classes/" + String(classId)).get();
+        const classRecord = classSnap.exists ? classSnap.data() || {} : {};
+        results.push({
+          courseId: null,
+          classId: String(classId),
+          courseName: classRecord.name || classRecord.period || ("MathMaster class " + classId),
+          status: "failed",
+          error: "No Google Classroom course is currently mapped to this assigned MathMaster class.",
+        });
+      }
+    }
+
+    if (!targetMappings.length) {
       return {
         assignmentId,
-        results: [],
-        summary: { checked: 0, healthy: 0, reposted: 0, failed: 0, queuedGrades: 0 },
+        results,
+        summary: {
+          checked: results.length,
+          healthy: 0,
+          reposted: 0,
+          failed: results.filter((item) => item.status === "failed").length,
+          queuedGrades: 0,
+          targetDestinations: 0,
+          ignoredPriorDestinations,
+        },
       };
     }
 
     const classroom = await classroomLib.getClassroomClient(teacherUid);
-    const results = [];
+    const activeCourses = await classroomLib.listCourses(classroom);
+    const courseMap = new Map(activeCourses.map((course) => [String(course.id), course]));
 
-    for (const publication of publications) {
-      const data = publication.data;
-      const courseId = String(data.courseId || "");
-      const priorCourseworkId = String(data.courseworkId || "").trim();
-      if (!priorCourseworkId) {
+    // A sibling publication is a safe template for the same MathMaster
+    // assignment's materials/settings when one current destination never got
+    // its own publication record.
+    const publicationTemplate = (
+      existingPublications.find(({ data }) => Array.isArray(data.materials) && data.materials.length)
+      || existingPublications[0]
+      || { data: {} }
+    ).data || {};
+    const classroomPackage = assignment.classroomPackage || {};
+    const assignmentPost = classroomPackage.assignmentPost || {};
+
+    for (const mapping of targetMappings) {
+      const courseId = String(mapping.courseId || "");
+      const course = courseMap.get(courseId);
+      if (!course) {
         results.push({
           courseId,
-          courseName: data.courseName || courseId,
-          publicationId: publication.id,
-          status: "not-published",
-          error: "This publication has no Google Classroom coursework id to repair.",
+          courseName: mapping.courseName || courseId,
+          status: "failed",
+          error: "The connected teacher is not an active teacher in this Google Classroom course.",
         });
         continue;
       }
 
+      const publication = publicationByCourseId.get(courseId) || null;
+      const data = publication?.data || publicationTemplate;
+      const priorCourseworkId = String(publication?.data?.courseworkId || "").trim();
       let existingCourseWork = null;
-      try {
-        // A healthy post must be THIS MathMaster publication, not merely any
-        // live Classroom item at the remembered coursework id. The unique
-        // marker is the publication identity.
+
+      if (publication && priorCourseworkId) {
+        try {
+          // A healthy post must be THIS MathMaster publication in THIS current
+          // Google Classroom course. Posts for sibling periods are ignored.
+          // eslint-disable-next-line no-await-in-loop
+          existingCourseWork = await classroomLib.getCourseWork(
+            classroom,
+            courseId,
+            priorCourseworkId
+          );
+          if (courseWorkMatchesPublication(existingCourseWork, publication.id)) {
+            results.push({
+              courseId,
+              courseName: course.name || data.courseName || courseId,
+              publicationId: publication.id,
+              courseworkId: priorCourseworkId,
+              classroomUrl: existingCourseWork.alternateLink || data.classroomUrl || null,
+              status: "healthy",
+            });
+            continue;
+          }
+          logger.warn(
+            "Classroom coursework id " + priorCourseworkId
+              + " exists but does not match publication " + publication.id
+              + "; repairing the stale link."
+          );
+        } catch (error) {
+          if (!classroomDeleteAlreadyGone(error)) {
+            results.push({
+              courseId,
+              courseName: course.name || data.courseName || courseId,
+              publicationId: publication.id,
+              courseworkId: priorCourseworkId,
+              status: "failed",
+              error: "Could not verify the existing Classroom assignment: " + String(error.message || error),
+            });
+            continue;
+          }
+        }
+
+        // Change only the publication state needed to let publishOneCourse
+        // claim a repair lease. Keep the missing id until the replacement
+        // succeeds so failures remain diagnosable and retryable.
         // eslint-disable-next-line no-await-in-loop
-        existingCourseWork = await classroomLib.getCourseWork(
-          classroom,
-          courseId,
-          priorCourseworkId
-        );
-        if (courseWorkMatchesPublication(existingCourseWork, publication.id)) {
+        const claimedForRepair = await db.runTransaction(async (transaction) => {
+          const currentSnap = await transaction.get(publication.ref);
+          if (!currentSnap.exists) return false;
+          const current = currentSnap.data() || {};
+          if (current.teacherUid && current.teacherUid !== teacherUid) return false;
+          if (String(current.courseworkId || "") !== priorCourseworkId) return false;
+          transaction.set(
+            publication.ref,
+            {
+              status: "missing",
+              missingCourseworkId: priorCourseworkId,
+              missingReason: existingCourseWork
+                ? "stored-coursework-id-does-not-match-publication"
+                : "stored-coursework-id-not-found",
+              missingDetectedAt: FieldValue.serverTimestamp(),
+              error: FieldValue.delete(),
+              updatedAt: FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+          return true;
+        });
+        if (!claimedForRepair) {
           results.push({
             courseId,
-            courseName: data.courseName || courseId,
+            courseName: course.name || data.courseName || courseId,
             publicationId: publication.id,
             courseworkId: priorCourseworkId,
-            classroomUrl: existingCourseWork.alternateLink || data.classroomUrl || null,
-            status: "healthy",
+            status: "changed",
+            error: "The Classroom publication changed while MathMaster was checking it. Refresh and try again.",
           });
           continue;
         }
-        logger.warn(
-          `Classroom coursework id ${priorCourseworkId} exists but does not match publication ${publication.id}; repairing the stale link.`
-        );
-      } catch (error) {
-        if (!classroomDeleteAlreadyGone(error)) {
-          results.push({
-            courseId,
-            courseName: data.courseName || courseId,
-            publicationId: publication.id,
-            courseworkId: priorCourseworkId,
-            status: "failed",
-            error: `Could not verify the existing Classroom assignment: ${String(error.message || error)}`,
-          });
-          continue;
-        }
       }
 
-      // Re-validate the live course mapping before creating anything outward
-      // facing. A stale publication may not be used to post into a course that
-      // is now mapped to a different MathMaster class.
-      // eslint-disable-next-line no-await-in-loop
-      const mapping = await getTeacherClassroomMapping(db, teacherUid, courseId);
-      const mappedClassId = String(mapping?.classId || "").trim();
-      if (!mapping || !mappedClassId) {
-        results.push({
-          courseId,
-          courseName: data.courseName || courseId,
-          publicationId: publication.id,
-          courseworkId: priorCourseworkId,
-          status: "failed",
-          error: "Map this Google Classroom course to a MathMaster class before reposting.",
-        });
-        continue;
-      }
-      if (!audience.classIds.includes(mappedClassId)) {
-        results.push({
-          courseId,
-          courseName: data.courseName || courseId,
-          publicationId: publication.id,
-          courseworkId: priorCourseworkId,
-          status: "failed",
-          error: "This Google Classroom course is no longer mapped to a class assigned this MathMaster assignment.",
-        });
-        continue;
-      }
+      const safeMaterials = preferDriveNotesMaterial(
+        cleanMaterials(Array.isArray(data.materials) ? data.materials : publicationTemplate.materials),
+        assignment
+      );
 
-      // Change only the publication state needed to let publishOneCourse claim a
-      // repair lease. Keep the missing id on the record until the replacement
-      // succeeds so failures remain diagnosable and retryable.
-      // eslint-disable-next-line no-await-in-loop
-      const claimedForRepair = await db.runTransaction(async (transaction) => {
-        const currentSnap = await transaction.get(publication.ref);
-        if (!currentSnap.exists) return false;
-        const current = currentSnap.data() || {};
-        if (
-          current.teacherUid
-          && current.teacherUid !== teacherUid
-        ) return false;
-        if (String(current.courseworkId || "") !== priorCourseworkId) return false;
-        transaction.set(
-          publication.ref,
-          {
-            status: "missing",
-            missingCourseworkId: priorCourseworkId,
-            missingReason: existingCourseWork
-              ? "stored-coursework-id-does-not-match-publication"
-              : "stored-coursework-id-not-found",
-            missingDetectedAt: FieldValue.serverTimestamp(),
-            error: FieldValue.delete(),
-            updatedAt: FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
-        return true;
-      });
-      if (!claimedForRepair) {
-        results.push({
-          courseId,
-          courseName: data.courseName || courseId,
-          publicationId: publication.id,
-          courseworkId: priorCourseworkId,
-          status: "changed",
-          error: "The Classroom publication changed while MathMaster was checking it. Refresh and try again.",
-        });
-        continue;
-      }
-
-      const classroomPackage = assignment.classroomPackage || {};
-      const assignmentPost = classroomPackage.assignmentPost || {};
+      // No publication for this current course is also a repair case. This is
+      // the gap that used to let a healthy sibling-period post hide a missing
+      // destination. publishOneCourse creates the per-course publication id.
       // eslint-disable-next-line no-await-in-loop
       const republished = await publishOneCourse({
         classroom,
         teacherUid,
         assignmentId,
         assignment,
-        course: {
-          id: courseId,
-          name: data.courseName || courseId,
-          section: data.courseSection || "",
-        },
+        course,
         mapping,
-        materials: Array.isArray(data.materials) ? data.materials : [],
+        materials: safeMaterials,
         topicName: data.topicName || classroomPackage?.topic?.name || "",
         instructions: assignmentPost.instructions
-          || `Complete "${assignment.title || data.title || "MathMaster Assignment"}" in MathMaster.`,
+          || ("Complete \"" + (assignment.title || data.title || "MathMaster Assignment") + "\" in MathMaster."),
         classroomTitle: assignmentPost.title || data.title || assignment.title,
         maxPoints: Number(data.maxPoints || assignmentPost.maxPoints) || 100,
         gradePassbackEnabled: data.gradePassbackEnabled !== false,
@@ -4688,27 +4744,42 @@ exports.repairClassroomAssignmentPublications = onCall(
       if (!["published", "already-published"].includes(republished.status)) {
         results.push({
           courseId,
-          courseName: data.courseName || courseId,
-          publicationId: publication.id,
-          courseworkId: priorCourseworkId,
+          courseName: course.name || data.courseName || courseId,
+          publicationId: publication?.id || republished.publicationId || null,
+          courseworkId: priorCourseworkId || null,
           status: "failed",
           error: republished.error || "Google Classroom could not recreate the assignment.",
         });
         continue;
       }
 
-      // eslint-disable-next-line no-await-in-loop
-      await publication.ref.set(
-        {
-          repostedAt: FieldValue.serverTimestamp(),
-          repostedBy: teacherUid,
-          repostedFromCourseworkId: priorCourseworkId,
-          missingCourseworkId: FieldValue.delete(),
-          missingReason: FieldValue.delete(),
-          missingDetectedAt: FieldValue.delete(),
-        },
-        { merge: true }
-      );
+      const resolvedPublicationId = publication?.id || republished.publicationId || publicationDocumentId(assignmentId, courseId);
+      if (publication && priorCourseworkId) {
+        // eslint-disable-next-line no-await-in-loop
+        await publication.ref.set(
+          {
+            repostedAt: FieldValue.serverTimestamp(),
+            repostedBy: teacherUid,
+            repostedFromCourseworkId: priorCourseworkId,
+            missingCourseworkId: FieldValue.delete(),
+            missingReason: FieldValue.delete(),
+            missingDetectedAt: FieldValue.delete(),
+          },
+          { merge: true }
+        );
+      } else {
+        const resolved = await resolvePublicationRef(db, assignmentId, courseId);
+        // eslint-disable-next-line no-await-in-loop
+        await resolved.ref.set(
+          {
+            repostedAt: FieldValue.serverTimestamp(),
+            repostedBy: teacherUid,
+            repostedFromCourseworkId: null,
+            repostReason: publication ? "publication-had-no-coursework-id" : "missing-publication-record",
+          },
+          { merge: true }
+        );
+      }
 
       let gradeQueue = { linkedStudents: 0, queuedStudents: 0 };
       try {
@@ -4721,7 +4792,9 @@ exports.repairClassroomAssignmentPublications = onCall(
         });
       } catch (error) {
         logger.error(
-          `Reposted Classroom assignment ${assignmentId} to course ${courseId}, but could not queue existing grades`,
+          "Reposted Classroom assignment " + assignmentId
+            + " to course " + courseId
+            + ", but could not queue existing grades",
           error
         );
         gradeQueue = {
@@ -4733,15 +4806,18 @@ exports.repairClassroomAssignmentPublications = onCall(
 
       results.push({
         courseId,
-        courseName: data.courseName || courseId,
-        publicationId: publication.id,
+        courseName: course.name || data.courseName || courseId,
+        publicationId: resolvedPublicationId,
         status: "reposted",
-        oldCourseworkId: priorCourseworkId,
+        oldCourseworkId: priorCourseworkId || null,
         courseworkId: republished.courseworkId,
         classroomUrl: republished.classroomUrl || null,
         linkedStudents: gradeQueue.linkedStudents,
         queuedGrades: gradeQueue.queuedStudents,
         gradeQueueError: gradeQueue.error || null,
+        repostReason: publication
+          ? (priorCourseworkId ? "missing-or-mismatched-coursework" : "publication-had-no-coursework-id")
+          : "missing-publication-record",
       });
     }
 
@@ -4754,6 +4830,8 @@ exports.repairClassroomAssignmentPublications = onCall(
         reposted: results.filter((item) => item.status === "reposted").length,
         failed: results.filter((item) => ["failed", "changed"].includes(item.status)).length,
         queuedGrades: results.reduce((total, item) => total + Number(item.queuedGrades || 0), 0),
+        targetDestinations: targetMappings.length,
+        ignoredPriorDestinations,
       },
     };
   }
