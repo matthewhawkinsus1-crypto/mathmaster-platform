@@ -296,3 +296,65 @@ test('workflow domain/range stages grade roster-form sets semantically', () => {
     'a different member must still fail',
   );
 });
+
+
+test('axis setup awards fractional stage credit instead of all-or-nothing', () => {
+  const stage = { id: 'axes', kind: 'axisSetup' };
+  const rule = {
+    xLabel: ['Time'],
+    yLabel: ['Amount'],
+    xUnit: ['minutes'],
+    yUnit: ['gallons'],
+    xStep: ['1'],
+    yStep: ['12'],
+    requireUnits: true,
+    requireScale: true,
+  };
+  const response = {
+    __mathmasterWorkflowArtifact: 'axes',
+    isComplete: true,
+    xLabel: 'Time',
+    yLabel: 'Amount',
+    xUnit: 'minutes',
+    yUnit: 'gallons',
+    xStep: '1',
+    yStep: '10',
+  };
+  const mark = gradeStage({ stage, rule, responses: { axes: response } });
+  assert.equal(mark.isCorrect, false);
+  assert.equal(mark.credit, 5 / 6);
+});
+
+test('table consistency awards credit for the rows that follow the student model', () => {
+  const stage = { id: 'table', kind: 'tableInput', xValues: [0, 1, 2, 3], responseColumn: 'y' };
+  const rule = { consistentWith: 'equation' };
+  const mark = gradeStage({
+    stage,
+    rule,
+    responses: {
+      equation: 'f(x)=2x',
+      table: {
+        __mathmasterWorkflowArtifact: 'table',
+        isComplete: true,
+        cells: { '0:y': '0', '1:y': '2', '2:y': '5', '3:y': '6' },
+        sourceModel: 'f(x)=2x',
+      },
+    },
+  });
+  assert.equal(mark.isCorrect, false);
+  assert.equal(mark.credit, 0.75);
+});
+
+test('workflow scoreWeight changes partial-credit contribution without changing correctness', () => {
+  const stages = [
+    { id: 'equation', kind: 'equationInput', scoreWeight: 3 },
+    { id: 'classification', kind: 'classification', scoreWeight: 1 },
+  ];
+  const result = gradeWorkflow({
+    stages,
+    grading: { equation: 'f(x)=2x', classification: 'continuous' },
+    responses: { equation: 'f(x)=2x', classification: 'discrete' },
+  });
+  assert.equal(result.isCorrect, false);
+  assert.equal(result.partialCreditPercent, 75);
+});
