@@ -2116,6 +2116,72 @@ function App() {
     };
   }, [user?.role, teacherTab, allStudents]);
 
+  // The server writes one compact receipt only after Google Classroom accepts
+  // a grade patch. Listening to that receipt gives students confirmation from
+  // the authoritative passback result rather than assuming a network request
+  // worked. We deliberately do NOT replace the local assignment tracker from
+  // this snapshot; student answers remain controlled by the normal save path.
+  useEffect(() => {
+    if (user?.role !== 'student' || !user.id) {
+      setClassroomSyncStatusByAssignment({});
+      classroomSyncNoticeRef.current = {};
+      return undefined;
+    }
+
+    return onSnapshot(
+      doc(db, 'grades', user.id),
+      (snapshot) => {
+        if (!snapshot.exists()) return;
+        const next = snapshot.data()?.classroomSyncStatusByAssignment || {};
+        setClassroomSyncStatusByAssignment(next);
+
+        Object.entries(next).forEach(([assignmentId, receipt]) => {
+          const notificationId = receipt?.notificationId;
+          if (!notificationId) return;
+          if (classroomSyncNoticeRef.current[assignmentId] === notificationId) return;
+          classroomSyncNoticeRef.current[assignmentId] = notificationId;
+
+          const assignment = assignments.find((item) => item.id === assignmentId);
+          const title = assignment?.title || 'Your assignment';
+          const grade = Number.isFinite(Number(receipt?.grade)) ? Number(receipt.grade) : null;
+          const gradeText = grade == null ? 'Your grade' : `${grade}%`;
+          const stage = String(receipt?.stage || '');
+          const final = receipt?.isFinal === true || stage.startsWith('final-');
+
+          if (final) {
+            toastSuccess(
+              'Final grade sent to Google Classroom',
+              `${title}: ${gradeText} was confirmed by Google Classroom as the final MathMaster grade.`,
+            );
+            return;
+          }
+
+          if (stage === 'due-checkpoint') {
+            toastSuccess(
+              'Due-date grade sent to Google Classroom',
+              `${title}: ${gradeText} is your current grade at the regular due date. Late work can still improve it before the final cutoff.`,
+            );
+            return;
+          }
+
+          if (stage === 'assessment-release') {
+            toastSuccess(
+              'Released grade sent to Google Classroom',
+              `${title}: ${gradeText} was sent after your teacher released the assessment grade.`,
+            );
+            return;
+          }
+
+          toastSuccess(
+            'Progress grade sent to Google Classroom',
+            `${title}: your current ${gradeText} was sent as a progress grade. It is not final—keep working to raise it.`,
+          );
+        });
+      },
+      (error) => console.error('Could not watch Google Classroom grade receipts:', error),
+    );
+  }, [user?.role, user?.id, assignments, toastSuccess]);
+
   // DOL reminders are global to the student experience, not just the open
   // assignment. The persistent purple DOL card/banner is the primary notice;
   // this reminder repeats every two minutes until the student submits once.
