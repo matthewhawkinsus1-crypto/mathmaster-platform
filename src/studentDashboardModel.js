@@ -228,7 +228,14 @@ export const buildStudentDashboardModel = ({
       const questionsDone = assignmentTracker
         ? includedIndices.filter((index) => ['correct', 'expired'].includes(normalizeQuestionRecord(assignmentTracker[index]).status)).length
         : 0;
-      const started = questionsDone > 0 && questionsDone < questionsTotal;
+      const questionsAttempted = assignmentTracker
+        ? includedIndices.filter((index) => {
+          const record = normalizeQuestionRecord(assignmentTracker[index]);
+          return Number(record.totalAttempts || record.attemptCount || 0) > 0
+            || record.status !== 'unattempted';
+        }).length
+        : 0;
+      const started = questionsAttempted > 0 && questionsDone < questionsTotal;
 
       // Order matters and encodes the priority a student should read off the
       // screen. Finished first (nothing else applies to it), then practice-only
@@ -251,7 +258,7 @@ export const buildStudentDashboardModel = ({
       return {
         started,
         assignment, assignmentTracker, isAttempted, lifecycle, access, recordedGrade,
-        activity, classwork, dol, disabled, feedbackHeld, bucket, questionsTotal, questionsDone,
+        activity, classwork, dol, disabled, feedbackHeld, bucket, questionsTotal, questionsDone, questionsAttempted,
       };
     });
 
