@@ -87,12 +87,19 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
     .filter(({ state }) => ['waiting', 'active'].includes(state.status));
 
   const liveWarmupControls = periodInSession === 'all' ? [] : assignments
-    .filter((assignment) => assignmentIsForStudent(assignment, classContextInSession))
+    .filter((assignment) => (
+      assignmentIsForStudent(assignment, classContextInSession)
+      && getAssignmentLifecycle(assignment, nowValue).isOpen
+    ))
     .map((assignment) => ({
       assignment,
       state: getWarmupState({ assignment, schedule: classSchedule, classId: classIdInSession, classPeriod: periodInSession, nowValue }),
     }))
-    .filter(({ state }) => ['active', 'closed'].includes(state.status));
+    // Keep an authored Warm-Up visible even when its saved instructional date
+    // is stale. The live hub is where a teacher fixes that by choosing
+    // "Open Warm-Up Today"; hiding notToday/unscheduled states made the repair
+    // control impossible to reach.
+    .filter(({ state }) => state.enabled && state.window && state.status !== 'ended');
 
   const liveSectionControls = periodInSession === 'all' ? [] : assignments
     .filter((assignment) => assignmentIsForStudent(assignment, classContextInSession) && getAssignmentLifecycle(assignment, nowValue).isOpen)
@@ -145,12 +152,20 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
             {liveWarmupControls.map(({ assignment, state }) => {
               const busyKey = `${assignment.id}:${classIdInSession || periodInSession}`;
               const closed = state.status === 'closed';
+              const needsOpenToday = ['notToday', 'unscheduled'].includes(state.status);
+              const waiting = state.status === 'waiting';
               const timerMinutes = Number(warmupTimerMinutesByKey[busyKey] || 5);
-              const statusText = closed
-                ? 'Closed for new responses · saved work remains visible'
-                : state.autoCloseScheduled
-                  ? `Open now · closes automatically in ${Math.max(1, Math.ceil(state.millisecondsRemaining / 60000))} min`
-                  : 'Open now · students can begin immediately';
+              const statusText = needsOpenToday
+                ? state.status === 'notToday'
+                  ? `Warm-Up is dated for ${state.instructionDateKey || 'another day'} · open it for this class today`
+                  : 'Warm-Up has no instructional date · open it for this class today'
+                : waiting
+                  ? `Waiting for the normal opening window · ${state.minutesBeforeStart} min before class`
+                  : closed
+                    ? 'Closed for new responses · saved work remains visible'
+                    : state.autoCloseScheduled
+                      ? `Open now · closes automatically in ${Math.max(1, Math.ceil(state.millisecondsRemaining / 60000))} min`
+                      : 'Open now · students can begin immediately';
               return (
                 <div key={assignment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: '#fff' }}>
                   <div>
@@ -158,8 +173,25 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
                     <div style={{ marginTop: 3, fontSize: 12 }}>{statusText}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <button type="button" disabled={warmupControlBusyKey === busyKey} onClick={() => onToggleWarmup?.(assignment, classContextInSession)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: closed ? '#188038' : '#b06000', color: '#fff', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}>
-                      {warmupControlBusyKey === busyKey ? 'Saving…' : closed ? 'Reopen Warm-Up' : 'Close Warm-Up'}
+                    <button
+                      type="button"
+                      disabled={warmupControlBusyKey === busyKey || waiting}
+                      onClick={() => onToggleWarmup?.(
+                        assignment,
+                        classContextInSession,
+                        needsOpenToday || closed ? { action: 'reopen' } : { action: 'close' },
+                      )}
+                      style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: needsOpenToday || closed ? '#188038' : waiting ? '#9aa0a6' : '#b06000', color: '#fff', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : waiting ? 'not-allowed' : 'pointer' }}
+                    >
+                      {warmupControlBusyKey === busyKey
+                        ? 'Saving…'
+                        : needsOpenToday
+                          ? 'Open Warm-Up Today'
+                          : closed
+                            ? 'Reopen Warm-Up'
+                            : waiting
+                              ? 'Opens automatically'
+                              : 'Close Warm-Up'}
                     </button>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800 }}>
                       Timer
@@ -178,7 +210,13 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
                       onClick={() => onToggleWarmup?.(assignment, classContextInSession, { action: 'timer', autoCloseMinutes: timerMinutes })}
                       style={{ minHeight: 40, padding: '8px 13px', border: '1px solid #188038', borderRadius: 8, background: '#fff', color: '#137333', fontWeight: 900, cursor: warmupControlBusyKey === busyKey ? 'wait' : 'pointer' }}
                     >
-                      {closed ? `Reopen for ${timerMinutes} min` : state.autoCloseScheduled ? `Reset to ${timerMinutes} min` : `Close in ${timerMinutes} min`}
+                      {needsOpenToday
+                        ? `Open for ${timerMinutes} min`
+                        : closed
+                          ? `Reopen for ${timerMinutes} min`
+                          : state.autoCloseScheduled
+                            ? `Reset to ${timerMinutes} min`
+                            : `Close in ${timerMinutes} min`}
                     </button>
                   </div>
                 </div>
