@@ -177,9 +177,15 @@ test('V5 persistence preserves controlled wording choices on a live relationship
     ],
   };
   const v5 = storedAssignmentToV5({
+    schemaVersion: 5,
     id: 'live-assignment',
     title: 'Module 1 Topic 1 Review — Quantities and Relationships',
     courseId: 'algebra1',
+    assignment: {
+      id: 'live-assignment',
+      title: 'Module 1 Topic 1 Review — Quantities and Relationships',
+      courseId: 'algebra1',
+    },
     sections: [
       { id: 'section-3', role: 'practice', title: 'Practice', questions: [repaired] },
     ],
