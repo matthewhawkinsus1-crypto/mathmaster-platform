@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { readQuestionDraft, writeQuestionDraft } from './questionDraftStorage';
 
 const cloneValue = (value) => {
@@ -36,5 +36,14 @@ export default function useLocalDraftState(storageKey, initialValue) {
     writeQuestionDraft(storageKey, value);
   }, [storageKey, value]);
 
-  return [value, setValue];
+  const setPersistedValue = useCallback((nextValue) => {
+    setValue((current) => {
+      const resolved = typeof nextValue === 'function' ? nextValue(current) : nextValue;
+      const saved = cloneValue(resolved);
+      writeQuestionDraft(storageKey, saved);
+      return saved;
+    });
+  }, [storageKey]);
+
+  return [value, setPersistedValue];
 }
