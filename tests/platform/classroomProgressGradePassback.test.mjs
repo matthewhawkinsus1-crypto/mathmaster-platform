@@ -36,7 +36,9 @@ test('Classroom sync no longer waits for total assignment completion', () => {
   const sync = src.slice(start, end);
 
   assert.match(sync, /runtimeIncludedQuestionIndices\(assignment\)/);
-  assert.match(sync, /assignmentGradeProgress\(assignmentTracker, questionIndices\)/);
+  assert.match(sync, /runtimeQuestionsFromAssignment\(assignment\)/);
+  assert.match(sync, /assignmentGradeProgress\(assignmentTracker, questionIndices, questions\)/);
+  assert.match(sync, /weightedQuestionTotals/);
   assert.match(sync, /resolveClassroomGradeStage/);
   assert.doesNotMatch(sync, /isAssignmentComplete/);
   assert.match(sync, /progress\.grade/);
