@@ -4127,24 +4127,13 @@ function App() {
       toastWarning('No Warm-Up section', 'This assignment does not have an authored Warm-Up section.');
       return;
     }
-    if (state.status === 'notToday') {
-      toastWarning('Warm-Up is not scheduled today', `This Warm-Up is scheduled for ${state.instructionDateKey || 'another date'}.`);
-      return;
-    }
     if (!state.window) {
       toastWarning('Bell schedule needed', `Set today’s A/B day and bell times for ${classPeriod} before controlling its Warm-Up.`);
       return;
     }
-    if (state.status === 'waiting') {
-      toastInfo('Warm-Up has not opened yet', `It opens ${state.minutesBeforeStart} minutes before ${classLabel} begins.`);
-      return;
-    }
-    if (state.status === 'ended') {
-      toastWarning('Class period ended', 'The Warm-Up is already read-only because this class period has ended.');
-      return;
-    }
 
     const requestedAction = String(control?.action || '').trim();
+    const needsOpenToday = ['notToday', 'unscheduled'].includes(state.status);
     const action = ['close', 'reopen', 'timer'].includes(requestedAction)
       ? requestedAction
       : state.status === 'active'
@@ -4155,6 +4144,22 @@ function App() {
       ? Math.max(1, Math.min(60, Math.round(requestedTimerMinutes)))
       : 5;
     const nowMs = Date.now();
+
+    // A stale instructional date must not hide the teacher's live control, but
+    // it also must not let a teacher reopen yesterday's class after the bell.
+    if (nowMs > state.window.end.getTime()) {
+      toastWarning('Class period ended', 'The Warm-Up cannot be reopened after this class period has ended.');
+      return;
+    }
+    if (state.opensAt && nowMs < state.opensAt.getTime()) {
+      toastInfo('Warm-Up has not opened yet', `It opens ${state.minutesBeforeStart} minutes before ${classLabel} begins.`);
+      return;
+    }
+    if (state.status === 'ended') {
+      toastWarning('Class period ended', 'The Warm-Up is already read-only because this class period has ended.');
+      return;
+    }
+
     const timerClosesAt = action === 'timer'
       ? new Date(Math.min(state.window.end.getTime(), nowMs + timerMinutes * 60000))
       : null;
@@ -4173,22 +4178,27 @@ function App() {
     }
 
     const closesAtLabel = timerClosesAt?.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const openVerb = needsOpenToday ? 'Open' : 'Reopen';
     const proceed = await confirmAction({
       title: action === 'timer'
-        ? `${state.status === 'closed' ? 'Reopen' : 'Keep'} the Warm-Up open with a timer for ${classLabel}?`
-        : `${action === 'close' ? 'Close' : 'Reopen'} the Warm-Up for ${classLabel}?`,
+        ? `${needsOpenToday ? 'Open' : state.status === 'closed' ? 'Reopen' : 'Keep'} the Warm-Up open with a timer for ${classLabel}?`
+        : `${action === 'close' ? 'Close' : openVerb} the Warm-Up${needsOpenToday ? ' today' : ''} for ${classLabel}?`,
       message: action === 'close'
         ? 'Students in this class will keep their saved work for review, but they will not be able to make new Warm-Up submissions. Other classes are unaffected.'
         : action === 'reopen'
-          ? 'Students in this class will be able to continue the Warm-Up until you close it again or the class period ends.'
+          ? needsOpenToday
+            ? 'MathMaster will make today the Warm-Up instructional date for this class only. Students can continue immediately; other classes and their dates are unaffected.'
+            : 'Students in this class will be able to continue the Warm-Up until you close it again or the class period ends.'
           : `Students in this class will be able to work until ${closesAtLabel}. The Warm-Up will then close automatically and saved work will remain available for review. Other classes are unaffected.`,
       confirmLabel: action === 'close'
         ? 'Close Warm-Up'
         : action === 'reopen'
-          ? 'Reopen Warm-Up'
-          : state.status === 'closed'
-            ? `Reopen for ${timerMinutes} min`
-            : `Set ${timerMinutes}-min timer`,
+          ? needsOpenToday ? 'Open Warm-Up Today' : 'Reopen Warm-Up'
+          : needsOpenToday
+            ? `Open for ${timerMinutes} min`
+            : state.status === 'closed'
+              ? `Reopen for ${timerMinutes} min`
+              : `Set ${timerMinutes}-min timer`,
     });
     if (!proceed) return;
 
@@ -4205,14 +4215,20 @@ function App() {
       };
       const closedByClassId = { ...(assignment.warmup?.closedByClassId || {}) };
       const autoCloseByClassId = { ...(assignment.warmup?.autoCloseByClassId || {}) };
+      const instructionDatesByClassId = { ...(assignment.warmup?.instructionDatesByClassId || {}) };
 
       if (action === 'close') {
         closedByClassId[classId] = { dateKey, closedAt: changedAt, closedBy: teacherIdentity };
         delete autoCloseByClassId[classId];
       } else if (action === 'reopen') {
+        // Reopening is an explicit live-teacher decision. Pin today's date to
+        // this real class id so a reused assignment or sibling period cannot
+        // make the control disappear again.
+        instructionDatesByClassId[classId] = dateKey;
         delete closedByClassId[classId];
         delete autoCloseByClassId[classId];
       } else {
+        instructionDatesByClassId[classId] = dateKey;
         delete closedByClassId[classId];
         autoCloseByClassId[classId] = {
           dateKey,
@@ -4222,17 +4238,21 @@ function App() {
         };
       }
 
+      warmup.instructionDatesByClassId = instructionDatesByClassId;
       warmup.closedByClassId = closedByClassId;
       warmup.autoCloseByClassId = autoCloseByClassId;
       await updateDoc(doc(db, 'assignments', assignment.id), { warmup, updatedAt: changedAt });
 
       if (action === 'timer') {
         toastSuccess(
-          state.status === 'closed' ? 'Warm-Up reopened with timer' : 'Warm-Up timer set',
+          needsOpenToday ? 'Warm-Up opened for today with timer' : state.status === 'closed' ? 'Warm-Up reopened with timer' : 'Warm-Up timer set',
           `${assignment.title} · ${classLabel} · closes automatically at ${closesAtLabel}`,
         );
       } else {
-        toastSuccess(action === 'close' ? 'Warm-Up closed' : 'Warm-Up reopened', `${assignment.title} · ${classLabel}`);
+        toastSuccess(
+          action === 'close' ? 'Warm-Up closed' : needsOpenToday ? 'Warm-Up opened for today' : 'Warm-Up reopened',
+          `${assignment.title} · ${classLabel}`,
+        );
       }
     } catch (error) {
       console.error(error);
