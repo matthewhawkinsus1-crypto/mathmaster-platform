@@ -5547,7 +5547,10 @@ exports.retryClassroomGradeSync = onCall(async (request) => {
   }
   await gradeRef.update(
     new FieldPath("classroomReleaseSignals", String(assignmentId)),
-    new Date().toISOString()
+    {
+      requestedAt: new Date().toISOString(),
+      reason: "manual-retry",
+    }
   );
   return { queued: true };
 });
@@ -5561,8 +5564,8 @@ exports.syncGradeToClassroom = onDocumentWritten(
     const after = event.data?.after;
     if (!after || !after.exists) return;
 
-    const afterData = after.data();
-    const beforeData = event.data?.before?.exists ? event.data.before.data() : {};
+    const afterData = after.data() || {};
+    const beforeData = event.data?.before?.exists ? event.data.before.data() || {} : {};
     const afterByAssignment = afterData.gradesByAssignment || {};
     const beforeByAssignment = beforeData.gradesByAssignment || {};
     const gradeChangedAssignmentIds = Object.keys(afterByAssignment).filter(
@@ -5577,6 +5580,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
         JSON.stringify(afterReleaseSignals[assignmentId]) !==
         JSON.stringify(beforeReleaseSignals[assignmentId])
     );
+    const releaseSignalSet = new Set(releaseSignaledAssignmentIds);
     const changedAssignmentIds = [...new Set([
       ...gradeChangedAssignmentIds,
       ...releaseSignaledAssignmentIds,
@@ -5587,16 +5591,33 @@ exports.syncGradeToClassroom = onDocumentWritten(
     const classroomByTeacher = new Map();
 
     for (const assignmentId of changedAssignmentIds) {
+      // eslint-disable-next-line no-await-in-loop
       const assignmentSnap = await db.doc(`assignments/${assignmentId}`).get();
-      const assignment = assignmentSnap.exists ? assignmentSnap.data() : {};
+      if (!assignmentSnap.exists) continue;
+      const assignment = assignmentSnap.data() || {};
       if (assignmentFeedbackIsHeld(assignment)) continue;
-      const questionCount = assignmentSnap.exists
-        ? runtimeQuestionCount(assignment)
-        : 0;
-      const assignmentTracker = afterByAssignment[assignmentId];
-      if (!isAssignmentComplete(assignmentTracker, questionCount)) continue;
 
-      const grade = calculateAssignmentGrade(assignmentTracker, questionCount);
+      const questionIndices = runtimeIncludedQuestionIndices(assignment);
+      if (!questionIndices.length) continue;
+
+      const assignmentTracker = afterByAssignment[assignmentId] || {};
+      const progress = assignmentGradeProgress(assignmentTracker, questionIndices);
+      const releaseSignal = releaseSignalSet.has(assignmentId)
+        ? afterReleaseSignals[assignmentId]
+        : null;
+      const stage = resolveClassroomGradeStage({
+        assignment,
+        progress,
+        releaseSignal,
+        nowValue: Date.now(),
+      });
+      if (!stage) continue;
+
+      const grade = progress.grade;
+      const isFinal = ["final-complete", "final-deadline"].includes(stage);
+      const forceRetry = releaseSignalReason(releaseSignal) === "manual-retry";
+
+      // eslint-disable-next-line no-await-in-loop
       const publicationsSnap = await db
         .collection("classroomLinks")
         .where("assignmentId", "==", assignmentId)
@@ -5606,11 +5627,29 @@ exports.syncGradeToClassroom = onDocumentWritten(
       );
       if (publications.length === 0) continue;
 
+      const successfulCourses = [];
+
       for (const publicationDoc of publications) {
-        const publication = publicationDoc.data();
+        const publication = publicationDoc.data() || {};
         if (publication.gradePassbackEnabled === false) continue;
         const courseId = String(publication.courseId || "");
         if (!courseId) continue;
+
+        // Do not send the same grade/stage repeatedly just because a student
+        // spent more time on the same saved answer. Manual retry deliberately
+        // bypasses this so a teacher can repair an external Classroom issue.
+        const syncId = gradeSyncDocumentId(publicationDoc.id, event.params.studentId);
+        // eslint-disable-next-line no-await-in-loop
+        const priorAuditSnap = await db.doc(`classroomGradeSyncs/${syncId}`).get();
+        const priorAudit = priorAuditSnap.exists ? priorAuditSnap.data() || {} : {};
+        if (
+          !forceRetry
+          && priorAudit.status === "synced"
+          && Number(priorAudit.grade) === Number(grade)
+          && String(priorAudit.stage || "") === stage
+        ) {
+          continue;
+        }
 
         const publicationTeacherUid = publication.teacherUid || null;
         const classroomKey = publicationTeacherUid || "__legacy__";
@@ -5621,15 +5660,18 @@ exports.syncGradeToClassroom = onDocumentWritten(
             classroom = await classroomLib.getClassroomClient(publicationTeacherUid);
             classroomByTeacher.set(classroomKey, classroom);
           } catch (err) {
-            // Keep an auth failure visible per publication instead of aborting
-            // the whole grade-trigger run for every other Classroom course.
             // eslint-disable-next-line no-await-in-loop
             await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
               assignmentId,
               courseId,
               courseworkId: publication.courseworkId,
               status: "auth-error",
+              stage,
               grade,
+              attempted: progress.attempted,
+              total: progress.total,
+              creditOnAttempted: progress.creditOnAttempted,
+              isFinal,
               message: String(err.message || err),
             });
             continue;
@@ -5640,6 +5682,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
           courseId,
           event.params.studentId
         );
+        // eslint-disable-next-line no-await-in-loop
         const rosterLinkSnap = await db
           .doc(`classroomRosterLinks/${rosterLinkId}`)
           .get();
@@ -5654,34 +5697,48 @@ exports.syncGradeToClassroom = onDocumentWritten(
             : null;
 
         if (!googleUserId) {
+          // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
             status: "skipped-unlinked",
+            stage,
             grade,
+            attempted: progress.attempted,
+            total: progress.total,
+            creditOnAttempted: progress.creditOnAttempted,
+            isFinal,
             message: "Student is not linked to this Classroom course.",
           });
           continue;
         }
 
         try {
+          // eslint-disable-next-line no-await-in-loop
           const submission = await classroomLib.findSubmissionForStudent(classroom, {
             courseId,
             courseWorkId: publication.courseworkId,
             googleUserId,
           });
           if (!submission) {
+            // eslint-disable-next-line no-await-in-loop
             await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
               assignmentId,
               courseId,
               courseworkId: publication.courseworkId,
               status: "submission-not-found",
+              stage,
               grade,
+              attempted: progress.attempted,
+              total: progress.total,
+              creditOnAttempted: progress.creditOnAttempted,
+              isFinal,
             });
             continue;
           }
 
+          // eslint-disable-next-line no-await-in-loop
           const patched = await classroomLib.patchGrade(classroom, {
             courseId,
             courseWorkId: publication.courseworkId,
@@ -5689,6 +5746,7 @@ exports.syncGradeToClassroom = onDocumentWritten(
             grade,
           });
 
+          // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
             assignmentId,
             courseId,
@@ -5696,26 +5754,62 @@ exports.syncGradeToClassroom = onDocumentWritten(
             submissionId: submission.id,
             submissionState: patched.state || submission.state || null,
             status: "synced",
+            stage,
             grade,
+            attempted: progress.attempted,
+            total: progress.total,
+            creditOnAttempted: progress.creditOnAttempted,
+            isFinal,
             syncedAt: FieldValue.serverTimestamp(),
           });
+          successfulCourses.push(publication.courseName || courseId);
           logger.info(
-            `Synced grade ${grade} for student ${event.params.studentId} to course ${courseId}, courseWork ${publication.courseworkId}`
+            `Synced ${stage} grade ${grade} for student ${event.params.studentId} to course ${courseId}, courseWork ${publication.courseworkId}`
           );
         } catch (err) {
           logger.error(
             `Grade passback failed for student ${event.params.studentId}, assignment ${assignmentId}, course ${courseId}`,
             err
           );
+          // eslint-disable-next-line no-await-in-loop
           await writeGradeSyncAudit(db, publicationDoc.id, event.params.studentId, {
             assignmentId,
             courseId,
             courseworkId: publication.courseworkId,
             status: "failed",
+            stage,
             grade,
+            attempted: progress.attempted,
+            total: progress.total,
+            creditOnAttempted: progress.creditOnAttempted,
+            isFinal,
             error: String(err.message || err),
           });
         }
+      }
+
+      if (successfulCourses.length) {
+        const syncedAt = new Date().toISOString();
+        const status = {
+          assignmentId,
+          grade,
+          stage,
+          attempted: progress.attempted,
+          total: progress.total,
+          creditOnAttempted: progress.creditOnAttempted,
+          isFinal,
+          courseNames: [...new Set(successfulCourses)].slice(0, 5),
+          syncedAt,
+          notificationId: `${assignmentId}:${stage}:${grade}:${syncedAt}`,
+        };
+        // This small student-visible record is the receipt. Updating it causes
+        // this trigger to run once more, but no grade/release field changed, so
+        // that second invocation exits immediately.
+        // eslint-disable-next-line no-await-in-loop
+        await after.ref.update(
+          new FieldPath("classroomSyncStatusByAssignment", assignmentId),
+          status
+        );
       }
     }
   }
@@ -5748,7 +5842,10 @@ exports.queueReleasedAssessmentGrades = onDocumentWritten(
         batch.update(
           gradeDoc.ref,
           new FieldPath("classroomReleaseSignals", assignmentId),
-          FieldValue.serverTimestamp()
+          {
+            requestedAt: new Date().toISOString(),
+            reason: "assessment-release",
+          }
         );
       });
       await batch.commit();
