@@ -19,7 +19,20 @@ function runtimeQuestionCount(assignment = {}) {
   return runtimeQuestionsFromAssignment(assignment).length;
 }
 
+function runtimeIncludedQuestionIndices(assignment = {}) {
+  return runtimeQuestionsFromAssignment(assignment).reduce((indices, question, index) => {
+    if (question?.teacherExcluded !== true) indices.push(index);
+    return indices;
+  }, []);
+}
+
+function runtimeIncludedQuestionCount(assignment = {}) {
+  return runtimeIncludedQuestionIndices(assignment).length;
+}
+
 module.exports = {
   runtimeQuestionsFromAssignment,
   runtimeQuestionCount,
+  runtimeIncludedQuestionIndices,
+  runtimeIncludedQuestionCount,
 };
