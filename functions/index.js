@@ -217,7 +217,7 @@ function assignmentGradeProgress(assignmentTracker, questionIndices) {
       : total
   ), 0);
   const minimumProgressQuestions = indices.length
-    ? Math.max(1, Math.ceil(indices.length * 0.2))
+    ? Math.max(1, Math.ceil(indices.length * 0.25))
     : 0;
   return {
     total: indices.length,
@@ -241,11 +241,12 @@ function releaseSignalReason(signal) {
 function progressCheckpointStage(progress, { late = false } = {}) {
   if (!progress?.meaningfulProgress || !progress.total) return null;
   const percentAttempted = Math.round((progress.attempted / progress.total) * 100);
-  // Four checkpoints are enough to keep Classroom useful without turning every
-  // answer into an external grade write + student notification.
+  // Quarter checkpoints keep Classroom useful without turning every answer
+  // into an external grade write + student notification. Completion itself is
+  // handled separately as the final-complete stage.
   const checkpoint = Math.max(
-    20,
-    Math.min(80, Math.floor(percentAttempted / 20) * 20)
+    25,
+    Math.min(75, Math.floor(percentAttempted / 25) * 25)
   );
   return `${late ? "late-progress" : "progress"}-${checkpoint}`;
 }
@@ -5959,7 +5960,7 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
       lateDueAt
       && lateDueAt.getTime() <= now
       && lateDueAt.getTime() >= cutoff
-      && !state.finalQueuedAt
+      && (!state.finalQueuedAt || state.finalDueAt !== lateDueAt.toISOString())
     ) {
       // eslint-disable-next-line no-await-in-loop
       const count = await queueClassroomGradeSignalForAudience({
@@ -5986,7 +5987,7 @@ exports.queueClassroomGradeCheckpoints = onSchedule({
       dueAt
       && dueAt.getTime() <= now
       && dueAt.getTime() >= cutoff
-      && !state.dueQueuedAt
+      && (!state.dueQueuedAt || state.dueAt !== dueAt.toISOString())
     ) {
       // eslint-disable-next-line no-await-in-loop
       const count = await queueClassroomGradeSignalForAudience({
