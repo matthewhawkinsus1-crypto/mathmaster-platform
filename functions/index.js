@@ -242,11 +242,12 @@ function progressCheckpointStage(progress, { late = false } = {}) {
   if (!progress?.meaningfulProgress || !progress.total) return null;
   const percentAttempted = Math.round((progress.attempted / progress.total) * 100);
   // Quarter checkpoints keep Classroom useful without turning every answer
-  // into an external grade write + student notification. Completion itself is
-  // handled separately as the final-complete stage.
+  // into an external grade write + student notification. A 100%-attempted
+  // checkpoint is still non-final when some questions remain retryable;
+  // terminal completion is handled separately as final-complete.
   const checkpoint = Math.max(
     25,
-    Math.min(75, Math.floor(percentAttempted / 25) * 25)
+    Math.min(100, Math.floor(percentAttempted / 25) * 25)
   );
   return `${late ? "late-progress" : "progress"}-${checkpoint}`;
 }
