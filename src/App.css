@@ -649,9 +649,10 @@
 }
 
 /* Keep the actual task in view while a student works down a long question.
-   The compact assignment navigation is already sticky above it. Only the blue
-   task anchor follows the page; reference cards, attempt status, and helper
-   controls scroll away so they do not consume the whole Chromebook viewport. */
+   The compact assignment navigation is already sticky above it. The task anchor
+   carries both the prompt and any source facts the student must keep consulting.
+   Attempt status and helper controls still scroll away so the sticky area stays
+   focused on the mathematics the student needs to answer the question. */
 @media (min-width: 769px) {
   .mathmaster-assignment-screen {
     --mm-sticky-task-top: 118px;
