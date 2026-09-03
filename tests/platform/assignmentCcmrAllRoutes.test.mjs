@@ -70,3 +70,15 @@ test('Honors destination creation requests the audited Practice target without c
     'Honors depth must never rebuild from the pre-hydration Standard question list',
   );
 });
+
+
+test('Honors creation honors the server short-Practice CCMR exemption', () => {
+  const start = app.indexOf('const destinationGroups = buildDestinationGroups');
+  const end = app.indexOf('const createdAssignments = []', start);
+  const block = app.slice(start, end);
+
+  assert.match(block, /let honorsCcmrTargetRequired = true/);
+  assert.match(block, /hydratedHonors\.audit\.targetCount/);
+  assert.match(block, /ccmrTargetRequired: honorsCcmrTargetRequired/);
+  assert.match(block, /sourceHonorsReport\.ccmrTargetRequired && !sourceHonorsReport\.checks\.ccmrEnrichment/);
+});

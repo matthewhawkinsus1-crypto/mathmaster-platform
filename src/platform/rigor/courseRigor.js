@@ -118,6 +118,10 @@ const searchableQuestionText = (question = {}) => [
   question.title,
   question.purpose,
   ...(Array.isArray(question.tags) ? question.tags : []),
+  ...(Array.isArray(question.studentActions) ? question.studentActions : []),
+  ...(Array.isArray(question.fields) ? question.fields.flatMap((field) => [field?.id, field?.label]) : []),
+  ...(Array.isArray(question.answerFields) ? question.answerFields.flatMap((field) => [field?.id, field?.label]) : []),
+  ...(Array.isArray(question.responseFields) ? question.responseFields.flatMap((field) => [field?.id, field?.label]) : []),
 ].filter(Boolean).join(' ').toLowerCase();
 
 const hasAnyToken = (value, tokens) => tokens.some((token) => value.includes(token));
@@ -129,7 +133,10 @@ export const isNarrowHonorsCheckpoint = (questions = []) => {
   ));
 };
 
-export const inspectHonorsRigor = (questions = [], { allowNarrowCheckpoint = false } = {}) => {
+export const inspectHonorsRigor = (
+  questions = [],
+  { allowNarrowCheckpoint = false, ccmrTargetRequired = true } = {},
+) => {
   const included = (Array.isArray(questions) ? questions : []).filter((question) => question?.teacherExcluded !== true);
   const checks = {
     coreTeks: included.some((question) => questionTeks(question).length > 0),
@@ -140,7 +147,7 @@ export const inspectHonorsRigor = (questions = [], { allowNarrowCheckpoint = fal
     )),
     justification: included.some((question) => (
       ['graphStory', 'dataModelingLab', 'modelingLab'].includes(question.type || question.toolId)
-      || hasAnyToken(searchableQuestionText(question), ['justify', 'explain', 'reason', 'error analysis', 'compare strategies', 'defend'])
+      || hasAnyToken(searchableQuestionText(question), ['justify', 'justification', 'explain', 'reason', 'reasoning', 'error analysis', 'compare strategies', 'defend'])
     )),
     modelingApplication: included.some((question) => (
       ['modelingLab', 'dataModelingLab', 'relationshipModel', 'graphStory', 'contextInterpretation'].includes(question.type || question.toolId)
@@ -170,7 +177,10 @@ export const inspectHonorsRigor = (questions = [], { allowNarrowCheckpoint = fal
     checks.modelingApplication,
   ].filter(Boolean).length;
   const narrowCheckpoint = allowNarrowCheckpoint && isNarrowHonorsCheckpoint(included);
-  const fullContractReady = checks.coreTeks && checks.higherOrderReasoning && depthCount >= 3 && checks.ccmrEnrichment;
+  const fullContractReady = checks.coreTeks
+    && checks.higherOrderReasoning
+    && depthCount >= 3
+    && (ccmrTargetRequired === false || checks.ccmrEnrichment);
   return {
     checks,
     depthCount,
@@ -178,7 +188,10 @@ export const inspectHonorsRigor = (questions = [], { allowNarrowCheckpoint = fal
     isNarrowCheckpoint: narrowCheckpoint,
     isHonorsReady: narrowCheckpoint ? checks.coreTeks : fullContractReady,
     fullContractReady,
-    missing: Object.entries(checks).filter(([, present]) => !present).map(([key]) => key),
+    ccmrTargetRequired: ccmrTargetRequired !== false,
+    missing: Object.entries(checks)
+      .filter(([key, present]) => !present && (key !== 'ccmrEnrichment' || ccmrTargetRequired !== false))
+      .map(([key]) => key),
   };
 };
 

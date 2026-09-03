@@ -3627,6 +3627,10 @@ function App() {
       const destinationGroups = buildDestinationGroups({ assignedClassIds, classes });
       const hasHonorsDestination = destinationGroups.some((entry) => entry.courseLevel === 'honors');
       let honorsParsedQuestions = parsedQuestions;
+      // The server is the source of truth for whether this authored Practice
+      // section is large enough to carry the ~15% audited CCMR target.
+      // Default to strict if an audit is ever unavailable.
+      let honorsCcmrTargetRequired = true;
 
       // CCMR is destination-aware. Standard destinations keep the authored
       // Practice. When an Honors destination is actually selected, MathMaster
@@ -3641,9 +3645,15 @@ function App() {
         honorsParsedQuestions = normalizeAssignmentQuestions(
           validateAssignmentQuestions(honorsCanonical.questions, { variantMode }),
         );
+        if (hydratedHonors?.audit && Object.prototype.hasOwnProperty.call(hydratedHonors.audit, 'targetCount')) {
+          honorsCcmrTargetRequired = Number(hydratedHonors.audit.targetCount || 0) > 0;
+        }
       }
 
-      const sourceHonorsReport = inspectHonorsRigor(honorsParsedQuestions, { allowNarrowCheckpoint: true });
+      const sourceHonorsReport = inspectHonorsRigor(honorsParsedQuestions, {
+        allowNarrowCheckpoint: true,
+        ccmrTargetRequired: honorsCcmrTargetRequired,
+      });
       const splitVariantGroupId = destinationGroups.length > 1 ? `rigor_${createQuestionId()}` : null;
 
       const writeAssignmentVariant = async ({ destination, questions }) => {
@@ -3703,8 +3713,8 @@ function App() {
           destinationQuestions = honorsParsedQuestions;
           let enrichmentQuestion = null;
           if (!sourceHonorsReport.isHonorsReady) {
-            if (!sourceHonorsReport.checks.ccmrEnrichment) {
-              throw new Error('MathMaster could not find an audited CCMR Fidelity V2.1 Practice family on the same lesson TEKS for this Honors destination. Review the Practice TEKS or use a short checkpoint that is exempt from the CCMR target.');
+            if (sourceHonorsReport.ccmrTargetRequired && !sourceHonorsReport.checks.ccmrEnrichment) {
+              throw new Error('MathMaster could not find an audited CCMR Fidelity V2.1 Practice family on the same lesson TEKS for this Honors destination. Review the Practice TEKS or reduce the independent Practice section below the CCMR target threshold.');
             }
             if (!teacherReview?.honorsEnrichmentQuestion) {
               throw new Error('This Honors destination still needs additional Honors depth. Return to preflight and choose Build Honors Depth with MathMaster AI.');
@@ -3718,7 +3728,10 @@ function App() {
             ...honorsParsedQuestions,
             ...(enrichmentQuestion ? [enrichmentQuestion] : []),
           ]);
-          const finalHonorsReport = inspectHonorsRigor(destinationQuestions, { allowNarrowCheckpoint: true });
+          const finalHonorsReport = inspectHonorsRigor(destinationQuestions, {
+            allowNarrowCheckpoint: true,
+            ccmrTargetRequired: honorsCcmrTargetRequired,
+          });
           if (!finalHonorsReport.isHonorsReady) throw new Error(`Honors preflight is still missing: ${finalHonorsReport.missing.join(', ')}.`);
           validateAssignmentQuestions(destinationQuestions, { variantMode, allowFixed: variantMode === 'shared' });
         }
