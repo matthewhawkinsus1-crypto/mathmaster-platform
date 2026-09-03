@@ -392,12 +392,15 @@ test('V5 uses the balance solver, faithful graph reading, and complete relation 
 });
 
 test('student-facing renderers contain the fidelity safeguards', async () => {
-  const [engine, graph, relation, workflow, mathInput] = await Promise.all([
+  const [engine, graph, relation, workflow, mathInput, interactiveGraph, enlargeable, appCss] = await Promise.all([
     readFile(new URL('../../src/QuestionEngine.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../../src/GraphDisplay.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../../src/tools/relationMapping/RelationMapping.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../../src/platform/workflow/WorkflowRunner.jsx', import.meta.url), 'utf8'),
     readFile(new URL('../../src/MathInput.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../src/InteractiveGraphWorkspace.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../src/components/common/EnlargeableFigure.jsx', import.meta.url), 'utf8'),
+    readFile(new URL('../../src/App.css', import.meta.url), 'utf8'),
   ]);
 
   assert.doesNotMatch(engine, /import EquationGrader/);
@@ -413,4 +416,10 @@ test('student-facing renderers contain the fidelity safeguards', async () => {
   assert.match(workflow, /Your checked graph/);
   assert.match(workflow, /checkedGraphReference/);
   assert.match(mathInput, /functionNotationKeys/);
+  assert.match(graph, /formatGraphEquationLatex/, 'static enlarged graphs should display the graphed equation');
+  assert.match(interactiveGraph, /graphEquationLatex[\s\S]*formatGraphEquationLatex/, 'interactive enlarged graphs should derive their equation from the function spec');
+  assert.match(interactiveGraph, /mathmaster-domain-range-only/, 'domain-range analysis should expose the compact enlarged layout hook');
+  assert.match(enlargeable, /data-enlarged=/, 'enlarged graph state should be available to responsive CSS');
+  assert.match(appCss, /mathmaster-analysis-part-domain[\s\S]*grid-column:\s*1/);
+  assert.match(appCss, /mathmaster-analysis-part-range[\s\S]*grid-column:\s*3/);
 });
