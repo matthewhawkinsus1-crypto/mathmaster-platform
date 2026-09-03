@@ -256,7 +256,7 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
         <HintPanel hints={HINTS[mode] || HINTS.match} onHintUsed={() => onAction?.('HINT_USED')} />
       </Panel>
 
-      <Panel title="Transformation bridge">
+      <Panel title="Transformation bridge" collapsible>
         <p style={{ marginTop: 0 }}><strong>Model:</strong> y = a · f(b(x − h)) + k</p>
         <div style={{ padding: '10px 12px', borderRadius: 10, background: '#eef4ff', border: '1px solid #aecbfa', color: '#174ea6', fontWeight: 900, marginBottom: 12 }}>
           X&apos;s lie; Y&apos;s tell the truth.

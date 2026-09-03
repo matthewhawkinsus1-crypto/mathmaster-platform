@@ -103,12 +103,49 @@ export const ToolSplit = ({ children }) => (
   <div className="mathmaster-tool-split">{children}</div>
 );
 
-export const Panel = ({ title, children }) => (
-  <div className="mathmaster-tool-panel" style={{ border: '1px solid #dde5f0', borderRadius: 14, padding: 16, background: '#fbfdff' }}>
-    {title ? <h3 style={{ margin: '0 0 12px', fontSize: 16, color: '#24324a' }}>{title}</h3> : null}
-    {children}
-  </div>
-);
+/**
+ * A panel a student can fold away.
+ *
+ * `collapsible` is opt-in and the bar for setting it is deliberately high,
+ * because two kinds of panel must never fold and they are most of them.
+ *
+ *   A PANEL HOLDING A CONTROL. Hiding a field behind a disclosure is worse than
+ *   a long page: a student who cannot find the input does not know to look for
+ *   it, and reads the question as broken.
+ *
+ *   A PANEL HOLDING THIS QUESTION'S DATA. The given ordered pairs, the target
+ *   polynomial, the sequence with the gap. Folding is remembered, so a student
+ *   who folded one question's givens would arrive at the next question with the
+ *   thing it asks about already hidden.
+ *
+ * What is left is general teaching reference — text that is identical on every
+ * question of that tool. Across the whole tool set that is two panels, which is
+ * the honest size of this category rather than a disappointing one.
+ *
+ * It opens by default in every case. The student decides what to put away.
+ */
+export const Panel = ({ title, children, collapsible = false, defaultOpen = true }) => {
+  const body = (
+    <div className="mathmaster-tool-panel" style={{ border: '1px solid #dde5f0', borderRadius: 14, padding: 16, background: '#fbfdff' }}>
+      {title ? <h3 style={{ margin: '0 0 12px', fontSize: 16, color: '#24324a' }}>{title}</h3> : null}
+      {children}
+    </div>
+  );
+
+  if (!collapsible || !title) return body;
+
+  return (
+    <QuietDisclosure
+      summary={String(title)}
+      storageKey={`mm.tool.panel.${contentKey(String(title))}`}
+      defaultOpen={defaultOpen}
+      tone="strong"
+      style={{ margin: 0 }}
+    >
+      {body}
+    </QuietDisclosure>
+  );
+};
 
 export const ResultPill = ({ ok, children }) => (
   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 999, padding: '7px 11px', fontWeight: 800, background: ok ? '#e6f4ea' : '#fce8e6', color: ok ? '#137333' : '#c5221f' }}>
@@ -184,32 +221,39 @@ export const HintPanel = ({ hints = [], onHintUsed }) => {
       return next;
     });
   };
+  // AN UNUSED HINT BLOCK TAKES ONE ROW.
+  //
+  // This was a bordered box carrying a heading, a button, and two lines telling
+  // the student to try it themselves first — on every question, of every tool
+  // that has hints, whether or not they wanted one. The nudge was the bulk. The
+  // one fact in it a student needs before deciding is that their teacher sees
+  // this, and that belongs beside the button they are about to press.
+  const used = revealed > 0;
+
   return (
-    <div style={{ marginTop: 16, border: '1px solid #f0d9a8', borderRadius: 12, background: '#fffaf0', padding: '12px 15px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <strong style={{ color: '#7a4f01', fontSize: 14 }}>Stuck? Hints</strong>
+    <div style={{ marginTop: 16, ...(used ? { border: '1px solid #f0d9a8', borderRadius: 12, background: '#fffaf0', padding: '12px 15px' } : null) }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        {used && <strong style={{ color: '#7a4f01', fontSize: 14 }}>Hints</strong>}
         <button
           type="button"
           onClick={revealNext}
           disabled={revealed >= hints.length}
+          title="Using a hint is recorded for your teacher."
           style={{
-            padding: '7px 13px', borderRadius: 999, border: '1px solid #e0a800',
-            background: revealed >= hints.length ? '#f1f1f1' : '#fff', color: '#7a4f01',
+            minHeight: 44, padding: '7px 13px', borderRadius: 999, border: '1px solid #e0a800',
+            background: revealed >= hints.length ? '#f1f1f1' : '#fffaf0', color: '#7a4f01',
             fontWeight: 800, fontSize: 13, cursor: revealed >= hints.length ? 'default' : 'pointer',
           }}
         >
-          {revealed === 0 ? 'Show a hint' : revealed >= hints.length ? 'All hints shown' : `Show hint ${revealed + 1} of ${hints.length}`}
+          {revealed === 0 ? 'Stuck? Show a hint' : revealed >= hints.length ? 'All hints shown' : `Show hint ${revealed + 1} of ${hints.length}`}
         </button>
+        {!used && <span style={{ fontSize: 12, color: '#7a6027' }}>Recorded for your teacher</span>}
       </div>
-      {revealed > 0 ? (
+      {used ? (
         <ol style={{ margin: '10px 0 0', paddingLeft: 20, color: '#5f4400', lineHeight: 1.6 }}>
           {hints.slice(0, revealed).map((hint, index) => <li key={index} style={{ marginBottom: 4 }}><MathText>{hint}</MathText></li>)}
         </ol>
-      ) : (
-        <p style={{ margin: '8px 0 0', fontSize: 13, color: '#7a6027' }}>
-          Try it on your own first. Hints get more specific as you go, and using one is recorded for your teacher.
-        </p>
-      )}
+      ) : null}
     </div>
   );
 };

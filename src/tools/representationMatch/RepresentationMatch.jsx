@@ -237,7 +237,7 @@ export default function RepresentationMatch({ questionData = {}, onAction }) {
         <HintPanel hints={MODE_HINTS[mode] || MODE_HINTS.completeSet} onHintUsed={() => onAction?.('HINT_USED')} />
       </Panel>
 
-      <Panel title="Representation reasoning">
+      <Panel title="Representation reasoning" collapsible>
         <ul style={{ lineHeight: 1.8, paddingLeft: 20, marginTop: 0 }}><li>An equation encodes the rule.</li><li>A table samples input-output pairs.</li><li>A graph shows shape, rate, and defining features.</li><li>A context gives quantities meaning and units.</li></ul>
         <p style={{ color: '#5f6b7a', marginBottom: 0 }}>None of these is the “real” version of the relationship. Each one shows something the others hide, which is why you check them against each other.</p>
       </Panel>
