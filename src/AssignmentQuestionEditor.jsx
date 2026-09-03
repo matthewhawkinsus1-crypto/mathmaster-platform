@@ -3,6 +3,7 @@ import QuestionStandardsEditor from './QuestionStandardsEditor';
 import { getQuestionMetadataSummary } from './questionMetadata.js';
 import { useToast } from './ui/Toast';
 import { buildQuestionRepairRequest, parseQuestionRepairResponse } from './platform/contract/questionRepairRequest.js';
+import { buildSafeLiveRepairPackRequest } from './platform/contract/safeLiveRepairPackContract.js';
 import {
   assignmentAiDiagnostics,
   assignmentAiFailureMessage,
@@ -332,6 +333,26 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
     }
   };
 
+  const copySafeRepairPackRequest = async () => {
+    setError('');
+    try {
+      const request = buildSafeLiveRepairPackRequest({
+        assignment,
+        questions: originalQuestions,
+      });
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('This browser cannot copy the Safe Live Repair Pack prompt automatically. Use a browser with clipboard permission.');
+      }
+      await navigator.clipboard.writeText(request);
+      toastSuccess?.(
+        'Safe Repair Pack prompt copied',
+        'Paste it into ChatGPT, Claude, Gemini, or another AI. Save only the JSON object it returns as a .json file, then choose Import Safe Repair Pack.',
+      );
+    } catch (packError) {
+      setError(packError.message || 'MathMaster could not build the Safe Live Repair Pack prompt.');
+    }
+  };
+
   const importSafeRepairPack = async (event) => {
     const file = event.target.files?.[0] || null;
     event.target.value = '';
@@ -460,6 +481,15 @@ export default function AssignmentQuestionEditor({ assignment, hasLiveProtection
               </button>
               {hasLiveProtection && (
                 <>
+                  <button
+                    type="button"
+                    onClick={copySafeRepairPackRequest}
+                    disabled={repairBusy || saving}
+                    style={{ padding: '8px 12px', border: '1px solid #81c995', borderRadius: 8, background: '#fff', color: '#137333', fontWeight: 900 }}
+                    title="Copy the exact MathMaster Safe Live Repair Pack contract plus the protected live questions for an AI."
+                  >
+                    Copy Safe Repair Pack Prompt
+                  </button>
                   <input
                     ref={repairPackInputRef}
                     type="file"
