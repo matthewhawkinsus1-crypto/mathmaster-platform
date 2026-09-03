@@ -2,9 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import { CORE_QUESTION_TYPES, SUPPORTED_QUESTION_TYPES } from '../../src/assignmentBlueprint.js';
-import { TOOL_CATALOG } from '../../src/tools/toolCatalog.js';
-import { QUESTION_TYPE_CATALOG, REPRESENTATIONS } from '../../src/platform/contract/questionTypeCatalog.js';
+import { REPRESENTATIONS } from '../../src/platform/contract/questionTypeCatalog.js';
 import {
   CONTRACT_SLICES,
   PLATFORM_OWNED_FIELDS,
@@ -36,27 +34,44 @@ const CONTRACT = buildAuthoringContract({ courseId: 'algebra1' });
  * remembering to check.
  */
 
-test('the contract names every question type the platform actually supports', () => {
-  const missing = [...SUPPORTED_QUESTION_TYPES].filter((type) => !CONTRACT.includes(type));
-  assert.deepEqual(missing, [], 'a supported type the contract never names will be invented or avoided');
-
-  const core = [...CORE_QUESTION_TYPES].filter((type) => !CONTRACT.includes(type));
-  assert.deepEqual(core, []);
+test('the contract teaches what a question must DO, not which renderer to reach for', () => {
+  // The public contract deliberately does not carry a renderer/type catalog.
+  // Naming internal types taught outside AI to author plumbing, which then
+  // contradicted the semantic contract and failed import. The vocabulary an
+  // author actually needs is studentActions.
+  assert.match(CONTRACT, /## Common studentActions/);
+  assert.match(CONTRACT, /studentActions/);
+  assert.doesNotMatch(
+    CONTRACT,
+    /## How to build each question type|## Interactive tool types/,
+    'public guidance must not reintroduce internal renderer or tool catalogs',
+  );
 });
 
-test('the contract names every tool and representation a question can use', () => {
-  const tools = Object.keys(TOOL_CATALOG).filter((id) => !CONTRACT.includes(id));
-  assert.deepEqual(tools, [], 'a tool the contract never names cannot be authored for');
+test('every representation a source can demand is still described', () => {
+  // Representation fidelity IS semantic — a graph task must show a graph — so
+  // these survive even though renderer types do not. They are described in the
+  // author's words rather than as enum ids, which is the point of the semantic
+  // contract, so this checks the words a person would actually write.
+  const PROSE = Object.freeze({
+    graph: 'graph',
+    numberLine: 'number line',
+    table: 'table',
+    mapping: 'mapping',
+    orderedPairs: 'ordered pair',
+    symbolic: 'symbolic',
+    text: 'text',
+    interactive: 'interactive',
+  });
+  const lower = CONTRACT.toLowerCase();
+  const known = Object.values(REPRESENTATIONS);
+  // Every representation the platform defines must have a phrase here, so a new
+  // one cannot be added without deciding how an author is told about it.
+  const undocumented = known.filter((value) => !PROSE[value]);
+  assert.deepEqual(undocumented, [], 'a new representation needs author-facing wording');
 
-  const representations = Object.values(REPRESENTATIONS).filter((value) => !CONTRACT.includes(value));
-  assert.deepEqual(representations, []);
-});
-
-test('every catalogued question type has its own build instructions', () => {
-  // Naming a type is not the same as telling an AI how to build one.
-  const missing = Object.keys(QUESTION_TYPE_CATALOG)
-    .filter((type) => !CONTRACT.includes(`### \`${type}\``));
-  assert.deepEqual(missing, [], 'a catalogued type with no build entry produces guesswork');
+  const missing = known.filter((value) => !lower.includes(PROSE[value].toLowerCase()));
+  assert.deepEqual(missing, [], 'a representation the contract never describes cannot be honoured');
 });
 
 test('every slice name resolves to a real contract section', () => {
@@ -86,11 +101,11 @@ test('a slice stays small enough to paste beside the actual request', () => {
   // The full contract is ~91KB. Prefixing that onto "fix question 3" buries the
   // instruction and hits chat-window limits before the teacher gets to ask.
   for (const [kind, sections] of Object.entries(CONTRACT_SLICES)) {
-    const slice = buildContractSlice({ sections, questionTypes: ['algebra'], courseId: 'algebra1' });
+    const slice = buildContractSlice({ sections, courseId: 'algebra1' });
     assert.ok(slice.length < 20000, `${kind} slice is ${slice.length} chars, too big to paste`);
     assert.ok(slice.length > 0, `${kind} slice is empty`);
   }
-  assert.ok(CONTRACT.length > 60000, 'the full contract is still the complete document');
+  assert.ok(CONTRACT.length > 40000, 'the full contract is still the complete document');
 });
 
 test('a question repair tells an outside AI the rules for that question type', () => {
@@ -101,15 +116,16 @@ test('a question repair tells an outside AI the rules for that question type', (
     questionNumber: 3,
   });
 
-  assert.match(request, /### `algebra`/, 'the rules for the type being repaired must travel with it');
+  assert.match(request, /## Question authoring/, 'the authoring rules must travel with the repair');
+  assert.match(request, /## Common studentActions/);
   assert.match(request, /Live assignment repair boundary/);
   assert.match(request, /## What to return/);
   // The fields MathMaster owns are named, so they are not invented back in.
   for (const field of ['questionId', 'attempts', 'alignmentKeys']) {
     assert.ok(request.includes(field), `platform-owned field ${field} must be named`);
   }
-  // Only the relevant type's build entry, not all twenty-one.
-  assert.ok(!request.includes('### `functionInvestigation`'), 'unrelated type entries must not be included');
+  // The repair carries the semantic rules, never a renderer catalog.
+  assert.doesNotMatch(request, /## How to build each question type/);
 });
 
 test('every outside-AI request names its audience, its output, and the student-data line', () => {
@@ -199,8 +215,8 @@ test('a rejected import is returned with the rules for the types it contains', (
   });
   const request = buildFixRequest({ rawJson, errors: ['Question 1 is missing studentActions.'] });
 
-  assert.match(request, /### `algebra`/);
-  assert.match(request, /Question authoring/);
-  assert.ok(!request.includes('### `functionGraph`'), 'only the types actually present travel with the fix');
+  assert.match(request, /## Question authoring/);
+  assert.match(request, /## Common studentActions/);
+  assert.doesNotMatch(request, /## How to build each question type/, 'a rejected import gets semantic rules, not plumbing');
   assert.match(request, /## The V5 JSON to fix/);
 });

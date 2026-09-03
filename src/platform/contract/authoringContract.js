@@ -656,15 +656,11 @@ export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {
   const warningList = (Array.isArray(warnings) ? warnings : [warnings]).filter(Boolean);
   const aiSafeWarnings = warningList.filter((warning) => !/(TEKS|alignment|mastery|standard)/i.test(String(warning)));
 
-  // The rules for the types actually present in the rejected JSON. A model asked
-  // to fix an import it cannot see the rules for tends to "fix" it by switching
-  // to a type it does remember, which fails the next import for a new reason.
-  const presentTypes = [...new Set(
-    [...String(rawJson || '').matchAll(/"type"\s*:\s*"([A-Za-z0-9_]+)"/g)].map((match) => match[1]),
-  )].slice(0, 8);
+  // A model asked to fix an import whose authoring rules it cannot see tends to
+  // "fix" it by reaching for plumbing it half-remembers. It gets the semantic
+  // rules instead — what a question must DO — which is what V5 actually wants.
   const rules = buildContractSlice({
     sections: ['Question authoring', 'Common studentActions'],
-    questionTypes: presentTypes,
   });
 
   return [
@@ -709,9 +705,13 @@ export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {
  * a chat window hits a length limit before they get to their actual question.
  *
  * But the alternative that was in place — sending no rules at all — is why
- * outside-AI repairs came back with invented question types, platform-owned
- * fields, and answer formats the grader cannot read. The AI was never told what
- * legal output looks like.
+ * outside-AI repairs came back with platform-owned fields and answer formats the
+ * grader cannot read. The AI was never told what legal output looks like.
+ *
+ * Slices are SECTIONS only. An earlier version of this also narrowed a per-type
+ * recipe catalog, which PR #133 deliberately removed from the public contract:
+ * naming internal renderer types taught outside AI to author plumbing instead of
+ * describing the mathematics, which is the opposite of the V5 design.
  *
  * So: slice. Every slice is cut from the SAME generated string the full
  * contract is built from, by heading, which means a slice can never drift from
@@ -720,8 +720,6 @@ export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {
  */
 
 const SECTION_MARK = '## ';
-const TYPE_MARK = '### ';
-const TYPE_SECTION = 'How to build each question type';
 
 const splitByMark = (text, mark) => {
   const chunks = [];
@@ -745,16 +743,13 @@ export const authoringContractSections = (options = {}) => splitByMark(
 ).map((section) => section.name);
 
 /**
- * A contract excerpt carrying only the named sections, plus the per-type entries
- * for the question types actually in play.
+ * A contract excerpt carrying only the named sections.
  *
- * `questionTypes` narrows the 22KB "How to build each question type" section to
- * just the types being repaired, which is the difference between a prompt a
- * teacher can paste and one they cannot.
+ * Semantic by construction: the sections describe what a question must DO and
+ * what MathMaster owns, never which internal renderer to reach for.
  */
 export const buildContractSlice = ({
   sections = [],
-  questionTypes = [],
   courseId = null,
   generatedAt = new Date(),
 } = {}) => {
@@ -768,16 +763,6 @@ export const buildContractSlice = ({
     // A named section that no longer exists is a contract change, not something
     // to paper over: an audit test asserts every requested name resolves.
     if (text) wanted.push(text);
-  }
-
-  const types = [...new Set(questionTypes.map((type) => String(type || '').trim()).filter(Boolean))];
-  if (types.length && byName.has(TYPE_SECTION)) {
-    const entries = splitByMark(byName.get(TYPE_SECTION), TYPE_MARK)
-      .filter((entry) => types.some((type) => entry.name.startsWith(`\`${type}\``)))
-      .map((entry) => entry.text);
-    if (entries.length) {
-      wanted.push([`${SECTION_MARK}How to build ${entries.length === 1 ? 'this question type' : 'these question types'}`, '', ...entries].join('\n'));
-    }
   }
 
   if (!wanted.length) return '';

@@ -24,13 +24,11 @@ export const buildQuestionRepairRequest = ({
     || assignment.courseProfile?.course,
   ) || 'unknown course';
 
-  // The rules for THIS question's type, cut from the same contract the full
-  // authoring request uses. Without them an outside AI has no way to know which
-  // type values are legal, what the grader can read, or which fields the
-  // platform owns and will strip — which is why repairs came back unusable.
+  // The authoring rules that govern this repair, cut from the same contract the
+  // full authoring request uses. Without them an outside AI has no way to know
+  // what the grader can read or which fields the platform owns and will strip.
   const rules = buildContractSlice({
     sections: CONTRACT_SLICES.questionRepair,
-    questionTypes: [clean(question.type)],
     courseId: courseId === 'unknown course' ? null : courseId,
   });
 
@@ -41,7 +39,6 @@ export const buildQuestionRepairRequest = ({
     `Assignment: ${title}`,
     `Course: ${courseId}`,
     ...(questionNumber == null ? [] : [`Question: ${questionNumber}`]),
-    ...(clean(question.type) ? [`Question type: ${clean(question.type)} (keep this type unless the teacher asks to change it)`] : []),
     '',
     '## Teacher request',
     request,
