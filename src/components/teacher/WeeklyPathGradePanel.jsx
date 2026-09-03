@@ -3,6 +3,7 @@ import {
   SYNC_STATE, prepareClassroomSync, syncReadiness, weeklyPathGradebookRows,
 } from '../../platform/path/weeklyPathGradebook.js';
 import StudentNameLink from '../common/StudentNameLink.jsx';
+import WeeklyPathAutoPublish from './WeeklyPathAutoPublish.jsx';
 import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
 
 /*
@@ -15,9 +16,14 @@ import StudentPerformanceBadge from '../common/StudentPerformanceBadge.jsx';
  * well". The academic badge is the third column precisely so that all three can
  * disagree in front of the teacher without any of them being adjusted to match.
  *
- * The publish control is a REVIEW step, never a send. See the note at the top of
- * weeklyPathGradebook.js: this platform does not put a number in a parent's app
- * because a background job noticed a week had ended.
+ * The manual control below is still a REVIEW step, never a send: the proposal it
+ * opens shows the exact payload and stops.
+ *
+ * Automatic publishing is a separate, deliberate decision, and it lives in
+ * WeeklyPathAutoPublish. It defaults OFF for every class, and turning it on is
+ * the one moment a human agrees that these numbers may reach families unattended
+ * from then on. weeklyPathGradebook.js still refuses to be the thing that sends
+ * them; the scheduled Cloud Function does that, against the same grade.
  */
 
 const STATE_TONE = {
@@ -132,6 +138,7 @@ export default function WeeklyPathGradePanel({
         >
           Review before publishing
         </button>
+      <WeeklyPathAutoPublish classId={classId} weekKey={weekKey} />
       </div>
     </section>
   );

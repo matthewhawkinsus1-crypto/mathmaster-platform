@@ -4221,7 +4221,7 @@ function App() {
   // it — and from making a "3 items" badge flicker while a teacher reads it.
   // The week the Path grade belongs to, and whether it has finished. Both are
   // read by the gradebook panel; the second gates Classroom review, because a
-  // student who finishes on Friday should not be graded on Wednesday's work.
+  // student who finishes on Sunday should not be graded on Wednesday's work.
   const weeklyPathWeekKey = useMemo(() => {
     const record = classesById[activeClass.classId] || null;
     const config = storedWeeklyGoalForClassContext(weeklyGoalsByClass, {
@@ -4237,7 +4237,7 @@ function App() {
     }) || {};
     return now > dueAtFor(now, {
       weekStartsOn: config.weekStartsOn || 1,
-      dueDayOfWeek: config.dueDayOfWeek ?? 5,
+      dueDayOfWeek: config.dueDayOfWeek ?? 0,
     });
   }, [classesById, activeClass.classId, weeklyGoalsByClass, Math.floor(now / 3_600_000)]);
 
@@ -4261,11 +4261,12 @@ function App() {
       studentsInClass({ students: allStudents, classes, classId: entry.classId }).length,
     ]));
 
-    // How far through the school week we are, so nobody is told on Monday
-    // morning that a student has not finished the week's work. Monday is 0 and
-    // Friday is 1; the weekend reads as a full week gone.
+    // How far through the week we are, so nobody is told on Monday morning that
+    // a student has not finished the week's work. The week runs Monday to Sunday
+    // and closes at midnight Sunday night, so Monday is 0 and Sunday is 1 — the
+    // weekend is still working time, not a week already gone.
     const day = new Date(queueDayStart).getDay();
-    const weekFraction = Math.min(1, Math.max(0, ((day + 6) % 7) / 4));
+    const weekFraction = Math.min(1, Math.max(0, ((day + 6) % 7) / 6));
 
     return buildNeedsAttentionQueue({
       students: scoped.map((student) => ({ ...student, displayName: formatStudentName(student) })),

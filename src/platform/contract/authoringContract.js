@@ -1,4 +1,9 @@
 import { CORE_QUESTION_TYPES, SUPPORTED_QUESTION_TYPES } from '../../assignmentBlueprint.js';
+import {
+  DEFAULT_QUESTION_WEIGHT,
+  MAX_QUESTION_WEIGHT,
+  MIN_QUESTION_WEIGHT,
+} from '../grading/questionWeights.js';
 import { TOOL_CATALOG } from '../../tools/toolCatalog.js';
 import { getToolCapabilities } from '../../tools/toolCapabilities.js';
 import { ACTIVITY_POLICIES, ACTIVITY_ROLES } from '../policies/activityPolicies.js';
@@ -34,6 +39,9 @@ export const PLATFORM_OWNED_FIELDS = Object.freeze([
   'isAdvanced', 'advanced', 'honors', 'isHonors', 'courseLevel',
   'alignmentKeys', 'masteryEvidenceKeys', 'evidenceKeys',
   'gradesByAssignment', 'questionRecords', 'persistence', 'serverState',
+  // Teacher decisions about an existing assignment, not authoring input. An AI
+  // that sets these overrides a choice a person made in the UI.
+  'teacherExcluded', 'archived', 'archivedAt',
 ]);
 
 // Fields a question may carry that the generator interprets. Kept here so the
@@ -562,6 +570,13 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '- Reference information is not a hint or an answer key. Omit `referenceInfo` when the prompt already contains the givens the student needs.',
   '- Use `referenceInfo` only for source facts or data the student must repeatedly consult while working. Never place a student conclusion in `referenceInfo`: independent/dependent roles, the equation/model, domain, range, continuity, axis labels, scale, transformed values, table outputs, intercepts, extrema, or another answer the student is being asked to determine.',
   '- If the source explicitly gives one of those facts and the question assesses something else, it may remain visible as a given. Otherwise the student must do that thinking in the workspace.',
+  // questionWeight is a validated V5 field, but the contract never mentioned it,
+  // so every AI-authored assignment arrived with everything weighted equally and
+  // the teacher had to run a separate weight review to fix work the author
+  // already understood. The range is read from the live constants.
+  `- \`questionWeight\` is optional and defaults to ${DEFAULT_QUESTION_WEIGHT}. Set it when a question carries clearly more or less graded work than a normal single-step item.`,
+  `- Valid range ${MIN_QUESTION_WEIGHT} to ${MAX_QUESTION_WEIGHT}, in increments of 0.25. Typical: 0.5-0.75 short, 1 normal, 1.25-2 involved, 2.5-4 substantial multipart construction or modeling.`,
+  '- Weight the required student work, not the prompt length. A wordy one-step question is still weight 1. Do not raise a weight merely because DOK or difficulty is high; the question must actually carry more graded responsibility.',
   '- Generated expected answers must be derived from the same generator parameters as the prompt.',
   '- Do not pad accepted answers with equivalent formatting variants already handled by MathMaster equivalence grading.',
   '- Treat the generated answer/expected value as the canonical mathematical key. If acceptedAnswers/accepted is present, it must contain only genuinely different correct answers and must remain mathematically consistent with the canonical key.',
@@ -641,6 +656,13 @@ export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {
   const warningList = (Array.isArray(warnings) ? warnings : [warnings]).filter(Boolean);
   const aiSafeWarnings = warningList.filter((warning) => !/(TEKS|alignment|mastery|standard)/i.test(String(warning)));
 
+  // A model asked to fix an import whose authoring rules it cannot see tends to
+  // "fix" it by reaching for plumbing it half-remembers. It gets the semantic
+  // rules instead — what a question must DO — which is what V5 actually wants.
+  const rules = buildContractSlice({
+    sections: ['Question authoring', 'Common studentActions'],
+  });
+
   return [
     `# Fix this ${AUTHORING_INTENT_SCHEMA_NAME} JSON`,
     '',
@@ -666,9 +688,115 @@ export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {
     '- Do not change TEKS merely to silence a warning; alignment review belongs in Preflight.',
     '- Use Unicode math in student-facing text.',
     '',
+    ...(rules ? ['', rules, ''] : []),
     '## The V5 JSON to fix',
     '```json',
     String(rawJson || '').trim(),
     '```',
   ].join('\n');
 };
+
+/*
+ * SLICING THE CONTRACT FOR A TARGETED REQUEST.
+ *
+ * The full contract is ~91KB. Prefixing that onto "fix the answer tolerance on
+ * question 3" is worse than useless: the instruction that matters drowns in
+ * twenty-two thousand characters of exam crosswalk, and a teacher pasting into
+ * a chat window hits a length limit before they get to their actual question.
+ *
+ * But the alternative that was in place — sending no rules at all — is why
+ * outside-AI repairs came back with platform-owned fields and answer formats the
+ * grader cannot read. The AI was never told what legal output looks like.
+ *
+ * Slices are SECTIONS only. An earlier version of this also narrowed a per-type
+ * recipe catalog, which PR #133 deliberately removed from the public contract:
+ * naming internal renderer types taught outside AI to author plumbing instead of
+ * describing the mathematics, which is the opposite of the V5 design.
+ *
+ * So: slice. Every slice is cut from the SAME generated string the full
+ * contract is built from, by heading, which means a slice can never drift from
+ * the contract, and a new question type appears in both the moment it is
+ * registered. Nothing here is a second copy of the rules.
+ */
+
+const SECTION_MARK = '## ';
+
+const splitByMark = (text, mark) => {
+  const chunks = [];
+  const lines = String(text || '').split('\n');
+  let current = null;
+  for (const line of lines) {
+    if (line.startsWith(mark)) {
+      if (current) chunks.push(current);
+      current = { name: line.slice(mark.length).trim(), lines: [line] };
+    } else if (current) {
+      current.lines.push(line);
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks.map((chunk) => ({ name: chunk.name, text: chunk.lines.join('\n').trimEnd() }));
+};
+
+/** Every section heading the contract currently produces. */
+export const authoringContractSections = (options = {}) => splitByMark(
+  buildAuthoringContract(options), SECTION_MARK,
+).map((section) => section.name);
+
+/**
+ * A contract excerpt carrying only the named sections.
+ *
+ * Semantic by construction: the sections describe what a question must DO and
+ * what MathMaster owns, never which internal renderer to reach for.
+ */
+export const buildContractSlice = ({
+  sections = [],
+  courseId = null,
+  generatedAt = new Date(),
+} = {}) => {
+  const full = buildAuthoringContract({ courseId, generatedAt });
+  const parts = splitByMark(full, SECTION_MARK);
+  const byName = new Map(parts.map((part) => [part.name, part.text]));
+
+  const wanted = [];
+  for (const name of sections) {
+    const text = byName.get(name);
+    // A named section that no longer exists is a contract change, not something
+    // to paper over: an audit test asserts every requested name resolves.
+    if (text) wanted.push(text);
+  }
+
+  if (!wanted.length) return '';
+  return [
+    `# ${AUTHORING_INTENT_SCHEMA_NAME} — rules that apply here`,
+    'An excerpt of the MathMaster authoring contract, limited to what this request needs.',
+    '',
+    ...wanted,
+  ].join('\n\n');
+};
+
+// What each kind of outside-AI request needs to see. Named once, here, so every
+// request surface asks for the same thing by name rather than each maintaining
+// its own guess at what is relevant.
+export const CONTRACT_SLICES = Object.freeze({
+  questionRepair: Object.freeze([
+    'Question authoring',
+    'Common studentActions',
+    'Source representation fidelity',
+    'Live assignment repair boundary',
+  ]),
+  honorsDepth: Object.freeze([
+    'Question authoring',
+    'Honors + CCMR Practice',
+    'Instructional scope and lesson depth',
+    'Source task fidelity',
+  ]),
+  gradingReview: Object.freeze([
+    'Section rules',
+    'Activity roles',
+    'Classwork versus Practice balance and rigor',
+  ]),
+  publishingPackage: Object.freeze([
+    'PDF / printable output',
+    'Output',
+  ]),
+});

@@ -59,10 +59,18 @@ test('a week means the same thing on Monday morning and Friday afternoon', () =>
 });
 
 test('the due date lands at the end of the due day, not the start', () => {
+  // Asserted in the school's own timezone, not UTC. The deadline is now local
+  // midnight, so the UTC weekday and hour of that instant are the wrong
+  // question: 23:59 Central on a Friday is 04:59 UTC on the Saturday.
   const due = dueAtFor(MONDAY, { weekStartsOn: 1, dueDayOfWeek: 5 });
-  const asDate = new Date(due);
-  assert.equal(asDate.getUTCDay(), 5, 'Friday');
-  assert.ok(asDate.getUTCHours() >= 23, 'a student working Friday evening is not late');
+  const local = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago', hour12: false, weekday: 'short', hour: '2-digit',
+  }).formatToParts(new Date(due)).reduce((acc, part) => {
+    if (part.type !== 'literal') acc[part.type] = part.value;
+    return acc;
+  }, {});
+  assert.equal(local.weekday, 'Fri');
+  assert.equal(local.hour, '23', 'a student working Friday evening is not late');
 });
 
 // --- The goal is sessions, not TEKS ---------------------------------------------------

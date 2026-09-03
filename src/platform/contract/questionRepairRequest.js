@@ -1,3 +1,5 @@
+import { CONTRACT_SLICES, PLATFORM_OWNED_FIELDS, buildContractSlice } from './authoringContract.js';
+
 const clean = (value) => String(value ?? '').trim();
 
 const stripFence = (text) => {
@@ -21,6 +23,14 @@ export const buildQuestionRepairRequest = ({
     || assignment.assignment?.courseId
     || assignment.courseProfile?.course,
   ) || 'unknown course';
+
+  // The authoring rules that govern this repair, cut from the same contract the
+  // full authoring request uses. Without them an outside AI has no way to know
+  // what the grader can read or which fields the platform owns and will strip.
+  const rules = buildContractSlice({
+    sections: CONTRACT_SLICES.questionRepair,
+    courseId: courseId === 'unknown course' ? null : courseId,
+  });
 
   return [
     '# MathMaster question repair',
@@ -49,10 +59,19 @@ export const buildQuestionRepairRequest = ({
     '- Keep student-facing math typographically correct. Do not leave raw caret exponent prose such as x^2 or 2^x when a math expression can be delimited/rendered.',
     '- Keep the existing questionId if present. MathMaster will preserve it again when importing the repair.',
     '',
+    '## Fields MathMaster owns',
+    'Never include these; MathMaster sets them and the importer strips them:',
+    PLATFORM_OWNED_FIELDS.join(', '),
+    '',
     '## Existing question',
     '```json',
     JSON.stringify(question, null, 2),
     '```',
+    ...(rules ? ['', rules] : []),
+    '',
+    '## What to return',
+    'Exactly one JSON object: the replacement question. No prose, no code fence commentary,',
+    'no alternatives, and nothing outside the object.',
   ].join('\n');
 };
 
