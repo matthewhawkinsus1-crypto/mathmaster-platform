@@ -298,10 +298,27 @@ function ensureAuditedCcmrPractice(assignment = {}, audit = null) {
   }));
 
   // Work from the end of Practice first so the lesson's opening independent
-  // questions stay close to the authored instructional sequence. A replacement
-  // is only allowed when the audited item assesses the SAME TEKS as the item it
-  // replaces; MathMaster never trades course coverage for a CCMR label.
-  const candidates = [...positions].reverse();
+  // questions stay close to the authored instructional sequence. Preserve
+  // higher-order Practice whenever ordinary DOK 1/2 work can carry the CCMR
+  // target instead. Otherwise an auto-sourced bank item can accidentally replace
+  // the assignment's only DOK 3 Honors-depth question and make final publishing
+  // fail even though Preflight already approved the lesson.
+  //
+  // Higher-order items remain a fallback when no lower-DOK same-TEKS candidate
+  // can be bank-sourced, so CCMR enrichment still has a path on genuinely
+  // advanced Practice sets.
+  const questionDok = (question = {}) => Number(
+    question?.dok
+    ?? question?.dokLevel
+    ?? question?.complexity?.dok
+    ?? question?.complexity?.level
+    ?? 0
+  );
+  const candidates = [...positions]
+    .reverse()
+    .sort((left, right) => (
+      Number(questionDok(left.question) >= 3) - Number(questionDok(right.question) >= 3)
+    ));
   for (const position of candidates) {
     if (needed <= 0) break;
     const sourceQuestion = mutableSections[position.sectionIndex]?.questions?.[position.questionIndex];

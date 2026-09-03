@@ -9,15 +9,9 @@ import { resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
 import useUndoHistory from './useUndoHistory';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from './platform/interaction/choiceOptions.js';
+import { normalizePlainMathTypography } from './components/common/mathSegments.js';
 
 const TEXTUAL_MATH_SIGNAL = /[=<>≤≥≠+*/^()[\]{}\\∞π√∪∩]/;
-
-// MathLive's ASCII-math parser expects exponent syntax rather than Unicode
-// superscript glyphs. Normalize display-only strings so f⁻¹, x², and x³ stay
-// truly superscripted when they are rendered as math. Stored/graded values are
-// left untouched.
-const normalizePlainMathTypography = (value) => String(value ?? '')
-  .replace(/([A-Za-z])\^-1/g, '$1⁻¹');
 
 const normalizeMathDisplayValue = (value) => normalizePlainMathTypography(value)
   .replace(/⁻¹/g, '^(-1)')

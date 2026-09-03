@@ -81,7 +81,7 @@ const normalizeActions = (question = {}) => {
 };
 
 const copyCommon = (source, target = {}) => {
-  ['prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','supportHints','guidedNotes','guidedSteps','referenceInfo','representSolution','solutionRepresentations','representationAsk'].forEach((key) => {
+  ['prompt','activityRole','dok','difficultyBand','purpose','evidenceWeight','differentiation','calculator','calculatorPolicy','examCalculatorMode','assessmentContext','context','familyId','familyVersion','assessedConstruct','taskType','representation','ccmrChallengeTier','ccmrFamilyRole','ccmrAuthenticLanguage','assessmentItemFormat','ccmrSource','solutionReview','attemptFeedback','supportHints','guidedNotes','guidedSteps','referenceInfo','representSolution','solutionRepresentations','representationAsk','showEquation'].forEach((key) => {
     if (source[key] != null) target[key] = source[key];
   });
   // Canonical V5 questions keep the normalized mathematical intent that chose
@@ -151,20 +151,51 @@ const graphFromIntent = (q = {}) => {
 };
 
 const analysisRequestsFromActions = (actions, q = {}) => {
-  if ((!Array.isArray(actions) || actions.length === 0) && Array.isArray(q.analysisRequests) && q.analysisRequests.length) return q.analysisRequests;
-  const notation = q.notation || q.response?.notation || 'interval';
+  const authored = asArray(q.analysisRequests).filter(isObject);
+  if ((!Array.isArray(actions) || actions.length === 0) && authored.length) return authored;
+
+  // Canonical V5 keeps the normalized analysisRequests beside studentActions.
+  // Re-importing that same reviewed assignment must not throw the request
+  // metadata away and silently fall back to interval notation. That exact
+  // round-trip made an Algebra I inequality task reappear to students as
+  // "Domain in interval notation."
+  const authoredFor = (kind, feature = null) => authored.find((request) => (
+    clean(request.kind) === kind
+    && (feature == null || clean(request.feature) === feature)
+  ));
+  const fallbackNotation = clean(q.notation || q.response?.notation)
+    || (clean(q.courseId).toLowerCase() === 'algebra1' ? 'inequality' : 'interval');
+
   const map = [
     ['analyzeDomain','domain'], ['stateDomain','domain'], ['analyzeRange','range'], ['stateRange','range'],
     ['analyzeIncreasing','increasing'], ['analyzeDecreasing','decreasing'], ['analyzeConstant','constant'],
     ['analyzePositive','positive'], ['analyzeNegative','negative'],
   ];
   const requests = [];
-  map.forEach(([action, kind]) => { if (actions.includes(action) && !requests.some((r) => r.kind === kind)) requests.push({ id: kind, kind, notation }); });
+  map.forEach(([action, kind]) => {
+    if (!actions.includes(action) || requests.some((r) => r.kind === kind)) return;
+    const existing = authoredFor(kind);
+    const requestedNotation = clean(existing?.notation) || fallbackNotation;
+    const notation = clean(q.courseId).toLowerCase() === 'algebra1'
+      && ['domain', 'range'].includes(kind)
+      ? 'inequality'
+      : requestedNotation;
+    requests.push({
+      ...(existing || {}),
+      id: existing?.id || kind,
+      kind,
+      notation,
+    });
+  });
   const points = [
     ['findVertex','vertex','vertex'], ['findXIntercepts','xIntercepts','x-intercepts'], ['findYIntercept','yIntercept','y-intercept'],
     ['findMaximum','localMaximum','maximum'], ['findMinimum','localMinimum','minimum'],
   ];
-  points.forEach(([action, feature, id]) => { if (actions.includes(action)) requests.push({ id, kind: 'point', feature }); });
+  points.forEach(([action, feature, id]) => {
+    if (!actions.includes(action)) return;
+    const existing = authoredFor('point', feature);
+    requests.push({ ...(existing || {}), id: existing?.id || id, kind: 'point', feature });
+  });
   return requests;
 };
 
@@ -829,6 +860,44 @@ const compileOne = (q, index, repairs) => {
   const actions = normalizeActions(q);
   if (!actions.length) {
     throw new Error(`V5 question ${index + 1} is missing studentActions. Describe what the student must do instead of supplying a renderer type/toolId.`);
+  }
+
+  // A quantity-role stage with no choices renders two empty headings and gives
+  // the student literally nothing to select. Fail in Preflight instead of
+  // publishing an impossible interaction.
+  if (actions.includes('identifyQuantities')) {
+    const relationship = q.relationship || q.model || {};
+    const canonicalQuantityStage = asArray(q.workflow)
+      .find((stage) => isObject(stage) && clean(stage.kind) === 'quantityRoles');
+    const quantities = asArray(
+      q.quantities
+      || relationship.quantities
+      || canonicalQuantityStage?.quantities
+    ).filter((item) => isObject(item) && clean(item.id));
+    const independentId = clean(
+      q.correctIndependentId
+      || relationship.correctIndependentId
+      || relationship.independentId
+      || canonicalQuantityStage?.correctIndependentId
+      || q.grading?.quantities?.independent
+    );
+    const dependentId = clean(
+      q.correctDependentId
+      || relationship.correctDependentId
+      || relationship.dependentId
+      || canonicalQuantityStage?.correctDependentId
+      || q.grading?.quantities?.dependent
+    );
+    if (quantities.length < 2) {
+      throw new Error(`V5 question ${index + 1} asks students to identify independent/dependent quantities but supplies fewer than two selectable quantities.`);
+    }
+    if (!independentId || !dependentId || independentId === dependentId) {
+      throw new Error(`V5 question ${index + 1} asks students to identify quantities but is missing distinct correctIndependentId/correctDependentId values.`);
+    }
+    const ids = new Set(quantities.map((item) => clean(item.id)));
+    if (!ids.has(independentId) || !ids.has(dependentId)) {
+      throw new Error(`V5 question ${index + 1} quantity-role answer ids must match the supplied quantity choices.`);
+    }
   }
   if (q.type || q.toolId) {
     repairs.push(`ignored internal type hint on V5 question ${index + 1}; compiled from studentActions instead`);

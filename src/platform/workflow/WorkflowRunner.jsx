@@ -153,6 +153,18 @@ function QuantityRolesStage({ stage, value, onChange, disabled }) {
   const quantities = Array.isArray(stage.quantities) ? stage.quantities.filter((item) => item?.id) : [];
   const current = value && typeof value === 'object' ? value : {};
   const set = (role, id) => onChange({ ...current, [role]: id });
+
+  // Preflight now blocks this shape, but older stored assignments can still
+  // reach the runtime. Never render two empty headings and make a student hunt
+  // for controls that do not exist.
+  if (quantities.length < 2) {
+    return (
+      <div role="alert" style={{ padding: 12, border: '1px solid #f1a5a0', borderRadius: 8, background: '#fce8e6', color: '#a50e0e', lineHeight: 1.5 }}>
+        This question is missing the quantity choices needed to identify the input and output. Your teacher needs to repair this item before it can be answered.
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       {[['independent', 'Independent (input)'], ['dependent', 'Dependent (output)']].map(([role, label]) => (

@@ -109,8 +109,9 @@ test('the contract now shows the ray/union form', () => {
   assert.ok(entry.notes.some((note) => /display bounds only/i.test(note)));
 
   const contract = buildAdvancedAuthoringContract();
-  assert.match(contract, /Watch out/);
-  assert.match(contract, /rays and unions/i);
+  assert.match(contract, /constructInterval\/number-line inequalities/i);
+  assert.match(contract, /DISPLAY bounds only/);
+  assert.match(contract, /null for the mathematical unbounded endpoint/i);
 });
 
 // ---------------------------------------------------------------------------

@@ -483,6 +483,57 @@
   outline-offset: 2px;
 }
 
+/* The task card already shows the equation in the normal student view.
+   Repeat it only inside the enlarged graph dialog, where the task card is no
+   longer visible. */
+.mathmaster-enlarged-graph-equation {
+  display: none;
+}
+
+[data-enlarged="true"] .mathmaster-enlarged-graph-equation {
+  display: block;
+}
+
+/* Enlarged domain/range analysis uses the extra horizontal space instead of
+   making a student scroll through a tall left rail. Domain stays left of the
+   graph and range moves to the right. The normal embedded workspace is
+   unchanged, and narrower devices keep the existing stacked layout. */
+@media (min-width: 1050px) {
+  [data-enlarged="true"] .mathmaster-function-workspace-grid.mathmaster-domain-range-only {
+    grid-template-columns: minmax(190px, 230px) minmax(0, 1fr) minmax(190px, 230px) !important;
+    gap: 14px !important;
+    align-items: start;
+  }
+
+  [data-enlarged="true"] .mathmaster-function-workspace-grid.mathmaster-domain-range-only > .mathmaster-function-workspace-sidebar {
+    display: contents;
+  }
+
+  [data-enlarged="true"] .mathmaster-function-workspace-grid.mathmaster-domain-range-only > .mathmaster-function-workspace-graph {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+
+  [data-enlarged="true"] .mathmaster-function-workspace-grid.mathmaster-domain-range-only .mathmaster-analysis-title {
+    grid-column: 1;
+    grid-row: 1;
+    margin: 0 !important;
+    padding: 8px 8px 0;
+  }
+
+  [data-enlarged="true"] .mathmaster-function-workspace-grid.mathmaster-domain-range-only .mathmaster-analysis-part-domain {
+    grid-column: 1;
+    grid-row: 2;
+    margin-top: 0 !important;
+  }
+
+  [data-enlarged="true"] .mathmaster-function-workspace-grid.mathmaster-domain-range-only .mathmaster-analysis-part-range {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    margin-top: 0 !important;
+  }
+}
+
 /* Touch-target floor for everything inside a tool. The mobile stylesheet only
    raised buttons, and only when the tool happened to be inside the student
    question container — selects and text inputs stayed at ~34px, which is below
@@ -598,9 +649,10 @@
 }
 
 /* Keep the actual task in view while a student works down a long question.
-   The compact assignment navigation is already sticky above it. Only the blue
-   task anchor follows the page; reference cards, attempt status, and helper
-   controls scroll away so they do not consume the whole Chromebook viewport. */
+   The compact assignment navigation is already sticky above it. The task anchor
+   carries both the prompt and any source facts the student must keep consulting.
+   Attempt status and helper controls still scroll away so the sticky area stays
+   focused on the mathematics the student needs to answer the question. */
 @media (min-width: 769px) {
   .mathmaster-assignment-screen {
     --mm-sticky-task-top: 118px;

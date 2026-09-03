@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
 
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 
@@ -54,4 +55,40 @@ test('A.5B negative-coefficient number-line family is graph-only', () => {
   assert.deepEqual(doc.ask, ['graph']);
   assert.equal(Object.prototype.hasOwnProperty.call(doc, 'expectedNotation'), false);
   assert.doesNotMatch(doc.prompt, /interval notation/i);
+});
+
+
+test('Algebra I canonical graph-analysis re-import cannot regress domain/range to interval notation', () => {
+  const compiled = compileAuthoringIntentV5({
+    schemaVersion: 5,
+    assignment: {
+      title: 'Algebra I graph-analysis round trip',
+      courseId: 'algebra1',
+      instructionalPurpose: 'review',
+      gradingPurpose: 'classwork',
+    },
+    sections: [{
+      role: 'classwork',
+      title: 'Classwork',
+      questions: [{
+        standard: 'A.9A',
+        prompt: 'Use the displayed graph to determine domain and range.',
+        studentActions: ['readGraph', 'analyzeDomain', 'analyzeRange'],
+        functionSpec: { type: 'exponential', a: 5, base: 3, h: 0, k: -4 },
+        // This is the stale canonical shape that previously survived export
+        // and then overrode the Algebra I course ceiling on re-import.
+        analysisRequests: [
+          { id: 'domain', kind: 'domain', notation: 'interval' },
+          { id: 'range', kind: 'range', notation: 'interval' },
+        ],
+      }],
+    }],
+  }).package.sections[0].questions[0];
+
+  assert.equal(compiled.type, 'graphAnalysis');
+  assert.deepEqual(
+    compiled.analysisRequests.map((request) => request.notation),
+    ['inequality', 'inequality'],
+  );
+  assert.deepEqual(collectViolations(compiled), []);
 });

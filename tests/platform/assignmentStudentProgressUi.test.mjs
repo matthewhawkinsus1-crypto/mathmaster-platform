@@ -20,7 +20,7 @@ test('TEKS and CCMR alignment travel with the persistent YOUR TASK anchor', () =
   assert.match(engine, /taskMeta=\{questionAlignmentPanel\}/);
   assert.match(viewport, /taskMeta = null/);
   assert.match(viewport, /mathmaster-question-task-meta/);
-  assert.match(viewport, /<QuestionPrompt variant="task">[\s\S]*taskMeta/);
+  assert.match(viewport, /<QuestionPrompt[\s\S]*variant="task"[\s\S]*taskMeta/);
 });
 
 test('Preflight distinguishes bank-backed direct CCMR from independently authored exam-style items', () => {

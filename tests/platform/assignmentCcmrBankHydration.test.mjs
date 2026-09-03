@@ -151,6 +151,47 @@ test('a full ordinary Practice section is automatically bank-sourced to the 15% 
   assert.equal(banked[0].alignments.some((entry) => entry.framework === 'teks' && entry.code === 'A.5A'), true);
 });
 
+test('CCMR auto-sourcing preserves the only DOK 3 Honors-depth Practice item when lower-DOK same-TEKS work is available', () => {
+  const sourceQuestions = Array.from({ length: 8 }, (unused, index) => ({
+    questionId: `depth-safe-${index + 1}`,
+    prompt: index === 7
+      ? 'Honors extension: model a real-world linear relationship and justify why the graph is reasonable.'
+      : `Solve the linear equation for x, version ${index + 1}.`,
+    studentActions: index === 7
+      ? ['identifyQuantities', 'constructGraph', 'multipleResponses']
+      : ['solveEquation'],
+    equation: index === 7 ? undefined : `${index + 2}x+4=${(index + 2) * 6 + 4}`,
+    answer: index === 7 ? undefined : '6',
+    standard: 'A.5A',
+    dok: index === 7 ? 3 : 2,
+    difficultyBand: index === 7 ? 4 : 3,
+    representations: index === 7 ? ['context', 'graph'] : undefined,
+    alignments: [
+      { framework: 'teks', code: 'A.5A', role: 'primary', evidenceLevel: 'assessed' },
+    ],
+  }));
+  const source = {
+    schemaVersion: 5,
+    assignment: { title: 'Preserve Honors depth', courseId: 'algebra1' },
+    sections: [{ role: 'practice', title: 'Practice', questions: sourceQuestions }],
+  };
+
+  const result = ensureAuditedCcmrPractice(source);
+  const questions = result.assignment.sections[0].questions;
+  const honorsDepth = questions.find((question) => question.questionId === 'depth-safe-8');
+
+  assert.equal(result.audit.targetCount, 1);
+  assert.equal(result.audit.autoSourced, 1);
+  assert.ok(honorsDepth, 'the existing Honors depth item should remain in Practice');
+  assert.equal(honorsDepth.dok, 3);
+  assert.match(honorsDepth.prompt, /Honors extension/);
+  assert.notEqual(
+    questions.findIndex((question) => question.ccmrSource?.source === 'auditedBank'),
+    7,
+    'the CCMR target should replace lower-DOK Practice before the only DOK 3 item',
+  );
+});
+
 test('Honors CCMR credit requires audited-bank provenance, not merely exam-looking metadata', () => {
   const core = {
     type: 'graphStory',
