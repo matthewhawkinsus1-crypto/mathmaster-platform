@@ -351,6 +351,28 @@ export const validateQuestionSemantics = (question = {}, { label = 'Question' } 
     // be built from table points alone.
     const workflowById = new Map(composed.workflow.map((stage) => [stage.id, stage]));
     composed.workflow.forEach((stage) => {
+      if (stage.kind === 'quantityRoles') {
+        const quantities = Array.isArray(stage.quantities)
+          ? stage.quantities.filter((item) => item && typeof item === 'object' && String(item.id || '').trim())
+          : [];
+        if (quantities.length < 2) {
+          errors.push(
+            `${label} quantity-role stage "${stage.id}" has fewer than two selectable quantities. `
+            + 'Students would see Independent/Dependent headings with nothing to choose. Supply at least two quantities with unique ids, or remove identifyQuantities when the situation does not define both roles.',
+          );
+        } else {
+          const ids = new Set(quantities.map((item) => String(item.id).trim()));
+          const rule = composed.grading?.[stage.id] || composed.grading?.quantities || {};
+          const independent = String(rule?.independent || stage.correctIndependentId || '').trim();
+          const dependent = String(rule?.dependent || stage.correctDependentId || '').trim();
+          if (!independent || !dependent || independent === dependent || !ids.has(independent) || !ids.has(dependent)) {
+            errors.push(
+              `${label} quantity-role stage "${stage.id}" does not have two valid answer ids that match its selectable quantities. `
+              + 'Set correctIndependentId/correctDependentId to distinct supplied quantity ids.',
+            );
+          }
+        }
+      }
       if (stage.kind === 'functionGraph') {
         if (stage.sourceStageId) {
           const source = workflowById.get(stage.sourceStageId);
