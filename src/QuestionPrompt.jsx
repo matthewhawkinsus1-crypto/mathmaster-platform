@@ -1,11 +1,5 @@
 import MathDisplay from './MathDisplay';
-import { isMathSegment, splitMathSegments, unwrapMathSegment } from './components/common/mathSegments.js';
-
-// Preserve author-entered values, but never show raw calculator-style inverse
-// notation in prose. This is display-only typography; grading data is not
-// changed.
-const normalizePlainMathTypography = (value) => String(value ?? '')
-  .replace(/([A-Za-z])\^-1/g, '$1⁻¹');
+import { isMathSegment, normalizePlainMathTypography, splitMathSegments, unwrapMathSegment } from './components/common/mathSegments.js';
 
 /**
  * Displays ordinary directions plus optional math delimited with:
