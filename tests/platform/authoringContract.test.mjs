@@ -37,6 +37,7 @@ assert.match(v5, /Never place a student conclusion in `referenceInfo`/i);
 assert.match(v5, /use studentActions \["solveStepByStep"\]/i);
 assert.match(v5, /absolute-value equations, inequalities\/compound inequalities, and squared\/completing-the-square structures/i);
 assert.match(v5, /independent\/dependent roles, the equation\/model, domain, range, continuity, axis labels, scale/i);
+assert.match(v5, /If studentActions includes identifyQuantities, supply at least two selectable quantities/i);
 assert.match(v5, /A\.2B/);
 ['constructGraph', 'readGraph', 'completeTable', 'buildMapping', 'classifyContinuity'].forEach((action) => {
   assert.ok(v5.includes(action), `V5 contract lists student action ${action}`);
