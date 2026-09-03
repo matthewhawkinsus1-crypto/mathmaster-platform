@@ -98,13 +98,19 @@ const SUPERSCRIPT_CHARACTERS = Object.freeze({
  * untouched. This keeps early Algebra prompts such as x^2 and 2^x from reaching
  * students with a raw caret when an author forgot math delimiters.
  */
+const superscriptExponent = (match, exponent) => {
+  const converted = [...String(exponent).toLowerCase()]
+    .map((character) => SUPERSCRIPT_CHARACTERS[character] || '')
+    .join('');
+  return converted && converted.length === String(exponent).length ? converted : match;
+};
+
 export const normalizePlainMathTypography = (value) => String(value ?? '')
-  .replace(/\^\(?(-?\d+|[xni])\)?/gi, (match, exponent) => {
-    const converted = [...String(exponent).toLowerCase()]
-      .map((character) => SUPERSCRIPT_CHARACTERS[character] || '')
-      .join('');
-    return converted && converted.length === String(exponent).length ? converted : match;
-  })
+  // Parenthesized exponents consume their own matching parentheses.
+  .replace(/\^\((-?\d+|[xni])\)/gi, superscriptExponent)
+  // Bare exponents stop at the exponent itself. Do NOT make the closing
+  // parenthesis optional here: in 3(2^x) that ")" belongs to the outer factor.
+  .replace(/\^(-?\d+|[xni])/gi, superscriptExponent)
   .replace(/<=/g, '≤')
   .replace(/>=/g, '≥')
   .replace(/!=/g, '≠')
