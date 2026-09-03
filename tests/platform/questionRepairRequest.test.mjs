@@ -32,6 +32,12 @@ test('repair request carries plain-language teacher intent and the complete exis
   assert.match(request, /Return exactly ONE complete replacement question JSON object/);
   assert.match(request, /update the expected answer\/solution from the same changed mathematics/);
   assert.match(request, /Never add student IDs, accommodations, IEP\/504\/EB information/);
+  assert.match(request, /CANONICAL V5 runtime question/);
+  assert.match(request, /Reference information is part of the student task anchor/);
+  assert.match(request, /Algebra I domain\/range[\s\S]*interval notation/);
+  assert.match(request, /identify independent\/dependent quantities[\s\S]*at least two selectable quantities/);
+  assert.match(request, /readGraph means technology\/displayed-graph analysis/);
+  assert.match(request, /raw caret exponent prose such as x\^2 or 2\^x/);
 });
 
 test('repair request refuses a blank teacher instruction', () => {
