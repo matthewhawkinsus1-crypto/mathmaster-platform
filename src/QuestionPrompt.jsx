@@ -10,6 +10,7 @@ export default function QuestionPrompt({
   style = {},
   mathFormat = 'auto',
   variant = 'question',
+  footer = null,
 }) {
   const text = String(children ?? '');
   const segments = splitMathSegments(text);
@@ -70,6 +71,7 @@ export default function QuestionPrompt({
           />
         );
       })}
+      {footer}
     </div>
   );
 }
