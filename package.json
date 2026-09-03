@@ -19,7 +19,7 @@
     "audit:answer-acceptance": "node scripts/audit-correct-answer-acceptance.mjs --samples 12",
     "audit:assignment-authoring-boundary": "node scripts/audit-assignment-authoring-boundary.mjs",
     "audit:legacy-assignment-source": "node scripts/audit-legacy-assignment-source.mjs",
-    "test:assignment-v5-followup": "node --test tests/platform/sequenceIntegratedWorkflow.test.mjs tests/platform/assignmentTransformationsFullModel.test.mjs tests/platform/assignmentCcmrAllRoutes.test.mjs tests/platform/assignmentCcmrBankHydration.test.mjs tests/platform/assignmentEvidencePolicy.test.mjs tests/platform/assignmentStudentProgressUi.test.mjs"
+    "test:assignment-v5-followup": "node --test tests/platform/sequenceIntegratedWorkflow.test.mjs tests/platform/assignmentTransformationsFullModel.test.mjs tests/platform/assignmentCcmrAllRoutes.test.mjs tests/platform/assignmentCcmrBankHydration.test.mjs tests/platform/assignmentEvidencePolicy.test.mjs tests/platform/assignmentStudentProgressUi.test.mjs tests/platform/assignmentAiFailureDiagnosis.test.mjs tests/platform/assignmentAiStudentDataBoundary.test.mjs tests/platform/assignmentAiProvider.test.mjs tests/platform/assignmentIntegratedAiWiring.test.mjs tests/platform/rolePolicy.test.mjs"
   },
   "dependencies": {
     "firebase": "^12.17.1",
