@@ -10,6 +10,7 @@ import { FUNCTION_GRAPH_LABELS, evaluateGraphFunction, formatGraphEquationLatex 
 import { POINT_FEATURES } from './analysisRequestCatalog';
 import { describeAnswerFormat } from './platform/interaction/answerFormatHints.js';
 import { figureDismissalKey, shouldOpenFigureEnlarged } from './platform/student/figurePresentation.js';
+import { checkPlottedPoints, summarizeSelfCheck } from './platform/student/graphSelfCheck.js';
 import {
   analysisKeypadProfile,
   pathAnalysisTextMatches,
@@ -274,7 +275,21 @@ const analysisAnswerShape = (part) => describeAnswerFormat({
   answerFormat: analysisAnswerFormatFor(part) || analysisKeypadProfile(part),
 });
 
-export default function InteractiveGraphWorkspace({ question, onStateChange, mode = 'investigate', onUndoStateChange = null, feedback = null, draftKey = null }) {
+export default function InteractiveGraphWorkspace({
+  question,
+  onStateChange,
+  mode = 'investigate',
+  onUndoStateChange = null,
+  feedback = null,
+  draftKey = null,
+  // SELF-CHECK IS GRANTED BY POLICY, NEVER BY THE QUESTION.
+  //
+  // It is mathematical help, so a DOL must not carry it however the question
+  // was authored. The engine passes the section's own hintsAllowed, which means
+  // an author cannot switch it on for an exit ticket by adding a field.
+  selfCheckAllowed = false,
+  onSelfCheck = null,
+}) {
   const mobileInteraction = useMobileInteractionMode();
   const svgRef = useRef(null);
   const drawingRef = useRef([]);
@@ -291,6 +306,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   const [activeAnalysisPartId, setActiveAnalysisPartId] = useState(null);
   const [stage, setStage] = useLocalDraftState(draftKey ? `${draftKey}:graph-stage` : null, mode === 'analysis' ? 'analysis' : 'construct');
   const lastMarkerFeedbackRef = useRef('');
+  const [selfCheckReport, setSelfCheckReport] = useState(null);
   const [viewportWidth, setViewportWidth] = useState(
     () => (typeof window === 'undefined' ? 0 : Number(window.innerWidth) || 0),
   );
@@ -654,6 +670,9 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
 
   const placeTask = (taskId, point, options = {}) => {
     if (!taskId || !point || construction.pointsValidated) return;
+    // A verdict about a point the student has since moved is worse than no
+    // verdict: it reads as the platform disagreeing with what is on screen.
+    setSelfCheckReport(null);
     constructionHistory.setValue((current) => ({ ...current, placements: { ...current.placements, [taskId]: point } }));
     const task = tasks.find((item) => item.id === taskId);
     setActiveTaskId(null);
@@ -795,6 +814,20 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       setKeyboardCursor(null);
       setKeyboardAnnouncement('Cursor cleared.');
     }
+  };
+
+  // Compare what the student plotted against the function, and say how far off
+  // each point is. Reported through onSelfCheck so the engine discounts mastery
+  // weight exactly as it does for a revealed hint.
+  const runSelfCheck = () => {
+    if (!selfCheckAllowed || construction.pointsValidated) return;
+    const report = checkPlottedPoints({
+      placements: construction.placements,
+      tasks,
+      evaluate: (x) => evaluateGraphFunction(functionSpec, x),
+    });
+    setSelfCheckReport(report);
+    if (report.checked > 0) onSelfCheck?.(report);
   };
 
   const checkPoints = () => {
@@ -1043,6 +1076,37 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                 })}
                   </div>
                   {tasks.some((task) => task.expected === 'undefined') && <button type="button" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeTask(event.dataTransfer.getData('application/x-mathmaster-point') || activeTaskId, 'undefined'); }} onClick={() => activeTaskId && placeTask(activeTaskId, 'undefined')} style={{ width: '100%', marginTop: '12px', minHeight: '72px', border: '2px dashed #9334e6', borderRadius: '10px', background: '#f8f0ff', color: '#6f2da8', fontWeight: 'bold' }}>Not Real / Undefined</button>}
+                  {/* CHECK YOUR OWN WORK BEFORE SPENDING AN ATTEMPT.
+                      On paper a student checks a point against the rule; here
+                      there was nothing between guessing and committing. This
+                      says how far each plotted point is from the function and
+                      moves nothing — the student still has to fix it. */}
+                  {selfCheckAllowed && !construction.pointsValidated && (
+                    <div style={{ marginTop: '12px' }}>
+                      <button
+                        type="button"
+                        onClick={runSelfCheck}
+                        disabled={!Object.keys(construction.placements).length}
+                        title="Compares your plotted points with the function. Recorded for your teacher, like a hint."
+                        style={{ width: '100%', minHeight: 44, padding: '10px', border: '1px solid #e0a800', borderRadius: '8px', background: '#fffaf0', color: '#7a4f01', fontWeight: 800, opacity: Object.keys(construction.placements).length ? 1 : 0.5 }}
+                      >
+                        Check my points
+                      </button>
+                      <span style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: '#7a6027' }}>Recorded for your teacher</span>
+                      {selfCheckReport && (
+                        <div role="status" style={{ marginTop: '8px', padding: '9px 10px', borderRadius: '8px', border: '1px solid #f0d9a8', background: '#fffaf0' }}>
+                          <strong style={{ display: 'block', fontSize: '12px', color: '#7a4f01' }}>{summarizeSelfCheck(selfCheckReport)}</strong>
+                          <ul style={{ margin: '6px 0 0', paddingLeft: 16, fontSize: '11.5px', lineHeight: 1.5, color: '#5f4400' }}>
+                            {selfCheckReport.results.map((entry) => (
+                              <li key={entry.id} style={{ color: entry.correct ? '#137333' : '#5f4400' }}>
+                                {pointLabel(entry.point)} — {entry.text}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {!construction.pointsValidated && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
                 </>
               )}

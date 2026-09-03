@@ -567,6 +567,22 @@ export default function QuestionEngine({
     setScratchpadDataUrl(list[0] || '');
   };
 
+  // WHO MAY CHECK THEIR OWN GRAPH, DECIDED HERE AND NOT IN THE CONTENT.
+  //
+  // Checking a plotted point against the function is mathematical help, so it
+  // follows the same permission as a hint: available while practising, absent
+  // on a DOL. Deciding it from the section policy rather than from a question
+  // field means an author cannot switch it on for an exit ticket, and a bank
+  // question carried into a DOL loses it automatically.
+  const selfCheckAllowed = resolvedActivityPolicy?.hintsAllowed !== false && !locked;
+
+  const graphModuleProps = {
+    selfCheckAllowed,
+    // Reported exactly like a revealed hint, which is what discounts the
+    // mastery weight through isMathematicallyIndependent.
+    onSelfCheck: () => setHintUsed(true),
+  };
+
   const commonModuleProps = {
     question: presentationQuestion,
     onStateChange: setAnswerState,
@@ -616,9 +632,9 @@ export default function QuestionEngine({
         return <GraphLine {...commonModuleProps} />;
       case 'functionGraph':
       case 'functionInvestigation':
-        return <FunctionGraphBuilder {...commonModuleProps} />;
+        return <FunctionGraphBuilder {...commonModuleProps} {...graphModuleProps} />;
       case 'graphAnalysis':
-        return <GraphAnalysis {...commonModuleProps} />;
+        return <GraphAnalysis {...commonModuleProps} {...graphModuleProps} />;
       case 'stepAlgebra':
         if (needsMultiRelationWorkspace(processedQuestion)) {
           return (
