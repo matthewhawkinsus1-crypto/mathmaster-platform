@@ -80,6 +80,7 @@ export default function EnlargeableFigure({
 
   const figure = (
     <figure
+      data-enlarged={enlarged ? 'true' : 'false'}
       style={enlarged
         ? {
           position: 'relative',

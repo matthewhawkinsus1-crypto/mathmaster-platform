@@ -6,7 +6,7 @@ import { toPlainMath } from './components/common/mathSegments.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import QuestionPrompt from './QuestionPrompt';
 import PathQuestionStimulus from './components/student/PathQuestionStimulus.jsx';
-import { FUNCTION_GRAPH_LABELS, evaluateGraphFunction } from './functionGraphUtils';
+import { FUNCTION_GRAPH_LABELS, evaluateGraphFunction, formatGraphEquationLatex } from './functionGraphUtils';
 import { POINT_FEATURES } from './analysisRequestCatalog';
 import {
   analysisKeypadProfile,
@@ -870,6 +870,16 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
         : mode === 'analysis'
           ? 'Analyze the Graph'
           : 'Explore the Function';
+  const promptNamesEquation = /(?:[A-Za-z]\s*\([^)]*\)|\by)\s*=/.test(String(question.prompt || ''));
+  const graphEquationLatex = question.showEquation === false
+    ? ''
+    : (question.showEquation === true || promptNamesEquation)
+      ? String(question.equationLatex || '').trim() || formatGraphEquationLatex(functionSpec)
+      : '';
+  const domainRangeOnly = stage === 'analysis'
+    && analysisParts.length === 2
+    && analysisParts.some((part) => part.kind === 'domain')
+    && analysisParts.some((part) => part.kind === 'range');
 
   return (
     <div style={{ textAlign: 'left' }}>
@@ -884,8 +894,6 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       {!String(question.prompt || '').trim() && (
         <QuestionPrompt>{pointOnly ? 'Plot every point from your table.' : 'Construct the function, show its boundaries or continuation clearly, and complete every requested analysis part.'}</QuestionPrompt>
       )}
-      {question.showEquation !== false && question.equationLatex && <div style={{ margin: '18px auto', padding: '14px 20px', width: 'fit-content', maxWidth: '100%', borderRadius: '10px', background: '#f8f9fa', color: '#1a73e8', fontSize: '27px', fontWeight: 'bold' }}><MathDisplay value={question.equationLatex} format="latex" /></div>}
-
       <PathQuestionStimulus stimulus={question.stimulus} />
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginBottom: '12px' }}>
@@ -912,8 +920,27 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
           actually reached because everything upstream is narrower — so the only
           effect of the fixed width was to shrink the graph. */}
       <EnlargeableFigure label="Coordinate plane workspace" enlargeLabel="Enlarge graph">
-      <div className="mathmaster-function-workspace-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 220px) minmax(0, 1fr)', gap: '16px', justifyContent: 'center', alignItems: 'start' }}>
-        <aside style={{ border: '1px solid #dfe3e7', borderRadius: '12px', background: '#f8fbff', padding: '12px' }}>
+      {graphEquationLatex && (
+        <div
+          className="mathmaster-enlarged-graph-equation"
+          style={{
+            margin: '4px auto 10px',
+            padding: '7px 42px 7px 10px',
+            width: 'fit-content',
+            maxWidth: 'calc(100% - 48px)',
+            borderRadius: 8,
+            background: '#f8fbff',
+            color: '#174ea6',
+            fontSize: 20,
+            fontWeight: 800,
+            boxSizing: 'border-box',
+          }}
+        >
+          <MathDisplay value={graphEquationLatex} format="latex" inline />
+        </div>
+      )}
+      <div className={`mathmaster-function-workspace-grid${domainRangeOnly ? ' mathmaster-domain-range-only' : ''}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(180px, 220px) minmax(0, 1fr)', gap: '16px', justifyContent: 'center', alignItems: 'start' }}>
+        <aside className="mathmaster-function-workspace-sidebar" style={{ border: '1px solid #dfe3e7', borderRadius: '12px', background: '#f8fbff', padding: '12px' }}>
           {stage === 'construct' ? (
             <>
               <h3 style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>
@@ -957,7 +984,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
             </>
           ) : (
             <>
-              <h3 style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>{inverseReflectionEnabled ? 'Build the Inverse' : 'Analysis Parts'}</h3>
+              <h3 className="mathmaster-analysis-title" style={{ margin: '0 0 8px', fontSize: '16px', color: '#174ea6' }}>{inverseReflectionEnabled ? 'Build the Inverse' : 'Analysis Parts'}</h3>
               {inverseReflectionEnabled && <p style={{ margin: '0 0 10px', color: '#5f6368', fontSize: '12px', lineHeight: 1.5 }}>Reflect both validated points across <strong>y=x</strong>. After both reflected points are correct, draw the inverse through them and write <strong>f⁻¹(x)</strong>.</p>}
               {analysisParts.map((part) => {
                 if (inverseReflectionEnabled && part.id === inverseReflection?.equationPartId && !analysis.inverseSnapped) return null;
@@ -966,7 +993,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                 const noneSelected = Boolean(analysis.noneSelections[part.id]);
                 const offersAllRealNumbers = ['domain', 'range'].includes(part.kind)
                   && String(part.notation || '').toLowerCase() === 'inequality';
-                return <div key={part.id} style={{ marginTop: '9px', padding: '10px', borderRadius: '9px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : activeAnalysisPartId === part.id ? '#1a73e8' : '#d9e2f1'}`, background: grade && !grade.isCorrect ? '#fff8f7' : '#fff' }}>
+                return <div key={part.id} className={`mathmaster-analysis-part mathmaster-analysis-part-${part.kind}`} style={{ marginTop: '9px', padding: '10px', borderRadius: '9px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : activeAnalysisPartId === part.id ? '#1a73e8' : '#d9e2f1'}`, background: grade && !grade.isCorrect ? '#fff8f7' : '#fff' }}>
                   <button type="button" onClick={() => setActiveAnalysisPartId(part.id)} style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'left', fontWeight: 'bold', color: '#202124' }}><MathText>{part.label}</MathText></button>
                   {['point', 'inversePoint'].includes(part.kind) ? <>
                     {part.responseMode !== 'input' && <div style={{ marginTop: '5px', fontSize: '12px', color: '#5f6368' }}>{noneSelected ? 'Marked: does not exist' : `${selected.length}/${part.expected.length || 1} selected`}</div>}
@@ -1017,7 +1044,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
           )}
         </aside>
 
-        <figure style={{ margin: 0, width: '100%', padding: '10px', border: '1px solid #dfe3e7', borderRadius: '12px', background: '#fff', boxSizing: 'border-box' }}>
+        <figure className="mathmaster-function-workspace-graph" style={{ margin: 0, width: '100%', padding: '10px', border: '1px solid #dfe3e7', borderRadius: '12px', background: '#fff', boxSizing: 'border-box' }}>
           <svg ref={svgRef} className="mathmaster-responsive-canvas mathmaster-touch-surface" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet" role="application"
             aria-label="Coordinate plane. Use the arrow keys to move the cursor, hold Shift to move faster, and press Enter to place at the cursor."
             tabIndex={0}
