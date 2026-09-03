@@ -303,9 +303,15 @@ export const StudentLearningPath = ({
         </p>
       </header>
 
-      {freeChoiceLocked && (
-        <div role="status" style={{ margin: '0 0 16px', padding: '12px 14px', borderRadius: 11, background: '#fff4ce', border: '1px solid #f0d489', color: '#7a4f00', fontSize: 13.5, fontWeight: 750, lineHeight: 1.55 }}>
-          {freeChoiceMessage || 'Finish your weekly target above to unlock free-choice paths.'}
+      {/*
+        This banner used to appear only when free practice was locked, in warning
+        colours, to tell a student what they were not allowed to do yet. It now
+        states the opposite fact — everything here is open — and only shows when
+        there is a weekly target worth naming alongside it.
+      */}
+      {freeChoiceMessage && (
+        <div role="status" style={{ margin: '0 0 16px', padding: '12px 14px', borderRadius: 11, background: '#f8fbff', border: '1px solid #c9daf8', color: '#174ea6', fontSize: 13.5, fontWeight: 750, lineHeight: 1.55 }}>
+          {freeChoiceMessage}
         </div>
       )}
 
@@ -319,7 +325,7 @@ export const StudentLearningPath = ({
       />
       <PathSection
         title="Also open to you"
-        note={freeChoiceLocked ? 'These open as soon as your weekly target is complete.' : 'Pick any of these. They stay open even when something else needs work first.'}
+        note={'Pick any of these. They stay open even when something else needs work first.'}
         nodes={map.branches}
         onChoose={choose}
         practiceAs={practiceAs}
@@ -366,7 +372,7 @@ export const StudentLearningPath = ({
       />
       <PathSection
         title="Mastered"
-        note={freeChoiceLocked ? 'Your mastered skills stay yours. Free-choice review reopens when the weekly target is complete.' : 'Yours already. You can practise any of them again whenever you want to.'}
+        note={'Yours already. You can practise any of them again whenever you want to.'}
         nodes={map.mastered}
         onChoose={choose}
         practiceAs={practiceAs}

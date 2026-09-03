@@ -24,6 +24,7 @@ import { CCMR_EXPECTATION, buildWeeklyGoal, deriveCompletionsFromEvidence, evalu
 import { resolveWeeklyPathGoalSnapshot } from '../../platform/path/pathStore.js';
 import { STATUS } from '../../platform/path/recommendationEngine.js';
 import { studentLabelForTeks } from '../../platform/path/skillLabels.js';
+import { chooseWeeklyAlternative } from '../../platform/path/weeklyPathChoice.js';
 import { DEFAULT_MASTERY_COURSE_ID, getWheelTeksForCourse } from '../../platform/mastery/strandConfig.js';
 import {
   buildStudentAssessmentContext, readCcmrGoals, writeCcmrGoals,
@@ -129,6 +130,10 @@ export const MyMathPathExperience = ({
   // choose Mastery Overview first, but the same component stays the source of truth.
   const [activeTab, setActiveTab] = useState(() => initialTab);
   const [sessionConfig, setSessionConfig] = useState(null);
+  // Which alternative the student put in each slot, keyed by the slot's frozen
+  // key. Deliberately session-scoped: a swap is a decision about what to work on
+  // right now, not a setting worth persisting or a thing to explain later.
+  const [weeklyChoices, setWeeklyChoices] = useState({});
 
   // Keep My Math Path's own tabs/session in the browser history too. App.jsx
   // owns the outer student surface (Assignments, My Math Path, Exams); this
@@ -295,6 +300,18 @@ export const MyMathPathExperience = ({
   );
   // Exact one-to-one slot matching. Two weekly rows may intentionally use the
   // same TEKS, so a set of worked standards would incorrectly mark both done.
+  const weeklyGoalWithChoices = useMemo(() => {
+    if (!weeklyGoal?.sessions?.length) return weeklyGoal;
+    return {
+      ...weeklyGoal,
+      sessions: weeklyGoal.sessions.map((session) => (
+        weeklyChoices[session.weeklySlotKey]
+          ? chooseWeeklyAlternative(session, weeklyChoices[session.weeklySlotKey])
+          : session
+      )),
+    };
+  }, [weeklyGoal, weeklyChoices]);
+
   const completedSlots = useMemo(() => (weeklyGoal
     ? matchWeeklyGoalCompletions({ goal: weeklyGoal, completions: weeklyCompletions }).matched.map((entry) => entry.matchedSlot)
     : []), [weeklyGoal, weeklyCompletions]);
@@ -401,22 +418,42 @@ export const MyMathPathExperience = ({
   }, [launchTeksCode, coverageLoaded, coverage]);
 
   const startWeeklySession = (session) => {
-    const code = session?.teksCode || teksCodeFromSkillId(session?.skillId);
+    // The session arrives with the student's swap already applied, and a swap
+    // keeps the slot's frozen key, so the completion still fills its own slot.
+    const chosen = session;
+    const code = chosen?.teksCode || teksCodeFromSkillId(chosen?.skillId);
     if (!code) return;
     startSession(code, {
       weekKey: weeklyGoal?.weekKey || null,
-      weeklySlotKey: session?.weeklySlotKey || null,
-      weeklySlot: session?.slot || null,
-      intendedDok: session?.dok ?? null,
-      intendedDifficultyBand: session?.difficultyBand ?? null,
-      weeklyPurpose: session?.purpose || null,
-      framework: session?.context && session.context !== 'course' ? session.context : null,
+      weeklySlotKey: chosen?.weeklySlotKey || null,
+      weeklySlot: chosen?.slot || null,
+      chosenSkillId: chosen?.chosenSkillId || null,
+      intendedDok: chosen?.dok ?? null,
+      intendedDifficultyBand: chosen?.difficultyBand ?? null,
+      weeklyPurpose: chosen?.purpose || null,
+      framework: chosen?.context && chosen.context !== 'course' ? chosen.context : null,
     });
   };
 
-  const weeklyFreeChoiceLocked = Boolean(weeklyGoal && weeklyProgress && weeklyProgress.remaining > 0);
-  const weeklyFreeChoiceMessage = weeklyFreeChoiceLocked
-    ? `${weeklyProgress.completed} of ${weeklyProgress.required} weekly sessions complete. Finish ${weeklyProgress.remaining} more ${weeklyProgress.remaining === 1 ? 'session' : 'sessions'} above to unlock free-choice paths.`
+  const chooseWeeklySlotAlternative = (session, alternativeSkillId) => {
+    const key = session?.weeklySlotKey;
+    if (!key) return;
+    setWeeklyChoices((current) => {
+      const next = { ...current };
+      if (alternativeSkillId) next[key] = alternativeSkillId;
+      else delete next[key];
+      return next;
+    });
+  };
+
+  // Free practice used to be locked until the weekly target was met, which made
+  // the whole Path read as compliance: a student who wanted to work on something
+  // else was told to finish their assigned work first. The week is still the
+  // requirement and still says so — but a student who wants to practise more is
+  // never the person a learning platform should be turning away.
+  const weeklyFreeChoiceLocked = false;
+  const weeklyFreeChoiceMessage = weeklyGoal && weeklyProgress && weeklyProgress.remaining > 0
+    ? `Open whenever you want. Your ${weeklyProgress.required} weekly sessions above are what counts toward this week — ${weeklyProgress.remaining} still to go.`
     : null;
 
   const returnToDashboard = () => {
@@ -453,10 +490,11 @@ export const MyMathPathExperience = ({
           {weeklyGoal && (
             <div style={{ maxWidth: '940px', margin: '0 auto', padding: '20px 16px 0' }}>
               <WeeklyPathGoalPanel
-                goal={weeklyGoal}
+                goal={weeklyGoalWithChoices}
                 progress={weeklyProgress}
                 completedSlots={completedSlots}
                 onStartSession={startWeeklySession}
+                onChooseAlternative={chooseWeeklySlotAlternative}
               />
             </div>
           )}

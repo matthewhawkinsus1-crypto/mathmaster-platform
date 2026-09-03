@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { PURPOSE } from '../../platform/path/recommendationV2.js';
+import { describeSlotChoice } from '../../platform/path/weeklyPathChoice.js';
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
 
 // The student's week is a commitment the platform can count, not a vague list
@@ -25,28 +26,135 @@ const weeklyPurposeLabel = (session = {}) => {
   return frameworkLabel ? `${frameworkLabel} transfer` : (session.purposeLabel || 'CCMR transfer');
 };
 
-function ProgressDots({ required, completed }) {
+/**
+ * The week as one bar.
+ *
+ * This replaces a row of dots. Dots stop reading as progress somewhere around
+ * five, and they cannot show a partly finished session at all — a student who
+ * had done most of the week saw the same shape as one who had done none of it.
+ * The bar is also the only number on this screen a student should never have to
+ * hunt for, so it carries its own text rather than relying on the copy above it.
+ */
+export function WeeklyProgressBar({ required, completed, compact = false }) {
+  const total = Math.max(0, Number(required) || 0);
+  const done = Math.min(Math.max(0, Number(completed) || 0), total);
+  const percent = total ? Math.round((done / total) * 100) : 0;
+  const complete = total > 0 && done >= total;
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }} role="img" aria-label={`${completed} of ${required} weekly sessions complete`}>
-      <strong style={{ color: completed >= required ? '#12633a' : '#174ea6', fontSize: 13 }}>{completed}/{required}</strong>
-      <div style={{ display: 'flex', gap: 6 }}>
-        {Array.from({ length: required }, (_, index) => (
-          <span
-            key={index}
-            style={{
-              width: 12, height: 12, borderRadius: 999,
-              background: index < completed ? '#12633a' : '#e3e6eb',
-              boxShadow: index < completed ? '0 0 0 2px #d7f2df' : 'none',
-            }}
-          />
-        ))}
+    <div style={{ display: 'grid', gap: 5, minWidth: compact ? 150 : 210 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+        <strong style={{ color: complete ? '#12633a' : '#174ea6', fontSize: compact ? 12.5 : 13.5 }}>
+          {done} of {total} done
+        </strong>
+        <span style={{ color: complete ? '#12633a' : '#5f6368', fontSize: 12, fontWeight: 800 }}>{percent}%</span>
+      </div>
+      <div
+        role="progressbar"
+        aria-valuenow={done}
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-label={`${done} of ${total} weekly sessions complete`}
+        style={{
+          height: compact ? 9 : 11,
+          borderRadius: 999,
+          background: '#e8eaed',
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{
+          width: `${percent}%`,
+          height: '100%',
+          borderRadius: 999,
+          background: complete ? 'linear-gradient(90deg,#34a853,#0f9d58)' : 'linear-gradient(90deg,#4285f4,#174ea6)',
+          transition: 'width .35s ease',
+        }} />
       </div>
     </div>
   );
 }
 
-function SessionCard({ session, done, onStart, disabled, total }) {
+/**
+ * The choice control for one slot.
+ *
+ * Collapsed by default. A student who is happy with the recommendation should
+ * not have to read three options to start working, and a student who wants
+ * something else should not have to ask a teacher for permission.
+ */
+function SlotChoice({ session, onChoose, disabled }) {
+  const [open, setOpen] = useState(false);
+  const choice = describeSlotChoice(session);
+  if (!choice.canChoose) return null;
+
+  const options = [
+    {
+      skillId: session.recommendedSkillId || session.skillId,
+      studentLabel: session.recommendedLabel || session.studentLabel,
+      swapReason: 'MathMaster picked this one for you.',
+      recommended: true,
+    },
+    ...(session.alternatives || []),
+  ];
+
+  return (
+    <div style={{ marginTop: 2 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        style={{
+          appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+          border: '1px solid #c9daf8', borderRadius: 9, background: '#f8fbff',
+          color: '#174ea6', fontWeight: 800, fontSize: 12.5, padding: '8px 11px',
+          minHeight: 44, cursor: 'pointer', width: '100%', textAlign: 'left',
+        }}
+      >
+        {open
+          ? 'Hide the other options'
+          : `Want something else? ${choice.optionCount} other ${choice.optionCount === 1 ? 'option' : 'options'} for this slot`}
+      </button>
+
+      {open && (
+        <ul style={{ margin: '9px 0 0', padding: 0, display: 'grid', gap: 7 }}>
+          {options.map((option) => {
+            const active = String(session.skillId) === String(option.skillId);
+            return (
+              <li key={option.skillId} style={{ listStyle: 'none' }}>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => { onChoose?.(session, option.recommended ? null : option.skillId); setOpen(false); }}
+                  style={{
+                    appearance: 'none', WebkitAppearance: 'none', fontFamily: 'inherit',
+                    display: 'block', width: '100%', textAlign: 'left',
+                    border: active ? '2px solid #174ea6' : '1px solid #e3e6eb',
+                    borderRadius: 10, background: active ? '#f8fbff' : '#fff',
+                    padding: '10px 12px', minHeight: 44, cursor: disabled ? 'default' : 'pointer',
+                  }}
+                >
+                  <span style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <strong style={{ fontSize: 14, color: '#202124' }}>{option.studentLabel}</strong>
+                    {option.recommended && (
+                      <span style={{ fontSize: 10.5, fontWeight: 900, color: '#174ea6', background: '#eef3fb', border: '1px solid #c9daf8', borderRadius: 999, padding: '2px 7px' }}>
+                        RECOMMENDED
+                      </span>
+                    )}
+                    {active && <span style={{ fontSize: 11, fontWeight: 900, color: '#12633a' }}>✓ chosen</span>}
+                  </span>
+                  <span style={{ ...MUTED, display: 'block', marginTop: 3, fontSize: 12.5 }}>{option.swapReason}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function SessionCard({ session, done, onStart, onChoose, disabled, total }) {
   const tone = PURPOSE_TONE[session.purpose] || PURPOSE_TONE[PURPOSE.CURRENT_LEARNING];
+  const choice = describeSlotChoice(session);
   return (
     <li style={{ listStyle: 'none' }}>
       <div style={{
@@ -81,6 +189,10 @@ function SessionCard({ session, done, onStart, disabled, total }) {
           {session.studentLabel || session.teksCode}
         </div>
 
+        <div style={{ fontSize: 11.5, fontWeight: 800, color: choice.chose ? '#12633a' : '#5f6368' }}>
+          {choice.chose ? `You chose this instead of ${choice.recommendedLabel}` : 'Recommended for you'}
+        </div>
+
         <div style={MUTED}>{session.studentExplanation}</div>
 
         {done ? (
@@ -103,6 +215,8 @@ function SessionCard({ session, done, onStart, disabled, total }) {
             Start weekly session
           </button>
         )}
+
+        {!done && <SlotChoice session={session} onChoose={onChoose} disabled={disabled} />}
       </div>
     </li>
   );
@@ -113,6 +227,7 @@ export default function WeeklyPathGoalPanel({
   progress = null,
   completedSlots = [],
   onStartSession = null,
+  onChooseAlternative = null,
   busy = false,
   compact = false,
 }) {
@@ -151,10 +266,10 @@ export default function WeeklyPathGoalPanel({
             {complete ? `You hit all ${required} sessions.` : `${completed} of ${required} sessions complete · ${remaining} to go`}
           </strong>
           <span style={{ ...MUTED, display: 'block', marginTop: 3 }}>
-            {complete ? 'Free-choice Path practice is unlocked for the rest of the week.' : 'Each completed weekly session unlocks more of your Path.'}
+            {complete ? 'Anything else you practise this week is extra.' : 'Do them in any order, and you can swap a skill on any card.'}
           </span>
         </div>
-        <ProgressDots required={required} completed={completed} />
+        <WeeklyProgressBar required={required} completed={completed} />
       </section>
     );
   }
@@ -177,14 +292,20 @@ export default function WeeklyPathGoalPanel({
             <h2 style={{ margin: '3px 0 0', fontSize: complete ? 24 : 19, color: complete ? '#12633a' : '#202124' }}>
               {complete ? 'Weekly target complete!' : 'Your Weekly Math Path'}
             </h2>
+            {!complete && (
+              <p style={{ ...MUTED, margin: '5px 0 0', fontSize: 13 }}>
+                MathMaster picked these for you and says why. Do them in any order — and if a
+                different skill would help you more, swap it on any card below.
+              </p>
+            )}
           </div>
-          <ProgressDots required={required} completed={completed} />
+          <WeeklyProgressBar required={required} completed={completed} />
         </div>
 
         <div style={{ ...MUTED, fontSize: complete ? 15 : 14, color: complete ? '#245c33' : MUTED.color, fontWeight: complete ? 700 : 400 }}>
           {complete
-            ? `You completed all ${required} of ${required} assigned Path sessions. Free-choice paths are now unlocked — anything else you do this week is extra practice.`
-            : `${completed} of ${required} weekly sessions done. ${remaining} ${remaining === 1 ? 'session' : 'sessions'} to go before free-choice paths unlock.`}
+            ? `You completed all ${required} of ${required} Path sessions this week. Anything else you do now is extra practice.`
+            : `${completed} of ${required} weekly sessions done — ${remaining} to go. Practising anything else on your Path is always open; these are the ones that count toward the week.`}
         </div>
         {progress?.daysLeft != null && remaining > 0 && progress.daysLeft >= 0 && (
           <div style={{ ...MUTED, fontSize: 12.5 }}>
@@ -242,6 +363,7 @@ export default function WeeklyPathGoalPanel({
             session={session}
             done={done.has(session.slot)}
             onStart={onStartSession}
+            onChoose={onChooseAlternative}
             disabled={busy}
             total={required}
           />

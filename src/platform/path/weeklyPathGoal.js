@@ -17,6 +17,7 @@
 // the caller's.
 
 import { PURPOSE, PURPOSE_LABEL } from './recommendationV2.js';
+import { attachWeeklyAlternatives } from './weeklyPathChoice.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -28,6 +29,7 @@ const DAY = 24 * 60 * 60 * 1000;
  * calibrated from real time-on-task, so they live in one exported constant
  * rather than scattered through the UI.
  */
+
 export const WEEKLY_GOAL = Object.freeze({
   REGULAR_DEFAULT: 4,
   HONORS_DEFAULT: 5,
@@ -321,15 +323,21 @@ export const buildWeeklyGoal = ({
     // The goal is a number of SESSIONS. It is never a number of TEKS, and the
     // distinction is the whole design.
     goalSessions: settings.sessions,
-    sessions: filtered.map((session, index) => {
-      const slot = index + 1;
-      return {
-        ...session,
-        slot,
-        weeklySlotKey: weeklySlotKey(session, slot),
-        purposeLabel: session.purposeLabel || PURPOSE_LABEL[session.purpose] || null,
-        status: 'notStarted',
-      };
+    // Each slot keeps its frozen key and gains the equally-useful options the
+    // student may put in it instead. Swapping never changes the key, so a week
+    // already in progress keeps counting exactly as it did.
+    sessions: attachWeeklyAlternatives({
+      sessions: filtered.map((session, index) => {
+        const slot = index + 1;
+        return {
+          ...session,
+          slot,
+          weeklySlotKey: weeklySlotKey(session, slot),
+          purposeLabel: session.purposeLabel || PURPOSE_LABEL[session.purpose] || null,
+          status: 'notStarted',
+        };
+      }),
+      considered: list(plan?.considered),
     }),
     ccmr: {
       expectation: settings.ccmrExpectation,
