@@ -272,9 +272,13 @@ export const MobileViewportContainer = ({
         </div>
         {!isPromptCollapsed && (
           <>
-            <QuestionPrompt variant="task">{promptText || 'Complete the math task.'}</QuestionPrompt>
+            <QuestionPrompt
+              variant="task"
+              footer={taskContextPanel ? <div className="mathmaster-question-task-context">{taskContextPanel}</div> : null}
+            >
+              {promptText || 'Complete the math task.'}
+            </QuestionPrompt>
             {taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}
-            {taskContextPanel && <div className="mathmaster-question-task-context">{taskContextPanel}</div>}
           </>
         )}
       </div>
