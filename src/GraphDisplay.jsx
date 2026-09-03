@@ -2,6 +2,8 @@ import QuestionPrompt from './QuestionPrompt';
 import { evaluateStaticGraphFunction, fitStaticGraphViewport, resolvePointFill, resolvePointRadius } from './graphSpecUtils';
 import { readGraphPointCoordinates } from './graphPointUtils.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
+import MathDisplay from './MathDisplay.jsx';
+import { formatGraphEquationLatex } from './functionGraphUtils.js';
 
 const DEFAULT_WIDTH = 620;
 const DEFAULT_HEIGHT = 430;
@@ -206,6 +208,10 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
   const xTicks = buildTicks(xMin, xMax, xStep > 0 ? xStep : 1);
   const yTicks = buildTicks(yMin, yMax, yStep > 0 ? yStep : 1);
   const functions = normalizeFunctionList(displayGraph);
+  const equationLatex = displayGraph.showEquation === false
+    ? ''
+    : String(displayGraph.equationLatex || '').trim()
+      || (functions.length === 1 ? formatGraphEquationLatex(functions[0]) : '');
   const points = Array.isArray(displayGraph.points) ? displayGraph.points : [];
   const segments = Array.isArray(displayGraph.segments) ? displayGraph.segments : [];
   const authoredEndpointRequirements = Array.isArray(displayGraph.endpointRequirements) ? displayGraph.endpointRequirements : [];
@@ -251,6 +257,25 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
         boxShadow: '0 2px 8px rgba(60,64,67,0.08)',
       }}
     >
+      {equationLatex && (
+        <div
+          className="mathmaster-enlarged-graph-equation"
+          style={{
+            margin: '4px auto 10px',
+            padding: '7px 42px 7px 10px',
+            width: 'fit-content',
+            maxWidth: 'calc(100% - 48px)',
+            borderRadius: 8,
+            background: '#f8fbff',
+            color: '#174ea6',
+            fontSize: 20,
+            fontWeight: 800,
+            boxSizing: 'border-box',
+          }}
+        >
+          <MathDisplay value={equationLatex} format="latex" inline />
+        </div>
+      )}
       <svg
         className="mathmaster-responsive-canvas"
         viewBox={`0 0 ${DEFAULT_WIDTH} ${DEFAULT_HEIGHT}`}
