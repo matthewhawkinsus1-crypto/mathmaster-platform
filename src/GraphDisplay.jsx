@@ -208,10 +208,11 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
   const xTicks = buildTicks(xMin, xMax, xStep > 0 ? xStep : 1);
   const yTicks = buildTicks(yMin, yMax, yStep > 0 ? yStep : 1);
   const functions = normalizeFunctionList(displayGraph);
-  const equationLatex = displayGraph.showEquation === false
-    ? ''
-    : String(displayGraph.equationLatex || '').trim()
-      || (functions.length === 1 ? formatGraphEquationLatex(functions[0]) : '');
+  const explicitEquation = String(displayGraph.equationLatex || '').trim();
+  const equationLatex = explicitEquation
+    || (displayGraph.showEquation === true && functions.length === 1
+      ? formatGraphEquationLatex(functions[0])
+      : '');
   const points = Array.isArray(displayGraph.points) ? displayGraph.points : [];
   const segments = Array.isArray(displayGraph.segments) ? displayGraph.segments : [];
   const authoredEndpointRequirements = Array.isArray(displayGraph.endpointRequirements) ? displayGraph.endpointRequirements : [];
