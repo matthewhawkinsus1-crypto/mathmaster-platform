@@ -415,6 +415,7 @@ test('student-facing renderers contain the fidelity safeguards', async () => {
   assert.match(relation, /every input has exactly one output/);
   assert.match(workflow, /Your checked graph/);
   assert.match(workflow, /checkedGraphReference/);
+  assert.match(workflow, /missing the quantity choices needed to identify the input and output/);
   assert.match(mathInput, /functionNotationKeys/);
   assert.match(graph, /formatGraphEquationLatex/, 'static enlarged graphs should display the graphed equation');
   assert.match(interactiveGraph, /graphEquationLatex[\s\S]*formatGraphEquationLatex/, 'interactive enlarged graphs should derive their equation from the function spec');
