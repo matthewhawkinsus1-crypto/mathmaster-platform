@@ -27,6 +27,7 @@ import {
   gradeWeeklyGoal,
   matchWeeklyGoalCompletions,
   normalizeGradingPolicy,
+  weekKeyFor,
   weeklySlotKey,
 } from '../../../functions/shared/weeklyPathGrade.mjs';
 
@@ -36,6 +37,7 @@ export {
   gradeWeeklyGoal,
   matchWeeklyGoalCompletions,
   normalizeGradingPolicy,
+  weekKeyFor,
   weeklySlotKey,
 };
 
@@ -139,16 +141,6 @@ export const normalizeWeeklyGoalConfig = (config = {}, { honors = false } = {}) 
  * Goals persist per week, and "this week" has to mean the same thing on Monday
  * morning and Friday afternoon, on the student's screen and the teacher's.
  */
-export const weekKeyFor = (now = Date.now(), weekStartsOn = 1) => {
-  const date = new Date(now);
-  const utc = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
-  const day = new Date(utc).getUTCDay();
-  const back = (day - weekStartsOn + 7) % 7;
-  const start = new Date(utc - back * DAY);
-  const month = String(start.getUTCMonth() + 1).padStart(2, '0');
-  const dayOfMonth = String(start.getUTCDate()).padStart(2, '0');
-  return `${start.getUTCFullYear()}-${month}-${dayOfMonth}`;
-};
 
 /** When this week's goal is due, in real milliseconds. */
 export const dueAtFor = (now = Date.now(), { weekStartsOn = 1, dueDayOfWeek = 5 } = {}) => {

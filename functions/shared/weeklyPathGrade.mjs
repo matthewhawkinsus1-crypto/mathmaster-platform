@@ -34,6 +34,17 @@ const slotFramework = (value) => {
  * recommendation — which destroys the evidence the whole system runs on. So
  * completion carries the grade and quality adjusts it.
  */
+export const weekKeyFor = (now = Date.now(), weekStartsOn = 1) => {
+  const date = new Date(now);
+  const utc = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  const day = new Date(utc).getUTCDay();
+  const back = (day - weekStartsOn + 7) % 7;
+  const start = new Date(utc - back * DAY);
+  const month = String(start.getUTCMonth() + 1).padStart(2, '0');
+  const dayOfMonth = String(start.getUTCDate()).padStart(2, '0');
+  return `${start.getUTCFullYear()}-${month}-${dayOfMonth}`;
+};
+
 export const GRADING_POLICY = Object.freeze({
   completionWeight: 0.8,
   qualityWeight: 0.2,

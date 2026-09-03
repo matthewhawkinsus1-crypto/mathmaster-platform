@@ -63,6 +63,7 @@ const rigorPolicy = require("./lib/rigorPolicy");
 const pathRouting = require("./lib/pathRouting");
 const pathContentRelease = require("./lib/pathContentRelease");
 const assignmentAi = require("./lib/assignmentAi");
+const weeklyPathSync = require("./lib/weeklyPathSync");
 const ccmrAssignmentBank = require("./lib/ccmrAssignmentBank");
 const studentSessionSummary = require("./lib/studentSessionSummary");
 
@@ -7208,6 +7209,285 @@ exports.getTeacherWeeklyPathCompletions = onCall(async (request) => {
   // on this screen are incomplete, and the screen has to be able to say so
   // instead of presenting a short count as fact.
   return { classId, weekKey, byStudentId, goalsByStudentId, truncated };
+});
+
+// --- Weekly Path in Google Classroom ---------------------------------------
+//
+// One coursework item per class per week, and an end-of-week job that grades it
+// automatically. Automatic publishing removes the human who used to look at each
+// number before it reached a parent, so two things carry that weight instead:
+// the decision function in weeklyPathClassroom.js, and the per-class switch
+// below, which DEFAULTS OFF. Deploying this must never retroactively push grades
+// for a class nobody has reviewed.
+const WEEKLY_PATH_CLASSROOM_CONFIG = "weeklyPathClassroomConfig";
+const WEEKLY_PATH_CLASSROOM_SYNCS = "weeklyPathClassroomSyncs";
+const WEEKLY_PATH_DEFAULT_MAX_POINTS = 100;
+
+async function requireClassTeacher(request, classId) {
+  await requireTeacher(request);
+  const db = getFirestore();
+  const snapshot = await db.collection(CLASS_COLLECTION).doc(String(classId)).get();
+  if (!snapshot.exists) throw new HttpsError("not-found", "That class no longer exists.");
+  const record = { classId: String(classId), ...(snapshot.data() || {}) };
+  const email = callerEmail(request);
+  const teacherOfRecord = String(record.teacherOfRecord || "").trim().toLowerCase();
+  if (!authLib.isRootAdminEmail(email) && (!email || teacherOfRecord !== String(email).toLowerCase())) {
+    throw new HttpsError("permission-denied", "Only the teacher of record for this class can change this.");
+  }
+  return record;
+}
+
+exports.getWeeklyPathClassroomSync = onCall(async (request) => {
+  const classId = String(request.data?.classId || "").trim();
+  if (!classId) throw new HttpsError("invalid-argument", "classId is required.");
+  await requireClassTeacher(request, classId);
+  const snapshot = await getFirestore().collection(WEEKLY_PATH_CLASSROOM_CONFIG).doc(classId).get();
+  const config = snapshot.exists ? snapshot.data() : null;
+  return {
+    classId,
+    enabled: config?.enabled === true,
+    maxPoints: Number(config?.maxPoints) || WEEKLY_PATH_DEFAULT_MAX_POINTS,
+    updatedAt: serializableDate(config?.updatedAt),
+    updatedByEmail: config?.updatedByEmail || null,
+  };
+});
+
+exports.setWeeklyPathClassroomSync = onCall(async (request) => {
+  const classId = String(request.data?.classId || "").trim();
+  if (!classId) throw new HttpsError("invalid-argument", "classId is required.");
+  await requireClassTeacher(request, classId);
+
+  const enabled = request.data?.enabled === true;
+  const requestedPoints = Number(request.data?.maxPoints);
+  const maxPoints = Number.isFinite(requestedPoints)
+    ? Math.max(1, Math.min(1000, Math.round(requestedPoints)))
+    : WEEKLY_PATH_DEFAULT_MAX_POINTS;
+
+  await getFirestore().collection(WEEKLY_PATH_CLASSROOM_CONFIG).doc(classId).set({
+    classId,
+    enabled,
+    maxPoints,
+    updatedByUid: request.auth?.uid || null,
+    updatedByEmail: callerEmail(request) || null,
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  logger.info("Weekly Path Classroom publishing setting changed", { classId, enabled, maxPoints });
+  return { classId, enabled, maxPoints };
+});
+
+/**
+ * Everything one class-week needs, read once.
+ *
+ * `truncated` is carried out rather than swallowed: a partial read produces
+ * grades that are quietly too low, and the sync refuses to publish on it.
+ */
+async function loadWeeklyPathClassWeek(db, { classId, weekKey }) {
+  const weekStart = Date.parse(`${weekKey}T00:00:00Z`);
+  if (!Number.isFinite(weekStart)) throw new HttpsError("invalid-argument", "weekKey must be YYYY-MM-DD.");
+  const weekEnd = weekStart + (7 * 24 * 60 * 60 * 1000);
+
+  const roster = await db.collection("grades").where("classId", "==", classId).get();
+  const students = roster.docs
+    .filter((doc) => doc.data()?.status !== "disabled")
+    .map((doc) => ({ studentId: doc.id, googleUserId: String(doc.data()?.googleUserId || "").trim() || null }));
+  if (!students.length) return { students: [], goalsByStudentId: {}, completionsByStudentId: {}, truncated: false };
+
+  const goalsByStudentId = {};
+  const goalDocs = await Promise.all(students.map(async ({ studentId }) => {
+    const snapshot = await db.collection(WEEKLY_PATH_GOAL_SNAPSHOTS).doc(`${studentId}__${weekKey}`).get();
+    return [studentId, snapshot.exists ? snapshot.data() : null];
+  }));
+  goalDocs.forEach(([studentId, goal]) => { if (goal) goalsByStudentId[studentId] = goal; });
+
+  const ids = new Set(students.map((entry) => entry.studentId));
+  const completionsByStudentId = Object.fromEntries([...ids].map((id) => [id, []]));
+  const PAGE_SIZE = 1000;
+  const MAX_PAGES = 40;
+  let cursor = null;
+  let truncated = false;
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    let query = db.collection("pathSessions")
+      .where("completedAt", ">=", weekStart)
+      .where("completedAt", "<", weekEnd)
+      .orderBy("completedAt")
+      .limit(PAGE_SIZE);
+    if (cursor) query = query.startAfter(cursor);
+    // eslint-disable-next-line no-await-in-loop
+    const pageDocs = await query.get();
+    if (pageDocs.empty) break;
+    pageDocs.docs.forEach((sessionDoc) => {
+      const session = sessionDoc.data() || {};
+      const studentId = String(session.studentId || "");
+      if (!ids.has(studentId) || session.status !== "completed") return;
+      const completedQuestions = Number(session.summary?.completedQuestions || 0);
+      const correctQuestions = Number(session.summary?.correctQuestions || 0);
+      completionsByStudentId[studentId].push({
+        status: "completed",
+        completedAt: Number(session.completedAt || session.updatedAt || 0),
+        teksCode: session.target?.alignmentKey
+          ? mathPath.displayAlignmentKey(String(session.target.alignmentKey))
+          : null,
+        accuracy: completedQuestions > 0
+          ? Math.max(0, Math.min(1, correctQuestions / completedQuestions))
+          : null,
+        assessmentFramework: session.assessmentFramework || null,
+        weekKey: session.weekKey || null,
+        weeklySlotKey: session.weeklySlotKey || null,
+      });
+    });
+    cursor = pageDocs.docs[pageDocs.docs.length - 1];
+    if (pageDocs.size < PAGE_SIZE) break;
+    if (page === MAX_PAGES - 1) truncated = true;
+  }
+
+  return { students, goalsByStudentId, completionsByStudentId, truncated };
+}
+
+/**
+ * Run one class-week end to end.
+ *
+ * Shared by the scheduled job and the teacher's manual "run now", so the thing
+ * a teacher previews is literally the thing the schedule will do.
+ */
+async function runWeeklyPathClassroomSync({ classId, weekKey, dryRun = false, now = Date.now() }) {
+  const db = getFirestore();
+  const configSnapshot = await db.collection(WEEKLY_PATH_CLASSROOM_CONFIG).doc(classId).get();
+  const config = configSnapshot.exists ? configSnapshot.data() : null;
+  const enabled = config?.enabled === true;
+  const maxPoints = Number(config?.maxPoints) || WEEKLY_PATH_DEFAULT_MAX_POINTS;
+
+  const mappings = await db.collection("classroomCourseMappings").where("classId", "==", classId).limit(1).get();
+  const mapping = mappings.empty ? null : mappings.docs[0].data();
+  const courseId = String(mapping?.courseId || "").trim();
+  const teacherUid = String(mapping?.teacherUid || "").trim();
+  if (!courseId || !teacherUid) {
+    return { ok: false, classId, weekKey, reason: "class_is_not_linked_to_a_google_classroom_course", results: [] };
+  }
+
+  const syncId = `${classId}__${weekKey}`;
+  const priorSnapshot = await db.collection(WEEKLY_PATH_CLASSROOM_SYNCS).doc(syncId).get();
+  const publishedByStudentId = priorSnapshot.exists ? (priorSnapshot.data()?.publishedByStudentId || {}) : {};
+
+  const data = await loadWeeklyPathClassWeek(db, { classId, weekKey });
+  const classroom = await classroomLib.getClassroomClient(teacherUid);
+  const { gradeWeeklyGoal } = await import("./shared/weeklyPathGrade.mjs");
+
+  const report = await weeklyPathSync.syncWeeklyPathClassWeek({
+    classId,
+    weekKey,
+    weekLabel: weekKey,
+    courseId,
+    enabled,
+    maxPoints,
+    launchUrl: readStudentAppBaseUrl(),
+    students: data.students,
+    goalsByStudentId: data.goalsByStudentId,
+    completionsByStudentId: data.completionsByStudentId,
+    publishedByStudentId,
+    truncated: data.truncated,
+    now,
+    dryRun,
+    gradeWeeklyGoal,
+    logger,
+    findCourseWork: (course, marker) => classroomLib.findCourseWorkByPublicationMarker(classroom, course, marker),
+    createCourseWork: (course, work) => classroomLib.createCourseWork(classroom, {
+      courseId: course,
+      title: work.title,
+      description: work.description,
+      launchUrl: readStudentAppBaseUrl(),
+      maxPoints: work.maxPoints,
+      materials: [],
+    }),
+    findSubmission: (args) => classroomLib.findSubmissionForStudent(classroom, args),
+    patchGrade: (args) => classroomLib.patchGrade(classroom, args),
+    returnSubmission: (args) => classroomLib.returnSubmission(classroom, args),
+  });
+
+  if (!dryRun && report.ok) {
+    const nextPublished = { ...publishedByStudentId };
+    report.results.filter((entry) => entry.published).forEach((entry) => {
+      nextPublished[entry.studentId] = { points: entry.points, score: entry.score, at: Date.now() };
+    });
+    await db.collection(WEEKLY_PATH_CLASSROOM_SYNCS).doc(syncId).set({
+      classId,
+      weekKey,
+      courseId,
+      courseWorkId: report.courseWorkId || null,
+      publishedByStudentId: nextPublished,
+      lastRunAt: FieldValue.serverTimestamp(),
+      lastPublishedCount: report.published,
+      lastSkippedCount: report.skipped,
+    }, { merge: true });
+  }
+
+  return report;
+}
+
+exports.runWeeklyPathClassroomSyncNow = onCall({
+  secrets: GOOGLE_API_SECRETS,
+  timeoutSeconds: 300,
+  memory: "512MiB",
+}, async (request) => {
+  const classId = String(request.data?.classId || "").trim();
+  if (!classId) throw new HttpsError("invalid-argument", "classId is required.");
+  await requireClassTeacher(request, classId);
+  const weekKey = String(request.data?.weekKey || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekKey)) {
+    throw new HttpsError("invalid-argument", "weekKey must be YYYY-MM-DD.");
+  }
+  return runWeeklyPathClassroomSync({
+    classId,
+    weekKey,
+    dryRun: request.data?.dryRun === true,
+  });
+});
+
+/**
+ * Saturday morning, after Friday's deadline.
+ *
+ * Deliberately not Friday night: a student finishing at 11pm on the due date
+ * should have that count, and a job that runs before the week is really over
+ * publishes a grade the student could still have changed.
+ */
+exports.publishWeeklyPathGrades = onSchedule({
+  schedule: "0 8 * * 6",
+  timeZone: "America/Chicago",
+  secrets: GOOGLE_API_SECRETS,
+  timeoutSeconds: 540,
+  memory: "512MiB",
+  invoker: "private",
+}, async () => {
+  const db = getFirestore();
+  const enabledClasses = await db.collection(WEEKLY_PATH_CLASSROOM_CONFIG).where("enabled", "==", true).get();
+  if (enabledClasses.empty) {
+    logger.info("Weekly Path grade publishing: no classes have it enabled");
+    return;
+  }
+
+  // The week that just ended, not the one starting now. Derived with the same
+  // weekKeyFor the student's week was built with — a second definition here
+  // would let the job grade a week nobody was ever assigned.
+  const now = Date.now();
+  const { weekKeyFor } = await import("./shared/weeklyPathGrade.mjs");
+  const weekKey = weekKeyFor(now - 3 * 24 * 60 * 60 * 1000);
+
+  for (const classDoc of enabledClasses.docs) {
+    const classId = classDoc.id;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const report = await runWeeklyPathClassroomSync({ classId, weekKey, now });
+      logger.info("Weekly Path grades published", {
+        classId, weekKey, ok: report.ok, published: report.published || 0, skipped: report.skipped || 0,
+        reason: report.reason || null,
+      });
+    } catch (error) {
+      // One broken class must not stop the rest from being graded.
+      logger.error("Weekly Path grade publishing failed for one class", {
+        classId, weekKey, message: error?.message || String(error),
+      });
+    }
+  }
 });
 
 /**

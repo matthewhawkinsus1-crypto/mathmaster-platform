@@ -17,7 +17,7 @@ cd "$REPO_ROOT"
 
 echo "=== MathMaster Assignment V5 focused deploy ==="
 echo "Project: $PROJECT"
-echo "Surfaces: Hosting + authorAssignmentWithAI + repairAssignmentQuestionWithAI + assignmentAiSelfTest + hydrateAssignmentCcmr"
+echo "Surfaces: Hosting + the Assignment AI callables + the weekly Path Classroom functions"
 echo "Everything else stays on its current deployed version, so this is minutes, not an hour."
 echo
 
@@ -71,12 +71,16 @@ node scripts/verify-functions-discovery.mjs \
   authorAssignmentWithAI \
   repairAssignmentQuestionWithAI \
   assignmentAiSelfTest \
-  hydrateAssignmentCcmr
+  hydrateAssignmentCcmr \
+  publishWeeklyPathGrades \
+  runWeeklyPathClassroomSyncNow \
+  setWeeklyPathClassroomSync \
+  getWeeklyPathClassroomSync
 
 echo
 echo "6/7 Deploying only the surfaces changed by this upgrade..."
 echo "Firebase will run the normal Hosting and Functions predeploy hooks."
-if ! firebase deploy --only hosting,functions:authorAssignmentWithAI,functions:repairAssignmentQuestionWithAI,functions:assignmentAiSelfTest,functions:hydrateAssignmentCcmr --project "$PROJECT"; then
+if ! firebase deploy --only hosting,functions:authorAssignmentWithAI,functions:repairAssignmentQuestionWithAI,functions:assignmentAiSelfTest,functions:hydrateAssignmentCcmr,functions:publishWeeklyPathGrades,functions:runWeeklyPathClassroomSyncNow,functions:setWeeklyPathClassroomSync,functions:getWeeklyPathClassroomSync --project "$PROJECT"; then
   echo >&2
   echo "The deploy failed. Step 5 already proved this codebase loads and defines" >&2
   echo "every function being deployed, so if the CLI reported" >&2
@@ -98,7 +102,8 @@ if [ "$HTTP_STATUS" != "200" ]; then
 fi
 
 FUNCTION_LIST="$(firebase functions:list --project "$PROJECT")"
-for NAME in authorAssignmentWithAI repairAssignmentQuestionWithAI assignmentAiSelfTest hydrateAssignmentCcmr; do
+for NAME in authorAssignmentWithAI repairAssignmentQuestionWithAI assignmentAiSelfTest hydrateAssignmentCcmr \
+            publishWeeklyPathGrades runWeeklyPathClassroomSyncNow setWeeklyPathClassroomSync getWeeklyPathClassroomSync; do
   echo "$FUNCTION_LIST" | grep -F "$NAME" >/dev/null || {
     echo "$NAME was not found in the deployed function list." >&2
     exit 5
