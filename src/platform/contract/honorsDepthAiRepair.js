@@ -1,3 +1,4 @@
+import { CONTRACT_SLICES, buildContractSlice } from './authoringContract.js';
 const clean = (value) => String(value ?? '').trim();
 
 const MISSING_LABELS = Object.freeze({
@@ -200,8 +201,23 @@ export const buildHonorsDepthAiRepairRequest = ({
     sections: Array.isArray(assignmentV5.sections) ? assignmentV5.sections : [],
   };
 
+  // The honors and scope rules, cut from the live contract rather than restated
+  // here, so this request cannot describe a policy the platform no longer has.
+  const rules = buildContractSlice({
+    sections: CONTRACT_SLICES.honorsDepth,
+    questionTypes: [...new Set(
+      (Array.isArray(assignmentV5.sections) ? assignmentV5.sections : [])
+        .flatMap((section) => (Array.isArray(section?.questions) ? section.questions : []))
+        .map((question) => String(question?.type || '').trim())
+        .filter(Boolean),
+    )].slice(0, 6),
+    courseId,
+  });
+
   return [
     '# MathMaster Honors-depth repair',
+    '',
+    'This request is portable: paste it into ChatGPT, Claude, Gemini, or another capable AI.',
     '',
     'Repair the current assignment only enough to satisfy the listed Honors depth gaps.',
     'Return exactly one MathMaster Assignment V5 JSON object and nothing else.',
@@ -221,9 +237,13 @@ export const buildHonorsDepthAiRepairRequest = ({
     '- A new extension must stay on the same lesson TEKS and require genuine reasoning through multiple representations, explanation/justification, or modeling/application as needed. Keep DOK and difficulty distinct.',
     '- Do not fabricate SAT, ACT, TSIA2, or ASVAB provenance. Audited CCMR Practice is sourced separately from MathMaster Fidelity V2.1 at publish time.',
     '- Do not add assignment-level delivery, grading, support, evidence, PDF, Classroom, or publication settings. MathMaster keeps those from the reviewed source.',
+    // This packet carries a whole lesson to somebody else's chat window. Every
+    // other portable request states this line; this one did not.
+    '- Never include student names, IDs, grades, attempts, accommodations, or IEP/504/EB information. Supports are resolved per student at delivery and never belong in assignment JSON.',
     '',
     '## Current Assignment V5 repair snapshot',
     JSON.stringify(repairSnapshot),
+    ...(rules ? ['', rules] : []),
   ].join('\n');
 };
 

@@ -673,3 +673,119 @@ export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {
     '```',
   ].join('\n');
 };
+
+/*
+ * SLICING THE CONTRACT FOR A TARGETED REQUEST.
+ *
+ * The full contract is ~91KB. Prefixing that onto "fix the answer tolerance on
+ * question 3" is worse than useless: the instruction that matters drowns in
+ * twenty-two thousand characters of exam crosswalk, and a teacher pasting into
+ * a chat window hits a length limit before they get to their actual question.
+ *
+ * But the alternative that was in place — sending no rules at all — is why
+ * outside-AI repairs came back with invented question types, platform-owned
+ * fields, and answer formats the grader cannot read. The AI was never told what
+ * legal output looks like.
+ *
+ * So: slice. Every slice is cut from the SAME generated string the full
+ * contract is built from, by heading, which means a slice can never drift from
+ * the contract, and a new question type appears in both the moment it is
+ * registered. Nothing here is a second copy of the rules.
+ */
+
+const SECTION_MARK = '## ';
+const TYPE_MARK = '### ';
+const TYPE_SECTION = 'How to build each question type';
+
+const splitByMark = (text, mark) => {
+  const chunks = [];
+  const lines = String(text || '').split('\n');
+  let current = null;
+  for (const line of lines) {
+    if (line.startsWith(mark)) {
+      if (current) chunks.push(current);
+      current = { name: line.slice(mark.length).trim(), lines: [line] };
+    } else if (current) {
+      current.lines.push(line);
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks.map((chunk) => ({ name: chunk.name, text: chunk.lines.join('\n').trimEnd() }));
+};
+
+/** Every section heading the contract currently produces. */
+export const authoringContractSections = (options = {}) => splitByMark(
+  buildAuthoringContract(options), SECTION_MARK,
+).map((section) => section.name);
+
+/**
+ * A contract excerpt carrying only the named sections, plus the per-type entries
+ * for the question types actually in play.
+ *
+ * `questionTypes` narrows the 22KB "How to build each question type" section to
+ * just the types being repaired, which is the difference between a prompt a
+ * teacher can paste and one they cannot.
+ */
+export const buildContractSlice = ({
+  sections = [],
+  questionTypes = [],
+  courseId = null,
+  generatedAt = new Date(),
+} = {}) => {
+  const full = buildAuthoringContract({ courseId, generatedAt });
+  const parts = splitByMark(full, SECTION_MARK);
+  const byName = new Map(parts.map((part) => [part.name, part.text]));
+
+  const wanted = [];
+  for (const name of sections) {
+    const text = byName.get(name);
+    // A named section that no longer exists is a contract change, not something
+    // to paper over: an audit test asserts every requested name resolves.
+    if (text) wanted.push(text);
+  }
+
+  const types = [...new Set(questionTypes.map((type) => String(type || '').trim()).filter(Boolean))];
+  if (types.length && byName.has(TYPE_SECTION)) {
+    const entries = splitByMark(byName.get(TYPE_SECTION), TYPE_MARK)
+      .filter((entry) => types.some((type) => entry.name.startsWith(`\`${type}\``)))
+      .map((entry) => entry.text);
+    if (entries.length) {
+      wanted.push([`${SECTION_MARK}How to build ${entries.length === 1 ? 'this question type' : 'these question types'}`, '', ...entries].join('\n'));
+    }
+  }
+
+  if (!wanted.length) return '';
+  return [
+    `# ${AUTHORING_INTENT_SCHEMA_NAME} — rules that apply here`,
+    'An excerpt of the MathMaster authoring contract, limited to what this request needs.',
+    '',
+    ...wanted,
+  ].join('\n\n');
+};
+
+// What each kind of outside-AI request needs to see. Named once, here, so every
+// request surface asks for the same thing by name rather than each maintaining
+// its own guess at what is relevant.
+export const CONTRACT_SLICES = Object.freeze({
+  questionRepair: Object.freeze([
+    'Question authoring',
+    'Common studentActions',
+    'Source representation fidelity',
+    'Live assignment repair boundary',
+  ]),
+  honorsDepth: Object.freeze([
+    'Question authoring',
+    'Honors + CCMR Practice',
+    'Instructional scope and lesson depth',
+    'Source task fidelity',
+  ]),
+  gradingReview: Object.freeze([
+    'Section rules',
+    'Activity roles',
+    'Classwork versus Practice balance and rigor',
+  ]),
+  publishingPackage: Object.freeze([
+    'PDF / printable output',
+    'Output',
+  ]),
+});

@@ -33,6 +33,7 @@ import {
 import AdaptivePreview from './AdaptivePreview.jsx';
 import { buildPreflightReviewedAssignmentV5 } from './preflightV5Review.js';
 import { buildQuestionRepairRequest, parseQuestionRepairResponse } from '../../platform/contract/questionRepairRequest.js';
+import { CONTRACT_SLICES, buildContractSlice } from '../../platform/contract/authoringContract.js';
 import { parseExternalAiJson } from '../../platform/contract/externalAiJson.js';
 import {
   groupQuestionPreflightIssues,
@@ -664,9 +665,14 @@ export const LessonPreflightModal = ({
 
   const publishingRepairRequest = (completeAssignment = true) => {
     const instructions = [
+      'This request is portable: paste it into ChatGPT, Claude, Gemini, or another capable AI.',
+      '',
       'Create the missing Google Classroom publishing metadata and a substantive TWO-PAGE student notes package for this existing MathMaster lesson.',
       completeAssignment
-        ? 'Return one complete schemaVersion 5 Assignment V5 JSON object because MathMaster’s embedded AI endpoint requires the full assignment shape.'
+        // The old wording explained the internal endpoint's shape requirement to
+        // a teacher pasting into an outside chat window, which meant nothing to
+        // them and nothing to the AI reading it.
+        ? 'Return one complete schemaVersion 5 Assignment V5 JSON object, carrying every section and question through unchanged.'
         : 'Return one JSON object with ONLY lessonNotesPdf and classroomIntegration. Do not return questions.',
       'Do not rewrite, reorder, add, remove, or reinterpret any assignment question.',
       'The student notes must be useful before/during the lesson, not an answer key for this assignment.',
@@ -678,8 +684,15 @@ export const LessonPreflightModal = ({
       'classroomIntegration must include a useful topic, nonblank assignment instructions, a Notes & Resources post, and grade passback enabled/finalized.',
       'Preserve any teacher-authored Classroom wording already present.',
       '',
+      'Never include student names, IDs, grades, attempts, accommodations, or IEP/504/EB information.',
+      '',
       'CURRENT CANONICAL ASSIGNMENT:',
       JSON.stringify(effectiveAssignmentV5),
+      '',
+      buildContractSlice({
+        sections: CONTRACT_SLICES.publishingPackage,
+        courseId: effectiveAssignmentV5?.assignment?.courseId || null,
+      }),
     ];
     return instructions.join('\n');
   };

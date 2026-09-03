@@ -1,3 +1,5 @@
+import { CONTRACT_SLICES, PLATFORM_OWNED_FIELDS, buildContractSlice } from './authoringContract.js';
+
 const clean = (value) => String(value ?? '').trim();
 
 const stripFence = (text) => {
@@ -22,6 +24,16 @@ export const buildQuestionRepairRequest = ({
     || assignment.courseProfile?.course,
   ) || 'unknown course';
 
+  // The rules for THIS question's type, cut from the same contract the full
+  // authoring request uses. Without them an outside AI has no way to know which
+  // type values are legal, what the grader can read, or which fields the
+  // platform owns and will strip — which is why repairs came back unusable.
+  const rules = buildContractSlice({
+    sections: CONTRACT_SLICES.questionRepair,
+    questionTypes: [clean(question.type)],
+    courseId: courseId === 'unknown course' ? null : courseId,
+  });
+
   return [
     '# MathMaster question repair',
     '',
@@ -29,6 +41,7 @@ export const buildQuestionRepairRequest = ({
     `Assignment: ${title}`,
     `Course: ${courseId}`,
     ...(questionNumber == null ? [] : [`Question: ${questionNumber}`]),
+    ...(clean(question.type) ? [`Question type: ${clean(question.type)} (keep this type unless the teacher asks to change it)`] : []),
     '',
     '## Teacher request',
     request,
@@ -43,10 +56,19 @@ export const buildQuestionRepairRequest = ({
     '- Do not pad accepted answers with formatting variants that mathematical equivalence already handles.',
     '- Keep the existing questionId if present. MathMaster will preserve it again when importing the repair.',
     '',
+    '## Fields MathMaster owns',
+    'Never include these; MathMaster sets them and the importer strips them:',
+    PLATFORM_OWNED_FIELDS.join(', '),
+    '',
     '## Existing question',
     '```json',
     JSON.stringify(question, null, 2),
     '```',
+    ...(rules ? ['', rules] : []),
+    '',
+    '## What to return',
+    'Exactly one JSON object: the replacement question. No prose, no code fence commentary,',
+    'no alternatives, and nothing outside the object.',
   ].join('\n');
 };
 
