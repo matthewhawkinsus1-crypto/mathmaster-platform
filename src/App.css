@@ -1767,3 +1767,80 @@
     min-width: 0;
   }
 }
+
+/* THE WORK BAR.
+
+   Everything a student reaches for while answering — undo, the scratchpad, and
+   the button that submits — sits together at the bottom of the question and
+   stays there while the page scrolls.
+
+   Before this, the desktop layout appended the Check button after the tool. On a
+   question carrying a graph and five response fields, a student typed their last
+   answer and then had to scroll to find the button that submits it, and the undo
+   control was above the graph they had long since scrolled past. Both are
+   controls for the hands, so both belong under them. */
+.mathmaster-desktop-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  max-width: 900px;
+  margin: 18px auto 0;
+  padding: 10px 14px;
+  border-top: 1px solid #d9e2f1;
+  border-radius: 14px 14px 0 0;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 -6px 18px rgba(32, 33, 36, 0.1);
+}
+
+.mathmaster-desktop-action-bar-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mathmaster-desktop-action-bar-primary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+/* The submit button carries its own top margin for the old inline position. */
+.mathmaster-desktop-action-bar-primary > * {
+  margin-top: 0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mathmaster-desktop-action-bar {
+    backdrop-filter: none;
+    background: #fff;
+  }
+}
+
+/* One line of attempt state, not two saying the same thing. */
+.mathmaster-question-attempt-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  max-width: 860px;
+  margin: 0 auto 12px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mathmaster-question-attempt-strip .mathmaster-attempt-detail {
+  font-weight: 600;
+  opacity: 0.85;
+}

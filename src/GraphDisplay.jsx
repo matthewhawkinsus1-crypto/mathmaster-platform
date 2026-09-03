@@ -1,5 +1,5 @@
 import QuestionPrompt from './QuestionPrompt';
-import { evaluateStaticGraphFunction, fitStaticGraphViewport, resolvePointFill, resolvePointRadius } from './graphSpecUtils';
+import { evaluateStaticGraphFunction, fitStaticGraphViewport, graphAsymptoteLines, resolvePointFill, resolvePointRadius } from './graphSpecUtils';
 import { readGraphPointCoordinates } from './graphPointUtils.js';
 import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 import MathDisplay from './MathDisplay.jsx';
@@ -343,6 +343,45 @@ export default function GraphDisplay({ graph, title = 'Coordinate graph' }) {
             opacity="0.9"
           />
         )}
+
+        {/* The boundary a curve approaches, drawn but not labelled. A student
+            asked for the range of an exponential cannot read the boundary off a
+            graph that does not show it; printing its equation here would answer
+            the questions that ask for the asymptote. */}
+        {graphAsymptoteLines(graph).map((line) => {
+          if (line.axis === 'horizontal') {
+            if (!(line.value >= yMin && line.value <= yMax)) return null;
+            const y = toScreenY(line.value);
+            return (
+              <line
+                key={`asymptote-h-${line.value}`}
+                x1={PADDING}
+                y1={y}
+                x2={PADDING + innerWidth}
+                y2={y}
+                stroke="#9334e6"
+                strokeWidth="2"
+                strokeDasharray="7 6"
+                opacity="0.75"
+              />
+            );
+          }
+          if (!(line.value >= xMin && line.value <= xMax)) return null;
+          const x = toScreenX(line.value);
+          return (
+            <line
+              key={`asymptote-v-${line.value}`}
+              x1={x}
+              y1={PADDING}
+              x2={x}
+              y2={PADDING + innerHeight}
+              stroke="#9334e6"
+              strokeWidth="2"
+              strokeDasharray="7 6"
+              opacity="0.75"
+            />
+          );
+        })}
 
         {functions.map((spec, functionIndex) =>
           buildFunctionPaths(spec, xMin, xMax, yMin, yMax, toScreenX, toScreenY).map((path, pathIndex) => (

@@ -74,6 +74,53 @@ export const evaluateStaticGraphFunction = (spec = {}, xValue) => {
   return Number.NaN;
 };
 
+/**
+ * The asymptotes a function family has, as lines to draw.
+ *
+ * WHY THIS EXISTS. A student asked for the range of \(f(x)=5(3^x)-4\) has to
+ * see where the curve stops. Without the asymptote drawn, the graph just looks
+ * like it flattens somewhere near the bottom of the window, and the student is
+ * guessing at a boundary the mathematics defines exactly. Every graphing
+ * calculator they will ever use draws it; ours did not.
+ *
+ * The line is drawn but deliberately NOT labelled with its equation, because
+ * several questions ask for the asymptote as an answer. Showing the boundary is
+ * reading the graph; printing "y = -4" beside it is giving away the response.
+ */
+export const staticGraphAsymptotes = (spec = {}) => {
+  if (!spec || typeof spec !== 'object') return [];
+  const type = spec.type || spec.kind || 'line';
+  const k = Number(spec.k ?? 0);
+  const h = Number(spec.h ?? 0);
+
+  if (type === 'exponential') {
+    return finite(k) ? [{ axis: 'horizontal', value: k }] : [];
+  }
+  if (type === 'logarithmic') {
+    return finite(h) ? [{ axis: 'vertical', value: h }] : [];
+  }
+  if (type === 'reciprocal' || type === 'rational') {
+    return [
+      ...(finite(h) ? [{ axis: 'vertical', value: h }] : []),
+      ...(finite(k) ? [{ axis: 'horizontal', value: k }] : []),
+    ];
+  }
+  return [];
+};
+
+/** Every asymptote on a graph, de-duplicated so overlapping specs draw once. */
+export const graphAsymptoteLines = (graph = {}) => {
+  if (graph?.showAsymptotes === false) return [];
+  const functions = Array.isArray(graph?.functions) ? graph.functions : [];
+  const seen = new Set();
+  return functions.flatMap((spec) => staticGraphAsymptotes(spec)).filter((line) => {
+    const key = `${line.axis}:${line.value}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 export const validateStaticGraphFunctionSpec = (spec = {}, { label = 'function' } = {}) => {
   const errors = [];
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return [`${label} must be an object`];
