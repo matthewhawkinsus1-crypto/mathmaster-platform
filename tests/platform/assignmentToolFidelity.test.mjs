@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { compileAuthoringIntentV5 } from '../../src/platform/contract/authoringIntentV5.js';
+import { validateQuestionsSemantics } from '../../src/platform/contract/semanticValidation.js';
 import { readComposedQuestion } from '../../src/platform/workflow/questionWorkflow.js';
 import { canonicalizeFunctionExpression } from '../../src/platform/workflow/modelExpression.js';
 import resolveReferenceInfo from '../../src/referenceInfo.js';
@@ -114,6 +115,21 @@ test('identifyQuantities cannot compile into an empty independent/dependent inte
       }],
     }),
     /fewer than two selectable quantities/i,
+  );
+});
+
+test('Preflight blocks canonical quantity-role stages that render no choices', () => {
+  const audit = validateQuestionsSemantics([{
+    type: 'relationshipModel',
+    prompt: 'A bus can carry at most 48 students. Identify the input and output.',
+    activityRole: 'classwork',
+    recipe: { name: 'functionModeling', ask: ['quantities', 'continuity'] },
+    quantities: [],
+    continuity: 'discrete',
+  }]);
+  assert.ok(
+    audit.errors.some((message) => /fewer than two selectable quantities/i.test(message)),
+    audit.errors.join('\n'),
   );
 });
 
