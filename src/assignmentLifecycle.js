@@ -243,9 +243,13 @@ export const localDateKey = (nowValue = Date.now()) => {
 // New assignments save dol.instructionDate explicitly. For older assignments,
 // automatic release is the best proxy for the assigned instructional date; if
 // that was not set, the regular due date is the fallback.
-export const getDOLInstructionDateKey = (assignment, classPeriod = null) => {
-  const classSpecific = classPeriod ? assignment?.dol?.instructionDatesByClassPeriod?.[classPeriod] : null;
-  const explicit = classSpecific || assignment?.dol?.instructionDate || assignment?.dol?.date || assignment?.assignmentDate || null;
+export const getDOLInstructionDateKey = (assignment, classPeriod = null, classId = null) => {
+  // A reused lesson can serve multiple real classes on different days. Class
+  // identity is more specific than a bell-period label, so a teacher moving a
+  // lesson to another class must not inherit the original class's DOL date.
+  const classSpecific = classId ? assignment?.dol?.instructionDatesByClassId?.[classId] : null;
+  const periodSpecific = classPeriod ? assignment?.dol?.instructionDatesByClassPeriod?.[classPeriod] : null;
+  const explicit = classSpecific || periodSpecific || assignment?.dol?.instructionDate || assignment?.dol?.date || assignment?.assignmentDate || null;
   if (explicit) {
     const text = String(explicit);
     if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
@@ -536,19 +540,22 @@ export const getDOLState = ({ assignment, schedule, classId = null, classPeriod,
   const questionIndex = questionIndices[0] ?? -1;
   const now = nowValue instanceof Date ? nowValue : new Date(nowValue);
   const todayKey = localDateKey(now);
-  const instructionDateKey = getDOLInstructionDateKey(assignment, classPeriod);
+  const instructionDateKey = getDOLInstructionDateKey(assignment, classPeriod, classId);
+  // Keep today's class window attached even when the saved DOL date is stale.
+  // Teacher controls use that window to repair/release a reused lesson for
+  // this class without changing the original class's DOL record.
+  const window = getPeriodWindow(schedule, classPeriod, now);
 
   if (!enabled || questionIndex < 0) {
     return { enabled: Boolean(enabled), status: 'unavailable', questionIndex, questionIndices, window: null, instructionDateKey, millisecondsRemaining: null };
   }
   if (!instructionDateKey) {
-    return { enabled: true, status: 'unavailable', questionIndex, questionIndices, window: null, instructionDateKey: null, millisecondsRemaining: null };
+    return { enabled: true, status: 'unscheduled', questionIndex, questionIndices, window, instructionDateKey: null, millisecondsRemaining: null };
   }
   if (todayKey !== instructionDateKey) {
-    return { enabled: true, status: 'notToday', questionIndex, questionIndices, window: null, instructionDateKey, millisecondsRemaining: null };
+    return { enabled: true, status: 'notToday', questionIndex, questionIndices, window, instructionDateKey, millisecondsRemaining: null };
   }
 
-  const window = getPeriodWindow(schedule, classPeriod, now);
   if (!window) {
     return { enabled: true, status: 'unavailable', questionIndex, questionIndices, window: null, instructionDateKey, millisecondsRemaining: null };
   }
