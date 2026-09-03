@@ -86,6 +86,30 @@ const pushSegment = (segments, value) => {
   }
 };
 
+const SUPERSCRIPT_CHARACTERS = Object.freeze({
+  '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
+  '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹',
+  '+': '⁺', '-': '⁻', 'x': 'ˣ', 'n': 'ⁿ', 'i': 'ⁱ',
+});
+
+/**
+ * Display-only cleanup for calculator-style exponent shorthand that appears in
+ * ordinary prose instead of an explicit $...$ math span. Stored/grading text is
+ * untouched. This keeps early Algebra prompts such as x^2 and 2^x from reaching
+ * students with a raw caret when an author forgot math delimiters.
+ */
+export const normalizePlainMathTypography = (value) => String(value ?? '')
+  .replace(/\^\(?(-?\d+|[xni])\)?/gi, (match, exponent) => {
+    const converted = [...String(exponent).toLowerCase()]
+      .map((character) => SUPERSCRIPT_CHARACTERS[character] || '')
+      .join('');
+    return converted && converted.length === String(exponent).length ? converted : match;
+  })
+  .replace(/<=/g, '≤')
+  .replace(/>=/g, '≥')
+  .replace(/!=/g, '≠')
+  .replace(/\+\/-/g, '±');
+
 /** Whether one already-split segment is mathematics. */
 export const isMathSegment = (segment) => {
   const text = String(segment ?? '');
