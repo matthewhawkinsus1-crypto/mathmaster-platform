@@ -483,6 +483,17 @@
   outline-offset: 2px;
 }
 
+/* The task card already shows the equation in the normal student view.
+   Repeat it only inside the enlarged graph dialog, where the task card is no
+   longer visible. */
+.mathmaster-enlarged-graph-equation {
+  display: none;
+}
+
+[data-enlarged="true"] .mathmaster-enlarged-graph-equation {
+  display: block;
+}
+
 /* Enlarged domain/range analysis uses the extra horizontal space instead of
    making a student scroll through a tall left rail. Domain stays left of the
    graph and range moves to the right. The normal embedded workspace is
