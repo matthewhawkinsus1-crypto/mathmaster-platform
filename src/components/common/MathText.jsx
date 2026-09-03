@@ -1,6 +1,6 @@
 import React from 'react';
 import MathDisplay from '../../MathDisplay.jsx';
-import { isMathSegment, splitMathSegments, unwrapMathSegment } from './mathSegments.js';
+import { isMathSegment, normalizePlainMathTypography, splitMathSegments, unwrapMathSegment } from './mathSegments.js';
 
 // Prose with mathematics in it, rendered as mathematics.
 //
@@ -14,15 +14,6 @@ import { isMathSegment, splitMathSegments, unwrapMathSegment } from './mathSegme
 // The splitting itself lives in ./mathSegments.js, shared with QuestionPrompt,
 // so the two can never disagree about where the mathematics is.
 
-// Typography for the plain-text parts. Calculator-style `x^-1` and `!=` are
-// author shorthand, not something a student should read.
-const tidy = (value) => String(value ?? '')
-  .replace(/([A-Za-z0-9)])\^-1\b/g, '$1⁻¹')
-  .replace(/<=/g, '≤')
-  .replace(/>=/g, '≥')
-  .replace(/!=/g, '≠')
-  .replace(/\+\/-/g, '±');
-
 export const MathText = ({ children, style = {}, as: Tag = 'span' }) => {
   const text = String(children ?? '');
   if (!text) return null;
@@ -31,7 +22,7 @@ export const MathText = ({ children, style = {}, as: Tag = 'span' }) => {
     <Tag style={style}>
       {segments.map((segment, index) => {
         if (!isMathSegment(segment)) {
-          return <React.Fragment key={`t-${index}`}>{tidy(segment)}</React.Fragment>;
+          return <React.Fragment key={`t-${index}`}>{normalizePlainMathTypography(segment)}</React.Fragment>;
         }
         const math = unwrapMathSegment(segment);
         return (
