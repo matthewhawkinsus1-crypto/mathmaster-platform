@@ -867,9 +867,27 @@ const compileOne = (q, index, repairs) => {
   // publishing an impossible interaction.
   if (actions.includes('identifyQuantities')) {
     const relationship = q.relationship || q.model || {};
-    const quantities = asArray(q.quantities || relationship.quantities).filter((item) => isObject(item) && clean(item.id));
-    const independentId = clean(q.correctIndependentId || relationship.correctIndependentId || relationship.independentId);
-    const dependentId = clean(q.correctDependentId || relationship.correctDependentId || relationship.dependentId);
+    const canonicalQuantityStage = asArray(q.workflow)
+      .find((stage) => isObject(stage) && clean(stage.kind) === 'quantityRoles');
+    const quantities = asArray(
+      q.quantities
+      || relationship.quantities
+      || canonicalQuantityStage?.quantities
+    ).filter((item) => isObject(item) && clean(item.id));
+    const independentId = clean(
+      q.correctIndependentId
+      || relationship.correctIndependentId
+      || relationship.independentId
+      || canonicalQuantityStage?.correctIndependentId
+      || q.grading?.quantities?.independent
+    );
+    const dependentId = clean(
+      q.correctDependentId
+      || relationship.correctDependentId
+      || relationship.dependentId
+      || canonicalQuantityStage?.correctDependentId
+      || q.grading?.quantities?.dependent
+    );
     if (quantities.length < 2) {
       throw new Error(`V5 question ${index + 1} asks students to identify independent/dependent quantities but supplies fewer than two selectable quantities.`);
     }
