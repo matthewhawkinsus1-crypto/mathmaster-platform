@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { clientPointToGraphCoordinate } from '../../utils/responsiveCoordinates.js';
 import { resolvePointFill, resolvePointRadius } from '../../graphSpecUtils';
 import { readGraphPointCoordinates } from '../../graphPointUtils';
+import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 
 // Shared by every Batch A-D tool, so an unguarded window froze three labs at
 // once. A step of 0/NaN never terminates, and a legitimate step across a huge
@@ -62,6 +63,19 @@ export default function CoordinatePlane({
   snapStep = 1,
   cursorLabel = 'Point',
   ariaLabel = 'Coordinate plane',
+  // EVERY PLANE CAN BE OPENED FULL WINDOW.
+  //
+  // This component is the plane behind fifteen surfaces, so the squeeze that
+  // made one Path graph 587px wide on a 1366px Chromebook applies to all of
+  // them: a card, then a tool shell, then a sidebar of controls, each cap
+  // individually reasonable. Enlarging is safe here because the SVG scales from
+  // its viewBox and every click is converted through getBoundingClientRect at
+  // event time, so plotting stays accurate at any size.
+  //
+  // Set false where the plane sits INSIDE another control. A button nested in a
+  // button is invalid markup, and the enlarge press would also fire the card
+  // selection underneath it.
+  enlargeable = true,
   children,
 }) {
   const pad = 42;
@@ -201,7 +215,7 @@ export default function CoordinatePlane({
     return { cx, cy, left, top, chipWidth };
   }, [preview, previewText, width, xMin, xMax, yMin, yMax]);
 
-  return (
+  const plane = (
     <div style={{ position: 'relative', width: '100%' }}>
       <svg
         className={interactive ? 'mathmaster-responsive-canvas mathmaster-touch-surface' : 'mathmaster-responsive-canvas'}
@@ -351,5 +365,13 @@ export default function CoordinatePlane({
         </>
       ) : null}
     </div>
+  );
+
+  if (!enlargeable) return plane;
+
+  return (
+    <EnlargeableFigure label={ariaLabel} enlargeLabel="Enlarge graph" style={{ width: '100%' }}>
+      {plane}
+    </EnlargeableFigure>
   );
 }

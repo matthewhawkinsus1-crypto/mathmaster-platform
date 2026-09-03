@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { evaluate } from 'mathjs';
+import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 import MathInput from '../../MathInput';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -709,6 +710,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
             </div>
           </div>
 
+          <EnlargeableFigure label="Number line" enlargeLabel="Enlarge number line" style={{ width: '100%' }}>
           <svg
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             role="application"
@@ -909,6 +911,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               </g>
             )}
           </svg>
+          </EnlargeableFigure>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
             <button

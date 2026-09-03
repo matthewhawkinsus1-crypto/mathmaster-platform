@@ -4,6 +4,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
 import { matchesFieldAnswer } from '../../answerUtils';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../../platform/interaction/choiceOptions.js';
+import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: '#fff', color: '#174ea6', border: '1px solid #9bb8e8' };
@@ -340,6 +341,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
 
       <ToolSplit>
         <Panel title="Mapping diagram">
+          <EnlargeableFigure label="Mapping diagram" enlargeLabel="Enlarge diagram" style={{ width: '100%' }}>
           <svg viewBox={`0 0 ${WIDTH} ${height}`} role="application" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid #d9e2f1', borderRadius: 12, background: '#fff' }}>
             <text x={LEFT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" fill="#5f6b7a">{questionData.domainLabel || 'Domain (x)'}</text>
             <text x={RIGHT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" fill="#5f6b7a">{questionData.rangeLabel || 'Range (y)'}</text>
@@ -400,6 +402,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
               </g>
             ))}
           </svg>
+          </EnlargeableFigure>
 
           <p aria-live="polite" style={{ marginTop: 10, fontSize: 13, color: '#5f6b7a' }}>
             {selectedDomain != null

@@ -45,6 +45,9 @@ const SortItemPreview = ({ item }) => {
     return (
       <div style={{ maxWidth: 220, margin: '4px auto 0' }}>
         <CoordinatePlane
+          // Sits inside the card's own selection button: a nested button is
+          // invalid markup and its press would also pick the card.
+          enlargeable={false}
           width={300}
           height={220}
           xMin={Number(bounds.xMin ?? -6)} xMax={Number(bounds.xMax ?? 6)}
@@ -60,7 +63,7 @@ const SortItemPreview = ({ item }) => {
     const bounds = item.graph || { xMin: -6, xMax: 6, yMin: -6, yMax: 6 };
     return (
       <div style={{ maxWidth: 220, margin: '4px auto 0' }}>
-        <CoordinatePlane width={300} height={220} xMin={bounds.xMin ?? -6} xMax={bounds.xMax ?? 6} yMin={bounds.yMin ?? -6} yMax={bounds.yMax ?? 6} points={item.points.map(pointPair)} ariaLabel={item.ariaLabel || `Graph ${item.label || item.id}`} />
+        <CoordinatePlane enlargeable={false} width={300} height={220} xMin={bounds.xMin ?? -6} xMax={bounds.xMax ?? 6} yMin={bounds.yMin ?? -6} yMax={bounds.yMax ?? 6} points={item.points.map(pointPair)} ariaLabel={item.ariaLabel || `Graph ${item.label || item.id}`} />
       </div>
     );
   }
