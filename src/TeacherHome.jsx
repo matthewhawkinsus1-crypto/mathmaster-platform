@@ -85,7 +85,14 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
       assignment,
       state: getDOLState({ assignment, schedule: classSchedule, classId: classIdInSession, classPeriod: periodInSession, nowValue }),
     }))
-    .filter(({ state }) => ['waiting', 'active'].includes(state.status));
+    // Keep the control reachable when a reused lesson still carries the
+    // original class's instructional date. A teacher can explicitly make the
+    // DOL current for this class instead of the repair option disappearing.
+    .filter(({ state }) => (
+      state.enabled
+      && state.window
+      && ['beforeClass', 'waiting', 'active', 'notToday', 'unscheduled'].includes(state.status)
+    ));
 
   const liveWarmupControls = periodInSession === 'all' ? [] : assignments
     .filter((assignment) => (
@@ -262,6 +269,7 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
           <div style={{ display: 'grid', gap: 8 }}>
             {liveDOLControls.map(({ assignment, state }) => {
               const busyKey = `${assignment.id}:${classIdInSession || periodInSession}`;
+              const needsOpenToday = ['notToday', 'unscheduled'].includes(state.status);
               return (
                 <div key={assignment.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '9px 11px', borderRadius: 9, background: '#fff' }}>
                   <div>
@@ -269,12 +277,18 @@ export default function TeacherHome({ allStudents = [], assignments = [], classS
                     <div style={{ marginTop: 3, fontSize: 12 }}>
                       {state.status === 'active'
                         ? `${state.earlyUnlocked ? 'Unlocked early · ' : ''}${Math.max(0, Math.ceil(state.millisecondsRemaining / 60000))} min left`
-                        : `Locked · opens in ${Math.max(0, Math.ceil(state.millisecondsRemaining / 60000))} min`}
+                        : needsOpenToday
+                          ? state.status === 'notToday'
+                            ? `Saved for ${state.instructionDateKey || 'another day'} · open it for this class today`
+                            : 'No DOL instructional date saved · open it for this class today'
+                          : state.status === 'beforeClass'
+                            ? 'Locked until class begins / normal DOL window'
+                            : `Locked · opens in ${Math.max(0, Math.ceil(state.millisecondsRemaining / 60000))} min`}
                     </div>
                   </div>
-                  {state.status === 'waiting' ? (
+                  {state.status !== 'active' ? (
                     <button type="button" disabled={dolUnlockBusyKey === busyKey} onClick={() => onUnlockDOL?.(assignment, classContextInSession)} style={{ minHeight: 40, padding: '8px 13px', border: 0, borderRadius: 8, background: '#681da8', color: '#fff', fontWeight: 900, cursor: dolUnlockBusyKey === busyKey ? 'wait' : 'pointer' }}>
-                      {dolUnlockBusyKey === busyKey ? 'Unlocking…' : 'Unlock DOL Early'}
+                      {dolUnlockBusyKey === busyKey ? 'Unlocking…' : needsOpenToday ? 'Open DOL Today' : 'Unlock DOL Early'}
                     </button>
                   ) : (
                     <span style={{ padding: '5px 9px', borderRadius: 999, background: '#e6f4ea', color: '#137333', fontSize: 11, fontWeight: 900 }}>OPEN NOW</span>
