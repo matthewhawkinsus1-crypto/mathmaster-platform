@@ -1,4 +1,9 @@
 import { CORE_QUESTION_TYPES, SUPPORTED_QUESTION_TYPES } from '../../assignmentBlueprint.js';
+import {
+  DEFAULT_QUESTION_WEIGHT,
+  MAX_QUESTION_WEIGHT,
+  MIN_QUESTION_WEIGHT,
+} from '../grading/questionWeights.js';
 import { TOOL_CATALOG } from '../../tools/toolCatalog.js';
 import { getToolCapabilities } from '../../tools/toolCapabilities.js';
 import { ACTIVITY_POLICIES, ACTIVITY_ROLES } from '../policies/activityPolicies.js';
@@ -34,6 +39,9 @@ export const PLATFORM_OWNED_FIELDS = Object.freeze([
   'isAdvanced', 'advanced', 'honors', 'isHonors', 'courseLevel',
   'alignmentKeys', 'masteryEvidenceKeys', 'evidenceKeys',
   'gradesByAssignment', 'questionRecords', 'persistence', 'serverState',
+  // Teacher decisions about an existing assignment, not authoring input. An AI
+  // that sets these overrides a choice a person made in the UI.
+  'teacherExcluded', 'archived', 'archivedAt',
 ]);
 
 // Fields a question may carry that the generator interprets. Kept here so the
@@ -569,6 +577,13 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '- Reference information is not a hint or an answer key. Omit `referenceInfo` when the prompt already contains the givens the student needs.',
   '- Use `referenceInfo` only for source facts or data the student must repeatedly consult while working. Never place a student conclusion in `referenceInfo`: independent/dependent roles, the equation/model, domain, range, continuity, axis labels, scale, transformed values, table outputs, intercepts, extrema, or another answer the student is being asked to determine.',
   '- If the source explicitly gives one of those facts and the question assesses something else, it may remain visible as a given. Otherwise the student must do that thinking in the workspace.',
+  // questionWeight is a validated V5 field, but the contract never mentioned it,
+  // so every AI-authored assignment arrived with everything weighted equally and
+  // the teacher had to run a separate weight review to fix work the author
+  // already understood. The range is read from the live constants.
+  `- \`questionWeight\` is optional and defaults to ${DEFAULT_QUESTION_WEIGHT}. Set it when a question carries clearly more or less graded work than a normal single-step item.`,
+  `- Valid range ${MIN_QUESTION_WEIGHT} to ${MAX_QUESTION_WEIGHT}, in increments of 0.25. Typical: 0.5-0.75 short, 1 normal, 1.25-2 involved, 2.5-4 substantial multipart construction or modeling.`,
+  '- Weight the required student work, not the prompt length. A wordy one-step question is still weight 1. Do not raise a weight merely because DOK or difficulty is high; the question must actually carry more graded responsibility.',
   '- Generated expected answers must be derived from the same generator parameters as the prompt.',
   '- Do not pad accepted answers with equivalent formatting variants already handled by MathMaster equivalence grading.',
   '- Treat the generated answer/expected value as the canonical mathematical key. If acceptedAnswers/accepted is present, it must contain only genuinely different correct answers and must remain mathematically consistent with the canonical key.',
@@ -647,6 +662,17 @@ export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {
   const warningList = (Array.isArray(warnings) ? warnings : [warnings]).filter(Boolean);
   const aiSafeWarnings = warningList.filter((warning) => !/(TEKS|alignment|mastery|standard)/i.test(String(warning)));
 
+  // The rules for the types actually present in the rejected JSON. A model asked
+  // to fix an import it cannot see the rules for tends to "fix" it by switching
+  // to a type it does remember, which fails the next import for a new reason.
+  const presentTypes = [...new Set(
+    [...String(rawJson || '').matchAll(/"type"\s*:\s*"([A-Za-z0-9_]+)"/g)].map((match) => match[1]),
+  )].slice(0, 8);
+  const rules = buildContractSlice({
+    sections: ['Question authoring', 'Common studentActions'],
+    questionTypes: presentTypes,
+  });
+
   return [
     `# Fix this ${AUTHORING_INTENT_SCHEMA_NAME} JSON`,
     '',
@@ -667,6 +693,7 @@ export const buildFixRequest = ({ rawJson = '', errors = [], warnings = [] } = {
     '- Do not change TEKS merely to silence a warning; alignment review belongs in Preflight.',
     '- Use Unicode math in student-facing text.',
     '',
+    ...(rules ? ['', rules, ''] : []),
     '## The V5 JSON to fix',
     '```json',
     String(rawJson || '').trim(),

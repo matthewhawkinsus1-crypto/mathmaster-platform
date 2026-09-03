@@ -15,6 +15,12 @@ import {
 import { buildQuestionRepairRequest } from '../../src/platform/contract/questionRepairRequest.js';
 import { buildHonorsDepthAiRepairRequest } from '../../src/platform/contract/honorsDepthAiRepair.js';
 import { buildAssignmentWeightReviewRequest } from '../../src/platform/grading/weightReviewPack.js';
+import { buildFixRequest } from '../../src/platform/contract/authoringContract.js';
+import {
+  DEFAULT_QUESTION_WEIGHT,
+  MAX_QUESTION_WEIGHT,
+  MIN_QUESTION_WEIGHT,
+} from '../../src/platform/grading/questionWeights.js';
 
 const CONTRACT = buildAuthoringContract({ courseId: 'algebra1' });
 
@@ -160,4 +166,41 @@ test('the platform-owned field list is shared, not restated per prompt', () => {
   assert.ok(PLATFORM_OWNED_FIELDS.length > 10);
   assert.ok(PLATFORM_OWNED_FIELDS.includes('questionId'));
   assert.ok(PLATFORM_OWNED_FIELDS.includes('attemptPolicy'));
+});
+
+
+test('a field the schema validates is a field the contract explains', () => {
+  // questionWeight was validated by assignmentSchemaV5 and never mentioned in
+  // the contract, so every AI-authored assignment arrived with everything
+  // weighted equally and a teacher had to run a separate review to fix work the
+  // author already understood. This is the general shape of that bug.
+  assert.match(CONTRACT, /questionWeight/);
+  assert.ok(
+    CONTRACT.includes(`${MIN_QUESTION_WEIGHT} to ${MAX_QUESTION_WEIGHT}`),
+    'the documented range must be the range the validator enforces',
+  );
+  assert.ok(CONTRACT.includes(`defaults to ${DEFAULT_QUESTION_WEIGHT}`));
+});
+
+test('teacher decisions about a live assignment are never authoring input', () => {
+  // Setting these overrides a choice a person made in the UI.
+  for (const field of ['teacherExcluded', 'archived']) {
+    assert.ok(PLATFORM_OWNED_FIELDS.includes(field), `${field} must be platform-owned`);
+  }
+});
+
+test('a rejected import is returned with the rules for the types it contains', () => {
+  // A model asked to fix an import whose rules it cannot see tends to "fix" it
+  // by switching to a type it does remember, which fails the next import for a
+  // brand new reason.
+  const rawJson = JSON.stringify({
+    schemaVersion: 5,
+    sections: [{ role: 'practice', questions: [{ type: 'algebra', prompt: 'Solve.' }] }],
+  });
+  const request = buildFixRequest({ rawJson, errors: ['Question 1 is missing studentActions.'] });
+
+  assert.match(request, /### `algebra`/);
+  assert.match(request, /Question authoring/);
+  assert.ok(!request.includes('### `functionGraph`'), 'only the types actually present travel with the fix');
+  assert.match(request, /## The V5 JSON to fix/);
 });
