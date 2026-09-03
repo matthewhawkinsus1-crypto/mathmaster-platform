@@ -881,9 +881,21 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     && analysisParts.some((part) => part.kind === 'domain')
     && analysisParts.some((part) => part.kind === 'range');
 
+  // The stage row is a choice only when there is more than one stage. On a
+  // domain-and-range question construction is off, so the row rendered a single
+  // button that does nothing but say what screen you are already on.
+  const stageCount = (constructionEnabled ? 1 : 0) + (analysisEnabled ? 1 : 0);
+
   return (
     <div style={{ textAlign: 'left' }}>
-      <h2 style={{ color: '#202124', marginTop: 0, textAlign: 'center' }}>{workspaceTitle}</h2>
+      {/* The workspace name repeats what "Your task" said one panel above:
+          "Determine the domain and range" then, in 24px centred type,
+          "Analyze the Graph". It orients a student who arrives at this
+          workspace with no authored prompt — the tools lab and the workflow
+          runner both do — so it survives at the size of a label. */}
+      {!String(question.prompt || '').trim() && (
+        <h2 style={{ color: '#202124', marginTop: 0, textAlign: 'center' }}>{workspaceTitle}</h2>
+      )}
       {/* The authored prompt is shown by whoever mounted this workspace —
           QuestionEngine leads every question with it. Repeating it here put the
           same sentence on screen twice, once as "Your task" and again as "Your
@@ -896,14 +908,31 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       )}
       <PathQuestionStimulus stimulus={question.stimulus} />
 
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginBottom: '12px' }}>
-        {constructionEnabled && <button type="button" onClick={() => setStage('construct')} style={stageButtonStyle(stage === 'construct')}>{pointOnly ? '1. Plot Points' : '1. Construct Graph'}</button>}
-        {analysisEnabled && <button type="button" disabled={!constructionReadyForAnalysis} onClick={() => constructionReadyForAnalysis && setStage('analysis')} style={stageButtonStyle(stage === 'analysis', !constructionReadyForAnalysis)}>{inverseReflectionEnabled ? '2. Build Inverse' : '2. Analyze Function'}</button>}
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
-        <span style={{ padding: '7px 12px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>{pointOnly ? 'Table Points' : (FUNCTION_GRAPH_LABELS[functionSpec.type] || 'Function')}</span>
-        <span style={{ padding: '7px 12px', borderRadius: '999px', background: showCoordinates ? '#e6f4ea' : '#f1f3f4', color: showCoordinates ? '#137333' : '#5f6368', fontWeight: 'bold' }}>Coordinates {showCoordinates ? 'shown' : 'hidden'}{skipCounting ? ' · required for skip-count grid' : ''}</span>
-        {studentChoosesX && constructionEnabled && <span style={{ padding: '7px 12px', borderRadius: '999px', background: '#f3e8fd', color: '#681da8', fontWeight: 'bold' }}>Choose your own x-values</span>}
+      {stageCount > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginBottom: '12px' }}>
+          {constructionEnabled && <button type="button" onClick={() => setStage('construct')} style={stageButtonStyle(stage === 'construct')}>{pointOnly ? '1. Plot Points' : '1. Construct Graph'}</button>}
+          {analysisEnabled && <button type="button" disabled={!constructionReadyForAnalysis} onClick={() => constructionReadyForAnalysis && setStage('analysis')} style={stageButtonStyle(stage === 'analysis', !constructionReadyForAnalysis)}>{inverseReflectionEnabled ? '2. Build Inverse' : '2. Analyze Function'}</button>}
+        </div>
+      )}
+      {/* ONE STRIP OF FACTS ABOUT THE GRAPH, IN SMALL TYPE.
+          These were three pill-shaped chips at button size, centred above the
+          plane, which read as controls a student could press. None of them is a
+          control; they state what the graph is.
+
+          "· required for skip-count grid" is gone. It explained to whoever
+          authored the question WHY the coordinate setting was forced, and a
+          student reading it learns nothing they can act on — the same class of
+          leak as an authoring field printed in a prompt. */}
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px 14px', flexWrap: 'wrap', marginBottom: '12px', fontSize: '12px', fontWeight: 700, color: '#5f6368' }}>
+        <span style={{ color: '#174ea6' }}>{pointOnly ? 'Table points' : (FUNCTION_GRAPH_LABELS[functionSpec.type] || 'Function')}</span>
+        <span aria-hidden="true">·</span>
+        <span style={{ color: showCoordinates ? '#137333' : '#5f6368' }}>Coordinates {showCoordinates ? 'shown' : 'hidden'}</span>
+        {studentChoosesX && constructionEnabled && (
+          <>
+            <span aria-hidden="true">·</span>
+            <span style={{ color: '#681da8' }}>Choose your own x-values</span>
+          </>
+        )}
       </div>
 
       {/* THE PLANE CAN LEAVE THE LAYOUT. Squeezed between the session card, the

@@ -1,8 +1,26 @@
 import React, { useEffect, useRef, useState } from 'react';
 import MathText from '../../components/common/MathText.jsx';
 import { focusFirstAnswerControl, isSingleLineAnswerTarget } from '../../platform/interaction/answerEntryUx.js';
+import QuietDisclosure from '../../components/common/QuietDisclosure.jsx';
 
-export default function ToolShell({ title, subtitle, badge, children, footer }) {
+// A stable key for "this exact block of text", so a student's decision to fold
+// the steps away is remembered per tool without every one of the eighteen tools
+// having to be given an id by hand.
+//
+// Keying on the CONTENT rather than on the tool is deliberate: when the steps
+// are rewritten the key changes and the panel opens again, which is what should
+// happen when the instructions are no longer the ones the student read.
+const contentKey = (value) => {
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+  let hash = 5381;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = ((hash * 33) ^ text.charCodeAt(index)) >>> 0;
+  }
+  return hash.toString(36);
+};
+
+export default function ToolShell({ title, subtitle, badge, children, footer, shellKey = null }) {
   const shellRef = useRef(null);
 
   useEffect(() => {
@@ -44,14 +62,30 @@ export default function ToolShell({ title, subtitle, badge, children, footer }) 
       boxShadow: '0 16px 44px rgba(15, 23, 42, 0.08)',
       overflow: 'hidden',
     }}>
-      <header className="mathmaster-tool-shell-header" style={{ padding: '20px 24px', borderBottom: '1px solid #e5e7eb', background: 'linear-gradient(135deg,#f8fbff,#eef4ff)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: 24, color: '#172033' }}>{title}</h2>
-            {subtitle ? <p style={{ margin: '6px 0 0', color: '#5f6b7a', lineHeight: 1.45 }}>{subtitle}</p> : null}
-          </div>
-          {badge ? <span style={{ borderRadius: 999, background: '#e8f0fe', color: '#174ea6', padding: '7px 11px', fontWeight: 800, fontSize: 12 }}>{badge}</span> : null}
+      {/* ONE LINE, NOT THREE.
+          This header was a 24px heading, a full sentence describing the tool,
+          and a badge, stacked above every question — and the question's own
+          "Your task" panel sits directly above it saying what to do. The name
+          still orients a student arriving at an unfamiliar tool, so it stays,
+          at the size of a label rather than a headline.
+
+          The subtitle describes what the TOOL is. That is worth reading once
+          and is not worth a paragraph on every question, so it folds. */}
+      <header className="mathmaster-tool-shell-header" style={{ padding: '12px 20px', borderBottom: '1px solid #e5e7eb', background: 'linear-gradient(135deg,#f8fbff,#eef4ff)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#172033' }}>{title}</h2>
+          {badge ? <span style={{ borderRadius: 999, background: '#e8f0fe', color: '#174ea6', padding: '5px 10px', fontWeight: 800, fontSize: 11 }}>{badge}</span> : null}
         </div>
+        {subtitle ? (
+          <QuietDisclosure
+            summary="About this tool"
+            storageKey={`mm.tool.about.${shellKey || contentKey(`${title}|${subtitle}`)}`}
+            defaultOpen={false}
+            style={{ margin: '8px 0 0' }}
+          >
+            <p style={{ margin: 0, color: '#5f6b7a', lineHeight: 1.45, fontSize: 14 }}>{subtitle}</p>
+          </QuietDisclosure>
+        ) : null}
       </header>
       <div className="mathmaster-tool-shell-body" style={{ padding: 24 }}>{children}</div>
       {footer ? <footer style={{ padding: '14px 24px', borderTop: '1px solid #e5e7eb', background: '#fafafa', color: '#5f6b7a', fontSize: 13 }}>{footer}</footer> : null}
@@ -90,7 +124,7 @@ export const ResultPill = ({ ok, children }) => (
 // of every single tool, so a prompt written as "Solve $-3x + 4 > 13$" — which is
 // how the whole Path bank is written — was showing a student the dollar signs
 // and the backslashes. One component, every tool, every question.
-export const TaskCard = ({ task, steps = [], note = null, question = null }) => {
+export const TaskCard = ({ task, steps = [], note = null, question = null, stepsKey = null }) => {
   const authoredPrompt = String(question?.prompt || '').trim();
   const taskText = String(task || '').trim();
   const promptDiffers = Boolean(authoredPrompt && authoredPrompt !== taskText);
@@ -114,12 +148,25 @@ export const TaskCard = ({ task, steps = [], note = null, question = null }) => 
           <MathText as="p" style={{ margin: '6px 0 0', fontSize: 16, fontWeight: 700, color: '#172033', lineHeight: 1.4 }}>{taskText}</MathText>
         </div>
       ) : null}
+      {/* The steps are the same for every question in a section. By the fourth
+          one a student has read them three times and is scrolling past them to
+          reach the graph. They open by default and close only because the
+          student closed them — this is a fold, not a hiding place. */}
       {steps.length ? (
-        <ol style={{ margin: '10px 0 0', paddingLeft: 20, color: '#3c4756', lineHeight: 1.6 }}>
-          {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}
-        </ol>
+        <QuietDisclosure
+          summary={`How to do this (${steps.length} step${steps.length === 1 ? '' : 's'})`}
+          storageKey={`mm.tool.steps.${stepsKey || contentKey(steps.join('|'))}`}
+          defaultOpen
+          style={{ margin: '12px 0 0' }}
+        >
+          <ol style={{ margin: 0, paddingLeft: 20, color: '#3c4756', lineHeight: 1.6 }}>
+            {steps.map((step, index) => <li key={index}><MathText>{step}</MathText></li>)}
+          </ol>
+          {note ? <MathText as="p" style={{ margin: '10px 0 0', fontSize: 13, color: '#5f6b7a' }}>{note}</MathText> : null}
+        </QuietDisclosure>
+      ) : note ? (
+        <MathText as="p" style={{ margin: '10px 0 0', fontSize: 13, color: '#5f6b7a' }}>{note}</MathText>
       ) : null}
-      {note ? <MathText as="p" style={{ margin: '10px 0 0', fontSize: 13, color: '#5f6b7a' }}>{note}</MathText> : null}
     </div>
   );
 };
