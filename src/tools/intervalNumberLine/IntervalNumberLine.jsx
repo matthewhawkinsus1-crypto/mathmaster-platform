@@ -1,6 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { evaluate } from 'mathjs';
 import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
+import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
+import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import MathInput from '../../MathInput';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -286,6 +288,7 @@ const deriveInitialViewport = (questionData, expected, snapStep) => {
 };
 
 export default function IntervalNumberLine({ questionData = {}, onAction }) {
+  const viewportWidth = useViewportWidth();
   const variable = questionData.variable || 'x';
   const expected = useMemo(
     () => normalizeIntervals(questionData.intervals),
@@ -620,6 +623,14 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
         ]}
       />
 
+      <EnlargeableFigure
+        label="Number line workspace"
+        enlargeLabel="Enlarge workspace"
+        taskText={questionData.prompt || questionData.task || ''}
+        style={{ width: '100%' }}
+        openEnlarged={shouldOpenFigureEnlarged({ toolId: 'intervalNumberLine', question: questionData || {}, viewportWidth })}
+        dismissKey={figureDismissalKey(questionData || {}, 'intervalNumberLine')}
+      >
       <ToolSplit>
         <Panel title="Build the graph">
           <div
@@ -710,7 +721,6 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
             </div>
           </div>
 
-          <EnlargeableFigure label="Number line" enlargeLabel="Enlarge number line" style={{ width: '100%' }}>
           <svg
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             role="application"
@@ -911,7 +921,6 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
               </g>
             )}
           </svg>
-          </EnlargeableFigure>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
             <button
@@ -1018,6 +1027,7 @@ export default function IntervalNumberLine({ questionData = {}, onAction }) {
           />
         </Panel>
       </ToolSplit>
+      </EnlargeableFigure>
     </ToolShell>
   );
 }

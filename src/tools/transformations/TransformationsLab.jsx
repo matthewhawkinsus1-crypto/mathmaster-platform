@@ -1,4 +1,7 @@
 import React, { useMemo, useState } from 'react';
+import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
+import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
+import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import ToolShell, { Panel, ToolSplit, ResultPill, TaskCard, HintPanel } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import { matchesNumericAnswer, parseNumericAnswer } from '../shared/toolMath';
@@ -37,6 +40,7 @@ const parameterFields = (values, setters, keys) => (
 );
 
 export default function TransformationsLab({ questionData = {}, onAction }) {
+  const viewportWidth = useViewportWidth();
   const mode = questionData.mode || 'match';
   const requestedFamily = questionData.family || questionData.function?.type || questionData.type;
   const family = TRANSFORMATION_FAMILIES.includes(requestedFamily) ? requestedFamily : 'quadratic';
@@ -171,6 +175,14 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
 
   return <ToolShell title="Transformations Lab" subtitle="Connect parameters, parent points, defining features, and transformed graphs across function families." badge={familyLabel}>
     <TaskCard question={questionData} task={MODE_TASKS[mode] || MODE_TASKS.match} steps={MODE_STEPS[mode] || MODE_STEPS.match} />
+    <EnlargeableFigure
+        label="Transformation workspace"
+        enlargeLabel="Enlarge workspace"
+        taskText={questionData.prompt || questionData.task || ''}
+        style={{ width: '100%' }}
+        openEnlarged={shouldOpenFigureEnlarged({ toolId: 'transformations', question: questionData || {}, viewportWidth })}
+        dismissKey={figureDismissalKey(questionData || {}, 'transformations')}
+      >
     <ToolSplit>
       <Panel title={familyLabel + ' transformation'}>
         {mode === 'match' ? <>
@@ -271,5 +283,6 @@ export default function TransformationsLab({ questionData = {}, onAction }) {
         <p style={{ color: '#5f6b7a', marginBottom: 0 }}>This same bridge works for linear, quadratic, absolute value, cubic, root, exponential, logarithmic, and reciprocal families.</p>
       </Panel>
     </ToolSplit>
+    </EnlargeableFigure>
   </ToolShell>;
 }

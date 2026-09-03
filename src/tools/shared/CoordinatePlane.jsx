@@ -75,6 +75,14 @@ export default function CoordinatePlane({
   // Set false where the plane sits INSIDE another control. A button nested in a
   // button is invalid markup, and the enlarge press would also fire the card
   // selection underneath it.
+  //
+  // A PLANE THE STUDENT PLOTS ON NEVER ENLARGES ITSELF, whatever this says.
+  // The enlarged view is a modal, and this component holds only the plane — the
+  // Check button, the task list and the feedback all belong to the tool around
+  // it and stay behind the backdrop. Enlarging a read-only graph to look at it
+  // is complete; enlarging a plane you are answering with is a dead end you
+  // have to close before you can submit. Tools whose plane is interactive wrap
+  // their whole split instead, so the controls come with it.
   enlargeable = true,
   children,
 }) {
@@ -367,7 +375,7 @@ export default function CoordinatePlane({
     </div>
   );
 
-  if (!enlargeable) return plane;
+  if (!enlargeable || interactive) return plane;
 
   return (
     <EnlargeableFigure label={ariaLabel} enlargeLabel="Enlarge graph" style={{ width: '100%' }}>

@@ -17,7 +17,10 @@ test('the shared coordinate plane can be opened full window', () => {
   const source = codeOf('src/tools/shared/CoordinatePlane.jsx');
   assert.match(source, /import EnlargeableFigure/);
   assert.match(source, /enlargeable = true/);
-  assert.match(source, /if \(!enlargeable\) return plane;/);
+  // Read-only planes enlarge themselves. An interactive one does not, because
+  // this component holds only the plane and its controls would be stranded
+  // behind the backdrop — those tools wrap their whole split instead.
+  assert.match(source, /if \(!enlargeable \|\| interactive\) return plane;/);
   assert.match(source, /<EnlargeableFigure/);
 });
 
@@ -54,13 +57,15 @@ test('the standalone student diagrams are enlargeable too', () => {
   // These draw their own SVG rather than using the shared plane, so wrapping
   // CoordinatePlane did not reach them.
   for (const [path, marker] of [
-    ['src/tools/relationMapping/RelationMapping.jsx', 'Mapping diagram'],
-    ['src/tools/intervalNumberLine/IntervalNumberLine.jsx', 'Number line'],
+    // The first two wrap their whole split, so the panel a student answers in
+    // comes with the figure rather than staying behind the backdrop.
+    ['src/tools/relationMapping/RelationMapping.jsx', 'Mapping workspace'],
+    ['src/tools/intervalNumberLine/IntervalNumberLine.jsx', 'Number line workspace'],
     ['src/GraphStory.jsx', 'Graph story plane'],
   ]) {
     const source = codeOf(path);
     assert.match(source, /import EnlargeableFigure/, path);
-    assert.match(source, new RegExp(`<EnlargeableFigure label="${marker}"`), path);
+    assert.match(source, new RegExp(`<EnlargeableFigure[\\s\\S]{0,80}label="${marker}"`), path);
     const opened = (source.match(/<EnlargeableFigure/g) || []).length;
     const closed = (source.match(/<\/EnlargeableFigure>/g) || []).length;
     assert.equal(opened, closed, `${path}: unbalanced figure tags`);

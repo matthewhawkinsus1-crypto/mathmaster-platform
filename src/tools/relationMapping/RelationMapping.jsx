@@ -339,9 +339,9 @@ export default function RelationMapping({ questionData = {}, onAction }) {
         </Panel>
       ) : null}
 
+      <EnlargeableFigure label="Mapping workspace" enlargeLabel="Enlarge workspace" style={{ width: '100%' }}>
       <ToolSplit>
         <Panel title="Mapping diagram">
-          <EnlargeableFigure label="Mapping diagram" enlargeLabel="Enlarge diagram" style={{ width: '100%' }}>
           <svg viewBox={`0 0 ${WIDTH} ${height}`} role="application" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid #d9e2f1', borderRadius: 12, background: '#fff' }}>
             <text x={LEFT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" fill="#5f6b7a">{questionData.domainLabel || 'Domain (x)'}</text>
             <text x={RIGHT_X} y={18} textAnchor="middle" fontSize="13" fontWeight="700" fill="#5f6b7a">{questionData.rangeLabel || 'Range (y)'}</text>
@@ -402,7 +402,6 @@ export default function RelationMapping({ questionData = {}, onAction }) {
               </g>
             ))}
           </svg>
-          </EnlargeableFigure>
 
           <p aria-live="polite" style={{ marginTop: 10, fontSize: 13, color: '#5f6b7a' }}>
             {selectedDomain != null
@@ -523,6 +522,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
           />
         </Panel>
       </ToolSplit>
+      </EnlargeableFigure>
     </ToolShell>
   );
 }

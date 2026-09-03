@@ -74,6 +74,17 @@ export default function EnlargeableFigure({
   enlargeLabel = 'Enlarge',
   openEnlarged = false,
   dismissKey = null,
+  // THE ENLARGED PANEL COVERS THE QUESTION THAT SENT THE STUDENT TO IT.
+  //
+  // It is a full-window modal over the page holding the task, so a student who
+  // opens a plane to plot on loses sight of what they were asked to plot. On a
+  // question they opened themselves that is merely annoying; on one that opens
+  // itself it is the platform hiding the prompt on the student's behalf.
+  //
+  // So the task comes with the figure. Passed as text rather than rendered by
+  // the caller because it is shown ONLY in the enlarged view - repeating it
+  // inline would put the same sentence on screen twice.
+  taskText = '',
 }) {
   const [enlarged, setEnlarged] = useState(() => openEnlarged && !readDismissed(dismissKey));
   const openerRef = useRef(null);
@@ -140,6 +151,23 @@ export default function EnlargeableFigure({
         }
         : { position: 'relative', margin: 0, boxSizing: 'border-box', ...style }}
     >
+      {enlarged && taskText ? (
+        <p
+          style={{
+            margin: '0 96px 12px 0',
+            padding: '10px 13px',
+            borderLeft: '4px solid #1a73e8',
+            borderRadius: '0 8px 8px 0',
+            background: '#f4f8ff',
+            color: '#202124',
+            fontSize: 15,
+            fontWeight: 700,
+            lineHeight: 1.4,
+          }}
+        >
+          {taskText}
+        </p>
+      ) : null}
       {enlarged ? (
         <button
           ref={closeRef}

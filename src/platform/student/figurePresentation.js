@@ -32,6 +32,33 @@
 // bigger. Each one puts response fields BESIDE the figure instead of under it.
 const FULL_WIDTH_ANALYSIS_KINDS = Object.freeze(['domain', 'range']);
 
+/*
+ * WHICH TOOLS OPEN AT FULL SIZE, AND THE ONE TEST THAT DECIDES IT.
+ *
+ *   Does the student have to AIM at the figure to answer?
+ *
+ * That is the whole rule, and it sorts the tool set cleanly. Plotting a point,
+ * dragging an interval endpoint, placing a transformed image — all of these are
+ * precision tasks against a plane that the embedded column squeezes to a few
+ * hundred pixels, which is the original complaint: a target a few pixels across.
+ *
+ * Reading a graph is not aiming. A student answering "what is the y-intercept"
+ * looks at the figure and types; a bigger figure is nicer and a full-window
+ * panel they did not ask for is an interruption. Those tools keep the Enlarge
+ * button and do not open themselves.
+ *
+ * A TOOL ONLY QUALIFIES ONCE ITS ENLARGED VIEW CARRIES ITS CONTROLS. The
+ * enlarged view is a modal. A tool that wraps only its plane leaves the Check
+ * button and the task list behind the backdrop, so opening it automatically
+ * would drop the student into a dead end they have to close before they can
+ * answer. Every id below wraps its whole split.
+ */
+const AIMING_TOOLS = Object.freeze([
+  'graphing2',
+  'transformations',
+  'intervalNumberLine',
+]);
+
 const list = (value) => (Array.isArray(value) ? value : []);
 
 const analysisKinds = (question = {}) => list(question.analysisRequests)
@@ -57,8 +84,11 @@ export const isDomainRangeQuestion = (question = {}) => {
  * 1050px and above; below that the panel would be a full-window interruption
  * showing the same single column the student already had.
  */
+export const isAimingTool = (toolId) => AIMING_TOOLS.includes(String(toolId || ''));
+
 export const shouldOpenFigureEnlarged = ({
   question = {},
+  toolId = '',
   viewportWidth = 0,
   dismissed = false,
   minimumWidth = 1050,
@@ -68,7 +98,7 @@ export const shouldOpenFigureEnlarged = ({
   if (dismissed) return false;
   if (!(Number(viewportWidth) >= minimumWidth)) return false;
   if (question?.presentEnlarged === true) return true;
-  return isDomainRangeQuestion(question);
+  return isAimingTool(toolId) || isDomainRangeQuestion(question);
 };
 
 /**
@@ -78,8 +108,9 @@ export const shouldOpenFigureEnlarged = ({
  * panel for domain-and-range questions" is the same on the second one as on the
  * first, and asking again each time is the behaviour this is meant to avoid.
  */
-export const figureDismissalKey = (question = {}) => {
+export const figureDismissalKey = (question = {}, toolId = '') => {
   if (question?.presentEnlarged === true) return 'mm.figure.enlarged.authored';
+  if (isAimingTool(toolId)) return `mm.figure.enlarged.${toolId}`;
   return isDomainRangeQuestion(question) ? 'mm.figure.enlarged.domainRange' : null;
 };
 
