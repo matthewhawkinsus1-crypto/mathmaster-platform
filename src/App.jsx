@@ -4498,15 +4498,13 @@ function App() {
       toastWarning('No timed DOL', 'This assignment does not have an enabled DOL section.');
       return;
     }
-    if (state.status === 'notToday') {
-      toastWarning('DOL is not scheduled today', `This DOL is scheduled for ${state.instructionDateKey || 'another date'}.`);
-      return;
-    }
+    const needsOpenToday = ['notToday', 'unscheduled'].includes(state.status);
     if (!state.window) {
       toastWarning('Bell schedule needed', `Set today’s A/B day and bell times for ${classPeriod} before unlocking its DOL.`);
       return;
     }
-    if (state.status === 'ended') {
+    const actionNowMs = Date.now();
+    if (state.status === 'ended' || actionNowMs > state.window.end.getTime()) {
       toastWarning('DOL window ended', `The DOL window for ${classLabel} has already ended.`);
       return;
     }
@@ -4516,12 +4514,19 @@ function App() {
     }
 
     const durationMinutes = Math.max(1, Number(assignment?.dol?.minutesBeforeEnd || 10));
+    const beforeClass = state.status === 'beforeClass' || actionNowMs < state.window.start.getTime();
     const proceed = await confirmAction({
-      title: `Unlock the DOL early for ${classLabel}?`,
-      message: state.status === 'beforeClass'
-        ? `The DOL will open when ${classLabel} begins and its ${durationMinutes}-minute timer will start then.`
-        : `The DOL will open immediately for ${classLabel} and its ${durationMinutes}-minute timer will start now. Other classes stay locked.`,
-      confirmLabel: 'Unlock DOL',
+      title: needsOpenToday
+        ? `Open the DOL today for ${classLabel}?`
+        : `Unlock the DOL early for ${classLabel}?`,
+      message: needsOpenToday
+        ? beforeClass
+          ? `This lesson was saved for another instructional day. MathMaster will set today as the DOL date for ${classLabel} only, then open it when class begins with its ${durationMinutes}-minute timer.`
+          : `This lesson was saved for another instructional day. MathMaster will set today as the DOL date for ${classLabel} only and open it now with its ${durationMinutes}-minute timer. Other classes stay unchanged.`
+        : beforeClass
+          ? `The DOL will open when ${classLabel} begins and its ${durationMinutes}-minute timer will start then.`
+          : `The DOL will open immediately for ${classLabel} and its ${durationMinutes}-minute timer will start now. Other classes stay locked.`,
+      confirmLabel: needsOpenToday ? 'Open DOL Today' : 'Unlock DOL',
     });
     if (!proceed) return;
 
@@ -4529,11 +4534,19 @@ function App() {
     setDolUnlockBusyKey(busyKey);
     try {
       const unlockedAt = new Date().toISOString();
+      const dateKey = localDateKey(unlockedAt);
       const dol = { ...(assignment.dol || {}), enabled: true };
       const entry = {
-        dateKey: localDateKey(Date.now()),
+        dateKey,
         unlockedAt,
         unlockedBy: user?.email || user?.id || 'teacher',
+      };
+      // Manual DOL release is authoritative for this real class. Pinning the
+      // instructional date by class ID repairs reused/moved lessons without
+      // altering the DOL date or completion history of any other class.
+      dol.instructionDatesByClassId = {
+        ...(assignment.dol?.instructionDatesByClassId || {}),
+        [classId]: dateKey,
       };
       dol.earlyUnlocksByClassId = { ...(assignment.dol?.earlyUnlocksByClassId || {}), [classId]: entry };
       await updateDoc(doc(db, 'assignments', assignment.id), { dol, updatedAt: unlockedAt });

@@ -81,6 +81,40 @@ test('lesson DOL keeps ten working minutes but shifts earlier to preserve five-m
   assert.equal(ended.status, 'ended');
 });
 
+test('reused lesson DOL date can be repaired for one real class without changing another', () => {
+  const reusedLesson = {
+    ...lessonWithDOL,
+    dol: {
+      ...lessonWithDOL.dol,
+      instructionDate: '2026-08-30',
+      instructionDatesByClassId: {
+        'class-b': '2026-08-31',
+      },
+    },
+  };
+
+  const classB = getDOLState({
+    assignment: reusedLesson,
+    schedule: mondaySchedule,
+    classId: 'class-b',
+    classPeriod: 'Period 1',
+    nowValue: new Date(2026, 7, 31, 9, 14, 59),
+  });
+  assert.equal(classB.status, 'waiting');
+  assert.equal(classB.instructionDateKey, '2026-08-31');
+
+  const originalClass = getDOLState({
+    assignment: reusedLesson,
+    schedule: mondaySchedule,
+    classId: 'class-a',
+    classPeriod: 'Period 1',
+    nowValue: new Date(2026, 7, 31, 9, 14, 59),
+  });
+  assert.equal(originalClass.status, 'notToday');
+  assert.equal(originalClass.instructionDateKey, '2026-08-30');
+  assert.ok(originalClass.window, 'stale DOL keeps today\'s class window so the teacher can repair it');
+});
+
 test('pack-up alert owns the final five minutes of class', () => {
   const before = getClassPackUpState({
     schedule: mondaySchedule,
