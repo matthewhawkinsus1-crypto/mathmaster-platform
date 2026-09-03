@@ -7,6 +7,7 @@ import GraphDisplay from './GraphDisplay';
 import { answerCandidatesForField, looksLikeFiniteSetNotation, matchesFieldAnswer } from './answerUtils';
 import { resolveLabelFormat } from './labelFormat';
 import { inferRequiredAnswerSymbols } from './platform/interaction/answerEntryTools.js';
+import { describeAnswerFormat } from './platform/interaction/answerFormatHints.js';
 import useUndoHistory from './useUndoHistory';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from './platform/interaction/choiceOptions.js';
 import { normalizePlainMathTypography } from './components/common/mathSegments.js';
@@ -176,6 +177,10 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
             ...(Array.isArray(field.inputContract?.requiredSymbols) ? field.inputContract.requiredSymbols : []),
             ...inferredRequiredSymbols,
           ];
+          // The field already enforces a shape through requiredSymbols. Saying
+          // so is the whole fix: an x-intercept box and a zero box look
+          // identical and reject each other's answers.
+          const answerShape = describeAnswerFormat(field);
           return (
             <div key={field.id} style={{ padding: '16px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : '#dfe3e7'}`, borderRadius: '10px', background: grade && !grade.isCorrect ? '#fff8f7' : '#fbfcfe' }}>
               <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: '#3c4043' }}>
@@ -188,6 +193,11 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   return format ? <MathDisplay value={normalizeMathDisplayValue(text)} format={format} inline /> : normalizePlainMathTypography(text);
                 })()}
               </label>
+              {answerShape.hint && !choiceOptions && (
+                <p style={{ margin: '-4px 0 10px', fontSize: '13px', lineHeight: 1.4, color: '#5f6368', fontWeight: 600 }}>
+                  {answerShape.hint}
+                </p>
+              )}
               {choiceOptions ? (
                 <div role="radiogroup" aria-label={field.label || field.id} style={{ display: 'grid', gap: '8px' }}>
                   {choiceOptions.map((option) => {
@@ -222,7 +232,7 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                   type="text"
                   value={answers[field.id] || ''}
                   onChange={(event) => history.setValue((current) => ({ ...current, [field.id]: event.target.value }))}
-                  placeholder={field.placeholder || 'Type your answer'}
+                  placeholder={answerShape.placeholder}
                   aria-label={field.label || field.id}
                   autoComplete="off"
                   spellCheck={false}
@@ -243,7 +253,13 @@ export default function MultiAnswerGrader({ question, onStateChange, onUndoState
                 <MathInput
                   value={answers[field.id] || ''}
                   onChange={(value) => history.setValue((current) => ({ ...current, [field.id]: value }))}
-                  placeholder={field.placeholder || (shouldUseSetInput(field) ? '{…}' : shouldUseInequalityInput(field) ? 'e.g. 0 ≤ x ≤ 4' : 'answer')}
+                  placeholder={answerShape.example || field.placeholder
+                    ? answerShape.placeholder
+                    : shouldUseSetInput(field)
+                      ? 'for example {1, 2, 3}'
+                      : shouldUseInequalityInput(field)
+                        ? 'for example 0 ≤ x ≤ 4'
+                        : 'Type your answer'}
                   ariaLabel={field.label || field.id}
                   toolProfile={field.toolProfile || (shouldUseSetInput(field) ? 'set' : shouldUseInequalityInput(field) ? 'inequality' : 'basic')}
                   answerFormat={field.answerFormat || field.inputContract?.format || field.notation || field.inputMode || (shouldUseInequalityInput(field) ? 'inequality' : '')}

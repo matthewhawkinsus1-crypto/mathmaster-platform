@@ -1,4 +1,7 @@
 import React, { useMemo, useState } from 'react';
+import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
+import { figureDismissalKey, shouldOpenFigureEnlarged } from '../../platform/student/figurePresentation.js';
+import useViewportWidth from '../../platform/mobile/useViewportWidth.js';
 import ToolShell, { Panel, ResultPill, TaskCard, HintPanel, ToolSplit } from '../shared/ToolShell';
 import CoordinatePlane from '../shared/CoordinatePlane';
 import useToolSubmission from '../shared/useToolSubmission';
@@ -87,6 +90,7 @@ const hintsForMode = (mode, target, questionData) => {
 };
 
 export default function Graphing2({ questionData = {}, onAction }) {
+  const viewportWidth = useViewportWidth();
   const mode = questionData.mode || 'slopeIntercept';
   const normalizedQuestion = mode === 'slopeIntercept' && !questionData.line ? { ...questionData, line: { m: 1.5, b: -2 } } : questionData;
   const target = targetLineFromQuestion(normalizedQuestion);
@@ -162,6 +166,14 @@ export default function Graphing2({ questionData = {}, onAction }) {
           : `This line passes between gridlines, so points snap to the nearest ${snapStep}.`}
       />
 
+      <EnlargeableFigure
+        label="Graphing workspace"
+        enlargeLabel="Enlarge workspace"
+        taskText={targetPrompt(questionData, target)}
+        style={{ width: '100%' }}
+        openEnlarged={shouldOpenFigureEnlarged({ toolId: 'graphing2', question: questionData || {}, viewportWidth })}
+        dismissKey={figureDismissalKey(questionData || {}, 'graphing2')}
+      >
       <ToolSplit>
         <Panel title="Construct the line">
           <div style={{
@@ -221,6 +233,7 @@ export default function Graphing2({ questionData = {}, onAction }) {
           <HintPanel hints={hints} onHintUsed={() => onAction?.('HINT_USED')} />
         </Panel>
       </ToolSplit>
+      </EnlargeableFigure>
     </ToolShell>
   );
 }

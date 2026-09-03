@@ -233,6 +233,7 @@ export default function QuestionEngine({
     return () => window.clearTimeout(timer);
   }, [sectionComplete]);
   const [scratchpadDataUrl, setScratchpadDataUrl] = useState('');
+  const [scratchpadPages, setScratchpadPages] = useState(null);
   const [unchangedConfirmOpen, setUnchangedConfirmOpen] = useState(false);
   const [scaffoldComplete, setScaffoldComplete] = useState(false);
   const [scaffoldMessage, setScaffoldMessage] = useState('');
@@ -260,6 +261,7 @@ export default function QuestionEngine({
     setUndoController(null);
     setScratchpadOpen(false);
     setScratchpadDataUrl('');
+    setScratchpadPages(null);
     setUnchangedConfirmOpen(false);
     setScaffoldComplete(false);
     setScaffoldMessage('');
@@ -548,16 +550,37 @@ export default function QuestionEngine({
     try {
       const saved = await onLoadScratchpad?.();
       setScratchpadDataUrl(saved?.dataUrl || '');
+      // A record saved before pages existed carries only dataUrl, and the
+      // overlay falls back to it. Nothing already saved needs migrating.
+      setScratchpadPages(Array.isArray(saved?.pages) && saved.pages.length ? saved.pages : null);
       setScratchpadOpen(true);
     } finally {
       setScratchpadLoading(false);
     }
   };
 
-  const saveScratchpad = async (dataUrl, metadata) => {
+  const saveScratchpad = async (pages, metadata) => {
     if (locked) return;
-    await onSaveScratchpad?.(dataUrl, metadata);
-    setScratchpadDataUrl(dataUrl);
+    const list = Array.isArray(pages) ? pages : [pages].filter(Boolean);
+    await onSaveScratchpad?.(list, metadata);
+    setScratchpadPages(list);
+    setScratchpadDataUrl(list[0] || '');
+  };
+
+  // WHO MAY CHECK THEIR OWN GRAPH, DECIDED HERE AND NOT IN THE CONTENT.
+  //
+  // Checking a plotted point against the function is mathematical help, so it
+  // follows the same permission as a hint: available while practising, absent
+  // on a DOL. Deciding it from the section policy rather than from a question
+  // field means an author cannot switch it on for an exit ticket, and a bank
+  // question carried into a DOL loses it automatically.
+  const selfCheckAllowed = resolvedActivityPolicy?.hintsAllowed !== false && !locked;
+
+  const graphModuleProps = {
+    selfCheckAllowed,
+    // Reported exactly like a revealed hint, which is what discounts the
+    // mastery weight through isMathematicallyIndependent.
+    onSelfCheck: () => setHintUsed(true),
   };
 
   const commonModuleProps = {
@@ -609,9 +632,9 @@ export default function QuestionEngine({
         return <GraphLine {...commonModuleProps} />;
       case 'functionGraph':
       case 'functionInvestigation':
-        return <FunctionGraphBuilder {...commonModuleProps} />;
+        return <FunctionGraphBuilder {...commonModuleProps} {...graphModuleProps} />;
       case 'graphAnalysis':
-        return <GraphAnalysis {...commonModuleProps} />;
+        return <GraphAnalysis {...commonModuleProps} {...graphModuleProps} />;
       case 'stepAlgebra':
         if (needsMultiRelationWorkspace(processedQuestion)) {
           return (
@@ -735,31 +758,57 @@ export default function QuestionEngine({
     ? <ReferenceInfoCard referenceInfo={referenceInfo} />
     : null;
 
+  // UNDO BELONGS WHERE THE HANDS ARE. These lived in a centred row above the
+  // tool, which meant that on any question tall enough to scroll — which is most
+  // graph questions — the student was several screens away from the control that
+  // takes back the arrow they just drew. The work bar keeps them beside the
+  // submit button at the bottom of the viewport instead.
+  const questionWorkBar = (
+    <>
+      <button type="button" onClick={() => undoController?.onUndo?.()} disabled={!undoController?.canUndo || locked} title={undoController?.label || 'Undo the most recent response change'} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: undoController?.canUndo && !locked ? 'pointer' : 'not-allowed', opacity: undoController?.canUndo && !locked ? 1 : 0.45 }}>
+        ↶ Undo
+      </button>
+      <button type="button" onClick={openScratchpad} disabled={scratchpadLoading} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>
+        {scratchpadLoading ? 'Opening…' : locked ? '✎ Scratchpad' : '✎ Scratchpad'}
+      </button>
+      {supportPresentation.textToSpeech && (
+        <button type="button" onClick={() => speakText(referenceSpeechText)} style={{ minHeight: '44px', padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', cursor: 'pointer' }}>🔊 Read</button>
+      )}
+    </>
+  );
+
   const questionContextPanel = (
     <div className="mathmaster-question-context-panel">
+      {/* ONE LINE, NOT TWO SAYING THE SAME THING.
+          This panel used to read "3 attempts on this question" on the left and
+          "Variant 1 · 3 of 3 attempts remaining" on the right — the same fact
+          twice, in a full-width box, above every question. The variant number
+          is a content-authoring detail no student can act on, so it is gone from
+          the student's view entirely; the remaining-attempts count is the part
+          that changes their decision and is all that is left. */}
       {!supportPresentation.declutter && (
         <div
           role="status"
+          className="mathmaster-question-attempt-strip"
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '10px',
-            margin: '0 auto 12px',
-            padding: '12px 15px',
-            maxWidth: '860px',
-            borderRadius: '10px',
             border: `1px solid ${terminalFeedbackHidden ? '#c9d6e8' : record.status === 'attempted' ? '#f9ab00' : record.status === 'expired' ? '#e0b4b0' : record.status === 'correct' ? '#a8dab5' : '#d9e2f1'}`,
             background: terminalFeedbackHidden ? '#f4f7fb' : record.status === 'attempted' ? '#fef7e0' : record.status === 'expired' ? '#fce8e6' : record.status === 'correct' ? '#e6f4ea' : '#f8fbff',
             color: '#3c4043',
           }}
         >
-          <strong>{terminalFeedbackHidden ? 'Response submitted' : record.status === 'correct' ? 'Question complete' : record.status === 'expired' ? 'This question is closed' : record.status === 'attempted' ? 'Question attempted' : `${resolvedMaximumAttempts} ${resolvedMaximumAttempts === 1 ? 'attempt' : 'attempts'} on this question`}</strong>
-          <span>
-            Variant {record.variantIndex + 1} · {terminalFeedbackHidden ? 'feedback held by activity policy' : `${remainingAttempts} of ${resolvedMaximumAttempts} attempts remaining`}
-            {!terminalFeedbackHidden && record.bestPartialCredit > 0 && record.status !== 'correct' ? ` · ${record.bestPartialCredit}% partial credit` : ''}
-          </span>
+          <strong>
+            {terminalFeedbackHidden
+              ? 'Response submitted'
+              : record.status === 'correct'
+                ? 'Question complete'
+                : record.status === 'expired'
+                  ? 'This question is closed'
+                  : `${remainingAttempts} of ${resolvedMaximumAttempts} ${resolvedMaximumAttempts === 1 ? 'try' : 'tries'} left`}
+          </strong>
+          {terminalFeedbackHidden && <span className="mathmaster-attempt-detail">Feedback opens later</span>}
+          {!terminalFeedbackHidden && record.bestPartialCredit > 0 && record.status !== 'correct' && (
+            <span className="mathmaster-attempt-detail">{record.bestPartialCredit}% partial credit so far</span>
+          )}
         </div>
       )}
 
@@ -769,18 +818,6 @@ export default function QuestionEngine({
           Grade weight ×{questionGradeWeight} · this question contributes {questionGradeWeight} times a standard-weight question to the assignment grade.
         </div>
       )}
-
-      <div aria-label="Question tools" style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', margin: '0 auto 20px' }}>
-        <button type="button" onClick={() => undoController?.onUndo?.()} disabled={!undoController?.canUndo || locked} title={undoController?.label || 'Undo the most recent response change'} style={{ padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold', opacity: undoController?.canUndo && !locked ? 1 : 0.45 }}>
-          ↶ Undo Last Action
-        </button>
-        <button type="button" onClick={openScratchpad} disabled={scratchpadLoading} style={{ padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>
-          {scratchpadLoading ? 'Opening Scratchpad…' : locked ? '✎ View Scratchpad' : '✎ Open Scratchpad'}
-        </button>
-        {supportPresentation.textToSpeech && (
-          <button type="button" onClick={() => speakText(referenceSpeechText)} style={{ padding: '9px 14px', borderRadius: '999px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>🔊 Read Question</button>
-        )}
-      </div>
 
       <CalculatorPanel
         policy={calculatorPolicy}
@@ -837,6 +874,7 @@ export default function QuestionEngine({
         taskMeta={questionAlignmentPanel}
         taskContextPanel={questionReferencePanel}
         contextPanel={questionContextPanel}
+        workBar={questionWorkBar}
         toolWorkspace={(
       <div className="mathmaster-question-tool-workspace" style={{ position: 'relative' }}>
         <GuidedClassworkCoach
@@ -908,7 +946,7 @@ export default function QuestionEngine({
       </div>
         )}
         actionButtons={!locked && shouldShowSubmit ? (
-        <button onClick={handleSubmit} disabled={submitDisabled} style={{ marginTop: '40px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? '#dadce0' : '#1a73e8', color: 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
+        <button onClick={handleSubmit} disabled={submitDisabled} style={{ minHeight: '44px', padding: '12px 24px', fontSize: '16px', fontWeight: 'bold', border: 'none', borderRadius: '8px', background: submitDisabled ? '#dadce0' : '#1a73e8', color: 'white', cursor: submitDisabled ? 'not-allowed' : 'pointer', boxShadow: submitDisabled ? 'none' : '0 4px 6px rgba(26, 115, 232, 0.2)' }}>
           {submitting ? 'Checking…' : processedQuestion?.type === 'stepAlgebra' ? 'Submit Solved Equation' : record.attemptCount > 0 ? 'Submit Another Attempt' : 'Submit Answer'}
         </button>
         ) : null}
@@ -1044,7 +1082,7 @@ export default function QuestionEngine({
         </div>
       )}
 
-      <ScratchpadOverlay open={scratchpadOpen} questionDetails={scratchpadQuestionDetails} initialDataUrl={scratchpadDataUrl} onSave={saveScratchpad} onClose={() => setScratchpadOpen(false)} readOnly={locked} />
+      <ScratchpadOverlay open={scratchpadOpen} questionDetails={scratchpadQuestionDetails} initialDataUrl={scratchpadDataUrl} initialPages={scratchpadPages} onSave={saveScratchpad} onClose={() => setScratchpadOpen(false)} readOnly={locked} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import useToolSubmission from '../shared/useToolSubmission';
 import MathDisplay from '../../MathDisplay';
 import { matchesFieldAnswer } from '../../answerUtils';
 import { choiceSeed, stableShuffleChoices, strengthenTwoChoiceSet } from '../../platform/interaction/choiceOptions.js';
+import EnlargeableFigure from '../../components/common/EnlargeableFigure.jsx';
 
 const primaryButton = { padding: '11px 18px', background: '#1a73e8', color: '#fff', border: 0, borderRadius: 9, fontWeight: 800, cursor: 'pointer', minHeight: 44 };
 const secondaryButton = { ...primaryButton, background: '#fff', color: '#174ea6', border: '1px solid #9bb8e8' };
@@ -338,6 +339,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
         </Panel>
       ) : null}
 
+      <EnlargeableFigure label="Mapping workspace" enlargeLabel="Enlarge workspace" style={{ width: '100%' }}>
       <ToolSplit>
         <Panel title="Mapping diagram">
           <svg viewBox={`0 0 ${WIDTH} ${height}`} role="application" aria-label="Mapping diagram" style={{ width: '100%', height: 'auto', border: '1px solid #d9e2f1', borderRadius: 12, background: '#fff' }}>
@@ -520,6 +522,7 @@ export default function RelationMapping({ questionData = {}, onAction }) {
           />
         </Panel>
       </ToolSplit>
+      </EnlargeableFigure>
     </ToolShell>
   );
 }

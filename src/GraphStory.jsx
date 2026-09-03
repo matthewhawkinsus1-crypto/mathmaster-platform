@@ -3,6 +3,7 @@ import QuestionPrompt from './QuestionPrompt';
 import GraphDisplay from './GraphDisplay';
 import useUndoHistory from './useUndoHistory';
 import { stableStringify } from './scenarioResponseUtils';
+import EnlargeableFigure from './components/common/EnlargeableFigure.jsx';
 
 const WIDTH = 720;
 const HEIGHT = 420;
@@ -102,6 +103,7 @@ export default function GraphStory({ question, onStateChange, onUndoStateChange,
       </div>
       {requireSketch && <section style={{ marginTop: '22px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}><h3 style={{ margin: 0 }}>Graph sketch</h3><button type="button" onClick={() => setField('strokes', [])} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #d93025', background: '#fff', color: '#d93025', fontWeight: 800 }}>Clear graph</button></div>
+        <EnlargeableFigure label="Graph story plane" enlargeLabel="Enlarge plane" style={{ width: '100%' }}>
         <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} onPointerDown={startStroke} onPointerMove={continueStroke} onPointerUp={endStroke} onPointerCancel={endStroke} style={{ display: 'block', width: '100%', marginTop: '10px', border: '2px solid #9fb3cc', borderRadius: '12px', background: '#fff', touchAction: 'none', cursor: 'crosshair' }} role="img" aria-label="Blank coordinate plane for graph story">
           <rect x={PAD} y={PAD} width={WIDTH - PAD * 2} height={HEIGHT - PAD * 2} fill="#fff" stroke="#c7ced8" />
           {gridLines}
@@ -111,6 +113,7 @@ export default function GraphStory({ question, onStateChange, onUndoStateChange,
           <text x={PAD + 10} y={PAD + 20} fontSize="17" fill="#3c4043">{values.yLabel || 'y'}</text>
           {values.strokes.map((stroke, index) => <polyline key={index} points={stroke.map((point) => `${point.x},${point.y}`).join(' ')} fill="none" stroke="#1a73e8" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />)}
         </svg>
+        </EnlargeableFigure>
       </section>}
       <label style={{ display: 'block', marginTop: '20px', fontWeight: 800 }}>Explain what the points, segments, or smooth curve represent
         <textarea value={values.explanation} onChange={(event) => setField('explanation', event.target.value)} style={{ width: '100%', minHeight: '110px', marginTop: '7px', padding: '12px', boxSizing: 'border-box', borderRadius: '9px', border: `2px solid ${feedback?.partGrades?.find((part) => part.id === 'explanation' && !part.isCorrect) ? '#d93025' : '#bdc7d6'}`, font: 'inherit' }} />

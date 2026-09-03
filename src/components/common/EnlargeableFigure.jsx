@@ -45,17 +45,64 @@ const BACKDROP = {
   boxSizing: 'border-box',
 };
 
+// Whether the student has already said they would rather work embedded. Read
+// defensively: a private window or blocked site data makes this throw, and the
+// safe answer to "has this been dismissed" when we cannot tell is no, because
+// the student can always close the panel again.
+const readDismissed = (key) => {
+  if (!key || typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(key) === 'dismissed';
+  } catch {
+    return false;
+  }
+};
+
+const writeDismissed = (key) => {
+  if (!key || typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(key, 'dismissed');
+  } catch {
+    // A browser refusing storage simply asks again next time.
+  }
+};
+
 export default function EnlargeableFigure({
   children,
   label = 'graph',
   style = {},
   enlargeLabel = 'Enlarge',
+  openEnlarged = false,
+  dismissKey = null,
+  // THE ENLARGED PANEL COVERS THE QUESTION THAT SENT THE STUDENT TO IT.
+  //
+  // It is a full-window modal over the page holding the task, so a student who
+  // opens a plane to plot on loses sight of what they were asked to plot. On a
+  // question they opened themselves that is merely annoying; on one that opens
+  // itself it is the platform hiding the prompt on the student's behalf.
+  //
+  // So the task comes with the figure. Passed as text rather than rendered by
+  // the caller because it is shown ONLY in the enlarged view - repeating it
+  // inline would put the same sentence on screen twice.
+  taskText = '',
 }) {
-  const [enlarged, setEnlarged] = useState(false);
+  const [enlarged, setEnlarged] = useState(() => openEnlarged && !readDismissed(dismissKey));
   const openerRef = useRef(null);
   const closeRef = useRef(null);
 
-  const close = useCallback(() => setEnlarged(false), []);
+  // CLOSING AN AUTO-OPENED PANEL MEANS IT.
+  //
+  // Without this, a student who prefers the embedded layout dismisses the same
+  // panel on every question of a thirteen-question assignment, and a default
+  // meant to help becomes something to fight. Only a close of a panel the
+  // student did not open is recorded; closing one they opened themselves says
+  // nothing about the default.
+  const close = useCallback(() => {
+    setEnlarged((current) => {
+      if (current && openEnlarged) writeDismissed(dismissKey);
+      return false;
+    });
+  }, [openEnlarged, dismissKey]);
 
   useEffect(() => {
     if (!enlarged) return undefined;
@@ -78,6 +125,13 @@ export default function EnlargeableFigure({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enlarged]);
 
+  // A new question decides for itself. Without this the panel keeps whatever
+  // state the previous question left it in, so a student who closed one figure
+  // finds the next one embedded even where it should have opened.
+  useEffect(() => {
+    setEnlarged(openEnlarged && !readDismissed(dismissKey));
+  }, [openEnlarged, dismissKey]);
+
   const figure = (
     <figure
       data-enlarged={enlarged ? 'true' : 'false'}
@@ -97,9 +151,35 @@ export default function EnlargeableFigure({
         }
         : { position: 'relative', margin: 0, boxSizing: 'border-box', ...style }}
     >
+      {enlarged && taskText ? (
+        <p
+          style={{
+            margin: '0 96px 12px 0',
+            padding: '10px 13px',
+            borderLeft: '4px solid #1a73e8',
+            borderRadius: '0 8px 8px 0',
+            background: '#f4f8ff',
+            color: '#202124',
+            fontSize: 15,
+            fontWeight: 700,
+            lineHeight: 1.4,
+          }}
+        >
+          {taskText}
+        </p>
+      ) : null}
       {enlarged ? (
-        <button ref={closeRef} type="button" onClick={close} style={CONTROL}>
-          Close ✕
+        <button
+          ref={closeRef}
+          type="button"
+          onClick={close}
+          // A student did not ask for this panel when it opens itself, so the
+          // way out is stated in full rather than as a bare glyph.
+          style={openEnlarged
+            ? { ...CONTROL, minHeight: 44, borderColor: '#1a73e8', background: '#e8f0fe', fontWeight: 900 }
+            : CONTROL}
+        >
+          {openEnlarged ? 'Close full screen ✕' : 'Close ✕'}
         </button>
       ) : (
         <button ref={openerRef} type="button" onClick={() => setEnlarged(true)} style={CONTROL}>

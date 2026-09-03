@@ -8,6 +8,9 @@ import QuestionPrompt from './QuestionPrompt';
 import PathQuestionStimulus from './components/student/PathQuestionStimulus.jsx';
 import { FUNCTION_GRAPH_LABELS, evaluateGraphFunction, formatGraphEquationLatex } from './functionGraphUtils';
 import { POINT_FEATURES } from './analysisRequestCatalog';
+import { describeAnswerFormat } from './platform/interaction/answerFormatHints.js';
+import { figureDismissalKey, shouldOpenFigureEnlarged } from './platform/student/figurePresentation.js';
+import { checkPlottedPoints, summarizeSelfCheck } from './platform/student/graphSelfCheck.js';
 import {
   analysisKeypadProfile,
   pathAnalysisTextMatches,
@@ -253,17 +256,40 @@ const analysisAnswerFormatFor = (part) => {
   return '';
 };
 
-const analysisPlaceholderFor = (part) => {
-  const answerFormat = analysisAnswerFormatFor(part);
-  if (answerFormat === 'orderedPair') return 'for example (2, -5)';
-  const keypad = analysisKeypadProfile(part);
-  if (keypad === 'interval') return 'for example [2, ∞)';
-  if (keypad === 'inequality') return 'for example x ≥ 2';
-  if (keypad === 'set') return 'for example {1, 2, 3}';
-  return '';
-};
+/**
+ * What shape this analysis field accepts, and how to say it.
+ *
+ * THE EXAMPLE USED TO BE THE PART THAT GOT CUT OFF. The placeholder read
+ * "for example x ≥ 2" inside a field in a 220px rail, so what a student saw was
+ * the words "for example" and nothing after them — the prefix survived and the
+ * example, the only informative part, was clipped away.
+ *
+ * The sentence and the example now live above the field, where they wrap, and
+ * the placeholder keeps only the short form. The wording itself comes from
+ * answerFormatHints, the same source the multi-answer fields use, so the two
+ * surfaces cannot drift into describing the same format differently.
+ */
+const analysisAnswerShape = (part) => describeAnswerFormat({
+  // The legacy inference above still decides the FORMAT; this only decides how
+  // to describe it. Older Path questions carry no answerFormat at all.
+  answerFormat: analysisAnswerFormatFor(part) || analysisKeypadProfile(part),
+});
 
-export default function InteractiveGraphWorkspace({ question, onStateChange, mode = 'investigate', onUndoStateChange = null, feedback = null, draftKey = null }) {
+export default function InteractiveGraphWorkspace({
+  question,
+  onStateChange,
+  mode = 'investigate',
+  onUndoStateChange = null,
+  feedback = null,
+  draftKey = null,
+  // SELF-CHECK IS GRANTED BY POLICY, NEVER BY THE QUESTION.
+  //
+  // It is mathematical help, so a DOL must not carry it however the question
+  // was authored. The engine passes the section's own hintsAllowed, which means
+  // an author cannot switch it on for an exit ticket by adding a field.
+  selfCheckAllowed = false,
+  onSelfCheck = null,
+}) {
   const mobileInteraction = useMobileInteractionMode();
   const svgRef = useRef(null);
   const drawingRef = useRef([]);
@@ -280,6 +306,22 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   const [activeAnalysisPartId, setActiveAnalysisPartId] = useState(null);
   const [stage, setStage] = useLocalDraftState(draftKey ? `${draftKey}:graph-stage` : null, mode === 'analysis' ? 'analysis' : 'construct');
   const lastMarkerFeedbackRef = useRef('');
+  const [selfCheckReport, setSelfCheckReport] = useState(null);
+  const [viewportWidth, setViewportWidth] = useState(
+    () => (typeof window === 'undefined' ? 0 : Number(window.innerWidth) || 0),
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const measure = () => setViewportWidth(Number(window.innerWidth) || 0);
+    measure();
+    window.addEventListener('resize', measure);
+    window.addEventListener('orientationchange', measure);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('orientationchange', measure);
+    };
+  }, []);
 
   const functionSpec = question.functionSpec || {};
   const graph = question.graph || {};
@@ -628,6 +670,9 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
 
   const placeTask = (taskId, point, options = {}) => {
     if (!taskId || !point || construction.pointsValidated) return;
+    // A verdict about a point the student has since moved is worse than no
+    // verdict: it reads as the platform disagreeing with what is on screen.
+    setSelfCheckReport(null);
     constructionHistory.setValue((current) => ({ ...current, placements: { ...current.placements, [taskId]: point } }));
     const task = tasks.find((item) => item.id === taskId);
     setActiveTaskId(null);
@@ -771,6 +816,20 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     }
   };
 
+  // Compare what the student plotted against the function, and say how far off
+  // each point is. Reported through onSelfCheck so the engine discounts mastery
+  // weight exactly as it does for a revealed hint.
+  const runSelfCheck = () => {
+    if (!selfCheckAllowed || construction.pointsValidated) return;
+    const report = checkPlottedPoints({
+      placements: construction.placements,
+      tasks,
+      evaluate: (x) => evaluateGraphFunction(functionSpec, x),
+    });
+    setSelfCheckReport(report);
+    if (report.checked > 0) onSelfCheck?.(report);
+  };
+
   const checkPoints = () => {
     const correct = placementsMatchTasks(tasks, construction.placements, Math.max(0.22, snapStep * 0.48), functionSpec, construction.chosenXValues);
     if (correct) {
@@ -881,9 +940,32 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     && analysisParts.some((part) => part.kind === 'domain')
     && analysisParts.some((part) => part.kind === 'range');
 
+  // The three-column domain/range layout exists only in the enlarged view,
+  // because embedded there is no room for 230 + graph + 230. Leaving it behind
+  // a button means the better layout reaches only the students who go looking
+  // for it, while everyone else reads that question through a 220px rail.
+  const openEnlarged = domainRangeOnly && shouldOpenFigureEnlarged({
+    question,
+    viewportWidth,
+    // The policy also reads an authored presentEnlarged flag, so a teacher can
+    // put any question in the big layout or keep any question out of it.
+  });
+
+  // The stage row is a choice only when there is more than one stage. On a
+  // domain-and-range question construction is off, so the row rendered a single
+  // button that does nothing but say what screen you are already on.
+  const stageCount = (constructionEnabled ? 1 : 0) + (analysisEnabled ? 1 : 0);
+
   return (
     <div style={{ textAlign: 'left' }}>
-      <h2 style={{ color: '#202124', marginTop: 0, textAlign: 'center' }}>{workspaceTitle}</h2>
+      {/* The workspace name repeats what "Your task" said one panel above:
+          "Determine the domain and range" then, in 24px centred type,
+          "Analyze the Graph". It orients a student who arrives at this
+          workspace with no authored prompt — the tools lab and the workflow
+          runner both do — so it survives at the size of a label. */}
+      {!String(question.prompt || '').trim() && (
+        <h2 style={{ color: '#202124', marginTop: 0, textAlign: 'center' }}>{workspaceTitle}</h2>
+      )}
       {/* The authored prompt is shown by whoever mounted this workspace —
           QuestionEngine leads every question with it. Repeating it here put the
           same sentence on screen twice, once as "Your task" and again as "Your
@@ -896,14 +978,31 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
       )}
       <PathQuestionStimulus stimulus={question.stimulus} />
 
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginBottom: '12px' }}>
-        {constructionEnabled && <button type="button" onClick={() => setStage('construct')} style={stageButtonStyle(stage === 'construct')}>{pointOnly ? '1. Plot Points' : '1. Construct Graph'}</button>}
-        {analysisEnabled && <button type="button" disabled={!constructionReadyForAnalysis} onClick={() => constructionReadyForAnalysis && setStage('analysis')} style={stageButtonStyle(stage === 'analysis', !constructionReadyForAnalysis)}>{inverseReflectionEnabled ? '2. Build Inverse' : '2. Analyze Function'}</button>}
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
-        <span style={{ padding: '7px 12px', borderRadius: '999px', background: '#e8f0fe', color: '#174ea6', fontWeight: 'bold' }}>{pointOnly ? 'Table Points' : (FUNCTION_GRAPH_LABELS[functionSpec.type] || 'Function')}</span>
-        <span style={{ padding: '7px 12px', borderRadius: '999px', background: showCoordinates ? '#e6f4ea' : '#f1f3f4', color: showCoordinates ? '#137333' : '#5f6368', fontWeight: 'bold' }}>Coordinates {showCoordinates ? 'shown' : 'hidden'}{skipCounting ? ' · required for skip-count grid' : ''}</span>
-        {studentChoosesX && constructionEnabled && <span style={{ padding: '7px 12px', borderRadius: '999px', background: '#f3e8fd', color: '#681da8', fontWeight: 'bold' }}>Choose your own x-values</span>}
+      {stageCount > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '9px', flexWrap: 'wrap', marginBottom: '12px' }}>
+          {constructionEnabled && <button type="button" onClick={() => setStage('construct')} style={stageButtonStyle(stage === 'construct')}>{pointOnly ? '1. Plot Points' : '1. Construct Graph'}</button>}
+          {analysisEnabled && <button type="button" disabled={!constructionReadyForAnalysis} onClick={() => constructionReadyForAnalysis && setStage('analysis')} style={stageButtonStyle(stage === 'analysis', !constructionReadyForAnalysis)}>{inverseReflectionEnabled ? '2. Build Inverse' : '2. Analyze Function'}</button>}
+        </div>
+      )}
+      {/* ONE STRIP OF FACTS ABOUT THE GRAPH, IN SMALL TYPE.
+          These were three pill-shaped chips at button size, centred above the
+          plane, which read as controls a student could press. None of them is a
+          control; they state what the graph is.
+
+          "· required for skip-count grid" is gone. It explained to whoever
+          authored the question WHY the coordinate setting was forced, and a
+          student reading it learns nothing they can act on — the same class of
+          leak as an authoring field printed in a prompt. */}
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px 14px', flexWrap: 'wrap', marginBottom: '12px', fontSize: '12px', fontWeight: 700, color: '#5f6368' }}>
+        <span style={{ color: '#174ea6' }}>{pointOnly ? 'Table points' : (FUNCTION_GRAPH_LABELS[functionSpec.type] || 'Function')}</span>
+        <span aria-hidden="true">·</span>
+        <span style={{ color: showCoordinates ? '#137333' : '#5f6368' }}>Coordinates {showCoordinates ? 'shown' : 'hidden'}</span>
+        {studentChoosesX && constructionEnabled && (
+          <>
+            <span aria-hidden="true">·</span>
+            <span style={{ color: '#681da8' }}>Choose your own x-values</span>
+          </>
+        )}
       </div>
 
       {/* THE PLANE CAN LEAVE THE LAYOUT. Squeezed between the session card, the
@@ -919,7 +1018,12 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
           the rest. It used to be `minmax(0, 760px)`, a cap the plane never
           actually reached because everything upstream is narrower — so the only
           effect of the fixed width was to shrink the graph. */}
-      <EnlargeableFigure label="Coordinate plane workspace" enlargeLabel="Enlarge graph">
+      <EnlargeableFigure
+        label="Coordinate plane workspace"
+        enlargeLabel="Enlarge graph"
+        openEnlarged={openEnlarged}
+        dismissKey={figureDismissalKey(question)}
+      >
       {graphEquationLatex && (
         <div
           className="mathmaster-enlarged-graph-equation"
@@ -972,6 +1076,37 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                 })}
                   </div>
                   {tasks.some((task) => task.expected === 'undefined') && <button type="button" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeTask(event.dataTransfer.getData('application/x-mathmaster-point') || activeTaskId, 'undefined'); }} onClick={() => activeTaskId && placeTask(activeTaskId, 'undefined')} style={{ width: '100%', marginTop: '12px', minHeight: '72px', border: '2px dashed #9334e6', borderRadius: '10px', background: '#f8f0ff', color: '#6f2da8', fontWeight: 'bold' }}>Not Real / Undefined</button>}
+                  {/* CHECK YOUR OWN WORK BEFORE SPENDING AN ATTEMPT.
+                      On paper a student checks a point against the rule; here
+                      there was nothing between guessing and committing. This
+                      says how far each plotted point is from the function and
+                      moves nothing — the student still has to fix it. */}
+                  {selfCheckAllowed && !construction.pointsValidated && (
+                    <div style={{ marginTop: '12px' }}>
+                      <button
+                        type="button"
+                        onClick={runSelfCheck}
+                        disabled={!Object.keys(construction.placements).length}
+                        title="Compares your plotted points with the function. Recorded for your teacher, like a hint."
+                        style={{ width: '100%', minHeight: 44, padding: '10px', border: '1px solid #e0a800', borderRadius: '8px', background: '#fffaf0', color: '#7a4f01', fontWeight: 800, opacity: Object.keys(construction.placements).length ? 1 : 0.5 }}
+                      >
+                        Check my points
+                      </button>
+                      <span style={{ display: 'block', marginTop: '4px', fontSize: '11px', color: '#7a6027' }}>Recorded for your teacher</span>
+                      {selfCheckReport && (
+                        <div role="status" style={{ marginTop: '8px', padding: '9px 10px', borderRadius: '8px', border: '1px solid #f0d9a8', background: '#fffaf0' }}>
+                          <strong style={{ display: 'block', fontSize: '12px', color: '#7a4f01' }}>{summarizeSelfCheck(selfCheckReport)}</strong>
+                          <ul style={{ margin: '6px 0 0', paddingLeft: 16, fontSize: '11.5px', lineHeight: 1.5, color: '#5f4400' }}>
+                            {selfCheckReport.results.map((entry) => (
+                              <li key={entry.id} style={{ color: entry.correct ? '#137333' : '#5f4400' }}>
+                                {pointLabel(entry.point)} — {entry.text}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {!construction.pointsValidated && <button type="button" onClick={checkPoints} disabled={Object.keys(construction.placements).length < tasks.length} style={{ width: '100%', marginTop: '12px', padding: '10px', border: 'none', borderRadius: '8px', background: Object.keys(construction.placements).length >= tasks.length ? '#1a73e8' : '#dadce0', color: '#fff', fontWeight: 'bold' }}>Check Point Placements</button>}
                 </>
               )}
@@ -993,8 +1128,15 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                 const noneSelected = Boolean(analysis.noneSelections[part.id]);
                 const offersAllRealNumbers = ['domain', 'range'].includes(part.kind)
                   && String(part.notation || '').toLowerCase() === 'inequality';
+                const answerShape = analysisAnswerShape(part);
                 return <div key={part.id} className={`mathmaster-analysis-part mathmaster-analysis-part-${part.kind}`} style={{ marginTop: '9px', padding: '10px', borderRadius: '9px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : activeAnalysisPartId === part.id ? '#1a73e8' : '#d9e2f1'}`, background: grade && !grade.isCorrect ? '#fff8f7' : '#fff' }}>
                   <button type="button" onClick={() => setActiveAnalysisPartId(part.id)} style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'left', fontWeight: 'bold', color: '#202124' }}><MathText>{part.label}</MathText></button>
+                  {answerShape.hint && !['point', 'inversePoint'].includes(part.kind) && (
+                    <p style={{ margin: '5px 0 0', fontSize: '11.5px', lineHeight: 1.4, color: '#5f6368' }}>
+                      {answerShape.hint}
+                      {answerShape.example ? <> For example <strong style={{ color: '#3c4043' }}>{answerShape.example}</strong>.</> : null}
+                    </p>
+                  )}
                   {['point', 'inversePoint'].includes(part.kind) ? <>
                     {part.responseMode !== 'input' && <div style={{ marginTop: '5px', fontSize: '12px', color: '#5f6368' }}>{noneSelected ? 'Marked: does not exist' : `${selected.length}/${part.expected.length || 1} selected`}</div>}
                     {part.allowNone && part.responseMode !== 'input' && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, noneSelections: { ...current.noneSelections, [part.id]: !current.noneSelections[part.id] }, selections: { ...current.selections, [part.id]: [] } }))} style={{ marginTop: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: noneSelected ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}
@@ -1024,7 +1166,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                         All Real Numbers
                       </button>}
                     </div>
-                    <MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} answerFormat={analysisAnswerFormatFor(part)} showToolsInitially placeholder={analysisPlaceholderFor(part)} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+                    <MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} answerFormat={analysisAnswerFormatFor(part)} showToolsInitially placeholder={answerShape.example} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
                   </div>}
                 </div>;
               })}

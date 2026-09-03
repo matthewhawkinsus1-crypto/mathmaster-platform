@@ -46,6 +46,7 @@ export const MobileViewportContainer = ({
   contextPanel = null,
   toolWorkspace,
   actionButtons = null,
+  workBar = null,
   responseFields = null,
 }) => {
   const rootRef = useRef(null);
@@ -282,7 +283,19 @@ export const MobileViewportContainer = ({
           </>
         )}
       </div>
-      {contextPanel}{responseFields}{toolWorkspace}{actionButtons}
+      {contextPanel}{responseFields}{toolWorkspace}
+      {/* WHY THIS IS STICKY. The desktop branch used to append the Check button
+          after the tool, so on a tall question — a graph plus five response
+          fields — a student finished typing and then had to scroll to find the
+          button that submits it. The tools a student uses WHILE working (undo,
+          scratchpad) belong in the same place for the same reason: next to the
+          hands, not at the top of a page they have already scrolled past. */}
+      {(workBar || actionButtons) && (
+        <div className="mathmaster-desktop-action-bar">
+          {workBar && <div className="mathmaster-desktop-action-bar-tools">{workBar}</div>}
+          {actionButtons && <div className="mathmaster-desktop-action-bar-primary">{actionButtons}</div>}
+        </div>
+      )}
     </div>;
   }
 
@@ -308,13 +321,13 @@ export const MobileViewportContainer = ({
         </div>
         {!isPromptCollapsed && <div className="prompt-body"><QuestionPrompt variant="plain" style={{ color: '#202124', fontWeight: 800, fontSize: 18, margin: 0 }}>{promptText || 'Complete the math task.'}</QuestionPrompt>{taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}{taskContextPanel && <div className="mathmaster-question-task-context">{taskContextPanel}</div>}</div>}
         {responseFields && <div className="response-inputs-section">{responseFields}</div>}
-        {isLandscape && actionButtons && <div className="landscape-action-bar">{actionButtons}</div>}
+        {isLandscape && (actionButtons || workBar) && <div className="landscape-action-bar">{workBar}{actionButtons}</div>}
       </section>
 
       {contextPanel}
       <main className="math-tool-workspace">{toolWorkspace}</main>
 
-      {!isLandscape && actionButtons && <div className="portrait-action-bar">{actionButtons}</div>}
+      {!isLandscape && (actionButtons || workBar) && <div className="portrait-action-bar">{workBar}{actionButtons}</div>}
       {numericKeypad}
     </div>
   );
