@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  assertFirestoreSafeAssignmentPayload,
   parseAssignmentBlueprintText,
   validateAssignmentQuestions,
 } from '../../src/assignmentBlueprint.js';
@@ -97,6 +98,40 @@ assert.deepEqual(
   restrictedDomainInvestigation.questions[0].analysisRequests.map((request) => request.kind),
   ['domain', 'range'],
   'domain/range analysis requests survive restricted-domain routing',
+);
+
+
+const firestoreSafeRelationMapping = parseAssignmentBlueprintText(JSON.stringify({
+  schemaVersion: 5,
+  assignment: {
+    title: 'Firestore-safe relation mapping',
+    courseId: 'algebra1',
+    instructionalPurpose: 'review',
+    gradingPurpose: 'classwork',
+  },
+  sections: [{
+    role: 'classwork',
+    title: 'Classwork',
+    questions: [{
+      type: 'relationMapping',
+      standard: 'A.12A',
+      prompt: 'Use the mapping to decide whether the relation is a function.',
+      studentActions: ['buildMapping', 'classifyFunction'],
+      pairs: [[-2, 4], [0, 1], [3, 4], [5, -1]],
+      ask: ['mapping', 'isFunction'],
+      dok: 1,
+      difficultyBand: 1,
+    }],
+  }],
+}));
+assert.deepEqual(
+  firestoreSafeRelationMapping.assignmentV5.sections[0].questions[0].pairs,
+  [{ x: -2, y: 4 }, { x: 0, y: 1 }, { x: 3, y: 4 }, { x: 5, y: -1 }],
+  'the reviewed canonical V5 object keeps Firestore-safe relationMapping pairs',
+);
+assert.doesNotThrow(
+  () => assertFirestoreSafeAssignmentPayload(firestoreSafeRelationMapping.assignmentV5),
+  'the canonical V5 object handed to Assignment Review is Firestore-safe before publish',
 );
 
 assert.throws(

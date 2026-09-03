@@ -2,7 +2,7 @@ import { normalizeQuestionStandards } from './questionMetadata.js';
 import { getTexasStandard } from './texasStandards.js';
 import { MISSING_TOOL_IDS, validateToolQuestion } from './tools/toolSchemas.js';
 import { compileAuthoringIntentV5 } from './platform/contract/authoringIntentV5.js';
-import { flattenV5Sections, normalizeAssignmentV5 } from './platform/contract/assignmentSchemaV5.js';
+import { flattenV5Sections, normalizeAssignmentV5, rebuildV5SectionsFromQuestions } from './platform/contract/assignmentSchemaV5.js';
 import { looksLikeFiniteSetNotation } from '../functions/shared/answerEquivalence.mjs';
 
 export const DEFAULT_ASSIGNMENT_BLUEPRINT = `{
@@ -626,16 +626,26 @@ export const parseAssignmentBlueprintText = (rawValue) => {
       repairs.push(...compiledV5.repairs);
     }
 
-    const questions = normalizeQuestionStorageShapes(flattenV5Sections(parsed), repairs);
-    if (questions.length === 0) {
+    // Storage-shape normalization must update the canonical V5 object that
+    // Assignment Review carries forward, not only the temporary flattened
+    // question list. Otherwise deterministic repairs such as relationMapping
+    // [[x, y], ...] -> [{x, y}, ...] disappear before the Firestore write.
+    const normalizedQuestions = normalizeQuestionStorageShapes(flattenV5Sections(parsed), repairs)
+      .map(({ sectionTitle: _sectionTitle, ...question }) => question);
+    if (normalizedQuestions.length === 0) {
       throw new Error('Assignment V5 contains no questions.');
     }
+    const storageSafeAssignmentV5 = {
+      ...parsed,
+      sections: rebuildV5SectionsFromQuestions(parsed, normalizedQuestions),
+    };
+    const questions = flattenV5Sections(storageSafeAssignmentV5);
 
     return {
-      assignmentV5: parsed,
+      assignmentV5: storageSafeAssignmentV5,
       questions,
       sourceSchemaVersion: 5,
-      normalizedText: JSON.stringify(parsed, null, 2),
+      normalizedText: JSON.stringify(storageSafeAssignmentV5, null, 2),
       repairs,
       warnings: compiledV5?.warnings || [],
     };
