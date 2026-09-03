@@ -45,6 +45,10 @@ assert.match(v5, /A\.2B/);
 
 assert.doesNotMatch(v5, /compile.*V4|internal V4|output V4|Bundle V4/i);
 assert.doesNotMatch(v5, /Valid question types:/, 'outside AI is not taught renderer type plumbing');
+assert.doesNotMatch(v5, /How to build each question type|Interactive tool types/, 'public V5 guidance must not teach internal renderer/tool catalogs');
+assert.doesNotMatch(v5, /"type": "graphAnalysis"|"type": "relationshipModel"/, 'V5 examples must use studentActions rather than internal renderer types');
+assert.match(v5, /"studentActions": \["readGraph", "findVertex", "findYIntercept"\]/);
+
 
 const rawV5 = '{"schemaVersion":5,"assignment":{"title":"x","courseId":"algebra1"},"sections":[]}';
 const fix = buildFixRequest({
@@ -57,6 +61,10 @@ assert.match(fix, /KEEP schemaVersion 5/);
 assert.ok(fix.includes(rawV5));
 assert.doesNotMatch(fix, /Valid question types:|Schema version is 4/);
 assert.doesNotMatch(fix, /alignment needs teacher review/, 'alignment warnings stay in teacher Preflight');
+assert.match(fix, /do not regress the question to interval notation|Do not introduce interval notation/i);
+assert.match(fix, /identifyQuantities[\s\S]*at least two selectable quantities/i);
+assert.match(fix, /graph-analysis task into hand graph construction/i);
+assert.match(fix, /raw calculator-style x\^2 or 2\^x/i);
 
 const holePattern = /(^\s*-\s*undefined)|(—\s*undefined\s*$)|("undefined")|(:\s*undefined)|(\bNaN\b)|(\[object Object\])/;
 assert.deepEqual(v5.split('\n').filter((line) => holePattern.test(line)), []);
