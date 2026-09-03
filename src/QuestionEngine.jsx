@@ -233,6 +233,7 @@ export default function QuestionEngine({
     return () => window.clearTimeout(timer);
   }, [sectionComplete]);
   const [scratchpadDataUrl, setScratchpadDataUrl] = useState('');
+  const [scratchpadPages, setScratchpadPages] = useState(null);
   const [unchangedConfirmOpen, setUnchangedConfirmOpen] = useState(false);
   const [scaffoldComplete, setScaffoldComplete] = useState(false);
   const [scaffoldMessage, setScaffoldMessage] = useState('');
@@ -260,6 +261,7 @@ export default function QuestionEngine({
     setUndoController(null);
     setScratchpadOpen(false);
     setScratchpadDataUrl('');
+    setScratchpadPages(null);
     setUnchangedConfirmOpen(false);
     setScaffoldComplete(false);
     setScaffoldMessage('');
@@ -548,16 +550,21 @@ export default function QuestionEngine({
     try {
       const saved = await onLoadScratchpad?.();
       setScratchpadDataUrl(saved?.dataUrl || '');
+      // A record saved before pages existed carries only dataUrl, and the
+      // overlay falls back to it. Nothing already saved needs migrating.
+      setScratchpadPages(Array.isArray(saved?.pages) && saved.pages.length ? saved.pages : null);
       setScratchpadOpen(true);
     } finally {
       setScratchpadLoading(false);
     }
   };
 
-  const saveScratchpad = async (dataUrl, metadata) => {
+  const saveScratchpad = async (pages, metadata) => {
     if (locked) return;
-    await onSaveScratchpad?.(dataUrl, metadata);
-    setScratchpadDataUrl(dataUrl);
+    const list = Array.isArray(pages) ? pages : [pages].filter(Boolean);
+    await onSaveScratchpad?.(list, metadata);
+    setScratchpadPages(list);
+    setScratchpadDataUrl(list[0] || '');
   };
 
   const commonModuleProps = {
@@ -1059,7 +1066,7 @@ export default function QuestionEngine({
         </div>
       )}
 
-      <ScratchpadOverlay open={scratchpadOpen} questionDetails={scratchpadQuestionDetails} initialDataUrl={scratchpadDataUrl} onSave={saveScratchpad} onClose={() => setScratchpadOpen(false)} readOnly={locked} />
+      <ScratchpadOverlay open={scratchpadOpen} questionDetails={scratchpadQuestionDetails} initialDataUrl={scratchpadDataUrl} initialPages={scratchpadPages} onSave={saveScratchpad} onClose={() => setScratchpadOpen(false)} readOnly={locked} />
     </div>
   );
 }

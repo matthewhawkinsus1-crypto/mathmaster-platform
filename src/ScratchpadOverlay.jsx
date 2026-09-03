@@ -1,6 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import QuestionPrompt from './QuestionPrompt';
 import useUndoHistory from './useUndoHistory';
+import {
+  MAX_SCRATCHPAD_PAGES,
+  canAddScratchpadPage,
+} from './platform/student/scratchpadPages.js';
 
 const COLORS = [
   { id: 'black', label: 'Black', value: '#202124' },
@@ -71,6 +75,7 @@ export default function ScratchpadOverlay({
   open,
   questionDetails,
   initialDataUrl = '',
+  initialPages = null,
   onSave,
   onClose,
   readOnly = false,
@@ -87,6 +92,14 @@ export default function ScratchpadOverlay({
   const [message, setMessage] = useState('');
   const strokeHistory = useUndoHistory([]);
   const strokes = strokeHistory.value;
+
+  // Pages the student is not currently drawing on are held as flattened images,
+  // exactly as they are stored. Only the visible page carries live strokes.
+  const [pageImages, setPageImages] = useState(['']);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [dirty, setDirty] = useState(false);
+  const [confirmingClose, setConfirmingClose] = useState(false);
+  const pageCount = pageImages.length;
 
   const compactQuestion = useMemo(
     () => String(questionDetails || 'Use this space to show your work.').slice(0, 700),
@@ -131,14 +144,14 @@ export default function ScratchpadOverlay({
     return () => observer.disconnect();
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
+  // Draw one page's stored image behind the live strokes. Shared by opening the
+  // scratchpad and by turning to another page.
+  const loadPageImage = useCallback((dataUrl) => {
     strokeHistory.reset([]);
-    backgroundRef.current = null;
     clearBackupRef.current = null;
     setClearBackupAvailable(false);
-    setMessage('');
-    if (!initialDataUrl) {
+    backgroundRef.current = null;
+    if (!dataUrl) {
       window.requestAnimationFrame(redraw);
       return;
     }
@@ -148,11 +161,27 @@ export default function ScratchpadOverlay({
       redraw();
     };
     image.onerror = () => {
-      setMessage('The saved scratchpad could not be loaded. A new blank page is ready.');
+      setMessage('That page could not be loaded. A blank page is ready in its place.');
       redraw();
     };
-    image.src = initialDataUrl;
-  }, [open, initialDataUrl]);
+    image.src = dataUrl;
+    // redraw and strokeHistory are stable enough for this overlay's lifetime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const stored = Array.isArray(initialPages) && initialPages.length
+      ? initialPages
+      : [initialDataUrl || ''];
+    setPageImages(stored);
+    setPageIndex(0);
+    setDirty(false);
+    setConfirmingClose(false);
+    setMessage('');
+    loadPageImage(stored[0] || '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialDataUrl, initialPages]);
 
   useEffect(() => {
     if (open) redraw();
@@ -195,6 +224,7 @@ export default function ScratchpadOverlay({
     const finished = activeStrokeRef.current;
     activeStrokeRef.current = null;
     strokeHistory.setValue((current) => [...current, finished]);
+    setDirty(true);
   };
 
   const clearAll = () => {
@@ -214,7 +244,8 @@ export default function ScratchpadOverlay({
       context.fillRect(0, 0, canvas.width, canvas.height);
       context.restore();
     }
-    setMessage('Scratchpad cleared. Undo will restore the cleared page.');
+    setDirty(true);
+    setMessage('This page was cleared. Undo will bring it back.');
   };
 
   const undoScratchpad = () => {
@@ -233,28 +264,94 @@ export default function ScratchpadOverlay({
     }
   };
 
-  const save = async () => {
+  // Flatten what is on screen back into the page list. Every page turn, page
+  // add and save goes through here, so live strokes can never be left behind on
+  // a page the student has navigated away from.
+  const captureCurrentPage = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return pageImages;
+    const dataUrl = buildCompressedDataUrl(canvas);
+    if (dataUrl.length > MAX_DATA_URL_LENGTH * 1.25) {
+      throw new Error('This page is too detailed to save. Erase some marks and try again.');
+    }
+    const next = [...pageImages];
+    next[pageIndex] = dataUrl;
+    return next;
+  }, [pageImages, pageIndex]);
+
+  const goToPage = (target) => {
+    if (readOnly) {
+      if (target < 0 || target >= pageCount) return;
+      setPageIndex(target);
+      loadPageImage(pageImages[target] || '');
+      return;
+    }
+    if (target < 0 || target >= pageCount || target === pageIndex || saving) return;
+    try {
+      const captured = captureCurrentPage();
+      setPageImages(captured);
+      setPageIndex(target);
+      loadPageImage(captured[target] || '');
+      setMessage('');
+    } catch (error) {
+      setMessage(error?.message || 'That page could not be set aside.');
+    }
+  };
+
+  const addPage = () => {
+    if (readOnly || saving || !canAddScratchpadPage(pageImages)) return;
+    try {
+      // The page being left is flattened first, which is the entire point:
+      // more room without erasing the working already done.
+      const captured = captureCurrentPage();
+      const next = [...captured, ''];
+      setPageImages(next);
+      setPageIndex(next.length - 1);
+      loadPageImage('');
+      setDirty(true);
+      setMessage(`Page ${next.length} added. Page ${next.length - 1} is kept.`);
+    } catch (error) {
+      setMessage(error?.message || 'A new page could not be added.');
+    }
+  };
+
+  const save = async ({ close = true } = {}) => {
     const canvas = canvasRef.current;
     if (!canvas || saving || readOnly) return;
     setSaving(true);
     setMessage('');
     try {
-      const dataUrl = buildCompressedDataUrl(canvas);
-      if (dataUrl.length > MAX_DATA_URL_LENGTH * 1.25) {
-        throw new Error('The scratchpad is still too large. Clear unnecessary marks and save again.');
-      }
-      await onSave?.(dataUrl, {
+      const pages = captureCurrentPage();
+      await onSave?.(pages, {
         width: canvas.width,
         height: canvas.height,
-        byteEstimate: Math.round((dataUrl.length * 3) / 4),
+        byteEstimate: Math.round((pages.join('').length * 3) / 4),
       });
-      setMessage('Student work saved.');
-      onClose?.();
+      setPageImages(pages);
+      setDirty(false);
+      setConfirmingClose(false);
+      if (close) {
+        onClose?.();
+        return;
+      }
+      setMessage(pages.length === 1 ? 'Work saved.' : `All ${pages.length} pages saved.`);
     } catch (error) {
       setMessage(error?.message || 'The scratchpad could not be saved.');
     } finally {
       setSaving(false);
     }
+  };
+
+  // CLOSING USED TO THROW THE WORK AWAY. The button called onClose directly, and
+  // the overlay resets its strokes on the next open, so a student who drew for
+  // five minutes and pressed Close lost all of it with nothing said. Unsaved
+  // work now has to be dismissed on purpose.
+  const requestClose = () => {
+    if (readOnly || !dirty || saving) {
+      onClose?.();
+      return;
+    }
+    setConfirmingClose(true);
   };
 
   if (!open) return null;
@@ -289,17 +386,55 @@ export default function ScratchpadOverlay({
         <div>
           <strong style={{ fontSize: '18px', color: '#202124' }}>Student Scratchpad</strong>
           <div style={{ fontSize: '12px', color: '#5f6368', marginTop: '2px' }}>
-            {readOnly ? 'This saved scratchpad is read-only because the question is locked.' : 'Draw with a mouse, stylus, or finger. Work is compressed before saving.'}
+            {readOnly
+              ? 'This saved scratchpad is read-only because the question is locked.'
+              : dirty
+                ? 'Unsaved work on this page.'
+                : 'Draw with a mouse, stylus, or finger.'}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={saving}
-          style={{ border: '1px solid #c5d5ef', borderRadius: '8px', padding: '9px 14px', background: '#fff', fontWeight: 'bold' }}
-        >
-          Close
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => goToPage(pageIndex - 1)}
+            disabled={pageIndex === 0 || saving}
+            aria-label="Previous page"
+            style={{ minHeight: 44, minWidth: 44, border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', fontWeight: 'bold', opacity: pageIndex === 0 ? 0.45 : 1 }}
+          >
+            ‹
+          </button>
+          <span aria-live="polite" style={{ fontSize: '13px', fontWeight: 800, color: '#3c4043', minWidth: '86px', textAlign: 'center' }}>
+            Page {pageIndex + 1} of {pageCount}
+          </span>
+          <button
+            type="button"
+            onClick={() => goToPage(pageIndex + 1)}
+            disabled={pageIndex >= pageCount - 1 || saving}
+            aria-label="Next page"
+            style={{ minHeight: 44, minWidth: 44, border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', fontWeight: 'bold', opacity: pageIndex >= pageCount - 1 ? 0.45 : 1 }}
+          >
+            ›
+          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={addPage}
+              disabled={saving || !canAddScratchpadPage(pageImages)}
+              title={canAddScratchpadPage(pageImages) ? 'Keep this page and start a new one' : `A scratchpad holds up to ${MAX_SCRATCHPAD_PAGES} pages`}
+              style={{ minHeight: 44, padding: '9px 14px', border: '1px solid #c5d5ef', borderRadius: '8px', background: '#fff', color: '#174ea6', fontWeight: 'bold', opacity: canAddScratchpadPage(pageImages) ? 1 : 0.45 }}
+            >
+              + Add page
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={requestClose}
+            disabled={saving}
+            style={{ minHeight: 44, border: '1px solid #c5d5ef', borderRadius: '8px', padding: '9px 14px', background: '#fff', fontWeight: 'bold' }}
+          >
+            Close
+          </button>
+        </div>
       </header>
 
       <main style={{ position: 'relative', minHeight: 0, padding: '14px' }}>
@@ -382,10 +517,40 @@ export default function ScratchpadOverlay({
         <button type="button" onClick={() => setTool('eraser')} aria-pressed={tool === 'eraser'} style={{ padding: '9px 13px', borderRadius: '8px', border: tool === 'eraser' ? '2px solid #1a73e8' : '1px solid #c5d5ef', background: tool === 'eraser' ? '#e8f0fe' : '#fff', fontWeight: 'bold' }}>▱ Eraser</button>
         <button type="button" onClick={undoScratchpad} disabled={!strokeHistory.canUndo && !clearBackupAvailable} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid #c5d5ef', background: '#fff', fontWeight: 'bold', opacity: strokeHistory.canUndo || clearBackupAvailable ? 1 : 0.45 }}>↶ Undo</button>
         <button type="button" onClick={clearAll} style={{ padding: '9px 13px', borderRadius: '8px', border: '1px solid #e0b4b0', background: '#fff', color: '#a50e0e', fontWeight: 'bold' }}>Clear All</button>
-        <button type="button" onClick={save} disabled={saving} style={{ padding: '10px 18px', borderRadius: '8px', border: 'none', background: saving ? '#dadce0' : '#188038', color: '#fff', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save & Close'}</button>
+        <button type="button" onClick={() => save({ close: false })} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid #9bb8e8', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save'}</button>
+        <button type="button" onClick={() => save({ close: true })} disabled={saving} style={{ minHeight: 44, padding: '10px 18px', borderRadius: '8px', border: 'none', background: saving ? '#dadce0' : '#188038', color: '#fff', fontWeight: 'bold' }}>{saving ? 'Saving…' : 'Save & Close'}</button>
         </>}
-        {message && <span role="status" style={{ width: '100%', textAlign: 'center', color: message.includes('could not') || message.includes('too large') ? '#c5221f' : '#137333', fontWeight: 'bold', fontSize: '13px' }}>{message}</span>}
+        {message && <span role="status" style={{ width: '100%', textAlign: 'center', color: message.includes('could not') || message.includes('too detailed') ? '#c5221f' : '#137333', fontWeight: 'bold', fontSize: '13px' }}>{message}</span>}
       </footer>
+
+      {confirmingClose && (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-label="Unsaved scratchpad work"
+          style={{ position: 'absolute', inset: 0, zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.45)', padding: '20px' }}
+        >
+          <div style={{ width: 'min(460px, 100%)', padding: '22px 24px', borderRadius: '16px', background: '#fff', boxShadow: '0 20px 60px rgba(15,23,42,0.35)', textAlign: 'left' }}>
+            <h2 style={{ margin: '0 0 8px', fontSize: '18px', color: '#202124' }}>Save your work first?</h2>
+            <p style={{ margin: '0 0 18px', color: '#3c4043', lineHeight: 1.5 }}>
+              {pageCount === 1
+                ? 'You have drawn on this scratchpad since it was last saved. Closing without saving deletes it.'
+                : `You have ${pageCount} pages, with changes since the last save. Closing without saving deletes them.`}
+            </p>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button type="button" onClick={() => save({ close: true })} disabled={saving} style={{ minHeight: 44, padding: '10px 18px', borderRadius: '8px', border: 'none', background: '#188038', color: '#fff', fontWeight: 'bold' }}>
+                {saving ? 'Saving…' : 'Save and close'}
+              </button>
+              <button type="button" onClick={() => setConfirmingClose(false)} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid #c5d5ef', background: '#fff', color: '#174ea6', fontWeight: 'bold' }}>
+                Keep working
+              </button>
+              <button type="button" onClick={() => { setConfirmingClose(false); onClose?.(); }} disabled={saving} style={{ minHeight: 44, padding: '10px 16px', borderRadius: '8px', border: '1px solid #e0b4b0', background: '#fff', color: '#a50e0e', fontWeight: 'bold' }}>
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
