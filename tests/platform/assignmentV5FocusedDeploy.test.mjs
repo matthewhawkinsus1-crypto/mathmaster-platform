@@ -14,6 +14,20 @@ test('focused Assignment V5 deploy updates Hosting and only the Assignment AI ca
   assert.doesNotMatch(script, /deploy-functions-in-groups/);
 });
 
+test('focused deploy proves discovery locally and survives a small deploy VM', () => {
+  // "Failed to list functions" names neither the cause nor a remedy, so the
+  // script proves the codebase loads on its own first and then tells the
+  // operator what to do when the CLI still cannot see it.
+  assert.match(script, /FUNCTIONS_DISCOVERY_TIMEOUT/);
+  assert.match(script, /NO_PROXY/);
+  assert.match(script, /verify-functions-discovery\.mjs/);
+  const preflight = script.indexOf('verify-functions-discovery.mjs');
+  const deploy = script.indexOf('firebase deploy --only hosting');
+  assert.ok(preflight >= 0 && preflight < deploy, 'discovery must be proven before deploying');
+  assert.match(script, /Failed to list functions for \$PROJECT/);
+  assert.match(script, /npm install -g firebase-tools/);
+});
+
 test('focused deploy refuses stale or dirty source and checks the live surfaces', () => {
   assert.match(script, /git status --porcelain/);
   assert.match(script, /git rev-parse origin\/main/);
