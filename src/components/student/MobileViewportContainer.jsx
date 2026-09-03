@@ -42,6 +42,7 @@ const setReactInputValue = (element, value) => {
 export const MobileViewportContainer = ({
   promptText,
   taskMeta = null,
+  taskContextPanel = null,
   contextPanel = null,
   toolWorkspace,
   actionButtons = null,
@@ -273,6 +274,7 @@ export const MobileViewportContainer = ({
           <>
             <QuestionPrompt variant="task">{promptText || 'Complete the math task.'}</QuestionPrompt>
             {taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}
+            {taskContextPanel && <div className="mathmaster-question-task-context">{taskContextPanel}</div>}
           </>
         )}
       </div>
@@ -300,11 +302,12 @@ export const MobileViewportContainer = ({
           <span>YOUR TASK</span>
           {!isLandscape && <button type="button" onClick={() => setIsPromptCollapsed((current) => !current)}>{isPromptCollapsed ? 'Show Prompt ▼' : 'Minimize ▲'}</button>}
         </div>
-        {!isPromptCollapsed && <div className="prompt-body"><QuestionPrompt variant="plain" style={{ color: '#202124', fontWeight: 800, fontSize: 18, margin: 0 }}>{promptText || 'Complete the math task.'}</QuestionPrompt>{taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}{contextPanel}</div>}
+        {!isPromptCollapsed && <div className="prompt-body"><QuestionPrompt variant="plain" style={{ color: '#202124', fontWeight: 800, fontSize: 18, margin: 0 }}>{promptText || 'Complete the math task.'}</QuestionPrompt>{taskMeta && <div className="mathmaster-question-task-meta">{taskMeta}</div>}{taskContextPanel && <div className="mathmaster-question-task-context">{taskContextPanel}</div>}</div>}
         {responseFields && <div className="response-inputs-section">{responseFields}</div>}
         {isLandscape && actionButtons && <div className="landscape-action-bar">{actionButtons}</div>}
       </section>
 
+      {contextPanel}
       <main className="math-tool-workspace">{toolWorkspace}</main>
 
       {!isLandscape && actionButtons && <div className="portrait-action-bar">{actionButtons}</div>}
