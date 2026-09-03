@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { PURPOSE } from '../../platform/path/recommendationV2.js';
 import { describeSlotChoice } from '../../platform/path/weeklyPathChoice.js';
 import { FRAMEWORK_LABELS } from '../../platform/ccmr/assessmentCrosswalk.js';
+import { describeWeeklyGradeForStudent } from '../../platform/path/weeklyPathGoal.js';
 
 // The student's week is a commitment the platform can count, not a vague list
 // of topics. This panel is intentionally shared by Path and Mastery Overview so
@@ -70,6 +71,53 @@ export function WeeklyProgressBar({ required, completed, compact = false }) {
           transition: 'width .35s ease',
         }} />
       </div>
+    </div>
+  );
+}
+
+/**
+ * What the week is worth, next to how much of it is done.
+ *
+ * A bar says how far along a student is. It does not say what that is worth,
+ * and "how am I doing" is the question they actually ask. The grade existed all
+ * along — it went to Google Classroom on Monday and was never shown to the
+ * person who earned it.
+ *
+ * MID-WEEK THE NUMBER IS TRUE BUT NOT FINAL, AND THE LABEL CARRIES THAT. A
+ * student one session into a four-session week is genuinely at 38 and will be
+ * near 100 on Friday; the publisher already refuses to send a grade before the
+ * week ends for exactly that reason. So the provisional number is always
+ * "Grade so far", and it never appears without the sentence saying what
+ * finishing is worth — which is a guarantee rather than an estimate, because
+ * full completion is a floor in the grading policy.
+ */
+export function WeeklyGradeCard({ summary, compact = false }) {
+  if (!summary) return null;
+  const good = summary.final ? summary.passing : summary.complete;
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gap: 3,
+        padding: compact ? '8px 11px' : '10px 13px',
+        borderRadius: 12,
+        border: `1px solid ${good ? '#a8dab5' : '#c9daf8'}`,
+        background: good ? '#f0fbf3' : '#f8fbff',
+        minWidth: compact ? 150 : 190,
+      }}
+    >
+      <span style={{ fontSize: 11, fontWeight: 950, letterSpacing: '.06em', textTransform: 'uppercase', color: good ? '#12633a' : '#174ea6' }}>
+        {summary.label}
+      </span>
+      <strong style={{ fontSize: compact ? 20 : 24, lineHeight: 1.1, color: good ? '#12633a' : '#202124' }}>
+        {summary.score}
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#5f6368' }}> / {summary.outOf}</span>
+      </strong>
+      {summary.nextStep && (
+        <span style={{ fontSize: 12.5, lineHeight: 1.45, color: '#3c4043', fontWeight: 600 }}>{summary.nextStep}</span>
+      )}
+      <span style={{ fontSize: 11.5, lineHeight: 1.4, color: '#5f6368' }}>{summary.teacherNote}</span>
     </div>
   );
 }
@@ -225,6 +273,11 @@ function SessionCard({ session, done, onStart, onChoose, disabled, total }) {
 export default function WeeklyPathGoalPanel({
   goal = null,
   progress = null,
+  // The completions the grade is computed from. Passing them rather than a
+  // pre-computed number keeps one implementation of the grade: the panel calls
+  // the same function the Classroom publisher calls, so the two cannot drift
+  // into showing a student one score and their family another.
+  completions = null,
   completedSlots = [],
   onStartSession = null,
   onChooseAlternative = null,
@@ -249,6 +302,11 @@ export default function WeeklyPathGoalPanel({
   const remaining = Math.max(0, required - completed);
   const complete = remaining === 0;
   const next = goal.sessions.find((session) => !done.has(session.slot));
+  // Null when the caller has no completions to hand, which simply means no
+  // grade card rather than a wrong one.
+  const gradeSummary = Array.isArray(completions)
+    ? describeWeeklyGradeForStudent({ goal, completions })
+    : null;
 
   if (compact) {
     return (
@@ -269,7 +327,10 @@ export default function WeeklyPathGoalPanel({
             {complete ? 'Anything else you practise this week is extra.' : 'Do them in any order, and you can swap a skill on any card.'}
           </span>
         </div>
-        <WeeklyProgressBar required={required} completed={completed} />
+        <div style={{ display: 'grid', gap: 9, justifyItems: 'stretch' }}>
+          <WeeklyProgressBar required={required} completed={completed} />
+          <WeeklyGradeCard summary={gradeSummary} compact />
+        </div>
       </section>
     );
   }
@@ -299,7 +360,10 @@ export default function WeeklyPathGoalPanel({
               </p>
             )}
           </div>
-          <WeeklyProgressBar required={required} completed={completed} />
+          <div style={{ display: 'grid', gap: 10, justifyItems: 'stretch' }}>
+            <WeeklyProgressBar required={required} completed={completed} />
+            <WeeklyGradeCard summary={gradeSummary} />
+          </div>
         </div>
 
         <div style={{ ...MUTED, fontSize: complete ? 15 : 14, color: complete ? '#245c33' : MUTED.color, fontWeight: complete ? 700 : 400 }}>

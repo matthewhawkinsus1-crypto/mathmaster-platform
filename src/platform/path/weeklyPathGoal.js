@@ -24,6 +24,7 @@ import { attachWeeklyAlternatives } from './weeklyPathChoice.js';
 import {
   GRADING_POLICY,
   evaluateWeeklyGoalProgress,
+  describeWeeklyGradeForStudent,
   gradeWeeklyGoal,
   matchWeeklyGoalCompletions,
   normalizeGradingPolicy,
@@ -34,6 +35,7 @@ import {
 export {
   GRADING_POLICY,
   evaluateWeeklyGoalProgress,
+  describeWeeklyGradeForStudent,
   gradeWeeklyGoal,
   matchWeeklyGoalCompletions,
   normalizeGradingPolicy,

@@ -26,6 +26,7 @@ export const MyMathPathDashboard = ({
   // dashboard still render — the week is an addition, never a gate.
   weeklyGoal = null,
   weeklyProgress = null,
+  weeklyCompletions = null,
   completedSlots = [],
   onPracticeAs = null,
   onStartSession,
@@ -69,6 +70,7 @@ export const MyMathPathDashboard = ({
           <WeeklyPathGoalPanel
             goal={weeklyGoal}
             progress={weeklyProgress}
+            completions={weeklyCompletions}
             completedSlots={completedSlots}
             onStartSession={onStartWeeklySession}
             compact

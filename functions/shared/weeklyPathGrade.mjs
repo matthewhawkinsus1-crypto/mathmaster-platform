@@ -272,3 +272,84 @@ export const gradeWeeklyGoal = ({
       : `${progress.completedOnTime} of ${progress.required} sessions completed by the due date.`,
   };
 };
+
+/*
+ * THE WEEK'S GRADE, IN WORDS A STUDENT CAN ACT ON.
+ *
+ * A progress bar says how much is done. It does not say what that is worth,
+ * and "how am I doing" is the question students actually ask. The grade was
+ * computed all along — it just went to Google Classroom on Monday morning and
+ * was never shown to the person who earned it.
+ *
+ * THE NUMBER IS NOT RECOMPUTED HERE. It comes from gradeWeeklyGoal, the same
+ * call the Classroom publisher makes. A second implementation for the student
+ * view would drift, and the day it drifted a student would read one number on
+ * their screen while their family read another in the gradebook — which is
+ * exactly the failure this feature is supposed to prevent.
+ *
+ * MID-WEEK, THE NUMBER IS TRUE BUT NOT FINAL, AND SAYING SO IS THE WHOLE JOB.
+ * A student two sessions into a four-session week is genuinely at a low score
+ * and will be at a high one on Friday. The publisher already refuses to send a
+ * grade before the week ends for that reason. Showing the same number without
+ * the word "so far" would tell a student they are failing a week they have four
+ * days left to finish, so the provisional grade is always labelled, and it is
+ * always paired with what finishing is worth.
+ *
+ * WHAT FINISHING IS WORTH IS A PROMISE, NOT AN ESTIMATE. fullCompletionFloor is
+ * a floor in the grading policy: a student who completes every session cannot
+ * score below it whatever the practice revealed. That makes it safe to state as
+ * a guarantee, and it is the one sentence that turns a discouraging mid-week
+ * number into a reason to do the next session.
+ */
+export const describeWeeklyGradeForStudent = ({
+  goal = null,
+  completions = [],
+  policy = null,
+  now = Date.now(),
+} = {}) => {
+  if (!goal || !Array.isArray(goal.sessions) || !goal.sessions.length) return null;
+
+  const graded = gradeWeeklyGoal({ goal, completions, policy, now });
+  const { progress } = graded;
+  const required = Number(progress?.required) || 0;
+  const done = Number(progress?.completed) || 0;
+  const remaining = Math.max(0, required - done);
+  const complete = required > 0 && remaining === 0;
+  const floor = Number(graded.policy?.fullCompletionFloor) || 0;
+  const started = done > 0;
+
+  // Once the week is closed the number stops moving, so it stops being "so far"
+  // and becomes the grade.
+  const final = Boolean(graded.frozen);
+  const score = Math.round(graded.grade);
+
+  const status = final ? 'final' : complete ? 'complete' : started ? 'in_progress' : 'not_started';
+
+  const label = final ? "This week's grade" : 'Grade so far';
+
+  const nextStep = final
+    ? null
+    : complete
+      ? 'Every session is done. Anything else you practise this week is extra.'
+      : `Finish ${remaining} more session${remaining === 1 ? '' : 's'} to earn at least ${floor}.`;
+
+  return {
+    // The same number the gradebook will carry, out of 100.
+    score,
+    outOf: 100,
+    final,
+    complete,
+    status,
+    passing: graded.passing,
+    label,
+    headline: `${label}: ${score} out of 100`,
+    nextStep,
+    // Stated once, plainly, so a student is never surprised by where it went.
+    teacherNote: final
+      ? 'Your teacher has this grade for the week.'
+      : 'This goes to your teacher when the week closes on Sunday night.',
+    completed: done,
+    required,
+    remaining,
+  };
+};
