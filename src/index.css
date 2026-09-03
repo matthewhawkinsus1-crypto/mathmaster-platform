@@ -238,6 +238,33 @@ math-field:focus-within {
   box-shadow: 0 5px 16px rgba(153, 92, 0, 0.10);
 }
 
+.mathmaster-question-task-context {
+  max-width: 860px;
+  margin: -3px auto 8px;
+}
+
+.mathmaster-question-task-context .mathmaster-reference-info-card {
+  margin: 0;
+  padding: 10px 14px 11px;
+  border-left-width: 6px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.mathmaster-question-task-context .mathmaster-reference-info-kicker {
+  margin-bottom: 4px;
+}
+
+.mathmaster-question-task-context .mathmaster-reference-info-statements {
+  gap: 5px;
+}
+
+.mathmaster-question-task-context .mathmaster-reference-statement,
+.mathmaster-question-task-context .mathmaster-reference-statement.is-emphasis {
+  font-size: 15px;
+  line-height: 1.42;
+}
+
 .mathmaster-reference-info-kicker {
   margin-bottom: 7px;
   color: #8a4b00;
