@@ -556,6 +556,7 @@ export const buildAuthoringContract = ({ generatedAt = new Date(), courseId = nu
   '- Every question needs a student-facing prompt, a primary standard/alignment, and studentActions.',
   '- Do NOT author type, toolId, functionSpec, analysisRequests, viewport bounds, Firestore fields, attempts, mastery weights, readiness, or other runtime plumbing.',
   '- Preserve source representation fidelity: graph tasks show graphs, table tasks show tables, mapping tasks use mappings, number-line tasks use number lines.',
+  '- For constructInterval/number-line inequalities, finite graph min/max values are DISPLAY bounds only. For an unbounded ray or union, use null for the mathematical unbounded endpoint; never turn the viewport edge into a closed or open mathematical endpoint.',
   '- When the student is supposed to perform algebraic solving steps, use studentActions ["solveStepByStep"] and supply the equation. Do not replace the solving process with several answer boxes merely because there may be multiple solutions.',
   '- solveStepByStep is the semantic gateway for the full MathMaster solving workspace. MathMaster automatically routes ordinary linear equations to the balance workspace and routes absolute-value equations, inequalities/compound inequalities, and squared/completing-the-square structures to the advanced relation workspace. Do not author type/toolId to choose between them.',
   '- Reference information is not a hint or an answer key. Omit `referenceInfo` when the prompt already contains the givens the student needs.',
