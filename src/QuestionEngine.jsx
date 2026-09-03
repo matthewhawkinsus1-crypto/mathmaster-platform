@@ -731,9 +731,12 @@ export default function QuestionEngine({
     />
   ) : null;
 
+  const questionReferencePanel = referenceInfo
+    ? <ReferenceInfoCard referenceInfo={referenceInfo} />
+    : null;
+
   const questionContextPanel = (
     <div className="mathmaster-question-context-panel">
-      <ReferenceInfoCard referenceInfo={referenceInfo} />
       {!supportPresentation.declutter && (
         <div
           role="status"
@@ -832,6 +835,7 @@ export default function QuestionEngine({
       <MobileViewportContainer
         promptText={processedQuestion?.prompt || processedQuestion?.scenario || 'Complete the math task.'}
         taskMeta={questionAlignmentPanel}
+        taskContextPanel={questionReferencePanel}
         contextPanel={questionContextPanel}
         toolWorkspace={(
       <div className="mathmaster-question-tool-workspace" style={{ position: 'relative' }}>
