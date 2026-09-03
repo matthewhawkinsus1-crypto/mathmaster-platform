@@ -175,11 +175,16 @@ const analysisRequestsFromActions = (actions, q = {}) => {
   map.forEach(([action, kind]) => {
     if (!actions.includes(action) || requests.some((r) => r.kind === kind)) return;
     const existing = authoredFor(kind);
+    const requestedNotation = clean(existing?.notation) || fallbackNotation;
+    const notation = clean(q.courseId).toLowerCase() === 'algebra1'
+      && ['domain', 'range'].includes(kind)
+      ? 'inequality'
+      : requestedNotation;
     requests.push({
       ...(existing || {}),
       id: existing?.id || kind,
       kind,
-      notation: clean(existing?.notation) || fallbackNotation,
+      notation,
     });
   });
   const points = [
