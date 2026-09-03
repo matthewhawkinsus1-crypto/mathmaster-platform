@@ -10,6 +10,8 @@ import {
   defaultAssignmentCreatorPlan,
 } from './components/teacher/assignmentCreatorPlan.js';
 import {
+  assignmentAiDiagnostics,
+  assignmentAiFailureMessage,
   assignmentAiFallbackRecommended,
   buildAssignmentWithAI,
 } from './services/assignmentAiService.js';
@@ -162,13 +164,19 @@ export default function AssignmentIntake({
       const built = await buildAssignmentWithAI(request);
       await acceptJson(built.assignmentJson, 'Built in MathMaster');
     } catch (error) {
+      // The reason used to be discarded here in favour of one generic message,
+      // which is why a billing problem, an unreachable model and a timeout all
+      // looked identical. Always lead with what actually happened.
+      const reason = assignmentAiFailureMessage(error);
+      const diagnostics = assignmentAiDiagnostics(error);
+      const detail = diagnostics ? `${reason} (${diagnostics})` : reason;
       if (assignmentAiFallbackRecommended(error)) {
         toastInfo?.(
-          'Built-in AI is unavailable right now',
-          'Your assignment plan is safe. Use “Copy Complete AI Build Request” and paste it into ChatGPT, Claude, or Gemini, then bring the finished assignment back here.',
+          'Built-in AI could not finish',
+          `${detail} Your assignment plan is safe — use “Copy Complete AI Build Request” and paste it into ChatGPT, Claude, or Gemini, then bring the finished assignment back here.`,
         );
       } else {
-        toastError?.('Could not build the assignment', error.message);
+        toastError?.('Could not build the assignment', detail);
       }
     } finally {
       setAiBusy(false);

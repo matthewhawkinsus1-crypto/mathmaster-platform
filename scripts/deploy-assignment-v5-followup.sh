@@ -8,7 +8,8 @@ cd "$REPO_ROOT"
 
 echo "=== MathMaster Assignment V5 focused deploy ==="
 echo "Project: $PROJECT"
-echo "Surfaces: Hosting + authorAssignmentWithAI + hydrateAssignmentCcmr"
+echo "Surfaces: Hosting + authorAssignmentWithAI + repairAssignmentQuestionWithAI + assignmentAiSelfTest + hydrateAssignmentCcmr"
+echo "Everything else stays on its current deployed version, so this is minutes, not an hour."
 echo
 
 for cmd in git npm firebase curl; do
@@ -56,7 +57,7 @@ npm run test:assignment-v5-followup
 echo
 echo "5/6 Deploying only the surfaces changed by this upgrade..."
 echo "Firebase will run the normal Hosting and Functions predeploy hooks."
-firebase deploy --only hosting,functions:authorAssignmentWithAI,functions:hydrateAssignmentCcmr --project "$PROJECT"
+firebase deploy --only hosting,functions:authorAssignmentWithAI,functions:repairAssignmentQuestionWithAI,functions:assignmentAiSelfTest,functions:hydrateAssignmentCcmr --project "$PROJECT"
 
 echo
 echo "6/6 Verifying live Hosting and callable registration..."
@@ -68,14 +69,13 @@ if [ "$HTTP_STATUS" != "200" ]; then
 fi
 
 FUNCTION_LIST="$(firebase functions:list --project "$PROJECT")"
-echo "$FUNCTION_LIST" | grep -F "authorAssignmentWithAI" >/dev/null || {
-  echo "authorAssignmentWithAI was not found in the deployed function list." >&2
-  exit 5
-}
-echo "$FUNCTION_LIST" | grep -F "hydrateAssignmentCcmr" >/dev/null || {
-  echo "hydrateAssignmentCcmr was not found in the deployed function list." >&2
-  exit 6
-}
+for NAME in authorAssignmentWithAI repairAssignmentQuestionWithAI assignmentAiSelfTest hydrateAssignmentCcmr; do
+  echo "$FUNCTION_LIST" | grep -F "$NAME" >/dev/null || {
+    echo "$NAME was not found in the deployed function list." >&2
+    exit 5
+  }
+  echo "  registered: $NAME"
+done
 
 echo
 echo "Deployed commit:"
@@ -84,3 +84,8 @@ git log --oneline -1
 echo
 echo "=== Focused Assignment V5 deploy complete ==="
 echo "Refresh MathMaster with a hard reload before testing the student assignment experience."
+echo
+echo "NEXT: sign in as the root administrator and open"
+echo "  Administration -> Assignment AI health -> Run AI connection check"
+echo "That one check names the cause if the AI still will not build:"
+echo "  credential, model entitlement, OpenAI billing quota, or network egress."

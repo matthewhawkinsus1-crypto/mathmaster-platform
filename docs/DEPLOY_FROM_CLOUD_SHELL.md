@@ -1,5 +1,11 @@
 # Deploying MathMaster from Google Cloud Shell
 
+> **This site is live and holds real student records.** Deploys land in front of
+> real classes, and the Administration tab's **Pre-production reset** permanently
+> deletes student accounts, grades, attempts and Path history. Once the roster is
+> real, close that door for good with **Lock reset for production** — the lock is
+> one-way and cannot be undone.
+
 ## Assignment V5 pre-production release
 
 Assignment V5 now includes built-in AI assignment authoring. Before the first deploy of this release, create the Firebase server secret once:
@@ -10,7 +16,38 @@ firebase functions:secrets:set OPENAI_API_KEY --project mathmaster-aleks
 
 When Firebase prompts for the value, paste the OpenAI key created for **MathMaster Assignment AI**. The key stays in Firebase Secret Manager and is not placed in browser code or the repository.
 
-For this release, the preferred deployment is the guarded one-command helper:
+The API project behind that key also needs available billing credit and access to
+the configured model. A key that is valid but out of credit is the single most
+common reason the built-in AI stops working, and it is not something a deploy can
+fix.
+
+### Checking the AI after a deploy
+
+Sign in as the root administrator and open **Administration → Assignment AI
+health → Run AI connection check**. It makes one tiny real request and names the
+cause directly — credential, model entitlement, billing quota, or network egress
+— instead of the generic "AI is unavailable". Every teacher-facing AI failure is
+also written to Cloud Logging under `Integrated assignment AI failed` and to the
+`assignmentAiAudit` collection, with provider status and token counts but no
+prompt, no assignment content, and nothing student-identifying.
+
+Two optional Functions environment values tune the authoring model:
+
+| Variable | Default | Use it when |
+| --- | --- | --- |
+| `OPENAI_ASSIGNMENT_MODEL` | `gpt-5` | The API project should author with a different model. |
+| `OPENAI_ASSIGNMENT_REASONING_EFFORT` | `medium` (`low` for repairs) | Builds are timing out or exhausting the output budget. |
+
+To ship only the AI surfaces after a change to them, use the focused helper
+instead of a full deploy — it pushes Hosting plus `authorAssignmentWithAI`,
+`repairAssignmentQuestionWithAI`, `assignmentAiSelfTest` and
+`hydrateAssignmentCcmr`:
+
+```
+bash scripts/deploy-assignment-v5-followup.sh
+```
+
+For a full release, the preferred deployment is the guarded one-command helper:
 
 ```
 cd ~ && { [ -d mathmaster-platform ] || git clone https://github.com/matthewhawkinsus1-crypto/mathmaster-platform.git; } && cd mathmaster-platform && git checkout main && git pull origin main && bash scripts/deploy-v5-preproduction.sh

@@ -18,9 +18,11 @@ import {
   separateHonorsDepthAiRepair,
 } from '../../platform/contract/honorsDepthAiRepair.js';
 import {
+  assignmentAiDiagnostics,
   assignmentAiFailureMessage,
   assignmentAiFallbackRecommended,
   buildAssignmentWithAI,
+  repairQuestionWithAI,
 } from '../../services/assignmentAiService.js';
 import RepresentationAudit from './RepresentationAudit';
 import SectionBalanceRigorAudit from './SectionBalanceRigorAudit.jsx';
@@ -341,6 +343,60 @@ export const LessonPreflightModal = ({
     }
   };
 
+  // Shared acceptance path for both repair routes. A replacement is only taken
+  // when it clears the blockers on its own question AND introduces no new
+  // blocker anywhere else; otherwise the assignment is left exactly as it was.
+  const acceptQuestionRepairReplacement = (replacement, issue, sourceLabel) => {
+    const candidate = replaceQuestionAtFlatIndex(
+      effectiveAssignmentV5,
+      repairTargetIndex,
+      replacement,
+    );
+    const candidateModel = buildAssignmentV5PreflightModel(candidate);
+    const afterGroups = groupQuestionPreflightIssues(candidateModel.errors, candidateModel.questions);
+    const afterTarget = afterGroups.find((entry) => entry.questionIndex === repairTargetIndex);
+    if (afterTarget?.errors?.length) {
+      throw new Error(`The replacement still has blockers:\n${afterTarget.errors.join('\n')}`);
+    }
+    const newErrors = newlyIntroducedPreflightErrors(validationErrors, candidateModel.errors);
+    if (newErrors.length) {
+      throw new Error(`The replacement introduced a new assignment blocker:\n${newErrors.join('\n')}`);
+    }
+    setWorkingAssignmentV5(candidateModel.assignmentV5);
+    setRepairTargetIndex(null);
+    setRepairInstruction('');
+    setRepairMessage(`${sourceLabel} replaced question ${issue.questionNumber}. MathMaster rechecked the assignment.`);
+  };
+
+  const repairQuestionWithMathMasterAi = async () => {
+    if (!allowQuestionRepair) return;
+    const issue = repairIssueForIndex(repairTargetIndex);
+    if (!issue?.question) return;
+    setRepairBusy(true);
+    setRepairMessage('');
+    try {
+      const request = buildQuestionRepairRequest({
+        assignment: effectiveAssignmentV5,
+        question: issue.question,
+        instruction: repairInstructionText(),
+        questionNumber: issue.questionNumber,
+      });
+      const built = await repairQuestionWithAI(request);
+      acceptQuestionRepairReplacement(built.question, issue, 'MathMaster AI');
+    } catch (error) {
+      if (assignmentAiFallbackRecommended(error)) {
+        const diagnostics = assignmentAiDiagnostics(error);
+        setRepairMessage(
+          `${assignmentAiFailureMessage(error)}${diagnostics ? ` (${diagnostics})` : ''} Nothing was changed. You can still copy the repair request to ChatGPT, Claude, or Gemini and paste the result back here.`,
+        );
+      } else {
+        setRepairMessage(error.message);
+      }
+    } finally {
+      setRepairBusy(false);
+    }
+  };
+
   const pasteQuestionRepairReplacement = async () => {
     if (!allowQuestionRepair) return;
     const issue = repairIssueForIndex(repairTargetIndex);
@@ -352,26 +408,7 @@ export const LessonPreflightModal = ({
         throw new Error('Clipboard paste is unavailable in this browser.');
       }
       const raw = await navigator.clipboard.readText();
-      const replacement = parseQuestionRepairResponse(raw);
-      const candidate = replaceQuestionAtFlatIndex(
-        effectiveAssignmentV5,
-        repairTargetIndex,
-        replacement,
-      );
-      const candidateModel = buildAssignmentV5PreflightModel(candidate);
-      const afterGroups = groupQuestionPreflightIssues(candidateModel.errors, candidateModel.questions);
-      const afterTarget = afterGroups.find((entry) => entry.questionIndex === repairTargetIndex);
-      if (afterTarget?.errors?.length) {
-        throw new Error(`The replacement still has blockers:\n${afterTarget.errors.join('\n')}`);
-      }
-      const newErrors = newlyIntroducedPreflightErrors(validationErrors, candidateModel.errors);
-      if (newErrors.length) {
-        throw new Error(`The replacement introduced a new assignment blocker:\n${newErrors.join('\n')}`);
-      }
-      setWorkingAssignmentV5(candidateModel.assignmentV5);
-      setRepairTargetIndex(null);
-      setRepairInstruction('');
-      setRepairMessage(`Question ${issue.questionNumber} replacement accepted. MathMaster rechecked the assignment.`);
+      acceptQuestionRepairReplacement(parseQuestionRepairResponse(raw), issue, 'Outside AI');
     } catch (error) {
       setRepairMessage(error.message);
     } finally {
@@ -1282,7 +1319,7 @@ export const LessonPreflightModal = ({
                     type="button"
                     onClick={() => beginQuestionRepair(issue.questionIndex)}
                     disabled={!allowQuestionRepair}
-                    title={!allowQuestionRepair ? 'Duplicate the assignment before rewriting question content because student records already exist.' : 'Build a targeted AI repair request for this question.'}
+                    title={!allowQuestionRepair ? 'Duplicate the assignment before rewriting question content because student records already exist.' : 'Repair this question with MathMaster AI, or build a request for an outside AI.'}
                     style={{ minHeight: 40, padding: '8px 12px', border: '1px solid #1a73e8', borderRadius: 7, background: '#fff', color: allowQuestionRepair ? '#174ea6' : '#9aa0a6', fontWeight: 800, cursor: allowQuestionRepair ? 'pointer' : 'not-allowed' }}
                   >
                     Repair with AI
@@ -1300,6 +1337,9 @@ export const LessonPreflightModal = ({
                       />
                     </label>
                     <div style={{ display: 'flex', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
+                      <button type="button" onClick={repairQuestionWithMathMasterAi} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: 0, borderRadius: 7, background: '#6f2da8', color: '#fff', fontWeight: 800 }}>
+                        {repairBusy ? 'Repairing…' : '✨ Repair with MathMaster AI'}
+                      </button>
                       <button type="button" onClick={copyQuestionRepairRequest} disabled={repairBusy} style={{ minHeight: 40, padding: '8px 12px', border: 0, borderRadius: 7, background: '#1a73e8', color: '#fff', fontWeight: 800 }}>
                         Copy AI Repair Request
                       </button>

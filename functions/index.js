@@ -9128,9 +9128,73 @@ async function reserveAssignmentAiUsage(db, teacherUid) {
   });
 }
 
-function translateAssignmentAiError(error) {
+// A build that never reached the model, or that the provider refused outright,
+// did not consume a teacher's daily allowance. Without this a misconfigured key
+// burned all fifty attempts in a couple of minutes and then reported the wrong
+// problem ("daily limit reached") for the rest of the day.
+const ASSIGNMENT_AI_REFUNDABLE_CODES = new Set([
+  "failed-precondition",
+  "unavailable",
+  "deadline-exceeded",
+  "resource-exhausted",
+]);
+
+async function refundAssignmentAiUsage(db, teacherUid, dayKey) {
+  const ref = db.collection(ASSIGNMENT_AI_USAGE_COLLECTION).doc(String(teacherUid));
+  try {
+    await db.runTransaction(async (transaction) => {
+      const snapshot = await transaction.get(ref);
+      if (!snapshot.exists) return;
+      const data = snapshot.data() || {};
+      if (data.dayKey !== dayKey) return;
+      const dayCount = Math.max(0, Number(data.dayCount) || 0);
+      if (!dayCount) return;
+      transaction.set(ref, {
+        dayCount: dayCount - 1,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    });
+  } catch (error) {
+    // A failed refund must never replace the real provider error the teacher
+    // is waiting on. Record it and let the original failure surface.
+    logger.warn("Could not refund an Assignment AI usage reservation", {
+      teacherUid,
+      message: error?.message || String(error),
+    });
+  }
+}
+
+// Diagnostics only: provider status, codes and token counts. Never the prompt,
+// never assignment content, never anything student-identifying.
+async function recordAssignmentAiFailure(db, entry) {
+  try {
+    await db.collection("assignmentAiAudit").add({
+      ...entry,
+      outcome: "failure",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    logger.warn("Could not write an Assignment AI failure audit record", {
+      message: error?.message || String(error),
+    });
+  }
+}
+
+// Every AI failure is logged here, including the ones MathMaster classified
+// itself. The previous version returned early for AssignmentAiError and so never
+// reached its own logger call: no provider failure was recorded anywhere, which
+// is why "the AI does not work" could not be diagnosed from the server side.
+function translateAssignmentAiError(error, context = {}) {
   if (error instanceof HttpsError) return error;
   if (error instanceof assignmentAi.AssignmentAiError) {
+    logger.error("Integrated assignment AI failed", {
+      ...context,
+      classified: true,
+      code: error.code || null,
+      httpStatus: error.status || null,
+      message: String(error.message || "").slice(0, 500),
+      diagnostics: error.details || null,
+    });
     return new HttpsError(
       error.code || "internal",
       error.message || "MathMaster could not build this assignment with AI.",
@@ -9139,6 +9203,8 @@ function translateAssignmentAiError(error) {
   }
   const rawMessage = String(error?.message || error || "");
   logger.error("Integrated assignment AI failed", {
+    ...context,
+    classified: false,
     name: error?.name || null,
     message: rawMessage,
   });
@@ -9290,31 +9356,59 @@ exports.hydrateAssignmentCcmr = onCall({
   }
 });
 
-exports.authorAssignmentWithAI = onCall({
-  secrets: ASSIGNMENT_AI_SECRETS,
-  timeoutSeconds: 300,
-  memory: "1GiB",
-}, async (request) => {
-  const teacherUid = await requireTeacher(request);
-  const prompt = String(request.data?.prompt || "").trim();
-  const requestedModel = String(readPublicEnv("OPENAI_ASSIGNMENT_MODEL", assignmentAi.DEFAULT_ASSIGNMENT_MODEL) || "").trim()
+function assignmentAiModel() {
+  return String(readPublicEnv("OPENAI_ASSIGNMENT_MODEL", assignmentAi.DEFAULT_ASSIGNMENT_MODEL) || "").trim()
     || assignmentAi.DEFAULT_ASSIGNMENT_MODEL;
+}
 
+function assignmentAiReasoningEffort(fallback) {
+  const configured = String(readPublicEnv("OPENAI_ASSIGNMENT_REASONING_EFFORT", "") || "").trim().toLowerCase();
+  return ["low", "medium", "high"].includes(configured) ? configured : fallback;
+}
+
+// Shared body for every integrated AI call. One reservation, one provider round
+// trip, one audit record whichever way it goes, and a refunded reservation when
+// the failure was infrastructure rather than the teacher's request.
+async function runAssignmentAiRequest(request, {
+  prompt,
+  mode,
+  reasoningEffort,
+  surface,
+}) {
+  const teacherUid = await requireTeacher(request);
+  const db = getFirestore();
+  const requestedModel = assignmentAiModel();
+  const context = {
+    surface,
+    mode,
+    teacherUid,
+    requestedModel,
+    promptCharacters: prompt.length,
+  };
+
+  let reservation = null;
   try {
-    await reserveAssignmentAiUsage(getFirestore(), teacherUid);
+    reservation = await reserveAssignmentAiUsage(db, teacherUid);
     const result = await assignmentAi.callOpenAiAssignmentAuthor({
       apiKey: readOpenAiApiKey(),
       prompt,
       model: requestedModel,
+      mode,
+      reasoningEffort: assignmentAiReasoningEffort(reasoningEffort),
+      timeoutMs: assignmentAi.DEFAULT_PROVIDER_TIMEOUT_MS,
     });
 
-    await getFirestore().collection("assignmentAiAudit").add({
+    await db.collection("assignmentAiAudit").add({
       teacherUid,
       teacherEmail: callerEmail(request),
       provider: "openai",
+      outcome: "success",
+      surface,
+      mode,
       model: result.model,
       responseId: result.responseId,
       usage: result.usage || null,
+      diagnostics: result.diagnostics || null,
       ccmrBank: result.ccmrBank || null,
       promptCharacters: prompt.length,
       createdAt: FieldValue.serverTimestamp(),
@@ -9322,6 +9416,110 @@ exports.authorAssignmentWithAI = onCall({
 
     return result;
   } catch (error) {
-    throw translateAssignmentAiError(error);
+    const translated = translateAssignmentAiError(error, context);
+    const code = String(translated?.code || "").replace(/^functions\//, "");
+    if (reservation && ASSIGNMENT_AI_REFUNDABLE_CODES.has(code)) {
+      await refundAssignmentAiUsage(db, teacherUid, reservation.dayKey);
+    }
+    if (reservation) {
+      await recordAssignmentAiFailure(db, {
+        teacherUid,
+        teacherEmail: callerEmail(request),
+        provider: "openai",
+        surface,
+        mode,
+        model: requestedModel,
+        code,
+        diagnostics: error instanceof assignmentAi.AssignmentAiError ? (error.details || null) : null,
+        message: String(translated?.message || "").slice(0, 500),
+        promptCharacters: prompt.length,
+        refunded: ASSIGNMENT_AI_REFUNDABLE_CODES.has(code),
+      });
+    }
+    throw translated;
+  }
+}
+
+exports.authorAssignmentWithAI = onCall({
+  secrets: ASSIGNMENT_AI_SECRETS,
+  timeoutSeconds: 300,
+  memory: "1GiB",
+}, async (request) => runAssignmentAiRequest(request, {
+  prompt: String(request.data?.prompt || "").trim(),
+  mode: "assignment",
+  reasoningEffort: "medium",
+  surface: "assignmentBuild",
+}));
+
+// Preflight's per-question repair. It asks for one replacement question rather
+// than a whole assignment, so it fits comfortably inside the output budget and
+// cannot quietly rewrite the rest of the lesson.
+exports.repairAssignmentQuestionWithAI = onCall({
+  secrets: ASSIGNMENT_AI_SECRETS,
+  timeoutSeconds: 120,
+  memory: "512MiB",
+}, async (request) => runAssignmentAiRequest(request, {
+  prompt: String(request.data?.prompt || "").trim(),
+  mode: "question",
+  reasoningEffort: "low",
+  surface: "questionRepair",
+}));
+
+// Administrator connectivity check. Deliberately tiny: it proves the credential,
+// the model entitlement, the billing quota and the egress path in one call, and
+// reports which of those failed instead of the generic "AI is unavailable".
+exports.assignmentAiSelfTest = onCall({
+  secrets: ASSIGNMENT_AI_SECRETS,
+  timeoutSeconds: 90,
+  memory: "256MiB",
+}, async (request) => {
+  await requireRootAdmin(request);
+  const requestedModel = assignmentAiModel();
+
+  let apiKey = "";
+  try {
+    apiKey = readOpenAiApiKey();
+  } catch (error) {
+    logger.error("Assignment AI self-test could not read the provider credential", {
+      message: error?.message || String(error),
+    });
+    return {
+      ok: false,
+      stage: "secret",
+      requestedModel,
+      code: "failed-precondition",
+      message: "OPENAI_API_KEY is not readable by this deployment. Set it with: firebase functions:secrets:set OPENAI_API_KEY --project mathmaster-aleks, then redeploy the AI functions.",
+    };
+  }
+
+  try {
+    const probe = await assignmentAi.probeAssignmentAiProvider({ apiKey, model: requestedModel });
+    logger.info("Assignment AI self-test succeeded", { requestedModel, diagnostics: probe.diagnostics });
+    return {
+      ok: true,
+      stage: "provider",
+      requestedModel,
+      reply: probe.reply,
+      diagnostics: probe.diagnostics,
+      message: `MathMaster reached OpenAI and ${probe.diagnostics?.servedModel || requestedModel} responded normally.`,
+    };
+  } catch (error) {
+    const code = error instanceof assignmentAi.AssignmentAiError ? error.code : "internal";
+    logger.error("Assignment AI self-test failed", {
+      requestedModel,
+      code,
+      httpStatus: error?.status || null,
+      message: String(error?.message || error).slice(0, 500),
+      diagnostics: error?.details || null,
+    });
+    return {
+      ok: false,
+      stage: "provider",
+      requestedModel,
+      code,
+      httpStatus: error?.status || null,
+      diagnostics: error?.details || null,
+      message: String(error?.message || error).slice(0, 500),
+    };
   }
 });
