@@ -870,9 +870,12 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
         : mode === 'analysis'
           ? 'Analyze the Graph'
           : 'Explore the Function';
+  const promptNamesEquation = /(?:[A-Za-z]\s*\([^)]*\)|\by)\s*=/.test(String(question.prompt || ''));
   const graphEquationLatex = question.showEquation === false
     ? ''
-    : String(question.equationLatex || '').trim() || formatGraphEquationLatex(functionSpec);
+    : (question.showEquation === true || promptNamesEquation)
+      ? String(question.equationLatex || '').trim() || formatGraphEquationLatex(functionSpec)
+      : '';
   const domainRangeOnly = stage === 'analysis'
     && analysisParts.length === 2
     && analysisParts.some((part) => part.kind === 'domain')
