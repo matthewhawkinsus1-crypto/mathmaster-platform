@@ -272,3 +272,38 @@ test('Honors CCMR transfer recognizes lesson TEKS stored in the supported standa
     'bank-backed A2.2A Practice should transfer when the lesson TEKS is carried in question.standard',
   );
 });
+
+
+test('Honors rigor can explicitly exempt a short Practice section from the CCMR target', () => {
+  const questions = [
+    {
+      type: 'relationshipModel',
+      activityRole: 'classwork',
+      prompt: 'Use the scenario to model the relationship.',
+      standard: 'A.2A',
+      dok: 2,
+    },
+    {
+      type: 'graphComparison',
+      activityRole: 'practice',
+      prompt: 'Compare the graphs and choose the statement that best supports your conclusion.',
+      fields: [{ id: 'justification', label: 'Best justification' }],
+      studentActions: ['compareGraphs', 'justifyReasoning'],
+      standard: 'A.2A',
+      dok: 3,
+    },
+  ];
+
+  const strict = inspectHonorsRigor(questions, { allowNarrowCheckpoint: true });
+  assert.equal(strict.checks.ccmrEnrichment, false);
+  assert.equal(strict.isHonorsReady, false);
+
+  const exempt = inspectHonorsRigor(questions, {
+    allowNarrowCheckpoint: true,
+    ccmrTargetRequired: false,
+  });
+  assert.equal(exempt.checks.justification, true);
+  assert.equal(exempt.ccmrTargetRequired, false);
+  assert.equal(exempt.missing.includes('ccmrEnrichment'), false);
+  assert.equal(exempt.isHonorsReady, true);
+});
