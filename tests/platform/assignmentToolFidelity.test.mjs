@@ -91,6 +91,32 @@ test('Algebra I contextual domain and range preserve words plus inequality notat
   assert.deepEqual(composed.grading.rangeInequality, ['0 ≤ y ≤ 75']);
 });
 
+test('identifyQuantities cannot compile into an empty independent/dependent interaction', () => {
+  assert.throws(
+    () => compileAuthoringIntentV5({
+      schemaVersion: 5,
+      assignment: {
+        title: 'Broken quantity-role task',
+        courseId: 'algebra1',
+        instructionalPurpose: 'review',
+        gradingPurpose: 'classwork',
+      },
+      sections: [{
+        role: 'classwork',
+        title: 'Classwork',
+        questions: [{
+          standard: 'A.2A',
+          prompt: 'A school bus can carry at most 48 students. Identify the input and output.',
+          studentActions: ['identifyQuantities', 'classifyContinuity'],
+          scenario: 'A school bus can carry at most 48 students.',
+          relationshipType: 'discrete',
+        }],
+      }],
+    }),
+    /fewer than two selectable quantities/i,
+  );
+});
+
 test('modeling equations accept V(t) and V as equivalent dependent-variable notation', () => {
   assert.equal(
     canonicalizeFunctionExpression('V = 12t'),
