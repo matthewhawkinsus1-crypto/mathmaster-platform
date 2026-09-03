@@ -8,6 +8,8 @@ import QuestionPrompt from './QuestionPrompt';
 import PathQuestionStimulus from './components/student/PathQuestionStimulus.jsx';
 import { FUNCTION_GRAPH_LABELS, evaluateGraphFunction, formatGraphEquationLatex } from './functionGraphUtils';
 import { POINT_FEATURES } from './analysisRequestCatalog';
+import { describeAnswerFormat } from './platform/interaction/answerFormatHints.js';
+import { figureDismissalKey, shouldOpenFigureEnlarged } from './platform/student/figurePresentation.js';
 import {
   analysisKeypadProfile,
   pathAnalysisTextMatches,
@@ -253,15 +255,24 @@ const analysisAnswerFormatFor = (part) => {
   return '';
 };
 
-const analysisPlaceholderFor = (part) => {
-  const answerFormat = analysisAnswerFormatFor(part);
-  if (answerFormat === 'orderedPair') return 'for example (2, -5)';
-  const keypad = analysisKeypadProfile(part);
-  if (keypad === 'interval') return 'for example [2, ∞)';
-  if (keypad === 'inequality') return 'for example x ≥ 2';
-  if (keypad === 'set') return 'for example {1, 2, 3}';
-  return '';
-};
+/**
+ * What shape this analysis field accepts, and how to say it.
+ *
+ * THE EXAMPLE USED TO BE THE PART THAT GOT CUT OFF. The placeholder read
+ * "for example x ≥ 2" inside a field in a 220px rail, so what a student saw was
+ * the words "for example" and nothing after them — the prefix survived and the
+ * example, the only informative part, was clipped away.
+ *
+ * The sentence and the example now live above the field, where they wrap, and
+ * the placeholder keeps only the short form. The wording itself comes from
+ * answerFormatHints, the same source the multi-answer fields use, so the two
+ * surfaces cannot drift into describing the same format differently.
+ */
+const analysisAnswerShape = (part) => describeAnswerFormat({
+  // The legacy inference above still decides the FORMAT; this only decides how
+  // to describe it. Older Path questions carry no answerFormat at all.
+  answerFormat: analysisAnswerFormatFor(part) || analysisKeypadProfile(part),
+});
 
 export default function InteractiveGraphWorkspace({ question, onStateChange, mode = 'investigate', onUndoStateChange = null, feedback = null, draftKey = null }) {
   const mobileInteraction = useMobileInteractionMode();
@@ -280,6 +291,21 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
   const [activeAnalysisPartId, setActiveAnalysisPartId] = useState(null);
   const [stage, setStage] = useLocalDraftState(draftKey ? `${draftKey}:graph-stage` : null, mode === 'analysis' ? 'analysis' : 'construct');
   const lastMarkerFeedbackRef = useRef('');
+  const [viewportWidth, setViewportWidth] = useState(
+    () => (typeof window === 'undefined' ? 0 : Number(window.innerWidth) || 0),
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const measure = () => setViewportWidth(Number(window.innerWidth) || 0);
+    measure();
+    window.addEventListener('resize', measure);
+    window.addEventListener('orientationchange', measure);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('orientationchange', measure);
+    };
+  }, []);
 
   const functionSpec = question.functionSpec || {};
   const graph = question.graph || {};
@@ -881,6 +907,17 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
     && analysisParts.some((part) => part.kind === 'domain')
     && analysisParts.some((part) => part.kind === 'range');
 
+  // The three-column domain/range layout exists only in the enlarged view,
+  // because embedded there is no room for 230 + graph + 230. Leaving it behind
+  // a button means the better layout reaches only the students who go looking
+  // for it, while everyone else reads that question through a 220px rail.
+  const openEnlarged = domainRangeOnly && shouldOpenFigureEnlarged({
+    question,
+    viewportWidth,
+    // The policy also reads an authored presentEnlarged flag, so a teacher can
+    // put any question in the big layout or keep any question out of it.
+  });
+
   // The stage row is a choice only when there is more than one stage. On a
   // domain-and-range question construction is off, so the row rendered a single
   // button that does nothing but say what screen you are already on.
@@ -948,7 +985,12 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
           the rest. It used to be `minmax(0, 760px)`, a cap the plane never
           actually reached because everything upstream is narrower — so the only
           effect of the fixed width was to shrink the graph. */}
-      <EnlargeableFigure label="Coordinate plane workspace" enlargeLabel="Enlarge graph">
+      <EnlargeableFigure
+        label="Coordinate plane workspace"
+        enlargeLabel="Enlarge graph"
+        openEnlarged={openEnlarged}
+        dismissKey={figureDismissalKey(question)}
+      >
       {graphEquationLatex && (
         <div
           className="mathmaster-enlarged-graph-equation"
@@ -1022,8 +1064,15 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                 const noneSelected = Boolean(analysis.noneSelections[part.id]);
                 const offersAllRealNumbers = ['domain', 'range'].includes(part.kind)
                   && String(part.notation || '').toLowerCase() === 'inequality';
+                const answerShape = analysisAnswerShape(part);
                 return <div key={part.id} className={`mathmaster-analysis-part mathmaster-analysis-part-${part.kind}`} style={{ marginTop: '9px', padding: '10px', borderRadius: '9px', border: `2px solid ${grade ? (grade.isCorrect ? '#188038' : '#d93025') : activeAnalysisPartId === part.id ? '#1a73e8' : '#d9e2f1'}`, background: grade && !grade.isCorrect ? '#fff8f7' : '#fff' }}>
                   <button type="button" onClick={() => setActiveAnalysisPartId(part.id)} style={{ width: '100%', border: 'none', background: 'transparent', textAlign: 'left', fontWeight: 'bold', color: '#202124' }}><MathText>{part.label}</MathText></button>
+                  {answerShape.hint && !['point', 'inversePoint'].includes(part.kind) && (
+                    <p style={{ margin: '5px 0 0', fontSize: '11.5px', lineHeight: 1.4, color: '#5f6368' }}>
+                      {answerShape.hint}
+                      {answerShape.example ? <> For example <strong style={{ color: '#3c4043' }}>{answerShape.example}</strong>.</> : null}
+                    </p>
+                  )}
                   {['point', 'inversePoint'].includes(part.kind) ? <>
                     {part.responseMode !== 'input' && <div style={{ marginTop: '5px', fontSize: '12px', color: '#5f6368' }}>{noneSelected ? 'Marked: does not exist' : `${selected.length}/${part.expected.length || 1} selected`}</div>}
                     {part.allowNone && part.responseMode !== 'input' && <button type="button" onClick={() => analysisHistory.setValue((current) => ({ ...current, noneSelections: { ...current.noneSelections, [part.id]: !current.noneSelections[part.id] }, selections: { ...current.selections, [part.id]: [] } }))} style={{ marginTop: '7px', padding: '6px 9px', borderRadius: '7px', border: '1px solid #c5d5ef', background: noneSelected ? '#e8f0fe' : '#fff', color: '#174ea6', fontWeight: 'bold' }}>Does not exist</button>}
@@ -1053,7 +1102,7 @@ export default function InteractiveGraphWorkspace({ question, onStateChange, mod
                         All Real Numbers
                       </button>}
                     </div>
-                    <MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} answerFormat={analysisAnswerFormatFor(part)} showToolsInitially placeholder={analysisPlaceholderFor(part)} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
+                    <MathInput value={analysis.answers[part.id] || ''} onChange={(value) => analysisHistory.setValue((current) => ({ ...current, answers: { ...current.answers, [part.id]: value } }))} toolProfile={analysisKeypadProfile(part)} answerFormat={analysisAnswerFormatFor(part)} showToolsInitially placeholder={answerShape.example} inputStatus={grade ? (grade.isCorrect ? 'correct' : 'incorrect') : 'neutral'} />
                   </div>}
                 </div>;
               })}

@@ -133,7 +133,23 @@ const EXIT_GROUP_KEY = {
   ariaLabel: 'Move the cursor out of the fraction, exponent or bracket',
 };
 
-const withExit = (keys) => [...keys, EXIT_GROUP_KEY];
+// A keypad needs the way out only if one of its own keys can put the cursor
+// inside something.
+//
+// MathLive placeholders are the tell: `\sqrt{#0}`, `#@^{2}` and
+// `\left|#0\right|` all leave the cursor in a group, and the space bar is the
+// only documented way out. `<`, `≤`, `[` and `,` do not — they are single
+// characters, and the cursor never goes anywhere it needs rescuing from.
+//
+// This was appended to every profile unconditionally, which put a button
+// labelled "out" on the inequality keypad, where nothing can open a group. That
+// keypad is the one domain and range questions use, so the least useful key on
+// the platform sat on its most-used pad. Deriving the decision from the keys
+// means a pad that gains a root or an exponent later gets the exit key with it,
+// and one that never does never shows it.
+const opensAGroup = (key) => /#0|#\?|#@/.test(String(key?.command || ''));
+
+const withExit = (keys) => (keys.some(opensAGroup) ? [...keys, EXIT_GROUP_KEY] : [...keys]);
 
 const getToolKeys = (profile, { isMobile = false, contextSymbols = [], functionNotationKeys = [] } = {}) => {
   const authoredFunctionKeys = (Array.isArray(functionNotationKeys) ? functionNotationKeys : [])
